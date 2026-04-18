@@ -68,6 +68,7 @@ class SolarAdapter:
                 "name": f"{config['name']}:connection",
                 "source": config["name"],
                 "target": extract_connection_target(config[CONF_CONNECTION]),
+                "is_time_sensitive": True,
                 "segments": segments,
             },
         ]

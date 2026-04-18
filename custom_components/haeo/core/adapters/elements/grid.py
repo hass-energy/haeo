@@ -85,6 +85,7 @@ class GridAdapter:
                 "name": f"{grid_name}:import",
                 "source": grid_name,
                 "target": target_name,
+                "is_external": True,
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
@@ -98,6 +99,7 @@ class GridAdapter:
                 "name": f"{grid_name}:export",
                 "source": target_name,
                 "target": grid_name,
+                "is_external": True,
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",

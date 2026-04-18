@@ -75,6 +75,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "grid_main:import",
                 "source": "grid_main",
                 "target": "network",
+                "is_external": True,
                 "segments": {
                     "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
                     "pricing": {"segment_type": "pricing", "price": [0.1]},
@@ -85,6 +86,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "grid_main:export",
                 "source": "network",
                 "target": "grid_main",
+                "is_external": True,
                 "segments": {
                     "power_limit": {"segment_type": "power_limit", "max_power": [3.0]},
                     "pricing": {"segment_type": "pricing", "price": [-0.05]},

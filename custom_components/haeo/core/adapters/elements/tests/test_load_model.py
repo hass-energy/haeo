@@ -56,6 +56,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "load_main:connection",
                 "source": "network",
                 "target": "load_main",
+                "is_time_sensitive": True,
                 "segments": {
                     "power_limit": {"segment_type": "power_limit", "max_power": [1.0, 2.0], "fixed": True},
                 },
@@ -83,6 +84,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "load_sheddable:connection",
                 "source": "network",
                 "target": "load_sheddable",
+                "is_time_sensitive": True,
                 "segments": {
                     "power_limit": {"segment_type": "power_limit", "max_power": [1.0, 2.0], "fixed": False},
                 },

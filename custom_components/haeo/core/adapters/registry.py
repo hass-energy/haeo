@@ -1,7 +1,7 @@
 """Element adapter registry and model element collection."""
 
 from collections.abc import Mapping
-from typing import Any, Final, Protocol, TypeGuard, runtime_checkable
+from typing import Any, Protocol, TypeGuard, runtime_checkable
 
 from custom_components.haeo.core.adapters.elements.battery import adapter as battery_adapter
 from custom_components.haeo.core.adapters.elements.battery_section import adapter as battery_section_adapter
@@ -14,21 +14,9 @@ from custom_components.haeo.core.adapters.elements.policy import adapter as poli
 from custom_components.haeo.core.adapters.elements.solar import adapter as solar_adapter
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
-
-# Element types that represent external power sources/sinks.
-_EXTERNAL_TYPES: Final[frozenset[ElementType]] = frozenset({ElementType.GRID})
-
-# Element types whose power output is time-sensitive (must be consumed now).
-_TIME_SENSITIVE_TYPES: Final[frozenset[ElementType]] = frozenset(
-    {
-        ElementType.SOLAR,
-        ElementType.LOAD,
-    }
-)
 
 
 @runtime_checkable
@@ -97,17 +85,6 @@ def collect_model_elements(
         element_type = loaded_params[CONF_ELEMENT_TYPE]
         model_elements = ELEMENT_TYPES[element_type].model_elements(loaded_params)
         all_model_elements.extend(model_elements)
-
-    # Derive connection properties from endpoint element types
-    name_to_type = {name: config[CONF_ELEMENT_TYPE] for name, config in participants.items()}
-    for model_element in all_model_elements:
-        if model_element.get("element_type") == MODEL_ELEMENT_TYPE_CONNECTION:
-            conn = _as_connection_config(model_element)
-            source_type = name_to_type.get(conn["source"])
-            target_type = name_to_type.get(conn["target"])
-            endpoint_types = {t for t in (source_type, target_type) if t is not None}
-            conn["is_external"] = bool(endpoint_types & _EXTERNAL_TYPES)
-            conn["is_time_sensitive"] = bool(endpoint_types & _TIME_SENSITIVE_TYPES)
 
     return sorted(
         all_model_elements,
