@@ -66,8 +66,9 @@ def parse_tag(tag: str) -> Release | None:
     patch = int(match.group(3))
     rc_raw = match.group(4)
     is_rc = rc_raw is not None
-    # Stable releases sort after their release candidates (same X.Y.Z); use a
-    # large sentinel for stable so the tuple comparison places it last.
+    # Within the same X.Y.Z, stable releases should sort *newer* than their RCs.
+    # `releases.sort(..., reverse=True)` puts larger tuples first, so use a large
+    # sentinel for the stable rc_rank to float it above any rcN.
     rc_rank = int(rc_raw) if rc_raw is not None else sys.maxsize
     return Release(tag=tag, version=tag[1:], sort_key=(major, minor, patch, rc_rank), is_rc=is_rc)
 
@@ -98,6 +99,27 @@ def fetch_releases(repo: str) -> list[Release]:
     return releases
 
 
+def _safe_extract(archive: zipfile.ZipFile, dest: Path) -> None:
+    """Extract ``archive`` into ``dest`` while rejecting Zip Slip path traversal.
+
+    Even though our zips come from trusted release assets, validating each member
+    keeps us safe if an asset is ever replaced or tampered with.
+    """
+    dest_root = dest.resolve()
+    for member in archive.infolist():
+        name = member.filename
+        if name.startswith("/") or "\\" in name or ".." in Path(name).parts:
+            msg = f"refusing to extract unsafe zip entry: {name!r}"
+            raise ValueError(msg)
+        target = (dest_root / name).resolve()
+        try:
+            target.relative_to(dest_root)
+        except ValueError as exc:
+            msg = f"zip entry escapes destination: {name!r}"
+            raise ValueError(msg) from exc
+    archive.extractall(dest)
+
+
 def download_docs(repo: str, tag: str, dest: Path) -> None:
     """Download the release's ``docs-<tag>.zip`` asset and extract it into ``dest``."""
     asset = docs_asset_name(tag)
@@ -122,7 +144,7 @@ def download_docs(repo: str, tag: str, dest: Path) -> None:
             shutil.rmtree(dest)
         dest.mkdir(parents=True)
         with zipfile.ZipFile(zip_path) as archive:
-            archive.extractall(dest)
+            _safe_extract(archive, dest)
 
 
 def copy_tree(src: Path, dst: Path) -> None:

@@ -3,9 +3,19 @@
 from __future__ import annotations
 
 from pathlib import Path
+import zipfile
+
+import pytest
 
 from tools import assemble_docs
-from tools.assemble_docs import Release, build_version_entries, docs_asset_name, parse_tag, write_redirect
+from tools.assemble_docs import (
+    Release,
+    _safe_extract,
+    build_version_entries,
+    docs_asset_name,
+    parse_tag,
+    write_redirect,
+)
 
 
 def test_parse_tag_stable() -> None:
@@ -37,7 +47,7 @@ def test_parse_tag_rejects_non_standard() -> None:
 
 
 def test_parse_tag_sort_order() -> None:
-    """Sorting newest-first groups RCs before their stable and higher X.Y.Z first."""
+    """Sorting newest-first puts higher X.Y.Z first and stable releases before matching RCs."""
     tags = ["v0.1.0", "v0.2.0", "v0.3.0rc1", "v0.3.0", "v0.3.3", "v0.4.0rc1"]
     parsed = [p for p in (parse_tag(t) for t in tags) if p is not None]
     parsed.sort(key=lambda r: r.sort_key, reverse=True)
@@ -97,3 +107,30 @@ def test_docs_asset_name() -> None:
 def test_module_constants() -> None:
     """Sanity-check module-level constants relied on by workflows."""
     assert assemble_docs.DEFAULT_CNAME == "haeo.io"
+
+
+def test_safe_extract_accepts_clean_zip(tmp_path: Path) -> None:
+    """A well-formed archive extracts normally."""
+    archive_path = tmp_path / "clean.zip"
+    with zipfile.ZipFile(archive_path, "w") as zf:
+        zf.writestr("index.html", "<!DOCTYPE html>")
+        zf.writestr("assets/app.js", "console.log('ok');")
+    dest = tmp_path / "out"
+    dest.mkdir()
+    with zipfile.ZipFile(archive_path) as zf:
+        _safe_extract(zf, dest)
+    assert (dest / "index.html").read_text() == "<!DOCTYPE html>"
+    assert (dest / "assets" / "app.js").exists()
+
+
+@pytest.mark.parametrize("unsafe_name", ["../escape.txt", "/etc/passwd", "a/../../escape.txt"])
+def test_safe_extract_rejects_traversal(tmp_path: Path, unsafe_name: str) -> None:
+    """Archives with path-traversal entries are refused before any files are written."""
+    archive_path = tmp_path / "evil.zip"
+    with zipfile.ZipFile(archive_path, "w") as zf:
+        zf.writestr(unsafe_name, "pwned")
+    dest = tmp_path / "out"
+    dest.mkdir()
+    with zipfile.ZipFile(archive_path) as zf, pytest.raises(ValueError, match="zip entry"):
+        _safe_extract(zf, dest)
+    assert list(dest.iterdir()) == []
