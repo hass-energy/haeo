@@ -22,11 +22,13 @@ import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
 from custom_components.haeo.coordinator.network import update_element
+from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
+from custom_components.haeo.core.adapters.policy_compilation import compile_policies
 from custom_components.haeo.core.adapters.registry import collect_model_elements
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model.network import CalibratedOptions, LexOptions, Network, SolveOptions
-from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema, ElementType
 from custom_components.haeo.core.state import EntityState
 
 # ---------------------------------------------------------------------------
@@ -103,7 +105,19 @@ def _build_network(
         network = Network(name="benchmark", periods=periods_hours)
     else:
         network = Network(name="benchmark", periods=periods_hours, options=options)
-    for element_config in collect_model_elements(loaded_configs):
+
+    sorted_model_elements = collect_model_elements(loaded_configs)
+
+    # Compile policy rules (same as coordinator/network.py)
+    policy_rules = [
+        rule
+        for cfg in loaded_configs.values()
+        if cfg.get("element_type") == ElementType.POLICY
+        for rule in extract_policy_rules(cfg)
+    ]
+    compiled_elements = compile_policies(sorted_model_elements, policy_rules)
+
+    for element_config in compiled_elements:
         network.add(element_config)
 
     return network

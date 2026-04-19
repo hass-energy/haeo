@@ -88,7 +88,8 @@ This breaks ties among cost-equivalent solutions by preferring earlier energy tr
 
 **Calibration (default mode)**
 
-After the first lexicographic solve, a binary search finds a blend weight that reproduces the lex decision variables in a single weighted-sum solve.
+After the first lexicographic solve, a binary search finds the largest blend weight that preserves primary cost optimality.
+A larger weight gives the secondary objective more influence, producing better tie-breaking in degenerate regions.
 Subsequent optimizations use this blended objective (`primary + weight * secondary`) in a single solve, which warm-starts efficiently.
 
 A full three-phase lexicographic mode is also available (`mode="lex"`) that adds a Phase 3 re-minimization of the primary with the secondary constrained.
