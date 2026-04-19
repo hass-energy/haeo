@@ -80,22 +80,26 @@ async def test_scenarios(
             hass.states.async_set(state_data["entity_id"], state_data["state"], state_data.get("attributes", {}))
         await hass.async_block_till_done()
 
-        # Create hub config entry and add to hass
+        # Create hub config entry and add to hass. The scenario_data fixture
+        # has already run the capture through the schema migration, so we can
+        # assume the post-refactor nested ``tiers`` / ``common`` / ``advanced``
+        # layout here without any flat-vs-nested branching.
         scenario_config = scenario_data["config"]
+        tiers_section = scenario_config[HUB_SECTION_TIERS]
         mock_config_entry = MockConfigEntry(
             domain=DOMAIN,
             data={
                 "integration_type": INTEGRATION_TYPE_HUB,
                 HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
                 HUB_SECTION_TIERS: {
-                    CONF_TIER_1_COUNT: scenario_config["tier_1_count"],
-                    CONF_TIER_1_DURATION: scenario_config["tier_1_duration"],
-                    CONF_TIER_2_COUNT: scenario_config.get("tier_2_count", 0),
-                    CONF_TIER_2_DURATION: scenario_config.get("tier_2_duration", 5),
-                    CONF_TIER_3_COUNT: scenario_config.get("tier_3_count", 0),
-                    CONF_TIER_3_DURATION: scenario_config.get("tier_3_duration", 30),
-                    CONF_TIER_4_COUNT: scenario_config.get("tier_4_count", 0),
-                    CONF_TIER_4_DURATION: scenario_config.get("tier_4_duration", 60),
+                    CONF_TIER_1_COUNT: tiers_section[CONF_TIER_1_COUNT],
+                    CONF_TIER_1_DURATION: tiers_section[CONF_TIER_1_DURATION],
+                    CONF_TIER_2_COUNT: tiers_section.get(CONF_TIER_2_COUNT, 0),
+                    CONF_TIER_2_DURATION: tiers_section.get(CONF_TIER_2_DURATION, 5),
+                    CONF_TIER_3_COUNT: tiers_section.get(CONF_TIER_3_COUNT, 0),
+                    CONF_TIER_3_DURATION: tiers_section.get(CONF_TIER_3_DURATION, 30),
+                    CONF_TIER_4_COUNT: tiers_section.get(CONF_TIER_4_COUNT, 0),
+                    CONF_TIER_4_DURATION: tiers_section.get(CONF_TIER_4_DURATION, 60),
                 },
                 HUB_SECTION_ADVANCED: {},
             },

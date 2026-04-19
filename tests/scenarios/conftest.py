@@ -6,6 +6,7 @@ from typing import Any, TypedDict, TypeGuard
 
 import pytest
 
+from .migrations import migrate_scenario
 from .syrupy_json_extension import ScenarioJSONExtension
 
 
@@ -117,12 +118,21 @@ def scenario_data(scenario_path: Path) -> ScenarioData:
     with outputs_file.open() as f:
         outputs = json.load(f)
 
-    # Reconstruct ScenarioData
-    data: ScenarioData = {
+    # Reconstruct ScenarioData and bring legacy captures forward to the current
+    # schema so the test harness can assume the post-refactor layout.
+    raw = {
         "config": config,
         "environment": environment,
         "inputs": inputs,
         "outputs": outputs,
+    }
+    migrated = migrate_scenario(raw)
+
+    data: ScenarioData = {
+        "config": migrated["config"],
+        "environment": migrated["environment"],
+        "inputs": migrated["inputs"],
+        "outputs": migrated["outputs"],
     }
 
     if not is_scenario_data(data):
