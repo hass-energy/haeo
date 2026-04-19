@@ -153,7 +153,11 @@ def compile_policies(
     vlan_connections: dict[int, set[str]] = {}
     for vlan_id in active_vlans:
         source_nodes = {n for n, v in tag_map.items() if v == vlan_id}
-        dest_nodes = {dst for src, dst, _ in flows if tag_map.get(src) == vlan_id}
+        # Tagged power must be able to reach ALL nodes, not just the
+        # policy destination — otherwise it gets stranded at intermediate
+        # nodes with no exit path (e.g., solar power cant reach load).
+        # Use all node names as destinations for reachability.
+        dest_nodes = names
         vlan_connections[vlan_id] = _find_reachable_connections(source_nodes, dest_nodes, directed_graph)
 
     # --- Step 5: Connection tagging ---
