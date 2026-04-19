@@ -1,7 +1,7 @@
 site_name: HAEO Documentation
 site_description: Home Assistant Energy Optimizer - Real-time energy management using linear programming
 site_author: Trent Houliston
-site_url: https://hass-energy.github.io/haeo/
+site_url: https://haeo.io/
 repo_url: https://github.com/hass-energy/haeo
 repo_name: hass-energy/haeo
 edit_uri: edit/main/docs/

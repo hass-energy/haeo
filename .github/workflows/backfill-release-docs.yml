@@ -1,0 +1,132 @@
+name: Backfill Release Docs
+
+# Ad-hoc workflow that builds docs-<tag>.zip for existing GitHub Releases and
+# uploads it as a release asset. Use this to retro-fit docs onto releases
+# created before docs.yml started attaching them automatically.
+#
+# Without --tag, only releases that don't yet have a docs-<tag>.zip asset are
+# processed. Pass --tag to rebuild a specific one (will clobber the existing
+# asset).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Specific release tag to rebuild (e.g. v0.3.3). Leave empty to process every release missing docs-<tag>.zip."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main (for git worktree host repo)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
+        with:
+          version: "latest"
+
+      - name: Install optipng
+        run: sudo apt-get install -y optipng
+
+      - name: Determine tags to process
+        id: tags
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${INPUT_TAG}" ]]; then
+            echo "tags=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
+            echo "Will process single tag: ${INPUT_TAG}"
+          else
+            tags=$(gh api "repos/${{ github.repository }}/releases" --paginate \
+              --jq '.[] | . as $r | select([.assets[].name] | index("docs-\($r.tag_name).zip") | not) | .tag_name' \
+              | tr '\n' ' ')
+            echo "tags=${tags}" >> "$GITHUB_OUTPUT"
+            echo "Will process: ${tags:-<none>}"
+          fi
+
+      - name: Build and upload docs for each tag
+        if: steps.tags.outputs.tags != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAGS: ${{ steps.tags.outputs.tags }}
+        run: |
+          set -uo pipefail
+          failures=()
+          for tag in $TAGS; do
+            echo "::group::$tag"
+            slug="${tag//\//_}"
+            workdir="/tmp/src-${slug}"
+            stagedir="/tmp/stage-${slug}"
+            rm -rf "$workdir" "$stagedir"
+            mkdir -p "$stagedir"
+            if ! git worktree add --detach "$workdir" "$tag"; then
+              echo "::error::Failed to create worktree for $tag"
+              failures+=("$tag (worktree)")
+              rm -rf "$stagedir"
+              echo "::endgroup::"
+              continue
+            fi
+
+            asset="docs-${tag}.zip"
+
+            (
+              set -euo pipefail
+              cd "$workdir"
+
+              if [[ -f uv.lock ]]; then
+                uv sync --locked --all-extras --dev || uv sync --all-extras --dev
+              else
+                uv sync --all-extras --dev
+              fi
+
+              # Generate guide screenshots if this tag declares a `guide` pytest marker.
+              if grep -q '"guide:' pyproject.toml; then
+                echo "Tag $tag has guide tests; installing Playwright and regenerating screenshots."
+                uv run playwright install --with-deps firefox
+                uv run pytest -m guide -v --timeout=300
+                find docs -name '*.png' -exec optipng -o5 -quiet {} +
+              else
+                echo "Tag $tag has no guide marker; skipping screenshot generation."
+              fi
+
+              if grep -q '"zensical' pyproject.toml || [[ -f zensical.toml ]]; then
+                uv run zensical build
+              else
+                uv run mkdocs build
+              fi
+
+              (cd site && zip -r "${stagedir}/${asset}" .)
+            ) || {
+              echo "::error::Build failed for $tag"
+              failures+=("$tag (build)")
+              git worktree remove --force "$workdir" || true
+              rm -rf "$stagedir"
+              echo "::endgroup::"
+              continue
+            }
+
+            if ! gh release upload "$tag" "${stagedir}/${asset}" --clobber; then
+              echo "::error::Upload failed for $tag"
+              failures+=("$tag (upload)")
+            fi
+
+            rm -rf "$stagedir"
+            git worktree remove --force "$workdir" || true
+            echo "::endgroup::"
+          done
+
+          if (( ${#failures[@]} > 0 )); then
+            echo "::warning::Finished with failures: ${failures[*]}"
+            exit 1
+          fi
+          echo "All tags processed successfully."
