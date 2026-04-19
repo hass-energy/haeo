@@ -38,12 +38,12 @@ That count is the minimum required for a correct policy representation.
 
 ### Algorithm
 
-After VLAN assignment, compute which connections actually need each VLAN.
+After VLAN assignment, compute which connections actually need each VLAN using directed reachability.
 
 For each non-zero VLAN, identify the source nodes assigned to that VLAN.
-Identify destination nodes that policies allow for that VLAN's signature class.
-Compute the set of path connections between those source and destination sets.
-Assign the VLAN only to those reachable connections.
+Identify destination nodes that policies target for that VLAN's signature class.
+Compute forward reachability from sources (following connection direction) and backward reachability from destinations (reverse direction).
+Assign the VLAN only to connections whose endpoints appear in both the forward and backward reachable sets.
 
 ### Savings pattern
 
@@ -77,7 +77,7 @@ Policy: Grid -> Load: $0.05
 | Signatures     | Grid={(Load,0.05,None)}, Solar={}, Battery={}, Load={}    |
 | VLANs          | Grid=1, others=0, K=2                                     |
 | Naive baseline | K=5 (one per node plus default)                           |
-| Reachability   | VLAN 1 appears only on path connections from Grid to Load |
+| Reachability   | VLAN 1 appears only on directed path connections from Grid to Load |
 
 ### Four nodes, two policies, same price
 

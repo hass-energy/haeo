@@ -9,11 +9,11 @@ See [VLAN optimization](vlan-optimization.md) for variable minimization algorith
 Policies are a device-layer concept.
 Users configure source-destination pairs with prices and limits.
 The compilation pipeline transforms those rules into model-layer constructs.
-Those constructs include optimized VLAN assignments, connection tagging, node access lists, and scoped segments.
+Those constructs include optimized VLAN assignments, connection tagging, node outbound and inbound tags, and scoped segments.
 
-When any policy exists, the compiler prepends an implicit `* -> *` rule with no price.
-This ensures all source-destination pairs have VLAN paths, making unpolicied flows free.
-The implicit rule follows the same compilation pipeline as user-configured policies.
+The compiler uses a default-allow model: policied sources are forced onto their assigned VLAN, while unpolicied sources produce on tag 0.
+All sink nodes accept every active VLAN plus tag 0, so both policied and unpolicied power can reach any destination.
+Only sources with explicit policies receive non-zero tags, minimizing LP variable growth.
 
 ## Pipeline
 
@@ -24,8 +24,8 @@ graph TD
     C --> D[VLAN assignment]
     D --> E[Reachability analysis]
     E --> F[Connection tagging]
-    F --> G[Node source tags]
-    G --> H[Node access lists]
+    F --> G[Node outbound tags]
+    G --> H[Node inbound tags]
     H --> I[Pricing injection]
     I --> J[Model elements]
 ```
@@ -49,8 +49,10 @@ This yields the minimum VLAN count for correct policy behavior.
 
 ### Step 4: Reachability analysis
 
-For each VLAN, find connections on paths from source nodes to destination nodes.
-Only reachable connections receive variables for that VLAN.
+For each VLAN, find connections on directed paths from source nodes to destination nodes.
+Forward reachability follows connection direction (source → target); backward reachability follows reverse direction (target → source).
+Only connections whose endpoints appear in both the forward and backward reachable sets receive variables for that VLAN.
+This directed approach prevents tags from leaking onto adjacent connections not on a valid policy path.
 
 ### Step 5: Connection tagging
 
@@ -63,13 +65,12 @@ The node's `element_power_balance` constraint enforces that only the outbound ta
 
 ### Step 7: Node inbound tags
 
-Compute which VLANs each node can consume.
+Set `inbound_tags` on each sink node.
+All sinks accept tag 0 (unpolicied power) plus all active policy VLANs.
+This default-allow approach ensures both policied and unpolicied power can reach any sink.
 
-- A node can consume VLAN `v` if any policy has that node as a destination and the source matches VLAN `v`.
-- The implicit `* -> *` rule ensures every node is a destination for every source VLAN.
-
-Power on non-consumable VLANs can still flow through the node for routing.
-That power cannot terminate at the node.
+Junction nodes (neither source nor sink) do not receive inbound tags.
+Power on any VLAN can still flow through junction nodes for routing.
 
 ### Step 8: Pricing injection
 
@@ -106,28 +107,28 @@ Policies:
 
 | Step             | Result                                                                |
 | ---------------- | --------------------------------------------------------------------- |
-| Flow enumeration | Implicit `* -> *` (no price) + {(Grid,Load,0.05), (Solar,Load,0.02)}  |
-| Signatures       | Each node has a unique signature (implicit rule + explicit policies)  |
-| VLANs            | Each node gets a distinct VLAN                                        |
-| Reachability     | All VLANs reach all connections                                       |
-| Connection tags  | All connections carry all VLANs                                       |
-| Outbound tags    | Each node emits only its own VLAN                                     |
-| Inbound tags     | Each node consumes all VLANs                                          |
-| Pricing          | SW->Load: pricing(tag=grid_vlan,$0.05), pricing(tag=solar_vlan,$0.02) |
+| Flow enumeration | {(Grid,Load,0.05), (Solar,Load,0.02)}                                 |
+| Signatures       | Grid and Solar have different signatures; others have empty signatures|
+| VLANs            | Grid=1, Solar=2, others stay on tag 0                                 |
+| Reachability     | VLAN 1 on Grid→SW→Load path, VLAN 2 on Solar→SW→Load path            |
+| Connection tags  | Each connection carries only VLANs for paths through it               |
+| Outbound tags    | Grid emits VLAN 1, Solar emits VLAN 2, Battery emits tag 0            |
+| Inbound tags     | Load accepts tag 0, VLAN 1, and VLAN 2                                |
+| Pricing          | SW→Load: pricing(tag=grid_vlan,$0.05), pricing(tag=solar_vlan,$0.02)  |
 
 Result: Solar power is preferred over grid power because it has lower policy cost.
-Battery power flows freely at zero policy cost through its implicit rule VLAN.
+Battery power flows freely on tag 0 at zero policy cost.
 
 ## Testing
 
 Tests live in `custom_components/haeo/core/adapters/tests/test_policy_compilation.py`.
 
-- **Signature computation**: correct signatures with implicit allow-all rule.
-- **VLAN assignment**: all nodes get non-zero VLANs.
-- **Reachability**: correct connection tagging for tree topologies.
-- **Source enforcement**: `outbound_tags` set on all nodes.
-- **Default-allow**: unpolicied sources flow to policied destinations at zero cost.
-- **No bypass**: policied sources cannot avoid policy costs.
+- **Signature computation**: correct signatures from explicit policies only.
+- **VLAN assignment**: only policied sources get non-zero VLANs.
+- **Reachability**: directed connection tagging for tree topologies.
+- **Source enforcement**: `outbound_tags` set on policied sources and unpolicied source-capable nodes.
+- **Default-allow**: unpolicied sources flow to policied destinations at zero cost on tag 0.
+- **No bypass**: policied sources cannot avoid policy costs via tag 0.
 - **End-to-end**: full network optimization with policies produces correct costs.
 
 ## Related
