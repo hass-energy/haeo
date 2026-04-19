@@ -8,6 +8,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -372,3 +373,110 @@ async def test_v1_4_backfills_enabled_and_price_on_existing_policy_rules(hass: H
     assert len(rules) == 1
     assert rules[0]["enabled"] is True
     assert rules[0]["price"] == {"type": "constant", "value": 0.05}
+
+
+async def test_v1_4_strips_section_prefix_from_unique_ids(hass: HomeAssistant) -> None:
+    """Section-prefixed unique_ids are shortened to field name only."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Hub",
+        data={CONF_NAME: "Hub"},
+        version=1,
+        minor_version=v1_3.MINOR_VERSION,
+    )
+    entry.add_to_hass(hass)
+
+    registry = er.async_get(hass)
+
+    old_capacity = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_bat001_storage.capacity",
+        config_entry=entry,
+    )
+    old_price = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_bat001_pricing.price_source_target",
+        config_entry=entry,
+    )
+    registry.async_get_or_create(
+        "switch",
+        DOMAIN,
+        f"{entry.entry_id}_node001_curtailment",
+        config_entry=entry,
+    )
+
+    result = await v1_4.async_migrate_entry(hass, entry)
+    assert result is True
+    assert entry.minor_version == v1_4.MINOR_VERSION
+
+    capacity_entity_id = registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_capacity")
+    price_entity_id = registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_price_source_target")
+    assert capacity_entity_id == old_capacity.entity_id
+    assert price_entity_id == old_price.entity_id
+    assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_storage.capacity") is None
+    assert (
+        registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_pricing.price_source_target")
+        is None
+    )
+    assert registry.async_get_entity_id("switch", DOMAIN, f"{entry.entry_id}_node001_curtailment")
+
+
+async def test_v1_4_preserves_list_item_unique_ids(hass: HomeAssistant) -> None:
+    """List item unique_ids (for example rules.0.price) are preserved."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Hub",
+        data={CONF_NAME: "Hub"},
+        version=1,
+        minor_version=v1_3.MINOR_VERSION,
+    )
+    entry.add_to_hass(hass)
+
+    registry = er.async_get(hass)
+    registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_pol001_rules.0.price",
+        config_entry=entry,
+    )
+
+    result = await v1_4.async_migrate_entry(hass, entry)
+    assert result is True
+    assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_pol001_rules.0.price")
+
+
+async def test_v1_4_removes_section_prefixed_duplicates_when_target_unique_id_exists(
+    hass: HomeAssistant,
+) -> None:
+    """Duplicate section-prefixed entities are removed when stable unique_id already exists."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Hub",
+        data={CONF_NAME: "Hub"},
+        version=1,
+        minor_version=v1_3.MINOR_VERSION,
+    )
+    entry.add_to_hass(hass)
+
+    registry = er.async_get(hass)
+    stable_entry = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_bat001_capacity",
+        config_entry=entry,
+    )
+    duplicate_entry = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_bat001_storage.capacity",
+        config_entry=entry,
+    )
+
+    result = await v1_4.async_migrate_entry(hass, entry)
+    assert result is True
+    assert registry.async_get(stable_entry.entity_id) is not None
+    assert registry.async_get(duplicate_entry.entity_id) is None
+    assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_capacity") == stable_entry.entity_id
+    assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_storage.capacity") is None

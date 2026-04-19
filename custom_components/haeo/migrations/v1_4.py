@@ -19,6 +19,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
@@ -37,6 +38,9 @@ _POLICY_TYPE = "policy"
 
 _NONE_VALUE: dict[str, str] = {"type": "none"}
 _POLICIES_TITLE = "Policies"
+UNIQUE_ID_PART_COUNT = 3
+LIST_ITEM_PATH_PART_COUNT = 3
+SECTION_FIELD_PATH_PART_COUNT = 2
 
 
 def _policy_subentry(*, rules: list[dict[str, Any]]) -> dict[str, Any]:
@@ -146,6 +150,51 @@ def _strip_pricing_from_connection(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+async def _migrate_entity_unique_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Migrate entity unique_ids to stable field-name format and deduplicate conflicts."""
+    registry = er.async_get(hass)
+
+    def _migrate_unique_id(entity_entry: er.RegistryEntry) -> dict[str, Any] | None:
+        uid = entity_entry.unique_id
+        if not uid:
+            return None
+
+        parts = uid.split("_", 2)  # entry_id, subentry_id, field_path_key
+        if len(parts) != UNIQUE_ID_PART_COUNT:
+            return None
+
+        field_path_key = parts[2]
+        path_parts = field_path_key.split(".")
+
+        # List item fields (for example rules.0.price) stay path-based.
+        if len(path_parts) >= LIST_ITEM_PATH_PART_COUNT:
+            return None
+
+        if len(path_parts) == SECTION_FIELD_PATH_PART_COUNT:
+            new_key = path_parts[1]
+            new_uid = f"{parts[0]}_{parts[1]}_{new_key}"
+
+            conflict_entity_id = registry.async_get_entity_id(
+                entity_entry.domain,
+                entity_entry.platform,
+                new_uid,
+            )
+            if conflict_entity_id and conflict_entity_id != entity_entry.entity_id:
+                _LOGGER.info(
+                    "Removing duplicate entity %s to keep existing stable unique_id %s",
+                    entity_entry.entity_id,
+                    new_uid,
+                )
+                registry.async_remove(entity_entry.entity_id)
+                return None
+
+            return {"new_unique_id": new_uid}
+
+        return None
+
+    await er.async_migrate_entries(hass, entry.entry_id, _migrate_unique_id)
+
+
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Migrate existing config entries to version 1.4.
 
@@ -211,6 +260,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             len(new_rules),
             _POLICIES_TITLE,
         )
+
+    await _migrate_entity_unique_ids(hass, entry)
 
     hass.config_entries.async_update_entry(
         entry,
