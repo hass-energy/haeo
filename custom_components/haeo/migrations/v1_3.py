@@ -26,8 +26,8 @@ _POLICY_TYPE = "policy"
 _NONE_VALUE: dict[str, str] = {"type": "none"}
 _POLICIES_TITLE = "Policies"
 _DEFAULT_POLICY_PRICES: dict[tuple[str, str], frozenset[float]] = {
-    (_BATTERY_TYPE, CONF_PRICE_SOURCE_TARGET): frozenset({0.0}),
-    (_BATTERY_TYPE, CONF_PRICE_TARGET_SOURCE): frozenset({0.0, 0.01}),
+    (_BATTERY_TYPE, CONF_PRICE_SOURCE_TARGET): frozenset({0.0, 0.01}),
+    (_BATTERY_TYPE, CONF_PRICE_TARGET_SOURCE): frozenset({0.0, 0.001, 0.01}),
     (_SOLAR_TYPE, CONF_PRICE_SOURCE_TARGET): frozenset({0.0}),
 }
 UNIQUE_ID_PART_COUNT = 3
