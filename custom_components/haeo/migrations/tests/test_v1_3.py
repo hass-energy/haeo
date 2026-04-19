@@ -593,6 +593,24 @@ def test_migrate_subentry_load_maps_legacy_shedding() -> None:
     assert migrated[SECTION_CURTAILMENT][CONF_CURTAILMENT] == as_constant_value(True)
 
 
+def test_extract_pricing_rules_ignores_non_pricing_elements() -> None:
+    """Pricing rule extraction skips element types other than battery and solar."""
+    subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: load.ELEMENT_TYPE,
+            CONF_NAME: "Load",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {
+                CONF_PRICE_TARGET_SOURCE: {"type": "constant", "value": 0.2},
+            },
+        },
+        subentry_type=load.ELEMENT_TYPE,
+    )
+
+    rules = v1_3._extract_pricing_rules(dict(subentry.data), subentry)
+    assert rules == []
+
+
 async def test_async_migrate_entry_updates_entry_and_subentries(hass: HomeAssistant) -> None:
     """async_migrate_entry should update entry data and subentries."""
     entry = MockConfigEntry(
@@ -701,6 +719,207 @@ async def test_async_migrate_entry_deduplicates_unique_id_conflicts(hass: HomeAs
     assert result is True
     assert registry.async_get(stable_entry.entity_id) is not None
     assert registry.async_get(duplicate_entry.entity_id) is None
+
+
+async def test_async_migrate_entry_handles_non_constant_charge_price(hass: HomeAssistant) -> None:
+    """Non-constant charge price keeps value and logs migration warning."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+
+    battery_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Bat",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {
+                CONF_PRICE_TARGET_SOURCE: {"type": "entity", "value": ["sensor.price"]},
+            },
+        },
+        subentry_type=battery.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+
+    assert result is True
+    policy_subentry = next(s for s in entry.subentries.values() if s.subentry_type == "policy")
+    rules = policy_subentry.data[CONF_RULES]
+    assert len(rules) == 1
+    assert rules[0]["name"] == "Bat Charge"
+    assert rules[0]["price"] == {"type": "entity", "value": ["sensor.price"]}
+
+
+async def test_async_migrate_entry_handles_non_mapping_battery_pricing(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Non-mapping pricing values are treated as empty without creating policy rules."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+
+    battery_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Bat",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: "not-a-dict",
+        },
+        subentry_type=battery.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    monkeypatch.setattr(v1_3, "migrate_subentry_data", lambda subentry: dict(subentry.data))
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
+    assert all(s.subentry_type != "policy" for s in entry.subentries.values())
+
+
+async def test_async_migrate_entry_merges_into_existing_policy_and_strips_pricing(hass: HomeAssistant) -> None:
+    """Solar/load/battery pricing handling merges into existing policy subentry."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+
+    existing_policy = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: "policy",
+            CONF_NAME: "Policies",
+            CONF_RULES: [
+                {
+                    "name": "Existing Rule",
+                    "enabled": True,
+                    "source": ["Grid"],
+                    "target": ["Load"],
+                    "price": {"type": "constant", "value": 0.11},
+                }
+            ],
+        },
+        subentry_type="policy",
+    )
+    solar_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: solar.ELEMENT_TYPE,
+            CONF_NAME: "PV",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: {"type": "constant", "value": 0.03},
+            },
+        },
+        subentry_type=solar.ELEMENT_TYPE,
+    )
+    battery_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Bat",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: "not-a-dict",
+        },
+        subentry_type=battery.ELEMENT_TYPE,
+    )
+    load_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: load.ELEMENT_TYPE,
+            CONF_NAME: "Load",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {
+                CONF_PRICE_TARGET_SOURCE: {"type": "constant", "value": 0.2},
+            },
+        },
+        subentry_type=load.ELEMENT_TYPE,
+    )
+    connection_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: connection.ELEMENT_TYPE,
+            CONF_NAME: "Line",
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: {"type": "constant", "value": 0.1},
+            },
+        },
+        subentry_type=connection.ELEMENT_TYPE,
+    )
+
+    hass.config_entries.async_add_subentry(entry, existing_policy)
+    hass.config_entries.async_add_subentry(entry, solar_subentry)
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+    hass.config_entries.async_add_subentry(entry, load_subentry)
+    hass.config_entries.async_add_subentry(entry, connection_subentry)
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
+
+    updated_policy = next(s for s in entry.subentries.values() if s.subentry_type == "policy")
+    rules = updated_policy.data[CONF_RULES]
+    assert len(rules) == 2
+    assert rules[0]["name"] == "Existing Rule"
+    assert rules[1]["name"] == "PV Production"
+
+    updated_solar = next(s for s in entry.subentries.values() if s.subentry_type == solar.ELEMENT_TYPE)
+    assert SECTION_PRICING not in updated_solar.data
+
+    updated_battery = next(s for s in entry.subentries.values() if s.subentry_type == battery.ELEMENT_TYPE)
+    assert updated_battery.data[SECTION_PRICING] == {}
+
+    updated_load = next(s for s in entry.subentries.values() if s.subentry_type == load.ELEMENT_TYPE)
+    assert SECTION_PRICING not in updated_load.data
+
+    updated_connection = next(s for s in entry.subentries.values() if s.subentry_type == connection.ELEMENT_TYPE)
+    assert updated_connection.data[SECTION_PRICING] == {
+        CONF_PRICE_SOURCE_TARGET: {"type": "constant", "value": 0.1},
+    }
+
+
+async def test_async_migrate_entry_skips_solar_rule_without_price(hass: HomeAssistant) -> None:
+    """Solar entry without source-target price does not create a policy rule."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+
+    solar_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: solar.ELEMENT_TYPE,
+            CONF_NAME: "PV",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {},
+        },
+        subentry_type=solar.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, solar_subentry)
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
+    assert all(s.subentry_type != "policy" for s in entry.subentries.values())
+
+
+async def test_async_migrate_entry_unique_id_callback_edge_cases(
+    hass: HomeAssistant,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unique-ID migration handles malformed, empty, and list-item identifiers."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+
+    class DummyRegistryEntry:
+        def __init__(self, unique_id: str, entity_id: str) -> None:
+            self.unique_id = unique_id
+            self.entity_id = entity_id
+            self.domain = "number"
+            self.platform = DOMAIN
+
+    async def fake_migrate_entries(
+        _hass: HomeAssistant,
+        _entry_id: str,
+        entry_callback: Any,
+    ) -> None:
+        assert entry_callback(DummyRegistryEntry("", "number.empty")) is None
+        assert entry_callback(DummyRegistryEntry("invalid", "number.invalid")) is None
+        assert entry_callback(DummyRegistryEntry("entry_sub_rules.0.price", "number.rules")) is None
+
+        migrated = entry_callback(DummyRegistryEntry("entry_sub_storage.capacity", "number.capacity"))
+        assert migrated == {"new_unique_id": "entry_sub_capacity"}
+
+    monkeypatch.setattr(v1_3.er, "async_migrate_entries", fake_migrate_entries)
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
 
 
 async def test_async_migrate_entry_skips_when_up_to_date(hass: HomeAssistant) -> None:
