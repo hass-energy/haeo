@@ -197,7 +197,7 @@ def test_wildcard_excludes_source_only_from_destinations() -> None:
 
 
 def test_vlan_covers_reachable_subgraph() -> None:
-    """VLAN covers the relevant reachable subgraph between source and destination."""
+    """VLAN covers the directed path from source to destination."""
     elements = [
         _node("grid"),
         _node("solar"),
@@ -219,17 +219,24 @@ def test_vlan_covers_reachable_subgraph() -> None:
     _t = conns["sw_load"].get("tags")
     assert _t is not None
     assert grid_vlan in _t
+    # solar_sw is not on the directed path from grid to load
     _t = conns["solar_sw"].get("tags")
     assert _t is not None
-    assert grid_vlan in _t
+    assert grid_vlan not in _t
 
 
 # --- Access lists ---
 
 
 def test_inbound_tags_set_on_destination() -> None:
-    """Destination nodes get inbound tags from all source VLANs."""
-    elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
+    """Sink destination nodes get inbound tags including all active VLANs."""
+    elements = [
+        _node("grid"),
+        _node("solar"),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+        _conn("c2", "solar", "load"),
+    ]
     policies = [
         {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
         {"sources": ["solar"], "destinations": ["load"], "price": 0.02},
@@ -243,6 +250,7 @@ def test_inbound_tags_set_on_destination() -> None:
     assert _it is not None
     assert grid_vlan in _it
     assert solar_vlan in _it
+    assert 0 in _it  # default tag for unpolicied sources
 
 
 def test_routing_nodes_get_inbound_tags() -> None:
@@ -663,7 +671,7 @@ def test_compile_policies_junctions_only_returns_unchanged() -> None:
 
 
 def test_compile_policies_resolves_to_no_flows() -> None:
-    """Unknown endpoint names resolve to no explicit flows but hidden rule still applies."""
+    """Unknown endpoint names resolve to no flows and no VLANs."""
     elements = [
         _node("grid", is_source=True),
         _node("load", is_sink=True),
@@ -671,12 +679,12 @@ def test_compile_policies_resolves_to_no_flows() -> None:
     ]
     policies = [{"sources": ["nosuch"], "destinations": ["alsomissing"], "price": 0.05}]
     result = compile_policies(elements, policies)
-    # Hidden * -> * still generates VLANs for existing nodes
-    assert _outbound_tag(result, "grid") != 0
+    # No valid flows from unknown endpoints — elements pass through unchanged
+    assert result is elements
 
 
 def test_compile_policies_non_list_endpoints_resolve_to_no_flows() -> None:
-    """Non-list sources/destinations are ignored but hidden rule still applies."""
+    """Non-list sources/destinations are ignored and produce no VLANs."""
     elements = [
         _node("grid", is_source=True),
         _node("load", is_sink=True),
@@ -684,8 +692,8 @@ def test_compile_policies_non_list_endpoints_resolve_to_no_flows() -> None:
     ]
     policies = [{"sources": "grid", "destinations": ("load",), "price": 0.05}]
     result = compile_policies(elements, policies)
-    # Hidden * -> * still generates VLANs for existing nodes
-    assert _outbound_tag(result, "grid") != 0
+    # Non-list endpoints are not resolved — no flows, elements unchanged
+    assert result is elements
 
 
 def test_wildcard_destination_tags_each_sources_paths() -> None:

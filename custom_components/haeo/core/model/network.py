@@ -28,8 +28,9 @@ OnOffChoose = Literal["on", "off", "choose"]
 # range.  1e-12 is effectively zero influence; 1e-1 would dominate.
 _CAL_LOG_LO: Final = -12.0
 _CAL_LOG_HI: Final = -1.0
-_CAL_MAX_STEPS: Final = 40  # total bisection budget split across upper/lower searches
+_CAL_MAX_STEPS: Final = 40  # bisection budget for upper boundary search
 _CAL_CONVERGENCE: Final = 0.01  # stop bisection when interval < this (log10 decades)
+_CAL_MARGIN: Final = 1.0  # step back from upper boundary (log10 decades)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -87,9 +88,11 @@ class BlendedOptions(SimplexTuning):
 class CalibratedOptions(SimplexTuning):
     """Two-phase lex on first call, then calibrated blended fast path.
 
-    The first call runs phases 1 and 2 of lex, then binary-searches for
-    a blend weight that reproduces the lex primary variable values within
-    tolerance. Subsequent calls use the blended fast path.
+    The first call runs lex phases 1 and 2, then binary-searches for the
+    largest blend weight that preserves primary optimality.  A larger
+    weight gives the secondary objective more influence, producing better
+    tie-breaking in degenerate regions.  Subsequent calls use the
+    blended fast path with the calibrated weight.
     """
 
     mode: Literal["calibrated"] = "calibrated"
@@ -97,11 +100,6 @@ class CalibratedOptions(SimplexTuning):
 
 
 SolveOptions = LexOptions | BlendedOptions | CalibratedOptions
-
-
-# Calibration search bounds in log10 space.  The secondary objective can
-# be many orders of magnitude larger than the primary, so we need a wide
-# range.  1e-12 is effectively zero influence; 1e-1 would dominate.
 
 
 class Network:
@@ -370,39 +368,33 @@ class Network:
         lex_values: NDArray[np.float64],
         tolerance: float,
     ) -> float:
-        """Find the center of the safe weight zone for blended mode.
+        """Find the blend weight that best minimizes secondary cost.
 
-        Performs two binary searches in log10 space to locate the upper
-        and lower boundaries where blended mode reproduces the lex
-        primary decision variable values.  Returns the geometric mean
-        (midpoint in log space) to maximize robustness against problem
-        perturbations.
+        Searches in log10 space for the largest weight where the blended
+        primary cost stays within tolerance of the lex optimum.  A larger
+        weight gives the secondary objective more influence, producing
+        better tie-breaking without degrading the primary result.
 
-        The blended objective for variable *i* is
-        ``c1_i + w * c2_i``.  Since the perturbation scales linearly
-        with *w*, equal multiplicative changes in *w* produce equal
-        effects on the solution — so log space is the natural coordinate
-        for both searching and centering.
+        The check is one-sided: the blended primary cost must not exceed
+        the lex primary cost by more than the tolerance.  This is the
+        right criterion because adding secondary influence can only
+        increase (worsen) the primary cost.
 
-        The "safe zone" is the weight range where the LP solver lands on
-        the same vertex as lex for all primary variables.  Centering
-        within this zone provides maximum margin against coefficient
-        changes shifting the boundary.
+        Returns a weight stepped back from the upper boundary by
+        ``_CAL_MARGIN`` log10 decades, providing robustness against
+        coefficient drift between optimization cycles.
         """
         h = self._solver
 
-        # Primary variable indices: nonzero coefficient in primary cost vector.
-        pri_mask = cost_vectors[0] != 0
-        lex_pri = lex_values[pri_mask]
+        lex_primary_cost = float(cost_vectors[0] @ lex_values)
 
-        # If no variables have primary cost, any weight is safe.
-        if lex_pri.size == 0:
+        # If the primary objective vector is all zeros, any weight is safe.
+        if lex_primary_cost == 0.0 and not np.any(cost_vectors[0]):
             return 1e-3  # safe default — no primary cost to distort
 
-        # Absolute tolerance scaled to variable magnitudes.
-        abs_tol = max(1e-8, float(np.max(np.abs(lex_pri))) * tolerance)
+        abs_tol = max(1e-8, abs(lex_primary_cost) * tolerance)
 
-        def _primary_vars_match(log_w: float) -> bool:
+        def _primary_acceptable(log_w: float) -> bool:
             w = 10.0**log_w
             self._relax_lex_constraint()
             blended = cost_vectors[0] + w * cost_vectors[1]
@@ -411,63 +403,44 @@ class Network:
             if h.getModelStatus() != HighsModelStatus.kOptimal:
                 return False
             bl_vals = np.asarray(h.allVariableValues())
-            max_diff = float(np.max(np.abs(bl_vals[pri_mask] - lex_pri)))
-            return max_diff <= abs_tol
+            bl_primary_cost = float(cost_vectors[0] @ bl_vals)
+            return bl_primary_cost <= lex_primary_cost + abs_tol
 
         lo, hi = _CAL_LOG_LO, _CAL_LOG_HI
-        half_budget = _CAL_MAX_STEPS // 2
 
-        # --- Find upper edge: highest weight where primary vars match ---
-        if _primary_vars_match(hi):
+        # Find upper boundary: largest weight where primary is acceptable.
+        # Higher weight = better secondary cost, so we want the maximum.
+        if _primary_acceptable(hi):
             upper = hi
-        elif not _primary_vars_match(lo):
-            _LOGGER.warning(
-                "Calibration: primary vars don't match even at w=1e%g",
-                lo,
-            )
-            # Restore lex solution and fall back.
-            _set_cost_vector(h, all_col_indices, cost_vectors[0])
-            self._relax_lex_constraint()
-            h.run()
-            _ensure_optimal(h)
-            return 10.0**lo
-        else:
+        elif _primary_acceptable(lo):
             upper = _bisect_boundary(
                 lo,
                 hi,
-                _primary_vars_match,
-                max_steps=half_budget,
+                _primary_acceptable,
+                max_steps=_CAL_MAX_STEPS,
                 convergence=_CAL_CONVERGENCE,
             )
-
-        # --- Find lower edge: lowest weight where primary vars match ---
-        if upper == lo or _primary_vars_match(lo):
-            lower = lo
         else:
-            # Search from below: find lowest weight where match holds.
-            # Invert predicate so _bisect_boundary finds highest "not match",
-            # then step up to the first "match".
-            not_match_upper = _bisect_boundary(
-                lo,
-                upper,
-                lambda mid: not _primary_vars_match(mid),
-                max_steps=half_budget,
-                convergence=_CAL_CONVERGENCE,
+            _LOGGER.warning(
+                "Calibration: no blend weight preserves primary cost "
+                "within tolerance (%.2e); using minimum weight %.2e",
+                abs_tol,
+                10.0**lo,
             )
-            lower = not_match_upper + _CAL_CONVERGENCE
+            upper = lo
 
-        center = (upper + lower) / 2
-        weight = 10.0**center
+        # Step back from the boundary for robustness.
+        weight_log = max(lo, upper - _CAL_MARGIN)
+        weight = 10.0**weight_log
 
         _LOGGER.debug(
-            "Calibrated blend weight: %.2e (log10=%.2f, safe zone [%.1f, %.1f])",
+            "Calibrated blend weight: %.2e (log10=%.2f, upper boundary=%.1f)",
             weight,
-            center,
-            lower,
+            weight_log,
             upper,
         )
 
-        # Final solve at center weight to warm-start future blended calls.
+        # Final solve at chosen weight to warm-start future blended calls.
         self._relax_lex_constraint()
         blended = cost_vectors[0] + weight * cost_vectors[1]
         _set_cost_vector(h, all_col_indices, blended)

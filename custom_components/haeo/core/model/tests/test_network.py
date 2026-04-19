@@ -644,13 +644,38 @@ def test_bisect_boundary_respects_max_steps() -> None:
 def test_calibrated_mode_fallback_on_impossible_match(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Calibration falls back when tight tolerance makes all weights fail."""
+    """Calibration uses minimum weight when tight tolerance makes all weights fail."""
     network = _build_priced_network(CalibratedOptions(calibration_tolerance=1e-30))
 
     # First call triggers calibration with impossibly tight tolerance.
-    # This exercises the fallback path where _primary_vars_match returns
-    # False even at the lowest weight.
+    # No weight matches, so calibration uses the minimum weight and
+    # subsequent calls still use blended mode.
     result = network.optimize()
     assert np.isfinite(result)
-    # Should still produce a calibrated weight (the fallback value)
     assert network._calibrated_weight is not None
+
+    # Second call uses blended with the calibrated weight
+    result2 = network.optimize()
+    assert result == pytest.approx(result2)
+
+
+def test_calibrated_mode_zero_primary_cost_vector() -> None:
+    """Calibration returns safe default when primary cost vector is all zeros."""
+    network = Network(name="test", periods=np.array([1.0, 1.0]), options=CalibratedOptions())
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
+    # Pricing with all-zero prices: primary cost vector exists but is all zeros.
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "sink",
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": np.array([0.0, 0.0])},
+            },
+        }
+    )
+    result = network.optimize()
+    assert np.isfinite(result)
+    assert network._calibrated_weight == pytest.approx(1e-3)
