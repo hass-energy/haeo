@@ -174,7 +174,7 @@ class HaeoInputNumber(NumberEntity):
 
         # For list item fields, expose sibling fields from the list item
         if len(self._field_path) >= LIST_ITEM_FIELD_PATH_LENGTH:
-            own_field = self._field_path[2]
+            own_field = field_info.field_name
             item = get_nested_config_value_by_path(subentry.data, self._field_path[:2])
             if isinstance(item, Mapping):
                 for key, value in item.items():

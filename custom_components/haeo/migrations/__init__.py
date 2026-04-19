@@ -11,9 +11,7 @@ from . import v1_3
 
 type MigrationHandler = Callable[[HomeAssistant, ConfigEntry], Awaitable[bool]]
 
-MIGRATIONS: tuple[tuple[int, MigrationHandler], ...] = (
-    (v1_3.MINOR_VERSION, v1_3.async_migrate_entry),
-)
+MIGRATIONS: tuple[tuple[int, MigrationHandler], ...] = ((v1_3.MINOR_VERSION, v1_3.async_migrate_entry),)
 
 MIGRATION_MINOR_VERSION = MIGRATIONS[-1][0] if MIGRATIONS else 0
 
