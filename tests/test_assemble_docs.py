@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from tools import assemble_docs
-from tools.assemble_docs import Release, build_version_entries, parse_tag, write_redirect
+from tools.assemble_docs import Release, build_version_entries, docs_asset_name, parse_tag, write_redirect
 
 
 def test_parse_tag_stable() -> None:
@@ -88,7 +88,12 @@ def test_write_redirect(tmp_path: Path) -> None:
     assert '<link rel="canonical" href="./latest/">' in content
 
 
+def test_docs_asset_name() -> None:
+    """Release docs assets are namespaced by tag so each release gets its own filename."""
+    assert docs_asset_name("v0.3.3") == "docs-v0.3.3.zip"
+    assert docs_asset_name("v0.4.0rc1") == "docs-v0.4.0rc1.zip"
+
+
 def test_module_constants() -> None:
-    """Sanity-check a couple of module-level constants we rely on in workflows."""
-    assert assemble_docs.DOCS_ASSET == "docs.zip"
+    """Sanity-check module-level constants relied on by workflows."""
     assert assemble_docs.DEFAULT_CNAME == "haeo.io"

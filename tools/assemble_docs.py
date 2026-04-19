@@ -37,9 +37,13 @@ import tempfile
 from typing import Any
 import zipfile
 
-DOCS_ASSET = "docs.zip"
 DEFAULT_CNAME = "haeo.io"
 TAG_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)(?:rc(\d+))?$")
+
+
+def docs_asset_name(tag: str) -> str:
+    """Return the expected docs asset filename for a release tag (e.g. ``docs-v0.3.3.zip``)."""
+    return f"docs-{tag}.zip"
 
 
 @dataclass(frozen=True)
@@ -69,7 +73,7 @@ def parse_tag(tag: str) -> Release | None:
 
 
 def fetch_releases(repo: str) -> list[Release]:
-    """Return releases (newest first) that have a ``docs.zip`` asset attached."""
+    """Return releases (newest first) that have a ``docs-<tag>.zip`` asset attached."""
     result = subprocess.run(  # noqa: S603
         ["gh", "api", f"repos/{repo}/releases", "--paginate"],  # noqa: S607
         capture_output=True,
@@ -85,8 +89,9 @@ def fetch_releases(repo: str) -> list[Release]:
             continue
         assets = entry.get("assets") or []
         names = {str(asset.get("name") or "") for asset in assets}
-        if DOCS_ASSET not in names:
-            print(f"  skipping {tag}: no {DOCS_ASSET} asset")
+        expected = docs_asset_name(tag)
+        if expected not in names:
+            print(f"  skipping {tag}: no {expected} asset")
             continue
         releases.append(parsed)
     releases.sort(key=lambda r: r.sort_key, reverse=True)
@@ -94,7 +99,8 @@ def fetch_releases(repo: str) -> list[Release]:
 
 
 def download_docs(repo: str, tag: str, dest: Path) -> None:
-    """Download ``docs.zip`` for a release and extract it into ``dest``."""
+    """Download the release's ``docs-<tag>.zip`` asset and extract it into ``dest``."""
+    asset = docs_asset_name(tag)
     with tempfile.TemporaryDirectory() as td:
         subprocess.run(  # noqa: S603
             [  # noqa: S607
@@ -105,13 +111,13 @@ def download_docs(repo: str, tag: str, dest: Path) -> None:
                 "--repo",
                 repo,
                 "--pattern",
-                DOCS_ASSET,
+                asset,
                 "--dir",
                 td,
             ],
             check=True,
         )
-        zip_path = Path(td) / DOCS_ASSET
+        zip_path = Path(td) / asset
         if dest.exists():
             shutil.rmtree(dest)
         dest.mkdir(parents=True)
@@ -208,7 +214,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Listing releases for {repo}")
     releases = fetch_releases(repo)
-    print(f"Found {len(releases)} release(s) with {DOCS_ASSET}")
+    print(f"Found {len(releases)} release(s) with a docs-<tag>.zip asset")
     for release in releases:
         rel_dir = output / release.version
         print(f"Downloading {release.tag} -> {rel_dir}")
