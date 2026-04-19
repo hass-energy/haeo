@@ -106,7 +106,7 @@ def _build_network(
     else:
         network = Network(name="benchmark", periods=periods_hours, options=options)
 
-    sorted_model_elements = list(collect_model_elements(loaded_configs))
+    sorted_model_elements = collect_model_elements(loaded_configs)
 
     # Compile policy rules (same as coordinator/network.py)
     policy_rules = [

@@ -388,7 +388,7 @@ class Network:
 
         lex_primary_cost = float(cost_vectors[0] @ lex_values)
 
-        # If primary cost is zero, any weight is safe.
+        # If the primary objective vector is all zeros, any weight is safe.
         if lex_primary_cost == 0.0 and not np.any(cost_vectors[0]):
             return 1e-3  # safe default — no primary cost to distort
 

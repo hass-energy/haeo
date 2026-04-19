@@ -27,10 +27,15 @@ from typing import Any, NotRequired, TypedDict
 import numpy as np
 
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, ModelElementConfig
+from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
+from custom_components.haeo.core.model.elements.node import NodeElementConfig
 
 # Tag 0 is used for untagged/default power flows
 DEFAULT_TAG = 0
+
+# Non-connection element configs (nodes and batteries) that can carry tags
+_TaggableConfig = NodeElementConfig | BatteryElementConfig
 
 
 class CompiledPolicyRule(TypedDict):
@@ -81,7 +86,7 @@ def compile_policies(
     # Partition by element type — connections have source/target fields
     connections: list[ConnectionElementConfig] = []
     non_connections: list[ModelElementConfig] = []
-    by_name: dict[str, ModelElementConfig] = {}
+    by_name: dict[str, _TaggableConfig] = {}
     for elem in elements:
         if elem["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION:
             connections.append(elem)
@@ -163,25 +168,19 @@ def compile_policies(
     # Policied sources produce on their VLAN. Unpolicied source-capable nodes
     # produce on tag 0 only, preventing unnecessary production decomposition.
     for name, vlan_id in tag_map.items():
-        if name not in by_name:
-            continue
         node = by_name[name]
-        if node["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION:
-            continue
         if vlan_id != DEFAULT_TAG:
             node["outbound_tags"] = {vlan_id}
         elif name in source_names:
             node["outbound_tags"] = {DEFAULT_TAG}
 
     # --- Step 7: Node inbound tags ---
-    # Default-allow: all sinks accept tag 0 (unpolicied power) plus explicit
-    # policy VLANs. Policied sources reaching a sink not targeted by their
-    # policy still flow freely because inbound includes DEFAULT_TAG.
+    # Default-allow: all sinks accept tag 0 (unpolicied power) plus all
+    # active policy VLANs. Policied sources reach sinks on their assigned
+    # VLAN via outbound_tags, not via DEFAULT_TAG.
     for name in sink_names:
         if name in by_name:
-            node = by_name[name]
-            if node["element_type"] != MODEL_ELEMENT_TYPE_CONNECTION:
-                node["inbound_tags"] = {DEFAULT_TAG} | set(active_vlans)
+            by_name[name]["inbound_tags"] = {DEFAULT_TAG} | set(active_vlans)
 
     # --- Step 8: Pricing injection ---
     for policy in policy_configs:

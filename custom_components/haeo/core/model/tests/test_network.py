@@ -657,3 +657,25 @@ def test_calibrated_mode_fallback_on_impossible_match(
     # Second call uses blended with the calibrated weight
     result2 = network.optimize()
     assert result == pytest.approx(result2)
+
+
+def test_calibrated_mode_zero_primary_cost_vector() -> None:
+    """Calibration returns safe default when primary cost vector is all zeros."""
+    network = Network(name="test", periods=np.array([1.0, 1.0]), options=CalibratedOptions())
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
+    # Pricing with all-zero prices: primary cost vector exists but is all zeros.
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "sink",
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": np.array([0.0, 0.0])},
+            },
+        }
+    )
+    result = network.optimize()
+    assert np.isfinite(result)
+    assert network._calibrated_weight == pytest.approx(1e-3)
