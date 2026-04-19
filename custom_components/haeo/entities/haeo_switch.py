@@ -101,9 +101,10 @@ class HaeoInputSwitch(SwitchEntity):
                 msg = f"Invalid config value for field {field_info.field_name}"
                 raise RuntimeError(msg)
 
-        # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
+        # Unique ID: stable key independent of config section structure
         field_path_key = ".".join(self._field_path)
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_path_key}"
+        unique_key = field_path_key if len(self._field_path) > 2 else field_info.field_name  # noqa: PLR2004
+        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{unique_key}"
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
