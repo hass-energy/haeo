@@ -105,16 +105,16 @@ Policies:
   Solar -> Load: $0.02/kWh
 ```
 
-| Step             | Result                                                                |
-| ---------------- | --------------------------------------------------------------------- |
-| Flow enumeration | {(Grid,Load,0.05), (Solar,Load,0.02)}                                 |
-| Signatures       | Grid and Solar have different signatures; others have empty signatures|
-| VLANs            | Grid=1, Solar=2, others stay on tag 0                                 |
-| Reachability     | VLAN 1 on Grid→SW→Load path, VLAN 2 on Solar→SW→Load path            |
-| Connection tags  | Each connection carries only VLANs for paths through it               |
-| Outbound tags    | Grid emits VLAN 1, Solar emits VLAN 2, Battery emits tag 0            |
-| Inbound tags     | Load accepts tag 0, VLAN 1, and VLAN 2                                |
-| Pricing          | SW→Load: pricing(tag=grid_vlan,$0.05), pricing(tag=solar_vlan,$0.02)  |
+| Step             | Result                                                                 |
+| ---------------- | ---------------------------------------------------------------------- |
+| Flow enumeration | {(Grid,Load,0.05), (Solar,Load,0.02)}                                  |
+| Signatures       | Grid and Solar have different signatures; others have empty signatures |
+| VLANs            | Grid=1, Solar=2, others stay on tag 0                                  |
+| Reachability     | VLAN 1 on Grid→SW→Load path, VLAN 2 on Solar→SW→Load path              |
+| Connection tags  | Each connection carries only VLANs for paths through it                |
+| Outbound tags    | Grid emits VLAN 1, Solar emits VLAN 2, Battery emits tag 0             |
+| Inbound tags     | Load accepts tag 0, VLAN 1, and VLAN 2                                 |
+| Pricing          | SW→Load: pricing(tag=grid_vlan,$0.05), pricing(tag=solar_vlan,$0.02)   |
 
 Result: Solar power is preferred over grid power because it has lower policy cost.
 Battery power flows freely on tag 0 at zero policy cost.

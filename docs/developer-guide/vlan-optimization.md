@@ -72,11 +72,11 @@ Nodes: Grid, Solar, Battery, Load
 Policy: Grid -> Load: $0.05
 ```
 
-| Step           | Result                                                    |
-| -------------- | --------------------------------------------------------- |
-| Signatures     | Grid={(Load,0.05,None)}, Solar={}, Battery={}, Load={}    |
-| VLANs          | Grid=1, others=0, K=2                                     |
-| Naive baseline | K=5 (one per node plus default)                           |
+| Step           | Result                                                             |
+| -------------- | ------------------------------------------------------------------ |
+| Signatures     | Grid={(Load,0.05,None)}, Solar={}, Battery={}, Load={}             |
+| VLANs          | Grid=1, others=0, K=2                                              |
+| Naive baseline | K=5 (one per node plus default)                                    |
 | Reachability   | VLAN 1 appears only on directed path connections from Grid to Load |
 
 ### Four nodes, two policies, same price
