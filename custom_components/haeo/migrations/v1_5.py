@@ -18,6 +18,9 @@ from homeassistant.helpers import entity_registry as er
 _LOGGER = logging.getLogger(__name__)
 
 MINOR_VERSION = 5
+UNIQUE_ID_PART_COUNT = 3
+LIST_ITEM_PATH_PART_COUNT = 3
+SECTION_FIELD_PATH_PART_COUNT = 2
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -34,18 +37,18 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # We want to change section.field_name to just field_name
         # for simple (non-list) fields.
         parts = uid.split("_", 2)  # entry_id, subentry_id, field_path_key
-        if len(parts) != 3:  # noqa: PLR2004
+        if len(parts) != UNIQUE_ID_PART_COUNT:
             return None
 
         field_path_key = parts[2]
         path_parts = field_path_key.split(".")
 
         # List items (e.g. rules.0.price) — keep as-is
-        if len(path_parts) > 2:  # noqa: PLR2004
+        if len(path_parts) >= LIST_ITEM_PATH_PART_COUNT:
             return None
 
         # Simple fields with section prefix (e.g. storage.capacity) — strip section
-        if len(path_parts) == 2:  # noqa: PLR2004
+        if len(path_parts) == SECTION_FIELD_PATH_PART_COUNT:
             new_key = path_parts[1]
             new_uid = f"{parts[0]}_{parts[1]}_{new_key}"
             _LOGGER.debug("Migrating entity unique_id: %s -> %s", uid, new_uid)

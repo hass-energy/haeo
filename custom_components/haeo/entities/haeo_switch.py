@@ -31,6 +31,7 @@ from custom_components.haeo.util import async_update_subentry_value
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
+LIST_ITEM_FIELD_PATH_LENGTH = 3
 
 
 class HaeoInputSwitch(SwitchEntity):
@@ -103,7 +104,8 @@ class HaeoInputSwitch(SwitchEntity):
 
         # Unique ID: stable key independent of config section structure
         field_path_key = ".".join(self._field_path)
-        unique_key = field_path_key if len(self._field_path) > 2 else field_info.field_name  # noqa: PLR2004
+        is_list_item_field = len(self._field_path) >= LIST_ITEM_FIELD_PATH_LENGTH
+        unique_key = field_path_key if is_list_item_field else field_info.field_name
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{unique_key}"
 
         # Use entity description directly from field info

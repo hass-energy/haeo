@@ -19,13 +19,13 @@ async def test_v1_5_strips_section_prefix_from_unique_ids(hass: HomeAssistant) -
     registry = er.async_get(hass)
 
     # Register entities with old-style section-prefixed unique_ids
-    registry.async_get_or_create(
+    old_capacity = registry.async_get_or_create(
         "number",
         DOMAIN,
         f"{entry.entry_id}_bat001_storage.capacity",
         config_entry=entry,
     )
-    registry.async_get_or_create(
+    old_price = registry.async_get_or_create(
         "number",
         DOMAIN,
         f"{entry.entry_id}_bat001_pricing.price_source_target",
@@ -43,8 +43,16 @@ async def test_v1_5_strips_section_prefix_from_unique_ids(hass: HomeAssistant) -
     assert entry.minor_version == 5
 
     # Section-prefixed unique_ids should be stripped to field name
-    assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_capacity")
-    assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_price_source_target")
+    # while preserving each entity_id in the registry.
+    capacity_entity_id = registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_capacity")
+    price_entity_id = registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_price_source_target")
+    assert capacity_entity_id == old_capacity.entity_id
+    assert price_entity_id == old_price.entity_id
+    assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_storage.capacity") is None
+    assert (
+        registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_pricing.price_source_target")
+        is None
+    )
 
     # Already-simple unique_ids should be unchanged
     assert registry.async_get_entity_id("switch", DOMAIN, f"{entry.entry_id}_node001_curtailment")
