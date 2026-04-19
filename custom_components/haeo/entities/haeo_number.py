@@ -35,6 +35,22 @@ from custom_components.haeo.util import async_update_subentry_value
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
 LIST_ITEM_FIELD_PATH_LENGTH = 3
+SECTION_FIELD_PATH_LENGTH = 2
+
+
+def _field_name_is_reused_in_other_sections(
+    subentry_data: Mapping[str, Any],
+    *,
+    current_section: str,
+    field_name: str,
+) -> bool:
+    """Return True when another section reuses this field name."""
+    for section_key, section_data in subentry_data.items():
+        if section_key == current_section or not isinstance(section_data, Mapping):
+            continue
+        if field_name in section_data:
+            return True
+    return False
 
 
 class ConfigEntityMode(Enum):
@@ -108,14 +124,24 @@ class HaeoInputNumber(NumberEntity):
                 msg = f"Invalid config value for field {field_info.field_name}"
                 raise RuntimeError(msg)
 
-        # Unique ID: entry_id + subentry_id + stable_key
-        # For simple fields: uses the leaf field name so unique_ids remain
-        # stable across config restructuring migrations.
-        # For list items (e.g. rules.0.price): uses the full path since
-        # the list index is needed to distinguish between items.
+        # Unique ID: entry_id + subentry_id + stable_key.
+        # Keep leaf-only keys for simple fields, but disambiguate section fields
+        # when the same leaf appears in multiple sections.
         field_path_key = ".".join(self._field_path)
         is_list_item_field = len(self._field_path) >= LIST_ITEM_FIELD_PATH_LENGTH
-        unique_key = field_path_key if is_list_item_field else field_info.field_name
+        unique_key = field_info.field_name
+        if is_list_item_field:
+            unique_key = field_path_key
+        elif len(self._field_path) == SECTION_FIELD_PATH_LENGTH and _field_name_is_reused_in_other_sections(
+            subentry.data,
+            current_section=self._field_path[0],
+            field_name=field_info.field_name,
+        ):
+            unique_key = (
+                f"{field_info.device_type}.{field_info.field_name}"
+                if field_info.device_type
+                else field_path_key
+            )
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{unique_key}"
 
         # Use entity description directly from field info

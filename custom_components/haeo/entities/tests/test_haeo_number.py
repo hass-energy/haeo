@@ -662,6 +662,59 @@ async def test_unique_id_includes_all_components(
     assert entity.unique_id == expected_unique_id
 
 
+async def test_unique_id_disambiguates_reused_section_field_names(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """Section fields with repeated leaf names use a collision-proof key."""
+    partition_field_info = InputFieldInfo(
+        field_name="partition_percentage",
+        entity_description=NumberEntityDescription(
+            key="partition_percentage",
+            translation_key="partition_percentage",
+            native_unit_of_measurement="%",
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=1.0,
+        ),
+        output_type=OutputType.STATE_OF_CHARGE,
+        time_series=True,
+        boundaries=True,
+        device_type="undercharge_partition",
+    )
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "element_type": "battery",
+                CONF_NAME: "Test Battery",
+                "undercharge": {"partition_percentage": as_constant_value(5.0)},
+                "overcharge": {"partition_percentage": as_constant_value(95.0)},
+            }
+        ),
+        subentry_type="battery",
+        title="Test Battery",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=partition_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+        field_path=("undercharge", "partition_percentage"),
+    )
+
+    expected_unique_id = (
+        f"{config_entry.entry_id}_{subentry.subentry_id}_"
+        "undercharge_partition.partition_percentage"
+    )
+    assert entity.unique_id == expected_unique_id
+
+
 # --- Tests for translation placeholders ---
 
 

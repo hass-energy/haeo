@@ -721,6 +721,49 @@ async def test_async_migrate_entry_deduplicates_unique_id_conflicts(hass: HomeAs
     assert registry.async_get(duplicate_entry.entity_id) is None
 
 
+async def test_async_migrate_entry_keeps_colliding_section_unique_ids_distinct(hass: HomeAssistant) -> None:
+    """Leaf-name collisions across sections are not collapsed into one entity."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+
+    undercharge_entry = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_bat001_undercharge.partition_percentage",
+        config_entry=entry,
+    )
+    overcharge_entry = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_bat001_overcharge.partition_percentage",
+        config_entry=entry,
+    )
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
+
+    assert (
+        registry.async_get_entity_id(
+            "number",
+            DOMAIN,
+            f"{entry.entry_id}_bat001_undercharge.partition_percentage",
+        )
+        == undercharge_entry.entity_id
+    )
+    assert (
+        registry.async_get_entity_id(
+            "number",
+            DOMAIN,
+            f"{entry.entry_id}_bat001_overcharge.partition_percentage",
+        )
+        == overcharge_entry.entity_id
+    )
+    assert registry.async_get(undercharge_entry.entity_id) is not None
+    assert registry.async_get(overcharge_entry.entity_id) is not None
+    assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_partition_percentage") is None
+
+
 async def test_async_migrate_entry_handles_non_constant_charge_price(hass: HomeAssistant) -> None:
     """Non-constant charge price keeps value and logs migration warning."""
     entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
@@ -991,18 +1034,25 @@ async def test_async_migrate_entry_unique_id_callback_edge_cases(
             self.domain = "number"
             self.platform = DOMAIN
 
+    candidates = [
+        DummyRegistryEntry("", "number.empty"),
+        DummyRegistryEntry("invalid", "number.invalid"),
+        DummyRegistryEntry("entry_sub_rules.0.price", "number.rules"),
+        DummyRegistryEntry("entry_sub_storage.capacity", "number.capacity"),
+    ]
+
     async def fake_migrate_entries(
         _hass: HomeAssistant,
         _entry_id: str,
         entry_callback: Any,
     ) -> None:
-        assert entry_callback(DummyRegistryEntry("", "number.empty")) is None
-        assert entry_callback(DummyRegistryEntry("invalid", "number.invalid")) is None
-        assert entry_callback(DummyRegistryEntry("entry_sub_rules.0.price", "number.rules")) is None
-
-        migrated = entry_callback(DummyRegistryEntry("entry_sub_storage.capacity", "number.capacity"))
+        assert entry_callback(candidates[0]) is None
+        assert entry_callback(candidates[1]) is None
+        assert entry_callback(candidates[2]) is None
+        migrated = entry_callback(candidates[3])
         assert migrated == {"new_unique_id": "entry_sub_capacity"}
 
+    monkeypatch.setattr(v1_3.er, "async_entries_for_config_entry", lambda _registry, _entry_id: candidates)
     monkeypatch.setattr(v1_3.er, "async_migrate_entries", fake_migrate_entries)
 
     result = await v1_3.async_migrate_entry(hass, entry)

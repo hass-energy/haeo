@@ -489,6 +489,50 @@ async def test_unique_id_includes_all_components(
     assert entity.unique_id == expected_unique_id
 
 
+async def test_unique_id_disambiguates_reused_section_field_names(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """Section switch fields with repeated leaf names use a unique stable key."""
+    field_info = InputFieldInfo(
+        field_name="enabled",
+        entity_description=SwitchEntityDescription(
+            key="enabled",
+            translation_key="enabled",
+        ),
+        output_type=OutputType.STATUS,
+        device_type="undercharge_toggle",
+    )
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "element_type": "battery",
+                CONF_NAME: "Test Battery",
+                "undercharge": {"enabled": as_constant_value(True)},
+                "overcharge": {"enabled": as_constant_value(False)},
+            }
+        ),
+        subentry_type="battery",
+        title="Test Battery",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+        field_path=("undercharge", "enabled"),
+    )
+
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_undercharge_toggle.enabled"
+    assert entity.unique_id == expected_unique_id
+
+
 # --- Tests for entity attributes ---
 
 

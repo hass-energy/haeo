@@ -150,40 +150,57 @@ def _strip_pricing_from_load(data: dict[str, Any]) -> dict[str, Any]:
 
 async def _migrate_entity_unique_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
     registry = er.async_get(hass)
+    candidate_unique_ids: dict[str, str] = {}
+    candidate_counts: dict[str, int] = {}
 
-    def _migrate_unique_id(entity_entry: er.RegistryEntry) -> dict[str, Any] | None:
+    for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
         uid = entity_entry.unique_id
         if not uid:
-            return None
+            continue
 
         parts = uid.split("_", 2)
         if len(parts) != UNIQUE_ID_PART_COUNT:
-            return None
+            continue
 
         field_path_key = parts[2]
         path_parts = field_path_key.split(".")
         if len(path_parts) >= LIST_ITEM_PATH_PART_COUNT:
+            continue
+        if len(path_parts) != SECTION_FIELD_PATH_PART_COUNT:
+            continue
+
+        new_uid = f"{parts[0]}_{parts[1]}_{path_parts[1]}"
+        candidate_unique_ids[entity_entry.entity_id] = new_uid
+        candidate_counts[new_uid] = candidate_counts.get(new_uid, 0) + 1
+
+    def _migrate_unique_id(entity_entry: er.RegistryEntry) -> dict[str, Any] | None:
+        new_uid = candidate_unique_ids.get(entity_entry.entity_id)
+        if new_uid is None:
             return None
 
-        if len(path_parts) == SECTION_FIELD_PATH_PART_COUNT:
-            new_key = path_parts[1]
-            new_uid = f"{parts[0]}_{parts[1]}_{new_key}"
-            conflict_entity_id = registry.async_get_entity_id(
-                entity_entry.domain,
-                entity_entry.platform,
+        if candidate_counts.get(new_uid, 0) > 1:
+            _LOGGER.info(
+                "Skipping unique_id migration for %s because stripped key would collide: %s",
+                entity_entry.entity_id,
                 new_uid,
             )
-            if conflict_entity_id and conflict_entity_id != entity_entry.entity_id:
-                _LOGGER.info(
-                    "Removing duplicate entity %s to keep existing stable unique_id %s",
-                    entity_entry.entity_id,
-                    new_uid,
-                )
-                registry.async_remove(entity_entry.entity_id)
-                return None
+            return None
 
-            return {"new_unique_id": new_uid}
-        return None
+        conflict_entity_id = registry.async_get_entity_id(
+            entity_entry.domain,
+            entity_entry.platform,
+            new_uid,
+        )
+        if conflict_entity_id and conflict_entity_id != entity_entry.entity_id:
+            _LOGGER.info(
+                "Removing duplicate entity %s to keep existing stable unique_id %s",
+                entity_entry.entity_id,
+                new_uid,
+            )
+            registry.async_remove(entity_entry.entity_id)
+            return None
+
+        return {"new_unique_id": new_uid}
 
     await er.async_migrate_entries(hass, entry.entry_id, _migrate_unique_id)
 
