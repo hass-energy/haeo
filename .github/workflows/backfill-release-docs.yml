@@ -68,11 +68,15 @@ jobs:
           failures=()
           for tag in $TAGS; do
             echo "::group::$tag"
-            workdir="/tmp/src-${tag//\//_}"
-            rm -rf "$workdir"
+            slug="${tag//\//_}"
+            workdir="/tmp/src-${slug}"
+            stagedir="/tmp/stage-${slug}"
+            rm -rf "$workdir" "$stagedir"
+            mkdir -p "$stagedir"
             if ! git worktree add --detach "$workdir" "$tag"; then
               echo "::error::Failed to create worktree for $tag"
               failures+=("$tag (worktree)")
+              rm -rf "$stagedir"
               echo "::endgroup::"
               continue
             fi
@@ -93,21 +97,29 @@ jobs:
                 uv run mkdocs build
               fi
 
-              (cd site && zip -r "/tmp/docs-${tag//\//_}.zip" .)
+              (cd site && zip -r "${stagedir}/docs.zip" .)
             ) || {
               echo "::error::Build failed for $tag"
               failures+=("$tag (build)")
               git worktree remove --force "$workdir" || true
+              rm -rf "$stagedir"
               echo "::endgroup::"
               continue
             }
 
-            if ! gh release upload "$tag" "/tmp/docs-${tag//\//_}.zip#docs.zip" --clobber; then
+            # Delete any legacy docs-<tag>.zip asset from a previous attempt.
+            legacy_asset="docs-${tag}.zip"
+            if gh release view "$tag" --json assets --jq ".assets[].name" \
+                | grep -Fxq "$legacy_asset"; then
+              gh release delete-asset "$tag" "$legacy_asset" --yes || true
+            fi
+
+            if ! gh release upload "$tag" "${stagedir}/docs.zip" --clobber; then
               echo "::error::Upload failed for $tag"
               failures+=("$tag (upload)")
             fi
 
-            rm -f "/tmp/docs-${tag//\//_}.zip"
+            rm -rf "$stagedir"
             git worktree remove --force "$workdir" || true
             echo "::endgroup::"
           done
