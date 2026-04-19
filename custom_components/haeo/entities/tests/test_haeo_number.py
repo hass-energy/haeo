@@ -708,10 +708,7 @@ async def test_unique_id_disambiguates_reused_section_field_names(
         field_path=("undercharge", "partition_percentage"),
     )
 
-    expected_unique_id = (
-        f"{config_entry.entry_id}_{subentry.subentry_id}_"
-        "undercharge_partition.partition_percentage"
-    )
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_undercharge_partition.partition_percentage"
     assert entity.unique_id == expected_unique_id
 
 

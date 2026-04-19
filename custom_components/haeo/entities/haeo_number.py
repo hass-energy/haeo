@@ -138,9 +138,7 @@ class HaeoInputNumber(NumberEntity):
             field_name=field_info.field_name,
         ):
             unique_key = (
-                f"{field_info.device_type}.{field_info.field_name}"
-                if field_info.device_type
-                else field_path_key
+                f"{field_info.device_type}.{field_info.field_name}" if field_info.device_type else field_path_key
             )
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{unique_key}"
 
