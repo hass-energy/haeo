@@ -6,9 +6,15 @@ Implements the full compilation pipeline:
 3. VLAN assignment — merge sources with identical signatures (minimum VLANs)
 4. Reachability analysis — which connections need which VLANs
 5. Connection tagging — per-connection VLAN sets
-6. Node source tags — enforce source provenance
-7. Node access lists — which VLANs each node can consume
+6. Node outbound tags — enforce source provenance
+7. Node inbound tags — default-allow with all active VLANs
 8. Pricing injection — scoped segments at destinations
+
+Default-allow model: unpolicied sources produce on tag 0 (the default tag),
+which all connections carry. Policied sources are forced onto their VLAN by
+outbound_tags. Sink nodes accept all active VLANs plus tag 0, so both
+policied and unpolicied power can reach any sink. Costs are applied only at
+destinations where explicit policies exist (via tag_costs).
 
 See docs/modeling/tagged-power.md for design rationale.
 See docs/developer-guide/vlan-optimization.md for optimization proofs.
@@ -72,9 +78,6 @@ def compile_policies(
     if not policy_configs:
         return elements
 
-    # Implicit allow-all: unpolicied flows carry no cost but still get VLANs
-    policy_configs = [{"sources": ["*"], "destinations": ["*"]}, *policy_configs]
-
     # Partition by element type — connections have source/target fields
     connections: list[ConnectionElementConfig] = []
     non_connections: list[ModelElementConfig] = []
@@ -102,10 +105,10 @@ def compile_policies(
         conn_by_node[conn["source"]].append(conn)
         conn_by_node[conn["target"]].append(conn)
 
-    graph: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    # Directed graph: edges follow connection direction (source → target)
+    directed_graph: dict[str, set[tuple[str, str]]] = defaultdict(set)
     for conn in connections:
-        graph[conn["source"]].add((conn["target"], conn["name"]))
-        graph[conn["target"]].add((conn["source"], conn["name"]))
+        directed_graph[conn["source"]].add((conn["target"], conn["name"]))
 
     # --- Step 1: Flow enumeration ---
     flows: list[tuple[str, str, Any]] = []
@@ -146,50 +149,39 @@ def compile_policies(
     for vlan_id in active_vlans:
         source_nodes = {n for n, v in tag_map.items() if v == vlan_id}
         dest_nodes = {dst for src, dst, _ in flows if tag_map.get(src) == vlan_id}
-        vlan_connections[vlan_id] = _find_reachable_connections(source_nodes, dest_nodes, graph)
+        vlan_connections[vlan_id] = _find_reachable_connections(source_nodes, dest_nodes, directed_graph)
 
     # --- Step 5: Connection tagging ---
-    pair_lookup: dict[tuple[str, str], list[str]] = defaultdict(list)
-    for conn in connections:
-        pair_lookup[(conn["source"], conn["target"])].append(conn["name"])
-
-    final_vlan_connections: dict[int, set[str]] = {}
-    for vlan_id in active_vlans:
-        tagged_connections = set(vlan_connections.get(vlan_id, set()))
-        reverse_connections = {
-            rev
-            for conn in connections
-            if conn["name"] in tagged_connections
-            for rev in pair_lookup.get((conn["target"], conn["source"]), [])
-        }
-        final_vlan_connections[vlan_id] = tagged_connections | reverse_connections
-
     for conn in connections:
         tags: set[int] = {DEFAULT_TAG}
         for vlan_id in active_vlans:
-            if conn["name"] in final_vlan_connections.get(vlan_id, set()):
+            if conn["name"] in vlan_connections.get(vlan_id, set()):
                 tags.add(vlan_id)
         conn["tags"] = tags
 
     # --- Step 6: Node outbound tags ---
+    # Policied sources produce on their VLAN. Unpolicied source-capable nodes
+    # produce on tag 0 only, preventing unnecessary production decomposition.
     for name, vlan_id in tag_map.items():
-        if vlan_id != DEFAULT_TAG and name in by_name:
-            node = by_name[name]
-            if node["element_type"] != MODEL_ELEMENT_TYPE_CONNECTION:
-                node["outbound_tags"] = {vlan_id}
+        if name not in by_name:
+            continue
+        node = by_name[name]
+        if node["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION:
+            continue
+        if vlan_id != DEFAULT_TAG:
+            node["outbound_tags"] = {vlan_id}
+        elif name in source_names:
+            node["outbound_tags"] = {DEFAULT_TAG}
 
     # --- Step 7: Node inbound tags ---
-    inbound: dict[str, set[int]] = defaultdict(set)
-    for src, dst, _ in flows:
-        vlan_id = tag_map.get(src, DEFAULT_TAG)
-        if vlan_id != DEFAULT_TAG:
-            inbound[dst].add(vlan_id)
-
-    for name, allowed in inbound.items():
+    # Default-allow: all sinks accept tag 0 (unpolicied power) plus explicit
+    # policy VLANs. Policied sources reaching a sink not targeted by their
+    # policy still flow freely because inbound includes DEFAULT_TAG.
+    for name in sink_names:
         if name in by_name:
             node = by_name[name]
             if node["element_type"] != MODEL_ELEMENT_TYPE_CONNECTION:
-                node["inbound_tags"] = allowed
+                node["inbound_tags"] = {DEFAULT_TAG} | set(active_vlans)
 
     # --- Step 8: Pricing injection ---
     for policy in policy_configs:
@@ -249,18 +241,23 @@ def _merge_tag_costs(conn: ConnectionElementConfig) -> None:
 def _find_reachable_connections(
     source_nodes: set[str],
     dest_nodes: set[str],
-    graph: Mapping[str, set[tuple[str, str]]],
+    directed_graph: Mapping[str, set[tuple[str, str]]],
 ) -> set[str]:
-    """Find connections in the source/destination reachable overlap.
+    """Find connections on directed paths from source_nodes to dest_nodes.
 
-    This uses graph reachability instead of path enumeration so it stays
-    linear in graph size and remains stable on cyclic topologies.
+    Uses directed reachability: forward from sources follows connection
+    direction (source → target), backward from destinations follows reverse
+    direction (target → source). Only connections whose endpoints both appear
+    in the intersection of forward and backward reachable sets are included.
+
+    Stays linear in graph size and is stable on cyclic topologies.
     """
     if not source_nodes or not dest_nodes:
         return set()
 
+    # Build reverse directed graph
     reverse_graph: dict[str, set[tuple[str, str]]] = defaultdict(set)
-    for current, neighbors in graph.items():
+    for current, neighbors in directed_graph.items():
         for neighbor, conn_name in neighbors:
             reverse_graph[neighbor].add((current, conn_name))
 
@@ -277,7 +274,7 @@ def _find_reachable_connections(
                     queue.append(neighbor)
         return reachable
 
-    forward_reachable = collect_reachable(source_nodes, graph)
+    forward_reachable = collect_reachable(source_nodes, directed_graph)
     backward_reachable = collect_reachable(dest_nodes, reverse_graph)
 
     relevant_nodes = forward_reachable & backward_reachable
@@ -287,6 +284,6 @@ def _find_reachable_connections(
     return {
         conn_name
         for current in relevant_nodes
-        for neighbor, conn_name in graph.get(current, set())
+        for neighbor, conn_name in directed_graph.get(current, set())
         if neighbor in relevant_nodes
     }

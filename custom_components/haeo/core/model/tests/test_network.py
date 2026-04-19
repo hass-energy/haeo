@@ -644,13 +644,16 @@ def test_bisect_boundary_respects_max_steps() -> None:
 def test_calibrated_mode_fallback_on_impossible_match(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Calibration falls back when tight tolerance makes all weights fail."""
+    """Calibration uses minimum weight when tight tolerance makes all weights fail."""
     network = _build_priced_network(CalibratedOptions(calibration_tolerance=1e-30))
 
     # First call triggers calibration with impossibly tight tolerance.
-    # This exercises the fallback path where _primary_vars_match returns
-    # False even at the lowest weight.
+    # No weight matches, so calibration uses the minimum weight and
+    # subsequent calls still use blended mode.
     result = network.optimize()
     assert np.isfinite(result)
-    # Should still produce a calibrated weight (the fallback value)
     assert network._calibrated_weight is not None
+
+    # Second call uses blended with the calibrated weight
+    result2 = network.optimize()
+    assert result == pytest.approx(result2)
