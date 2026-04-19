@@ -15,10 +15,6 @@ on:
         description: "Specific release tag to rebuild (e.g. v0.3.3). Leave empty to process every release missing docs-<tag>.zip."
         required: false
         default: ""
-  # TEMPORARY: run once on the PR branch so we can regenerate the single tag
-  # that has guide screenshots (v0.4.0rc1). Remove this trigger before merging.
-  push:
-    branches: [docs/versioned-site]
 
 permissions:
   contents: write
