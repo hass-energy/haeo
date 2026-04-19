@@ -79,6 +79,37 @@ async def test_v1_5_preserves_list_item_unique_ids(hass: HomeAssistant) -> None:
     assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_pol001_rules.0.price")
 
 
+async def test_v1_5_removes_section_prefixed_duplicates_when_target_unique_id_exists(
+    hass: HomeAssistant,
+) -> None:
+    """Duplicate section-prefixed entities are removed when stable unique_id already exists."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=4)
+    entry.add_to_hass(hass)
+
+    registry = er.async_get(hass)
+
+    stable_entry = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_bat001_capacity",
+        config_entry=entry,
+    )
+    duplicate_entry = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_bat001_storage.capacity",
+        config_entry=entry,
+    )
+
+    result = await v1_5.async_migrate_entry(hass, entry)
+    assert result is True
+
+    assert registry.async_get(stable_entry.entity_id) is not None
+    assert registry.async_get(duplicate_entry.entity_id) is None
+    assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_capacity") == stable_entry.entity_id
+    assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_storage.capacity") is None
+
+
 async def test_v1_5_skips_already_migrated(hass: HomeAssistant) -> None:
     """Entry already at v1.5 is not modified."""
     entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=5)

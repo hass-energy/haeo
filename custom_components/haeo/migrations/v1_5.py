@@ -28,6 +28,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if entry.minor_version >= MINOR_VERSION:
         return True
 
+    registry = er.async_get(hass)
+
     def _migrate_unique_id(entity_entry: er.RegistryEntry) -> dict[str, Any] | None:
         uid = entity_entry.unique_id
         if not uid:
@@ -51,6 +53,21 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if len(path_parts) == SECTION_FIELD_PATH_PART_COUNT:
             new_key = path_parts[1]
             new_uid = f"{parts[0]}_{parts[1]}_{new_key}"
+
+            conflict_entity_id = registry.async_get_entity_id(
+                entity_entry.domain,
+                entity_entry.platform,
+                new_uid,
+            )
+            if conflict_entity_id and conflict_entity_id != entity_entry.entity_id:
+                _LOGGER.info(
+                    "Removing duplicate entity %s to keep existing stable unique_id %s",
+                    entity_entry.entity_id,
+                    new_uid,
+                )
+                registry.async_remove(entity_entry.entity_id)
+                return None
+
             _LOGGER.debug("Migrating entity unique_id: %s -> %s", uid, new_uid)
             return {"new_unique_id": new_uid}
 
