@@ -15,6 +15,10 @@ on:
         description: "Specific release tag to rebuild (e.g. v0.3.3). Leave empty to process every release missing docs-<tag>.zip."
         required: false
         default: ""
+  # TEMPORARY: run once on the PR branch so we can regenerate the single tag
+  # that has guide screenshots (v0.4.0rc1). Remove this trigger before merging.
+  push:
+    branches: [docs/versioned-site]
 
 permissions:
   contents: write
@@ -87,6 +91,16 @@ jobs:
                 uv sync --locked --all-extras --dev || uv sync --all-extras --dev
               else
                 uv sync --all-extras --dev
+              fi
+
+              # Generate guide screenshots if this tag declares a `guide` pytest marker.
+              if grep -q '"guide:' pyproject.toml; then
+                echo "Tag $tag has guide tests; installing Playwright and regenerating screenshots."
+                uv run playwright install --with-deps firefox
+                uv run pytest -m guide -v --timeout=300
+                find docs -name '*.png' -exec optipng -o5 -quiet {} +
+              else
+                echo "Tag $tag has no guide marker; skipping screenshot generation."
               fi
 
               if grep -q '"zensical' pyproject.toml || [[ -f zensical.toml ]]; then
