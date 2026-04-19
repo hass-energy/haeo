@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -35,6 +36,7 @@ from custom_components.haeo.core.schema.elements import (
     node,
     solar,
 )
+from custom_components.haeo.core.schema.elements.policy import CONF_RULES
 from custom_components.haeo.core.schema.migrations import v1_3 as schema_migrations
 from custom_components.haeo.core.schema.migrations.v1_3 import ElementMigrationStep, migrate_hub_config
 from custom_components.haeo.core.schema.sections import (
@@ -625,6 +627,80 @@ async def test_async_migrate_entry_updates_entry_and_subentries(hass: HomeAssist
     assert entry.options == {}
     migrated_subentry = next(iter(entry.subentries.values()))
     assert SECTION_PRICING in migrated_subentry.data
+
+
+async def test_async_migrate_entry_migrates_battery_pricing_to_policy_rules(hass: HomeAssistant) -> None:
+    """v1.3 migration creates policy rules from battery pricing."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+
+    battery_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Bat",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: {"type": "constant", "value": 0.04},
+                CONF_PRICE_TARGET_SOURCE: {"type": "constant", "value": 0.01},
+            },
+        },
+        subentry_type=battery.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
+    assert entry.minor_version == v1_3.MINOR_VERSION
+
+    policy_subentry = next(s for s in entry.subentries.values() if s.subentry_type == "policy")
+    rules = policy_subentry.data[CONF_RULES]
+    assert len(rules) == 2
+    assert {rule["name"] for rule in rules} == {"Bat Discharge", "Bat Charge"}
+
+
+async def test_async_migrate_entry_normalizes_unique_ids(hass: HomeAssistant) -> None:
+    """v1.3 migration normalizes section-prefixed unique IDs."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+
+    old_entry = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_bat001_storage.capacity",
+        config_entry=entry,
+    )
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
+
+    assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_storage.capacity") is None
+    assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_capacity") == old_entry.entity_id
+
+
+async def test_async_migrate_entry_deduplicates_unique_id_conflicts(hass: HomeAssistant) -> None:
+    """v1.3 migration removes section-prefixed duplicates when stable ID exists."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+
+    stable_entry = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_bat001_capacity",
+        config_entry=entry,
+    )
+    duplicate_entry = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_bat001_storage.capacity",
+        config_entry=entry,
+    )
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
+    assert registry.async_get(stable_entry.entity_id) is not None
+    assert registry.async_get(duplicate_entry.entity_id) is None
 
 
 async def test_async_migrate_entry_skips_when_up_to_date(hass: HomeAssistant) -> None:
