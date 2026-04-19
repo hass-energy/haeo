@@ -95,6 +95,7 @@ async def test_create_network_applies_policy_rules_to_connections(hass: HomeAssi
     }
     policy_rule: PolicyRuleData = {
         "name": "A to B",
+        "enabled": True,
         "source": ["node_a"],
         "target": ["node_b"],
         "price": 0.07,

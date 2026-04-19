@@ -83,6 +83,7 @@ def _extract_pricing_rules(subentry: ConfigSubentry) -> list[dict[str, Any]]:
             rules.append(
                 {
                     "name": f"{element_name} Discharge",
+                    "enabled": True,
                     "source": [element_name],
                     "price": discharge_price,
                 },
@@ -93,6 +94,7 @@ def _extract_pricing_rules(subentry: ConfigSubentry) -> list[dict[str, Any]]:
             rules.append(
                 {
                     "name": f"{element_name} Charge",
+                    "enabled": True,
                     "target": [element_name],
                     "price": _negate_price_value(charge_price),
                 },
@@ -104,6 +106,7 @@ def _extract_pricing_rules(subentry: ConfigSubentry) -> list[dict[str, Any]]:
             rules.append(
                 {
                     "name": f"{element_name} Production",
+                    "enabled": True,
                     "source": [element_name],
                     "price": price_st,
                 },

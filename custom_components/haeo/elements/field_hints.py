@@ -120,8 +120,6 @@ def build_list_input_fields(
             continue
         section: dict[str, InputFieldInfo[Any]] = {}
         for field_name, hint in list_hints.fields.items():
-            if field_name not in item:
-                continue
             translation_key = f"{element_type}_{field_name}"
             section[field_name] = _build_field_info(field_name, hint, translation_key)
 

@@ -15,7 +15,6 @@ from custom_components.haeo.core.schema.constant_value import ConstantValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.entity_value import EntityValue
 from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
-from custom_components.haeo.core.schema.none_value import NoneValue
 
 ELEMENT_TYPE = ElementType.POLICY
 
@@ -35,20 +34,20 @@ class PolicyRuleConfig(TypedDict):
     """A single policy rule as stored in Home Assistant config."""
 
     name: str
-    enabled: NotRequired[bool]
+    enabled: bool
     source: NotRequired[list[str]]
     target: NotRequired[list[str]]
-    price: NotRequired[EntityValue | ConstantValue | NoneValue]
+    price: EntityValue | ConstantValue
 
 
 class PolicyRuleData(TypedDict):
     """A single policy rule with loaded values."""
 
     name: str
-    enabled: NotRequired[bool]
+    enabled: bool
     source: NotRequired[list[str]]
     target: NotRequired[list[str]]
-    price: NotRequired[NDArray[np.floating[Any]] | float]
+    price: NDArray[np.floating[Any]] | float | None
 
 
 class PolicyConfigSchema(TypedDict):
@@ -62,6 +61,7 @@ class PolicyConfigSchema(TypedDict):
             fields={
                 CONF_ENABLED: FieldHint(
                     output_type=OutputType.STATUS,
+                    default_value=True,
                 ),
                 CONF_PRICE: FieldHint(
                     output_type=OutputType.PRICE,

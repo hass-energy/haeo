@@ -27,6 +27,7 @@ from custom_components.haeo.core.schema.elements.policy import (
             {
                 "rules": [
                     {
+                        "enabled": True,
                         CONF_SOURCE: [],
                         CONF_TARGET: [],
                         CONF_PRICE: 0.05,
@@ -38,15 +39,15 @@ from custom_components.haeo.core.schema.elements.policy import (
         (
             {
                 "rules": [
-                    {"source": ["a"], "target": ["b"]},
+                    {"enabled": True, "source": ["a"], "target": ["b"], "price": {"type": "constant", "value": 0.0}},
                 ],
             },
-            [{"sources": ["a"], "destinations": ["b"]}],
+            [{"sources": ["a"], "destinations": ["b"], "price": {"type": "constant", "value": 0.0}}],
         ),
         (
             {
                 "rules": [
-                    {"source": ["g"], "target": ["l"], "price": np.array([0.1, 0.2])},
+                    {"enabled": True, "source": ["g"], "target": ["l"], "price": np.array([0.1, 0.2])},
                 ],
             },
             [{"sources": ["g"], "destinations": ["l"], "price": np.array([0.1, 0.2])}],
@@ -55,7 +56,7 @@ from custom_components.haeo.core.schema.elements.policy import (
             {
                 "rules": [
                     {"enabled": False, "source": ["a"], "target": ["b"], "price": 0.1},
-                    {"source": ["c"], "target": ["d"], "price": 0.2},
+                    {"enabled": True, "source": ["c"], "target": ["d"], "price": 0.2},
                 ],
             },
             [{"sources": ["c"], "destinations": ["d"], "price": 0.2}],

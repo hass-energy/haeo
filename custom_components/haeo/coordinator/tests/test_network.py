@@ -414,12 +414,14 @@ def test_collect_policy_rules_merges_multiple_policy_participants() -> None:
         "Policies A": {
             CONF_ELEMENT_TYPE: ElementType.POLICY,
             CONF_NAME: "Policies",
-            "rules": [{"name": "A", "source": ["Solar"], "price": {"type": "constant", "value": 0.01}}],
+            "rules": [
+                {"name": "A", "enabled": True, "source": ["Solar"], "price": {"type": "constant", "value": 0.01}}
+            ],
         },
         "Policies B": {
             CONF_ELEMENT_TYPE: ElementType.POLICY,
             CONF_NAME: "Policies",
-            "rules": [{"name": "B", "target": ["Load"], "price": {"type": "constant", "value": 0.02}}],
+            "rules": [{"name": "B", "enabled": True, "target": ["Load"], "price": {"type": "constant", "value": 0.02}}],
         },
     }
 

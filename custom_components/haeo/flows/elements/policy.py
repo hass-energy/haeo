@@ -44,7 +44,6 @@ from custom_components.haeo.core.schema.elements.policy import (
     PolicyRuleConfig,
 )
 from custom_components.haeo.core.schema.entity_value import as_entity_value, is_entity_value
-from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.elements import get_list_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
@@ -280,8 +279,14 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _parse_rule_input(self, user_input: dict[str, Any]) -> PolicyRuleConfig:
         """Convert form input into a PolicyRuleConfig."""
-        rule: PolicyRuleConfig = {"name": user_input[CONF_RULE_NAME]}
-        rule["enabled"] = user_input[CONF_ENABLED]
+        price = user_input[CONF_PRICE]
+        price_value = as_entity_value(price) if isinstance(price, list) else as_constant_value(float(price))
+
+        rule: PolicyRuleConfig = {
+            "name": user_input[CONF_RULE_NAME],
+            "enabled": user_input[CONF_ENABLED],
+            "price": price_value,
+        }
 
         source = user_input.get(CONF_SOURCE)
         if isinstance(source, list) and source:
@@ -291,12 +296,6 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if isinstance(target, list) and target:
             rule["target"] = target
 
-        price = user_input.get(CONF_PRICE)
-        if price is not None:
-            if isinstance(price, list):
-                rule["price"] = as_entity_value(price)
-            elif isinstance(price, (int, float)):
-                rule["price"] = as_constant_value(float(price))
         return rule
 
     def _rule_to_defaults(self, rule: PolicyRuleConfig) -> dict[str, Any]:
@@ -327,12 +326,9 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             CONF_TARGET: rule.get(CONF_TARGET, ""),
         }
 
-        if CONF_PRICE in rule:
-            price = rule[CONF_PRICE]
-            if is_constant_value(price) or is_entity_value(price):
-                input_values[CONF_PRICE] = price["value"]
-            elif is_none_value(price):
-                input_values[CONF_PRICE] = ""
+        price = rule[CONF_PRICE]
+        if is_constant_value(price) or is_entity_value(price):
+            input_values[CONF_PRICE] = price["value"]
 
         return input_values
 

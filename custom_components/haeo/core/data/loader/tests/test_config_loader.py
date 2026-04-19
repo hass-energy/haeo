@@ -452,19 +452,20 @@ def test_resolve_list_items_constant_values() -> None:
 @pytest.mark.parametrize(
     "items",
     [
-        pytest.param([{"name": "rule1", "price": {"type": "none"}}], id="none_type"),
-        pytest.param([{"name": "rule1"}], id="field_missing"),
+        pytest.param(
+            [{"name": "rule1", "enabled": True, "price": {"type": "constant", "value": 0.0}}], id="zero_price"
+        ),
     ],
 )
-def test_resolve_list_items_field_absent(items: list[dict[str, Any]]) -> None:
-    """Price field is absent when set to none or not provided in list items."""
+def test_resolve_list_items_zero_price_loads(items: list[dict[str, Any]]) -> None:
+    """Zero-value constant price is loaded as array of zeros."""
     hints = ListFieldHints(
         fields={"price": FieldHint(output_type=OutputType.PRICE, time_series=True)},
     )
 
     result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
 
-    assert "price" not in result[0]
+    assert "price" in result[0]
     assert result[0]["name"] == "rule1"
 
 

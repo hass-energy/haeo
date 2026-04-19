@@ -21,15 +21,17 @@ def test_build_list_input_fields_generates_per_item_sections() -> None:
     assert result["rules.0"]["price"].time_series is True
 
 
-def test_build_list_input_fields_skips_items_without_hinted_fields() -> None:
-    """Items that don't contain any hinted fields are omitted from output."""
+def test_build_list_input_fields_creates_entities_for_all_items() -> None:
+    """All items get entities for hinted fields, even when absent from config."""
     hints = ListFieldHints(fields={"price": FieldHint(output_type=OutputType.PRICE)})
     items = [{"name": "solar"}, {"name": "grid", "price": 0.30}]
 
     result = build_list_input_fields("policy", "rules", hints, items)
 
-    assert "rules.0" not in result
+    assert "rules.0" in result
+    assert "price" in result["rules.0"]
     assert "rules.1" in result
+    assert "price" in result["rules.1"]
 
 
 def test_build_list_input_fields_empty_list() -> None:
@@ -63,3 +65,22 @@ def test_build_list_input_fields_status_output_type() -> None:
     info = result["rules.0"]["enabled"]
     assert info.output_type == OutputType.STATUS
     assert type(info.entity_description).__name__ == "SwitchEntityDescription"
+
+
+def test_build_list_input_fields_creates_entity_for_absent_fields() -> None:
+    """Hinted fields absent from config items still get entities with defaults."""
+    hints = ListFieldHints(
+        fields={
+            "enabled": FieldHint(output_type=OutputType.STATUS, default_value=True),
+            "price": FieldHint(output_type=OutputType.PRICE),
+        }
+    )
+    # Item has price but not enabled — both should get entities
+    items = [{"price": {"type": "constant", "value": 0.1}}]
+
+    result = build_list_input_fields("policy", "rules", hints, items)
+
+    assert "rules.0" in result
+    assert "enabled" in result["rules.0"]
+    assert "price" in result["rules.0"]
+    assert result["rules.0"]["enabled"].output_type == OutputType.STATUS
