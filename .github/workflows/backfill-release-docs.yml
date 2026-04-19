@@ -53,7 +53,7 @@ jobs:
             echo "Will process single tag: ${INPUT_TAG}"
           else
             tags=$(gh api "repos/${{ github.repository }}/releases" --paginate \
-              --jq '.[] | select([.assets[].name] | index("docs-" + .tag_name + ".zip") | not) | .tag_name' \
+              --jq '.[] | . as $r | select([.assets[].name] | index("docs-\($r.tag_name).zip") | not) | .tag_name' \
               | tr '\n' ' ')
             echo "tags=${tags}" >> "$GITHUB_OUTPUT"
             echo "Will process: ${tags:-<none>}"
