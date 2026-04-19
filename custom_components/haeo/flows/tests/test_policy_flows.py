@@ -31,7 +31,6 @@ from custom_components.haeo.core.schema.elements.policy import (
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_ELEMENT_TYPE
 from custom_components.haeo.core.schema.entity_value import as_entity_value
-from custom_components.haeo.core.schema.none_value import as_none_value
 from custom_components.haeo.flows.elements import policy as policy_flow
 from custom_components.haeo.flows.elements.policy import (
     ACTION_DELETE,
@@ -180,6 +179,7 @@ async def test_user_step_appends_to_existing_subentry(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
@@ -285,6 +285,7 @@ async def test_reconfigure_shows_form(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
@@ -329,6 +330,7 @@ async def test_reconfigure_edit_shows_edit_form(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
@@ -362,12 +364,14 @@ async def test_reconfigure_delete_updates_subentry(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
         },
         {
             "name": "Grid Charge",
+            "enabled": True,
             "source": ["Grid"],
             "target": ["Battery"],
             "price": as_constant_value(0.05),
@@ -409,6 +413,7 @@ async def test_edit_rule_updates_and_saves(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
@@ -456,6 +461,7 @@ async def test_edit_rule_preserves_source_target_when_omitted_from_submission(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
@@ -502,18 +508,21 @@ async def test_edit_rule_updates_only_selected_rule_without_losing_others(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Rule A",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
         },
         {
             "name": "Rule B",
+            "enabled": True,
             "source": ["Grid"],
             "target": ["Battery"],
             "price": as_constant_value(0.05),
         },
         {
             "name": "Rule C",
+            "enabled": True,
             "source": ["Battery"],
             "target": ["Load"],
             "price": as_constant_value(0.01),
@@ -565,12 +574,14 @@ async def test_edit_rule_rejects_duplicate_name(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
         },
         {
             "name": "Grid Charge",
+            "enabled": True,
             "source": ["Grid"],
             "target": ["Battery"],
             "price": as_constant_value(0.05),
@@ -611,6 +622,7 @@ async def test_edit_rule_saved_values_restore_when_reopened(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
@@ -677,12 +689,14 @@ async def test_edit_rule_rejects_duplicate_name_preserves_omitted_source_target_
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
         },
         {
             "name": "Grid Charge",
+            "enabled": True,
             "source": ["Grid"],
             "target": ["Battery"],
             "price": as_constant_value(0.05),
@@ -765,6 +779,7 @@ async def test_edit_rule_index_out_of_range_uses_empty_defaults(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
@@ -961,6 +976,7 @@ async def test_reconfigure_delete_invalid_index_keeps_rules_and_saves(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
@@ -997,6 +1013,7 @@ async def test_reconfigure_edit_invalid_index_shows_form(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
@@ -1027,7 +1044,7 @@ async def test_edit_rule_valid_input_without_subentry_returns_form(
 ) -> None:
     """When no subentry is available during edit save, flow returns to form instead of aborting."""
     flow = _create_flow(hass, hub_entry)
-    flow._rules = [{"name": "Existing"}]
+    flow._rules = [{"name": "Existing", "enabled": True, "price": {"type": "constant", "value": 0.0}}]
     flow._editing_index = 0
     flow._get_subentry = Mock(return_value=None)
 
@@ -1049,7 +1066,7 @@ async def test_edit_rule_valid_input_with_invalid_index_returns_form(
 ) -> None:
     """Valid edit submission with invalid index keeps form open."""
     flow = _create_flow(hass, hub_entry)
-    flow._rules = [{"name": "Existing", "price": as_constant_value(0.01)}]
+    flow._rules = [{"enabled": True, "name": "Existing", "price": as_constant_value(0.01)}]
     flow._editing_index = 99
     flow._get_subentry = Mock(return_value=None)
 
@@ -1076,6 +1093,7 @@ async def test_edit_rule_shows_previous_values_for_source_target(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
@@ -1115,6 +1133,7 @@ async def test_edit_rule_ui_restore_contract_for_elements_endpoints(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
@@ -1150,6 +1169,7 @@ async def test_edit_rule_shows_any_for_missing_source_target(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Global Policy",
+            "enabled": True,
             "price": as_constant_value(0.05),
         },
     ]
@@ -1185,6 +1205,7 @@ async def test_edit_rule_shows_previous_constant_price(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Solar Export",
+            "enabled": True,
             "source": ["Solar"],
             "target": ["Grid"],
             "price": as_constant_value(0.02),
@@ -1214,6 +1235,7 @@ async def test_edit_rule_shows_previous_entity_price(
     existing_rules: list[PolicyRuleConfig] = [
         {
             "name": "Tracked",
+            "enabled": True,
             "price": as_entity_value(["sensor.price"]),
         },
     ]
@@ -1290,7 +1312,13 @@ def test_extract_policy_rules_skips_disabled() -> None:
         "rules": [
             {"name": "Active", "source": ["Solar"], "target": ["Grid"], "price": 0.02, "enabled": True},
             {"name": "Disabled", "source": ["Grid"], "target": ["Battery"], "price": 0.05, "enabled": False},
-            {"name": "Default", "source": ["Solar"], "target": ["Battery"]},
+            {
+                "name": "Default",
+                "enabled": True,
+                "source": ["Solar"],
+                "target": ["Battery"],
+                "price": {"type": "constant", "value": 0.0},
+            },
         ],
     }
     result = extract_policy_rules(config)
@@ -1318,34 +1346,22 @@ def test_endpoint_selector_empty_elements_raises_invalid(
 def test_rule_to_defaults_enabled_always_present() -> None:
     """Enabled is always present in defaults, defaulting to True when missing."""
     flow = PolicySubentryFlowHandler()
-    defaults = flow._rule_to_defaults({"name": "Test"})
+    defaults = flow._rule_to_defaults({"name": "Test", "enabled": True, "price": {"type": "constant", "value": 0.0}})
     assert defaults[CONF_ENABLED] is True
 
-    defaults_disabled = flow._rule_to_defaults({"name": "Test", "enabled": False})
+    defaults_disabled = flow._rule_to_defaults(
+        {"name": "Test", "enabled": False, "price": {"type": "constant", "value": 0.0}}
+    )
     assert defaults_disabled[CONF_ENABLED] is False
-
-
-def test_rule_to_defaults_ignores_legacy_none_price() -> None:
-    """Legacy none pricing does not add a price default."""
-    flow = PolicySubentryFlowHandler()
-    defaults = flow._rule_to_defaults({"name": "Test", "price": as_none_value()})
-    assert CONF_PRICE not in defaults
-
-
-def test_rule_to_edit_input_maps_legacy_none_price_to_empty_string() -> None:
-    """Legacy none pricing maps to empty string for form-compatible merged input."""
-    flow = PolicySubentryFlowHandler()
-    input_values = flow._rule_to_edit_input({"name": "Test", "price": as_none_value()})
-    assert input_values[CONF_PRICE] == ""
 
 
 def test_parse_rule_input_stores_enabled() -> None:
     """Enabled field is always stored in the rule."""
     flow = PolicySubentryFlowHandler()
-    rule = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: True})
+    rule = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: True, CONF_PRICE: 0.05})
     assert rule.get("enabled") is True
 
-    rule_disabled = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: False})
+    rule_disabled = flow._parse_rule_input({CONF_RULE_NAME: "Test", CONF_ENABLED: False, CONF_PRICE: 0.01})
     assert rule_disabled.get("enabled") is False
 
 

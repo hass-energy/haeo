@@ -333,3 +333,42 @@ async def test_v1_4_solar_pricing_without_migratable_value_creates_no_policy(
 
     policy_subs = [s for s in entry.subentries.values() if s.subentry_type == "policy"]
     assert policy_subs == []
+
+
+async def test_v1_4_backfills_enabled_and_price_on_existing_policy_rules(hass: HomeAssistant) -> None:
+    """Policy rules missing enabled or price get defaults backfilled during v1.4 migration."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"})
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(entry, minor_version=v1_3.MINOR_VERSION)
+
+    # Add a policy subentry with rules missing enabled/price (simulating earlier beta)
+    policy_sub = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "element_type": "policy",
+                "name": "Policies",
+                "rules": [
+                    {
+                        "name": "Battery to Grid",
+                        "enabled": True,
+                        "source": ["Battery"],
+                        "target": ["Grid"],
+                        "price": {"type": "constant", "value": 0.05},
+                    },
+                ],
+            }
+        ),
+        subentry_type="policy",
+        title="Policies",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, policy_sub)
+
+    result = await v1_4.async_migrate_entry(hass, entry)
+    assert result is True
+
+    policy = next(s for s in entry.subentries.values() if s.subentry_type == "policy")
+    rules = list(policy.data["rules"])
+    assert len(rules) == 1
+    assert rules[0]["enabled"] is True
+    assert rules[0]["price"] == {"type": "constant", "value": 0.05}

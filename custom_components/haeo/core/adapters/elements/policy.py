@@ -47,7 +47,7 @@ def extract_policy_rules(config: Mapping[str, Any]) -> list[CompiledPolicyRule]:
     """
     result: list[CompiledPolicyRule] = []
     for rule in config.get("rules", []):
-        if not rule.get(CONF_ENABLED, True):
+        if not rule[CONF_ENABLED]:
             continue
         source = rule.get(CONF_SOURCE, [])
         target = rule.get(CONF_TARGET, [])
@@ -55,8 +55,8 @@ def extract_policy_rules(config: Mapping[str, Any]) -> list[CompiledPolicyRule]:
             sources=source if source else [WILDCARD],
             destinations=target if target else [WILDCARD],
         )
-        if CONF_PRICE in rule:
-            compiled["price"] = rule[CONF_PRICE]
+        price = rule[CONF_PRICE]
+        compiled["price"] = price
         result.append(compiled)
     return result
 
