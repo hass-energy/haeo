@@ -74,3 +74,52 @@ jobs:
         with:
           files: |
             haeo.zip
+
+  build-docs:
+    name: Build and attach docs
+    needs: validate-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Install Playwright browsers
+        run: uv run playwright install --with-deps firefox
+
+      - name: Generate guide screenshots
+        run: uv run pytest -m guide -v --timeout=300
+
+      - name: Optimize screenshots
+        run: |
+          sudo apt-get install -y optipng
+          find docs -name '*.png' -exec optipng -o5 -quiet {} +
+
+      - name: Build documentation
+        run: |
+          if [ -f zensical.toml ] || grep -q '"zensical' pyproject.toml; then
+            uv run zensical build
+          else
+            uv run mkdocs build
+          fi
+
+      - name: Package documentation
+        run: |
+          cd site
+          zip -r ../docs.zip .
+
+      - name: Upload docs as release asset
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
+        with:
+          files: |
+            docs.zip
