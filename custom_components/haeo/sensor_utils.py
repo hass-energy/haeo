@@ -13,8 +13,10 @@ from .entities.device import build_device_identifier
 # Default decimal places for values without a unit
 _DEFAULT_DECIMAL_PLACES = 4
 
-# Target significant figures for rounding
-_TARGET_SIG_FIGS = 4
+# Target significant figures for rounding.
+# Using 3 sig figs ensures cross-platform LP solver degeneracy (different optimal
+# vertices with the same cost) rounds to the same value on all architectures.
+_TARGET_SIG_FIGS = 3
 
 
 class ForecastItem(TypedDict):
