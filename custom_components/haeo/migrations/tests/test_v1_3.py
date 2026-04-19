@@ -659,7 +659,7 @@ async def test_async_migrate_entry_migrates_battery_pricing_to_policy_rules(hass
             CONF_CONNECTION: "bus",
             SECTION_PRICING: {
                 CONF_PRICE_SOURCE_TARGET: {"type": "constant", "value": 0.04},
-                CONF_PRICE_TARGET_SOURCE: {"type": "constant", "value": 0.01},
+                CONF_PRICE_TARGET_SOURCE: {"type": "constant", "value": 0.02},
             },
         },
         subentry_type=battery.ELEMENT_TYPE,
@@ -747,6 +747,93 @@ async def test_async_migrate_entry_handles_non_constant_charge_price(hass: HomeA
     assert len(rules) == 1
     assert rules[0]["name"] == "Bat Charge"
     assert rules[0]["price"] == {"type": "entity", "value": ["sensor.price"]}
+
+
+@pytest.mark.parametrize(
+    ("element_type", "field_name", "value"),
+    [
+        pytest.param("battery", CONF_PRICE_SOURCE_TARGET, 0.0, id="battery-discharge-default"),
+        pytest.param("battery", CONF_PRICE_TARGET_SOURCE, 0.0, id="battery-charge-zero-default"),
+        pytest.param("battery", CONF_PRICE_TARGET_SOURCE, 0.01, id="battery-charge-legacy-default"),
+        pytest.param("solar", CONF_PRICE_SOURCE_TARGET, 0.0, id="solar-production-default"),
+    ],
+)
+def test_is_default_policy_price_matches_known_defaults(element_type: str, field_name: str, value: float) -> None:
+    """Default pricing constants are recognized and skipped by migration."""
+    assert v1_3._is_default_policy_price(element_type, field_name, {"type": "constant", "value": value}) is True
+
+
+def test_is_default_policy_price_ignores_non_default_or_non_constant_values() -> None:
+    """Only exact configured default constants are treated as defaults."""
+    assert (
+        v1_3._is_default_policy_price(
+            "battery",
+            CONF_PRICE_TARGET_SOURCE,
+            {"type": "constant", "value": 0.02},
+        )
+        is False
+    )
+    assert (
+        v1_3._is_default_policy_price(
+            "battery",
+            CONF_PRICE_TARGET_SOURCE,
+            {"type": "entity", "value": ["sensor.price"]},
+        )
+        is False
+    )
+    assert (
+        v1_3._is_default_policy_price(
+            "unknown",
+            CONF_PRICE_TARGET_SOURCE,
+            {"type": "constant", "value": 0.01},
+        )
+        is False
+    )
+    assert (
+        v1_3._is_default_policy_price(
+            "battery",
+            CONF_PRICE_TARGET_SOURCE,
+            {"type": "constant", "value": "0.01"},
+        )
+        is False
+    )
+
+
+async def test_async_migrate_entry_skips_default_policy_prices(hass: HomeAssistant) -> None:
+    """Default legacy pricing values do not produce migrated policy rules."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+
+    battery_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Bat",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: {"type": "constant", "value": 0.0},
+                CONF_PRICE_TARGET_SOURCE: {"type": "constant", "value": 0.01},
+            },
+        },
+        subentry_type=battery.ELEMENT_TYPE,
+    )
+    solar_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: solar.ELEMENT_TYPE,
+            CONF_NAME: "PV",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: {"type": "constant", "value": 0.0},
+            },
+        },
+        subentry_type=solar.ELEMENT_TYPE,
+    )
+
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+    hass.config_entries.async_add_subentry(entry, solar_subentry)
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
+    assert all(s.subentry_type != "policy" for s in entry.subentries.values())
 
 
 async def test_async_migrate_entry_handles_non_mapping_battery_pricing(

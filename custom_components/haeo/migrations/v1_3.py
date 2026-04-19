@@ -25,6 +25,11 @@ _CONNECTION_TYPE = "connection"
 _POLICY_TYPE = "policy"
 _NONE_VALUE: dict[str, str] = {"type": "none"}
 _POLICIES_TITLE = "Policies"
+_DEFAULT_POLICY_PRICES: dict[tuple[str, str], frozenset[float]] = {
+    (_BATTERY_TYPE, CONF_PRICE_SOURCE_TARGET): frozenset({0.0}),
+    (_BATTERY_TYPE, CONF_PRICE_TARGET_SOURCE): frozenset({0.0, 0.01}),
+    (_SOLAR_TYPE, CONF_PRICE_SOURCE_TARGET): frozenset({0.0}),
+}
 UNIQUE_ID_PART_COUNT = 3
 LIST_ITEM_PATH_PART_COUNT = 3
 SECTION_FIELD_PATH_PART_COUNT = 2
@@ -55,6 +60,19 @@ def _negate_price_value(price: dict[str, Any]) -> dict[str, Any]:
     return price
 
 
+def _is_default_policy_price(element_type: str, field_name: str, price: Any) -> bool:
+    """Return True when a constant price matches a legacy default value."""
+    defaults = _DEFAULT_POLICY_PRICES.get((element_type, field_name))
+    if defaults is None:
+        return False
+    if not isinstance(price, dict) or price.get("type") != "constant":
+        return False
+    value = price.get("value")
+    if not isinstance(value, (int, float)):
+        return False
+    return float(value) in defaults
+
+
 def _extract_pricing_rules(data: dict[str, Any], subentry: ConfigSubentry) -> list[dict[str, Any]]:
     element_type = data.get("element_type")
     element_name = data.get("name", subentry.title)
@@ -65,7 +83,11 @@ def _extract_pricing_rules(data: dict[str, Any], subentry: ConfigSubentry) -> li
 
     if element_type == _BATTERY_TYPE:
         discharge_price = pricing.get(CONF_PRICE_SOURCE_TARGET)
-        if discharge_price is not None:
+        if discharge_price is not None and not _is_default_policy_price(
+            _BATTERY_TYPE,
+            CONF_PRICE_SOURCE_TARGET,
+            discharge_price,
+        ):
             rules.append(
                 {
                     "name": f"{element_name} Discharge",
@@ -76,7 +98,11 @@ def _extract_pricing_rules(data: dict[str, Any], subentry: ConfigSubentry) -> li
             )
 
         charge_price = pricing.get(CONF_PRICE_TARGET_SOURCE)
-        if charge_price is not None:
+        if charge_price is not None and not _is_default_policy_price(
+            _BATTERY_TYPE,
+            CONF_PRICE_TARGET_SOURCE,
+            charge_price,
+        ):
             rules.append(
                 {
                     "name": f"{element_name} Charge",
@@ -87,7 +113,11 @@ def _extract_pricing_rules(data: dict[str, Any], subentry: ConfigSubentry) -> li
             )
     elif element_type == _SOLAR_TYPE:
         price_st = pricing.get(CONF_PRICE_SOURCE_TARGET)
-        if price_st is not None:
+        if price_st is not None and not _is_default_policy_price(
+            _SOLAR_TYPE,
+            CONF_PRICE_SOURCE_TARGET,
+            price_st,
+        ):
             rules.append(
                 {
                     "name": f"{element_name} Production",
