@@ -1658,6 +1658,52 @@ def test_build_optimization_context_falls_back_to_utcnow_when_no_start_time() ->
     assert isinstance(context.horizon_start, datetime)
 
 
+def test_build_optimization_context_normalizes_mappingproxy_participants() -> None:
+    """_build_optimization_context deep-converts MappingProxyType participant configs to plain dicts.
+
+    Home Assistant exposes ``subentry.data`` as ``MappingProxyType``. Without normalization,
+    these leak into ``OptimizationContext.participants`` and break diagnostics JSON serialization
+    (HA's ``ExtendedJSONEncoder`` falls back to ``{"__type": ..., "repr": ...}`` placeholders).
+    """
+    mock_horizon = MagicMock()
+    mock_horizon.current_start_time = datetime.fromtimestamp(1000.0, tz=dt_util.UTC)
+
+    battery_config = MappingProxyType(
+        {
+            "element_type": "battery",
+            "basic": {"capacity": 10.0},
+        }
+    )
+    grid_config = MappingProxyType(
+        {
+            "element_type": "grid",
+            "pricing": {"price": {"type": "constant", "value": 0.25}},
+        }
+    )
+    participant_configs: Any = {"Battery": battery_config, "Grid": grid_config}
+
+    context = _build_optimization_context(
+        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
+        participant_configs=participant_configs,
+        input_entities={},
+        horizon_manager=mock_horizon,
+    )
+
+    assert type(context.participants["Battery"]) is dict
+    assert type(context.participants["Grid"]) is dict
+    assert type(context.participants["Battery"]["basic"]) is dict
+    assert type(context.participants["Grid"]["pricing"]["price"]) is dict
+
+    assert context.participants["Battery"] == {
+        "element_type": "battery",
+        "basic": {"capacity": 10.0},
+    }
+    assert context.participants["Grid"] == {
+        "element_type": "grid",
+        "pricing": {"price": {"type": "constant", "value": 0.25}},
+    }
+
+
 def test_optimization_context_is_immutable() -> None:
     """OptimizationContext is frozen and cannot be modified."""
     context = OptimizationContext(
