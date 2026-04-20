@@ -73,7 +73,15 @@ class Battery(NetworkElement[BatteryOutputName]):
 
     Represents a single battery section with cumulative energy tracking.
     Uses TrackedParam for parameters that can change between optimizations.
+
+    Batteries are both a source (discharge) and a sink (charge) of network
+    power, so connections touching a battery are treated as terminal for
+    the purposes of the time-preference secondary incentive.
     """
+
+    # Endpoint classification: batteries both produce and consume.
+    is_source: bool = True
+    is_sink: bool = True
 
     # Parameters
     capacity: TrackedParam[NDArray[np.float64]] = TrackedParam()

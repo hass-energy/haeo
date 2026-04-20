@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.core.model.element import Element
-from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.connection import SOURCE_PENALTY_FACTOR, Connection
 from custom_components.haeo.core.model.elements.segments.power_limit import PowerLimitSegment
 from custom_components.haeo.core.model.elements.segments.pricing import PricingSegment
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
@@ -38,11 +38,31 @@ def _serialize_output_value(output_value: ModelOutputValue) -> ExpectedOutputFix
 
 
 class DummyElement(Element[str]):
-    """Minimal element for connection endpoint wiring in tests."""
+    """Minimal element for connection endpoint wiring in tests.
 
-    def __init__(self, name: str, periods: NDArray[np.floating[Any]], solver: Highs) -> None:
+    Acts as both source and sink so connections wired between two
+    ``DummyElement`` instances are treated as terminal by
+    :pyattr:`Connection.is_terminal` and therefore receive the
+    time-preference secondary incentive.  Tests that need transfer-only
+    behaviour set ``is_source`` / ``is_sink`` explicitly.
+    """
+
+    is_source: bool = True
+    is_sink: bool = True
+
+    def __init__(
+        self,
+        name: str,
+        periods: NDArray[np.floating[Any]],
+        solver: Highs,
+        *,
+        is_source: bool = True,
+        is_sink: bool = True,
+    ) -> None:
         """Create a dummy element with no outputs."""
         super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
+        self.is_source = is_source
+        self.is_sink = is_sink
 
 
 def _solve_connection_scenario(element: Connection[str], inputs: ConnectionTestCaseInputs | None) -> ExpectedOutputs:
@@ -276,3 +296,412 @@ def test_connection_tag_cost_ignores_unknown_tag_and_missing_price(solver: Highs
     solver.addConstr(conn.total_power_in[0] == 4.0)
     solver.minimize(cost[0])
     assert solver.getObjectiveValue() == pytest.approx(0.40)
+
+
+def _probe_weights(n: int, *, is_source: bool, is_sink: bool) -> list[float]:
+    """Recover per-period secondary weights for a single connection.
+
+    Builds a standalone solver, places one unit of flow in period t and
+    zero elsewhere, and reads off the secondary objective value at the
+    optimum — which is exactly the secondary weight for that period.
+    """
+    values: list[float] = []
+    for t in range(n):
+        s = Highs()
+        s.setOptionValue("output_flag", False)
+        probe: Connection[str] = Connection(
+            name="probe",
+            periods=np.array([1.0] * n),
+            solver=s,
+            source="a",
+            target="b",
+            segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+        )
+        probe.set_endpoints(
+            DummyElement("a", probe.periods, s, is_source=is_source, is_sink=False),
+            DummyElement("b", probe.periods, s, is_source=False, is_sink=is_sink),
+        )
+        probe.constraints()
+        probe.priority = 0
+        probe.priority_total = 1
+        _, sec = probe.cost()
+        assert sec is not None
+        for i in range(n):
+            s.addConstr(probe.total_power_in[i] == (1.0 if i == t else 0.0))
+        s.minimize(sec)
+        values.append(s.getObjectiveValue())
+    return values
+
+
+def test_sink_connection_has_strictly_negative_weights() -> None:
+    """A sink-only terminal connection rewards any flow, earliest most.
+
+    The secondary is minimised, so negative weights turn every unit of
+    sink-arriving flow into a gain — earlier periods pay more, keeping
+    the deterministic "fill earliest first" tie-breaker.
+    """
+    n = 3
+    weights = _probe_weights(n, is_source=False, is_sink=True)
+
+    # priority=0, priority_total=1 -> raw=[1,2,3], offset=1*3+1=4
+    # -> magnitude=[3,2,1], sink weights = -magnitude.
+    assert all(w < 0.0 for w in weights), weights
+    assert weights == pytest.approx([-3.0, -2.0, -1.0])
+
+
+def test_source_connection_has_strictly_positive_weights() -> None:
+    """A source-only terminal connection penalises early production.
+
+    Every unit of flow leaving a source adds a positive secondary cost,
+    decreasing with time so the solver prefers to defer production to
+    later periods.  Magnitude is scaled down by ``SOURCE_PENALTY_FACTOR``
+    so the sink-side reward on the far end of any real path still
+    dominates and overall flow is incentivised.
+    """
+    n = 3
+    weights = _probe_weights(n, is_source=True, is_sink=False)
+
+    # Same magnitude schedule as the sink side but flipped sign and
+    # scaled by SOURCE_PENALTY_FACTOR.
+    assert all(w > 0.0 for w in weights), weights
+    assert weights == pytest.approx(
+        [
+            3.0 * SOURCE_PENALTY_FACTOR,
+            2.0 * SOURCE_PENALTY_FACTOR,
+            1.0 * SOURCE_PENALTY_FACTOR,
+        ]
+    )
+
+
+def test_source_and_sink_connection_partially_cancels() -> None:
+    """When both ends are terminal the two weights partly cancel.
+
+    A battery-to-battery (round-trip-on-one-element) style connection
+    has both ``is_sink`` and ``is_source`` on its endpoints.  The net
+    secondary weight per period is
+    ``-magnitude + magnitude * SOURCE_PENALTY_FACTOR``: still negative
+    (so genuine flow is still slightly rewarded) but much smaller in
+    magnitude than a sink-only connection — this is what prevents
+    phantom round-trip flow from being doubly rewarded.
+    """
+    n = 3
+    weights = _probe_weights(n, is_source=True, is_sink=True)
+
+    # magnitude=[3,2,1]; net = magnitude * (SOURCE_PENALTY_FACTOR - 1).
+    expected = [m * (SOURCE_PENALTY_FACTOR - 1.0) for m in (3.0, 2.0, 1.0)]
+    assert weights == pytest.approx(expected)
+    # Sanity: sink-only reward is strictly stronger than the both-sided
+    # combined reward — genuine flow is preferred over round-trip.
+    sink_only = _probe_weights(n, is_source=False, is_sink=True)
+    for both, sink in zip(weights, sink_only, strict=True):
+        assert abs(both) < abs(sink)
+
+
+def test_sink_connection_preserves_time_order(solver: Highs) -> None:
+    """Earlier periods get more negative weights than later ones.
+
+    Given unit capacity per period and no primary cost, minimising the
+    secondary must pack flow into the earliest periods first.
+    """
+    periods = np.array([1.0, 1.0, 1.0, 1.0])
+    conn: Connection[str] = Connection(
+        name="ordered",
+        periods=periods,
+        solver=solver,
+        source="a",
+        target="b",
+        segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+    )
+    conn.set_endpoints(
+        DummyElement("a", periods, solver, is_source=False, is_sink=False),
+        DummyElement("b", periods, solver, is_source=False, is_sink=True),
+    )
+    conn.priority = 0
+    conn.priority_total = 1
+    conn.constraints()
+
+    _, secondary = conn.cost()
+    assert secondary is not None
+    # Bound total flow to 2 kWh so the solver must choose 2 of 4 periods.
+    solver.addConstr(Highs.qsum(conn.total_power_in[i] for i in range(4)) == 2.0)
+    solver.minimize(secondary)
+
+    values = [solver.val(conn.total_power_in[i]) for i in range(4)]
+    # Earliest two periods should be filled first.
+    assert values[0] == pytest.approx(1.0)
+    assert values[1] == pytest.approx(1.0)
+    assert values[2] == pytest.approx(0.0)
+    assert values[3] == pytest.approx(0.0)
+
+
+def test_source_connection_prefers_later_flow(solver: Highs) -> None:
+    """A source-only connection with a fixed flow budget is shifted late.
+
+    Positive weights decreasing over time penalise early production, so
+    when the solver must place a fixed total flow, it defers it to the
+    latest periods.
+    """
+    periods = np.array([1.0, 1.0, 1.0, 1.0])
+    conn: Connection[str] = Connection(
+        name="deferred",
+        periods=periods,
+        solver=solver,
+        source="a",
+        target="b",
+        segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+    )
+    conn.set_endpoints(
+        DummyElement("a", periods, solver, is_source=True, is_sink=False),
+        DummyElement("b", periods, solver, is_source=False, is_sink=False),
+    )
+    conn.priority = 0
+    conn.priority_total = 1
+    conn.constraints()
+
+    _, secondary = conn.cost()
+    assert secondary is not None
+    solver.addConstr(Highs.qsum(conn.total_power_in[i] for i in range(4)) == 2.0)
+    solver.minimize(secondary)
+
+    values = [solver.val(conn.total_power_in[i]) for i in range(4)]
+    # Latest two periods should be filled first for sources.
+    assert values[0] == pytest.approx(0.0)
+    assert values[1] == pytest.approx(0.0)
+    assert values[2] == pytest.approx(1.0)
+    assert values[3] == pytest.approx(1.0)
+
+
+def test_connection_secondary_respects_priority(solver: Highs) -> None:
+    """Lower-priority sink connections fill before higher-priority ones.
+
+    Two single-period connections share a common per-period capacity
+    budget: minimising the combined secondary must pick the
+    lower-priority connection first.
+    """
+    periods = np.array([1.0])
+    low: Connection[str] = Connection(
+        name="low_prio",
+        periods=periods,
+        solver=solver,
+        source="src_a",
+        target="dst_a",
+        segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+    )
+    high: Connection[str] = Connection(
+        name="high_prio",
+        periods=periods,
+        solver=solver,
+        source="src_b",
+        target="dst_b",
+        segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+    )
+    low.set_endpoints(
+        DummyElement("src_a", periods, solver, is_source=False, is_sink=False),
+        DummyElement("dst_a", periods, solver, is_source=False, is_sink=True),
+    )
+    high.set_endpoints(
+        DummyElement("src_b", periods, solver, is_source=False, is_sink=False),
+        DummyElement("dst_b", periods, solver, is_source=False, is_sink=True),
+    )
+    low.constraints()
+    high.constraints()
+    low.priority = 0
+    high.priority = 1
+    low.priority_total = 2
+    high.priority_total = 2
+
+    _, sec_low = low.cost()
+    _, sec_high = high.cost()
+    assert sec_low is not None
+    assert sec_high is not None
+    # Shared total budget of 1 kWh across both connections.
+    solver.addConstr(low.total_power_in[0] + high.total_power_in[0] == 1.0)
+    solver.minimize(Highs.qsum([sec_low, sec_high]))
+
+    assert solver.val(low.total_power_in[0]) == pytest.approx(1.0)
+    assert solver.val(high.total_power_in[0]) == pytest.approx(0.0)
+
+
+def test_round_trip_pair_reduces_secondary_reward(solver: Highs) -> None:
+    """A paired sink + source connection (battery-style) partly cancels.
+
+    Models a battery-charge (sink-only) + battery-discharge (source-only)
+    pair where both carry one unit of flow in the same period — this is
+    exactly the phantom "round-trip" that the old uniformly-negative
+    weight scheme double-rewarded.  The combined cost under the new
+    scheme must be strictly weaker in magnitude than under the old
+    scheme (both legs negative), so the solver no longer has a
+    disproportionate incentive to round-trip power through a battery.
+    """
+    periods = np.array([1.0])
+    sink_only: Connection[str] = Connection(
+        name="charge",
+        periods=periods,
+        solver=solver,
+        source="inverter",
+        target="battery",
+        segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+    )
+    source_only: Connection[str] = Connection(
+        name="discharge",
+        periods=periods,
+        solver=solver,
+        source="battery",
+        target="inverter",
+        segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+    )
+    sink_only.set_endpoints(
+        DummyElement("inverter", periods, solver, is_source=False, is_sink=False),
+        DummyElement("battery_sink", periods, solver, is_source=False, is_sink=True),
+    )
+    source_only.set_endpoints(
+        DummyElement("battery_source", periods, solver, is_source=True, is_sink=False),
+        DummyElement("inverter_2", periods, solver, is_source=False, is_sink=False),
+    )
+    for c, p in ((sink_only, 0), (source_only, 1)):
+        c.constraints()
+        c.priority = p
+        c.priority_total = 2
+
+    _, sec_sink = sink_only.cost()
+    _, sec_source = source_only.cost()
+    assert sec_sink is not None
+    assert sec_source is not None
+
+    solver.addConstr(sink_only.total_power_in[0] == 1.0)
+    solver.addConstr(source_only.total_power_in[0] == 1.0)
+    solver.minimize(Highs.qsum([sec_sink, sec_source]))
+
+    combined = solver.getObjectiveValue()
+
+    # Magnitudes per the priority schedule (priority_total=2, n=1):
+    # sink (priority 0):   raw=1, offset=3 -> magnitude=2 -> weight=-2
+    # source (priority 1): raw=2, offset=3 -> magnitude=1 -> weight=+0.5
+    # Combined for 1 kWh each: -2 + 0.5 = -1.5
+    expected_new = -2.0 + 1.0 * SOURCE_PENALTY_FACTOR
+    assert combined == pytest.approx(expected_new)
+
+    # The "old scheme" (both connections uniformly negative) would have
+    # combined to -2 + -1 = -3.  Under the new scheme the absolute
+    # magnitude must be strictly smaller — this is the property that
+    # removes the double reward and deters phantom round-tripping.
+    old_scheme = -2.0 - 1.0
+    assert abs(combined) < abs(old_scheme)
+
+
+def test_connection_is_terminal_requires_source_or_sink(solver: Highs) -> None:
+    """``is_terminal`` follows endpoint ``is_source`` / ``is_sink`` flags."""
+    periods = np.array([1.0])
+    conn: Connection[str] = Connection(
+        name="probe",
+        periods=periods,
+        solver=solver,
+        source="src",
+        target="tgt",
+    )
+
+    # No endpoints wired yet -> neutral (non-terminal).
+    assert conn.is_terminal is False
+
+    src = DummyElement("src", periods, solver, is_source=False, is_sink=False)
+    tgt = DummyElement("tgt", periods, solver, is_source=False, is_sink=False)
+    conn.set_endpoints(src, tgt)
+
+    # Transfer endpoints -> non-terminal.
+    assert conn.is_terminal is False
+
+    # Either endpoint matching is sufficient.
+    src.is_source = True
+    assert conn.is_terminal is True
+
+    src.is_source = False
+    tgt.is_sink = True
+    assert conn.is_terminal is True
+
+
+def test_connection_non_terminal_has_no_secondary(solver: Highs) -> None:
+    """Transfer-only connections must not receive the negative secondary incentive.
+
+    Without this guard the solver would happily saturate any zero-primary-cost
+    loop (e.g. an inverter's DC↔AC pair) to consume the secondary budget.
+    """
+    periods = np.array([1.0, 1.0, 1.0])
+    conn: Connection[str] = Connection(
+        name="transfer",
+        periods=periods,
+        solver=solver,
+        source="src",
+        target="tgt",
+        segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+    )
+    src = DummyElement("src", periods, solver, is_source=False, is_sink=False)
+    tgt = DummyElement("tgt", periods, solver, is_source=False, is_sink=False)
+    conn.set_endpoints(src, tgt)
+    conn.constraints()
+    conn.priority = 0
+    conn.priority_total = 1
+
+    primary, secondary = conn.cost()
+
+    # No pricing segments -> no primary either.
+    assert primary is None
+    assert secondary is None
+
+
+def test_non_terminal_transfer_does_not_steal_secondary_budget(solver: Highs) -> None:
+    """A zero-primary-cost transfer loop must not out-bid a terminal sink.
+
+    Two parallel capacity-1 paths feed a sink:
+      * ``terminal`` from source -> sink (gets the secondary incentive)
+      * ``transfer`` from junction -> junction (must NOT get one)
+
+    A shared budget of 1 kWh must land on the terminal connection, because
+    only terminal connections carry negative secondary weight.  Prior to the
+    terminal gating, the transfer connection would have tied on secondary
+    cost and pulled the budget away from the useful path.
+    """
+    periods = np.array([1.0])
+    terminal: Connection[str] = Connection(
+        name="terminal",
+        periods=periods,
+        solver=solver,
+        source="source_node",
+        target="sink_node",
+        segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+    )
+    transfer: Connection[str] = Connection(
+        name="transfer",
+        periods=periods,
+        solver=solver,
+        source="junction_a",
+        target="junction_b",
+        segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+    )
+    terminal.set_endpoints(
+        DummyElement("source_node", periods, solver, is_source=True, is_sink=False),
+        DummyElement("sink_node", periods, solver, is_source=False, is_sink=True),
+    )
+    transfer.set_endpoints(
+        DummyElement("junction_a", periods, solver, is_source=False, is_sink=False),
+        DummyElement("junction_b", periods, solver, is_source=False, is_sink=False),
+    )
+    terminal.constraints()
+    transfer.constraints()
+    terminal.priority = 0
+    transfer.priority = 1
+    terminal.priority_total = 2
+    transfer.priority_total = 2
+
+    _, sec_terminal = terminal.cost()
+    _, sec_transfer = transfer.cost()
+
+    assert sec_transfer is None
+    assert sec_terminal is not None
+
+    # Shared flow budget of 1 kWh; minimising only the terminal secondary
+    # (since transfer has none) should push all the flow through terminal.
+    solver.addConstr(terminal.total_power_in[0] + transfer.total_power_in[0] == 1.0)
+    solver.minimize(sec_terminal)
+
+    assert solver.val(terminal.total_power_in[0]) == pytest.approx(1.0)
+    assert solver.val(transfer.total_power_in[0]) == pytest.approx(0.0)

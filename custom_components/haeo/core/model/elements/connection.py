@@ -39,6 +39,16 @@ CONNECTION_SEGMENTS: Final = "segments"
 
 CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset((CONNECTION_POWER, CONNECTION_SEGMENTS))
 
+# Scale factor for the source-side time-preference weight relative to the
+# sink-side weight.  The two sides use opposite signs so that early flow at a
+# sink is rewarded (use it now) while early flow at a source is mildly
+# penalised (save it for later).  A factor < 1 keeps the sink reward
+# dominant, so that genuine source → sink flow is still net-negative
+# (incentivised), while phantom round-trip flow at a single element
+# (charge + discharge in the same period) nets out to a small penalty
+# rather than a double reward.
+SOURCE_PENALTY_FACTOR: Final[float] = 0.5
+
 
 class ConnectionElementConfig(TypedDict):
     """Configuration for Connection model elements."""
@@ -92,6 +102,13 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self.is_external = is_external
         self.is_time_sensitive = is_time_sensitive
         self.priority = 0  # assigned by Network from sort_key
+        # Total number of priority slots in the containing network.  Used to
+        # normalise the time-preference weights so they are strictly negative,
+        # turning the tie-breaker into a gentle incentive to carry flow as
+        # early as possible rather than a penalty on flow.  Default 1 means
+        # "solo connection", which keeps the weights well-defined for any
+        # Connection instance that is not part of a Network.optimize() run.
+        self.priority_total = 1
 
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
@@ -226,11 +243,79 @@ class Connection[TOutputName: str](Element[TOutputName]):
         result.update(own_constraints)
         return result
 
-    def cost(self) -> tuple[highs_linear_expression | None, highs_linear_expression]:  # type: ignore[override]
+    @property
+    def is_terminal_sink(self) -> bool:
+        """Whether this connection terminates at a genuine sink element.
+
+        True when ``target.is_sink`` is set — i.e. flow arriving here is
+        being consumed (load, grid export, battery charge).  Drives the
+        negative sink-side time-preference weight (reward early
+        consumption).
+        """
+        tgt = self._target_element
+        return bool(getattr(tgt, "is_sink", False)) if tgt is not None else False
+
+    @property
+    def is_terminal_source(self) -> bool:
+        """Whether this connection originates at a genuine source element.
+
+        True when ``source.is_source`` is set — i.e. flow leaving here is
+        being produced (solar, grid import, battery discharge).  Drives
+        the positive source-side time-preference weight (mild penalty on
+        early production, so production is held back until needed).
+        """
+        src = self._source_element
+        return bool(getattr(src, "is_source", False)) if src is not None else False
+
+    @property
+    def is_terminal(self) -> bool:
+        """Whether this connection carries any time-preference weight.
+
+        Equivalent to ``is_terminal_sink or is_terminal_source``.  Pure
+        transfer connections (e.g. an inverter's DC↔AC paths between
+        switchboards) are non-terminal and receive no secondary weight —
+        otherwise the solver would saturate any zero-primary-cost loop
+        to improve the tie-breaker.
+        """
+        return self.is_terminal_sink or self.is_terminal_source
+
+    def cost(self) -> tuple[highs_linear_expression | None, highs_linear_expression | None]:  # type: ignore[override]
         """Return (primary_cost, secondary_cost) for this connection.
 
         Primary: segment costs + tag costs.
-        Secondary: time-preference objective for deterministic ordering.
+
+        Secondary: a time-preference tie-breaker with *asymmetric* signs
+        on the two ends of a terminal connection:
+
+        * sink-terminal end (``target.is_sink``): the weights are
+          strictly negative — every kWh arriving at a sink earlier in
+          the horizon improves the secondary objective, so the solver
+          prefers to *consume* power now rather than later (charge the
+          battery as soon as free solar is available, etc.).
+        * source-terminal end (``source.is_source``): the weights are
+          strictly positive with a smaller magnitude
+          (:data:`SOURCE_PENALTY_FACTOR`) — every kWh leaving a source
+          earlier in the horizon *worsens* the secondary objective, so
+          the solver prefers to *produce* (e.g. discharge the battery)
+          as late as possible, holding capacity in reserve.
+
+        A connection may be both (for symmetric endpoint roles) or just
+        one, in which case only the relevant side contributes.  Non-
+        terminal transfer connections return ``None`` for the secondary
+        so they do not influence the tie-breaker.
+
+        The opposite-sign design is deliberate: a round-trip at a single
+        element (e.g. battery charge and discharge in the same period)
+        picks up a negative sink weight *and* a positive source weight,
+        so the two partly cancel instead of stacking into a double
+        reward.  With ``SOURCE_PENALTY_FACTOR < 1`` the sink reward still
+        dominates for a genuine source → sink path, so legitimate flow
+        is still incentivised.
+
+        Within each side, the magnitude scales as
+        ``priority * n_periods + period_index`` (with priority assigned
+        by :pyattr:`sort_key`), so both lower-priority connections and
+        earlier periods dominate the tie-breaker.
         """
         primary_costs: list[highs_linear_expression] = [
             sc for seg in self._segments.values() if (sc := seg.cost()) is not None
@@ -246,13 +331,33 @@ class Connection[TOutputName: str](Element[TOutputName]):
         if primary_costs:
             primary = primary_costs[0] if len(primary_costs) == 1 else Highs.qsum(primary_costs)
 
-        # Time-preference objective: prefer earlier energy transfer
-        n = self.n_periods
-        weights = self.priority * n + np.arange(1, n + 1, dtype=np.float64)
-        secondary = Highs.qsum(self.total_power_in * self.periods * weights)
+        if not self.is_terminal:
+            return (primary, None)
 
-        if primary is None:
-            return (None, secondary)
+        # Magnitude of the time-preference weight per period.  All-positive,
+        # with larger values for earlier periods and lower-priority
+        # connections, so that both dimensions contribute to the
+        # tie-breaker deterministically.
+        n = self.n_periods
+        raw = self.priority * n + np.arange(1, n + 1, dtype=np.float64)
+        offset = self.priority_total * n + 1
+        magnitude = offset - raw  # strictly positive, earlier = larger
+
+        signed_weights = np.zeros(n, dtype=np.float64)
+        if self.is_terminal_sink:
+            # Reward early consumption: subtracting the magnitude gives
+            # strictly-negative weights, so any positive flow arriving at
+            # a sink earlier improves (reduces) the secondary objective.
+            signed_weights -= magnitude
+        if self.is_terminal_source:
+            # Mild penalty on early production: adding a scaled-down
+            # magnitude gives strictly-positive weights, so the solver
+            # prefers to defer production unless the sink-side reward on
+            # the other end of the path outweighs it.
+            signed_weights += magnitude * SOURCE_PENALTY_FACTOR
+
+        secondary = Highs.qsum(self.total_power_in * self.periods * signed_weights)
+
         return (primary, secondary)
 
     # --- Output methods ---

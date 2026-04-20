@@ -252,13 +252,17 @@ def test_network_optimize_success_logs_solver_output(
     network = Network(name="test_network", periods=np.array([1.0] * 2))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "src", "is_source": True, "is_sink": False})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "dst", "is_source": False, "is_sink": True})
+    # A positive price bounds the LP from above: the terminal connection's
+    # sink-side secondary weight is negative, so a zero-cost connection
+    # between unbounded source/sink endpoints would otherwise run to
+    # infinity on the secondary.
     network.add(
         {
             "element_type": ELEMENT_TYPE_CONNECTION,
             "name": "conn",
             "source": "src",
             "target": "dst",
-            "segments": {"pricing": {"segment_type": "pricing", "price": 0.0}},
+            "segments": {"pricing": {"segment_type": "pricing", "price": 0.10}},
         }
     )
 
@@ -727,6 +731,9 @@ def test_calibrated_mode_zero_primary_cost_vector() -> None:
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
     # Pricing with all-zero prices: primary cost vector exists but is all zeros.
+    # A power limit bounds the LP because the terminal connection's
+    # sink-side secondary weight is negative — an unbounded zero-cost
+    # connection between unbounded endpoints would otherwise diverge.
     network.add(
         {
             "element_type": ELEMENT_TYPE_CONNECTION,
@@ -735,6 +742,7 @@ def test_calibrated_mode_zero_primary_cost_vector() -> None:
             "target": "sink",
             "segments": {
                 "pricing": {"segment_type": "pricing", "price": np.array([0.0, 0.0])},
+                "limit": {"segment_type": "power_limit", "max_power": 1.0},
             },
         }
     )

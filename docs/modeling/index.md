@@ -244,19 +244,28 @@ See individual element pages for specific cost formulations.
 
 ### Secondary objective: time preference
 
-When multiple solutions achieve the same minimum cost, the optimizer prefers earlier energy transfers.
-Each connection contributes a time-preference term to the secondary objective:
+When multiple solutions achieve the same minimum cost, the optimizer prefers earlier use of sink capacity and later use of source capacity, while encouraging flow on cost-free paths.
+Each **terminal** connection (one whose source element has `is_source=True` or target element has `is_sink=True`) contributes a time-preference term to the secondary objective; pure transfer connections do not contribute.
+Each such connection computes a strictly-positive per-period magnitude
 
 $$
-\text{minimize} \sum_{\text{connections}} \sum_{t=0}^{T-1} w_{p,t} \cdot E_c(t)
+m_{p,t} = (P \cdot T + 1) - \bigl(p \cdot T + (t + 1)\bigr)
 $$
 
-Where $p$ is the connection priority derived from endpoint element types, $w_{p,t} = p \cdot T + (t + 1)$ assigns monotonically increasing weights by priority group and time step, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
-Connections with different priorities receive non-overlapping weight ranges.
-Connections with the same priority share the same per-period weight sequence.
+where $p$ is the connection priority derived from sorted endpoint properties, $T$ is the number of periods, $t$ is the time step, and $P$ is the total number of connections in the network.
+The signed secondary weight is then asymmetric across the two ends:
+
+$$
+w_{p,t} = -\mathbf{1}_{\text{target is sink}} \cdot m_{p,t} + \alpha \cdot \mathbf{1}_{\text{source is source}} \cdot m_{p,t},
+\qquad 0 < \alpha < 1
+$$
+
+so that sink-terminal flow is rewarded (negative weight, "use it now"), source-terminal flow is penalised with a smaller magnitude (positive weight, "hold it in reserve"), and connections that are terminal on both ends — for example a battery's simultaneous charge+discharge round-trip — see the two weights partially cancel.
+Connections with different priorities receive non-overlapping magnitude ranges; lower-priority connections fill before higher-priority ones.
+Within a connection, earlier periods carry larger magnitudes than later ones, so ties are broken toward earliest consumption and latest production.
 
 The secondary objective does not affect the optimal cost.
-It only selects among cost-equivalent solutions for deterministic, physically intuitive schedules.
+It selects among cost-equivalent solutions for deterministic, physically intuitive schedules, preferring to carry free power (for example, charging a battery from surplus solar) over curtailing it when no primary cost distinguishes the two, while preventing phantom round-trip flows from stacking into a double reward.
 
 ## Solver
 

@@ -90,25 +90,38 @@ Connection aggregates cost expressions from all segments.
 PricingSegment instances contribute energy costs to the primary objective (index 0).
 
 Connections also contribute a time-preference term to the secondary objective (index 1).
-This term weights energy transfer with monotonically increasing per-period weights:
+Only **terminal** connections — those whose source element has `is_source=True` (produces power) or whose target element has `is_sink=True` (consumes power) — contribute to this term.
+Pure transfer connections (e.g. an inverter's DC↔AC paths between two junction-style nodes) return `None` for the secondary so they do not steer the tie-breaker; otherwise the solver could saturate any zero-primary-cost loop to consume the secondary budget.
+
+Each terminal connection computes a per-period magnitude
 
 $$
-w_{p,t} = p \cdot T + (t + 1)
+m_{p,t} = (P \cdot T + 1) - \bigl(p \cdot T + (t + 1)\bigr)
 $$
 
-Where $p$ is the connection's priority (auto-computed from endpoint element types), $T$ is the number of periods, and $t$ is the time step.
-The time-preference objective for a connection with priority $p$ is:
+where $p$ is the connection's priority (auto-computed from sorted endpoint properties), $T$ is the number of periods, $t$ is the time step, and $P$ is the total number of connections in the network.
+The magnitude is strictly positive, larger for earlier periods and lower-priority connections.
+
+The **signed** weight applied to the secondary objective is then asymmetric across the two ends of the connection:
 
 $$
-\sum_{t=0}^{T-1} w_{p,t} \cdot P_{\text{in}}(t) \cdot \Delta t_t
+w_{p,t} = -\mathbf{1}_{\text{target is sink}} \cdot m_{p,t} + \alpha \cdot \mathbf{1}_{\text{source is source}} \cdot m_{p,t}
 $$
 
-Connections with different priorities receive non-overlapping weight ranges.
-Lower-priority connections are preferred when breaking ties, which the optimizer uses to select among cost-equivalent solutions.
-Connections with the same priority share a weight range, so ties between them are broken by time step only.
+with $\alpha = \text{SOURCE\_PENALTY\_FACTOR} < 1$.
+The secondary contribution for a connection is $\sum_t w_{p,t} \cdot P_{\text{in}}(t) \cdot \Delta t_t$.
 
-The secondary objective does not affect the minimum cost—it only selects among cost-equivalent solutions.
-The network solves this lexicographically: primary cost is minimized first, then the secondary objective is minimized subject to the primary remaining optimal.
+- **Sink-terminal end** ($\text{target.is\_sink}=\text{True}$): the weight is strictly **negative** — every kWh of flow arriving at a sink reduces the secondary, so the solver prefers to consume (charge batteries, serve load, export) as early in the horizon as possible.
+- **Source-terminal end** ($\text{source.is\_source}=\text{True}$): the weight is strictly **positive** with a smaller magnitude — every kWh of flow leaving a source increases the secondary, so the solver prefers to produce (discharge batteries, draw from the grid) as late in the horizon as possible.
+- **Both ends terminal** (e.g. a battery round-trip connection): the two weights partly cancel, so phantom simultaneous charge+discharge no longer stacks into a double reward.
+
+With $\alpha < 1$ the sink reward still dominates for a genuine source → sink path, so legitimate flow is incentivised; the scaled-down source penalty only prevents phantom round-trip flows from being doubly rewarded.
+Connections with different priorities receive non-overlapping weight ranges: lower-priority connections are filled first.
+Within a connection, earlier periods carry larger magnitudes than later ones, so ties are broken by pushing flow to the earliest (for sinks) or latest (for sources) feasible period.
+
+The secondary objective does not affect the minimum cost — it only selects among cost-equivalent solutions.
+The network solves this lexicographically: primary cost is minimised first, then the secondary objective is minimised subject to the primary remaining optimal.
+A practical consequence is that cost-free opportunities at sinks are taken when available — for example, surplus solar charges a battery rather than being curtailed, even when no downstream revenue exists — while production capacity is held in reserve until it is needed.
 
 ## Outputs
 

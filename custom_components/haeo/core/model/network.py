@@ -267,8 +267,13 @@ class Network:
             (e for e in self.elements.values() if isinstance(e, Connection)),
             key=lambda c: c.sort_key,
         )
+        # priority_total is shared so every connection normalises its
+        # time-preference weights against the same global range, keeping
+        # all secondary magnitudes comparable (see Connection.cost).
+        priority_total = max(len(connections), 1)
         for i, conn in enumerate(connections):
             conn.priority = i
+            conn.priority_total = priority_total
 
         for element_name, element in self.elements.items():
             try:

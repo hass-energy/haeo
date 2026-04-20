@@ -90,7 +90,7 @@
         {
           "name": "Battery min sell",
           "enabled": { "type": "constant", "value": true },
-          "price": { "type": "constant", "value": 0.04 },
+          "price": { "type": "constant", "value": 1.04 },
           "source": ["Battery"],
           "target": ["Grid"]
         },

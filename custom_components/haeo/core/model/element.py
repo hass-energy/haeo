@@ -215,7 +215,19 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
     Extends Element with connection tracking, power production/consumption
     protocol, and per-tag power balance constraints. Node and Battery inherit
     from this class. Connection inherits directly from Element.
+
+    ``is_source`` / ``is_sink`` declare whether this element is a genuine
+    source or sink of power on the network, or merely a transfer/junction
+    point (both false).  Connections consult these flags on their endpoints
+    to decide whether to apply the time-preference secondary incentive —
+    pure transfer connections (e.g. inverter DC↔AC paths) must not receive
+    negative weights, or the solver is incentivised to saturate any zero-
+    cost loop and consume the secondary budget with phantom circulation.
     """
+
+    # Defaults for endpoint classification; subclasses override.
+    is_source: bool = False
+    is_sink: bool = False
 
     def __init__(
         self,
