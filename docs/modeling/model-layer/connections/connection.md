@@ -90,25 +90,27 @@ Connection aggregates cost expressions from all segments.
 PricingSegment instances contribute energy costs to the primary objective (index 0).
 
 Connections also contribute a time-preference term to the secondary objective (index 1).
-This term weights energy transfer with monotonically increasing per-period weights:
+This term uses strictly negative per-period weights so that, all else equal, carrying flow improves the secondary objective:
 
 $$
-w_{p,t} = p \cdot T + (t + 1)
+w_{p,t} = p \cdot T + (t + 1) - (P \cdot T + 1)
 $$
 
-Where $p$ is the connection's priority (auto-computed from endpoint element types), $T$ is the number of periods, and $t$ is the time step.
+Where $p$ is the connection's priority (auto-computed from endpoint element types), $T$ is the number of periods, $t$ is the time step, and $P$ is the total number of connections in the network.
+The offset $P \cdot T + 1$ shifts the weights so the largest is $-1$ and the smallest is $-P \cdot T$.
 The time-preference objective for a connection with priority $p$ is:
 
 $$
 \sum_{t=0}^{T-1} w_{p,t} \cdot P_{\text{in}}(t) \cdot \Delta t_t
 $$
 
-Connections with different priorities receive non-overlapping weight ranges.
-Lower-priority connections are preferred when breaking ties, which the optimizer uses to select among cost-equivalent solutions.
-Connections with the same priority share a weight range, so ties between them are broken by time step only.
+Because every $w_{p,t}$ is negative, minimising the secondary objective rewards flow rather than penalising it.
+Connections with different priorities receive non-overlapping weight ranges: lower-priority connections are filled first.
+Within a connection, earlier periods receive more negative weights than later ones, so ties are broken by pushing flow to the earliest feasible period.
 
 The secondary objective does not affect the minimum cost—it only selects among cost-equivalent solutions.
 The network solves this lexicographically: primary cost is minimized first, then the secondary objective is minimized subject to the primary remaining optimal.
+A practical consequence is that cost-free opportunities are taken when available — for example, surplus solar charges a battery rather than being curtailed, even when no downstream revenue exists.
 
 ## Outputs
 
