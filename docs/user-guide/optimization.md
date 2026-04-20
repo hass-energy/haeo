@@ -19,7 +19,7 @@ Total cost over the optimization horizon in dollars.
 !!! info "Lexicographic ordering"
 
     When multiple schedules share the same primary cost, HAEO applies a secondary time-preference objective.
-    This ordering favors earlier energy transfers without changing the reported optimization cost.
+    This ordering favors earlier energy transfers and encourages flow on cost-free paths (for example, storing surplus solar rather than curtailing it), without changing the reported optimization cost.
 
 ### Optimization Status
 
