@@ -131,6 +131,20 @@ With these four policies configured, the optimizer now has detailed cost signals
 The optimizer uses these costs alongside grid import/export prices to find the cheapest overall schedule.
 For example, if grid import costs \$0.25/kWh, shipping solar to a load (free) is strongly preferred over importing from the grid.
 
+## Policy scope: where a rule actually applies
+
+A policy like `Solar → Grid: $0.02/kWh` prices solar-originated power — but only while that power still carries Solar's provenance.
+Intermediate *sinks* (battery, load, grid-as-destination) terminate the provenance, so policies do not follow energy past them.
+
+In practical terms:
+
+- **Junction elements** (inverters, switchboard nodes with both flags off) pass provenance through, so a policy can price the whole source-to-destination chain that runs through junctions.
+- **Sink elements** (loads, battery-when-charging) absorb the provenance. Any onward flow from a sink is re-tagged by that sink's own identity (or becomes unpolicied).
+- **Storage elements** (batteries) are both source and sink. Energy charged into a battery is accounted for separately from energy discharged out of it. Two policies are needed to price both legs — for example `Solar → Battery: -$0.001/kWh` (charge incentive) *and* `Battery → Grid: $0.10/kWh` (discharge export cost).
+
+If you need to route policied flow through a junction, model the junction as a plain `Node` (with `is_source=false` and `is_sink=false`) and hang the real sink/source elements off it.
+See [Node roles and policy scope](../modeling/tagged-power.md#node-roles-and-policy-scope) for the full rules.
+
 ## Next Steps
 
 <div class="grid cards" markdown>

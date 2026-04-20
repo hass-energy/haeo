@@ -55,6 +55,76 @@ The data plane (the LP model) executes those rules without understanding the pol
 
 ## Semantics
 
+### Node roles and policy scope
+
+Every element in a HAEO network is classified by two independent flags: `is_source` (can produce power) and `is_sink` (can consume power).
+The combination determines how policy tags flow through the element, which in turn determines where policies apply.
+
+| Role         | `is_source` | `is_sink` | Example elements            | Tag behaviour                                  |
+| ------------ | ----------- | --------- | --------------------------- | ---------------------------------------------- |
+| **Source**   | `true`      | `false`   | Solar                       | Originates its own tag                         |
+| **Sink**     | `false`     | `true`    | Load, Grid-export-only      | Terminates any tag arriving at it              |
+| **Storage**  | `true`      | `true`    | Battery, Grid (bi-dir)      | Originates its own tag *and* terminates others |
+| **Junction** | `false`     | `false`   | Inverter, Switchboard, Node | Passes every tag through unchanged             |
+
+The operative rule is: **sinks terminate provenance**.
+When tagged power arrives at a sink, the tag stops there.
+If the sink is also a source (storage), it re-emits power on *its own* tag, not on whatever tag it received.
+Only junctions — elements that are neither source nor sink — pass tags through unchanged.
+
+This directly constrains what a policy can price:
+
+- A policy with `source=X` can only price edges on the path *from X to the nearest sink it reaches*.
+- If some other sink sits between X and the policy's named destination, the policy does not follow the energy past that intermediate sink.
+- The energy still flows, just under a new tag — whatever provenance the intermediate sink emits as, or the default tag 0 if it is a pure sink.
+
+!!! example "Worked consequence"
+
+    ```
+    Solar → Switchboard → Load → ???
+    ```
+
+    A policy `Solar → *: $0.01/kWh` prices the Solar-tagged flow up to Load (Load is a sink — the tag terminates).
+    There is no "onward" flow downstream of a pure Load.
+
+    ```
+    Solar → Switchboard → Battery → Switchboard → Grid
+    ```
+
+    A policy `Solar → Grid: $0.02/kWh` prices the Solar → Battery leg only.
+    Once energy is stored, it is "Battery power" — any onward pricing must come from a `Battery → Grid` policy, not from the `Solar → Grid` one.
+    This is what prevents the optimiser from "laundering" solar through the battery to dodge a per-source tariff.
+
+### Choosing roles when building a system
+
+When you are modelling a new topology, the decision tree for each element is:
+
+1. **Does it generate or consume real energy?**
+    - Generates → source (Solar, Grid-import).
+    - Consumes → sink (Load, Grid-export).
+    - Stores → both (Battery, bidirectional Grid).
+    - Neither → junction (Inverter, Switchboard, Node with `is_source=false, is_sink=false`).
+2. **Do you want a policy to follow the energy past this point?**
+    - If yes, it must be a junction.
+    - If no, it must be a sink (storage counts).
+
+A common modelling mistake is using a battery or a load as a routing hub.
+Because sinks terminate provenance, any policy that was supposed to price downstream flow will no longer apply past that element.
+If you genuinely need a routing hub, model it as a plain `Node` element with both flags off and attach the real sink/source element beside it:
+
+```mermaid
+graph LR
+    Solar[Solar] --> Switchboard[Switchboard Node]
+    Switchboard --> Load[Load]
+    Switchboard --> Grid[Grid]
+    Switchboard --> Battery[Battery]
+```
+
+Here the Switchboard is a junction, so a `Solar → Grid` policy's tag can travel all the way to the Grid edge.
+Battery and Load sit beside the junction, each with their own tag provenance.
+
+See [Node element configuration](../user-guide/elements/node.md#source-and-sink-combinations) for practical examples.
+
 ### Default behavior without policies
 
 When no policies are configured, behavior matches standard HAEO.
@@ -166,7 +236,7 @@ For each VLAN, compute which connections can carry it using directed reachabilit
 
 1. Identify source nodes assigned to that VLAN.
 2. Compute forward reachability from those sources (following connection direction) and backward reachability from *all* sink nodes (reverse direction).
-   Forward traversal *absorbs* at sink nodes: a sink is included in the reachable set but expansion does not continue out of it. The VLAN's own sources are exempt so storage elements can still expand their own VLAN forward.
+    Forward traversal *absorbs* at sink nodes: a sink is included in the reachable set but expansion does not continue out of it. The VLAN's own sources are exempt so storage elements can still expand their own VLAN forward.
 3. Assign VLAN variables only to connections whose endpoints both appear in the intersection of forward and backward reachable sets.
 
 This avoids creating variables on impossible routes, while also ensuring a tagged source has a direct path to every sink it could physically serve.

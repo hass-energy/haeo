@@ -49,6 +49,10 @@ A policy restricts where tagged flow is *priced* — it does not restrict where 
 If the subgraph were narrowed to policy destinations only, a tagged source would be unable to serve an ordinary sink directly whenever the policy destination's capacity was exhausted, and the solver would be forced to launder power through storage to shed the tag.
 Pricing placement (Step 8 of the compilation pipeline) still uses the source-to-policy-destination cut, so non-destination sinks remain policy-free while retaining a direct path.
 
+Forward reachability is also *sink-absorbing* and *source-excluding*: traversal stops at each sink (except the VLAN's own sources), and edges whose target is one of the VLAN's own sources are dropped.
+Together these rules mean a tag never leaves a sink, never re-enters its origin, and therefore cannot be laundered through storage to avoid tag-scoped pricing.
+See [Node roles and policy scope](../modeling/tagged-power.md#node-roles-and-policy-scope) for the user-facing framing and [Step 4](policy-compilation.md#step-4-reachability-analysis) of the compilation pipeline for the implementation.
+
 ### Savings pattern
 
 | Topology     | Naive variable factor | With pruning                 |

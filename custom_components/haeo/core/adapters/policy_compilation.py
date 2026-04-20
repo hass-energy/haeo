@@ -321,7 +321,7 @@ def _find_reachable_connections(
         start_nodes: set[str],
         adjacency: Mapping[str, set[tuple[str, str]]],
         *,
-        stop_at: set[str] = frozenset(),
+        stop_at: frozenset[str] | set[str] = frozenset(),
     ) -> tuple[set[str], set[str]]:
         """Return (reachable, expanded) where expanded excludes stop_at nodes."""
         reachable: set[str] = set()
