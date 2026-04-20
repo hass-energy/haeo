@@ -166,11 +166,14 @@ For each VLAN, compute which connections can carry it using directed reachabilit
 
 1. Identify source nodes assigned to that VLAN.
 2. Compute forward reachability from those sources (following connection direction) and backward reachability from *all* sink nodes (reverse direction).
+   Forward traversal *absorbs* at sink nodes: a sink is included in the reachable set but expansion does not continue out of it. The VLAN's own sources are exempt so storage elements can still expand their own VLAN forward.
 3. Assign VLAN variables only to connections whose endpoints both appear in the intersection of forward and backward reachable sets.
 
 This avoids creating variables on impossible routes, while also ensuring a tagged source has a direct path to every sink it could physically serve.
 A policy restricts where tagged flow is *priced* (Step 8), not where it may physically terminate: narrowing the subgraph to policy destinations alone would force solar to detour through storage whenever a Solar→Grid policy exhausted grid capacity, because Load would refuse the Solar tag.
 That shows up as spurious simultaneous charge and discharge — power "laundered" through the battery to shed its provenance.
+Sink absorption closes a related hole: without it, a VLAN that reached a battery would also propagate onto the battery's outbound edge, letting foreign tags leave storage without paying costs that were priced on the battery's own VLAN — the phantom charge/discharge arbitrage that appears when a negative-priced charge incentive is paired with tag-scoped wear.
+Reachability also excludes edges whose *target* is one of the VLAN's own sources: a VLAN cannot re-enter its origin, which breaks the zero-cost self-loop `Battery:discharge → Inverter → Battery:charge → Battery` that would otherwise let solar (or any other incoming VLAN) pay only for the round-trip efficiency loss while the wear cost on the outbound cut is never crossed.
 For tree topologies, which cover most home energy systems, paths between any two nodes are unique and the computation is linear in the node count.
 
 ### Step 5: Connection tagging

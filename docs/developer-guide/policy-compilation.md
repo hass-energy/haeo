@@ -58,6 +58,17 @@ Restricting VLAN membership to policy-specific destinations only would force tag
 That manifests as spurious simultaneous battery charge and discharge — power "laundered" through storage purely to relabel its provenance.
 Pricing is still placed only on the cut separating source from its policy-specific destinations (Step 8), so non-destination sinks remain policy-free.
 
+Forward reachability is *sink-absorbing*: when traversal arrives at a sink node, the sink is included in the reachable set but expansion does not continue out of it.
+Without absorption a storage node (both a source and a sink — a battery) would let any incoming VLAN propagate onto its outbound connections, where the tag would bypass any cost placed on the battery's own VLAN.
+The same mechanism powered a phantom charge/discharge arbitrage when a negative-priced charge incentive was paired with a tag-scoped wear cost: the solver could pump tagged flow through the battery at its rate limits, pay only the incentive, and skip the wear because wear lived on a different tag.
+Absorbing at sinks eliminates that degree of freedom entirely — the battery's outbound flow now always carries provenance from the battery's own VLAN, so wear (and any other battery-source policy) always applies.
+The VLAN's source nodes are exempt from absorption so a storage element's own VLAN can still expand outward from it normally.
+
+Reachability additionally excludes edges whose *target* is one of the VLAN's own source nodes.
+A VLAN represents power originating at its sources, so tagged flow must never re-enter its origin.
+For a battery (both a source and a sink of its own VLAN) this removes the `Battery:charge` edge from the battery VLAN: the zero-cost self-loop `Battery:discharge → Inverter → Battery:charge → Battery` is no longer expressible in the tagged graph.
+Without this exclusion the solver could use solar (or any other incoming VLAN) just to cover the round-trip efficiency loss of a battery self-cycle, funding it with the incoming charge incentive while the wear cost — placed on an outbound cut the loop never crosses — is completely avoided.
+
 ### Step 5: Connection tagging
 
 Apply reachability results so each connection gets the set of VLANs that can traverse it.

@@ -146,18 +146,24 @@ def compile_policies(
 
     # --- Step 4: Reachability analysis ---
     # VLAN membership follows source provenance: a VLAN covers every
-    # connection on a directed path from the VLAN's sources to *any* sink.
+    # connection on a directed path from the VLAN's sources to *any* sink,
+    # stopping at each sink (sinks absorb the VLAN).
     #
-    # Restricting to policy destinations alone would force tagged flow to
-    # detour through a battery (or curtail) whenever the source exceeds
-    # the policy destination's capacity, because non-destination sinks
-    # would refuse the VLAN tag. Pricing is still only placed on the cut
-    # separating source from policy-specific destinations (step 8);
-    # non-destination sinks remain policy-free.
+    # Reaching every sink (not just policy destinations) is necessary so
+    # excess flow has somewhere to go without detouring or being curtailed
+    # whenever the source exceeds the policy destination's capacity.
+    # Absorbing at sinks prevents phantom passthrough where a storage
+    # element (battery) would otherwise allow tagged flow to enter and
+    # re-emerge on its outbound edge, laundering provenance and exposing
+    # zero-wear arbitrage loops against tag-scoped prices. Pricing is
+    # still only placed on the cut separating source from policy-specific
+    # destinations (step 8); non-destination sinks remain policy-free.
     vlan_connections: dict[int, set[str]] = {}
     for vlan_id in active_vlans:
         source_nodes = {n for n, v in tag_map.items() if v == vlan_id}
-        vlan_connections[vlan_id] = _find_reachable_connections(source_nodes, sink_names, directed_graph)
+        vlan_connections[vlan_id] = _find_reachable_connections(
+            source_nodes, sink_names, directed_graph, absorb_at=sink_names
+        )
 
     # --- Step 5: Connection tagging ---
     for conn in connections:
@@ -270,6 +276,7 @@ def _find_reachable_connections(
     source_nodes: set[str],
     dest_nodes: set[str],
     directed_graph: Mapping[str, set[tuple[str, str]]],
+    absorb_at: set[str] | None = None,
 ) -> set[str]:
     """Find connections on directed paths from source_nodes to dest_nodes.
 
@@ -278,10 +285,31 @@ def _find_reachable_connections(
     direction (target → source). Only connections whose endpoints both appear
     in the intersection of forward and backward reachable sets are included.
 
+    When ``absorb_at`` is provided (typically the set of sink nodes), the
+    forward traversal treats those nodes as absorbing: flow may reach them
+    but does not continue out of them. This is what gives storage elements
+    "tag-absorbing" semantics — a VLAN that reaches a battery does not
+    propagate onto that battery's outbound connections, so downstream flow
+    is tagged with the battery's own provenance rather than passing
+    through. Nodes in ``source_nodes`` are exempt from absorption so the
+    VLAN's own sources can still expand outward. Backward traversal is
+    unaffected, so sinks on the destination side still trace their way
+    back to the appropriate sources.
+
+    Edges whose target lies in ``source_nodes`` are excluded from the
+    result: a VLAN represents power *originating* at its source, so
+    tagged flow must not re-enter that source.  Including such edges on
+    a storage element (battery that is both source and sink for its own
+    VLAN) creates a zero-cost self-loop — Battery:discharge → Inverter →
+    Battery:charge → Battery — that bypasses every downstream cut and
+    exposes arbitrage whenever an inbound edge pays an incentive.
+
     Stays linear in graph size and is stable on cyclic topologies.
     """
     if not source_nodes or not dest_nodes:
         return set()
+
+    absorbing = (absorb_at or set()) - source_nodes
 
     # Build reverse directed graph
     reverse_graph: dict[str, set[tuple[str, str]]] = defaultdict(set)
@@ -289,31 +317,45 @@ def _find_reachable_connections(
         for neighbor, conn_name in neighbors:
             reverse_graph[neighbor].add((current, conn_name))
 
-    def collect_reachable(start_nodes: set[str], adjacency: Mapping[str, set[tuple[str, str]]]) -> set[str]:
+    def collect_reachable(
+        start_nodes: set[str],
+        adjacency: Mapping[str, set[tuple[str, str]]],
+        *,
+        stop_at: set[str] = frozenset(),
+    ) -> tuple[set[str], set[str]]:
+        """Return (reachable, expanded) where expanded excludes stop_at nodes."""
         reachable: set[str] = set()
+        expanded: set[str] = set()
         queue: deque[str] = deque(start_nodes)
         while queue:
             current = queue.popleft()
             if current in reachable:
                 continue
             reachable.add(current)
+            if current in stop_at:
+                continue
+            expanded.add(current)
             for neighbor, _conn_name in adjacency.get(current, set()):
                 if neighbor not in reachable:
                     queue.append(neighbor)
-        return reachable
+        return reachable, expanded
 
-    forward_reachable = collect_reachable(source_nodes, directed_graph)
-    backward_reachable = collect_reachable(dest_nodes, reverse_graph)
+    forward_reachable, forward_expanded = collect_reachable(source_nodes, directed_graph, stop_at=absorbing)
+    backward_reachable, _ = collect_reachable(dest_nodes, reverse_graph)
 
     relevant_nodes = forward_reachable & backward_reachable
     if not relevant_nodes:
         return set()
 
+    # Only emit edges out of nodes we actually expanded forward; edges out
+    # of absorbing nodes are excluded so tags stop at the sink.  Edges
+    # whose target is the VLAN's own source are also excluded, so tagged
+    # flow cannot re-enter its origin and create phantom storage loops.
     return {
         conn_name
-        for current in relevant_nodes
+        for current in relevant_nodes & forward_expanded
         for neighbor, conn_name in directed_graph.get(current, set())
-        if neighbor in relevant_nodes
+        if neighbor in relevant_nodes and neighbor not in source_nodes
     }
 
 
