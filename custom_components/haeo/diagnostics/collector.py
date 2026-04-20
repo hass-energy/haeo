@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.components.recorder import history as recorder_history
@@ -13,12 +13,11 @@ from homeassistant.helpers.recorder import get_instance as get_recorder_instance
 from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
-from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
-from custom_components.haeo.core.schema.elements import ElementConfigSchema
+from custom_components.haeo.core.schema.elements import ElementConfigSchema, HaeoConfigEntryDict
 from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.sensor_utils import (
     SensorStateDict,
@@ -26,6 +25,9 @@ from custom_components.haeo.sensor_utils import (
     get_horizon_sensor_entity_id,
     get_output_sensors,
 )
+
+if TYPE_CHECKING:
+    from custom_components.haeo import HaeoConfigEntry
 
 """Schema version of the serialized diagnostics output. Bump on breaking shape changes."""
 # Keys to redact from diagnostics output. Following HA convention, ``async_redact_data``
@@ -35,6 +37,35 @@ from custom_components.haeo.sensor_utils import (
 # ``{"__type": ..., "repr": ...}`` placeholders for those values.
 _REDACTED_CONFIG_KEYS: frozenset[str] = frozenset()
 DIAGNOSTICS_SCHEMA_VERSION = 2
+
+# Bookkeeping fields stripped from entry.as_dict() before snapshotting -- they're
+# HA-internal identifiers/timestamps with no user-meaningful content for diagnostics.
+ENTRY_BLOCKLIST: frozenset[str] = frozenset(
+    {
+        "entry_id",
+        "source",
+        "unique_id",
+        "disabled_by",
+        "created_at",
+        "modified_at",
+        "discovery_keys",
+        "pref_disable_new_entities",
+        "pref_disable_polling",
+    }
+)
+SUBENTRY_BLOCKLIST: frozenset[str] = frozenset({"subentry_id", "unique_id"})
+
+
+def snapshot_config(entry: "HaeoConfigEntry") -> HaeoConfigEntryDict:
+    """Capture the entry as a typed snapshot, stripping HA bookkeeping fields.
+
+    Mirrors `entry.as_dict()` exactly except for the blocklisted keys. The TypedDict
+    cast documents the resulting shape; the blocklist is the runtime contract.
+    """
+    raw = entry.as_dict()
+    result: dict[str, Any] = {k: v for k, v in raw.items() if k not in ENTRY_BLOCKLIST}
+    result["subentries"] = [{k: v for k, v in sub.items() if k not in SUBENTRY_BLOCKLIST} for sub in raw["subentries"]]
+    return cast("HaeoConfigEntryDict", result)
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,8 +104,8 @@ class EnvironmentInfo:
 class DiagnosticsResult:
     """Result of collecting diagnostics."""
 
-    config: dict[str, Any]
-    """HAEO configuration (hub settings, participants)."""
+    config: HaeoConfigEntryDict
+    """Typed snapshot of the config entry (hub settings + subentries)."""
 
     environment: EnvironmentInfo
     """Runtime info plus per-snapshot timestamps."""
@@ -98,19 +129,6 @@ class DiagnosticsResult:
         if self.outputs is not None:
             data["outputs"] = self.outputs
         return data
-
-
-def _config_from_context(context: OptimizationContext) -> dict[str, Any]:
-    """Build diagnostics config section from OptimizationContext.
-
-    Uses the exact hub configuration and participant schemas the optimizer used,
-    rather than re-deriving from the config entry. This captures everything:
-    tiers, horizon preset, advanced settings, etc.
-    """
-    return {
-        **dict(context.hub_config),
-        "participants": dict(context.participants),
-    }
 
 
 def _inputs_from_context(context: OptimizationContext) -> list[dict[str, Any]]:
@@ -152,27 +170,7 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     return entity_ids
 
 
-def _config_from_entry(config_entry: HaeoConfigEntry) -> dict[str, Any]:
-    """Build diagnostics config section from the config entry (current config).
-
-    Used for historical diagnostics where we always use the current configuration.
-    """
-    config: dict[str, Any] = {
-        **dict(config_entry.data),
-        "participants": {},
-    }
-
-    for subentry in config_entry.subentries.values():
-        if subentry.subentry_type != ELEMENT_TYPE_NETWORK:
-            raw_data = dict(subentry.data)
-            raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
-            raw_data.setdefault(CONF_NAME, subentry.title)
-            config["participants"][subentry.title] = raw_data
-
-    return config
-
-
-def _collect_entity_ids_from_entry(config_entry: HaeoConfigEntry) -> set[str]:
+def _collect_entity_ids_from_entry(config_entry: "HaeoConfigEntry") -> set[str]:
     """Collect all input entity IDs referenced in config entry subentries."""
     all_entity_ids: set[str] = set()
     for subentry in config_entry.subentries.values():
@@ -187,7 +185,7 @@ def _collect_entity_ids_from_entry(config_entry: HaeoConfigEntry) -> set[str]:
 
 async def _fetch_inputs_at(
     hass: HomeAssistant,
-    config_entry: HaeoConfigEntry,
+    config_entry: "HaeoConfigEntry",
     target_time: datetime,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """Fetch input entity states from the recorder at a specific time.
@@ -227,7 +225,7 @@ async def _fetch_inputs_at(
 
 async def _get_last_run_before(
     hass: HomeAssistant,
-    config_entry: HaeoConfigEntry,
+    config_entry: "HaeoConfigEntry",
     target_time: datetime,
 ) -> tuple[datetime, datetime, str] | None:
     """Find the last optimization run that completed at or before a given time.
@@ -289,7 +287,7 @@ async def _get_last_run_before(
 
 async def _build_environment(
     hass: HomeAssistant,
-    config_entry: HaeoConfigEntry,
+    config_entry: "HaeoConfigEntry",
     *,
     diagnostic_request_time: str,
     diagnostic_target_time: str | None,
@@ -324,7 +322,7 @@ def _to_local_iso(dt: datetime) -> str:
 
 async def collect_diagnostics(
     hass: HomeAssistant,
-    config_entry: HaeoConfigEntry,
+    config_entry: "HaeoConfigEntry",
     *,
     target_time: datetime | None = None,
 ) -> DiagnosticsResult:
@@ -352,15 +350,15 @@ async def collect_diagnostics(
             raise RuntimeError(msg)
 
         started_at, completed_at, horizon_start = run
-        config = _config_from_entry(config_entry)
-        config["version"] = config_entry.version
-        config["minor_version"] = config_entry.minor_version
+        config = snapshot_config(config_entry)
         inputs, missing = await _fetch_inputs_at(hass, config_entry, started_at)
         diagnostic_target_time = _to_local_iso(target_time)
         optimization_start_time = _to_local_iso(started_at)
         optimization_end_time = _to_local_iso(completed_at)
         outputs = None
     else:
+        from custom_components.haeo import HaeoRuntimeData  # noqa: PLC0415  -- lazy to break import cycle
+
         runtime_data = config_entry.runtime_data
         if (
             not isinstance(runtime_data, HaeoRuntimeData)
@@ -371,9 +369,7 @@ async def collect_diagnostics(
             raise RuntimeError(msg)
 
         coordinator_data = runtime_data.coordinator.data
-        config = _config_from_context(coordinator_data.context)
-        config["version"] = config_entry.version
-        config["minor_version"] = config_entry.minor_version
+        config = coordinator_data.context.config
         inputs = _inputs_from_context(coordinator_data.context)
         missing = []
         diagnostic_target_time = None
@@ -393,7 +389,7 @@ async def collect_diagnostics(
     )
 
     return DiagnosticsResult(
-        config=async_redact_data(config, _REDACTED_CONFIG_KEYS),
+        config=cast("HaeoConfigEntryDict", async_redact_data(config, _REDACTED_CONFIG_KEYS)),
         environment=environment,
         inputs=inputs,
         outputs=outputs,

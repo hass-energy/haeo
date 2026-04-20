@@ -1,7 +1,8 @@
 """Element schema definitions for HAEO integration."""
 
-from typing import Final
+from typing import Any, Final, Literal, TypedDict
 
+from custom_components.haeo.core.const import HubConfigData
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData, BatteryConfigSchema
 from custom_components.haeo.core.schema.elements.battery_section import (
     BatterySectionConfigData,
@@ -53,9 +54,31 @@ ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
 }
 
 
+class HaeoSubentryDict(TypedDict):
+    """Typed subentry as returned by `subentry.as_dict()` (subentry_id and unique_id blocklisted)."""
+
+    subentry_type: ElementType | Literal["network"]
+    title: str
+    data: ElementConfigSchema
+
+
+class HaeoConfigEntryDict(TypedDict):
+    """Typed config entry as returned by `entry.as_dict()` (HA bookkeeping blocklisted)."""
+
+    version: int
+    minor_version: int
+    domain: Literal["haeo"]
+    title: str
+    data: HubConfigData
+    options: dict[str, Any]
+    subentries: list[HaeoSubentryDict]
+
+
 __all__ = [
     "ELEMENT_CONFIG_SCHEMAS",
     "ElementConfigData",
     "ElementConfigSchema",
     "ElementType",
+    "HaeoConfigEntryDict",
+    "HaeoSubentryDict",
 ]

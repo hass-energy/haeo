@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 import json
 from pathlib import Path
 import sys
-from typing import Any
+from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -33,12 +33,35 @@ from custom_components.haeo.core.data.loader.config_loader import load_element_c
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.schema.elements import ElementConfigData
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config
 from custom_components.haeo.core.schema.sections import SECTION_PRICING
 from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
 
 MIN_INTERVAL_POINTS = 2
+
+
+def participants_from_config(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Return {name: data} for element subentries.
+
+    Supports both the new entry.as_dict() shape (with `subentries: [...]`) and
+    the legacy diagnostics shape (with `participants: {name: data}`).
+    """
+    subentries = config.get("subentries")
+    if isinstance(subentries, list):
+        return {sub["title"]: sub["data"] for sub in subentries if sub.get("subentry_type") != "network"}
+    return dict(config.get("participants", {}))
+
+
+def hub_data_from_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Return the hub-data section used for tier/horizon resolution.
+
+    New shape stores hub config under `data`; legacy shape has it flat at the top.
+    """
+    data = config.get("data")
+    if isinstance(data, dict):
+        return data
+    return config
 
 
 @dataclass
@@ -230,7 +253,7 @@ def get_forecast_by_fields(
 
 def infer_interval_starts_from_outputs(outputs: dict[str, Any], config: dict[str, Any]) -> list[float]:
     """Infer interval start timestamps from diagnostics outputs."""
-    participants = config.get("participants", {})
+    participants = participants_from_config(config)
     grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
     battery_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery")
     load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
@@ -272,7 +295,7 @@ def format_output_table_from_diagnostics(outputs: dict[str, Any], timezone_str: 
     Uses element names from config to find output entities by their attributes.
     """
     # Find element names from config
-    participants = config.get("participants", {})
+    participants = participants_from_config(config)
     grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
     battery_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery")
     load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
@@ -508,7 +531,7 @@ def format_output_table_from_network(
 def extract_rows_from_diagnostics(outputs: dict[str, Any], _timezone_str: str, config: dict[str, Any]) -> list[RowData]:
     """Extract row data from pre-computed diagnostics outputs."""
     # Find element names from config
-    participants = config.get("participants", {})
+    participants = participants_from_config(config)
     grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
     battery_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery")
     load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
@@ -856,7 +879,8 @@ def run_diagnostics(
     # Extract configuration
     config = diag.config
     environment = diag.environment
-    participants_config = config.get("participants", {})
+    participants_config = participants_from_config(config)
+    hub_data = hub_data_from_config(config)
 
     optimization_start_str = environment.get("optimization_start_time", "")
     timezone_str = environment.get("timezone", "UTC")
@@ -935,12 +959,11 @@ def run_diagnostics(
                 interval_starts = []
         if len(interval_starts) < MIN_INTERVAL_POINTS:
             print("Warning: Could not infer output-aligned timeline, falling back to config tiers")
-            # Apply preset override if provided via CLI
-            effective_config = dict(config)
+            effective_hub_data = dict(hub_data)
             if preset:
-                effective_config["horizon_preset"] = preset
+                effective_hub_data["horizon_preset"] = preset
                 print(f"Using preset override: {preset}")
-            periods_seconds = tiers_to_periods_seconds(effective_config, start_time=start_dt)
+            periods_seconds = tiers_to_periods_seconds(effective_hub_data, start_time=start_dt)
             print(f"Optimization periods: {len(periods_seconds)} intervals (from config)")
 
             if not periods_seconds:
@@ -951,12 +974,11 @@ def run_diagnostics(
             forecast_times = generate_forecast_timestamps(periods_seconds, effective_start)
             print(f"Forecast horizon: {len(forecast_times)} boundaries (generated)")
     else:
-        # Apply preset override if provided via CLI
-        effective_config = dict(config)
+        effective_hub_data = dict(hub_data)
         if preset:
-            effective_config["horizon_preset"] = preset
+            effective_hub_data["horizon_preset"] = preset
             print(f"Using preset override: {preset}")
-        periods_seconds = tiers_to_periods_seconds(effective_config, start_time=start_dt)
+        periods_seconds = tiers_to_periods_seconds(effective_hub_data, start_time=start_dt)
         print(f"Optimization periods: {len(periods_seconds)} intervals (from config)")
 
         if not periods_seconds:
@@ -981,7 +1003,7 @@ def run_diagnostics(
     for element_name, element_config in participants_config.items():
         try:
             loaded_participants[element_name] = load_element_config(
-                element_name, element_config, state_provider, forecast_times
+                element_name, cast("ElementConfigSchema", element_config), state_provider, forecast_times
             )
             print(f"  Loaded: {element_name} ({element_config.get(CONF_ELEMENT_TYPE)})")
         except Exception as e:

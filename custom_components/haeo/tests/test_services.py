@@ -35,6 +35,7 @@ from custom_components.haeo.core.const import (
 )
 from custom_components.haeo.diagnostics import DIAGNOSTICS_SCHEMA_VERSION, DiagnosticsResult, EnvironmentInfo
 from custom_components.haeo.services import _format_manifest
+from custom_components.haeo.tests.conftest import make_config_snapshot
 
 
 @pytest.fixture
@@ -85,7 +86,7 @@ async def test_save_diagnostics_service_success(
 
     # Mock the diagnostics function
     mock_diagnostics = DiagnosticsResult(
-        config={"participants": {}},
+        config=make_config_snapshot(),
         environment=EnvironmentInfo(
             diagnostics_version=DIAGNOSTICS_SCHEMA_VERSION,
             ha_version="2024.1.0",
@@ -241,7 +242,7 @@ async def test_save_diagnostics_with_historical_time(
     target_timestamp = datetime(2026, 1, 20, 14, 32, 3, tzinfo=UTC)
 
     mock_diagnostics = DiagnosticsResult(
-        config={"participants": {}},
+        config=make_config_snapshot(),
         environment=EnvironmentInfo(
             diagnostics_version=DIAGNOSTICS_SCHEMA_VERSION,
             ha_version="2024.1.0",
@@ -337,7 +338,7 @@ async def test_save_diagnostics_historical_missing_entities_raises_error(
     target_timestamp = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
 
     mock_diagnostics = DiagnosticsResult(
-        config={"participants": {}},
+        config=make_config_snapshot(),
         environment=EnvironmentInfo(
             diagnostics_version=DIAGNOSTICS_SCHEMA_VERSION,
             ha_version="2024.1.0",

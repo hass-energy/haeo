@@ -34,6 +34,7 @@ from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.haeo_sensor import FORECAST_UNRECORDED_ATTRIBUTES
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.sensor import async_setup_entry
+from custom_components.haeo.tests.conftest import make_config_snapshot
 
 
 def _make_coordinator_data(
@@ -56,9 +57,8 @@ def _make_coordinator_data(
     if outputs is None:
         return None
     context = OptimizationContext(
-        hub_config={},
+        config=make_config_snapshot(),
         horizon_start=datetime.fromtimestamp(1000.0, tz=dt_util.UTC),
-        participants={},
         source_states={},
     )
     run_started_at = started_at or datetime.now(UTC)

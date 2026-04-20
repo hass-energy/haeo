@@ -87,6 +87,11 @@ def _load_scenario(
     return config, inputs, environment["optimization_start_time"]
 
 
+def _participants_from_subentries(config: dict[str, Any]) -> dict[str, ElementConfigSchema]:
+    """Reconstruct the {name: data} participants map from the subentries list."""
+    return {sub["title"]: sub["data"] for sub in config["subentries"]}
+
+
 def _build_network(
     config: dict[str, Any],
     sm: _ScenarioStateMachine,
@@ -94,8 +99,8 @@ def _build_network(
     options: SolveOptions | None = None,
 ) -> Network:
     """Build a Network from scenario data without Home Assistant."""
-    participants: dict[str, ElementConfigSchema] = config["participants"]
-    periods_seconds = tiers_to_periods_seconds(config, start_time=frozen_dt)
+    participants = _participants_from_subentries(config)
+    periods_seconds = tiers_to_periods_seconds(config["data"], start_time=frozen_dt)
     periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
     forecast_times = generate_forecast_timestamps(periods_seconds, start_time=frozen_dt.timestamp())
 
@@ -129,9 +134,9 @@ def _load_configs(
     frozen_dt: datetime,
 ) -> dict[str, ElementConfigData]:
     """Load element configs resolved against scenario state machine."""
-    periods_seconds = tiers_to_periods_seconds(config, start_time=frozen_dt)
+    periods_seconds = tiers_to_periods_seconds(config["data"], start_time=frozen_dt)
     forecast_times = generate_forecast_timestamps(periods_seconds, start_time=frozen_dt.timestamp())
-    return load_element_configs(config["participants"], sm, forecast_times)
+    return load_element_configs(_participants_from_subentries(config), sm, forecast_times)
 
 
 def _load_shifted_configs(
@@ -143,9 +148,9 @@ def _load_shifted_configs(
     """Load element configs with time shifted forward."""
     shifted_epoch = frozen_dt.timestamp() + shift_seconds
     shifted_dt = datetime.fromtimestamp(shifted_epoch, tz=UTC)
-    shifted_periods = tiers_to_periods_seconds(config, start_time=shifted_dt)
+    shifted_periods = tiers_to_periods_seconds(config["data"], start_time=shifted_dt)
     shifted_forecast_times = generate_forecast_timestamps(shifted_periods, start_time=shifted_epoch)
-    return load_element_configs(config["participants"], sm, shifted_forecast_times)
+    return load_element_configs(_participants_from_subentries(config), sm, shifted_forecast_times)
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +239,7 @@ def test_time_shift(scenario_path: Path, options: SolveOptions, benchmark: Bench
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
 
-    periods_seconds = tiers_to_periods_seconds(config, start_time=frozen_dt)
+    periods_seconds = tiers_to_periods_seconds(config["data"], start_time=frozen_dt)
     shift_seconds = periods_seconds[0]
     shifted_configs = _load_shifted_configs(config, sm, frozen_dt, shift_seconds)
 

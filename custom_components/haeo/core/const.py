@@ -1,7 +1,7 @@
 """Constants for the HAEO core module."""
 
 import enum
-from typing import Final
+from typing import Final, Literal, NotRequired, TypedDict
 
 CONF_ELEMENT_TYPE: Final = "element_type"
 CONF_NAME: Final = "name"
@@ -46,6 +46,49 @@ HUB_SECTION_TIERS: Final = "tiers"
 
 # Horizon presets
 HORIZON_PRESET_5_DAYS: Final = "5_days"
+
+
+# Hub-level config TypedDicts mirror persistence reality after v1.3 migration.
+# Every field below is unconditionally written by both _create_hub_entry
+# (flows/hub.py) and _migrate_hub_to_sectioned (core/schema/migrations/v1_3.py).
+# Only record_forecasts is NotRequired (only the options flow writes it).
+
+
+class HubCommonSection(TypedDict):
+    """Common hub section: name and horizon preset."""
+
+    name: str
+    horizon_preset: str
+
+
+class HubTiersSection(TypedDict):
+    """Tier configuration: count and duration per tier."""
+
+    tier_1_count: int
+    tier_1_duration: int
+    tier_2_count: int
+    tier_2_duration: int
+    tier_3_count: int
+    tier_3_duration: int
+    tier_4_count: int
+    tier_4_duration: int
+
+
+class HubAdvancedSection(TypedDict):
+    """Advanced hub section: debounce and advanced mode toggle."""
+
+    debounce_seconds: int
+    advanced_mode: bool
+
+
+class HubConfigData(TypedDict):
+    """Hub-level config as persisted in entry.data after v1.3 sectioning."""
+
+    integration_type: Literal["hub"]
+    common: HubCommonSection
+    tiers: HubTiersSection
+    advanced: HubAdvancedSection
+    record_forecasts: NotRequired[bool]
 
 
 class ConnectivityLevel(enum.StrEnum):

@@ -1,166 +1,204 @@
 {
+  "data": {
+    "advanced": { "advanced_mode": false, "debounce_seconds": 2 },
+    "common": { "name": "Test Hub", "horizon_preset": "custom" },
+    "integration_type": "hub",
+    "tiers": {
+      "tier_1_count": 5,
+      "tier_1_duration": 1,
+      "tier_2_count": 11,
+      "tier_2_duration": 5,
+      "tier_3_count": 46,
+      "tier_3_duration": 30,
+      "tier_4_count": 48,
+      "tier_4_duration": 60
+    }
+  },
+  "domain": "haeo",
   "minor_version": 3,
-  "tier_1_count": 5,
-  "tier_1_duration": 1,
-  "tier_2_count": 11,
-  "tier_2_duration": 5,
-  "tier_3_count": 46,
-  "tier_3_duration": 30,
-  "tier_4_count": 48,
-  "tier_4_duration": 60,
-  "version": 1,
-  "participants": {
-    "Battery": {
-      "name": "Battery",
-      "element_type": "battery",
-      "connection": { "type": "connection_target", "value": "Inverter" },
-      "efficiency": {
-        "efficiency_source_target": { "type": "constant", "value": 99.0 },
-        "efficiency_target_source": { "type": "constant", "value": 99.0 }
-      },
-      "limits": {
-        "max_charge_percentage": { "type": "constant", "value": 100.0 },
-        "min_charge_percentage": { "type": "constant", "value": 10.0 }
-      },
-      "partitioning": {},
-      "power_limits": {
-        "max_power_source_target": { "type": "entity", "value": ["sensor.sigen_plant_ess_rated_discharging_power"] },
-        "max_power_target_source": { "type": "entity", "value": ["sensor.sigen_plant_ess_rated_charging_power"] }
-      },
-      "pricing": {
-        "price_source_target": { "type": "constant", "value": 0.02 },
-        "price_target_source": { "type": "constant", "value": 0.001 },
-        "salvage_value": { "type": "constant", "value": 0.0 }
-      },
-      "storage": {
-        "capacity": { "type": "entity", "value": ["sensor.sigen_plant_rated_energy_capacity"] },
-        "initial_charge_percentage": { "type": "entity", "value": ["sensor.sigen_plant_battery_state_of_charge"] }
-      }
-    },
-    "Constant Load": {
-      "name": "Constant Load",
-      "element_type": "load",
-      "connection": { "type": "connection_target", "value": "Switchboard" },
-      "curtailment": {},
-      "forecast": { "forecast": { "type": "constant", "value": 1.0 } },
-      "pricing": {}
-    },
-    "Energy Policies": {
-      "name": "Energy Policies",
-      "element_type": "policy",
-      "rules": [
-        {
-          "name": "Grid to Load",
-          "enabled": true,
-          "price": { "type": "constant", "value": 0.05 },
-          "source": ["Grid"],
-          "target": ["Constant Load"]
+  "options": {},
+  "subentries": [
+    {
+      "data": {
+        "name": "Battery",
+        "element_type": "battery",
+        "connection": { "type": "connection_target", "value": "Inverter" },
+        "efficiency": {
+          "efficiency_source_target": { "type": "constant", "value": 99.0 },
+          "efficiency_target_source": { "type": "constant", "value": 99.0 }
         },
-        {
-          "name": "Solar to Load",
-          "enabled": true,
-          "price": { "type": "constant", "value": 0.01 },
-          "source": ["Solar"],
-          "target": ["Constant Load"]
+        "limits": {
+          "max_charge_percentage": { "type": "constant", "value": 100.0 },
+          "min_charge_percentage": { "type": "constant", "value": 10.0 }
         },
-        {
-          "name": "Battery to Load",
-          "enabled": true,
-          "price": { "type": "constant", "value": 0.03 },
-          "source": ["Battery"],
-          "target": ["Constant Load"]
+        "partitioning": {},
+        "power_limits": {
+          "max_power_source_target": { "type": "entity", "value": ["sensor.sigen_plant_ess_rated_discharging_power"] },
+          "max_power_target_source": { "type": "entity", "value": ["sensor.sigen_plant_ess_rated_charging_power"] }
         },
-        {
-          "name": "Grid to Battery",
-          "enabled": true,
-          "price": { "type": "constant", "value": 0.04 },
-          "source": ["Grid"],
-          "target": ["Battery"]
+        "pricing": {
+          "price_source_target": { "type": "constant", "value": 0.02 },
+          "price_target_source": { "type": "constant", "value": 0.001 },
+          "salvage_value": { "type": "constant", "value": 0.0 }
         },
-        {
-          "name": "Solar to Battery",
-          "enabled": true,
-          "price": { "type": "constant", "value": 0.005 },
-          "source": ["Solar"],
-          "target": ["Battery"]
+        "storage": {
+          "capacity": { "type": "entity", "value": ["sensor.sigen_plant_rated_energy_capacity"] },
+          "initial_charge_percentage": { "type": "entity", "value": ["sensor.sigen_plant_battery_state_of_charge"] }
         }
-      ]
-    },
-    "Grid": {
-      "name": "Grid",
-      "element_type": "grid",
-      "connection": { "type": "connection_target", "value": "Switchboard" },
-      "power_limits": {
-        "max_power_source_target": { "type": "constant", "value": 55.0 },
-        "max_power_target_source": { "type": "constant", "value": 30.0 }
       },
-      "pricing": {
-        "price_source_target": {
-          "type": "entity",
-          "value": ["sensor.home_general_price", "sensor.home_general_forecast"]
+      "subentry_type": "battery",
+      "title": "Battery"
+    },
+    {
+      "data": {
+        "name": "Constant Load",
+        "element_type": "load",
+        "connection": { "type": "connection_target", "value": "Switchboard" },
+        "curtailment": {},
+        "forecast": { "forecast": { "type": "constant", "value": 1.0 } },
+        "pricing": {}
+      },
+      "subentry_type": "load",
+      "title": "Constant Load"
+    },
+    {
+      "data": {
+        "name": "Energy Policies",
+        "element_type": "policy",
+        "rules": [
+          {
+            "name": "Grid to Load",
+            "enabled": true,
+            "price": { "type": "constant", "value": 0.05 },
+            "source": ["Grid"],
+            "target": ["Constant Load"]
+          },
+          {
+            "name": "Solar to Load",
+            "enabled": true,
+            "price": { "type": "constant", "value": 0.01 },
+            "source": ["Solar"],
+            "target": ["Constant Load"]
+          },
+          {
+            "name": "Battery to Load",
+            "enabled": true,
+            "price": { "type": "constant", "value": 0.03 },
+            "source": ["Battery"],
+            "target": ["Constant Load"]
+          },
+          {
+            "name": "Grid to Battery",
+            "enabled": true,
+            "price": { "type": "constant", "value": 0.04 },
+            "source": ["Grid"],
+            "target": ["Battery"]
+          },
+          {
+            "name": "Solar to Battery",
+            "enabled": true,
+            "price": { "type": "constant", "value": 0.005 },
+            "source": ["Solar"],
+            "target": ["Battery"]
+          }
+        ]
+      },
+      "subentry_type": "policy",
+      "title": "Energy Policies"
+    },
+    {
+      "data": {
+        "name": "Grid",
+        "element_type": "grid",
+        "connection": { "type": "connection_target", "value": "Switchboard" },
+        "power_limits": {
+          "max_power_source_target": { "type": "constant", "value": 55.0 },
+          "max_power_target_source": { "type": "constant", "value": 30.0 }
         },
-        "price_target_source": {
-          "type": "entity",
-          "value": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"]
+        "pricing": {
+          "price_source_target": {
+            "type": "entity",
+            "value": ["sensor.home_general_price", "sensor.home_general_forecast"]
+          },
+          "price_target_source": {
+            "type": "entity",
+            "value": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"]
+          }
         }
-      }
+      },
+      "subentry_type": "grid",
+      "title": "Grid"
     },
-    "Inverter": {
-      "name": "Inverter",
-      "element_type": "inverter",
-      "connection": { "type": "connection_target", "value": "Switchboard" },
-      "efficiency": {},
-      "power_limits": {
-        "max_power_source_target": { "type": "entity", "value": ["sensor.sigen_plant_max_active_power"] },
-        "max_power_target_source": { "type": "entity", "value": ["sensor.sigen_plant_max_active_power"] }
-      }
+    {
+      "data": {
+        "name": "Inverter",
+        "element_type": "inverter",
+        "connection": { "type": "connection_target", "value": "Switchboard" },
+        "efficiency": {},
+        "power_limits": {
+          "max_power_source_target": { "type": "entity", "value": ["sensor.sigen_plant_max_active_power"] },
+          "max_power_target_source": { "type": "entity", "value": ["sensor.sigen_plant_max_active_power"] }
+        }
+      },
+      "subentry_type": "inverter",
+      "title": "Inverter"
     },
-    "Solar": {
-      "name": "Solar",
-      "element_type": "solar",
-      "connection": { "type": "connection_target", "value": "Inverter" },
-      "curtailment": { "curtailment": { "type": "constant", "value": true } },
-      "forecast": {
+    {
+      "data": {
+        "name": "Solar",
+        "element_type": "solar",
+        "connection": { "type": "connection_target", "value": "Inverter" },
+        "curtailment": { "curtailment": { "type": "constant", "value": true } },
         "forecast": {
-          "type": "entity",
-          "value": [
-            "sensor.energy_production_today_east",
-            "sensor.energy_production_today_north",
-            "sensor.energy_production_today_south",
-            "sensor.energy_production_today_west",
-            "sensor.energy_production_tomorrow_east",
-            "sensor.energy_production_tomorrow_north",
-            "sensor.energy_production_tomorrow_south",
-            "sensor.energy_production_tomorrow_west",
-            "sensor.energy_production_d2_east",
-            "sensor.energy_production_d2_north",
-            "sensor.energy_production_d2_south",
-            "sensor.energy_production_d2_west",
-            "sensor.energy_production_d3_east",
-            "sensor.energy_production_d3_north",
-            "sensor.energy_production_d3_south",
-            "sensor.energy_production_d3_west",
-            "sensor.energy_production_d4_east",
-            "sensor.energy_production_d4_north",
-            "sensor.energy_production_d4_south",
-            "sensor.energy_production_d4_west",
-            "sensor.energy_production_d5_east",
-            "sensor.energy_production_d5_north",
-            "sensor.energy_production_d5_south",
-            "sensor.energy_production_d5_west",
-            "sensor.energy_production_d6_east",
-            "sensor.energy_production_d6_north",
-            "sensor.energy_production_d6_south",
-            "sensor.energy_production_d6_west",
-            "sensor.energy_production_d7_east",
-            "sensor.energy_production_d7_north",
-            "sensor.energy_production_d7_south",
-            "sensor.energy_production_d7_west"
-          ]
-        }
+          "forecast": {
+            "type": "entity",
+            "value": [
+              "sensor.energy_production_today_east",
+              "sensor.energy_production_today_north",
+              "sensor.energy_production_today_south",
+              "sensor.energy_production_today_west",
+              "sensor.energy_production_tomorrow_east",
+              "sensor.energy_production_tomorrow_north",
+              "sensor.energy_production_tomorrow_south",
+              "sensor.energy_production_tomorrow_west",
+              "sensor.energy_production_d2_east",
+              "sensor.energy_production_d2_north",
+              "sensor.energy_production_d2_south",
+              "sensor.energy_production_d2_west",
+              "sensor.energy_production_d3_east",
+              "sensor.energy_production_d3_north",
+              "sensor.energy_production_d3_south",
+              "sensor.energy_production_d3_west",
+              "sensor.energy_production_d4_east",
+              "sensor.energy_production_d4_north",
+              "sensor.energy_production_d4_south",
+              "sensor.energy_production_d4_west",
+              "sensor.energy_production_d5_east",
+              "sensor.energy_production_d5_north",
+              "sensor.energy_production_d5_south",
+              "sensor.energy_production_d5_west",
+              "sensor.energy_production_d6_east",
+              "sensor.energy_production_d6_north",
+              "sensor.energy_production_d6_south",
+              "sensor.energy_production_d6_west",
+              "sensor.energy_production_d7_east",
+              "sensor.energy_production_d7_north",
+              "sensor.energy_production_d7_south",
+              "sensor.energy_production_d7_west"
+            ]
+          }
+        },
+        "pricing": {}
       },
-      "pricing": {}
+      "subentry_type": "solar",
+      "title": "Solar"
     },
-    "Switchboard": { "name": "Switchboard", "element_type": "node", "role": { "is_sink": false, "is_source": false } }
-  }
+    {
+      "data": { "name": "Switchboard", "element_type": "node", "role": { "is_sink": false, "is_source": false } },
+      "subentry_type": "node",
+      "title": "Switchboard"
+    }
+  ],
+  "title": "Test Hub",
+  "version": 1
 }

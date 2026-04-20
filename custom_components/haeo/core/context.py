@@ -3,9 +3,8 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
-from custom_components.haeo.core.schema.elements import ElementConfigSchema
+from custom_components.haeo.core.schema.elements import HaeoConfigEntryDict
 from custom_components.haeo.core.state import EntityState
 
 
@@ -13,23 +12,16 @@ from custom_components.haeo.core.state import EntityState
 class OptimizationContext:
     """Immutable snapshot of all inputs at optimization time.
 
-    This class captures all inputs needed to reproduce an optimization run:
-    - Element configurations (raw schemas, not processed data)
-    - Source sensor states captured when entities loaded data
-    - Horizon reference time used for period alignment
-
-    The context is built at the start of each optimization run and stored
-    in CoordinatorData for diagnostics and reproducibility.
+    Captures the typed config-entry snapshot (hub data + subentries) plus the
+    sensor states and horizon timing used by the optimization run, so that the
+    run is fully reproducible from the context alone.
     """
 
-    hub_config: Mapping[str, Any]
-    """Hub configuration used to derive periods and timestamps."""
+    config: HaeoConfigEntryDict
+    """Typed snapshot of entry.as_dict() (HA bookkeeping blocklisted)."""
 
     horizon_start: datetime
     """Horizon start time used for period alignment."""
-
-    participants: dict[str, ElementConfigSchema]
-    """Raw element schemas (not processed ElementConfigData)."""
 
     source_states: Mapping[str, EntityState]
     """Source sensor states captured when entities loaded data."""
