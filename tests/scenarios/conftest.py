@@ -6,8 +6,6 @@ from typing import Any, TypedDict, TypeGuard
 
 import pytest
 
-from custom_components.haeo.diagnostics import DIAGNOSTICS_SCHEMA_VERSION
-
 from .syrupy_json_extension import ScenarioJSONExtension
 
 
