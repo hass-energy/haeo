@@ -27,7 +27,13 @@ _NONE_VALUE: dict[str, str] = {"type": "none"}
 _POLICIES_TITLE = "Policies"
 _DEFAULT_POLICY_PRICES: dict[tuple[str, str], frozenset[float]] = {
     (_BATTERY_TYPE, CONF_PRICE_SOURCE_TARGET): frozenset({0.0}),
-    (_BATTERY_TYPE, CONF_PRICE_TARGET_SOURCE): frozenset({0.0, 0.001, 0.01}),
+    # 0.001 was the legacy early-charge-incentive default; we migrate it
+    # through to a real -$0.001/kWh "*→Battery" policy rather than dropping
+    # it, because the new optimizer has no implicit early-charge behaviour
+    # and silently discarding the value would change existing installs'
+    # charging preference (they'd stop pulling free upstream power into
+    # storage when export is unprofitable).
+    (_BATTERY_TYPE, CONF_PRICE_TARGET_SOURCE): frozenset({0.0, 0.01}),
     (_SOLAR_TYPE, CONF_PRICE_SOURCE_TARGET): frozenset({0.0}),
 }
 UNIQUE_ID_PART_COUNT = 3
