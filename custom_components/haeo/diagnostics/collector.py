@@ -1,8 +1,11 @@
 """Core diagnostics collection logic."""
 
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from dataclasses import asdict, dataclass, is_dataclass
+from datetime import date, datetime, timedelta
+from decimal import Decimal
+from enum import Enum
+from types import MappingProxyType
 from typing import Any, cast
 
 from homeassistant.components.recorder import history as recorder_history
@@ -25,6 +28,22 @@ from custom_components.haeo.sensor_utils import (
     get_horizon_sensor_entity_id,
     get_output_sensors,
 )
+
+DIAGNOSTICS_SCHEMA_VERSION = 2
+"""Version of the diagnostics JSON schema produced by :func:`collect_diagnostics`.
+
+History:
+  * ``1`` (implicit, no ``schema_version`` field) — legacy captures with a flat
+    hub config (``tier_1_count`` et al. at top level), no ``environment.timestamp``,
+    and potentially ``MappingProxyType`` / ``Enum`` stubs from HA's
+    ``ExtendedJSONEncoder``.
+  * ``2`` — nested hub config sections (``tiers``/``common``/``advanced``),
+    ``environment.timestamp`` mirrored from ``info.optimization_start_time``,
+    and all containers deep-converted to plain JSON primitives.
+
+Scenario fixtures under ``tests/scenarios/`` are brought forward from older
+schemas by the migration layer in ``tests/scenarios/migrations.py``.
+"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +76,14 @@ class EnvironmentInfo:
     haeo_version: str
     """HAEO integration version."""
 
+    timestamp: str
+    """Wall-clock time when the diagnostic was collected (ISO 8601).
+
+    Duplicated from info.diagnostic_request_time / info.optimization_start_time so
+    tooling that only reads ``environment.json`` (e.g. scenario tests) can still
+    recover the horizon freeze time without also consuming ``info.json``.
+    """
+
     timezone: str
     """System timezone."""
 
@@ -84,8 +111,15 @@ class DiagnosticsResult:
     """Entity IDs that were expected but not found in the recorder."""
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize to a JSON-compatible dict for HA diagnostics output."""
+        """Serialize to a JSON-compatible dict for HA diagnostics output.
+
+        Everything is funneled through :func:`_jsonify` as a last-line-of-defence
+        so nothing that would hit HA's ``ExtendedJSONEncoder`` fallback
+        (``MappingProxyType``, ``Enum``, ``datetime``, ``Decimal``, dataclasses,
+        …) can sneak through as a ``{"__type": ...}`` stub.
+        """
         data: dict[str, Any] = {
+            "schema_version": DIAGNOSTICS_SCHEMA_VERSION,
             "environment": asdict(self.environment),
             "info": asdict(self.info),
             "config": self.config,
@@ -93,7 +127,56 @@ class DiagnosticsResult:
         }
         if self.outputs is not None:
             data["outputs"] = self.outputs
-        return data
+        return cast("dict[str, Any]", _jsonify(data))
+
+
+def _jsonify(value: Any) -> Any:
+    """Recursively convert values into pure JSON primitives.
+
+    HA's JSON encoder turns unknown types like ``MappingProxyType`` into a
+    ``{"__type": ..., "repr": ...}`` stub, which loses structure and breaks any
+    tooling that consumes diagnostics as real JSON (e.g. scenario replay). This
+    helper walks the structure up-front so the output is a clean nested
+    dict/list tree of JSON primitives. Handled in particular:
+
+    * ``MappingProxyType`` and any other :class:`~collections.abc.Mapping` →
+      plain ``dict`` (with stringified keys).
+    * ``tuple`` / ``set`` / ``frozenset`` → ``list``.
+    * :class:`~enum.Enum` (incl. ``StrEnum``) → underlying ``value``.
+    * :class:`~datetime.datetime` / :class:`~datetime.date` → ISO 8601 string.
+    * :class:`~datetime.timedelta` → total seconds (``float``).
+    * :class:`~decimal.Decimal` → ``str`` (matching HA's encoder, preserves
+      precision on round-trip).
+    * Dataclass instances → recursively jsonified ``asdict()``.
+    * :class:`bytes` / :class:`bytearray` → UTF-8 string (best-effort, falls
+      back to ``repr`` on decode error).
+    * Any unknown object → ``repr(value)`` so diagnostics always remain
+      JSON-serializable and never leak HA ``{"__type": ...}`` fallback stubs.
+    """
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, Enum):
+        return _jsonify(value.value)
+    if isinstance(value, (MappingProxyType, Mapping)):
+        return {str(k): _jsonify(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [_jsonify(v) for v in value]
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, timedelta):
+        return value.total_seconds()
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, (bytes, bytearray)):
+        try:
+            return bytes(value).decode("utf-8")
+        except UnicodeDecodeError:
+            return repr(bytes(value))
+    if is_dataclass(value) and not isinstance(value, type):
+        return _jsonify(asdict(value))
+    return repr(value)
 
 
 def _config_from_context(context: OptimizationContext) -> dict[str, Any]:
@@ -103,10 +186,12 @@ def _config_from_context(context: OptimizationContext) -> dict[str, Any]:
     rather than re-deriving from the config entry. This captures everything:
     tiers, horizon preset, advanced settings, etc.
     """
-    return {
-        **dict(context.hub_config),
-        "participants": dict(context.participants),
-    }
+    return _jsonify(
+        {
+            **dict(context.hub_config),
+            "participants": dict(context.participants),
+        },
+    )
 
 
 def _inputs_from_context(context: OptimizationContext) -> list[dict[str, Any]]:
@@ -165,7 +250,7 @@ def _config_from_entry(config_entry: HaeoConfigEntry) -> dict[str, Any]:
             raw_data.setdefault(CONF_NAME, subentry.title)
             config["participants"][subentry.title] = raw_data
 
-    return config
+    return _jsonify(config)
 
 
 def _collect_entity_ids_from_entry(config_entry: HaeoConfigEntry) -> set[str]:
@@ -286,10 +371,13 @@ async def _get_last_run_before(
 async def _build_environment(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
+    timestamp: str,
 ) -> EnvironmentInfo:
     """Build the environment section of diagnostics.
 
     Static facts about the runtime — does not vary per invocation.
+    ``timestamp`` is the per-snapshot capture time and mirrors
+    ``info.optimization_start_time``.
     """
     integration = await async_get_integration(hass, config_entry.domain)
     haeo_version = integration.version or "unknown"
@@ -297,6 +385,7 @@ async def _build_environment(
     return EnvironmentInfo(
         ha_version=ha_version,
         haeo_version=haeo_version,
+        timestamp=timestamp,
         timezone=str(dt_util.get_default_time_zone()),
     )
 
@@ -340,13 +429,15 @@ async def collect_diagnostics(
         config["version"] = config_entry.version
         config["minor_version"] = config_entry.minor_version
         inputs, missing = await _fetch_inputs_at(hass, config_entry, started_at)
+        started_at_iso = _to_local_iso(started_at)
         info = DiagnosticsInfo(
             diagnostic_request_time=now,
             diagnostic_target_time=_to_local_iso(target_time),
-            optimization_start_time=_to_local_iso(started_at),
+            optimization_start_time=started_at_iso,
             optimization_end_time=_to_local_iso(completed_at),
             horizon_start=horizon_start,
         )
+        environment_timestamp = started_at_iso
         outputs = None
     else:
         runtime_data = config_entry.runtime_data
@@ -364,16 +455,18 @@ async def collect_diagnostics(
         config["minor_version"] = config_entry.minor_version
         inputs = _inputs_from_context(coordinator_data.context)
         missing = []
+        started_at_iso = _to_local_iso(coordinator_data.started_at)
         info = DiagnosticsInfo(
             diagnostic_request_time=now,
             diagnostic_target_time=None,
-            optimization_start_time=_to_local_iso(coordinator_data.started_at),
+            optimization_start_time=started_at_iso,
             optimization_end_time=_to_local_iso(coordinator_data.completed_at),
             horizon_start=_to_local_iso(coordinator_data.context.horizon_start),
         )
+        environment_timestamp = started_at_iso
         outputs = get_output_sensors(hass, config_entry)
 
-    environment = await _build_environment(hass, config_entry)
+    environment = await _build_environment(hass, config_entry, environment_timestamp)
 
     return DiagnosticsResult(
         config=config,
@@ -385,4 +478,10 @@ async def collect_diagnostics(
     )
 
 
-__all__ = ["DiagnosticsInfo", "DiagnosticsResult", "EnvironmentInfo", "collect_diagnostics"]
+__all__ = [
+    "DIAGNOSTICS_SCHEMA_VERSION",
+    "DiagnosticsInfo",
+    "DiagnosticsResult",
+    "EnvironmentInfo",
+    "collect_diagnostics",
+]

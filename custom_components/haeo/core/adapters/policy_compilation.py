@@ -123,8 +123,10 @@ def compile_policies(
         return elements
 
     # --- Step 2: Signature computation ---
+    # Iterate names in sorted order so VLAN assignment below is deterministic
+    # regardless of Python hash randomization.
     signatures: dict[str, frozenset[tuple[str, Any]]] = {}
-    for name in names:
+    for name in sorted(names):
         sig = frozenset((dst, _make_hashable(p)) for src, dst, p in flows if src == name)
         signatures[name] = sig
 
