@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Any, cast
 
+from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.components.recorder import history as recorder_history
 from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant, State
@@ -25,6 +26,13 @@ from custom_components.haeo.sensor_utils import (
     get_horizon_sensor_entity_id,
     get_output_sensors,
 )
+
+# Keys to redact from diagnostics output. Following HA convention, ``async_redact_data``
+# is also responsible for unwrapping ``MappingProxyType`` (HA's wrapper around
+# ``ConfigEntry.data`` / ``ConfigSubentry.data``) into plain dicts as a side-effect of
+# its ``{**data}`` recursion -- without that, ``ExtendedJSONEncoder`` falls back to
+# ``{"__type": ..., "repr": ...}`` placeholders for those values.
+_REDACTED_CONFIG_KEYS: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True, slots=True)
@@ -376,7 +384,7 @@ async def collect_diagnostics(
     environment = await _build_environment(hass, config_entry)
 
     return DiagnosticsResult(
-        config=config,
+        config=async_redact_data(config, _REDACTED_CONFIG_KEYS),
         environment=environment,
         inputs=inputs,
         info=info,

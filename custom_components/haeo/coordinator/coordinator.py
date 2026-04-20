@@ -216,21 +216,6 @@ def _build_coordinator_output(
     )
 
 
-def _to_plain_dict(value: Any) -> Any:
-    """Recursively convert any ``Mapping`` (e.g. HA's ``MappingProxyType``) to plain ``dict``.
-
-    HA stores ``subentry.data`` as ``MappingProxyType``. Without normalization, those values
-    leak into ``OptimizationContext.participants`` and break diagnostics JSON serialization
-    (HA's ``ExtendedJSONEncoder`` has no native handler for ``MappingProxyType`` and falls
-    back to ``{"__type": ..., "repr": ...}`` placeholders).
-    """
-    if isinstance(value, Mapping):
-        return {key: _to_plain_dict(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_to_plain_dict(item) for item in value]
-    return value
-
-
 def _build_optimization_context(
     hub_config: Mapping[str, Any],
     participant_configs: Mapping[str, ElementConfigSchema],
@@ -249,7 +234,7 @@ def _build_optimization_context(
     return OptimizationContext(
         hub_config=hub_config,
         horizon_start=horizon_start,
-        participants={name: _to_plain_dict(config) for name, config in participant_configs.items()},
+        participants=dict(participant_configs),
         source_states=source_states,
     )
 

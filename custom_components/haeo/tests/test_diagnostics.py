@@ -23,7 +23,6 @@ from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
 )
 from custom_components.haeo.coordinator import CoordinatorData, HaeoDataUpdateCoordinator, OptimizationContext
-from custom_components.haeo.coordinator.coordinator import _build_optimization_context
 from custom_components.haeo.core.adapters.elements.grid import GRID_POWER_IMPORT
 from custom_components.haeo.core.const import (
     CONF_ELEMENT_TYPE,
@@ -364,13 +363,15 @@ async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistan
     assert result.outputs is not None
 
 
-async def test_diagnostics_serializes_mappingproxy_participants_as_plain_dicts(hass: HomeAssistant) -> None:
-    """Diagnostics output must JSON-serialize MappingProxyType configs as plain dicts.
+async def test_collect_diagnostics_unwraps_mappingproxy_participants(hass: HomeAssistant) -> None:
+    """``collect_diagnostics`` returns plain dicts for participant configs.
 
-    HA exposes ``subentry.data`` as ``MappingProxyType``, which leaks into the
-    optimization context unless normalized at the boundary. Without that, HA's
-    ``ExtendedJSONEncoder`` falls back to ``{"__type": ..., "repr": ...}``
-    placeholders in the saved diagnostics file (the user-visible artifact).
+    HA exposes ``ConfigSubentry.data`` as ``MappingProxyType``. We follow HA's standard
+    diagnostics convention and pipe the assembled config through ``async_redact_data``,
+    which spreads any ``Mapping`` into a plain ``dict`` as a side-effect of its
+    ``{**data}`` recursion. Without that, HA's ``ExtendedJSONEncoder`` (which both our
+    save service and HA's diagnostics download path use) emits ``{"__type": ...,
+    "repr": "mappingproxy(...)"}`` placeholders.
     """
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -396,33 +397,25 @@ async def test_diagnostics_serializes_mappingproxy_participants_as_plain_dicts(h
             initial_charge_percentage=50.0,
         )
     )
+    participants = cast("dict[str, ElementConfigSchema]", {"Grid": grid_config, "Battery": battery_config})
 
-    horizon = Mock()
-    horizon.current_start_time = datetime(2024, 1, 1, tzinfo=UTC)
-    context = _build_optimization_context(
-        hub_config=MappingProxyType(_hub_entry_data("Test Hub")),
-        participant_configs=cast("dict[str, Any]", {"Grid": grid_config, "Battery": battery_config}),
-        input_entities={},
-        horizon_manager=horizon,
-    )
-    now = datetime(2024, 1, 1, 0, 5, tzinfo=UTC)
-    coordinator_data = CoordinatorData(context=context, outputs={}, started_at=now, completed_at=now)
+    coordinator_data = _make_coordinator_data(participants=participants)
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.data = coordinator_data
     entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
 
-    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    result = await collect_diagnostics(hass, entry)
 
-    serialized = json.dumps(diagnostics, cls=ExtendedJSONEncoder)
+    grid = result.config["participants"]["Grid"]
+    battery = result.config["participants"]["Battery"]
+    assert type(grid) is dict
+    assert type(battery) is dict
+    assert grid[CONF_NAME] == "Grid"
+    assert battery[CONF_NAME] == "Battery"
 
+    serialized = json.dumps(result.to_dict(), cls=ExtendedJSONEncoder)
     assert "__type" not in serialized
     assert "mappingproxy" not in serialized
-
-    participants = diagnostics["config"]["participants"]
-    assert type(participants["Grid"]) is dict
-    assert type(participants["Battery"]) is dict
-    assert participants["Grid"][CONF_NAME] == "Grid"
-    assert participants["Battery"][CONF_NAME] == "Battery"
 
 
 async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
