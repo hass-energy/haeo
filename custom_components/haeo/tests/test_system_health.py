@@ -40,14 +40,14 @@ from custom_components.haeo.core.const import (
 )
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.system_health import async_register, async_system_health_info
+from custom_components.haeo.tests.conftest import make_config_snapshot
 
 
 def _make_coordinator_data(outputs: dict[str, Any]) -> CoordinatorData:
     """Create a CoordinatorData instance for tests."""
     context = OptimizationContext(
-        hub_config={},
+        config=make_config_snapshot(),
         horizon_start=datetime.fromtimestamp(1000.0, tz=dt_util.UTC),
-        participants={},
         source_states={},
     )
     return CoordinatorData(

@@ -1,19 +1,20 @@
 """Diagnostics support for HAEO integration."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import HomeAssistant
-
-from custom_components.haeo import HaeoConfigEntry
 
 from .collector import DIAGNOSTICS_SCHEMA_VERSION, DiagnosticsResult, EnvironmentInfo, collect_diagnostics
 from .historical_state_provider import HistoricalStateProvider
 from .state_provider import CurrentStateProvider, StateProvider
 
+if TYPE_CHECKING:
+    from custom_components.haeo import HaeoConfigEntry
+
 
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant,
-    config_entry: HaeoConfigEntry,
+    config_entry: "HaeoConfigEntry",
 ) -> dict[str, Any]:
     """Return diagnostics for a HAEO config entry.
 

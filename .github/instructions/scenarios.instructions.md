@@ -33,18 +33,46 @@ No registration needed - just create a new folder.
 
 ### config.json
 
-Hub configuration and element participants:
+Mirrors the post-v1.3 `entry.as_dict()` shape (HA bookkeeping fields blocklisted):
 
 ```json
 {
-  "tier_1_count": 12,
-  "tier_1_duration": 5,
-  "participants": {
-    "Battery": {
-      "element_type": "battery",
-      "name": "Battery"
+  "version": 1,
+  "minor_version": 3,
+  "domain": "haeo",
+  "title": "Test Hub",
+  "data": {
+    "integration_type": "hub",
+    "common": {
+      "name": "Test Hub",
+      "horizon_preset": "custom"
+    },
+    "tiers": {
+      "tier_1_count": 12,
+      "tier_1_duration": 5,
+      "tier_2_count": 0,
+      "tier_2_duration": 5,
+      "tier_3_count": 0,
+      "tier_3_duration": 30,
+      "tier_4_count": 0,
+      "tier_4_duration": 60
+    },
+    "advanced": {
+      "debounce_seconds": 2,
+      "advanced_mode": false
     }
-  }
+  },
+  "options": {},
+  "subentries": [
+    {
+      "subentry_type": "battery",
+      "title": "Battery",
+      "data": {
+        "element_type": "battery",
+        "name": "Battery"
+      }
+    }
+  ]
 }
 ```
 

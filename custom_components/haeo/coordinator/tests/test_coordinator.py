@@ -94,6 +94,7 @@ from custom_components.haeo.core.schema.sections import (
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION as CONF_CONNECTION_GRID
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.tests.conftest import make_config_snapshot
 
 
 @pytest.fixture
@@ -1081,9 +1082,8 @@ async def test_async_update_data_returns_existing_when_concurrent(
 
     # Simulate existing data and in-progress flag
     existing_context = OptimizationContext(
-        hub_config={},
+        config=make_config_snapshot(),
         horizon_start=datetime.fromtimestamp(1000.0, tz=dt_util.UTC),
-        participants={},
         source_states={},
     )
     existing_data = CoordinatorData(
@@ -1608,14 +1608,8 @@ def test_build_optimization_context_collects_source_states() -> None:
     mock_horizon = MagicMock()
     mock_horizon.current_start_time = datetime.fromtimestamp(1000.0, tz=dt_util.UTC)
 
-    participant_configs: Any = {
-        "Battery": {"element_type": "battery", "basic": {"capacity": 10.0}},
-        "Solar": {"element_type": "solar", "basic": {"forecast": "sensor.solar"}},
-    }
-
     context = _build_optimization_context(
-        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
-        participant_configs=participant_configs,
+        config=make_config_snapshot(),
         input_entities=input_entities,
         horizon_manager=mock_horizon,
     )
@@ -1633,8 +1627,7 @@ def test_build_optimization_context_captures_horizon_start() -> None:
     mock_horizon.current_start_time = expected_time
 
     context = _build_optimization_context(
-        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
-        participant_configs={},
+        config=make_config_snapshot(),
         input_entities={},
         horizon_manager=mock_horizon,
     )
@@ -1648,8 +1641,7 @@ def test_build_optimization_context_falls_back_to_utcnow_when_no_start_time() ->
     mock_horizon.current_start_time = None
 
     context = _build_optimization_context(
-        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
-        participant_configs={},
+        config=make_config_snapshot(),
         input_entities={},
         horizon_manager=mock_horizon,
     )
@@ -1661,14 +1653,13 @@ def test_build_optimization_context_falls_back_to_utcnow_when_no_start_time() ->
 def test_optimization_context_is_immutable() -> None:
     """OptimizationContext is frozen and cannot be modified."""
     context = OptimizationContext(
-        hub_config={},
+        config=make_config_snapshot(),
         horizon_start=datetime.fromtimestamp(1000.0, tz=dt_util.UTC),
-        participants={},
         source_states={},
     )
 
     with pytest.raises(AttributeError):
-        context.participants = {}  # type: ignore[misc]
+        context.config = make_config_snapshot()  # type: ignore[misc]
 
     with pytest.raises(AttributeError):
         context.source_states = {}  # type: ignore[misc]

@@ -30,13 +30,13 @@ from custom_components.haeo.const import (
     NetworkOutputName,
 )
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
-from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMENT_TYPE, DEFAULT_DEBOUNCE_SECONDS
+from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.forecast_times import tiers_to_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_config as _core_load_element_config
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
-from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema, HaeoConfigEntryDict
 from custom_components.haeo.core.schema.util import extract_unit_parts
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import PRICE_UNIT_SPEC
@@ -217,8 +217,7 @@ def _build_coordinator_output(
 
 
 def _build_optimization_context(
-    hub_config: Mapping[str, Any],
-    participant_configs: Mapping[str, ElementConfigSchema],
+    config: HaeoConfigEntryDict,
     input_entities: Mapping[Any, "InputEntity"],
     horizon_manager: "HorizonManager",
 ) -> OptimizationContext:
@@ -232,9 +231,8 @@ def _build_optimization_context(
         horizon_start = datetime.now(UTC)
 
     return OptimizationContext(
-        hub_config=hub_config,
+        config=config,
         horizon_start=horizon_start,
-        participants=dict(participant_configs),
         source_states=source_states,
     )
 
@@ -685,10 +683,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             forecast_timestamps = runtime_data.horizon_manager.get_forecast_timestamps()
 
+            # Lazy import: diagnostics module pulls in entities -> haeo_number which would
+            # otherwise complete the import cycle through `custom_components.haeo`.
+            from custom_components.haeo.diagnostics.collector import snapshot_config  # noqa: PLC0415
+
             # Build optimization context capturing all inputs for reproducibility
             context = _build_optimization_context(
-                hub_config=self.config_entry.data,
-                participant_configs=self._participant_configs,
+                config=snapshot_config(self.config_entry),
                 input_entities=runtime_data.input_entities,
                 horizon_manager=runtime_data.horizon_manager,
             )
@@ -754,8 +755,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             }
 
             # Process each config element using its outputs function to transform model outputs into device outputs
-            for element_name, element_config in context.participants.items():
-                element_type = element_config[CONF_ELEMENT_TYPE]
+            for subentry in context.config["subentries"]:
+                if subentry["subentry_type"] == ELEMENT_TYPE_NETWORK:
+                    continue
+                element_name = subentry["title"]
+                # Subentries that failed validation are skipped by collect_element_subentries
+                # and therefore absent from loaded_configs; preserve that by mirroring the filter.
+                if element_name not in loaded_configs:
+                    continue
+                element_type = subentry["subentry_type"]
                 outputs_fn = ELEMENT_TYPES[element_type].outputs
 
                 # outputs function returns {device_name: {output_name: OutputData}}
