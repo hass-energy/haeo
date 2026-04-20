@@ -41,9 +41,13 @@ That count is the minimum required for a correct policy representation.
 After VLAN assignment, compute which connections actually need each VLAN using directed reachability.
 
 For each non-zero VLAN, identify the source nodes assigned to that VLAN.
-Identify destination nodes that policies target for that VLAN's signature class.
-Compute forward reachability from sources (following connection direction) and backward reachability from destinations (reverse direction).
+Compute forward reachability from those sources (following connection direction) and backward reachability from *all* sink nodes (reverse direction).
 Assign the VLAN only to connections whose endpoints appear in both the forward and backward reachable sets.
+
+Reachability targets every sink in the network, not just the destinations named by policies for that VLAN.
+A policy restricts where tagged flow is *priced* — it does not restrict where tagged flow may physically terminate.
+If the subgraph were narrowed to policy destinations only, a tagged source would be unable to serve an ordinary sink directly whenever the policy destination's capacity was exhausted, and the solver would be forced to launder power through storage to shed the tag.
+Pricing placement (Step 8 of the compilation pipeline) still uses the source-to-policy-destination cut, so non-destination sinks remain policy-free while retaining a direct path.
 
 ### Savings pattern
 
@@ -54,13 +58,14 @@ Assign the VLAN only to connections whose endpoints appear in both the forward a
 | Tree         | $C \times K$          | $K \times avg\_path\_length$ |
 
 Savings are largest when each VLAN only traverses part of the network.
+Expanding targets from policy destinations to all sinks slightly reduces pruning when a source has few policy destinations but many other sinks; the trade-off is sound LP semantics.
 
 ## Combined pipeline
 
 1. Compute policy signatures for all source nodes.
 2. Merge identical signatures into one VLAN assignment map.
 3. Initialize all connections with VLAN 0.
-4. For each non-zero VLAN, run reachability between matched sources and destinations.
+4. For each non-zero VLAN, run reachability between matched sources and all sink nodes.
 5. Add that VLAN only to reachable connections.
 
 ## Worked examples
