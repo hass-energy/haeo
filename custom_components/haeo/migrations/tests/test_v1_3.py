@@ -764,6 +764,43 @@ async def test_async_migrate_entry_keeps_colliding_section_unique_ids_distinct(h
     assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_partition_percentage") is None
 
 
+async def test_async_migrate_entry_preserves_legacy_early_charge_incentive(hass: HomeAssistant) -> None:
+    """Legacy 0.001 charge-incentive migrates to a -$0.001 target=Battery policy.
+
+    Previously the migration silently dropped 0.001 as a "default" value;
+    with no implicit early-charge behaviour in the new optimizer that
+    would change existing installs' pull-free-power-into-storage
+    preference.  The migration now carries it through as a real policy.
+    """
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+
+    battery_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Bat",
+            CONF_CONNECTION: "bus",
+            SECTION_PRICING: {
+                CONF_PRICE_SOURCE_TARGET: {"type": "constant", "value": 0.0},
+                CONF_PRICE_TARGET_SOURCE: {"type": "constant", "value": 0.001},
+            },
+        },
+        subentry_type=battery.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+
+    assert result is True
+    policy_subentry = next(s for s in entry.subentries.values() if s.subentry_type == "policy")
+    rules = policy_subentry.data[CONF_RULES]
+    assert len(rules) == 1
+    rule = rules[0]
+    assert rule["name"] == "Bat Charge"
+    assert rule["target"] == ["Bat"]
+    assert rule["price"] == {"type": "constant", "value": -0.001}
+
+
 async def test_async_migrate_entry_handles_non_constant_charge_price(hass: HomeAssistant) -> None:
     """Non-constant charge price keeps value and logs migration warning."""
     entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
@@ -804,6 +841,26 @@ async def test_async_migrate_entry_handles_non_constant_charge_price(hass: HomeA
 def test_is_default_policy_price_matches_known_defaults(element_type: str, field_name: str, value: float) -> None:
     """Default pricing constants are recognized and skipped by migration."""
     assert v1_3._is_default_policy_price(element_type, field_name, {"type": "constant", "value": value}) is True
+
+
+def test_is_default_policy_price_preserves_legacy_early_charge_incentive() -> None:
+    """The legacy 0.001 early-charge-incentive default must now migrate through.
+
+    The new optimizer has no built-in early-charge behaviour, so silently
+    dropping the legacy default would change existing installs' charging
+    preference. Migration negates the charge price into a policy, so a
+    legacy value of 0.001 becomes a -0.001 "*→Battery" rule that
+    preserves the original incentive to pull free upstream power into
+    storage even when export is unprofitable.
+    """
+    assert (
+        v1_3._is_default_policy_price(
+            "battery",
+            CONF_PRICE_TARGET_SOURCE,
+            {"type": "constant", "value": 0.001},
+        )
+        is False
+    )
 
 
 def test_is_default_policy_price_ignores_non_default_or_non_constant_values() -> None:
