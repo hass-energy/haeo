@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Mapping
 from datetime import datetime
 from enum import Enum
+import logging
 from typing import Any
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
@@ -31,6 +32,8 @@ from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
+
+_LOGGER = logging.getLogger(__name__)
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -310,6 +313,12 @@ class HaeoInputNumber(NumberEntity):
                     value=as_entity_value(self._source_entity_ids),
                 )
             except Exception:
+                _LOGGER.debug(
+                    "Scalar load failed for %s from sources %s; keeping previous value",
+                    self.entity_id or self._attr_unique_id,
+                    self._source_entity_ids,
+                    exc_info=True,
+                )
                 return
 
             self._attr_native_value = scalar_value
@@ -335,10 +344,23 @@ class HaeoInputNumber(NumberEntity):
                     forecast_times=list(forecast_timestamps),
                 )
         except Exception:
-            # If loading fails, don't update state
+            # If loading fails, don't update state. Log at debug so persistent
+            # failures can be investigated via component log level without
+            # spamming warnings during ordinary source-entity transients.
+            _LOGGER.debug(
+                "Time-series load failed for %s from sources %s; keeping previous forecast",
+                self.entity_id or self._attr_unique_id,
+                self._source_entity_ids,
+                exc_info=True,
+            )
             return
 
         if not values:
+            _LOGGER.debug(
+                "Time-series load returned no values for %s from sources %s; keeping previous forecast",
+                self.entity_id or self._attr_unique_id,
+                self._source_entity_ids,
+            )
             return
 
         # Build forecast as list of ForecastPoint-style dicts.
