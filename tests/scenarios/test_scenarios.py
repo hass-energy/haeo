@@ -66,8 +66,8 @@ async def test_scenarios(
     snapshot: Any,
 ) -> None:
     """Test that scenario sets up correctly and optimization matches expected outputs."""
-    # Extract freeze timestamp and timezone from scenario data
-    freeze_timestamp = scenario_data["environment"]["timestamp"]
+    # Freeze time at the captured optimization start, in the captured zone.
+    freeze_timestamp = scenario_data["environment"]["optimization_start_time"]
     timezone = scenario_data["environment"]["timezone"]
 
     # Configure HA timezone from scenario environment

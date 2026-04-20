@@ -17,3 +17,6 @@ hacs/
 # Ignore python caches
 .grimp_cache/
 .import_linter_cache/
+
+# Ignore generated HA diagnostics output
+config/haeo/diagnostics/

@@ -84,7 +84,7 @@ def _load_scenario(
         environment = json.load(f)
     with (scenario_path / "inputs.json").open() as f:
         inputs = json.load(f)
-    return config, inputs, environment["timestamp"]
+    return config, inputs, environment["optimization_start_time"]
 
 
 def _build_network(
