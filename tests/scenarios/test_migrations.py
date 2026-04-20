@@ -248,6 +248,14 @@ def test_scenarios_on_disk_migrate_cleanly() -> None:
             if path.exists():
                 with path.open() as f:
                     raw[key] = json.load(f)
+        meta_path = scenario / "meta.json"
+        if meta_path.exists():
+            with meta_path.open() as f:
+                meta = json.load(f)
+            if isinstance(meta, dict):
+                schema_version = meta.get("schema_version")
+                if isinstance(schema_version, int):
+                    raw["schema_version"] = schema_version
 
         migrated = migrate_scenario(raw)
         assert migrated["schema_version"] == DIAGNOSTICS_SCHEMA_VERSION

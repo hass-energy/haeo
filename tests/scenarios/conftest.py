@@ -6,8 +6,10 @@ from typing import Any, TypedDict, TypeGuard
 
 import pytest
 
-from .migrations import migrate_scenario
+from .migrations import detect_schema_version, migrate_scenario
 from .syrupy_json_extension import ScenarioJSONExtension
+
+_SCENARIO_KEYS = ("config", "environment", "inputs", "outputs")
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -36,7 +38,7 @@ def expand_diagnostics_scenario() -> None:
             diagnostics = data["data"]
 
             # Validate structure
-            required_keys = {"config", "environment", "inputs", "outputs"}
+            required_keys = set(_SCENARIO_KEYS)
             if required_keys <= diagnostics.keys() is False:
                 msg = f"Scenario file {scenario_file} missing required keys: {required_keys - diagnostics.keys()}"
                 raise ValueError(msg)
@@ -47,6 +49,14 @@ def expand_diagnostics_scenario() -> None:
                 with split_file.open("w") as f:
                     json.dump(diagnostics[key], f, indent=2)
                     f.write("\n")  # POSIX trailing newline
+
+            # Persist schema version so split fixtures can be migrated correctly
+            # when multiple post-v1 migrations exist.
+            schema_version = detect_schema_version(diagnostics)
+            meta_file = scenario_path / "meta.json"
+            with meta_file.open("w") as f:
+                json.dump({"schema_version": schema_version}, f, indent=2)
+                f.write("\n")
 
             # Delete the unified file after successful split
             scenario_file.unlink()
@@ -100,6 +110,7 @@ def scenario_data(scenario_path: Path) -> ScenarioData:
     environment_file = scenario_path / "environment.json"
     inputs_file = scenario_path / "inputs.json"
     outputs_file = scenario_path / "outputs.json"
+    meta_file = scenario_path / "meta.json"
 
     # Check all required files exist
     required_files = [config_file, environment_file, inputs_file, outputs_file]
@@ -118,6 +129,15 @@ def scenario_data(scenario_path: Path) -> ScenarioData:
     with outputs_file.open() as f:
         outputs = json.load(f)
 
+    schema_version: int | None = None
+    if meta_file.exists():
+        with meta_file.open() as f:
+            meta = json.load(f)
+        if isinstance(meta, dict):
+            version = meta.get("schema_version")
+            if isinstance(version, int):
+                schema_version = version
+
     # Reconstruct ScenarioData and bring legacy captures forward to the current
     # schema so the test harness can assume the post-refactor layout.
     raw = {
@@ -126,6 +146,8 @@ def scenario_data(scenario_path: Path) -> ScenarioData:
         "inputs": inputs,
         "outputs": outputs,
     }
+    if schema_version is not None:
+        raw["schema_version"] = schema_version
     migrated = migrate_scenario(raw)
 
     data: ScenarioData = {

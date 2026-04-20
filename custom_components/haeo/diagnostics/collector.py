@@ -150,6 +150,8 @@ def _jsonify(value: Any) -> Any:
     * Dataclass instances → recursively jsonified ``asdict()``.
     * :class:`bytes` / :class:`bytearray` → UTF-8 string (best-effort, falls
       back to ``repr`` on decode error).
+    * Any unknown object → ``repr(value)`` so diagnostics always remain
+      JSON-serializable and never leak HA ``{"__type": ...}`` fallback stubs.
     """
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
@@ -174,7 +176,7 @@ def _jsonify(value: Any) -> Any:
             return repr(bytes(value))
     if is_dataclass(value) and not isinstance(value, type):
         return _jsonify(asdict(value))
-    return value
+    return repr(value)
 
 
 def _config_from_context(context: OptimizationContext) -> dict[str, Any]:
@@ -374,8 +376,8 @@ async def _build_environment(
     """Build the environment section of diagnostics.
 
     Static facts about the runtime — does not vary per invocation.
-    ``timestamp`` is the per-snapshot capture time (mirrors ``info.optimization_start_time``
-    for current diagnostics, or ``info.diagnostic_target_time`` for historical).
+    ``timestamp`` is the per-snapshot capture time and mirrors
+    ``info.optimization_start_time``.
     """
     integration = await async_get_integration(hass, config_entry.domain)
     haeo_version = integration.version or "unknown"

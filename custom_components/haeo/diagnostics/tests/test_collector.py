@@ -56,6 +56,13 @@ class _Point:
     y: int
 
 
+class _CustomObject:
+    """Non-JSON object fixture for fallback serialization tests."""
+
+    def __repr__(self) -> str:
+        return "CustomObject(value=42)"
+
+
 def _is_plain_json(value: Any) -> bool:
     """Return ``True`` iff *value* is a tree of JSON primitives / dict / list."""
     if isinstance(value, dict):
@@ -125,6 +132,11 @@ def test_jsonify_dataclass_is_recursively_flattened() -> None:
 def test_jsonify_bytes_becomes_utf8_string() -> None:
     """UTF-8 ``bytes`` decode to ``str``."""
     assert _jsonify(b"hello") == "hello"
+
+
+def test_jsonify_falls_back_to_repr_for_unknown_objects() -> None:
+    """Unhandled objects are stringified to keep diagnostics pure JSON."""
+    assert _jsonify(_CustomObject()) == "CustomObject(value=42)"
 
 
 def test_jsonify_output_is_pure_json() -> None:
