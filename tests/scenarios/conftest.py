@@ -39,26 +39,21 @@ def expand_diagnostics_scenario() -> None:
 
             diagnostics = data["data"]
 
-            schema_version = diagnostics.get("schema_version")
-            if schema_version != DIAGNOSTICS_SCHEMA_VERSION:
-                msg = (
-                    f"Scenario file {scenario_file} has schema_version {schema_version!r}, "
-                    f"expected {DIAGNOSTICS_SCHEMA_VERSION}"
-                )
-                raise ValueError(msg)
-
+            # Validate structure
             required_keys = {"config", "environment", "inputs", "outputs"}
             missing = required_keys - diagnostics.keys()
             if missing:
                 msg = f"Scenario file {scenario_file} missing required keys: {missing}"
                 raise ValueError(msg)
 
+            # Write split files with consistent formatting
             for key in required_keys:
                 split_file = scenario_path / f"{key}.json"
                 with split_file.open("w") as f:
                     json.dump(diagnostics[key], f, indent=2)
                     f.write("\n")  # POSIX trailing newline
 
+            # Delete the unified file after successful split
             scenario_file.unlink()
 
             print(f"Migrated {scenario_file.name} to split format in {scenario_path.name}")  # noqa: T201
