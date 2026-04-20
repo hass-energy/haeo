@@ -588,6 +588,68 @@ def test_lex_mode_with_secondary_objective() -> None:
     assert np.isfinite(result)
 
 
+def test_lex_mode_warm_resolve_with_duplicate_coefficients() -> None:
+    """Re-optimizing in lex mode must survive primary expressions with repeated var idxs.
+
+    Regression: _update_constraint previously collapsed duplicate variable
+    indices via dict(zip(...)), silently dropping coefficient contributions
+    when updating the lex constraint from secondary (phase 3) back to primary
+    (phase 2) on a warm re-solve.  The resulting constraint misrepresented
+    the primary objective and made phase 2 infeasible.
+
+    This scenario builds an expression that naturally contains duplicate
+    indices (two connections sharing a source feed the same wear-leveling
+    cost into the primary via overlapping decompositions) and then calls
+    optimize() twice to exercise the update path.
+    """
+    network = Network(name="test", periods=np.array([1.0, 1.0]), options=LexOptions())
+    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "bat_grid",
+            "source": "battery",
+            "target": "grid",
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
+            },
+        }
+    )
+
+    r1 = network.optimize()
+    r2 = network.optimize()
+    assert np.isfinite(r1)
+    assert np.isfinite(r2)
+    assert r1 == pytest.approx(r2)
+
+
+def test_update_constraint_sums_duplicate_coefficients() -> None:
+    """_update_constraint must aggregate duplicate var idxs in both sides."""
+    network = Network(name="test", periods=np.array([1.0]))
+    h: Highs = network._solver
+    v0 = h.addVariable(lb=0.0, ub=10.0, name="v0")
+    v1 = h.addVariable(lb=0.0, ub=10.0, name="v1")
+
+    # Seed the lex constraint with an expression containing a duplicate term
+    # (v0 appears twice: 1.0 + 2.0 = 3.0 effective coefficient).
+    seed = 1.0 * v0 + 2.0 * v0 + 1.0 * v1
+    network._constrain_objective(seed, 100.0)
+
+    # Now update with a new expression also containing duplicates:
+    # v1 appears twice: 4.0 + 5.0 = 9.0 effective.
+    updated = 4.0 * v1 + 5.0 * v1 + 3.0 * v0
+    network._constrain_objective(updated, 200.0)
+
+    assert network._lex_constraint is not None
+    stored = h.getExpr(network._lex_constraint)
+    coeffs: dict[int, float] = {}
+    for idx, val in zip(stored.idxs, stored.vals, strict=True):
+        coeffs[idx] = coeffs.get(idx, 0.0) + val
+    assert coeffs[v0.index] == pytest.approx(3.0)
+    assert coeffs[v1.index] == pytest.approx(9.0)
+
+
 def test_optimize_requires_objectives() -> None:
     """Network without cost objectives raises ValueError."""
     network = Network(name="test", periods=np.array([1.0]))
