@@ -82,20 +82,22 @@ async def test_scenarios(
 
         # Create hub config entry and add to hass
         scenario_config = scenario_data["config"]
+        # Support both flat tier keys (legacy) and nested under "tiers" (v2+)
+        tiers_data = scenario_config.get("tiers") or scenario_config
         mock_config_entry = MockConfigEntry(
             domain=DOMAIN,
             data={
                 "integration_type": INTEGRATION_TYPE_HUB,
                 HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
                 HUB_SECTION_TIERS: {
-                    CONF_TIER_1_COUNT: scenario_config["tier_1_count"],
-                    CONF_TIER_1_DURATION: scenario_config["tier_1_duration"],
-                    CONF_TIER_2_COUNT: scenario_config.get("tier_2_count", 0),
-                    CONF_TIER_2_DURATION: scenario_config.get("tier_2_duration", 5),
-                    CONF_TIER_3_COUNT: scenario_config.get("tier_3_count", 0),
-                    CONF_TIER_3_DURATION: scenario_config.get("tier_3_duration", 30),
-                    CONF_TIER_4_COUNT: scenario_config.get("tier_4_count", 0),
-                    CONF_TIER_4_DURATION: scenario_config.get("tier_4_duration", 60),
+                    CONF_TIER_1_COUNT: tiers_data["tier_1_count"],
+                    CONF_TIER_1_DURATION: tiers_data["tier_1_duration"],
+                    CONF_TIER_2_COUNT: tiers_data.get("tier_2_count", 0),
+                    CONF_TIER_2_DURATION: tiers_data.get("tier_2_duration", 5),
+                    CONF_TIER_3_COUNT: tiers_data.get("tier_3_count", 0),
+                    CONF_TIER_3_DURATION: tiers_data.get("tier_3_duration", 30),
+                    CONF_TIER_4_COUNT: tiers_data.get("tier_4_count", 0),
+                    CONF_TIER_4_DURATION: tiers_data.get("tier_4_duration", 60),
                 },
                 HUB_SECTION_ADVANCED: {},
             },
