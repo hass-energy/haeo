@@ -472,7 +472,14 @@ class Network:
         cons: highs_cons,
         expr: highs_linear_expression,
     ) -> None:
-        """Update an existing constraint with a new expression."""
+        """Update an existing constraint with a new expression.
+
+        highs_linear_expression may contain repeated variable indices whose
+        coefficients are meant to be summed (this is what Highs.addConstr does
+        internally).  We must replicate that aggregation here, otherwise
+        duplicate entries are silently collapsed by dict() and the stored
+        constraint misrepresents the expression.
+        """
         old_expr = self._solver.getExpr(cons)
         old_bounds = old_expr.bounds
         new_bounds = expr.bounds
@@ -483,8 +490,12 @@ class Network:
             elif old_bounds is not None:
                 self._solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
 
-        old_coeffs = dict(zip(old_expr.idxs, old_expr.vals, strict=True))
-        new_coeffs = dict(zip(expr.idxs, expr.vals, strict=True))
+        old_coeffs: dict[int, float] = {}
+        for idx, val in zip(old_expr.idxs, old_expr.vals, strict=True):
+            old_coeffs[idx] = old_coeffs.get(idx, 0.0) + val
+        new_coeffs: dict[int, float] = {}
+        for idx, val in zip(expr.idxs, expr.vals, strict=True):
+            new_coeffs[idx] = new_coeffs.get(idx, 0.0) + val
         all_vars = set(old_coeffs) | set(new_coeffs)
 
         for var_idx in all_vars:

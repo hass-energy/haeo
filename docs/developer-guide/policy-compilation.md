@@ -49,10 +49,14 @@ This yields the minimum VLAN count for correct policy behavior.
 
 ### Step 4: Reachability analysis
 
-For each VLAN, find connections on directed paths from source nodes to destination nodes.
+For each VLAN, find connections on directed paths from source nodes to *any* sink node — not just the policy's explicit destinations.
 Forward reachability follows connection direction (source → target); backward reachability follows reverse direction (target → source).
 Only connections whose endpoints appear in both the forward and backward reachable sets receive variables for that VLAN.
-This directed approach prevents tags from leaking onto adjacent connections not on a valid policy path.
+This directed approach prevents tags from leaking onto adjacent connections not on a valid source-to-sink path.
+
+Restricting VLAN membership to policy-specific destinations only would force tagged flow to detour through storage (or be curtailed) whenever the source exceeded its policy destination's capacity, because non-destination sinks would refuse the tag.
+That manifests as spurious simultaneous battery charge and discharge — power "laundered" through storage purely to relabel its provenance.
+Pricing is still placed only on the cut separating source from its policy-specific destinations (Step 8), so non-destination sinks remain policy-free.
 
 ### Step 5: Connection tagging
 
@@ -74,8 +78,20 @@ Power on any VLAN can still flow through junction nodes for routing.
 
 ### Step 8: Pricing injection
 
-For each policy, add a scoped pricing segment at the destination connection.
-The segment's `tag` matches the source VLAN.
+For each policy, compute a sink-side canonical minimum s-t cut on the per-VLAN subgraph and attach scoped pricing segments to the connections in that cut.
+Sources of the cut are the policy's source nodes; sinks are the policy's destination nodes.
+The algorithm is Edmonds–Karp max-flow with unit edge capacities; the sink-side canonical cut is recovered from the residual graph by reverse BFS from the super-sink.
+
+Unit capacities and the sink-side choice together guarantee:
+
+- Every source-to-destination path on the VLAN crosses exactly one cut edge, so a unit of tagged flow pays the policy price exactly once.
+    No stacking from overlapping sub-cuts, and no flows that bypass pricing.
+- Minimum cut cardinality, so pricing is attached to the fewest connections possible.
+    This extends cleanly to power-limit policies, which become a single $\sum_{e \in \text{cut}} P^{tag}_{e,t} \le X$ constraint.
+- Natural collapse to intuitive placements: target-inbound edges for a specific destination, source-outbound edges for a single-outbound source targeting a wildcard, and a shared bottleneck (e.g. an inverter) when many sources and many destinations converge through a narrower middle.
+
+A source that also appears in the destination set (e.g. a battery is both source and sink after wildcard expansion) has only the self-loop removed from the destination set; other destinations are still cut normally.
+Each injected segment's `tag` matches the source VLAN, and `price_source_target` and `price_target_source` map from the policy's directional prices.
 
 ## Architecture
 
@@ -105,16 +121,16 @@ Policies:
   Solar -> Load: $0.02/kWh
 ```
 
-| Step             | Result                                                                 |
-| ---------------- | ---------------------------------------------------------------------- |
-| Flow enumeration | {(Grid,Load,0.05), (Solar,Load,0.02)}                                  |
-| Signatures       | Grid and Solar have different signatures; others have empty signatures |
-| VLANs            | Grid=1, Solar=2, others stay on tag 0                                  |
-| Reachability     | VLAN 1 on Grid→SW→Load path, VLAN 2 on Solar→SW→Load path              |
-| Connection tags  | Each connection carries only VLANs for paths through it                |
-| Outbound tags    | Grid emits VLAN 1, Solar emits VLAN 2, Battery emits tag 0             |
-| Inbound tags     | Load accepts tag 0, VLAN 1, and VLAN 2                                 |
-| Pricing          | SW→Load: pricing(tag=grid_vlan,$0.05), pricing(tag=solar_vlan,$0.02)   |
+| Step             | Result                                                                          |
+| ---------------- | ------------------------------------------------------------------------------- |
+| Flow enumeration | {(Grid,Load,0.05), (Solar,Load,0.02)}                                           |
+| Signatures       | Grid and Solar have different signatures; others have empty signatures          |
+| VLANs            | Grid=1, Solar=2, others stay on tag 0                                           |
+| Reachability     | VLAN 1 on connections from Grid to every sink; VLAN 2 on connections from Solar |
+| Connection tags  | Each connection carries only VLANs for paths through it                         |
+| Outbound tags    | Grid emits VLAN 1, Solar emits VLAN 2, Battery emits tag 0                      |
+| Inbound tags     | Load accepts tag 0, VLAN 1, and VLAN 2                                          |
+| Pricing          | Min-cut for each VLAN is SW→Load: pricing(tag=1,$0.05) and pricing(tag=2,$0.02) |
 
 Result: Solar power is preferred over grid power because it has lower policy cost.
 Battery power flows freely on tag 0 at zero policy cost.

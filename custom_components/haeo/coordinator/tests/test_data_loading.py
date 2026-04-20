@@ -86,12 +86,12 @@ async def test_create_network_applies_policy_rules_to_connections(hass: HomeAssi
     node_a: NodeConfigData = {
         "element_type": ElementType.NODE,
         "name": "node_a",
-        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        "role": {CONF_IS_SOURCE: True, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         "element_type": ElementType.NODE,
         "name": "node_b",
-        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: True},
     }
     policy_rule: PolicyRuleData = {
         "name": "A to B",

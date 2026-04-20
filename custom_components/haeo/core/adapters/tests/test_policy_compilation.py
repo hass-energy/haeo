@@ -19,6 +19,7 @@ from custom_components.haeo.core.adapters import policy_compilation
 from custom_components.haeo.core.adapters.policy_compilation import (
     _find_reachable_connections,
     _merge_tag_costs,
+    _min_cut_edges,
     compile_policies,
 )
 from custom_components.haeo.core.model import ModelElementConfig
@@ -613,7 +614,11 @@ def test_diamond_multi_path_all_branches_tagged() -> None:
 
 def test_duplicate_policies_merge_tag_costs() -> None:
     """Identical policy rows should sum into one tag_cost per tag on a connection."""
-    elements = [_node("grid"), _node("load"), _conn("c1", "grid", "load")]
+    elements = [
+        _node("grid", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+    ]
     policies = [
         {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
         {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
@@ -714,9 +719,54 @@ def test_wildcard_destination_tags_each_sources_paths() -> None:
     assert vlan_b in conns["bc"].get("tags", set())
 
 
+def test_vlan_reaches_non_policy_sinks() -> None:
+    """VLAN membership must cover paths to all sinks, not just policy destinations.
+
+    Regression test: a Solar→Grid policy must still let Solar-tagged flow reach
+    Load (a non-policy sink). Restricting VLAN 2 to only Solar→Grid paths would
+    force solar surplus to detour through storage, producing spurious
+    simultaneous charge/discharge ("washing") in the LP solution.
+    """
+    elements = [
+        _node("solar", is_source=True),
+        _node("grid", is_source=True, is_sink=True),
+        _node("load", is_sink=True),
+        _node("sw"),
+        _conn("solar_sw", "solar", "sw"),
+        _conn("sw_grid", "sw", "grid"),
+        _conn("sw_load", "sw", "load"),
+    ]
+    policies = [{"sources": ["solar"], "destinations": ["grid"], "price": 0.02}]
+    result = compile_policies(elements, policies)
+    conns = {x["name"]: x for x in _connections(result)}
+    vlan_solar = _outbound_tag(result, "solar")
+
+    # Solar's VLAN must be present on every connection from Solar to any sink,
+    # including Switchboard→Load (a non-policy sink), so Solar-tagged flow has
+    # a direct path to Load without laundering through storage.
+    assert vlan_solar in conns["solar_sw"].get("tags", set())
+    assert vlan_solar in conns["sw_load"].get("tags", set()), (
+        "Solar VLAN must reach non-policy sinks (Load), otherwise solar flow is "
+        "forced to detour through battery/storage, producing washing artefacts."
+    )
+    assert vlan_solar in conns["sw_grid"].get("tags", set())
+
+    # Pricing must still only appear on the cut separating Solar from the
+    # policy-specific destination (Grid); non-policy sinks remain cost-free.
+    assert conns["sw_load"].get("tag_costs") in (None, [])
+    sw_grid_costs = conns["sw_grid"].get("tag_costs") or []
+    assert len(sw_grid_costs) == 1
+    assert sw_grid_costs[0]["tag"] == vlan_solar
+    assert sw_grid_costs[0]["price"] == pytest.approx(0.02)
+
+
 def test_policies_without_price_apply_tags_only() -> None:
     """Rules with no price still assign VLANs; pricing step is skipped."""
-    elements = [_node("grid"), _node("load"), _conn("c1", "grid", "load")]
+    elements = [
+        _node("grid", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+    ]
     policies = [{"sources": ["grid"], "destinations": ["load"]}]
     result = compile_policies(elements, policies)
     conn = _find(result, "c1", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
@@ -787,6 +837,123 @@ def test_find_reachable_connections_returns_empty_for_disjoint_reachability() ->
         "y": {("x", "xy")},
     }
     assert _find_reachable_connections({"a"}, {"y"}, graph) == set()
+
+
+# --- Min-cut placement ---
+
+
+def test_min_cut_specific_target_lands_on_target_inbound() -> None:
+    """Single source, single target: cut is the target's inbound edge (the discriminator)."""
+    # grid → sw → load ; cut separating {grid} from {load} sits on sw_load
+    edges = [("grid", "sw", "grid_sw"), ("sw", "load", "sw_load")]
+    assert _min_cut_edges({"grid"}, {"load"}, edges) == {"sw_load"}
+
+
+def test_min_cut_wildcard_target_lands_on_source_outbound() -> None:
+    """Source with a single outbound edge: cut is that edge regardless of how many sinks."""
+    edges = [
+        ("battery", "inv", "bat_inv"),
+        ("inv", "sw", "inv_sw"),
+        ("sw", "load", "sw_load"),
+        ("sw", "grid", "sw_grid"),
+    ]
+    assert _min_cut_edges({"battery"}, {"load", "grid", "inv"}, edges) == {"bat_inv"}
+
+
+def test_min_cut_finds_shared_bottleneck_between_multi_source_multi_target() -> None:
+    """battery|solar → load|grid with inverter in the middle: the inverter edge is the min cut.
+
+    This is the user's motivating example: the sink-side cut collapses to a
+    single bottleneck edge (inverter→switchboard) rather than two target-
+    inbound edges, minimising the number of places where constraints /
+    costs are installed.
+    """
+    edges = [
+        ("battery", "inv", "bat_inv"),
+        ("solar", "inv", "sol_inv"),
+        ("inv", "sw", "inv_sw"),
+        ("sw", "load", "sw_load"),
+        ("sw", "grid", "sw_grid"),
+    ]
+    assert _min_cut_edges({"battery", "solar"}, {"load", "grid"}, edges) == {"inv_sw"}
+
+
+def test_min_cut_is_antichain_every_path_crosses_exactly_once() -> None:
+    """Antichain property: no two cut edges lie on a single s→t path.
+
+    Diamond topology a→{b,c}→d has two edge-disjoint s-t paths so min-cut
+    size is 2; both valid cuts (source-outbound or target-inbound) are
+    antichains, but we want the sink-side canonical which is target-inbound.
+    """
+    edges = [
+        ("a", "b", "ab"),
+        ("a", "c", "ac"),
+        ("b", "d", "bd"),
+        ("c", "d", "cd"),
+    ]
+    # Sink-side canonical cut is target-inbound: {bd, cd}
+    cut = _min_cut_edges({"a"}, {"d"}, edges)
+    assert cut == {"bd", "cd"}
+    # Each s-t path contains exactly one cut edge
+    paths = [["ab", "bd"], ["ac", "cd"]]
+    for path in paths:
+        assert len(set(path) & cut) == 1
+
+
+def test_min_cut_empty_when_source_or_dest_empty() -> None:
+    """Empty source or destination set yields no cut edges."""
+    assert _min_cut_edges(set(), {"a"}, [("a", "b", "x")]) == set()
+    assert _min_cut_edges({"a"}, set(), [("a", "b", "x")]) == set()
+
+
+def test_min_cut_ignores_self_loops_in_destinations() -> None:
+    """Self-loops (source ∈ destinations) do not collapse the cut to empty.
+
+    A source that also appears in the destination set (e.g. from wildcard
+    expansion) should drop only the self-loop; other destinations are still
+    cut. Sink-side canonical placement puts the cut on the target's inbound
+    edge.
+    """
+    edges = [("battery", "inv", "bat_inv"), ("inv", "load", "inv_load")]
+    assert _min_cut_edges({"battery"}, {"battery", "load"}, edges) == {"inv_load"}
+
+
+def test_min_cut_returns_empty_for_unreachable_destinations() -> None:
+    """No s-t path in the subgraph means max flow is zero and cut is empty."""
+    edges = [("a", "b", "ab"), ("c", "d", "cd")]
+    assert _min_cut_edges({"a"}, {"d"}, edges) == set()
+
+
+def test_min_cut_handles_parallel_edges() -> None:
+    """Parallel edges share one aggregated flow; all parallel names are returned.
+
+    If the aggregate edge between (u, v) is on the cut, every parallel
+    connection between that pair is included.
+    """
+    edges = [
+        ("grid", "load", "conn_a"),
+        ("grid", "load", "conn_b"),
+    ]
+    assert _min_cut_edges({"grid"}, {"load"}, edges) == {"conn_a", "conn_b"}
+
+
+def test_min_cut_scales_with_cardinality_not_capacity() -> None:
+    """Unit capacities make the cut minimise placement cardinality.
+
+    This matters for power-limit policies: the limit becomes a single sum
+    over the cut (Σ cut-edge flow ≤ X), and minimum cardinality means the
+    constraint has the fewest terms.
+    """
+    # Two independent paths from s to t, plus a three-hop scenic route.
+    # Min cardinality cut = 2 (either both sources or both sinks).
+    edges = [
+        ("s", "a", "sa"),
+        ("a", "t", "at"),
+        ("s", "b", "sb"),
+        ("b", "t", "bt"),
+    ]
+    cut = _min_cut_edges({"s"}, {"t"}, edges)
+    assert len(cut) == 2
 
 
 def test_no_policy_no_extra_cost() -> None:
