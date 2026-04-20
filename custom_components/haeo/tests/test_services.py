@@ -33,7 +33,7 @@ from custom_components.haeo.core.const import (
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
 )
-from custom_components.haeo.diagnostics import DiagnosticsInfo, DiagnosticsResult, EnvironmentInfo
+from custom_components.haeo.diagnostics import DiagnosticsResult, EnvironmentInfo
 from custom_components.haeo.services import _format_manifest
 
 
@@ -86,15 +86,17 @@ async def test_save_diagnostics_service_success(
     # Mock the diagnostics function
     mock_diagnostics = DiagnosticsResult(
         config={"participants": {}},
-        environment=EnvironmentInfo(ha_version="2024.1.0", haeo_version="0.0.0", timezone="UTC"),
-        inputs=[],
-        info=DiagnosticsInfo(
+        environment=EnvironmentInfo(
+            ha_version="2024.1.0",
+            haeo_version="0.0.0",
+            timezone="UTC",
             diagnostic_request_time="2024-01-01T00:00:00",
             diagnostic_target_time=None,
             optimization_start_time="2024-01-01T00:00:00",
             optimization_end_time="2024-01-01T00:00:01",
             horizon_start="2024-01-01T00:00:00",
         ),
+        inputs=[],
         outputs={},
         missing_entity_ids=(),
     )
@@ -239,15 +241,17 @@ async def test_save_diagnostics_with_historical_time(
 
     mock_diagnostics = DiagnosticsResult(
         config={"participants": {}},
-        environment=EnvironmentInfo(ha_version="2024.1.0", haeo_version="0.0.0", timezone="UTC"),
-        inputs=[{"entity_id": "sensor.test"}],
-        info=DiagnosticsInfo(
+        environment=EnvironmentInfo(
+            ha_version="2024.1.0",
+            haeo_version="0.0.0",
+            timezone="UTC",
             diagnostic_request_time="2024-01-01T00:00:00",
             diagnostic_target_time="2026-01-20T14:32:03+00:00",
             optimization_start_time="2024-01-01T00:00:00",
             optimization_end_time="2024-01-01T00:00:01",
             horizon_start="2024-01-01T00:00:00",
         ),
+        inputs=[{"entity_id": "sensor.test"}],
         outputs=None,
         missing_entity_ids=(),
     )
@@ -330,18 +334,19 @@ async def test_save_diagnostics_historical_missing_entities_raises_error(
 
     target_timestamp = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
 
-    # Mock diagnostics with missing entities
     mock_diagnostics = DiagnosticsResult(
         config={"participants": {}},
-        environment=EnvironmentInfo(ha_version="2024.1.0", haeo_version="0.0.0", timezone="UTC"),
-        inputs=[],
-        info=DiagnosticsInfo(
+        environment=EnvironmentInfo(
+            ha_version="2024.1.0",
+            haeo_version="0.0.0",
+            timezone="UTC",
             diagnostic_request_time="2024-01-01T00:00:00",
             diagnostic_target_time="2026-01-20T14:32:03+00:00",
             optimization_start_time="2024-01-01T00:00:00",
             optimization_end_time="2024-01-01T00:00:01",
             horizon_start="2024-01-01T00:00:00",
         ),
+        inputs=[],
         outputs=None,
         missing_entity_ids=("sensor.battery_soc", "sensor.grid_price"),
     )

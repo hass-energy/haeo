@@ -6,6 +6,8 @@ from typing import Any, TypedDict, TypeGuard
 
 import pytest
 
+from custom_components.haeo.diagnostics import DIAGNOSTICS_SCHEMA_VERSION
+
 from .syrupy_json_extension import ScenarioJSONExtension
 
 
@@ -19,6 +21,10 @@ def expand_diagnostics_scenario() -> None:
     - inputs.json
     - outputs.json
 
+    The unified file's top-level ``schema_version`` is asserted to match the
+    current ``DIAGNOSTICS_SCHEMA_VERSION`` and is not persisted into the split
+    fixtures (it is only meaningful at the top of an unmigrated capture).
+
     After splitting, the original scenario.json is deleted.
     """
     scenarios_dir = Path(__file__).parent
@@ -28,26 +34,31 @@ def expand_diagnostics_scenario() -> None:
         scenario_file = scenario_path / "scenario.json"
 
         if scenario_file.exists():
-            # Load the unified file
             with scenario_file.open() as f:
                 data = json.load(f)
 
             diagnostics = data["data"]
 
-            # Validate structure
-            required_keys = {"config", "environment", "inputs", "outputs"}
-            if required_keys <= diagnostics.keys() is False:
-                msg = f"Scenario file {scenario_file} missing required keys: {required_keys - diagnostics.keys()}"
+            schema_version = diagnostics.get("schema_version")
+            if schema_version != DIAGNOSTICS_SCHEMA_VERSION:
+                msg = (
+                    f"Scenario file {scenario_file} has schema_version {schema_version!r}, "
+                    f"expected {DIAGNOSTICS_SCHEMA_VERSION}"
+                )
                 raise ValueError(msg)
 
-            # Write split files with consistent formatting
+            required_keys = {"config", "environment", "inputs", "outputs"}
+            missing = required_keys - diagnostics.keys()
+            if missing:
+                msg = f"Scenario file {scenario_file} missing required keys: {missing}"
+                raise ValueError(msg)
+
             for key in required_keys:
                 split_file = scenario_path / f"{key}.json"
                 with split_file.open("w") as f:
                     json.dump(diagnostics[key], f, indent=2)
                     f.write("\n")  # POSIX trailing newline
 
-            # Delete the unified file after successful split
             scenario_file.unlink()
 
             print(f"Migrated {scenario_file.name} to split format in {scenario_path.name}")  # noqa: T201

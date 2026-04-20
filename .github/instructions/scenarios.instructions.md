@@ -50,11 +50,18 @@ Hub configuration and element participants:
 
 ### environment.json
 
-Freeze timestamp for deterministic time:
+Captured runtime context. The `optimization_start_time` is used as the test's freeze timestamp:
 
 ```json
 {
-  "timestamp": "2024-01-15T12:00:00+00:00"
+  "ha_version": "2024.1.0",
+  "haeo_version": "0.1.0",
+  "timezone": "UTC",
+  "diagnostic_request_time": "2024-01-15T12:00:00+00:00",
+  "diagnostic_target_time": null,
+  "optimization_start_time": "2024-01-15T12:00:00+00:00",
+  "optimization_end_time": "2024-01-15T12:00:00+00:00",
+  "horizon_start": "2024-01-15T12:00:00+00:00"
 }
 ```
 
