@@ -22,6 +22,7 @@ See docs/developer-guide/vlan-optimization.md for optimization proofs.
 
 from collections import defaultdict, deque
 from collections.abc import Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from typing import Any, NotRequired, TypedDict
 
 import numpy as np
@@ -321,7 +322,7 @@ def _find_reachable_connections(
         start_nodes: set[str],
         adjacency: Mapping[str, set[tuple[str, str]]],
         *,
-        stop_at: frozenset[str] | set[str] = frozenset(),
+        stop_at: AbstractSet[str] = frozenset(),
     ) -> tuple[set[str], set[str]]:
         """Return (reachable, expanded) where expanded excludes stop_at nodes."""
         reachable: set[str] = set()
