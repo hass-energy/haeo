@@ -249,7 +249,8 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     # HA entry point returns a dict (via to_dict)
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    assert diagnostics["schema_version"] == DIAGNOSTICS_SCHEMA_VERSION
+    assert "schema_version" not in diagnostics
+    assert "diagnostics_version" not in diagnostics
     assert "config" in diagnostics
     assert "environment" in diagnostics
     assert "inputs" in diagnostics
@@ -261,6 +262,7 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     assert "participants" in diagnostics["config"]
 
     environment = diagnostics["environment"]
+    assert environment["diagnostics_version"] == DIAGNOSTICS_SCHEMA_VERSION
     assert "ha_version" in environment
     assert "haeo_version" in environment
     assert "timezone" in environment

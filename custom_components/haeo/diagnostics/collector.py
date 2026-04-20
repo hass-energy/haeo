@@ -34,6 +34,9 @@ DIAGNOSTICS_SCHEMA_VERSION = 2
 class EnvironmentInfo:
     """Runtime environment facts and per-snapshot timing for a diagnostics capture."""
 
+    diagnostics_version: int
+    """Schema version of the serialized diagnostics output. Bump on breaking shape changes."""
+
     ha_version: str
     """Home Assistant version."""
 
@@ -81,7 +84,6 @@ class DiagnosticsResult:
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-compatible dict for HA diagnostics output."""
         data: dict[str, Any] = {
-            "schema_version": DIAGNOSTICS_SCHEMA_VERSION,
             "environment": asdict(self.environment),
             "config": self.config,
             "inputs": self.inputs,
@@ -296,6 +298,7 @@ async def _build_environment(
     haeo_version = integration.version or "unknown"
 
     return EnvironmentInfo(
+        diagnostics_version=DIAGNOSTICS_SCHEMA_VERSION,
         ha_version=ha_version,
         haeo_version=haeo_version,
         timezone=str(dt_util.get_default_time_zone()),
