@@ -33,7 +33,7 @@ from custom_components.haeo.core.const import (
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
 )
-from custom_components.haeo.diagnostics import DiagnosticsResult, EnvironmentInfo
+from custom_components.haeo.diagnostics import DIAGNOSTICS_SCHEMA_VERSION, DiagnosticsResult, EnvironmentInfo
 from custom_components.haeo.services import _format_manifest
 
 
@@ -87,6 +87,7 @@ async def test_save_diagnostics_service_success(
     mock_diagnostics = DiagnosticsResult(
         config={"participants": {}},
         environment=EnvironmentInfo(
+            diagnostics_version=DIAGNOSTICS_SCHEMA_VERSION,
             ha_version="2024.1.0",
             haeo_version="0.0.0",
             timezone="UTC",
@@ -242,6 +243,7 @@ async def test_save_diagnostics_with_historical_time(
     mock_diagnostics = DiagnosticsResult(
         config={"participants": {}},
         environment=EnvironmentInfo(
+            diagnostics_version=DIAGNOSTICS_SCHEMA_VERSION,
             ha_version="2024.1.0",
             haeo_version="0.0.0",
             timezone="UTC",
@@ -337,6 +339,7 @@ async def test_save_diagnostics_historical_missing_entities_raises_error(
     mock_diagnostics = DiagnosticsResult(
         config={"participants": {}},
         environment=EnvironmentInfo(
+            diagnostics_version=DIAGNOSTICS_SCHEMA_VERSION,
             ha_version="2024.1.0",
             haeo_version="0.0.0",
             timezone="UTC",
