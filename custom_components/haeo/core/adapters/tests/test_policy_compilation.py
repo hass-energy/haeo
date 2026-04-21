@@ -788,7 +788,7 @@ def test_pricing_injection_skips_non_tagged_incident_connections(
     monkeypatch.setattr(
         policy_compilation,
         "_find_reachable_connections",
-        lambda _source_nodes, _dest_nodes, _graph: {"source_dest"},
+        lambda _source_nodes, _dest_nodes, _graph, **_kwargs: {"source_dest"},
     )
     policies = [{"sources": ["source"], "destinations": ["dest"], "price": 0.07}]
     result = compile_policies(elements, policies)
@@ -837,6 +837,129 @@ def test_find_reachable_connections_returns_empty_for_disjoint_reachability() ->
         "y": {("x", "xy")},
     }
     assert _find_reachable_connections({"a"}, {"y"}, graph) == set()
+
+
+def test_find_reachable_connections_absorbs_tags_at_sinks() -> None:
+    """Tags stop propagating at sink nodes (storage-style absorbing semantics).
+
+    With ``absorb_at`` supplied, forward reachability treats those nodes as
+    dead-ends: flow may arrive but does not continue out. This prevents a
+    battery (which is both a source and a sink) from laundering an incoming
+    VLAN onto its outbound edge, where the tag would bypass costs that were
+    placed on the battery's own VLAN.
+    """
+    # solar → inv → battery → inv → load : without absorption the VLAN
+    # from solar would propagate onto battery's outbound edge as well.
+    graph = {
+        "solar": {("inv", "solar_inv")},
+        "inv": {("battery", "battery_charge"), ("load", "inv_load")},
+        "battery": {("inv", "battery_discharge")},
+    }
+    sinks = {"battery", "load"}
+    connections = _find_reachable_connections({"solar"}, sinks, graph, absorb_at=sinks)
+    assert "battery_discharge" not in connections
+    # Still reaches load directly and the battery charge edge
+    assert "solar_inv" in connections
+    assert "inv_load" in connections
+    assert "battery_charge" in connections
+
+
+def test_find_reachable_connections_does_not_absorb_at_origin() -> None:
+    """Origin sources always expand even if they are in the absorbing set.
+
+    A battery's own VLAN must propagate forward from the battery (it is both
+    a source and a sink). Including the origin in ``absorb_at`` would
+    otherwise stop expansion before it started.
+    """
+    graph = {
+        "battery": {("inv", "battery_discharge")},
+        "inv": {("load", "inv_load")},
+    }
+    sinks = {"battery", "load"}
+    connections = _find_reachable_connections({"battery"}, sinks, graph, absorb_at=sinks)
+    assert connections == {"battery_discharge", "inv_load"}
+
+
+def test_find_reachable_connections_excludes_edges_into_source() -> None:
+    """Tagged flow cannot re-enter its own source node.
+
+    A battery is both a source and a sink for its own VLAN.  Without this
+    exclusion the reachable edge set includes ``Battery:charge`` for the
+    battery VLAN, creating a zero-cost self-loop (discharge → inverter →
+    charge → battery) that bypasses every downstream cut where the wear
+    cost lives.  Excluding edges whose target is the VLAN's own source
+    breaks the loop without affecting legitimate source→sink flow.
+    """
+    # battery → inv → battery forms a self-loop via the charge edge
+    graph = {
+        "battery": {("inv", "battery_discharge")},
+        "inv": {("battery", "battery_charge"), ("load", "inv_load")},
+    }
+    sinks = {"battery", "load"}
+    connections = _find_reachable_connections({"battery"}, sinks, graph, absorb_at=sinks)
+    assert "battery_charge" not in connections, (
+        "Battery VLAN must not re-enter the battery via its charge edge; "
+        "otherwise solver exploits a zero-cost self-loop."
+    )
+    assert "battery_discharge" in connections
+    assert "inv_load" in connections
+
+
+def test_compile_policies_excludes_battery_self_loop_vlan() -> None:
+    """Integration: the battery's own VLAN does not tag its charge edge.
+
+    Closes the zero-wear phantom cycle (Battery:discharge → Inverter →
+    Battery:charge → Battery) that would otherwise let solar charge
+    incentives fund efficiency-loss losses while sidestepping wear.
+    """
+    elements = [
+        _node("solar", is_source=True),
+        _node("battery", is_source=True, is_sink=True),
+        _node("load", is_sink=True),
+        _junction("inv"),
+        _conn("solar_inv", "solar", "inv"),
+        _conn("battery_charge", "inv", "battery"),
+        _conn("battery_discharge", "battery", "inv"),
+        _conn("inv_load", "inv", "load"),
+    ]
+    policies = [
+        {"sources": ["solar"], "destinations": ["battery"], "price": -0.001},
+        {"sources": ["battery"], "destinations": ["*"], "price": 0.01},
+    ]
+    result = compile_policies(elements, policies)
+    conns = {c["name"]: c for c in _connections(result)}
+    battery_tag = next(iter((conns["battery_discharge"].get("tags") or set()) - {0}))
+    charge_tags = conns["battery_charge"].get("tags") or set()
+    assert battery_tag not in charge_tags, "Battery's own VLAN must not tag its own charge edge."
+
+
+def test_compile_policies_absorbs_solar_tag_at_battery_sink() -> None:
+    """Integration: Solar-tagged flow cannot re-emerge from a battery.
+
+    This closes a phantom-arbitrage loop where Solar→Battery:charge with a
+    negative charge-incentive could round-trip through Battery:discharge
+    while paying no cost, because the battery's wear cut priced only its
+    own VLAN.
+    """
+    elements = [
+        _node("solar", is_source=True),
+        _node("battery", is_source=True, is_sink=True),
+        _node("load", is_sink=True),
+        _junction("inv"),
+        _conn("solar_inv", "solar", "inv"),
+        _conn("battery_charge", "inv", "battery"),
+        _conn("battery_discharge", "battery", "inv"),
+        _conn("inv_load", "inv", "load"),
+    ]
+    policies = [
+        {"sources": ["solar"], "destinations": ["battery"], "price": -0.001},
+        {"sources": ["battery"], "destinations": ["*"], "price": 0.01},
+    ]
+    result = compile_policies(elements, policies)
+    conns = {c["name"]: c for c in _connections(result)}
+    solar_tag = next(iter((conns["solar_inv"].get("tags") or set()) - {0}))
+    discharge_tags = conns["battery_discharge"].get("tags") or set()
+    assert solar_tag not in discharge_tags, "Solar VLAN must not reach battery discharge"
 
 
 # --- Min-cut placement ---

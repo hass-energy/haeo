@@ -1,338 +1,159 @@
 # Power policies
 
-Power policies control how energy flows through the HAEO network based on provenance.
-They define which sources can reach which destinations, at what cost, and with what limits.
+Power policies attach provenance to power flow so the optimizer can distinguish costs and limits that depend on where the energy originates.
+This page describes the modelling framework: the abstract structure, the mathematical formulation, and the algorithm that turns a set of policy rules into a linear program.
+
+See [policy compilation](../developer-guide/policy-compilation.md) for the concrete compilation pipeline and [VLAN optimization](../developer-guide/vlan-optimization.md) for the pruning algorithms used in production.
 
 ## Motivation
 
-Standard HAEO minimizes total cost without tracking where power originates.
-A kilowatt from the grid is indistinguishable from a kilowatt from solar once it enters the network.
-That behavior is often sufficient for simple systems.
-Real-world energy economics can still depend on provenance.
+A plain energy LP minimises total cost without tracking provenance.
+Once power enters the network it is fungible: a kilowatt-hour from the grid is indistinguishable from a kilowatt-hour from local generation, and the solver is free to substitute one for the other.
+That suffices for systems whose economics depend only on total energy,
+but many real tariffs, constraints and internal valuations are explicitly source-aware.
 
-- **Network usage charges**: Grid power can incur distribution fees that local generation does not.
-- **Feed-in tariffs**: Export rates can differ by source.
-- **Demand constraints**: Some destinations should only draw from specific sources.
-- **Battery wear valuation**: Battery-sourced power can carry an internal cycling cost.
-
-Policies add provenance tracking so the optimizer can make source-aware decisions.
+Network charges, feed-in tariffs and storage wear valuations all share a common shape:
+the applicable price or limit depends on the history of a particular unit of energy, not only on where it is currently flowing.
+Power policies introduce that history as a multi-commodity flow: every distinguishable provenance becomes its own commodity ("tag"), and policies scope prices and limits to the flow of specific tags across specific sub-networks.
 
 ## Design inspiration
 
-The policy system borrows concepts from networking, where tagged flow control is well established.
-
-### VLAN analogy
-
-Power policies use integer tags that are analogous to VLAN IDs in Ethernet.
-
-| Network concept  | HAEO equivalent          | Purpose                                  |
-| ---------------- | ------------------------ | ---------------------------------------- |
-| VLAN ID          | Power tag (integer)      | Identifies power provenance              |
-| Trunk port       | Interior connection      | Carries multiple tags between nodes      |
-| Access port      | Endpoint connection      | Node produces or consumes specific tags  |
-| VLAN access list | Node inbound tags        | Defines which tags a node can consume    |
-| Firewall rule    | Policy rule              | Prices specific source-destination flows |
-| Default allow    | Implicit policy behavior | No policy means free flow on tag 0       |
-
-### Multi-commodity flow
-
-Tagged power flow is a multi-commodity flow formulation.
-Each tag acts as a separate commodity with its own flow variables.
-All commodities share the same physical network capacities.
-This is a standard LP formulation that HiGHS solves natively.
-
-### MPLS label optimization
-
-VLAN assignment is inspired by MPLS label optimization.
-Flows with identical treatment can share labels in MPLS.
-HAEO applies the same principle by letting sources with identical policy signatures share a tag.
-
-### SDN and OpenFlow
-
-The compilation pipeline mirrors software-defined networking patterns.
-A central controller (the compilation step) derives flow rules from high-level policies and installs them on switches (connections and nodes).
-The data plane (the LP model) executes those rules without understanding the policies themselves.
+The formulation borrows concepts from tagged-flow control in packet networks.
+Each tag is analogous to a VLAN identifier: a label carried alongside a flow that partitions physical network capacity into logical per-tag flows, sharing underlying edges but with independent balance and capacity accounting on each edge.
+Tag assignment follows the optimisation principle behind MPLS label merging — flows that receive identical treatment from every downstream rule can share a label without loss of information — so provenance is tracked at the granularity of distinguishable treatment rather than per individual source.
+Policy compilation itself plays the role of an SDN controller: it derives per-edge per-tag flow rules from the high-level policy set and emits them as constraints on the LP, which remains unaware of the policies themselves.
 
 ## Semantics
 
-### Default behavior without policies
+### Node roles and policy scope
 
-When no policies are configured, behavior matches standard HAEO.
-All connections carry only tag 0.
-Power is fungible and provenance is not tracked.
+Every node has two independent capability bits: whether it can emit power (*source-capable*) and whether it can absorb power (*sink-capable*).
+Their combination determines how tags flow through the node.
+
+- A source-capable, non-sink node originates its assigned tag and carries no other tag inbound.
+- A sink-capable, non-source node terminates every tag that reaches it.
+- A node with both capabilities originates its own tag and terminates every other tag that reaches it.
+- A node with neither capability is a *junction* that passes every tag through unchanged.
+
+The operative rule is **a sink terminates every tag that is not its own**.
+Tagged flow that reaches a sink is consumed there; any power that continues onward from the same node re-originates under a new tag determined by that node's own source capability, or under the default tag if it has none.
+
+This rule constrains the subgraph over which a policy can apply prices.
+A policy extends only through the subgraph reachable from its sources up to the nearest sinks.
+Intermediate sinks absorb the tag, and legs downstream of such a sink fall under the provenance of that intermediate node instead.
+For a tag to traverse a routing node on its way to a downstream destination, the routing node must therefore be a junction.
 
 ### Default-allow model
 
-Policies add costs to specific flows.
-Flows without a matching policy are unrestricted.
-
-- **Policied sources**: Assigned a VLAN and forced onto it via `outbound_tags`. Their power carries the configured policy costs at the destination.
-- **Unpolicied sources**: Produce on tag 0 (the default tag) at zero policy cost.
-- **Sink nodes**: Accept all active VLANs plus tag 0, so both policied and unpolicied power can reach any sink.
-- **Wildcard matching**: `sources: ["*"]` or `destinations: ["*"]` matches capability-appropriate nodes (sources or sinks respectively).
-
-This model avoids creating unnecessary VLANs for unpolicied flows.
-Only sources with explicit policies receive non-zero tags.
+In the absence of any policy, every connection carries a single default tag and the formulation coincides with the untagged LP.
+Introducing policies adds tags only where provenance is distinguishable; unpolicied flow continues on the default tag at zero policy cost.
+Sinks admit both default-tagged flow and every active policy tag, so adding a policy cannot make a previously-feasible schedule infeasible.
 
 ### Policy stacking
 
-Policies are additive.
-When multiple policies match the same source-destination pair, all matching rules apply.
-
-- **Pricing**: Matching prices sum — Battery paying `$0.05` (group policy) and `$0.03` (individual policy) pays `$0.08` total.
-- **Limits**: Matching constraints all apply, and the effective limit is their combined feasible region.
-
-Policies do not override one another.
-A specific policy stacks on top of broader policies.
-
-```
-Policy 1: Battery+Solar -> Load: $0.05/kWh   (group)
-Policy 2: Battery -> Load: $0.03/kWh         (individual)
-```
-
-| Source          | Policies matched    | Total price |
-| --------------- | ------------------- | ----------- |
-| Solar -> Load   | Policy 1            | `$0.05/kWh` |
-| Battery -> Load | Policy 1 + Policy 2 | `$0.08/kWh` |
-
-Battery and solar receive different VLANs because their signatures differ.
-Each VLAN gets all applicable pricing segments.
+Policies that match overlapping source-destination pairs combine *additively* on each matching flow.
+Prices sum, and limits apply as the intersection of feasible regions.
+This falls out of each policy contributing an independent pricing or capacity term to the LP, with no override relationship between them:
+a specific rule therefore layers on top of a broader rule without restating it.
 
 ### Group constraints
 
-Policies that target source groups constrain the sum of those source VLANs.
-Policies that target one source constrain one VLAN.
-Both kinds can coexist.
-
-```
-Policy 1: Battery+Solar -> Load: limit 5 kW
-Policy 2: Battery -> Load: limit 2 kW
-```
-
-| Constraint | Tags                        | Limit     |
-| ---------- | --------------------------- | --------- |
-| Group      | `VLAN_solar + VLAN_battery` | `<= 5 kW` |
-| Individual | `VLAN_battery`              | `<= 2 kW` |
-
-Result: Solar can draw up to 5 kW, Battery up to 2 kW, combined maximum 5 kW.
-This uses multi-tag scoping: `power_limit(tags={1,2}, max=5kW)` constrains the sum of VLANs 1 and 2.
-
-## Compilation pipeline
-
-The compiler transforms policy definitions into model-layer constructs.
-
-```mermaid
-graph TD
-    A[User policy configs] --> B[Flow enumeration]
-    B --> C[Signature computation]
-    C --> D[VLAN assignment]
-    D --> E[Reachability analysis]
-    E --> F[Connection tagging]
-    F --> G[Node outbound tags]
-    G --> H[Node inbound tags]
-    H --> I[Pricing injection]
-    I --> J[Model elements]
-```
-
-### Step 1: Flow enumeration
-
-Each policy expands to concrete source-destination tuples.
-
-- `Grid -> Load: $0.05` becomes `{(Grid, Load, 0.05)}`.
-- `* -> Load: $0.05` becomes all sources paired with `Load`.
-- `Grid -> *: $0.05` becomes all destinations paired with `Grid`.
-
-### Step 2: Policy signature computation
-
-For each source node, compute a policy signature.
-A signature is the set of `(destination, price_st, price_ts)` tuples matched for that source.
-
-$$
-\text{sig}(s) = \{(d, \pi_{st}, \pi_{ts}) \mid \text{policy}(s \to d, \pi_{st}, \pi_{ts})\}
-$$
-
-### Step 3: VLAN assignment
-
-Sources with identical signatures share one VLAN.
-Sources with different signatures must use different VLANs — at least one policy treats them differently, so the optimizer must be able to distinguish them.
-The resulting VLAN count is the provably minimum: the number of distinct non-empty signatures, plus tag 0.
-
-Nodes with empty signatures use tag 0.
-When no policies exist at all, only tag 0 exists — identical to standard HAEO.
-
-### Step 4: Reachability analysis
-
-For each VLAN, compute which connections can carry it using directed reachability.
-
-1. Identify source nodes assigned to that VLAN.
-2. Compute forward reachability from those sources (following connection direction) and backward reachability from *all* sink nodes (reverse direction).
-3. Assign VLAN variables only to connections whose endpoints both appear in the intersection of forward and backward reachable sets.
-
-This avoids creating variables on impossible routes, while also ensuring a tagged source has a direct path to every sink it could physically serve.
-A policy restricts where tagged flow is *priced* (Step 8), not where it may physically terminate: narrowing the subgraph to policy destinations alone would force solar to detour through storage whenever a Solar→Grid policy exhausted grid capacity, because Load would refuse the Solar tag.
-That shows up as spurious simultaneous charge and discharge — power "laundered" through the battery to shed its provenance.
-For tree topologies, which cover most home energy systems, paths between any two nodes are unique and the computation is linear in the node count.
-
-### Step 5: Connection tagging
-
-Each connection receives all VLANs that can traverse it.
-Interior connections (trunks) can carry many VLANs.
-Endpoint connections carry only the VLANs their node produces or consumes.
-
-### Step 6: Node outbound tags
-
-Each source node gets `outbound_tags` constraining which tags it can produce on.
-Policied sources produce only on their assigned VLAN.
-Unpolicied source-capable nodes produce only on tag 0, preventing unnecessary production decomposition.
-
-### Step 7: Node inbound tags
-
-Sink nodes get `inbound_tags` listing which VLANs they can consume.
-All sinks accept tag 0 (unpolicied power) plus all active policy VLANs.
-This default-allow approach ensures both policied and unpolicied power can reach any sink.
-
-Power can still pass through a non-sink node on any VLAN for routing.
-Junction nodes (neither source nor sink) do not receive inbound tags.
-
-### Step 8: Pricing injection
-
-For each policy, compute a sink-side canonical minimum s-t cut on the per-VLAN subgraph and attach a scoped pricing segment to each connection in that cut.
-The algorithm is Edmonds–Karp max-flow with unit edge capacities; the cut is recovered by reverse BFS from the super-sink in the residual graph.
-
-Unit capacities and the sink-side choice jointly guarantee that every source-to-destination path on the VLAN crosses exactly one cut edge, so a unit of tagged flow pays the policy price exactly once — no stacking from overlapping sub-cuts, and no flows that bypass pricing.
-Minimum cardinality also means pricing is attached to the fewest connections, which matters for power-limit policies: the limit collapses to a single $\sum_{e \in \text{cut}} P^{tag}_{e,t} \le X$ constraint.
-
-The cut naturally collapses to intuitive placements:
-
-- Target-inbound edges for a specific destination (e.g. `Grid → Load` prices the `SW → Load` connection).
-- Source-outbound edges for a single-outbound source targeting a wildcard (e.g. `Battery → *` prices the single `Battery → Inverter` connection).
-- A shared bottleneck when many sources and many destinations converge through a narrower middle (e.g. an inverter separating `Solar|Battery` from `Load|Grid`).
-
-Each injected segment's `tag` matches the source VLAN, and `price_source_target` and `price_target_source` map from the policy's directional prices.
+A policy whose source list (or destination list) enumerates multiple elements applies its terms to the *sum* of the corresponding tag flows.
+Combined with single-source policies, this allows both aggregate and per-source bounds to coexist on the same physical subgraph: the aggregate bound constrains $\sum_v P^v$ while per-source bounds constrain each $P^v$ separately.
 
 ## Mathematical formulation
 
 ### Per-tag power variables
 
-Each segment creates non-negative variables per tag and period.
+Each connection carries one non-negative flow variable per direction, per tag, per period:
 
 $$
-P^{st}_{v,t} \geq 0 \quad \forall v \in \text{Tags}(c), \; t \in \{0, \ldots, T-1\}
+P^{st}_{v,e,t} \ge 0, \quad P^{ts}_{v,e,t} \ge 0
+\quad \forall v \in \text{Tags}(e), \; e \in \text{Edges}, \; t \in \{0, \ldots, T-1\}
 $$
 
-### Total power in segment constraints
+### Aggregate flow in segment constraints
 
-Segment constraints operate on aggregate directional power.
-
-$$
-P^{st}_t = \sum_{v \in \text{Tags}(c)} P^{st}_{v,t}
-$$
-
-### Per-tag node balance
-
-Node balance applies independently for each tag.
-
-- Junction nodes: $\sum_c P^{tag}_{c,t} = 0$ for each tag (routing).
-- Source nodes: only the source's own tag can have net outflow.
-- Sink nodes: only tags in the node's `inbound_tags` set can have net inflow.
-
-### Policy pricing term
-
-For policy `(source_vlan, destination, price)`, the policy cost contribution is:
+Per-connection segment constraints (capacity, pricing, efficiency) operate on the aggregate directional flow:
 
 $$
-C_{\text{policy}} = \sum_{e \in \text{cut}} \sum_t P^{st}_{v,e,t} \cdot \pi \cdot \Delta t_t
+P^{st}_{e,t} = \sum_{v \in \text{Tags}(e)} P^{st}_{v,e,t}
 $$
 
-The sum runs over the sink-side canonical minimum cut separating source from destination on the VLAN subgraph (see Step 8).
-Unit capacities guarantee each source-to-destination path crosses exactly one cut edge, so the term assesses the policy price on each unit of tagged flow exactly once.
+This keeps segment formulations tag-agnostic while preserving per-tag identity for policy-scoped constraints.
 
-## Variable count analysis
+### Per-tag balance
 
-| Scenario                          | VLANs | Connections with VLAN | Variable form                             |
-| --------------------------------- | ----- | --------------------- | ----------------------------------------- |
-| No policies                       | 1     | all x 1               | $C \times S \times 2 \times T$            |
-| One policy (`Grid -> Load`)       | 2     | partial x 2           | $< C \times 2 \times S \times 2 \times T$ |
-| All sources same policy signature | 2     | often broad           | $C \times 2 \times S \times 2 \times T$   |
-| All sources distinct signatures   | $N+1$ | varies by route       | $\sum_c K_c \times S \times 2 \times T$   |
+Node balance holds independently for each tag admitted at a node $n$:
 
-`C` is connection count, `S` is segments per connection, `T` is period count, and `K_c` is VLAN count on connection `c`.
-Signature merging and reachability pruning reduce variable growth compared with naive one-tag-per-source assignment.
+$$
+\sum_{e \in \text{out}(n)} P^{st}_{v,e,t} - \sum_{e \in \text{in}(n)} P^{st}_{v,e,t} = b_{n,v,t}
+$$
 
-## Examples
+where $b_{n,v,t}$ is the node's net production on tag $v$.
+The node-role semantics above determine which tags carry which sign of $b$:
+source-only nodes have $b > 0$ only on their own tag, sink-only nodes have $b \le 0$ on any admitted tag, and junctions have $b = 0$ for every tag.
 
-### Grid surcharge
+### Policy pricing
 
-```
-System: Grid <-> Switchboard <-> Load, Solar -> Switchboard
-Policy: Grid -> Load: $0.05/kWh
-```
+Each policy contributes a pricing term summed over its *priced edges* — the minimum edge cut on the policy's tag subgraph separating the policy's sources from its destinations:
 
-Compilation summary:
+$$
+C_{\text{policy}} = \sum_{e \in \text{cut}} \sum_t P^{st}_{v,e,t} \cdot \pi \cdot \Delta t
+$$
 
-1. Flows: `{(Grid, Load, 0.05)}`.
-2. Signatures: Grid has `{(Load, 0.05)}`, others have empty signatures.
-3. VLANs: Grid gets VLAN 1, others stay on tag 0.
-4. Reachability: VLAN 1 appears on the directed path from Grid to every sink it can reach (here just Load).
-5. Outbound tags: Grid produces on VLAN 1, Solar produces on tag 0.
-6. Inbound tags: Load accepts tag 0 and VLAN 1.
-7. Pricing: the min-cut separating Grid from Load collapses to the `SW → Load` inbound edge, which gets `pricing(tag=grid_vlan, $0.05)`.
+Unit edge capacities on the cut guarantee that every source-to-destination path on the tag crosses exactly one priced edge, so each unit of tagged flow pays $\pi$ exactly once and no path bypasses the policy.
+Power-limit policies use the same cut to enforce $\sum_{e \in \text{cut}} P^{st}_{v,e,t} \le X$; minimising the cut keeps the constraint over the fewest edges.
 
-Result:
-Grid power carries the surcharge to `Load`.
-Solar power flows freely on tag 0 at zero policy cost and is preferred when cheaper.
+## Compilation algorithm
 
-### Selective pricing
+Translating a policy set into the LP constructs above has three algorithmic stages.
 
-```
-System: Grid <-> Switchboard <-> Load, Solar -> Switchboard, Battery <-> Switchboard
-Policy: Battery -> *: $0.02/kWh
-```
+### Tag assignment by signature merging
 
-Battery gets a VLAN with a discharge wear cost.
-Solar and Grid stay on tag 0 (no policy targets them) at zero cost.
-All sink destinations accept tag 0 and Battery's VLAN, so Solar and Grid power reaches them freely.
-The wildcard destination expands to every sink reachable from Battery, and the min-cut collapses to the single `Battery → Switchboard` outbound edge — one segment carries the `$0.02/kWh` wear cost regardless of which sink ultimately consumes the power.
+Each source is summarised by its *policy signature*: the set of destination-price tuples in which it participates.
+Sources with identical signatures receive identical downstream treatment and are merged to share a tag; sources with distinct signatures require distinct tags.
+The resulting tag count is the number of distinct non-empty signatures plus one default tag, which is the provable minimum required to keep every policy distinguishable.
 
-## Implementation location
+### Reachability with absorbing sinks and source exclusion
 
-The compilation pipeline runs in `custom_components/haeo/core/adapters/policy_compilation.py`.
-It executes as a post-processing step in `collect_model_elements()` after adapter element configs are assembled.
-The model layer remains policy-unaware and operates only on tags and scoped segments.
+Each tag is assigned only to edges that can carry it on some source-to-sink path.
+Forward reachability propagates from the tag's sources; backward reachability propagates from all sink nodes; the intersection determines the edges that receive the tag.
+Two additional rules keep provenance consistent:
 
-## External and internal pricing
+- **Sink absorption.** Forward traversal stops at each sink, except when the sink is one of the tag's own sources.
+- **Source exclusion.** Edges whose target is one of the tag's own sources are removed from the result.
 
-HAEO separates external market pricing from internal valuation policies.
+Absorbing at sinks prevents a tag from propagating through a storage element and leaving under its original provenance;
+source exclusion prevents a tag from re-entering its origin via a return path, which would otherwise admit zero-cost internal loops that bypass any cost placed on an outbound cut.
 
-**External pricing** represents real market costs or credits — what you actually pay or earn.
-These belong on the element that interfaces with the external system:
+### Pricing placement by minimum s-t cut
 
-- Grid import and export prices from your energy retailer.
-- Feed-in tariff rates.
+For each policy, the pricing term is attached to the edges of the minimum s-t cut on that policy's tag subgraph between its sources and destinations.
+Unit edge capacities and the sink-side canonical cut jointly ensure every source-to-destination path crosses exactly one priced edge.
+The minimum-cardinality cut collapses naturally to intuitive placements — onto a single inbound edge when the destination has one inbound, onto a single outbound edge when the source has one outbound, and onto a shared bottleneck when sources and destinations converge through a narrower middle.
 
-External prices are configured on pricing segments and driven by sensor data.
-They are not policies.
+## Variable count
 
-**Internal policies** are valuations you choose to apply to guide the optimizer, without representing real money changing hands:
+Per connection, the number of tagged flow variables scales with the number of tags that actually reach the connection:
 
-- Battery discharge wear cost (`$0.02/kWh`).
-- Battery charge incentive (`-$0.001/kWh`).
-- Source-destination routing penalties.
+$$
+|\text{vars}(e)| = K(e) \cdot S(e) \cdot 2 \cdot T
+$$
 
-These should be configured as power policies so the cost structure is explicit: "Battery to anything costs `$0.02/kWh` because of wear."
+where $K(e)$ is the tag count on edge $e$, $S(e)$ the number of segments on that connection, and $T$ the horizon length.
+Three structural bounds shape variable growth:
 
-!!! note "Migration path"
+- In the absence of policies, $K(e) = 1$ for every edge.
+- Signature merging caps the global tag count at the number of distinct non-empty signatures plus one.
+- Reachability pruning reduces $K(e)$ on any edge that lies outside a given tag's source-to-sink subgraph.
 
-    Battery flat pricing fields (`price_source_target`, `price_target_source`) can map to policies.
-    Battery discharge cost can become `Battery -> *: $0.02/kWh`.
-    Battery charge incentive can become `* -> Battery: -$0.001/kWh`.
-    SOC-dependent valuation still requires state-dependent modeling rather than flat per-kWh policies.
+Practical variable growth therefore tracks the number of *distinguishable* policy groupings rather than the number of policies or the number of sources.
 
-## Future work: SOC-based VLANs
+## Future work: SOC-based tags
 
-Battery SOC partitions could be modeled as separate VLANs so different SOC regions carry different tags.
-That approach could enable SOC-dependent valuation through the same policy machinery.
-This remains an open modeling topic.
+State-of-charge partitioning could be expressed as separate tags assigned to different SOC regions of a storage element, enabling SOC-dependent valuation through the same tag machinery.
+This remains an open modelling direction.
 
 ## Next Steps
 
@@ -350,7 +171,7 @@ This remains an open modeling topic.
 
     ---
 
-    Review implementation details and compiler behavior.
+    Review the concrete compilation pipeline and algorithm steps.
 
     [:material-arrow-right: Policy compilation](../developer-guide/policy-compilation.md)
 
