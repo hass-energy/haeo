@@ -29,51 +29,57 @@
 
   let target = el;
 
+  // Radio buttons should be highlighted as-is — don't walk up to a container
+  const isRadio = el.matches && (el.matches('[role="radio"]') || el.matches('input[type="radio"]'));
+
   // Walk up through shadow DOM to find the nearest clickable ancestor
-  const clickableParent = closestAcrossShadow(el, clickableSelector);
-  if (clickableParent) target = clickableParent;
+  if (!isRadio) {
+    const clickableParent = closestAcrossShadow(el, clickableSelector);
+    if (clickableParent) target = clickableParent;
+  }
 
   // More specific overrides below — these take priority over the generic match
+  if (!isRadio) {
+    const mdcTextField = closestAcrossShadow(el, "label.mdc-text-field");
+    if (mdcTextField) target = mdcTextField;
 
-  const mdcTextField = closestAcrossShadow(el, "label.mdc-text-field");
-  if (mdcTextField) target = mdcTextField;
+    const comboBoxRow = closestAcrossShadow(el, ".combo-box-row");
+    if (comboBoxRow) target = comboBoxRow;
 
-  const comboBoxRow = closestAcrossShadow(el, ".combo-box-row");
-  if (comboBoxRow) target = comboBoxRow;
+    const comboBoxItem = closestAcrossShadow(el, "ha-combo-box-item");
+    if (comboBoxItem) {
+      const row = closestAcrossShadow(comboBoxItem, ".combo-box-row");
+      target = row || comboBoxItem;
+    }
 
-  const comboBoxItem = closestAcrossShadow(el, "ha-combo-box-item");
-  if (comboBoxItem) {
-    const row = closestAcrossShadow(comboBoxItem, ".combo-box-row");
-    target = row || comboBoxItem;
-  }
+    const entityListItem = closestAcrossShadow(
+      el,
+      "ha-list-item, mwc-list-item, md-list-item, " + '[role="listitem"], [role="option"]'
+    );
+    if (entityListItem) {
+      const listItemParent = closestAcrossShadow(entityListItem, "ha-list-item, mwc-list-item, md-list-item, md-item");
+      target = listItemParent || entityListItem;
+    }
 
-  const entityListItem = closestAcrossShadow(
-    el,
-    "ha-list-item, mwc-list-item, md-list-item, " + '[role="listitem"], [role="option"]'
-  );
-  if (entityListItem) {
-    const listItemParent = closestAcrossShadow(entityListItem, "ha-list-item, mwc-list-item, md-list-item, md-item");
-    target = listItemParent || entityListItem;
-  }
+    const haListItem = closestAcrossShadow(el, "ha-list-item");
+    if (haListItem) target = haListItem;
 
-  const haListItem = closestAcrossShadow(el, "ha-list-item");
-  if (haListItem) target = haListItem;
+    const mdItem = closestAcrossShadow(el, "md-item");
+    if (mdItem) target = mdItem;
 
-  const mdItem = closestAcrossShadow(el, "md-item");
-  if (mdItem) target = mdItem;
+    const integrationItem = closestAcrossShadow(el, "ha-integration-list-item");
+    if (integrationItem) target = integrationItem;
 
-  const integrationItem = closestAcrossShadow(el, "ha-integration-list-item");
-  if (integrationItem) target = integrationItem;
-
-  const roleItem = closestAcrossShadow(el, '[role="listitem"], [role="option"]');
-  if (roleItem) {
-    const haWrapper = closestAcrossShadow(roleItem, "ha-list-item, md-item, mwc-list-item, .combo-box-row");
-    target = haWrapper || roleItem;
+    const roleItem = closestAcrossShadow(el, '[role="listitem"], [role="option"]');
+    if (roleItem) {
+      const haWrapper = closestAcrossShadow(roleItem, "ha-list-item, md-item, mwc-list-item, .combo-box-row");
+      target = haWrapper || roleItem;
+    }
   }
 
   const targetRect = target.getBoundingClientRect();
   const computedStyle = getComputedStyle(target);
-  const borderRadius = computedStyle.borderRadius || "0px";
+  const borderRadius = isRadio ? "50%" : (computedStyle.borderRadius || "0px");
 
   const overlay = document.createElement("div");
   overlay.id = "click-indicator-overlay";
