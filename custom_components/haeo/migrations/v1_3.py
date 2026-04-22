@@ -72,7 +72,6 @@ _DEFAULT_POLICY_PRICES: dict[tuple[str, str], frozenset[float]] = {
 }
 UNIQUE_ID_PART_COUNT = 3
 LIST_ITEM_PATH_PART_COUNT = 3
-SECTION_FIELD_PATH_PART_COUNT = 2
 
 
 def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
@@ -210,13 +209,7 @@ async def _migrate_entity_unique_ids(hass: HomeAssistant, entry: ConfigEntry) ->
         if len(path_parts) >= LIST_ITEM_PATH_PART_COUNT:
             continue
 
-        if len(path_parts) == SECTION_FIELD_PATH_PART_COUNT:
-            new_leaf = path_parts[1]
-        elif len(path_parts) == 1:
-            new_leaf = path_parts[0]
-        else:
-            continue
-
+        new_leaf = path_parts[-1]
         renames = _FIELD_RENAMES_BY_ELEMENT_TYPE.get(subentry_types.get(subentry_id, ""), {})
         new_leaf = renames.get(new_leaf, new_leaf)
 
