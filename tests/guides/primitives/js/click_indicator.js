@@ -82,9 +82,30 @@
     }
   }
 
+  // For ha-icon-button, pierce through shadow DOM layers to find the inner
+  // circular button (ha-icon-button > shadow > mwc-icon-button > shadow > button).
+  // Icon buttons are circular by Material Design spec but HA's theme may override
+  // the border-radius to 0px, so we track that we found an icon button.
+  let isIconButton = false;
+  if (target.matches && target.matches("ha-icon-button")) {
+    isIconButton = true;
+    let btn = target.shadowRoot && target.shadowRoot.querySelector("button");
+    if (!btn) {
+      const inner = target.shadowRoot && target.shadowRoot.querySelector(
+        "mwc-icon-button, ha-icon-button-prev, md-icon-button"
+      );
+      btn = inner && inner.shadowRoot && inner.shadowRoot.querySelector("button");
+    }
+    if (btn) target = btn;
+  }
+
   const targetRect = target.getBoundingClientRect();
   const computedStyle = getComputedStyle(target);
-  const borderRadius = computedStyle.borderRadius || "0px";
+  let borderRadius = computedStyle.borderRadius || "0px";
+
+  // Icon buttons are circular per Material Design spec even when the theme
+  // overrides border-radius to 0px on the button element
+  if (isIconButton && borderRadius === "0px") borderRadius = "50%";
 
   const overlay = document.createElement("div");
   overlay.id = "click-indicator-overlay";
