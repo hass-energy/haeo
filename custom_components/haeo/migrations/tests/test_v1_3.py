@@ -764,6 +764,229 @@ async def test_async_migrate_entry_keeps_colliding_section_unique_ids_distinct(h
     assert registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_bat001_partition_percentage") is None
 
 
+async def test_async_migrate_entry_renames_grid_legacy_field_unique_ids(hass: HomeAssistant) -> None:
+    """Grid legacy leaf field names map to directional source/target unique IDs."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+    grid_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: grid.ELEMENT_TYPE,
+            CONF_NAME: "Grid",
+            CONF_CONNECTION: "bus",
+            "import_price": 0.3,
+        },
+        subentry_type=grid.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, grid_subentry)
+    grid_subentry_id = next(iter(entry.subentries))
+
+    registry = er.async_get(hass)
+    legacy_to_new = {
+        "import_price": CONF_PRICE_SOURCE_TARGET,
+        "export_price": CONF_PRICE_TARGET_SOURCE,
+        "import_limit": CONF_MAX_POWER_SOURCE_TARGET,
+        "export_limit": CONF_MAX_POWER_TARGET_SOURCE,
+    }
+    seeded = {
+        legacy: registry.async_get_or_create(
+            "number",
+            DOMAIN,
+            f"{entry.entry_id}_{grid_subentry_id}_{legacy}",
+            config_entry=entry,
+        ).entity_id
+        for legacy in legacy_to_new
+    }
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
+
+    for legacy, new in legacy_to_new.items():
+        assert (
+            registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_{grid_subentry_id}_{legacy}") is None
+        ), f"legacy unique_id ..._{legacy} should be gone"
+        assert (
+            registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_{grid_subentry_id}_{new}")
+            == seeded[legacy]
+        ), f"entity should now be addressed by ..._{new}"
+
+
+async def test_async_migrate_entry_renames_inverter_legacy_field_unique_ids(hass: HomeAssistant) -> None:
+    """Inverter dc/ac directional fields map to source/target unique IDs."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+    inverter_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: inverter.ELEMENT_TYPE,
+            CONF_NAME: "Inverter",
+            CONF_CONNECTION: "bus",
+            "max_power_dc_to_ac": 5.0,
+        },
+        subentry_type=inverter.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, inverter_subentry)
+    inverter_subentry_id = next(iter(entry.subentries))
+
+    registry = er.async_get(hass)
+    legacy_to_new = {
+        "max_power_dc_to_ac": CONF_MAX_POWER_SOURCE_TARGET,
+        "max_power_ac_to_dc": CONF_MAX_POWER_TARGET_SOURCE,
+        "efficiency_dc_to_ac": inverter.CONF_EFFICIENCY_SOURCE_TARGET,
+        "efficiency_ac_to_dc": inverter.CONF_EFFICIENCY_TARGET_SOURCE,
+    }
+    for legacy in legacy_to_new:
+        registry.async_get_or_create(
+            "number",
+            DOMAIN,
+            f"{entry.entry_id}_{inverter_subentry_id}_{legacy}",
+            config_entry=entry,
+        )
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
+
+    for legacy, new in legacy_to_new.items():
+        assert (
+            registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_{inverter_subentry_id}_{legacy}") is None
+        ), f"legacy unique_id ..._{legacy} should be gone"
+        assert (
+            registry.async_get_entity_id("number", DOMAIN, f"{entry.entry_id}_{inverter_subentry_id}_{new}") is not None
+        ), f"entity should now be addressed by ..._{new}"
+
+
+async def test_async_migrate_entry_renames_battery_power_fields_with_swapped_sides(hass: HomeAssistant) -> None:
+    """Battery charge/discharge map to swapped target_source/source_target sides."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+    battery_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Bat",
+            CONF_CONNECTION: "bus",
+            "max_charge_power": 5.0,
+            "max_discharge_power": 5.0,
+        },
+        subentry_type=battery.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+    battery_subentry_id = next(iter(entry.subentries))
+
+    registry = er.async_get(hass)
+    charge_entity = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_{battery_subentry_id}_max_charge_power",
+        config_entry=entry,
+    )
+    discharge_entity = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_{battery_subentry_id}_max_discharge_power",
+        config_entry=entry,
+    )
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
+
+    assert (
+        registry.async_get_entity_id(
+            "number",
+            DOMAIN,
+            f"{entry.entry_id}_{battery_subentry_id}_{CONF_MAX_POWER_TARGET_SOURCE}",
+        )
+        == charge_entity.entity_id
+    )
+    assert (
+        registry.async_get_entity_id(
+            "number",
+            DOMAIN,
+            f"{entry.entry_id}_{battery_subentry_id}_{CONF_MAX_POWER_SOURCE_TARGET}",
+        )
+        == discharge_entity.entity_id
+    )
+
+
+async def test_async_migrate_entry_renames_grid_dotted_legacy_unique_ids(hass: HomeAssistant) -> None:
+    """v1.2-style dotted unique IDs are stripped and renamed in one pass."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+    grid_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: grid.ELEMENT_TYPE,
+            CONF_NAME: "Grid",
+            CONF_CONNECTION: "bus",
+            "import_price": 0.3,
+        },
+        subentry_type=grid.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, grid_subentry)
+    grid_subentry_id = next(iter(entry.subentries))
+
+    registry = er.async_get(hass)
+    seeded = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_{grid_subentry_id}_power_limits.import_limit",
+        config_entry=entry,
+    )
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
+
+    assert (
+        registry.async_get_entity_id(
+            "number",
+            DOMAIN,
+            f"{entry.entry_id}_{grid_subentry_id}_power_limits.import_limit",
+        )
+        is None
+    )
+    assert (
+        registry.async_get_entity_id(
+            "number",
+            DOMAIN,
+            f"{entry.entry_id}_{grid_subentry_id}_{CONF_MAX_POWER_SOURCE_TARGET}",
+        )
+        == seeded.entity_id
+    )
+
+
+async def test_async_migrate_entry_removes_legacy_when_renamed_unique_id_already_exists(hass: HomeAssistant) -> None:
+    """Legacy field-name entry is removed when the directional one already exists."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=0)
+    entry.add_to_hass(hass)
+    grid_subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: grid.ELEMENT_TYPE,
+            CONF_NAME: "Grid",
+            CONF_CONNECTION: "bus",
+            "import_price": 0.3,
+        },
+        subentry_type=grid.ELEMENT_TYPE,
+    )
+    hass.config_entries.async_add_subentry(entry, grid_subentry)
+    grid_subentry_id = next(iter(entry.subentries))
+
+    registry = er.async_get(hass)
+    stable_entity = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_{grid_subentry_id}_{CONF_PRICE_SOURCE_TARGET}",
+        config_entry=entry,
+    )
+    duplicate_entity = registry.async_get_or_create(
+        "number",
+        DOMAIN,
+        f"{entry.entry_id}_{grid_subentry_id}_import_price",
+        config_entry=entry,
+    )
+
+    result = await v1_3.async_migrate_entry(hass, entry)
+    assert result is True
+
+    assert registry.async_get(stable_entity.entity_id) is not None
+    assert registry.async_get(duplicate_entity.entity_id) is None
+
+
 async def test_async_migrate_entry_preserves_legacy_early_charge_incentive(hass: HomeAssistant) -> None:
     """Legacy 0.001 charge-incentive migrates to a -$0.001 target=Battery policy.
 
