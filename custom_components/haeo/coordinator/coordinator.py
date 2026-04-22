@@ -30,7 +30,7 @@ from custom_components.haeo.const import (
     NetworkOutputName,
 )
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
-from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, DEFAULT_DEBOUNCE_SECONDS
+from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMENT_TYPE, DEFAULT_DEBOUNCE_SECONDS
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.forecast_times import tiers_to_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_config as _core_load_element_config
@@ -754,16 +754,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 element_name: element.outputs() for element_name, element in network.elements.items()
             }
 
-            # Process each config element using its outputs function to transform model outputs into device outputs
-            for subentry in context.config["subentries"]:
-                if subentry["subentry_type"] == ELEMENT_TYPE_NETWORK:
-                    continue
-                element_name = subentry["title"]
-                # Subentries that failed validation are skipped by collect_element_subentries
-                # and therefore absent from loaded_configs; preserve that by mirroring the filter.
-                if element_name not in loaded_configs:
-                    continue
-                element_type = subentry["subentry_type"]
+            # Process each loaded element using its outputs function to transform model outputs into device outputs
+            for element_name, element_config in loaded_configs.items():
+                element_type = element_config[CONF_ELEMENT_TYPE]
                 outputs_fn = ELEMENT_TYPES[element_type].outputs
 
                 # outputs function returns {device_name: {output_name: OutputData}}
@@ -772,7 +765,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     adapter_outputs: Mapping[ElementDeviceName, Mapping[ElementOutputName, OutputData]] = outputs_fn(
                         name=element_name,
                         model_outputs=model_outputs,
-                        config=loaded_configs[element_name],
+                        config=element_config,
                         periods=network.periods,
                     )
                 except KeyError:
