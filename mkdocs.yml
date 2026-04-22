@@ -144,6 +144,7 @@ nav:
   - Walkthroughs:
       - walkthroughs/index.md
       - Sigenergy System: walkthroughs/sigenergy-system.md
+      - Battery Inventory Costs: walkthroughs/battery-inventory-costs.md
       - Power Policies: walkthroughs/power-policies.md
 
   - User Guide:

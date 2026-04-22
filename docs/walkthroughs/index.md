@@ -27,6 +27,15 @@ Walkthroughs are generated from a live Home Assistant instance, so the screensho
 
     [:material-arrow-right: Power Policies walkthrough](power-policies.md)
 
+- :material-battery-alert:{ .lg .middle } **Battery Inventory Costs**
+
+    ---
+
+    Set soft and firm charge limits on your battery using inventory cost rules.
+    Covers minimum reserve, maximum charge, and choosing cost values.
+
+    [:material-arrow-right: Battery Inventory Costs walkthrough](battery-inventory-costs.md)
+
 </div>
 
 ## Next steps
