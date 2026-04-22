@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.13.2, <3.14"
 
 [[package]]
@@ -1050,7 +1050,7 @@ wheels = [
 
 [[package]]
 name = "haeo"
-version = "0.4.0rc1"
+version = "0.4.0rc2"
 source = { editable = "." }
 dependencies = [
     { name = "highspy" },
