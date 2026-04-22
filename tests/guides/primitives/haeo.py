@@ -24,12 +24,7 @@ from typing import TYPE_CHECKING, Any, get_args
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
-from custom_components.haeo.core.schema.elements.battery import (
-    CONF_CAPACITY,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MIN_CHARGE_PERCENTAGE,
-)
+from custom_components.haeo.core.schema.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.sections import (
     CONF_FORECAST,
@@ -332,8 +327,6 @@ def add_battery(
     initial_charge_percentage: EntityInput,
     max_power_target_source: EntityInput | None = None,
     max_power_source_target: EntityInput | None = None,
-    min_charge_percentage: EntityInput | ConstantInput | None = None,
-    max_charge_percentage: EntityInput | ConstantInput | None = None,
 ) -> None:
     """Add battery element to HAEO network."""
     et = ElementType.BATTERY
@@ -345,15 +338,11 @@ def add_battery(
     page.fill_textbox(_name_label(et), name)
     page.select_combobox(_connection_label(et), connection)
 
-    # Build fields dict in section order: storage → limits → power_limits
+    # Build fields dict in section order: storage → power_limits
     fields: dict[str, FieldInput] = {
         CONF_CAPACITY: capacity,
         CONF_INITIAL_CHARGE_PERCENTAGE: initial_charge_percentage,
     }
-    if min_charge_percentage is not None:
-        fields[CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
-    if max_charge_percentage is not None:
-        fields[CONF_MAX_CHARGE_PERCENTAGE] = max_charge_percentage
     if max_power_target_source is not None:
         fields[CONF_MAX_POWER_TARGET_SOURCE] = max_power_target_source
     if max_power_source_target is not None:
@@ -363,7 +352,7 @@ def add_battery(
         page,
         et,
         fields,
-        collapsed_sections=frozenset({"efficiency", "partitioning"}),
+        collapsed_sections=frozenset({"efficiency"}),
     )
 
     page.submit()
@@ -597,6 +586,70 @@ def reconfigure_policies(page: HAPage) -> None:
 def _step_title(element_type: str, step: str) -> str:
     """Get the title for a specific flow step."""
     return _subentry(element_type)["step"][step]["title"]
+
+
+def _step_data(element_type: str, step: str) -> dict[str, str]:
+    """Get the data labels for a specific flow step."""
+    return _subentry(element_type)["step"][step]["data"]
+
+
+@guide_step
+def add_inventory_cost(
+    page: HAPage,
+    *,
+    battery_name: str,
+    name: str,
+    direction: str,
+    threshold: float,
+    cost: float,
+) -> None:
+    """Add an inventory cost rule to an existing battery via reconfigure.
+
+    Opens the battery reconfigure menu, selects "Add inventory cost",
+    fills in the rule form, and submits.
+    """
+    et = "battery"
+    _LOGGER.info("Adding inventory cost '%s' to battery '%s'", name, battery_name)
+
+    # Click the gear icon on the battery subentry row
+    battery_row = page.page.locator("ha-md-list-item.sub-entry").filter(has_text=battery_name)
+    battery_row.wait_for(state="visible", timeout=5000)
+    battery_row.scroll_into_view_if_needed()
+    gear_button = battery_row.locator("ha-icon-button:not([slot='start'])").first
+    page._capture_with_indicator("gear", gear_button)
+    gear_button.click(timeout=2000)
+
+    # Wait for reconfigure menu
+    page.wait_for_dialog(_step_title(et, "reconfigure"))
+    page._capture("menu")
+
+    # Select "Add inventory cost" action (LIST mode renders as radio buttons)
+    page.select_list_option("Add inventory cost")
+    page.submit()
+
+    # Wait for the add_inventory_cost form
+    page.wait_for_dialog(_step_title(et, "add_inventory_cost"))
+
+    # Fill in the inventory cost fields
+    step_labels = _step_data(et, "add_inventory_cost")
+    page.fill_textbox(step_labels["name"], name)
+    page.select_dropdown(step_labels["direction"], direction.capitalize())
+    page.fill_spinbutton(step_labels["threshold"], str(threshold))
+    page.fill_spinbutton(step_labels["cost"], str(cost))
+
+    page.submit()
+
+    # Close the abort dialog (async_update_and_abort shows abort with close button)
+    close_btn = page.page.locator(
+        "dialog-data-entry-flow ha-icon-button[dialogaction='close']",
+    )
+    close_btn.click(timeout=2000)
+    page.page.locator("dialog-data-entry-flow ha-dialog[open]").wait_for(
+        state="detached",
+        timeout=5000,
+    )
+
+    _LOGGER.info("Inventory cost added: %s", name)
 
 
 # endregion

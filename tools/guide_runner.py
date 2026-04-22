@@ -31,6 +31,7 @@ from tests.guides.primitives import (
     add_battery,
     add_grid,
     add_integration,
+    add_inventory_cost,
     add_inverter,
     add_load,
     add_node,
@@ -41,6 +42,7 @@ from tests.guides.primitives import (
     reconfigure_policies,
     screenshot_context,
     validate_policies,
+    verify_inventory_costs,
     verify_setup,
 )
 from tools.guide_hashing import compute_content_hash, compute_page_hash, extract_sources
@@ -222,8 +224,10 @@ def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, obj
         "add_load": add_load,
         "add_node": add_node,
         "add_policies": add_policies,
+        "add_inventory_cost": add_inventory_cost,
         "reconfigure_policies": reconfigure_policies,
         "validate_policies": validate_policies,
+        "verify_inventory_costs": verify_inventory_costs,
         "verify_setup": verify_setup,
         # Guide chaining
         "run_guide": lambda guide_name: _run_guide_silently(page, hass, guide_name),

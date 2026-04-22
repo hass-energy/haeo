@@ -99,18 +99,13 @@
           "description": "Configure battery parameters for energy optimization",
           "data": {
             "capacity": "Capacity",
-            "configure_partitions": "Configure battery partitions",
             "connection": "Connection",
             "efficiency_source_target": "Discharge efficiency",
             "efficiency_target_source": "Charge efficiency",
             "initial_charge_percentage": "State of Charge",
-            "max_charge_percentage": "Max Charge Level",
             "max_power_source_target": "Max discharge power",
             "max_power_target_source": "Max charge power",
-            "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name",
-            "price_source_target": "Discharge price",
-            "price_target_source": "Charge price",
             "salvage_value": "Salvage value"
           },
           "sections": {
@@ -122,13 +117,57 @@
               },
               "name": "Battery efficiency"
             },
-            "limits": {
-              "data": { "max_charge_percentage": "Max Charge Level", "min_charge_percentage": "Min Charge Level" },
-              "name": "Limits"
+            "power_limits": {
+              "data": {
+                "max_power_source_target": "Max discharge power",
+                "max_power_target_source": "Max charge power"
+              },
+              "name": "Power limits"
             },
-            "partitioning": {
-              "data": { "configure_partitions": "Configure battery partitions" },
-              "name": "Battery partitions"
+            "pricing": { "data": { "salvage_value": "Salvage value" }, "name": "Pricing" },
+            "storage": {
+              "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
+              "name": "Storage"
+            }
+          }
+        },
+        "reconfigure": {
+          "title": "Battery Options",
+          "description": "Choose an action for this battery",
+          "data": { "action": "Action" }
+        },
+        "add_inventory_cost": {
+          "title": "Add Inventory Cost",
+          "description": "Add an inventory cost rule to penalize charge levels above or below a threshold",
+          "data": { "cost": "Cost", "direction": "Direction", "name": "Rule name", "threshold": "Threshold" }
+        },
+        "edit_inventory_cost": {
+          "title": "Edit Inventory Cost",
+          "description": "Edit an existing inventory cost rule",
+          "data": { "cost": "Cost", "direction": "Direction", "name": "Rule name", "threshold": "Threshold" }
+        },
+        "edit_settings": {
+          "title": "Battery Configuration",
+          "description": "Configure battery parameters for energy optimization",
+          "data": {
+            "capacity": "Capacity",
+            "connection": "Connection",
+            "efficiency_source_target": "Discharge efficiency",
+            "efficiency_target_source": "Charge efficiency",
+            "initial_charge_percentage": "State of Charge",
+            "max_power_source_target": "Max discharge power",
+            "max_power_target_source": "Max charge power",
+            "name": "Battery Name",
+            "salvage_value": "Salvage value"
+          },
+          "sections": {
+            "common": { "data": { "connection": "Connection", "name": "Battery Name" }, "name": "Common settings" },
+            "efficiency": {
+              "data": {
+                "efficiency_source_target": "Discharge efficiency",
+                "efficiency_target_source": "Charge efficiency"
+              },
+              "name": "Battery efficiency"
             },
             "power_limits": {
               "data": {
@@ -137,57 +176,17 @@
               },
               "name": "Power limits"
             },
-            "pricing": {
-              "data": {
-                "price_source_target": "Discharge price",
-                "price_target_source": "Charge price",
-                "salvage_value": "Salvage value"
-              },
-              "name": "Pricing"
-            },
+            "pricing": { "data": { "salvage_value": "Salvage value" }, "name": "Pricing" },
             "storage": {
               "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
               "name": "Storage"
             }
           }
         },
-        "partition_values": {
-          "title": "Battery Partition Values",
-          "description": "Enter values for the partition input sources",
-          "data": { "cost": "Cost", "percentage": "Percentage" }
-        },
-        "partitions": {
-          "title": "Battery Partitions",
-          "description": "Select entities for undercharge and overcharge regions",
-          "data": { "cost": "Cost", "percentage": "Percentage" },
-          "sections": {
-            "overcharge": {
-              "data": { "cost": "Overcharge cost", "percentage": "Overcharge percentage" },
-              "name": "Overcharge settings"
-            },
-            "undercharge": {
-              "data": { "cost": "Undercharge cost", "percentage": "Undercharge percentage" },
-              "name": "Undercharge settings"
-            }
-          }
-        }
-      },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
-      "abort": { "reconfigure_successful": "Configuration updated successfully" }
-    },
-    "battery_section": {
-      "flow_title": "Battery Section",
-      "entry_type": "Battery Section",
-      "initiate_flow": { "user": "Battery Section", "reconfigure": "Battery Section" },
-      "step": {
-        "user": {
-          "title": "Battery Section Configuration",
-          "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
-          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" },
-          "sections": {
-            "common": { "data": { "name": "Battery Section Name" }, "name": "Common settings" },
-            "storage": { "data": { "capacity": "Capacity", "initial_charge": "Initial Charge" }, "name": "Storage" }
-          }
+        "manage_inventory_costs": {
+          "title": "Manage Inventory Costs",
+          "description": "Edit or delete existing inventory cost rules",
+          "data": { "action": "Action", "cost_rule": "Cost rule" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -452,7 +451,6 @@
   "common": { "default_hub_name": "Home", "network_subentry_name": "System", "switchboard_node_name": "Switchboard" },
   "device": {
     "battery": { "name": "{name}" },
-    "battery_section": { "name": "{name}" },
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
@@ -465,17 +463,11 @@
   "entity": {
     "number": {
       "battery_capacity": { "name": "Capacity" },
-      "battery_cost": { "name": "Cost" },
       "battery_efficiency_source_target": { "name": "Discharge efficiency" },
       "battery_efficiency_target_source": { "name": "Charge efficiency" },
       "battery_initial_charge_percentage": { "name": "Initial charge" },
-      "battery_max_charge_percentage": { "name": "Max charge" },
       "battery_max_power_source_target": { "name": "Max discharge power" },
       "battery_max_power_target_source": { "name": "Max charge power" },
-      "battery_min_charge_percentage": { "name": "Min charge" },
-      "battery_percentage": { "name": "Percentage" },
-      "battery_price_source_target": { "name": "Discharge price" },
-      "battery_price_target_source": { "name": "Charge price" },
       "battery_salvage_value": { "name": "Salvage value" },
       "connection_efficiency_source_target": { "name": "Source to target efficiency" },
       "connection_efficiency_target_source": { "name": "Target to source efficiency" },
@@ -505,15 +497,6 @@
       "battery_power_balance": { "name": "Power balance shadow price" },
       "battery_power_charge": { "name": "Charge power" },
       "battery_power_discharge": { "name": "Discharge power" },
-      "battery_section_energy_in_flow": { "name": "Energy in flow shadow price" },
-      "battery_section_energy_out_flow": { "name": "Energy out flow shadow price" },
-      "battery_section_energy_stored": { "name": "Energy stored" },
-      "battery_section_power_active": { "name": "Active power" },
-      "battery_section_power_balance": { "name": "Power balance shadow price" },
-      "battery_section_power_charge": { "name": "Charge power" },
-      "battery_section_power_discharge": { "name": "Discharge power" },
-      "battery_section_soc_max": { "name": "SOC max shadow price" },
-      "battery_section_soc_min": { "name": "SOC min shadow price" },
       "battery_soc_max": { "name": "SOC max shadow price" },
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },

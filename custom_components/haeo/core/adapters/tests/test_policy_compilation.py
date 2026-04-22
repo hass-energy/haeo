@@ -25,8 +25,8 @@ from custom_components.haeo.core.adapters.policy_compilation import (
 from custom_components.haeo.core.model import ModelElementConfig
 from custom_components.haeo.core.model.element import NetworkElement
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
+from custom_components.haeo.core.model.elements.energy_storage import EnergyStorageElementConfig
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.network import Network
 
@@ -57,7 +57,9 @@ def _find(
 @overload
 def _find(result: list[ModelElementConfig], name: str, *, element_type: Literal["node"]) -> NodeElementConfig: ...
 @overload
-def _find(result: list[ModelElementConfig], name: str, *, element_type: Literal["battery"]) -> BatteryElementConfig: ...
+def _find(
+    result: list[ModelElementConfig], name: str, *, element_type: Literal["energy_storage"]
+) -> EnergyStorageElementConfig: ...
 @overload
 def _find(result: list[ModelElementConfig], name: str) -> ModelElementConfig: ...
 

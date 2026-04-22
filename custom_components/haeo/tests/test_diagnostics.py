@@ -49,11 +49,7 @@ from custom_components.haeo.core.schema.elements import ElementConfigSchema, Ele
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
-    SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_STORAGE,
 )
 from custom_components.haeo.core.schema.sections import (
@@ -94,14 +90,11 @@ def _battery_config(
     initial_charge_percentage: str | float,
     max_power_source_target: float | None = None,
     max_power_target_source: float | None = None,
-    min_charge_percentage: float | None = None,
-    max_charge_percentage: float | None = None,
     efficiency_source_target: float | None = None,
     efficiency_target_source: float | None = None,
     salvage_value: float = 0.0,
 ) -> dict[str, Any]:
     """Build a sectioned battery config dict for diagnostics tests."""
-    limits: dict[str, Any] = {}
     power_limits: dict[str, Any] = {}
     efficiency_section: dict[str, Any] = {}
     pricing: dict[str, Any] = {CONF_SALVAGE_VALUE: as_constant_value(salvage_value)}
@@ -109,10 +102,6 @@ def _battery_config(
         power_limits[CONF_MAX_POWER_SOURCE_TARGET] = as_constant_value(max_power_source_target)
     if max_power_target_source is not None:
         power_limits[CONF_MAX_POWER_TARGET_SOURCE] = as_constant_value(max_power_target_source)
-    if min_charge_percentage is not None:
-        limits[CONF_MIN_CHARGE_PERCENTAGE] = as_constant_value(min_charge_percentage)
-    if max_charge_percentage is not None:
-        limits[CONF_MAX_CHARGE_PERCENTAGE] = as_constant_value(max_charge_percentage)
     if efficiency_source_target is not None:
         efficiency_section[CONF_EFFICIENCY_SOURCE_TARGET] = as_constant_value(efficiency_source_target)
     if efficiency_target_source is not None:
@@ -132,11 +121,9 @@ def _battery_config(
         CONF_NAME: name,
         CONF_CONNECTION: as_connection_target(connection),
         SECTION_STORAGE: storage,
-        SECTION_LIMITS: limits,
         SECTION_POWER_LIMITS: power_limits,
         SECTION_PRICING: pricing,
         SECTION_EFFICIENCY: efficiency_section,
-        SECTION_PARTITIONING: {},
     }
 
 
@@ -326,8 +313,6 @@ async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistan
                 initial_charge_percentage=80.0,
                 max_power_source_target=10.0,
                 max_power_target_source=10.0,
-                min_charge_percentage=5.0,
-                max_charge_percentage=95.0,
                 efficiency_source_target=90.0,
                 efficiency_target_source=90.0,
             ),
@@ -495,8 +480,6 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
                 initial_charge_percentage="sensor.battery_soc",
                 max_power_source_target=5.0,
                 max_power_target_source=5.0,
-                min_charge_percentage=10.0,
-                max_charge_percentage=90.0,
                 efficiency_source_target=95.0,
                 efficiency_target_source=95.0,
             )
@@ -597,8 +580,6 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
                 initial_charge_percentage=80.0,
                 max_power_source_target=10.0,
                 max_power_target_source=10.0,
-                min_charge_percentage=5.0,
-                max_charge_percentage=95.0,
                 efficiency_source_target=90.0,
                 efficiency_target_source=90.0,
             ),
@@ -652,8 +633,6 @@ async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> 
                 initial_charge_percentage="sensor.battery_soc",
                 max_power_source_target=5.0,
                 max_power_target_source=5.0,
-                min_charge_percentage=10.0,
-                max_charge_percentage=90.0,
                 efficiency_source_target=95.0,
                 efficiency_target_source=95.0,
             )
@@ -728,8 +707,6 @@ async def test_historical_diagnostics_skips_network_subentry(hass: HomeAssistant
                 initial_charge_percentage="sensor.battery_soc",
                 max_power_source_target=5.0,
                 max_power_target_source=5.0,
-                min_charge_percentage=10.0,
-                max_charge_percentage=90.0,
                 efficiency_source_target=95.0,
                 efficiency_target_source=95.0,
             )

@@ -7,7 +7,6 @@ class ElementType(StrEnum):
     """Element type identifiers for HAEO integration."""
 
     BATTERY = "battery"
-    BATTERY_SECTION = "battery_section"
     CONNECTION = "connection"
     GRID = "grid"
     INVERTER = "inverter"

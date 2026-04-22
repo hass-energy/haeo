@@ -1,15 +1,15 @@
-"""Test data and factories for Battery element."""
+"""Test data and factories for EnergyStorage element."""
 
 import numpy as np
 
-from custom_components.haeo.core.model.elements.battery import Battery
+from custom_components.haeo.core.model.elements.energy_storage import EnergyStorage
 
 from .element_types import ElementTestCase
 
 VALID_CASES: list[ElementTestCase] = [
     {
         "description": "Battery charging with fixed input",
-        "factory": Battery,
+        "factory": EnergyStorage,
         "data": {
             "name": "battery_charging",
             "periods": np.array([1.0] * 3),
@@ -34,7 +34,7 @@ VALID_CASES: list[ElementTestCase] = [
     },
     {
         "description": "Battery charging with salvage value",
-        "factory": Battery,
+        "factory": EnergyStorage,
         "data": {
             "name": "battery_charging_salvage",
             "periods": np.array([1.0] * 3),
@@ -60,7 +60,7 @@ VALID_CASES: list[ElementTestCase] = [
     },
     {
         "description": "Battery discharging with fixed output",
-        "factory": Battery,
+        "factory": EnergyStorage,
         "data": {
             "name": "battery_discharging",
             "periods": np.array([1.0] * 3),
@@ -85,7 +85,7 @@ VALID_CASES: list[ElementTestCase] = [
     },
     {
         "description": "Battery with fixed load pattern",
-        "factory": Battery,
+        "factory": EnergyStorage,
         "data": {
             "name": "battery_fixed",
             "periods": np.array([1.0] * 3),

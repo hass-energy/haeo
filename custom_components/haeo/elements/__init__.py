@@ -55,12 +55,6 @@ from custom_components.haeo.core.adapters.elements.battery import (
     BatteryDeviceName,
     BatteryOutputName,
 )
-from custom_components.haeo.core.adapters.elements.battery_section import (
-    BATTERY_SECTION_DEVICE_NAMES,
-    BATTERY_SECTION_OUTPUT_NAMES,
-    BatterySectionDeviceName,
-    BatterySectionOutputName,
-)
 from custom_components.haeo.core.adapters.elements.connection import (
     CONNECTION_DEVICE_NAMES,
     CONNECTION_OUTPUT_NAMES,
@@ -108,10 +102,6 @@ from custom_components.haeo.core.schema.elements import (
 )
 from custom_components.haeo.core.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
-from custom_components.haeo.core.schema.elements.battery_section import (
-    OPTIONAL_INPUT_FIELDS as BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
-)
-from custom_components.haeo.core.schema.elements.battery_section import BatterySectionConfigData
 from custom_components.haeo.core.schema.elements.connection import (
     OPTIONAL_INPUT_FIELDS as CONNECTION_OPTIONAL_INPUT_FIELDS,
 )
@@ -139,7 +129,6 @@ _LOGGER = logging.getLogger(__name__)
 type ElementOutputName = (
     InverterOutputName
     | BatteryOutputName
-    | BatterySectionOutputName
     | ConnectionOutputName
     | GridOutputName
     | LoadOutputName
@@ -151,7 +140,6 @@ type ElementOutputName = (
 ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
     INVERTER_OUTPUT_NAMES
     | BATTERY_OUTPUT_NAMES
-    | BATTERY_SECTION_OUTPUT_NAMES
     | CONNECTION_OUTPUT_NAMES
     | GRID_OUTPUT_NAMES
     | LOAD_OUTPUT_NAMES
@@ -163,7 +151,6 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
 type ElementDeviceName = (
     InverterDeviceName
     | BatteryDeviceName
-    | BatterySectionDeviceName
     | ConnectionDeviceName
     | GridDeviceName
     | LoadDeviceName
@@ -178,7 +165,6 @@ NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(("network"
 ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     INVERTER_DEVICE_NAMES
     | BATTERY_DEVICE_NAMES
-    | BATTERY_SECTION_DEVICE_NAMES
     | CONNECTION_DEVICE_NAMES
     | GRID_DEVICE_NAMES
     | LOAD_DEVICE_NAMES
@@ -191,7 +177,6 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
 ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
     ElementType.INVERTER: frozenset(INVERTER_DEVICE_NAMES),
     ElementType.BATTERY: frozenset(BATTERY_DEVICE_NAMES),
-    ElementType.BATTERY_SECTION: frozenset(BATTERY_SECTION_DEVICE_NAMES),
     ElementType.CONNECTION: frozenset(CONNECTION_DEVICE_NAMES),
     ElementType.GRID: frozenset(GRID_DEVICE_NAMES),
     ElementType.LOAD: frozenset(LOAD_DEVICE_NAMES),
@@ -213,7 +198,6 @@ class ValidatedElementSubentry(NamedTuple):
 
 ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     ElementType.BATTERY: BatteryConfigData,
-    ElementType.BATTERY_SECTION: BatterySectionConfigData,
     ElementType.CONNECTION: ConnectionConfigData,
     ElementType.GRID: GridConfigData,
     ElementType.INVERTER: InverterConfigData,
@@ -225,7 +209,6 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
 
 ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.BATTERY: BATTERY_OPTIONAL_INPUT_FIELDS,
-    ElementType.BATTERY_SECTION: BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
     ElementType.CONNECTION: CONNECTION_OPTIONAL_INPUT_FIELDS,
     ElementType.GRID: GRID_OPTIONAL_INPUT_FIELDS,
     ElementType.INVERTER: INVERTER_OPTIONAL_INPUT_FIELDS,

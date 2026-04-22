@@ -29,51 +29,82 @@
 
   let target = el;
 
+  // Radio inputs live deep inside shadow DOM: ha-radio > #shadow > .mdc-radio > input
+  // Walk up to .mdc-radio__outer-circle which is the visible circle ring element.
+  const isRadio = el.matches && (el.matches('[role="radio"]') || el.matches('input[type="radio"]'));
+  if (isRadio) {
+    const circle = el.parentElement && el.parentElement.querySelector(".mdc-radio__outer-circle");
+    if (circle) target = circle;
+  }
+
   // Walk up through shadow DOM to find the nearest clickable ancestor
-  const clickableParent = closestAcrossShadow(el, clickableSelector);
-  if (clickableParent) target = clickableParent;
+  if (!isRadio) {
+    const clickableParent = closestAcrossShadow(el, clickableSelector);
+    if (clickableParent) target = clickableParent;
+  }
 
   // More specific overrides below — these take priority over the generic match
+  if (!isRadio) {
+    const mdcTextField = closestAcrossShadow(el, "label.mdc-text-field");
+    if (mdcTextField) target = mdcTextField;
 
-  const mdcTextField = closestAcrossShadow(el, "label.mdc-text-field");
-  if (mdcTextField) target = mdcTextField;
+    const comboBoxRow = closestAcrossShadow(el, ".combo-box-row");
+    if (comboBoxRow) target = comboBoxRow;
 
-  const comboBoxRow = closestAcrossShadow(el, ".combo-box-row");
-  if (comboBoxRow) target = comboBoxRow;
+    const comboBoxItem = closestAcrossShadow(el, "ha-combo-box-item");
+    if (comboBoxItem) {
+      const row = closestAcrossShadow(comboBoxItem, ".combo-box-row");
+      target = row || comboBoxItem;
+    }
 
-  const comboBoxItem = closestAcrossShadow(el, "ha-combo-box-item");
-  if (comboBoxItem) {
-    const row = closestAcrossShadow(comboBoxItem, ".combo-box-row");
-    target = row || comboBoxItem;
+    const entityListItem = closestAcrossShadow(
+      el,
+      "ha-list-item, mwc-list-item, md-list-item, " + '[role="listitem"], [role="option"]'
+    );
+    if (entityListItem) {
+      const listItemParent = closestAcrossShadow(entityListItem, "ha-list-item, mwc-list-item, md-list-item, md-item");
+      target = listItemParent || entityListItem;
+    }
+
+    const haListItem = closestAcrossShadow(el, "ha-list-item");
+    if (haListItem) target = haListItem;
+
+    const mdItem = closestAcrossShadow(el, "md-item");
+    if (mdItem) target = mdItem;
+
+    const integrationItem = closestAcrossShadow(el, "ha-integration-list-item");
+    if (integrationItem) target = integrationItem;
+
+    const roleItem = closestAcrossShadow(el, '[role="listitem"], [role="option"]');
+    if (roleItem) {
+      const haWrapper = closestAcrossShadow(roleItem, "ha-list-item, md-item, mwc-list-item, .combo-box-row");
+      target = haWrapper || roleItem;
+    }
   }
 
-  const entityListItem = closestAcrossShadow(
-    el,
-    "ha-list-item, mwc-list-item, md-list-item, " + '[role="listitem"], [role="option"]'
-  );
-  if (entityListItem) {
-    const listItemParent = closestAcrossShadow(entityListItem, "ha-list-item, mwc-list-item, md-list-item, md-item");
-    target = listItemParent || entityListItem;
-  }
-
-  const haListItem = closestAcrossShadow(el, "ha-list-item");
-  if (haListItem) target = haListItem;
-
-  const mdItem = closestAcrossShadow(el, "md-item");
-  if (mdItem) target = mdItem;
-
-  const integrationItem = closestAcrossShadow(el, "ha-integration-list-item");
-  if (integrationItem) target = integrationItem;
-
-  const roleItem = closestAcrossShadow(el, '[role="listitem"], [role="option"]');
-  if (roleItem) {
-    const haWrapper = closestAcrossShadow(roleItem, "ha-list-item, md-item, mwc-list-item, .combo-box-row");
-    target = haWrapper || roleItem;
+  // For ha-icon-button, pierce through shadow DOM layers to find the inner
+  // circular button (ha-icon-button > shadow > mwc-icon-button > shadow > button).
+  // Icon buttons are circular by Material Design spec but HA's theme may override
+  // the border-radius to 0px, so we track that we found an icon button.
+  let isIconButton = false;
+  if (target.matches && target.matches("ha-icon-button")) {
+    isIconButton = true;
+    let btn = target.shadowRoot && target.shadowRoot.querySelector("button");
+    if (!btn) {
+      const inner =
+        target.shadowRoot && target.shadowRoot.querySelector("mwc-icon-button, ha-icon-button-prev, md-icon-button");
+      btn = inner && inner.shadowRoot && inner.shadowRoot.querySelector("button");
+    }
+    if (btn) target = btn;
   }
 
   const targetRect = target.getBoundingClientRect();
   const computedStyle = getComputedStyle(target);
-  const borderRadius = computedStyle.borderRadius || "0px";
+  let borderRadius = computedStyle.borderRadius || "0px";
+
+  // Icon buttons are circular per Material Design spec even when the theme
+  // overrides border-radius to 0px on the button element
+  if (isIconButton && borderRadius === "0px") borderRadius = "50%";
 
   const overlay = document.createElement("div");
   overlay.id = "click-indicator-overlay";

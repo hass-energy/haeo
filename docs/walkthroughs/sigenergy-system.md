@@ -95,8 +95,6 @@ add_battery(
     initial_charge_percentage=EntityInput("state of charge", "Battery State of Charge"),
     max_power_target_source=EntityInput("rated charging", "Rated Charging Power"),
     max_power_source_target=EntityInput("rated discharging", "Rated Discharging Power"),
-    min_charge_percentage=ConstantInput(10),
-    max_charge_percentage=ConstantInput(100),
 )
 ```
 

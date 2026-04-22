@@ -17,7 +17,7 @@ from custom_components.haeo.elements import (
     is_element_config_data,
     is_element_config_schema,
 )
-from custom_components.haeo.core.schema.elements import battery, battery_section, connection, grid, inverter, load, solar
+from custom_components.haeo.core.schema.elements import battery, connection, grid, inverter, load, solar
 from custom_components.haeo.core.schema.elements import node as node_schema
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 
@@ -87,10 +87,6 @@ def test_is_element_config_schema_valid_battery() -> None:
             "capacity": as_entity_value(["sensor.capacity"]),
             "initial_charge_percentage": as_entity_value(["sensor.soc"]),
         },
-        battery.SECTION_LIMITS: {
-            "min_charge_percentage": as_constant_value(10.0),
-            "max_charge_percentage": as_constant_value(90.0),
-        },
         battery.SECTION_POWER_LIMITS: {
             "max_power_source_target": as_constant_value(5.0),
             "max_power_target_source": as_constant_value(5.0),
@@ -99,9 +95,6 @@ def test_is_element_config_schema_valid_battery() -> None:
             "salvage_value": as_constant_value(0.0),
         },
         battery.SECTION_EFFICIENCY: {},
-        battery.SECTION_PARTITIONING: {},
-        battery.SECTION_UNDERCHARGE: {},
-        battery.SECTION_OVERCHARGE: {},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -116,19 +109,12 @@ def test_is_element_config_schema_valid_battery_without_salvage_value() -> None:
             "capacity": as_entity_value(["sensor.capacity"]),
             "initial_charge_percentage": as_entity_value(["sensor.soc"]),
         },
-        battery.SECTION_LIMITS: {
-            "min_charge_percentage": as_constant_value(10.0),
-            "max_charge_percentage": as_constant_value(90.0),
-        },
         battery.SECTION_POWER_LIMITS: {
             "max_power_source_target": as_constant_value(5.0),
             "max_power_target_source": as_constant_value(5.0),
         },
         battery.SECTION_PRICING: {},
         battery.SECTION_EFFICIENCY: {},
-        battery.SECTION_PARTITIONING: {},
-        battery.SECTION_UNDERCHARGE: {},
-        battery.SECTION_OVERCHARGE: {},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -214,19 +200,6 @@ def test_is_element_config_schema_valid_inverter() -> None:
             "max_power_target_source": as_entity_value(["sensor.ac_to_dc"]),
         },
         inverter.SECTION_EFFICIENCY: {},
-    }
-    assert is_element_config_schema(valid_config) is True
-
-
-def test_is_element_config_schema_valid_battery_section() -> None:
-    """Test is_element_config_schema with valid battery_section config."""
-    valid_config = {
-        "element_type": "battery_section",
-        "name": "test_section",
-        battery_section.SECTION_STORAGE: {
-            "capacity": as_entity_value(["sensor.capacity"]),
-            "initial_charge": as_entity_value(["sensor.charge"]),
-        },
     }
     assert is_element_config_schema(valid_config) is True
 
