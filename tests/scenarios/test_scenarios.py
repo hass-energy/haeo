@@ -15,20 +15,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import MIGRATION_MINOR_VERSION
-from custom_components.haeo.const import DOMAIN, INTEGRATION_TYPE_HUB, OUTPUT_NAME_OPTIMIZATION_STATUS
-from custom_components.haeo.core.const import (
-    CONF_ELEMENT_TYPE,
-    CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-)
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.const import DOMAIN, OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.sensor_utils import get_output_sensors
 from tests.scenarios.conftest import ScenarioData
 from tests.scenarios.visualization import visualize_scenario_results
@@ -80,38 +67,22 @@ async def test_scenarios(
             hass.states.async_set(state_data["entity_id"], state_data["state"], state_data.get("attributes", {}))
         await hass.async_block_till_done()
 
-        # Create hub config entry and add to hass
+        # Create hub config entry and add to hass; scenarios mirror entry.as_dict()
         scenario_config = scenario_data["config"]
-        # Support both flat tier keys (legacy) and nested under "tiers" (v2+)
-        tiers_data = scenario_config.get("tiers") or scenario_config
         mock_config_entry = MockConfigEntry(
             domain=DOMAIN,
-            data={
-                "integration_type": INTEGRATION_TYPE_HUB,
-                HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
-                HUB_SECTION_TIERS: {
-                    CONF_TIER_1_COUNT: tiers_data["tier_1_count"],
-                    CONF_TIER_1_DURATION: tiers_data["tier_1_duration"],
-                    CONF_TIER_2_COUNT: tiers_data.get("tier_2_count", 0),
-                    CONF_TIER_2_DURATION: tiers_data.get("tier_2_duration", 5),
-                    CONF_TIER_3_COUNT: tiers_data.get("tier_3_count", 0),
-                    CONF_TIER_3_DURATION: tiers_data.get("tier_3_duration", 30),
-                    CONF_TIER_4_COUNT: tiers_data.get("tier_4_count", 0),
-                    CONF_TIER_4_DURATION: tiers_data.get("tier_4_duration", 60),
-                },
-                HUB_SECTION_ADVANCED: {},
-            },
+            title=scenario_config.get("title", "Test Hub"),
+            data=scenario_config["data"],
             version=scenario_config.get("version", 1),
             minor_version=scenario_config.get("minor_version", MIGRATION_MINOR_VERSION),
         )
         mock_config_entry.add_to_hass(hass)
 
-        # Create element subentries from the scenario config
-        for name, config in scenario_config["participants"].items():
+        for sub in scenario_config["subentries"]:
             subentry = ConfigSubentry(
-                data=MappingProxyType(config),
-                subentry_type=config[CONF_ELEMENT_TYPE],
-                title=name,
+                data=MappingProxyType(sub["data"]),
+                subentry_type=sub["subentry_type"],
+                title=sub["title"],
                 unique_id=None,
             )
             hass.config_entries.async_add_subentry(mock_config_entry, subentry)
