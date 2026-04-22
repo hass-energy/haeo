@@ -9,6 +9,7 @@ dependencies = ["homeassistant>=2026.1.1", "numpy>=2.3.2", "highspy>=1.12.0"]
 
 [project.scripts]
 diag = "tools.diag:main"
+snapshot = "tools.snapshot:main"
 
 [dependency-groups]
 dev = [
@@ -205,6 +206,12 @@ name = "diag CLI only uses core"
 type = "allowlist"
 source_modules = ["tools.diag"]
 allow_modules = ["custom_components.haeo.core", "numpy", "tabulate"]
+
+[[tool.importlinter.contracts]]
+name = "snapshot CLI is stdlib only"
+type = "allowlist"
+source_modules = ["tools.snapshot"]
+allow_modules = []
 
 [tool.setuptools]
 package-dir = { "" = "." }
