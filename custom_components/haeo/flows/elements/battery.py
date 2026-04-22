@@ -252,13 +252,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if subentry_data is not None and not self._inventory_costs:
             self._inventory_costs = list(subentry_data.get(CONF_INVENTORY_COSTS, []))
 
-        if user_input is not None:
-            if self._validate_cost_rule(user_input, errors):
-                rule = self._parse_cost_input(user_input)
-                self._inventory_costs.append(rule)
-                if subentry is not None:
-                    return self._update_inventory_costs(subentry_data)
-                return self.async_abort(reason="no_subentry")
+        if user_input is not None and self._validate_cost_rule(user_input, errors):
+            rule = self._parse_cost_input(user_input)
+            self._inventory_costs.append(rule)
+            if subentry is not None and subentry_data is not None:
+                return self._update_inventory_costs(subentry_data)
+            return self.async_abort(reason="no_subentry")
 
         schema = self._build_cost_rule_schema()
         if user_input is not None:
@@ -403,8 +402,6 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 value=str(i),
                 label=f"{rule[CONF_COST_NAME]} ({rule[CONF_DIRECTION]} {rule[CONF_THRESHOLD].get('value', '?')} kWh)",
             )
-            if isinstance(rule[CONF_THRESHOLD], dict)
-            else SelectOptionDict(value=str(i), label=rule[CONF_COST_NAME])
             for i, rule in enumerate(self._inventory_costs)
         ]
         action_options: list[SelectOptionDict] = [
@@ -492,9 +489,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             errors[CONF_COST_NAME] = "missing_name"
             return False
 
-        existing_names = {
-            rule[CONF_COST_NAME] for i, rule in enumerate(self._inventory_costs) if i != exclude_index
-        }
+        existing_names = {rule[CONF_COST_NAME] for i, rule in enumerate(self._inventory_costs) if i != exclude_index}
         if name in existing_names:
             errors[CONF_COST_NAME] = "name_exists"
             return False
@@ -579,6 +574,8 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             del updated_data[CONF_INVENTORY_COSTS]
 
         subentry = self._get_subentry()
+        if subentry is None:
+            return self.async_abort(reason="no_subentry")
         return self.async_update_and_abort(
             self._get_entry(),
             subentry,

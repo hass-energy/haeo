@@ -7,7 +7,7 @@ from highspy.highs import highs_linear_expression
 import numpy as np
 
 from custom_components.haeo.core.model.element import Element
-from custom_components.haeo.core.model.elements.battery import Battery
+from custom_components.haeo.core.model.elements.energy_storage import EnergyStorage
 from custom_components.haeo.core.model.reactive import ReactiveConstraint, ReactiveCost, TrackedParam, constraint, cost
 
 
@@ -390,7 +390,7 @@ def test_constraint_without_output_flag() -> None:
     h.setOptionValue("output_flag", False)
 
     # Use 2 periods since battery constraints use slices [1:]
-    battery = Battery(
+    battery = EnergyStorage(
         name="test",
         periods=np.array([1.0, 1.0]),
         solver=h,

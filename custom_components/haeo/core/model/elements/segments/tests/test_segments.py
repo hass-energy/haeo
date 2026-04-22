@@ -18,12 +18,10 @@ from custom_components.haeo.core.model.elements.segments import (
     EfficiencySegment,
     PowerLimitSegment,
     PricingSegment,
-    SocPricingSegment,
     is_efficiency_spec,
     is_passthrough_spec,
     is_power_limit_spec,
     is_pricing_spec,
-    is_soc_pricing_spec,
 )
 from custom_components.haeo.core.model.elements.segments.segment import Segment
 from custom_components.haeo.core.model.output_data import OutputData
@@ -309,7 +307,6 @@ def test_segment_spec_typeguards() -> None:
     assert is_passthrough_spec({"segment_type": "passthrough"})
     assert is_power_limit_spec({"segment_type": "power_limit"})
     assert is_pricing_spec({"segment_type": "pricing", "price_source_target": None, "price_target_source": None})
-    assert is_soc_pricing_spec({"segment_type": "soc_pricing"})
 
 
 def test_segment_outputs_and_cost_coverage() -> None:
@@ -362,32 +359,6 @@ def test_multiple_cost_methods_aggregate() -> None:
     # Expression should reference indices from both variables
     idxs = set(result.idxs)
     assert len(idxs) >= 2
-
-
-def test_soc_pricing_cost_none_without_prices() -> None:
-    """SOC pricing cost returns None when no prices are configured."""
-    h = create_solver()
-    periods = np.asarray([1.0], dtype=np.float64)
-    stored_energy = h.addVariables(2, lb=0, name_prefix="battery_e_", out_array=True)
-    battery = DummyElement("battery", periods, h)
-    battery.stored_energy = stored_energy  # type: ignore[attr-defined]
-    target = DummyElement("target", periods, h)
-    pv = h.addVariables(len(periods), lb=0, name_prefix="soc_test_", out_array=True)
-    segment = SocPricingSegment(
-        "seg",
-        len(periods),
-        periods,
-        h,
-        spec={"segment_type": "soc_pricing"},
-        source_element=battery,
-        target_element=target,
-        power_in={0: pv},
-    )
-
-    # Apply with dummy variables
-    pv = h.addVariables(len(periods), lb=0, name_prefix="soc_test_", out_array=True)
-
-    assert segment.cost() is None
 
 
 def test_tag_transfer_cost_none_when_no_tags_match() -> None:

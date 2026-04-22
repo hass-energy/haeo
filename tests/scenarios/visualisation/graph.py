@@ -18,7 +18,7 @@ import networkx as nx
 
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.element import Element
-from custom_components.haeo.core.model.elements import Battery, Connection, Node
+from custom_components.haeo.core.model.elements import Connection, EnergyStorage, Node
 
 from .svg_normalize import normalize_svg_file_clip_paths
 
@@ -82,7 +82,7 @@ DEFAULT_STYLE = StyleConfig(
 
 def _get_element_type(element: Element[str]) -> str:
     """Get the display type name for a model element."""
-    if isinstance(element, Battery):
+    if isinstance(element, EnergyStorage):
         return "battery"
     if isinstance(element, Node):
         return "node"

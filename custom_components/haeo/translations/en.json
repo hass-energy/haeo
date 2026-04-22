@@ -124,12 +124,7 @@
               },
               "name": "Power limits"
             },
-            "pricing": {
-              "data": {
-                "salvage_value": "Salvage value"
-              },
-              "name": "Pricing"
-            },
+            "pricing": { "data": { "salvage_value": "Salvage value" }, "name": "Pricing" },
             "storage": {
               "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
               "name": "Storage"
@@ -139,9 +134,17 @@
         "reconfigure": {
           "title": "Battery Options",
           "description": "Choose an action for this battery",
-          "data": {
-            "action": "Action"
-          }
+          "data": { "action": "Action" }
+        },
+        "add_inventory_cost": {
+          "title": "Add Inventory Cost",
+          "description": "Add an inventory cost rule to penalize charge levels above or below a threshold",
+          "data": { "cost": "Cost", "direction": "Direction", "name": "Rule name", "threshold": "Threshold" }
+        },
+        "edit_inventory_cost": {
+          "title": "Edit Inventory Cost",
+          "description": "Edit an existing inventory cost rule",
+          "data": { "cost": "Cost", "direction": "Direction", "name": "Rule name", "threshold": "Threshold" }
         },
         "edit_settings": {
           "title": "Battery Configuration",
@@ -173,45 +176,17 @@
               },
               "name": "Power limits"
             },
-            "pricing": {
-              "data": {
-                "salvage_value": "Salvage value"
-              },
-              "name": "Pricing"
-            },
+            "pricing": { "data": { "salvage_value": "Salvage value" }, "name": "Pricing" },
             "storage": {
               "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
               "name": "Storage"
             }
           }
         },
-        "add_inventory_cost": {
-          "title": "Add Inventory Cost",
-          "description": "Add an inventory cost rule to penalize charge levels above or below a threshold",
-          "data": {
-            "name": "Rule name",
-            "direction": "Direction",
-            "threshold": "Threshold",
-            "cost": "Cost"
-          }
-        },
         "manage_inventory_costs": {
           "title": "Manage Inventory Costs",
           "description": "Edit or delete existing inventory cost rules",
-          "data": {
-            "cost_rule": "Cost rule",
-            "action": "Action"
-          }
-        },
-        "edit_inventory_cost": {
-          "title": "Edit Inventory Cost",
-          "description": "Edit an existing inventory cost rule",
-          "data": {
-            "name": "Rule name",
-            "direction": "Direction",
-            "threshold": "Threshold",
-            "cost": "Cost"
-          }
+          "data": { "action": "Action", "cost_rule": "Cost rule" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },

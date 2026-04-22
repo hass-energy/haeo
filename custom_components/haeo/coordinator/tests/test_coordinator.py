@@ -69,13 +69,9 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
-    SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_STORAGE,
 )
 from custom_components.haeo.core.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
@@ -139,10 +135,6 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                     CONF_CAPACITY: as_entity_value(["sensor.battery_capacity"]),
                     CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),
                 },
-                SECTION_LIMITS: {
-                    CONF_MIN_CHARGE_PERCENTAGE: as_constant_value(20.0),
-                    CONF_MAX_CHARGE_PERCENTAGE: as_constant_value(80.0),
-                },
                 SECTION_POWER_LIMITS: {
                     CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
                     CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
@@ -154,7 +146,6 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                     CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
                     CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
                 },
-                SECTION_PARTITIONING: {},
             }
         ),
         subentry_type=ElementType.BATTERY,

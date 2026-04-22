@@ -11,12 +11,12 @@ from custom_components.haeo.coordinator.network import update_element
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
-    MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
     MODEL_ELEMENT_TYPE_NODE,
 )
-from custom_components.haeo.core.model.elements.battery import Battery
 from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.energy_storage import EnergyStorage
 from custom_components.haeo.core.model.elements.segments import PowerLimitSegment, PricingSegment
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -37,7 +37,7 @@ def test_battery_update_capacity_modifies_soc_constraints() -> None:
     # Add battery and run initial optimization
     network.add(
         {
-            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
             "name": "battery",
             "capacity": 10.0,
             "initial_charge": 5.0,
@@ -68,7 +68,7 @@ def test_battery_update_capacity_modifies_soc_constraints() -> None:
 
     # Update battery capacity via TrackedParam (must be sequence for T+1 boundaries)
     battery = network.elements["battery"]
-    assert isinstance(battery, Battery)
+    assert isinstance(battery, EnergyStorage)
     battery.capacity = np.array([20.0, 20.0, 20.0, 20.0])
 
     # Second optimization should use updated capacity
@@ -89,7 +89,7 @@ def test_battery_update_initial_charge_modifies_constraint() -> None:
 
     network.add(
         {
-            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
             "name": "battery",
             "capacity": 10.0,
             "initial_charge": 2.0,
@@ -114,7 +114,7 @@ def test_battery_update_initial_charge_modifies_constraint() -> None:
 
     # Update initial charge via TrackedParam
     battery = network.elements["battery"]
-    assert isinstance(battery, Battery)
+    assert isinstance(battery, EnergyStorage)
     old_initial_charge = battery.initial_charge
     battery.initial_charge = 8.0
 
@@ -136,7 +136,7 @@ def test_battery_update_with_sequence_capacity() -> None:
 
     network.add(
         {
-            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
             "name": "battery",
             "capacity": 10.0,
             "initial_charge": 5.0,
@@ -155,7 +155,7 @@ def test_battery_update_with_sequence_capacity() -> None:
     network.optimize()
 
     battery = network.elements["battery"]
-    assert isinstance(battery, Battery)
+    assert isinstance(battery, EnergyStorage)
 
     # Update with sequence (varying capacity per period boundary)
     battery.capacity = np.array([8.0, 9.0, 10.0, 11.0])  # 4 values for 3 periods + 1
@@ -286,7 +286,7 @@ def test_connection_update_price_target_source() -> None:
     # Battery starts empty, needs to charge from grid
     network.add(
         {
-            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
             "name": "battery",
             "capacity": 10.0,
             "initial_charge": 0.0,
@@ -376,7 +376,7 @@ def test_warm_start_produces_same_result() -> None:
     network1 = Network(name="test1", periods=np.array([1.0, 1.0, 1.0]))
     network1.add(
         {
-            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
             "name": "battery",
             "capacity": 10.0,
             "initial_charge": 5.0,
@@ -413,7 +413,7 @@ def test_warm_start_produces_same_result() -> None:
     network2 = Network(name="test2", periods=np.array([1.0, 1.0, 1.0]))
     network2.add(
         {
-            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
             "name": "battery",
             "capacity": 5.0,
             "initial_charge": 2.0,
@@ -448,7 +448,7 @@ def test_warm_start_produces_same_result() -> None:
 
     # Update to same parameters as network1 via TrackedParam
     battery = network2.elements["battery"]
-    assert isinstance(battery, Battery)
+    assert isinstance(battery, EnergyStorage)
     battery.capacity = np.array([10.0, 10.0, 10.0, 10.0])
     battery.initial_charge = 5.0
 
@@ -528,7 +528,7 @@ def test_solver_structure_unchanged_after_update() -> None:
 
     network.add(
         {
-            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
             "name": "battery",
             "capacity": 10.0,
             "initial_charge": 5.0,
@@ -561,7 +561,7 @@ def test_solver_structure_unchanged_after_update() -> None:
 
     # Update parameters and optimize again
     battery = network.elements["battery"]
-    assert isinstance(battery, Battery)
+    assert isinstance(battery, EnergyStorage)
     battery.capacity = np.array([20.0, 20.0, 20.0, 20.0])
     battery.initial_charge = 8.0
 

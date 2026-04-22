@@ -9,12 +9,12 @@ import pytest
 
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
-    MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
     MODEL_ELEMENT_TYPE_NODE,
 )
-from custom_components.haeo.core.model.elements.battery import Battery
 from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.energy_storage import EnergyStorage
 from custom_components.haeo.core.model.elements.segments import PricingSegment
 
 
@@ -36,7 +36,7 @@ class TestNetworkUpdatePeriods:
 
         network.add(
             {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
                 "name": "battery",
                 "capacity": 10.0,
                 "initial_charge": 5.0,
@@ -50,7 +50,7 @@ class TestNetworkUpdatePeriods:
 
         # Check element periods were updated
         battery = network.elements["battery"]
-        assert isinstance(battery, Battery)
+        assert isinstance(battery, EnergyStorage)
         np.testing.assert_array_almost_equal(battery.periods, [0.5, 1.0, 1.5])
 
         grid = network.elements["grid"]
@@ -96,7 +96,7 @@ class TestPeriodUpdateInvalidation:
 
         network.add(
             {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
                 "name": "battery",
                 "capacity": 10.0,
                 "initial_charge": 5.0,
@@ -197,7 +197,7 @@ class TestPeriodUpdateInvalidation:
 
         network.add(
             {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
                 "name": "battery",
                 "capacity": 10.0,
                 "initial_charge": 5.0,
@@ -298,7 +298,7 @@ class TestPeriodUpdateWithOtherParams:
 
         network.add(
             {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
                 "name": "battery",
                 "capacity": 10.0,
                 "initial_charge": 5.0,
@@ -332,7 +332,7 @@ class TestPeriodUpdateWithOtherParams:
         network.update_periods(np.array([0.5, 1.0, 1.5]))
 
         battery = network.elements["battery"]
-        assert isinstance(battery, Battery)
+        assert isinstance(battery, EnergyStorage)
         battery.capacity = np.array([20.0, 20.0, 20.0, 20.0])
 
         # Second optimization should work

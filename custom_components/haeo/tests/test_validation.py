@@ -9,16 +9,8 @@ from custom_components.haeo.core.schema.elements import ElementConfigData, Eleme
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_PARTITION_COST,
-    CONF_PARTITION_PERCENTAGE,
     CONF_SALVAGE_VALUE,
-    SECTION_LIMITS,
-    SECTION_OVERCHARGE,
-    SECTION_PARTITIONING,
     SECTION_STORAGE,
-    SECTION_UNDERCHARGE,
     BatteryConfigData,
 )
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
@@ -136,17 +128,16 @@ def test_validate_network_topology_detects_disconnected() -> None:
 
 
 @pytest.mark.parametrize(
-    ("include_grid", "include_partitions"),
+    "include_grid",
     [
-        pytest.param(True, False, id="with_grid"),
-        pytest.param(False, True, id="with_under_overcharge"),
+        pytest.param(True, id="with_grid"),
+        pytest.param(False, id="without_grid"),
     ],
 )
 def test_validate_network_topology_with_battery(
     include_grid: bool,
-    include_partitions: bool,
 ) -> None:
-    """Battery element validation works with optional grid and partition sections."""
+    """Battery element validation works with optional grid."""
     main_node: NodeConfigData = {
         CONF_ELEMENT_TYPE: ElementType.NODE,
         CONF_NAME: "main",
@@ -170,10 +161,6 @@ def test_validate_network_topology_with_battery(
             CONF_CAPACITY: np.array([10.0, 10.0, 10.0]),
             CONF_INITIAL_CHARGE_PERCENTAGE: 0.5,
         },
-        SECTION_LIMITS: {
-            CONF_MIN_CHARGE_PERCENTAGE: np.array([10.0, 10.0, 10.0]),
-            CONF_MAX_CHARGE_PERCENTAGE: np.array([90.0, 90.0, 90.0]),
-        },
         SECTION_POWER_LIMITS: {
             CONF_MAX_POWER_SOURCE_TARGET: np.array([5.0, 5.0]),
             CONF_MAX_POWER_TARGET_SOURCE: np.array([5.0, 5.0]),
@@ -185,17 +172,7 @@ def test_validate_network_topology_with_battery(
             CONF_EFFICIENCY_SOURCE_TARGET: np.array([95.0, 95.0]),
             CONF_EFFICIENCY_TARGET_SOURCE: np.array([95.0, 95.0]),
         },
-        SECTION_PARTITIONING: {},
     }
-    if include_partitions:
-        battery[SECTION_UNDERCHARGE] = {
-            CONF_PARTITION_PERCENTAGE: np.array([5.0, 5.0, 5.0]),
-            CONF_PARTITION_COST: np.array([0.05, 0.05]),
-        }
-        battery[SECTION_OVERCHARGE] = {
-            CONF_PARTITION_PERCENTAGE: np.array([95.0, 95.0, 95.0]),
-            CONF_PARTITION_COST: np.array([0.02, 0.02]),
-        }
 
     participants: dict[str, ElementConfigData] = {
         "main_node": main_node,

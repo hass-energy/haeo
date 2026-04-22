@@ -6,8 +6,8 @@ translations, and other integration code that needs to reference all possible ou
 
 from typing import Final
 
-from .elements.energy_storage import ENERGY_STORAGE_OUTPUT_NAMES, EnergyStorageOutputName
 from .elements.connection import CONNECTION_OUTPUT_NAMES, ConnectionOutputName
+from .elements.energy_storage import ENERGY_STORAGE_OUTPUT_NAMES, EnergyStorageOutputName
 from .elements.node import NODE_OUTPUT_NAMES, NodeOutputName
 
 # Combined type for all possible output names

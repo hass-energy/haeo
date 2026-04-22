@@ -12,8 +12,8 @@ from numpy.typing import NDArray
 
 from .element import Element, NetworkElement
 from .elements import ELEMENTS, ModelElementConfig
-from .elements.energy_storage import EnergyStorage, EnergyStorageElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
+from .elements.energy_storage import EnergyStorage, EnergyStorageElementConfig
 from .elements.node import Node, NodeElementConfig
 
 _LOGGER = logging.getLogger(__name__)

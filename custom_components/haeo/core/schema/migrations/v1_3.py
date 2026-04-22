@@ -42,14 +42,20 @@ from custom_components.haeo.core.schema import (
     is_schema_value,
     normalize_connection_target,
 )
-from custom_components.haeo.core.schema.elements import (
-    battery,
-    connection,
-    grid,
-    inverter,
-    load,
-    node,
-    solar,
+from custom_components.haeo.core.schema.elements import battery, connection, grid, inverter, load, node, solar
+from custom_components.haeo.core.schema.sections import (
+    CONF_CONNECTION,
+    CONF_CURTAILMENT,
+    CONF_FORECAST,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    SECTION_CURTAILMENT,
+    SECTION_EFFICIENCY,
+    SECTION_FORECAST,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
 )
 
 # Legacy battery constants removed from the schema but still needed for migration
@@ -68,20 +74,6 @@ _LEGACY_BATTERY_SECTION_ELEMENT_TYPE = "battery_section"
 _LEGACY_BATTERY_SECTION_CONF_CAPACITY = "capacity"
 _LEGACY_BATTERY_SECTION_CONF_INITIAL_CHARGE = "initial_charge"
 _LEGACY_BATTERY_SECTION_SECTION_STORAGE = "storage"
-from custom_components.haeo.core.schema.sections import (
-    CONF_CONNECTION,
-    CONF_CURTAILMENT,
-    CONF_FORECAST,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
-    SECTION_CURTAILMENT,
-    SECTION_EFFICIENCY,
-    SECTION_FORECAST,
-    SECTION_POWER_LIMITS,
-    SECTION_PRICING,
-)
 
 
 @dataclass(frozen=True)
@@ -264,8 +256,14 @@ def _migrate_element_to_sectioned(data: Mapping[str, Any]) -> dict[str, Any] | N
             undercharge.update(data[_LEGACY_BATTERY_SECTION_UNDERCHARGE])
         if isinstance(data.get(_LEGACY_BATTERY_SECTION_OVERCHARGE), dict):
             overcharge.update(data[_LEGACY_BATTERY_SECTION_OVERCHARGE])
-        convert_section_values(undercharge, (_LEGACY_BATTERY_CONF_PARTITION_PERCENTAGE, _LEGACY_BATTERY_CONF_PARTITION_COST))
-        convert_section_values(overcharge, (_LEGACY_BATTERY_CONF_PARTITION_PERCENTAGE, _LEGACY_BATTERY_CONF_PARTITION_COST))
+        convert_section_values(
+            undercharge,
+            (_LEGACY_BATTERY_CONF_PARTITION_PERCENTAGE, _LEGACY_BATTERY_CONF_PARTITION_COST),
+        )
+        convert_section_values(
+            overcharge,
+            (_LEGACY_BATTERY_CONF_PARTITION_PERCENTAGE, _LEGACY_BATTERY_CONF_PARTITION_COST),
+        )
 
         migrated |= {
             battery.SECTION_STORAGE: storage,

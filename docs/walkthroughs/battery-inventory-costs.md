@@ -111,23 +111,23 @@ stateDiagram-v2
     extended --> normal : $0.01/kWh penalty
 ```
 
-| Region           | SOC Range | Cost       | Behavior                                         |
-| ---------------- | --------- | ---------- | ------------------------------------------------ |
-| Reserve          | 0–5%      | \$10/kWh   | Almost never used — emergency reserve             |
-| Normal operation | 5–90%     | Free       | Preferred operating range                         |
-| Extended charge  | 90–100%   | \$0.01/kWh | Used when even small profit is available          |
+| Region           | SOC Range | Cost       | Behavior                                 |
+| ---------------- | --------- | ---------- | ---------------------------------------- |
+| Reserve          | 0–5%      | \$10/kWh   | Almost never used — emergency reserve    |
+| Normal operation | 5–90%     | Free       | Preferred operating range                |
+| Extended charge  | 90–100%   | \$0.01/kWh | Used when even small profit is available |
 
 ### Example scenario
 
 Consider a day with cheap midday solar and expensive evening grid prices:
 
 - **Midday**: Solar is abundant, grid export pays \$0.05/kWh.
-  The optimizer charges the battery to 100% because the \$0.01/kWh overage cost is far less than the value of stored energy for evening use.
+    The optimizer charges the battery to 100% because the \$0.01/kWh overage cost is far less than the value of stored energy for evening use.
 - **Evening**: Grid import costs \$0.30/kWh, load is 2 kW.
-  The optimizer discharges from 100% down to 5%, avoiding \$0.30/kWh grid imports.
-  It stops at 5% because the \$10/kWh reserve cost is higher than the \$0.30/kWh grid price.
+    The optimizer discharges from 100% down to 5%, avoiding \$0.30/kWh grid imports.
+    It stops at 5% because the \$10/kWh reserve cost is higher than the \$0.30/kWh grid price.
 - **Night**: Grid prices drop to \$0.10/kWh.
-  The battery stays at 5% — still not worth paying \$10/kWh to access the reserve.
+    The battery stays at 5% — still not worth paying \$10/kWh to access the reserve.
 
 ## Choosing threshold values
 
@@ -151,8 +151,8 @@ For common battery sizes:
 The cost determines how firmly the optimizer respects the limit.
 Here are some guidelines:
 
-| Cost          | Behavior                                                        | Use case                          |
-| ------------- | --------------------------------------------------------------- | --------------------------------- |
+| Cost         | Behavior                                                        | Use case                          |
+| ------------ | --------------------------------------------------------------- | --------------------------------- |
 | \$0.01/kWh   | Crossed with almost any profit opportunity                      | Gentle preference, battery health |
 | \$0.10/kWh   | Crossed when grid prices are moderately high or solar is wasted | Moderate protection               |
 | \$1.00/kWh   | Crossed only during significant price events                    | Strong preference                 |
@@ -169,7 +169,7 @@ Here are some guidelines:
 
 <div class="grid cards" markdown>
 
--   :material-shield-check:{ .lg .middle } **Power policies**
+- :material-shield-check:{ .lg .middle } **Power policies**
 
     ---
 
@@ -177,7 +177,7 @@ Here are some guidelines:
 
     [:material-arrow-right: Power policies walkthrough](power-policies.md)
 
--   :material-battery-charging:{ .lg .middle } **Battery configuration**
+- :material-battery-charging:{ .lg .middle } **Battery configuration**
 
     ---
 
@@ -185,7 +185,7 @@ Here are some guidelines:
 
     [:material-arrow-right: Battery guide](../user-guide/elements/battery.md)
 
--   :material-chart-line:{ .lg .middle } **Optimization results**
+- :material-chart-line:{ .lg .middle } **Optimization results**
 
     ---
 

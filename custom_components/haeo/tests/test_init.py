@@ -49,8 +49,6 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
-    SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_STORAGE,
 )
 from custom_components.haeo.core.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
@@ -108,13 +106,11 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                     CONF_CAPACITY: as_constant_value(10000.0),
                     CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_charge"]),
                 },
-                SECTION_LIMITS: {},
                 SECTION_POWER_LIMITS: {},
                 SECTION_PRICING: {
                     CONF_SALVAGE_VALUE: as_constant_value(0.0),
                 },
                 SECTION_EFFICIENCY: {},
-                SECTION_PARTITIONING: {},
             }
         ),
         subentry_type=ElementType.BATTERY,

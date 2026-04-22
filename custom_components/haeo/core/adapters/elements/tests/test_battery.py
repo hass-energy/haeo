@@ -8,13 +8,13 @@ import numpy as np
 from custom_components.haeo.core.adapters.elements.battery import adapter as battery_adapter
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
-    MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
     MODEL_ELEMENT_TYPE_NODE,
     ModelElementConfig,
 )
-from custom_components.haeo.core.model.elements.battery import BATTERY_POWER_CHARGE, BATTERY_POWER_DISCHARGE
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
+from custom_components.haeo.core.model.elements.energy_storage import BATTERY_POWER_CHARGE, BATTERY_POWER_DISCHARGE
 from custom_components.haeo.core.model.elements.segments import is_efficiency_spec
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements import battery
@@ -58,13 +58,9 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
 
     common: dict[str, object] = {}
     storage: dict[str, object] = {}
-    limits: dict[str, object] = {}
     power_limits: dict[str, object] = {}
     pricing: dict[str, object] = {}
     efficiency: dict[str, object] = {}
-    partitioning: dict[str, object] = {}
-    undercharge: dict[str, object] = {}
-    overcharge: dict[str, object] = {}
 
     for key, value in flat.items():
         if key in (
@@ -80,15 +76,8 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             "initial_charge_percentage",
         ):
             storage[key] = to_schema_value(value)
-        elif key in (
-            "min_charge_percentage",
-            "max_charge_percentage",
-        ):
-            limits[key] = to_schema_value(value)
         elif key in ("efficiency_source_target", "efficiency_target_source"):
             efficiency[key] = to_schema_value(value)
-        elif key == "configure_partitions":
-            partitioning[key] = value
         elif key in (
             "max_power_source_target",
             "max_power_target_source",
@@ -96,10 +85,6 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             power_limits[key] = to_schema_value(value)
         elif key in ("salvage_value",):
             pricing[key] = to_schema_value(value)
-        elif key == "undercharge" and isinstance(value, dict):
-            undercharge.update({subkey: to_schema_value(subvalue) for subkey, subvalue in value.items()})
-        elif key == "overcharge" and isinstance(value, dict):
-            overcharge.update({subkey: to_schema_value(subvalue) for subkey, subvalue in value.items()})
 
     pricing.setdefault("salvage_value", as_constant_value(0.0))
 
@@ -107,13 +92,9 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
         "element_type": "battery",
         **common,
         battery.SECTION_STORAGE: storage,
-        battery.SECTION_LIMITS: limits,
         battery.SECTION_POWER_LIMITS: power_limits,
         battery.SECTION_PRICING: pricing,
         battery.SECTION_EFFICIENCY: efficiency,
-        battery.SECTION_PARTITIONING: partitioning,
-        battery.SECTION_UNDERCHARGE: undercharge,
-        battery.SECTION_OVERCHARGE: overcharge,
     }
     return config  # type: ignore[return-value]
 
@@ -122,13 +103,9 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
     """Wrap flat battery config data values into sectioned config data."""
     common: dict[str, object] = {}
     storage: dict[str, object] = {}
-    limits: dict[str, object] = {}
     power_limits: dict[str, object] = {}
     pricing: dict[str, object] = {}
     efficiency: dict[str, object] = {}
-    partitioning: dict[str, object] = {}
-    undercharge: dict[str, object] = {}
-    overcharge: dict[str, object] = {}
 
     for key, value in flat.items():
         if key in (
@@ -144,15 +121,8 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
             "initial_charge_percentage",
         ):
             storage[key] = value
-        elif key in (
-            "min_charge_percentage",
-            "max_charge_percentage",
-        ):
-            limits[key] = value
         elif key in ("efficiency_source_target", "efficiency_target_source"):
             efficiency[key] = value
-        elif key == "configure_partitions":
-            partitioning[key] = value
         elif key in (
             "max_power_source_target",
             "max_power_target_source",
@@ -160,10 +130,6 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
             power_limits[key] = value
         elif key in ("salvage_value",):
             pricing[key] = value
-        elif key == "undercharge" and isinstance(value, dict):
-            undercharge.update(value)
-        elif key == "overcharge" and isinstance(value, dict):
-            overcharge.update(value)
 
     pricing.setdefault(battery.CONF_SALVAGE_VALUE, 0.0)
 
@@ -171,13 +137,9 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
         "element_type": "battery",
         **common,
         battery.SECTION_STORAGE: storage,
-        battery.SECTION_LIMITS: limits,
         battery.SECTION_POWER_LIMITS: power_limits,
         battery.SECTION_PRICING: pricing,
         battery.SECTION_EFFICIENCY: efficiency,
-        battery.SECTION_PARTITIONING: partitioning,
-        battery.SECTION_UNDERCHARGE: undercharge,
-        battery.SECTION_OVERCHARGE: overcharge,
     }
     return config  # type: ignore[return-value]
 
@@ -340,8 +302,6 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
             "salvage_value": 0.01,
             "efficiency_source_target": 0.95,
             "efficiency_target_source": 0.94,
-            "undercharge": {"partition_percentage": 0.1, "partition_cost": 0.2},
-            "overcharge": {"partition_percentage": 0.05, "partition_cost": 0.15},
         }
     )
 
@@ -365,7 +325,7 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
     battery_element = next(
         element
         for element in elements
-        if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery"
+        if element["element_type"] == MODEL_ELEMENT_TYPE_ENERGY_STORAGE and element["name"] == "test_battery"
     )
     np.testing.assert_array_equal(battery_element["capacity"], [10.0, 10.0, 10.0])
 
@@ -388,18 +348,16 @@ def test_model_elements_defaults_salvage_value_when_missing() -> None:
             "capacity": np.array([10.0, 10.0, 10.0]),
             "initial_charge_percentage": 0.5,
         },
-        battery.SECTION_LIMITS: {},
         battery.SECTION_POWER_LIMITS: {},
         battery.SECTION_PRICING: {},
         battery.SECTION_EFFICIENCY: {},
-        battery.SECTION_PARTITIONING: {},
     }
 
     elements = battery_adapter.model_elements(config_data)
     battery_element = next(
         element
         for element in elements
-        if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery"
+        if element["element_type"] == MODEL_ELEMENT_TYPE_ENERGY_STORAGE and element["name"] == "test_battery"
     )
 
     assert battery_element.get("salvage_value") == 0.0
@@ -434,33 +392,6 @@ def test_model_elements_passes_efficiency_when_present() -> None:
     np.testing.assert_array_equal(efficiency_target_source, [0.95, 0.95])
 
 
-def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
-    """SOC pricing is added when only overcharge inputs are configured."""
-    config_data: battery.BatteryConfigData = _wrap_data(
-        {
-            "name": "test_battery",
-            "connection": "main_bus",
-            "capacity": np.array([10.0, 10.0, 10.0]),
-            "initial_charge_percentage": 0.5,
-            "min_charge_percentage": np.array([0.1, 0.1, 0.1]),
-            "max_charge_percentage": np.array([0.9, 0.9, 0.9]),
-            "overcharge": {
-                "percentage": np.array([0.95, 0.95, 0.95]),
-                "cost": np.array([0.2, 0.2]),
-            },
-        }
-    )
-
-    elements = battery_adapter.model_elements(config_data)
-    connection = _get_connection(elements, "test_battery:discharge")
-    segments = connection.get("segments")
-    assert segments is not None
-    soc_pricing = segments.get("soc_pricing")
-    assert soc_pricing is not None
-    assert soc_pricing.get("discharge_energy_threshold") is None
-    assert soc_pricing.get("charge_capacity_threshold") is not None
-
-
 def test_discharge_respects_power_limit_with_efficiency() -> None:
     """Battery discharge respects power limit even with efficiency in segment chain.
 
@@ -479,7 +410,7 @@ def test_discharge_respects_power_limit_with_efficiency() -> None:
     # Battery with plenty of capacity to discharge at max for one period
     network.add(
         {
-            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
             "name": "battery",
             "capacity": np.array([20.0, 20.0]),
             "initial_charge": 15.0,  # Plenty to discharge at 5kW for 1 hour
@@ -547,7 +478,7 @@ def test_charge_respects_power_limit_with_efficiency() -> None:
     # Battery with plenty of headroom to charge at max
     network.add(
         {
-            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
             "name": "battery",
             "capacity": np.array([20.0, 20.0]),
             "initial_charge": 2.0,  # Low charge, plenty of room to accept 3kW for 1 hour

@@ -1,23 +1,20 @@
 """Segment scenario aggregates."""
 
+from custom_components.haeo.core.model.tests.test_data.segment_types import SegmentErrorScenario
+
 from .efficiency import SCENARIOS as EFFICIENCY_SCENARIOS
 from .passthrough import SCENARIOS as PASSTHROUGH_SCENARIOS
 from .power_limit import SCENARIOS as POWER_LIMIT_SCENARIOS
 from .pricing import SCENARIOS as PRICING_SCENARIOS
-from .soc_pricing import ERROR_SCENARIOS as SOC_PRICING_ERROR_SCENARIOS
-from .soc_pricing import SCENARIOS as SOC_PRICING_SCENARIOS
 
 SEGMENT_SCENARIOS = [
     *PASSTHROUGH_SCENARIOS,
     *EFFICIENCY_SCENARIOS,
     *POWER_LIMIT_SCENARIOS,
     *PRICING_SCENARIOS,
-    *SOC_PRICING_SCENARIOS,
 ]
 
-SEGMENT_ERROR_SCENARIOS = [
-    *SOC_PRICING_ERROR_SCENARIOS,
-]
+SEGMENT_ERROR_SCENARIOS: list[SegmentErrorScenario] = []
 
 __all__ = [
     "EFFICIENCY_SCENARIOS",

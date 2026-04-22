@@ -91,9 +91,8 @@
     isIconButton = true;
     let btn = target.shadowRoot && target.shadowRoot.querySelector("button");
     if (!btn) {
-      const inner = target.shadowRoot && target.shadowRoot.querySelector(
-        "mwc-icon-button, ha-icon-button-prev, md-icon-button"
-      );
+      const inner =
+        target.shadowRoot && target.shadowRoot.querySelector("mwc-icon-button, ha-icon-button-prev, md-icon-button");
       btn = inner && inner.shadowRoot && inner.shadowRoot.querySelector("button");
     }
     if (btn) target = btn;

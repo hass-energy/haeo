@@ -2,16 +2,16 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Any, Final, Literal, cast
 
 import numpy as np
 
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
-from custom_components.haeo.core.model.elements import energy_storage as model_es
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_ENERGY_STORAGE
+from custom_components.haeo.core.model.elements import energy_storage as model_es
 from custom_components.haeo.core.model.elements.energy_storage import InventoryCostSpec
 from custom_components.haeo.core.model.elements.segments import SegmentSpec
 from custom_components.haeo.core.model.output_data import OutputData
@@ -77,7 +77,6 @@ BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset((BATTERY_D
 
 def _build_inventory_costs(
     inventory_costs: list[InventoryCostData],
-    capacity: Any,
     n_periods: int,
 ) -> list[InventoryCostSpec]:
     """Convert adapter-layer inventory cost data to model-layer specs.
@@ -137,11 +136,7 @@ class BatteryAdapter:
         efficiency_target_source = efficiency_section.get(CONF_EFFICIENCY_TARGET_SOURCE)
 
         inventory_costs_data = config.get(CONF_INVENTORY_COSTS, [])
-        inventory_cost_specs = (
-            _build_inventory_costs(inventory_costs_data, capacity, n_periods)
-            if inventory_costs_data
-            else []
-        )
+        inventory_cost_specs = _build_inventory_costs(inventory_costs_data, n_periods) if inventory_costs_data else []
 
         es_config: dict[str, Any] = {
             "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
@@ -153,7 +148,7 @@ class BatteryAdapter:
         if inventory_cost_specs:
             es_config["inventory_costs"] = inventory_cost_specs
 
-        elements.append(es_config)
+        elements.append(cast("ModelElementConfig", es_config))
 
         # Create connections
         max_discharge = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)

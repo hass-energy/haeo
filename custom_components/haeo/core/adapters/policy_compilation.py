@@ -28,8 +28,8 @@ from typing import Any, NotRequired, TypedDict
 import numpy as np
 
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, ModelElementConfig
-from custom_components.haeo.core.model.elements.energy_storage import EnergyStorageElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
+from custom_components.haeo.core.model.elements.energy_storage import EnergyStorageElementConfig
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
 
 # Tag 0 is used for untagged/default power flows

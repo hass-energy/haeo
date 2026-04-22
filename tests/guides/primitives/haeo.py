@@ -24,10 +24,7 @@ from typing import TYPE_CHECKING, Any, get_args
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
-from custom_components.haeo.core.schema.elements.battery import (
-    CONF_CAPACITY,
-    CONF_INITIAL_CHARGE_PERCENTAGE,
-)
+from custom_components.haeo.core.schema.elements.battery import CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.sections import (
     CONF_FORECAST,

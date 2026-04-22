@@ -22,9 +22,9 @@ from custom_components.haeo.core.adapters.elements.battery import (
 from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
-from custom_components.haeo.core.model import battery as battery_model
+from custom_components.haeo.core.model import energy_storage as energy_storage_model
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_ENERGY_STORAGE
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -60,10 +60,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "capacity": np.array([10.0, 10.0]),
                 "initial_charge_percentage": 0.5,
             },
-            limits={
-                "min_charge_percentage": np.array([0.1, 0.1]),
-                "max_charge_percentage": np.array([0.9, 0.9]),
-            },
             power_limits={
                 "max_power_source_target": np.array([5.0]),
                 "max_power_target_source": np.array([5.0]),
@@ -75,23 +71,32 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
-            partitioning={},
-            undercharge={
-                "percentage": np.array([0.05, 0.05]),
-                "cost": np.array([0.03]),
-            },
-            overcharge={
-                "percentage": np.array([0.95, 0.95]),
-                "cost": np.array([0.04]),
-            },
+            inventory_costs=[
+                {
+                    "name": "undercharge",
+                    "direction": "below",
+                    "threshold": np.array([0.5, 0.5]),
+                    "cost": np.array([0.03]),
+                },
+                {
+                    "name": "overcharge",
+                    "direction": "above",
+                    "threshold": np.array([8.5, 8.5]),
+                    "cost": np.array([0.04]),
+                },
+            ],
         ),
         "model": [
             {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
                 "name": "battery_main",
-                "capacity": [9.0, 9.0],
-                "initial_charge": 4.5,
+                "capacity": [10.0, 10.0],
+                "initial_charge": 5.0,
                 "salvage_value": 0.0,
+                "inventory_costs": [
+                    {"direction": "below", "threshold": [0.5, 0.5], "price": [0.03]},
+                    {"direction": "above", "threshold": [8.5, 8.5], "price": [0.04]},
+                ],
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -101,13 +106,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "segments": {
                     "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
-                    "soc_pricing": {
-                        "segment_type": "soc_pricing",
-                        "discharge_energy_threshold": [0.5],
-                        "discharge_energy_price": [0.03],
-                        "charge_capacity_threshold": [8.5],
-                        "charge_capacity_price": [0.04],
-                    },
                 },
             },
             {
@@ -132,10 +130,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "capacity": np.array([10.0, 10.0]),
                 "initial_charge_percentage": 0.5,
             },
-            limits={
-                "min_charge_percentage": np.array([0.0, 0.0]),
-                "max_charge_percentage": np.array([1.0, 1.0]),
-            },
             power_limits={
                 "max_power_source_target": np.array([5.0]),
                 "max_power_target_source": np.array([5.0]),
@@ -147,13 +141,10 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
-            partitioning={},
-            undercharge={},
-            overcharge={},
         ),
         "model": [
             {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
                 "name": "battery_normal",
                 "capacity": [10.0, 10.0],
                 "initial_charge": 5.0,
@@ -191,10 +182,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "capacity": np.array([8.0, 8.0]),
                 "initial_charge_percentage": 0.5,
             },
-            limits={
-                "min_charge_percentage": np.array([0.0, 0.0]),
-                "max_charge_percentage": np.array([1.0, 1.0]),
-            },
             power_limits={
                 "max_power_source_target": np.array([4.0]),
                 "max_power_target_source": np.array([4.0]),
@@ -206,13 +193,10 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
-            partitioning={},
-            undercharge={},
-            overcharge={},
         ),
         "model": [
             {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
                 "name": "battery_salvage",
                 "capacity": [8.0, 8.0],
                 "initial_charge": 4.0,
@@ -255,10 +239,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "capacity": np.array([10.0, 10.0]),
                 "initial_charge_percentage": 0.5,
             },
-            limits={
-                "min_charge_percentage": np.array([0.0, 0.0]),
-                "max_charge_percentage": np.array([1.0, 1.0]),
-            },
             power_limits={
                 "max_power_source_target": np.array([5.0]),
                 "max_power_target_source": np.array([5.0]),
@@ -270,30 +250,33 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
-            partitioning={},
-            undercharge={},
-            overcharge={},
         ),
         "model_outputs": {
             "battery_no_balance": {
-                battery_model.BATTERY_POWER_CHARGE: OutputData(
+                energy_storage_model.ENERGY_STORAGE_POWER_CHARGE: OutputData(
                     type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"
                 ),
-                battery_model.BATTERY_POWER_DISCHARGE: OutputData(
+                energy_storage_model.ENERGY_STORAGE_POWER_DISCHARGE: OutputData(
                     type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"
                 ),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(4.0, 4.0)),
-                battery_model.BATTERY_POWER_BALANCE: OutputData(
+                energy_storage_model.ENERGY_STORAGE_ENERGY_STORED: OutputData(
+                    type=OutputType.ENERGY, unit="kWh", values=(4.0, 4.0)
+                ),
+                energy_storage_model.ENERGY_STORAGE_POWER_BALANCE: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.1,)
                 ),
-                battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(
+                energy_storage_model.ENERGY_STORAGE_ENERGY_IN_FLOW: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
                 ),
-                battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(
+                energy_storage_model.ENERGY_STORAGE_ENERGY_OUT_FLOW: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
                 ),
-                battery_model.BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_SOC_MAX: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
+                ),
+                energy_storage_model.ENERGY_STORAGE_SOC_MIN: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
+                ),
             },
         },
         "outputs": {
@@ -326,10 +309,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "capacity": np.array([10.0, 10.0]),
                 "initial_charge_percentage": 0.5,
             },
-            limits={
-                "min_charge_percentage": np.array([0.1, 0.1]),
-                "max_charge_percentage": np.array([0.9, 0.9]),
-            },
             power_limits={
                 "max_power_source_target": np.array([5.0]),
                 "max_power_target_source": np.array([5.0]),
@@ -341,36 +320,47 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
-            partitioning={},
-            undercharge={
-                "percentage": np.array([0.05, 0.05]),
-                "cost": np.array([0.03]),
-            },
-            overcharge={
-                "percentage": np.array([0.95, 0.95]),
-                "cost": np.array([0.04]),
-            },
+            inventory_costs=[
+                {
+                    "name": "undercharge",
+                    "direction": "below",
+                    "threshold": np.array([0.5, 0.5]),
+                    "cost": np.array([0.03]),
+                },
+                {
+                    "name": "overcharge",
+                    "direction": "above",
+                    "threshold": np.array([8.5, 8.5]),
+                    "cost": np.array([0.04]),
+                },
+            ],
         ),
         "model_outputs": {
             "battery_with_thresholds": {
-                battery_model.BATTERY_POWER_CHARGE: OutputData(
+                energy_storage_model.ENERGY_STORAGE_POWER_CHARGE: OutputData(
                     type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"
                 ),
-                battery_model.BATTERY_POWER_DISCHARGE: OutputData(
+                energy_storage_model.ENERGY_STORAGE_POWER_DISCHARGE: OutputData(
                     type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"
                 ),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(3.5, 3.5)),
-                battery_model.BATTERY_POWER_BALANCE: OutputData(
+                energy_storage_model.ENERGY_STORAGE_ENERGY_STORED: OutputData(
+                    type=OutputType.ENERGY, unit="kWh", values=(3.5, 3.5)
+                ),
+                energy_storage_model.ENERGY_STORAGE_POWER_BALANCE: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.1,)
                 ),
-                battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(
+                energy_storage_model.ENERGY_STORAGE_ENERGY_IN_FLOW: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
                 ),
-                battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(
+                energy_storage_model.ENERGY_STORAGE_ENERGY_OUT_FLOW: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
                 ),
-                battery_model.BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                energy_storage_model.ENERGY_STORAGE_SOC_MAX: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
+                ),
+                energy_storage_model.ENERGY_STORAGE_SOC_MIN: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
+                ),
             },
         },
         "outputs": {

@@ -26,16 +26,7 @@ from custom_components.haeo.core.const import (
     CONF_TIER_1_DURATION,
 )
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.core.schema.elements import (
-    battery,
-    battery_section,
-    connection,
-    grid,
-    inverter,
-    load,
-    node,
-    solar,
-)
+from custom_components.haeo.core.schema.elements import battery, connection, grid, inverter, load, node, solar
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
 from custom_components.haeo.core.schema.migrations import v1_3 as schema_migrations
 from custom_components.haeo.core.schema.migrations.v1_3 import ElementMigrationStep, migrate_hub_config
@@ -147,11 +138,11 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
         CONF_CONNECTION: "bus",
         battery.CONF_CAPACITY: "sensor.capacity",
         battery.CONF_INITIAL_CHARGE_PERCENTAGE: "sensor.initial",
-        battery.CONF_MIN_CHARGE_PERCENTAGE: 0.1,
-        battery.CONF_MAX_CHARGE_PERCENTAGE: 0.9,
+        "min_charge_percentage": 0.1,
+        "max_charge_percentage": 0.9,
         battery.CONF_EFFICIENCY_SOURCE_TARGET: 0.85,
         battery.CONF_EFFICIENCY_TARGET_SOURCE: 0.88,
-        battery.CONF_CONFIGURE_PARTITIONS: True,
+        "configure_partitions": True,
         "max_charge_power": 4.2,
         "max_discharge_power": 6.1,
         "discharge_cost": 0.25,
@@ -159,8 +150,8 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
         "efficiency": 0.92,
         SECTION_POWER_LIMITS: {CONF_MAX_POWER_SOURCE_TARGET: 7.0},
         SECTION_PRICING: {CONF_PRICE_SOURCE_TARGET: 0.33},
-        battery.SECTION_UNDERCHARGE: {battery.CONF_PARTITION_PERCENTAGE: 0.1},
-        battery.SECTION_OVERCHARGE: {battery.CONF_PARTITION_COST: 0.2},
+        "undercharge": {"percentage": 0.1},
+        "overcharge": {"cost": 0.2},
     }
     subentry = _create_subentry(data, subentry_type=battery.ELEMENT_TYPE)
 
@@ -175,8 +166,8 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
     assert migrated[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.15)
     assert migrated[SECTION_EFFICIENCY][battery.CONF_EFFICIENCY_SOURCE_TARGET] == as_constant_value(0.85)
     assert migrated[SECTION_EFFICIENCY][battery.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.88)
-    assert migrated[battery.SECTION_UNDERCHARGE][battery.CONF_PARTITION_PERCENTAGE] == as_constant_value(0.1)
-    assert migrated[battery.SECTION_OVERCHARGE][battery.CONF_PARTITION_COST] == as_constant_value(0.2)
+    assert migrated["undercharge"]["percentage"] == as_constant_value(0.1)
+    assert migrated["overcharge"]["cost"] == as_constant_value(0.2)
 
 
 def test_migrate_subentry_battery_without_salvage_value_stays_valid() -> None:
@@ -216,19 +207,19 @@ def test_migrate_subentry_battery_invalid_schema_value_raises() -> None:
 def test_migrate_subentry_battery_section() -> None:
     """Battery section migration should map storage values."""
     data = {
-        CONF_ELEMENT_TYPE: battery_section.ELEMENT_TYPE,
+        CONF_ELEMENT_TYPE: "battery_section",
         CONF_NAME: "Battery Section",
-        battery_section.CONF_CAPACITY: 5.0,
-        battery_section.CONF_INITIAL_CHARGE: 2.5,
+        "capacity": 5.0,
+        "initial_charge": 2.5,
     }
-    subentry = _create_subentry(data, subentry_type=battery_section.ELEMENT_TYPE)
+    subentry = _create_subentry(data, subentry_type="battery_section")
 
     migrated = v1_3.migrate_subentry_data(subentry)
 
     assert migrated is not None
     assert migrated[CONF_NAME] == "Battery Section"
-    assert migrated[battery_section.SECTION_STORAGE][battery_section.CONF_CAPACITY] == as_constant_value(5.0)
-    assert migrated[battery_section.SECTION_STORAGE][battery_section.CONF_INITIAL_CHARGE] == as_constant_value(2.5)
+    assert migrated["storage"]["capacity"] == as_constant_value(5.0)
+    assert migrated["storage"]["initial_charge"] == as_constant_value(2.5)
 
 
 def test_migrate_subentry_connection_fields() -> None:
@@ -376,11 +367,11 @@ def test_migrate_subentry_load_node_solar() -> None:
             id="battery-flat-v033",
         ),
         pytest.param(
-            battery_section.ELEMENT_TYPE,
+            "battery_section",
             {
                 CONF_NAME: "Battery section",
-                battery_section.CONF_CAPACITY: 5.0,
-                battery_section.CONF_INITIAL_CHARGE: 2.0,
+                "capacity": 5.0,
+                "initial_charge": 2.0,
             },
             id="battery-section-flat-v033",
         ),

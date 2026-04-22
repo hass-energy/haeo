@@ -10,8 +10,8 @@ import pytest
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model import network as network_module
 from custom_components.haeo.core.model.element import Element
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_ENERGY_STORAGE as ELEMENT_TYPE_BATTERY
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.network import (
@@ -338,59 +338,6 @@ def test_network_optimize_raises_on_infeasible_network(
     # This should raise ValueError with the error message from optimize()
     with pytest.raises(ValueError, match="Optimization failed with status:"):
         network.optimize()
-
-
-def test_add_soc_pricing_connection() -> None:
-    """Test adding a SOC pricing connection via Network.add()."""
-    network = Network(name="test_network", periods=np.array([1.0] * 3))
-
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0})
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
-
-    connection = network.add(
-        {
-            "element_type": ELEMENT_TYPE_CONNECTION,
-            "name": "soc_pricing",
-            "source": "battery",
-            "target": "node",
-            "segments": {
-                "soc": {
-                    "segment_type": "soc_pricing",
-                    "discharge_energy_threshold": np.array([1.0, 1.0, 1.0]),
-                    "discharge_energy_price": np.array([0.1, 0.1, 0.1]),
-                }
-            },
-        }
-    )
-
-    assert connection is not None
-    assert connection.name == "soc_pricing"
-    assert "soc_pricing" in network.elements
-
-
-def test_add_soc_pricing_connection_without_battery() -> None:
-    """SOC pricing connection requires a battery endpoint."""
-    network = Network(name="test_network", periods=np.array([1.0] * 3))
-
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_sink": False, "is_source": True})
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "target", "is_sink": True, "is_source": False})
-
-    with pytest.raises(TypeError, match="SOC pricing segment requires a battery element endpoint"):
-        network.add(
-            {
-                "element_type": ELEMENT_TYPE_CONNECTION,
-                "name": "soc_pricing",
-                "source": "source",
-                "target": "target",
-                "segments": {
-                    "soc": {
-                        "segment_type": "soc_pricing",
-                        "discharge_energy_threshold": np.array([1.0, 1.0, 1.0]),
-                        "discharge_energy_price": np.array([0.1, 0.1, 0.1]),
-                    }
-                },
-            }
-        )
 
 
 def test_network_cost_with_multiple_elements() -> None:
