@@ -29,8 +29,13 @@
 
   let target = el;
 
-  // Radio buttons should be highlighted as-is — don't walk up to a container
+  // Radio inputs live deep inside shadow DOM: ha-radio > #shadow > .mdc-radio > input
+  // Walk up to .mdc-radio__outer-circle which is the visible circle ring element.
   const isRadio = el.matches && (el.matches('[role="radio"]') || el.matches('input[type="radio"]'));
+  if (isRadio) {
+    const circle = el.parentElement && el.parentElement.querySelector(".mdc-radio__outer-circle");
+    if (circle) target = circle;
+  }
 
   // Walk up through shadow DOM to find the nearest clickable ancestor
   if (!isRadio) {
@@ -79,7 +84,7 @@
 
   const targetRect = target.getBoundingClientRect();
   const computedStyle = getComputedStyle(target);
-  const borderRadius = isRadio ? "50%" : (computedStyle.borderRadius || "0px");
+  const borderRadius = computedStyle.borderRadius || "0px";
 
   const overlay = document.createElement("div");
   overlay.id = "click-indicator-overlay";

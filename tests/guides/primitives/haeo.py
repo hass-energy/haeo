@@ -619,10 +619,12 @@ def add_inventory_cost(
     battery_row.wait_for(state="visible", timeout=5000)
     battery_row.scroll_into_view_if_needed()
     gear_button = battery_row.locator("ha-icon-button:not([slot='start'])").first
+    page._capture_with_indicator("gear", gear_button)
     gear_button.click(timeout=2000)
 
     # Wait for reconfigure menu
     page.wait_for_dialog(_step_title(et, "reconfigure"))
+    page._capture("menu")
 
     # Select "Add inventory cost" action (LIST mode renders as radio buttons)
     page.select_list_option("Add inventory cost")
