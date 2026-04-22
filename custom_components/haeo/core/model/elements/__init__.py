@@ -6,14 +6,15 @@ This module re-exports all element classes for convenient imports.
 from dataclasses import dataclass
 from typing import Final
 
-from .battery import BATTERY_OUTPUT_NAMES as BATTERY_OUTPUT_NAMES
-from .battery import BATTERY_POWER_CONSTRAINTS as BATTERY_POWER_CONSTRAINTS
-from .battery import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_BATTERY
-from .battery import Battery as Battery
-from .battery import BatteryConstraintName as BatteryConstraintName
-from .battery import BatteryElementConfig as BatteryElementConfig
-from .battery import BatteryElementTypeName as BatteryElementTypeName
-from .battery import BatteryOutputName as BatteryOutputName
+from .energy_storage import ENERGY_STORAGE_OUTPUT_NAMES as ENERGY_STORAGE_OUTPUT_NAMES
+from .energy_storage import ENERGY_STORAGE_POWER_CONSTRAINTS as ENERGY_STORAGE_POWER_CONSTRAINTS
+from .energy_storage import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_ENERGY_STORAGE
+from .energy_storage import EnergyStorage as EnergyStorage
+from .energy_storage import EnergyStorageConstraintName as EnergyStorageConstraintName
+from .energy_storage import EnergyStorageElementConfig as EnergyStorageElementConfig
+from .energy_storage import EnergyStorageElementTypeName as EnergyStorageElementTypeName
+from .energy_storage import EnergyStorageOutputName as EnergyStorageOutputName
+from .energy_storage import InventoryCostSpec as InventoryCostSpec
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .connection import CONNECTION_POWER as CONNECTION_POWER
 from .connection import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_CONNECTION
@@ -34,14 +35,12 @@ from .segments import PricingSegment as PricingSegment
 from .segments import Segment as Segment
 from .segments import SegmentSpec as SegmentSpec
 from .segments import SegmentType as SegmentType
-from .segments import SocPricingSegment as SocPricingSegment
-from .segments import SocPricingSegmentSpec as SocPricingSegmentSpec
 
 # Type for all model element types
-ModelElementType = BatteryElementTypeName | NodeElementTypeName | ConnectionElementTypeName
+ModelElementType = EnergyStorageElementTypeName | NodeElementTypeName | ConnectionElementTypeName
 
 # Typed configs for all model elements (discriminated by element_type)
-ModelElementConfig = BatteryElementConfig | NodeElementConfig | ConnectionElementConfig
+ModelElementConfig = EnergyStorageElementConfig | NodeElementConfig | ConnectionElementConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,9 +54,9 @@ class ElementSpec:
 # Registry of all model element types.
 # Keys are element type strings used by Network.add().
 ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
-    MODEL_ELEMENT_TYPE_BATTERY: ElementSpec(
-        factory=Battery,
-        output_names=BATTERY_OUTPUT_NAMES,
+    MODEL_ELEMENT_TYPE_ENERGY_STORAGE: ElementSpec(
+        factory=EnergyStorage,
+        output_names=ENERGY_STORAGE_OUTPUT_NAMES,
     ),
     MODEL_ELEMENT_TYPE_NODE: ElementSpec(
         factory=Node,
@@ -70,24 +69,25 @@ ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
 }
 
 __all__ = [
-    "BATTERY_OUTPUT_NAMES",
-    "BATTERY_POWER_CONSTRAINTS",
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER",
     "ELEMENTS",
-    "MODEL_ELEMENT_TYPE_BATTERY",
+    "ENERGY_STORAGE_OUTPUT_NAMES",
+    "ENERGY_STORAGE_POWER_CONSTRAINTS",
     "MODEL_ELEMENT_TYPE_CONNECTION",
+    "MODEL_ELEMENT_TYPE_ENERGY_STORAGE",
     "MODEL_ELEMENT_TYPE_NODE",
-    "Battery",
-    "BatteryConstraintName",
-    "BatteryElementConfig",
-    "BatteryOutputName",
     "Connection",
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
     "ConnectionOutputName",
     "EfficiencySegment",
     "ElementSpec",
+    "EnergyStorage",
+    "EnergyStorageConstraintName",
+    "EnergyStorageElementConfig",
+    "EnergyStorageOutputName",
+    "InventoryCostSpec",
     "ModelElementConfig",
     "ModelElementType",
     "Node",
@@ -99,6 +99,4 @@ __all__ = [
     "Segment",
     "SegmentSpec",
     "SegmentType",
-    "SocPricingSegment",
-    "SocPricingSegmentSpec",
 ]

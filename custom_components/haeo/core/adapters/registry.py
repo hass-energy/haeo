@@ -4,7 +4,6 @@ from collections.abc import Mapping
 from typing import Any, Protocol, TypeGuard, runtime_checkable
 
 from custom_components.haeo.core.adapters.elements.battery import adapter as battery_adapter
-from custom_components.haeo.core.adapters.elements.battery_section import adapter as battery_section_adapter
 from custom_components.haeo.core.adapters.elements.connection import adapter as connection_adapter
 from custom_components.haeo.core.adapters.elements.grid import adapter as grid_adapter
 from custom_components.haeo.core.adapters.elements.inverter import adapter as inverter_adapter
@@ -59,7 +58,6 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
     ElementType.BATTERY: battery_adapter,
     ElementType.CONNECTION: connection_adapter,
     ElementType.NODE: node_adapter,
-    ElementType.BATTERY_SECTION: battery_section_adapter,
     ElementType.POLICY: policy_adapter,
 }
 

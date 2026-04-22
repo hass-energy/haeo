@@ -348,7 +348,6 @@ def get_element_flow_classes() -> dict[ElementType, type]:
     """
     from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
     from custom_components.haeo.flows.elements.battery import BatterySubentryFlowHandler  # noqa: PLC0415
-    from custom_components.haeo.flows.elements.battery_section import BatterySectionSubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.connection import ConnectionSubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.grid import GridSubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.inverter import InverterSubentryFlowHandler  # noqa: PLC0415
@@ -359,7 +358,6 @@ def get_element_flow_classes() -> dict[ElementType, type]:
 
     return {
         ElementType.BATTERY: BatterySubentryFlowHandler,
-        ElementType.BATTERY_SECTION: BatterySectionSubentryFlowHandler,
         ElementType.CONNECTION: ConnectionSubentryFlowHandler,
         ElementType.GRID: GridSubentryFlowHandler,
         ElementType.INVERTER: InverterSubentryFlowHandler,

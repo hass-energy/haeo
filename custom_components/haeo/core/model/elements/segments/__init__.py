@@ -5,7 +5,6 @@ Each segment type applies a specific transformation or constraint to power flow:
 - PassthroughSegment: Lossless passthrough (no constraints)
 - PowerLimitSegment: Limits power flow
 - PricingSegment: Adds transfer pricing costs
-- SocPricingSegment: Adds SOC-based pricing penalties
 """
 
 from collections.abc import Callable
@@ -24,15 +23,12 @@ from .passthrough import PassthroughSegment, PassthroughSegmentSpec
 from .power_limit import PowerLimitSegment, PowerLimitSegmentSpec
 from .pricing import PricingSegment, PricingSegmentSpec
 from .segment import Segment
-from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
 
 # Discriminated union of segment type strings
-type SegmentType = Literal["efficiency", "passthrough", "power_limit", "pricing", "soc_pricing"]
+type SegmentType = Literal["efficiency", "passthrough", "power_limit", "pricing"]
 
 # Union type for all segment specifications
-type SegmentSpec = (
-    EfficiencySegmentSpec | PassthroughSegmentSpec | PowerLimitSegmentSpec | PricingSegmentSpec | SocPricingSegmentSpec
-)
+type SegmentSpec = EfficiencySegmentSpec | PassthroughSegmentSpec | PowerLimitSegmentSpec | PricingSegmentSpec
 
 
 def is_efficiency_spec(spec: SegmentSpec) -> TypeGuard[EfficiencySegmentSpec]:
@@ -55,11 +51,6 @@ def is_pricing_spec(spec: SegmentSpec) -> TypeGuard[PricingSegmentSpec]:
     return spec["segment_type"] == "pricing"
 
 
-def is_soc_pricing_spec(spec: SegmentSpec) -> TypeGuard[SocPricingSegmentSpec]:
-    """Return True when spec is for a SOC pricing segment."""
-    return spec["segment_type"] == "soc_pricing"
-
-
 @dataclass(frozen=True, slots=True)
 class SegmentSpecEntry:
     """Specification for a segment type."""
@@ -73,7 +64,6 @@ SEGMENTS: Final[dict[SegmentType, SegmentSpecEntry]] = {
     "passthrough": SegmentSpecEntry(factory=PassthroughSegment),
     "power_limit": SegmentSpecEntry(factory=PowerLimitSegment),
     "pricing": SegmentSpecEntry(factory=PricingSegment),
-    "soc_pricing": SegmentSpecEntry(factory=SocPricingSegment),
 }
 
 
@@ -117,12 +107,9 @@ __all__ = [
     "SegmentSpec",
     "SegmentSpecEntry",
     "SegmentType",
-    "SocPricingSegment",
-    "SocPricingSegmentSpec",
     "create_segment",
     "is_efficiency_spec",
     "is_passthrough_spec",
     "is_power_limit_spec",
     "is_pricing_spec",
-    "is_soc_pricing_spec",
 ]

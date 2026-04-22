@@ -9,30 +9,29 @@ import numpy as np
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
-from custom_components.haeo.core.model import battery as model_battery
+from custom_components.haeo.core.model.elements import energy_storage as model_es
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
-from custom_components.haeo.core.model.elements.segments import SegmentSpec, SocPricingSegmentSpec
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_ENERGY_STORAGE
+from custom_components.haeo.core.model.elements.energy_storage import InventoryCostSpec
+from custom_components.haeo.core.model.elements.segments import SegmentSpec
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
+    CONF_COST,
+    CONF_DIRECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
-    CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_PARTITION_COST,
-    CONF_PARTITION_PERCENTAGE,
+    CONF_INVENTORY_COSTS,
     CONF_SALVAGE_VALUE,
+    CONF_THRESHOLD,
     ELEMENT_TYPE,
-    SECTION_LIMITS,
-    SECTION_OVERCHARGE,
     SECTION_STORAGE,
-    SECTION_UNDERCHARGE,
     BatteryConfigData,
+    InventoryCostData,
 )
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
@@ -42,12 +41,6 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-
-# Default ratio values for optional fields applied by adapter
-DEFAULTS: Final[dict[str, float]] = {
-    CONF_MIN_CHARGE_PERCENTAGE: 0.0,
-    CONF_MAX_CHARGE_PERCENTAGE: 1.0,
-}
 
 type BatteryOutputName = Literal[
     "battery_power_charge",
@@ -82,6 +75,35 @@ type BatteryDeviceName = Literal[ElementType.BATTERY]
 BATTERY_DEVICE_NAMES: Final[frozenset[BatteryDeviceName]] = frozenset((BATTERY_DEVICE_BATTERY := ElementType.BATTERY,))
 
 
+def _build_inventory_costs(
+    inventory_costs: list[InventoryCostData],
+    capacity: Any,
+    n_periods: int,
+) -> list[InventoryCostSpec]:
+    """Convert adapter-layer inventory cost data to model-layer specs.
+
+    Thresholds in the config may be in kWh (absolute) or percentage of capacity.
+    The model layer expects absolute kWh thresholds.
+    """
+    result: list[InventoryCostSpec] = []
+    for ic in inventory_costs:
+        threshold = ic[CONF_THRESHOLD]
+        price = ic[CONF_COST]
+        direction = ic[CONF_DIRECTION]
+
+        threshold_array = broadcast_to_sequence(threshold, n_periods)
+        price_array = broadcast_to_sequence(price, n_periods)
+
+        result.append(
+            InventoryCostSpec(
+                direction=direction,
+                threshold=threshold_array,
+                price=price_array,
+            )
+        )
+    return result
+
+
 class BatteryAdapter:
     """Adapter for Battery elements."""
 
@@ -94,96 +116,55 @@ class BatteryAdapter:
     def model_elements(self, config: BatteryConfigData) -> list[ModelElementConfig]:
         """Create model elements for Battery configuration.
 
-        Creates a single battery element and a connection to the target.
+        Creates a single energy storage element and connections to the target.
         """
         storage = config[SECTION_STORAGE]
-        limits = config[SECTION_LIMITS]
         power_limits = config[SECTION_POWER_LIMITS]
         pricing = config[SECTION_PRICING]
         efficiency_section = config[SECTION_EFFICIENCY]
-        undercharge = config.get(SECTION_UNDERCHARGE, {})
-        overcharge = config.get(SECTION_OVERCHARGE, {})
 
         name = config["name"]
         elements: list[ModelElementConfig] = []
-        # capacity is boundaries (n+1 values), so n_periods = len - 1
-        n_boundaries = len(storage[CONF_CAPACITY])
-        n_periods = n_boundaries - 1
-
         capacity = storage[CONF_CAPACITY]
+        n_boundaries = len(capacity)
+        n_periods = n_boundaries - 1
         capacity_first = float(capacity[0])
         initial_soc = storage[CONF_INITIAL_CHARGE_PERCENTAGE]
 
-        min_charge_percentage = limits.get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
-        max_charge_percentage = limits.get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
+        initial_charge = initial_soc * capacity_first
+
         efficiency_source_target = efficiency_section.get(CONF_EFFICIENCY_SOURCE_TARGET)
         efficiency_target_source = efficiency_section.get(CONF_EFFICIENCY_TARGET_SOURCE)
 
-        undercharge_cost = undercharge.get(CONF_PARTITION_COST)
-        overcharge_cost = overcharge.get(CONF_PARTITION_COST)
-        undercharge_percentage = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
-        overcharge_percentage = overcharge.get(CONF_PARTITION_PERCENTAGE) if overcharge_cost is not None else None
-
-        lower_ratio = undercharge_percentage if undercharge_percentage is not None else min_charge_percentage
-        upper_ratio = overcharge_percentage if overcharge_percentage is not None else max_charge_percentage
-
-        lower_ratio_first = float(lower_ratio[0]) if isinstance(lower_ratio, np.ndarray) else float(lower_ratio)
-
-        capacity_range = (upper_ratio - lower_ratio) * capacity
-        capacity_range_first = float(capacity_range[0])
-
-        initial_charge = max(min((initial_soc - lower_ratio_first) * capacity_first, capacity_range_first), 0.0)
-
-        elements.append(
-            {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-                "name": name,
-                "capacity": capacity_range,
-                "initial_charge": initial_charge,
-                "salvage_value": pricing.get(CONF_SALVAGE_VALUE, 0.0),
-            }
+        inventory_costs_data = config.get(CONF_INVENTORY_COSTS, [])
+        inventory_cost_specs = (
+            _build_inventory_costs(inventory_costs_data, capacity, n_periods)
+            if inventory_costs_data
+            else []
         )
 
-        # Create connection from battery to target
+        es_config: dict[str, Any] = {
+            "element_type": MODEL_ELEMENT_TYPE_ENERGY_STORAGE,
+            "name": name,
+            "capacity": capacity,
+            "initial_charge": initial_charge,
+            "salvage_value": pricing.get(CONF_SALVAGE_VALUE, 0.0),
+        }
+        if inventory_cost_specs:
+            es_config["inventory_costs"] = inventory_cost_specs
+
+        elements.append(es_config)
+
+        # Create connections
         max_discharge = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)
         max_charge = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
-
-        soc_pricing_spec: SocPricingSegmentSpec | None = None
-        if undercharge_percentage is not None and undercharge_cost is not None:
-            min_ratio_series = broadcast_to_sequence(min_charge_percentage, n_periods + 1)[1:]
-            lower_ratio_series = broadcast_to_sequence(lower_ratio, n_periods + 1)[1:]
-            discharge_energy_threshold = (min_ratio_series - lower_ratio_series) * capacity[1:]
-            soc_pricing_spec = {
-                "segment_type": "soc_pricing",
-                "discharge_energy_threshold": discharge_energy_threshold,
-                "discharge_energy_price": undercharge_cost,
-            }
-
-        if overcharge_percentage is not None and overcharge_cost is not None:
-            max_ratio_series = broadcast_to_sequence(max_charge_percentage, n_periods + 1)[1:]
-            lower_ratio_series = broadcast_to_sequence(lower_ratio, n_periods + 1)[1:]
-            charge_capacity_threshold = (max_ratio_series - lower_ratio_series) * capacity[1:]
-            if soc_pricing_spec is None:
-                soc_pricing_spec = {
-                    "segment_type": "soc_pricing",
-                    "charge_capacity_threshold": charge_capacity_threshold,
-                    "charge_capacity_price": overcharge_cost,
-                }
-            else:
-                soc_pricing_spec = {
-                    **soc_pricing_spec,
-                    "charge_capacity_threshold": charge_capacity_threshold,
-                    "charge_capacity_price": overcharge_cost,
-                }
 
         discharge_segments: dict[str, SegmentSpec] = {
             "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_source_target},
             "power_limit": {"segment_type": "power_limit", "max_power": max_discharge},
         }
-        if soc_pricing_spec is not None:
-            discharge_segments["soc_pricing"] = soc_pricing_spec
 
-        # Discharge: battery -> network
+        # Discharge: energy_storage -> network
         elements.append(
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -193,7 +174,7 @@ class BatteryAdapter:
                 "segments": discharge_segments,
             }
         )
-        # Charge: network -> battery
+        # Charge: network -> energy_storage
         elements.append(
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -216,23 +197,19 @@ class BatteryAdapter:
         config: BatteryConfigData,
         **_kwargs: Any,
     ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
-        """Map model outputs to battery-specific output names.
-
-        Maps outputs from a single battery model element.
-        """
+        """Map model outputs to battery-specific output names."""
         battery_outputs = {key: expect_output_data(value) for key, value in model_outputs[name].items()}
 
-        power_charge = battery_outputs[model_battery.BATTERY_POWER_CHARGE]
-        power_discharge = battery_outputs[model_battery.BATTERY_POWER_DISCHARGE]
-        energy_stored = battery_outputs[model_battery.BATTERY_ENERGY_STORED]
+        power_charge = battery_outputs[model_es.BATTERY_POWER_CHARGE]
+        power_discharge = battery_outputs[model_es.BATTERY_POWER_DISCHARGE]
+        energy_stored = battery_outputs[model_es.BATTERY_ENERGY_STORED]
 
-        total_energy_stored = _calculate_total_energy(energy_stored, config)
-        aggregate_soc = _calculate_soc(total_energy_stored, config)
+        aggregate_soc = _calculate_soc(energy_stored, config)
 
         aggregate_outputs: dict[BatteryOutputName, OutputData] = {
             BATTERY_POWER_CHARGE: power_charge,
             BATTERY_POWER_DISCHARGE: power_discharge,
-            BATTERY_ENERGY_STORED: total_energy_stored,
+            BATTERY_ENERGY_STORED: energy_stored,
             BATTERY_STATE_OF_CHARGE: aggregate_soc,
         }
 
@@ -243,15 +220,15 @@ class BatteryAdapter:
             type=OutputType.POWER,
         )
 
-        aggregate_outputs[BATTERY_POWER_BALANCE] = battery_outputs[model_battery.BATTERY_POWER_BALANCE]
+        aggregate_outputs[BATTERY_POWER_BALANCE] = battery_outputs[model_es.BATTERY_POWER_BALANCE]
         aggregate_outputs[BATTERY_ENERGY_IN_FLOW] = replace(
-            battery_outputs[model_battery.BATTERY_ENERGY_IN_FLOW], advanced=True
+            battery_outputs[model_es.BATTERY_ENERGY_IN_FLOW], advanced=True
         )
         aggregate_outputs[BATTERY_ENERGY_OUT_FLOW] = replace(
-            battery_outputs[model_battery.BATTERY_ENERGY_OUT_FLOW], advanced=True
+            battery_outputs[model_es.BATTERY_ENERGY_OUT_FLOW], advanced=True
         )
-        aggregate_outputs[BATTERY_SOC_MAX] = replace(battery_outputs[model_battery.BATTERY_SOC_MAX], advanced=True)
-        aggregate_outputs[BATTERY_SOC_MIN] = replace(battery_outputs[model_battery.BATTERY_SOC_MIN], advanced=True)
+        aggregate_outputs[BATTERY_SOC_MAX] = replace(battery_outputs[model_es.BATTERY_SOC_MAX], advanced=True)
+        aggregate_outputs[BATTERY_SOC_MIN] = replace(battery_outputs[model_es.BATTERY_SOC_MIN], advanced=True)
 
         return {BATTERY_DEVICE_BATTERY: aggregate_outputs}
 
@@ -259,37 +236,10 @@ class BatteryAdapter:
 adapter = BatteryAdapter()
 
 
-def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
-    """Calculate total energy stored including inaccessible energy below min SOC."""
-    # Capacity and ratio fields are already boundaries (n+1 values)
+def _calculate_soc(energy_stored: OutputData, config: BatteryConfigData) -> OutputData:
+    """Calculate SOC ratio from stored energy and total capacity."""
     capacity = config[SECTION_STORAGE][CONF_CAPACITY]
-
-    # Get time-varying min ratio (also boundaries)
-    min_charge_percentage = config[SECTION_LIMITS].get(
-        CONF_MIN_CHARGE_PERCENTAGE,
-        DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE],
-    )
-    undercharge = config.get(SECTION_UNDERCHARGE, {})
-    undercharge_cost = undercharge.get(CONF_PARTITION_COST)
-    undercharge_pct = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
-    unusable_ratio = undercharge_pct if undercharge_pct is not None else min_charge_percentage
-
-    # Both energy values and capacity/ratios are now boundaries (n+1 values)
-    inaccessible_energy = unusable_ratio * capacity
-    total_values = np.asarray(aggregate_energy.values, dtype=float) + inaccessible_energy
-
-    return OutputData(
-        type=aggregate_energy.type,
-        unit=aggregate_energy.unit,
-        values=tuple(total_values.tolist()),
-    )
-
-
-def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> OutputData:
-    """Calculate SOC ratio from aggregate energy and total capacity."""
-    # Capacity is already boundaries (n+1 values), same as energy
-    capacity = config[SECTION_STORAGE][CONF_CAPACITY]
-    soc_values = np.asarray(total_energy.values, dtype=float) / capacity
+    soc_values = np.asarray(energy_stored.values, dtype=float) / capacity
 
     return OutputData(
         type=OutputType.STATE_OF_CHARGE,
