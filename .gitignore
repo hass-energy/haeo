@@ -23,6 +23,7 @@ home-assistant*
 known_devices.yaml
 .HA_VERSION
 .storage
+.snapshots
 .cloud
 .storage/core.restore_state
 
