@@ -13,7 +13,14 @@ from homeassistant.helpers import entity_registry as er
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config, migrate_hub_config
-from custom_components.haeo.core.schema.sections import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE
+from custom_components.haeo.core.schema.sections import (
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,6 +32,33 @@ _CONNECTION_TYPE = "connection"
 _POLICY_TYPE = "policy"
 _NONE_VALUE: dict[str, str] = {"type": "none"}
 _POLICIES_TITLE = "Policies"
+# Pre-v0.4 leaf field names that must be renamed to their directional
+# (source/target) equivalents during the v1.3 entity-uid migration. The data
+# side of these renames is handled in `core.schema.migrations.v1_3`; this map
+# lets the entity registry catch up so existing entities keep their entity_id
+# instead of getting `_2` suffixes when the new platform creates new uids.
+_FIELD_RENAMES_BY_ELEMENT_TYPE: dict[str, dict[str, str]] = {
+    "grid": {
+        "import_price": CONF_PRICE_SOURCE_TARGET,
+        "export_price": CONF_PRICE_TARGET_SOURCE,
+        "import_limit": CONF_MAX_POWER_SOURCE_TARGET,
+        "export_limit": CONF_MAX_POWER_TARGET_SOURCE,
+    },
+    "inverter": {
+        "max_power_dc_to_ac": CONF_MAX_POWER_SOURCE_TARGET,
+        "max_power_ac_to_dc": CONF_MAX_POWER_TARGET_SOURCE,
+        "efficiency_dc_to_ac": CONF_EFFICIENCY_SOURCE_TARGET,
+        "efficiency_ac_to_dc": CONF_EFFICIENCY_TARGET_SOURCE,
+    },
+    "battery": {
+        # Sides intentionally swap: charging the battery is power flowing
+        # `target -> source` from the battery's perspective; discharging is
+        # `source -> target`. Matches the data-side mapping in
+        # core.schema.migrations.v1_3._migrate_element_to_sectioned (battery).
+        "max_charge_power": CONF_MAX_POWER_TARGET_SOURCE,
+        "max_discharge_power": CONF_MAX_POWER_SOURCE_TARGET,
+    },
+}
 _DEFAULT_POLICY_PRICES: dict[tuple[str, str], frozenset[float]] = {
     (_BATTERY_TYPE, CONF_PRICE_SOURCE_TARGET): frozenset({0.0}),
     # 0.001 was the legacy early-charge-incentive default; we migrate it
@@ -38,7 +72,6 @@ _DEFAULT_POLICY_PRICES: dict[tuple[str, str], frozenset[float]] = {
 }
 UNIQUE_ID_PART_COUNT = 3
 LIST_ITEM_PATH_PART_COUNT = 3
-SECTION_FIELD_PATH_PART_COUNT = 2
 
 
 def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
@@ -159,6 +192,8 @@ async def _migrate_entity_unique_ids(hass: HomeAssistant, entry: ConfigEntry) ->
     candidate_unique_ids: dict[str, str] = {}
     candidate_counts: dict[str, int] = {}
 
+    subentry_types: dict[str, str] = {sid: sub.subentry_type or "" for sid, sub in entry.subentries.items()}
+
     for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
         uid = entity_entry.unique_id
         if not uid:
@@ -168,14 +203,20 @@ async def _migrate_entity_unique_ids(hass: HomeAssistant, entry: ConfigEntry) ->
         if len(parts) != UNIQUE_ID_PART_COUNT:
             continue
 
+        subentry_id = parts[1]
         field_path_key = parts[2]
         path_parts = field_path_key.split(".")
         if len(path_parts) >= LIST_ITEM_PATH_PART_COUNT:
             continue
-        if len(path_parts) != SECTION_FIELD_PATH_PART_COUNT:
+
+        new_leaf = path_parts[-1]
+        renames = _FIELD_RENAMES_BY_ELEMENT_TYPE.get(subentry_types.get(subentry_id, ""), {})
+        new_leaf = renames.get(new_leaf, new_leaf)
+
+        new_uid = f"{parts[0]}_{subentry_id}_{new_leaf}"
+        if new_uid == uid:
             continue
 
-        new_uid = f"{parts[0]}_{parts[1]}_{path_parts[1]}"
         candidate_unique_ids[entity_entry.entity_id] = new_uid
         candidate_counts[new_uid] = candidate_counts.get(new_uid, 0) + 1
 
