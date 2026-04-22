@@ -31,3 +31,25 @@ def validate_policies(hass: LiveHomeAssistant, *, expected_rules: list[str]) -> 
     actual_names = hass.run_coro(_get_policy_rules())
     assert actual_names == expected_rules, f"Policy rules mismatch: expected {expected_rules}, got {actual_names}"
     _LOGGER.info("Policy validation passed: %s", actual_names)
+
+
+def verify_inventory_costs(hass: LiveHomeAssistant, *, battery_name: str, expected_rules: list[str]) -> None:
+    """Validate that a battery subentry has the expected inventory cost rules.
+
+    Accesses the HA config entries directly via the Python API to verify
+    that the battery subentry contains the expected inventory cost rule names.
+    """
+
+    async def _get_inventory_cost_names() -> list[str]:
+        ha = hass.hass
+        entry = next(e for e in ha.config_entries.async_entries("haeo"))
+        battery_sub = next(
+            s for s in entry.subentries.values() if s.subentry_type == "battery" and s.title == battery_name
+        )
+        return [r["name"] for r in battery_sub.data.get("inventory_costs", [])]
+
+    actual_names = hass.run_coro(_get_inventory_cost_names())
+    assert actual_names == expected_rules, (
+        f"Inventory cost rules mismatch for '{battery_name}': expected {expected_rules}, got {actual_names}"
+    )
+    _LOGGER.info("Inventory cost validation passed for '%s': %s", battery_name, actual_names)

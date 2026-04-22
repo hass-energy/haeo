@@ -44,7 +44,6 @@ from custom_components.haeo.core.schema import (
 )
 from custom_components.haeo.core.schema.elements import (
     battery,
-    battery_section,
     connection,
     grid,
     inverter,
@@ -52,6 +51,23 @@ from custom_components.haeo.core.schema.elements import (
     node,
     solar,
 )
+
+# Legacy battery constants removed from the schema but still needed for migration
+_LEGACY_BATTERY_SECTION_LIMITS = "limits"
+_LEGACY_BATTERY_SECTION_PARTITIONING = "partitioning"
+_LEGACY_BATTERY_SECTION_UNDERCHARGE = "undercharge"
+_LEGACY_BATTERY_SECTION_OVERCHARGE = "overcharge"
+_LEGACY_BATTERY_CONF_MIN_CHARGE_PERCENTAGE = "min_charge_percentage"
+_LEGACY_BATTERY_CONF_MAX_CHARGE_PERCENTAGE = "max_charge_percentage"
+_LEGACY_BATTERY_CONF_CONFIGURE_PARTITIONS = "configure_partitions"
+_LEGACY_BATTERY_CONF_PARTITION_PERCENTAGE = "percentage"
+_LEGACY_BATTERY_CONF_PARTITION_COST = "cost"
+
+# Legacy battery_section element type and constants (element type removed)
+_LEGACY_BATTERY_SECTION_ELEMENT_TYPE = "battery_section"
+_LEGACY_BATTERY_SECTION_CONF_CAPACITY = "capacity"
+_LEGACY_BATTERY_SECTION_CONF_INITIAL_CHARGE = "initial_charge"
+_LEGACY_BATTERY_SECTION_SECTION_STORAGE = "storage"
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -222,8 +238,8 @@ def _migrate_element_to_sectioned(data: Mapping[str, Any]) -> dict[str, Any] | N
         for key in (battery.CONF_CAPACITY, battery.CONF_INITIAL_CHARGE_PERCENTAGE):
             add_if_present(storage, key, convert=True)
         for key in (
-            battery.CONF_MIN_CHARGE_PERCENTAGE,
-            battery.CONF_MAX_CHARGE_PERCENTAGE,
+            _LEGACY_BATTERY_CONF_MIN_CHARGE_PERCENTAGE,
+            _LEGACY_BATTERY_CONF_MAX_CHARGE_PERCENTAGE,
         ):
             add_if_present(limits, key, convert=True)
         for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE):
@@ -243,33 +259,33 @@ def _migrate_element_to_sectioned(data: Mapping[str, Any]) -> dict[str, Any] | N
         if (legacy_efficiency := get_value("efficiency")) is not None:
             efficiency.setdefault(battery.CONF_EFFICIENCY_SOURCE_TARGET, to_schema_value(legacy_efficiency))
             efficiency.setdefault(battery.CONF_EFFICIENCY_TARGET_SOURCE, to_schema_value(legacy_efficiency))
-        add_if_present(partitioning, battery.CONF_CONFIGURE_PARTITIONS)
-        if isinstance(data.get(battery.SECTION_UNDERCHARGE), dict):
-            undercharge.update(data[battery.SECTION_UNDERCHARGE])
-        if isinstance(data.get(battery.SECTION_OVERCHARGE), dict):
-            overcharge.update(data[battery.SECTION_OVERCHARGE])
-        convert_section_values(undercharge, (battery.CONF_PARTITION_PERCENTAGE, battery.CONF_PARTITION_COST))
-        convert_section_values(overcharge, (battery.CONF_PARTITION_PERCENTAGE, battery.CONF_PARTITION_COST))
+        add_if_present(partitioning, _LEGACY_BATTERY_CONF_CONFIGURE_PARTITIONS)
+        if isinstance(data.get(_LEGACY_BATTERY_SECTION_UNDERCHARGE), dict):
+            undercharge.update(data[_LEGACY_BATTERY_SECTION_UNDERCHARGE])
+        if isinstance(data.get(_LEGACY_BATTERY_SECTION_OVERCHARGE), dict):
+            overcharge.update(data[_LEGACY_BATTERY_SECTION_OVERCHARGE])
+        convert_section_values(undercharge, (_LEGACY_BATTERY_CONF_PARTITION_PERCENTAGE, _LEGACY_BATTERY_CONF_PARTITION_COST))
+        convert_section_values(overcharge, (_LEGACY_BATTERY_CONF_PARTITION_PERCENTAGE, _LEGACY_BATTERY_CONF_PARTITION_COST))
 
         migrated |= {
             battery.SECTION_STORAGE: storage,
-            battery.SECTION_LIMITS: limits,
+            _LEGACY_BATTERY_SECTION_LIMITS: limits,
             SECTION_POWER_LIMITS: power_limits,
             SECTION_PRICING: pricing,
             SECTION_EFFICIENCY: efficiency,
-            battery.SECTION_PARTITIONING: partitioning,
-            battery.SECTION_UNDERCHARGE: undercharge,
-            battery.SECTION_OVERCHARGE: overcharge,
+            _LEGACY_BATTERY_SECTION_PARTITIONING: partitioning,
+            _LEGACY_BATTERY_SECTION_UNDERCHARGE: undercharge,
+            _LEGACY_BATTERY_SECTION_OVERCHARGE: overcharge,
         }
         return migrated
 
-    if element_type == battery_section.ELEMENT_TYPE:
+    if element_type == _LEGACY_BATTERY_SECTION_ELEMENT_TYPE:
         storage: dict[str, Any] = {}
         add_if_present(migrated, CONF_NAME)
-        add_if_present(storage, battery_section.CONF_CAPACITY, convert=True)
-        add_if_present(storage, battery_section.CONF_INITIAL_CHARGE, convert=True)
+        add_if_present(storage, _LEGACY_BATTERY_SECTION_CONF_CAPACITY, convert=True)
+        add_if_present(storage, _LEGACY_BATTERY_SECTION_CONF_INITIAL_CHARGE, convert=True)
         migrated |= {
-            battery_section.SECTION_STORAGE: storage,
+            _LEGACY_BATTERY_SECTION_SECTION_STORAGE: storage,
         }
         return migrated
 

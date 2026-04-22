@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 
 from .element import Element, NetworkElement
 from .elements import ELEMENTS, ModelElementConfig
-from .elements.battery import Battery, BatteryElementConfig
+from .elements.energy_storage import EnergyStorage, EnergyStorageElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
 
@@ -175,7 +175,7 @@ class Network:
                     segment.periods = self.periods
 
     @overload
-    def add(self, element_config: BatteryElementConfig) -> Battery: ...
+    def add(self, element_config: EnergyStorageElementConfig) -> EnergyStorage: ...
 
     @overload
     def add(self, element_config: NodeElementConfig) -> Node: ...

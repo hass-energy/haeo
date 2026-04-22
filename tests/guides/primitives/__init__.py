@@ -25,6 +25,7 @@ from tests.guides.primitives.haeo import (
     add_battery,
     add_grid,
     add_integration,
+    add_inventory_cost,
     add_inverter,
     add_load,
     add_node,
@@ -34,7 +35,7 @@ from tests.guides.primitives.haeo import (
     reconfigure_policies,
     verify_setup,
 )
-from tests.guides.primitives.validation import validate_policies
+from tests.guides.primitives.validation import validate_policies, verify_inventory_costs
 
 __all__ = [
     # Field value types
@@ -48,6 +49,7 @@ __all__ = [
     "add_battery",
     "add_grid",
     "add_integration",
+    "add_inventory_cost",
     "add_inverter",
     "add_load",
     "add_node",
@@ -59,5 +61,6 @@ __all__ = [
     "reconfigure_policies",
     "screenshot_context",
     "validate_policies",
+    "verify_inventory_costs",
     "verify_setup",
 ]

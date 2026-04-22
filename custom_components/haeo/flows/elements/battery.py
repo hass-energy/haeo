@@ -2,7 +2,8 @@
 
 Flow design:
 - async_step_user: Main battery config (storage, power limits, pricing, efficiency).
-- async_step_reconfigure: Also routes to inventory cost management via menu.
+- async_step_reconfigure: Menu for edit settings / add inventory cost / manage inventory costs.
+- async_step_edit_settings: Edit main battery settings (same form as user step).
 - async_step_add_inventory_cost: Adds a new inventory cost rule.
 - async_step_manage_inventory_costs: Edit/delete existing inventory cost rules.
 - async_step_edit_inventory_cost: Edits a selected inventory cost rule.
@@ -67,9 +68,11 @@ from custom_components.haeo.sections import (
 
 CONF_ACTION: str = "action"
 CONF_COST_RULE: str = "cost_rule"
+ACTION_EDIT_SETTINGS: str = "edit_settings"
+ACTION_ADD_INVENTORY_COST: str = "add_inventory_cost"
+ACTION_MANAGE_INVENTORY_COSTS: str = "manage_inventory_costs"
 ACTION_EDIT: str = "edit"
 ACTION_DELETE: str = "delete"
-ACTION_ADD_INVENTORY_COST: str = "add_inventory_cost"
 
 DIRECTION_ABOVE: str = "above"
 DIRECTION_BELOW: str = "below"
@@ -101,8 +104,92 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return await self._async_step_user(user_input)
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle reconfigure step: name, connection, and input configuration."""
-        return await self._async_step_user(user_input)
+        """Handle reconfigure step: menu for editing settings or managing inventory costs."""
+        subentry = self._get_subentry()
+        subentry_data = dict(subentry.data) if subentry else None
+
+        # Load existing inventory costs
+        if subentry_data is not None and not self._inventory_costs:
+            self._inventory_costs = list(subentry_data.get(CONF_INVENTORY_COSTS, []))
+
+        if user_input is not None:
+            action = user_input[CONF_ACTION]
+            if action == ACTION_EDIT_SETTINGS:
+                return await self._async_step_edit_settings()
+            if action == ACTION_ADD_INVENTORY_COST:
+                return await self.async_step_add_inventory_cost()
+            if action == ACTION_MANAGE_INVENTORY_COSTS:
+                return await self.async_step_manage_inventory_costs()
+
+        action_options: list[SelectOptionDict] = [
+            SelectOptionDict(value=ACTION_EDIT_SETTINGS, label="Edit settings"),
+            SelectOptionDict(value=ACTION_ADD_INVENTORY_COST, label="Add inventory cost"),
+        ]
+        if self._inventory_costs:
+            action_options.append(
+                SelectOptionDict(value=ACTION_MANAGE_INVENTORY_COSTS, label="Manage inventory costs"),
+            )
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_ACTION): SelectSelector(
+                    SelectSelectorConfig(
+                        options=action_options,
+                        mode=SelectSelectorMode.LIST,
+                    )
+                ),
+            }
+        )
+
+        return self.async_show_form(step_id="reconfigure", data_schema=schema)
+
+    async def _async_step_edit_settings(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        """Handle editing the main battery settings via the edit_settings step."""
+        subentry = self._get_subentry()
+        subentry_data = dict(subentry.data) if subentry else None
+        participants = self._get_participant_names()
+        current_connection = get_connection_target_name(subentry_data.get(CONF_CONNECTION)) if subentry_data else None
+        default_name = await self._async_get_default_name(ELEMENT_TYPE)
+        if not isinstance(current_connection, str):
+            current_connection = participants[0] if participants else ""
+
+        input_fields = get_input_fields(ELEMENT_TYPE)
+
+        sections = self._get_sections()
+        user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
+        errors = self._validate_user_input(user_input, input_fields)
+
+        if user_input is not None and not errors:
+            self._step1_data = user_input
+            config = self._build_config(user_input)
+            return self._finalize(config)
+
+        entity_metadata = extract_entity_metadata(self.hass)
+        section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
+        schema = self._build_schema(
+            participants,
+            input_fields,
+            section_inclusion_map,
+            current_connection,
+            subentry_data,
+        )
+        defaults = (
+            user_input
+            if user_input is not None
+            else self._build_defaults(
+                default_name,
+                input_fields,
+                subentry_data,
+                current_connection,
+            )
+        )
+        schema = self.add_suggested_values_to_schema(schema, defaults)
+
+        return self.async_show_form(step_id="edit_settings", data_schema=schema, errors=errors)
+
+    async def async_step_edit_settings(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+        """Handle form submission for the edit_settings step."""
+        return await self._async_step_edit_settings(user_input)
 
     async def _async_step_user(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
         """Shared logic for user and reconfigure steps."""
