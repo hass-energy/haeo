@@ -4,18 +4,14 @@ import { linePath, stepAreaPath, stepPath } from "../src/geometry";
 
 describe("svg path snapshots", () => {
   it("renders stable step and line path output", () => {
-    const points = [
-      { time: 0, value: 1 },
-      { time: 1, value: 2 },
-      { time: 2, value: 1.5 },
-    ];
+    const times = new Float64Array([0, 1, 2]);
+    const values = new Float64Array([1, 2, 1.5]);
     const x = (time: number) => time * 10;
     const y = (value: number) => value * -5;
 
-    expect(stepPath(points, x, y)).toMatchInlineSnapshot(`"M 0 -5 L 10 -5 L 10 -10 L 20 -10 L 20 -7.5"`);
-    expect(linePath(points, x, y)).toMatchInlineSnapshot(`"M 0 -5 L 10 -10 L 20 -7.5"`);
+    expect(stepPath(times, values, x, y)).toMatchInlineSnapshot(`"M 0 -5 L 10 -5 L 10 -10 L 20 -10 L 20 -7.5"`);
+    expect(linePath(times, values, x, y)).toMatchInlineSnapshot(`"M 0 -5 L 10 -10 L 20 -7.5"`);
 
-    const times = new Float64Array([0, 1, 2]);
     const lower = new Float64Array([0, 0, 0]);
     const upper = new Float64Array([1, 2, 1.5]);
     expect(stepAreaPath(times, lower, upper, x, y)).toMatchInlineSnapshot(

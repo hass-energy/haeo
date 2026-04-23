@@ -12,11 +12,6 @@ export interface ForecastCardConfig {
   power_display_mode?: PowerDisplayMode;
 }
 
-export interface ForecastPoint {
-  time: number;
-  value: number;
-}
-
 export type LaneType = "power" | "price" | "soc" | "shadow" | "other";
 export type DrawType = "step" | "line";
 export type SeriesSourceRole = "output" | "forecast" | "limit";

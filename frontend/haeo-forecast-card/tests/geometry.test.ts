@@ -27,18 +27,8 @@ describe("geometry helpers", () => {
 describe("stepPath", () => {
   const identity = (v: number): number => v;
 
-  it("returns empty string for empty ForecastPoint array", () => {
-    expect(stepPath([], identity, identity)).toBe("");
-  });
-
-  it("generates step path from ForecastPoint array", () => {
-    const points = [
-      { time: 0, value: 1 },
-      { time: 10, value: 2 },
-      { time: 20, value: 3 },
-    ];
-    const d = stepPath(points, identity, identity);
-    expect(d).toBe("M 0 1 L 10 1 L 10 2 L 20 2 L 20 3");
+  it("returns empty string for empty arrays", () => {
+    expect(stepPath(new Float64Array([]), new Float64Array([]), identity, identity)).toBe("");
   });
 
   it("generates step path from Float64Array pairs", () => {
@@ -48,26 +38,17 @@ describe("stepPath", () => {
     expect(d).toBe("M 0 1 L 10 1 L 10 2 L 20 2 L 20 3");
   });
 
-  it("returns empty string for empty Float64Array", () => {
-    expect(stepPath(new Float64Array([]), new Float64Array([]), identity, identity)).toBe("");
+  it("generates single-point path", () => {
+    const d = stepPath(new Float64Array([5]), new Float64Array([10]), identity, identity);
+    expect(d).toBe("M 5 10");
   });
 });
 
 describe("linePath", () => {
   const identity = (v: number): number => v;
 
-  it("returns empty string for empty ForecastPoint array", () => {
-    expect(linePath([], identity, identity)).toBe("");
-  });
-
-  it("generates line path from ForecastPoint array", () => {
-    const points = [
-      { time: 0, value: 1 },
-      { time: 10, value: 2 },
-      { time: 20, value: 3 },
-    ];
-    const d = linePath(points, identity, identity);
-    expect(d).toBe("M 0 1 L 10 2 L 20 3");
+  it("returns empty string for empty arrays", () => {
+    expect(linePath(new Float64Array([]), new Float64Array([]), identity, identity)).toBe("");
   });
 
   it("generates line path from Float64Array pairs", () => {
@@ -77,7 +58,8 @@ describe("linePath", () => {
     expect(d).toBe("M 0 1 L 10 2 L 20 3");
   });
 
-  it("returns empty string for empty Float64Array", () => {
-    expect(linePath(new Float64Array([]), new Float64Array([]), identity, identity)).toBe("");
+  it("generates single-point path", () => {
+    const d = linePath(new Float64Array([5]), new Float64Array([10]), identity, identity);
+    expect(d).toBe("M 5 10");
   });
 });
