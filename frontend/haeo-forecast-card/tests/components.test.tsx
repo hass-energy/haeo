@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { render } from "preact";
 import { afterEach, describe, expect, it } from "vitest";
 

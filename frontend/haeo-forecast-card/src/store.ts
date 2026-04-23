@@ -321,12 +321,7 @@ export class ForecastCardStore {
     if (this.motionMode === "off") {
       return 0;
     }
-    let prefersReducedMotion = false;
-    try {
-      prefersReducedMotion = globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    } catch {
-      // matchMedia unavailable in test environments
-    }
+    const prefersReducedMotion = globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (this.motionMode === "reduced" || prefersReducedMotion) {
       return 0;
     }

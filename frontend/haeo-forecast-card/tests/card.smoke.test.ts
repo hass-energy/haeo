@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { describe, expect, it } from "vitest";
 
 import "../src/card";
@@ -10,24 +8,6 @@ interface HaeoCardElement extends HTMLElement {
 }
 
 describe("haeo-forecast-card smoke", () => {
-  function installIdentitySvgCtm(svg: SVGSVGElement): void {
-    const identity = {
-      a: 1,
-      b: 0,
-      c: 0,
-      d: 1,
-      e: 0,
-      f: 0,
-      inverse() {
-        return this;
-      },
-    };
-    Object.defineProperty(svg, "getScreenCTM", {
-      value: () => identity,
-      configurable: true,
-    });
-  }
-
   it("defines the custom element and accepts config", () => {
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
     element.setConfig({
@@ -72,9 +52,6 @@ describe("haeo-forecast-card smoke", () => {
 
     const svg = element.shadowRoot?.querySelector("svg");
     expect(svg).toBeTruthy();
-    if (svg) {
-      installIdentitySvgCtm(svg);
-    }
     svg?.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 200, clientY: 120 }));
     svg?.dispatchEvent(new PointerEvent("pointerleave", { bubbles: true }));
     element.remove();

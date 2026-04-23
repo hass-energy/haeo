@@ -124,7 +124,7 @@ export class HaeoForecastCard extends HTMLElement {
   }
 
   private observeCardResize(): void {
-    if (!this.shadowRoot || !("ResizeObserver" in window)) {
+    if (!this.shadowRoot) {
       return;
     }
     const mount = this.shadowRoot.querySelector("#mount");
@@ -168,19 +168,17 @@ export class HaeoForecastCard extends HTMLElement {
 
   private observeVisibility(): void {
     document.addEventListener("visibilitychange", this.onVisibilityChange);
-    if ("IntersectionObserver" in window) {
-      this.intersectionObserver = new IntersectionObserver(
-        (entries) => {
-          const entry = entries[0];
-          if (entry) {
-            this.isIntersecting = entry.isIntersecting;
-            this.updateAnimationPaused();
-          }
-        },
-        { threshold: 0 },
-      );
-      this.intersectionObserver.observe(this);
-    }
+    this.intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry) {
+          this.isIntersecting = entry.isIntersecting;
+          this.updateAnimationPaused();
+        }
+      },
+      { threshold: 0 },
+    );
+    this.intersectionObserver.observe(this);
   }
 
   private readonly onVisibilityChange = (): void => {

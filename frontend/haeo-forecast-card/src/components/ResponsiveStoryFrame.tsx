@@ -14,7 +14,7 @@ export function ResponsiveStoryFrame(props: ResponsiveStoryFrameProps): JSX.Elem
 
   useLayoutEffect(() => {
     const element = ref.current;
-    if (!element || !("ResizeObserver" in window)) {
+    if (!element) {
       return;
     }
     const observer = new ResizeObserver((entries) => {
