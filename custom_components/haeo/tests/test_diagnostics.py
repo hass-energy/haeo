@@ -1,6 +1,7 @@
 """Tests for HAEO diagnostics utilities."""
 
 from datetime import UTC, datetime, timedelta, timezone
+import json
 from types import MappingProxyType
 from typing import Any, cast
 from unittest.mock import AsyncMock, Mock, patch
@@ -8,6 +9,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.json import ExtendedJSONEncoder
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -73,6 +75,7 @@ from custom_components.haeo.diagnostics import (
     collect_diagnostics,
 )
 from custom_components.haeo.diagnostics.collector import (
+    DIAGNOSTICS_SCHEMA_VERSION,
     _collect_entity_ids_from_entry,
     _extract_entity_ids_from_config,
     _fetch_inputs_at,
@@ -248,26 +251,28 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     # HA entry point returns a dict (via to_dict)
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
+    assert "schema_version" not in diagnostics
+    assert "diagnostics_version" not in diagnostics
     assert "config" in diagnostics
     assert "environment" in diagnostics
     assert "inputs" in diagnostics
-    assert "info" in diagnostics
+    assert "info" not in diagnostics
     assert "outputs" in diagnostics
 
     assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
     assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
     assert "participants" in diagnostics["config"]
 
-    assert "ha_version" in diagnostics["environment"]
-    assert "haeo_version" in diagnostics["environment"]
-    assert "timezone" in diagnostics["environment"]
-
-    info = diagnostics["info"]
-    assert "diagnostic_request_time" in info
-    assert info["diagnostic_target_time"] is None
-    assert "optimization_start_time" in info
-    assert "optimization_end_time" in info
-    assert "horizon_start" in info
+    environment = diagnostics["environment"]
+    assert environment["diagnostics_version"] == DIAGNOSTICS_SCHEMA_VERSION
+    assert "ha_version" in environment
+    assert "haeo_version" in environment
+    assert "timezone" in environment
+    assert "diagnostic_request_time" in environment
+    assert environment["diagnostic_target_time"] is None
+    assert "optimization_start_time" in environment
+    assert "optimization_end_time" in environment
+    assert "horizon_start" in environment
 
 
 async def test_diagnostics_errors_when_no_optimization_has_run(hass: HomeAssistant) -> None:
@@ -351,14 +356,69 @@ async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistan
     # No missing entity IDs on the context path
     assert result.missing_entity_ids == ()
 
-    # Info has typed fields
-    assert result.info.diagnostic_target_time is None
-    assert datetime.fromisoformat(result.info.optimization_start_time) == coordinator_data.started_at.astimezone()
-    assert datetime.fromisoformat(result.info.optimization_end_time) == coordinator_data.completed_at.astimezone()
-    assert datetime.fromisoformat(result.info.horizon_start) == coordinator_data.context.horizon_start.astimezone()
+    environment = result.environment
+    assert environment.diagnostic_target_time is None
+    assert datetime.fromisoformat(environment.optimization_start_time) == coordinator_data.started_at.astimezone()
+    assert datetime.fromisoformat(environment.optimization_end_time) == coordinator_data.completed_at.astimezone()
+    assert datetime.fromisoformat(environment.horizon_start) == coordinator_data.context.horizon_start.astimezone()
 
     # Outputs present for current
     assert result.outputs is not None
+
+
+async def test_collect_diagnostics_unwraps_mappingproxy_participants(hass: HomeAssistant) -> None:
+    """``collect_diagnostics`` returns plain dicts for participant configs.
+
+    HA exposes ``ConfigSubentry.data`` as ``MappingProxyType``. We follow HA's standard
+    diagnostics convention and pipe the assembled config through ``async_redact_data``,
+    which spreads any ``Mapping`` into a plain ``dict`` as a side-effect of its
+    ``{**data}`` recursion. Without that, HA's ``ExtendedJSONEncoder`` (which both our
+    save service and HA's diagnostics download path use) emits ``{"__type": ...,
+    "repr": "mappingproxy(...)"}`` placeholders.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data=_hub_entry_data("Test Hub"),
+        entry_id="hub_entry",
+    )
+    entry.add_to_hass(hass)
+
+    grid_config = MappingProxyType(
+        _grid_config(
+            name="Grid",
+            connection="Main Bus",
+            price_source_target=0.20,
+            price_target_source=0.08,
+        )
+    )
+    battery_config = MappingProxyType(
+        _battery_config(
+            name="Battery",
+            connection="Main Bus",
+            capacity=10.0,
+            initial_charge_percentage=50.0,
+        )
+    )
+    participants = cast("dict[str, ElementConfigSchema]", {"Grid": grid_config, "Battery": battery_config})
+
+    coordinator_data = _make_coordinator_data(participants=participants)
+    coordinator = Mock(spec=HaeoDataUpdateCoordinator)
+    coordinator.data = coordinator_data
+    entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
+
+    result = await collect_diagnostics(hass, entry)
+
+    grid = result.config["participants"]["Grid"]
+    battery = result.config["participants"]["Battery"]
+    assert type(grid) is dict
+    assert type(battery) is dict
+    assert grid[CONF_NAME] == "Grid"
+    assert battery[CONF_NAME] == "Battery"
+
+    serialized = json.dumps(result.to_dict(), cls=ExtendedJSONEncoder)
+    assert "__type" not in serialized
+    assert "mappingproxy" not in serialized
 
 
 async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
@@ -484,13 +544,13 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
     # Missing entities reported
     assert "sensor.battery_soc" in result.missing_entity_ids
 
-    # Info has typed timestamp fields
-    assert result.info.diagnostic_target_time is not None
-    assert datetime.fromisoformat(result.info.diagnostic_target_time) == target_time.astimezone()
-    assert datetime.fromisoformat(result.info.optimization_start_time) == run_started.astimezone()
-    assert datetime.fromisoformat(result.info.optimization_end_time) == run_completed.astimezone()
-    assert result.info.diagnostic_request_time is not None
-    assert result.info.horizon_start == horizon_iso
+    environment = result.environment
+    assert environment.diagnostic_target_time is not None
+    assert datetime.fromisoformat(environment.diagnostic_target_time) == target_time.astimezone()
+    assert datetime.fromisoformat(environment.optimization_start_time) == run_started.astimezone()
+    assert datetime.fromisoformat(environment.optimization_end_time) == run_completed.astimezone()
+    assert environment.diagnostic_request_time is not None
+    assert environment.horizon_start == horizon_iso
 
     # No outputs for historical
     assert result.outputs is None
@@ -570,8 +630,7 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
     # Should NOT use context — should use entry-based config
     assert "Context Battery" not in result.config["participants"]
 
-    # Has typed info with target time
-    assert result.info.diagnostic_target_time is not None
+    assert result.environment.diagnostic_target_time is not None
 
 
 async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> None:

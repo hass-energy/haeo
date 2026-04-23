@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from numbers import Real
 from typing import Any, cast
 
@@ -67,7 +68,34 @@ from custom_components.haeo.core.schema.sections import (
 )
 
 
+@dataclass(frozen=True)
+class HubMigrationStep:
+    """Single hub-config migration step."""
+
+    name: str
+    transform: Callable[[dict[str, Any], dict[str, Any], str], tuple[dict[str, Any], dict[str, Any]]]
+
+
+@dataclass(frozen=True)
+class ElementMigrationStep:
+    """Single element-config migration step."""
+
+    name: str
+    transform: Callable[[Mapping[str, Any]], dict[str, Any] | None]
+
+
 def migrate_hub_config(
+    data: dict[str, Any], options: dict[str, Any], title: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Migrate hub config data/options through all schema migration steps."""
+    migrated_data = dict(data)
+    migrated_options = dict(options)
+    for step in HUB_MIGRATION_STEPS:
+        migrated_data, migrated_options = step.transform(migrated_data, migrated_options, title)
+    return migrated_data, migrated_options
+
+
+def _migrate_hub_to_sectioned(
     data: dict[str, Any], options: dict[str, Any], title: str
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Migrate hub config data/options into sectioned format."""
@@ -117,6 +145,20 @@ def migrate_hub_config(
 
 
 def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Migrate element config through all schema migration steps."""
+    if not ELEMENT_MIGRATION_STEPS:
+        return dict(data)
+
+    migrated: Mapping[str, Any] = data
+    for step in ELEMENT_MIGRATION_STEPS:
+        transformed = step.transform(migrated)
+        if transformed is None:
+            return None
+        migrated = transformed
+    return dict(migrated)
+
+
+def _migrate_element_to_sectioned(data: Mapping[str, Any]) -> dict[str, Any] | None:
     """Migrate legacy element config to sectioned format.
 
     Takes a plain config dict and returns a migrated dict, or None if
@@ -366,3 +408,12 @@ def migrate_element_config(data: Mapping[str, Any]) -> dict[str, Any] | None:
         return migrated
 
     return None
+
+
+HUB_MIGRATION_STEPS: tuple[HubMigrationStep, ...] = (
+    HubMigrationStep(name="hub_flat_to_sectioned_v1_3", transform=_migrate_hub_to_sectioned),
+)
+
+ELEMENT_MIGRATION_STEPS: tuple[ElementMigrationStep, ...] = (
+    ElementMigrationStep(name="element_flat_to_sectioned_v1_3", transform=_migrate_element_to_sectioned),
+)

@@ -15,6 +15,7 @@ from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import EntityPlatform
+from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -22,6 +23,8 @@ from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.core.schema.elements.policy import CONF_RULES
+from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import (
@@ -263,6 +266,223 @@ async def test_editable_mode_with_static_value(
     assert attrs["time_series"] is True
 
 
+async def test_nested_policy_rule_price_sets_rule_name_placeholder(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """List item fields (rules.N.price) include the rule name in translation placeholders."""
+    price_field = InputFieldInfo(
+        field_name="price",
+        entity_description=NumberEntityDescription(
+            key="price",
+            translation_key="policy_rule_price",
+            native_unit_of_measurement="USD/kWh",
+            native_min_value=-100.0,
+            native_max_value=100.0,
+            native_step=0.001,
+        ),
+        output_type=OutputType.PRICE,
+        time_series=True,
+    )
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "element_type": POLICY_ELEMENT_TYPE,
+                "name": "Policies",
+                CONF_RULES: [
+                    {"name": "Grid export fee", "price": as_constant_value(0.04)},
+                ],
+            }
+        ),
+        subentry_type=POLICY_ELEMENT_TYPE,
+        title="Policies",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=price_field,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+        field_path=("rules", "0", "price"),
+    )
+
+    assert entity._attr_translation_placeholders["rule_name"] == "Grid export fee"
+
+
+async def test_list_item_sibling_fields_in_extra_state_attributes(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """List item fields expose sibling fields from the same list item as extra state attributes."""
+    price_field = InputFieldInfo(
+        field_name="price",
+        entity_description=NumberEntityDescription(
+            key="price",
+            translation_key="policy_rule_price",
+            native_unit_of_measurement="USD/kWh",
+            native_min_value=-100.0,
+            native_max_value=100.0,
+            native_step=0.001,
+        ),
+        output_type=OutputType.PRICE,
+        time_series=True,
+    )
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "element_type": POLICY_ELEMENT_TYPE,
+                "name": "Policies",
+                CONF_RULES: [
+                    {
+                        "name": "Solar Export",
+                        "source": ["Solar"],
+                        "target": ["Grid"],
+                        "price": as_constant_value(0.02),
+                    },
+                ],
+            }
+        ),
+        subentry_type=POLICY_ELEMENT_TYPE,
+        title="Policies",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=price_field,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+        field_path=("rules", "0", "price"),
+    )
+
+    attrs = entity.extra_state_attributes
+    assert attrs is not None
+    assert attrs["name"] == "Solar Export"
+    assert attrs["source"] == ["Solar"]
+    assert attrs["target"] == ["Grid"]
+    # The entity's own field should NOT be included
+    assert "price" not in attrs
+
+
+async def test_invalid_field_config_raises_runtime_error(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Unknown schema-shaped config for the field raises RuntimeError."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "element_type": "battery",
+                CONF_NAME: "Test Battery",
+                SECTION_EFFICIENCY: {power_field_info.field_name: {"type": "unknown_kind", "value": 1.0}},
+            }
+        ),
+        subentry_type="battery",
+        title="Test Battery",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    with pytest.raises(RuntimeError, match="Invalid config value"):
+        HaeoInputNumber(
+            config_entry=config_entry,
+            subentry=subentry,
+            field_info=power_field_info,
+            device_entry=device_entry,
+            horizon_manager=horizon_manager,
+        )
+
+
+async def test_policy_rule_price_omits_rule_name_when_rule_index_invalid(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """Non-integer rule indices skip the rule_name placeholder without failing init."""
+    price_field = InputFieldInfo(
+        field_name="price",
+        entity_description=NumberEntityDescription(
+            key="price",
+            translation_key="policy_rule_price",
+            native_unit_of_measurement="USD/kWh",
+            native_min_value=-100.0,
+            native_max_value=100.0,
+            native_step=0.001,
+        ),
+        output_type=OutputType.PRICE,
+        time_series=True,
+    )
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "element_type": POLICY_ELEMENT_TYPE,
+                "name": "Policies",
+                CONF_RULES: [
+                    {"name": "Grid export fee", "price": as_constant_value(0.04)},
+                ],
+            }
+        ),
+        subentry_type=POLICY_ELEMENT_TYPE,
+        title="Policies",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=price_field,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+        field_path=("rules", "not_an_index", "price"),
+    )
+
+    assert "rule_name" not in entity._attr_translation_placeholders
+
+
+async def test_horizon_start_uses_datetime_timestamps(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """horizon_start reads datetime objects from forecast points."""
+    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    start = dt_util.utcnow()
+    entity._attr_extra_state_attributes = {
+        "forecast": [
+            {"time": start, "value": 1.0},
+            {"time": start, "value": 2.0},
+        ],
+    }
+
+    assert entity.horizon_start == start.timestamp()
+
+
 async def test_editable_mode_set_native_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
@@ -330,8 +550,8 @@ async def test_editable_mode_set_native_value_with_runtime_data(
     assert entity.native_value == 15.0
     entity.async_write_ha_state.assert_called_once()
     hass.config_entries.async_update_subentry.assert_called_once()
-    # Flag should be cleared after update
-    assert mock_runtime_data.value_update_in_progress is False
+    # Flag stays set — the update listener is responsible for clearing it
+    assert mock_runtime_data.value_update_in_progress is True
 
 
 # --- Tests for DRIVEN mode ---
@@ -442,7 +662,57 @@ async def test_unique_id_includes_all_components(
         horizon_manager=horizon_manager,
     )
 
-    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_efficiency.{power_field_info.field_name}"
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{power_field_info.field_name}"
+    assert entity.unique_id == expected_unique_id
+
+
+async def test_unique_id_disambiguates_reused_section_field_names(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """Section fields with repeated leaf names use a collision-proof key."""
+    partition_field_info = InputFieldInfo(
+        field_name="partition_percentage",
+        entity_description=NumberEntityDescription(
+            key="partition_percentage",
+            translation_key="partition_percentage",
+            native_unit_of_measurement="%",
+            native_min_value=0.0,
+            native_max_value=100.0,
+            native_step=1.0,
+        ),
+        output_type=OutputType.STATE_OF_CHARGE,
+        time_series=True,
+        boundaries=True,
+        device_type="undercharge_partition",
+    )
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "element_type": "battery",
+                CONF_NAME: "Test Battery",
+                "undercharge": {"partition_percentage": as_constant_value(5.0)},
+                "overcharge": {"partition_percentage": as_constant_value(95.0)},
+            }
+        ),
+        subentry_type="battery",
+        title="Test Battery",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=partition_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+        field_path=("undercharge", "partition_percentage"),
+    )
+
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_undercharge_partition.partition_percentage"
     assert entity.unique_id == expected_unique_id
 
 

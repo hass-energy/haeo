@@ -77,6 +77,14 @@ The combination of `is_source` and `is_sink` determines the node's behavior:
 - Useful for modeling bidirectional power sources or flexible power exchange points
 - Similar to bidirectional grid elements but without automatic connection creation
 
+!!! info "Node role and power policies"
+
+    Source/sink flags also determine how [power policies](../../modeling/tagged-power.md) follow energy through the node.
+    Sinks terminate a policy's provenance — a `source=X → destination=Y` rule cannot see past an intermediate sink.
+    Junctions (neither source nor sink) pass provenance through unchanged, which is what lets a `Solar → Grid` policy price the whole chain through your switchboard and inverter.
+    If you are placing a routing hub between policied sources and destinations, keep it a pure junction.
+    See [Node roles and policy scope](../../modeling/tagged-power.md#node-roles-and-policy-scope) for the full rules.
+
 ## Purpose
 
 Nodes are connection hubs where power balance is enforced:

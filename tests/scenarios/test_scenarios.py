@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import os
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -52,8 +51,6 @@ def _discover_scenarios() -> list[Path]:
 _scenarios = _discover_scenarios()
 
 
-# Skip if in CI
-@pytest.mark.skipif(os.getenv("CI") == "true", reason="Skipping scenario tests in CI")
 @pytest.mark.scenario
 @pytest.mark.timeout(30)
 @pytest.mark.parametrize(
@@ -69,8 +66,8 @@ async def test_scenarios(
     snapshot: Any,
 ) -> None:
     """Test that scenario sets up correctly and optimization matches expected outputs."""
-    # Extract freeze timestamp and timezone from scenario data
-    freeze_timestamp = scenario_data["environment"]["timestamp"]
+    # Freeze time at the captured optimization start, in the captured zone.
+    freeze_timestamp = scenario_data["environment"]["optimization_start_time"]
     timezone = scenario_data["environment"]["timezone"]
 
     # Configure HA timezone from scenario environment
@@ -85,25 +82,27 @@ async def test_scenarios(
 
         # Create hub config entry and add to hass
         scenario_config = scenario_data["config"]
+        # Support both flat tier keys (legacy) and nested under "tiers" (v2+)
+        tiers_data = scenario_config.get("tiers") or scenario_config
         mock_config_entry = MockConfigEntry(
             domain=DOMAIN,
             data={
                 "integration_type": INTEGRATION_TYPE_HUB,
                 HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
                 HUB_SECTION_TIERS: {
-                    CONF_TIER_1_COUNT: scenario_config["tier_1_count"],
-                    CONF_TIER_1_DURATION: scenario_config["tier_1_duration"],
-                    CONF_TIER_2_COUNT: scenario_config.get("tier_2_count", 0),
-                    CONF_TIER_2_DURATION: scenario_config.get("tier_2_duration", 5),
-                    CONF_TIER_3_COUNT: scenario_config.get("tier_3_count", 0),
-                    CONF_TIER_3_DURATION: scenario_config.get("tier_3_duration", 30),
-                    CONF_TIER_4_COUNT: scenario_config.get("tier_4_count", 0),
-                    CONF_TIER_4_DURATION: scenario_config.get("tier_4_duration", 60),
+                    CONF_TIER_1_COUNT: tiers_data["tier_1_count"],
+                    CONF_TIER_1_DURATION: tiers_data["tier_1_duration"],
+                    CONF_TIER_2_COUNT: tiers_data.get("tier_2_count", 0),
+                    CONF_TIER_2_DURATION: tiers_data.get("tier_2_duration", 5),
+                    CONF_TIER_3_COUNT: tiers_data.get("tier_3_count", 0),
+                    CONF_TIER_3_DURATION: tiers_data.get("tier_3_duration", 30),
+                    CONF_TIER_4_COUNT: tiers_data.get("tier_4_count", 0),
+                    CONF_TIER_4_DURATION: tiers_data.get("tier_4_duration", 60),
                 },
                 HUB_SECTION_ADVANCED: {},
             },
-            version=1,
-            minor_version=MIGRATION_MINOR_VERSION,
+            version=scenario_config.get("version", 1),
+            minor_version=scenario_config.get("minor_version", MIGRATION_MINOR_VERSION),
         )
         mock_config_entry.add_to_hass(hass)
 

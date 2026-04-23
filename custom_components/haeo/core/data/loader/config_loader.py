@@ -20,7 +20,12 @@ from custom_components.haeo.core.schema import SchemaValue
 from custom_components.haeo.core.schema.constant_value import is_constant_value
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
-from custom_components.haeo.core.schema.field_hints import FieldHint, extract_field_hints
+from custom_components.haeo.core.schema.field_hints import (
+    FieldHint,
+    ListFieldHints,
+    extract_field_hints,
+    extract_list_field_hints,
+)
 from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.core.state import StateMachine
 
@@ -76,15 +81,31 @@ def load_element_config(
         for field_name, hint in section_fields.items():
             value = section_config.get(field_name)
             if value is None:
+                if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
+                    loaded.setdefault(section_name, {})[field_name] = default
                 continue
 
             resolved = _resolve_field(value, hint, sm, forecast_times)
             if resolved is _REMOVE:
-                loaded_section = loaded.get(section_name)
-                if isinstance(loaded_section, dict):
-                    loaded_section.pop(field_name, None)
+                if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
+                    loaded.setdefault(section_name, {})[field_name] = default
+                else:
+                    loaded_section = loaded.get(section_name)
+                    if isinstance(loaded_section, dict):
+                        loaded_section.pop(field_name, None)
+            elif resolved is None and (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
+                loaded.setdefault(section_name, {})[field_name] = default
             else:
                 loaded.setdefault(section_name, {})[field_name] = resolved
+
+    # Resolve list-based input fields (e.g. policy rules with entity prices)
+    list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
+    for list_key, hints in list_hints.items():
+        items = element_config.get(list_key)
+        if not isinstance(items, (list, tuple)):
+            continue
+        loaded_items = _resolve_list_items(items, hints, sm, forecast_times)
+        loaded[list_key] = loaded_items
 
     return loaded  # type: ignore[return-value]
 
@@ -113,6 +134,13 @@ class _Sentinel:
 
 
 _REMOVE = _Sentinel()
+
+
+def _default_for_hint(hint: FieldHint, forecast_times: Sequence[float]) -> _Sentinel | float | np.ndarray:
+    """Return a type-driven default value for optional fields."""
+    if hint.output_type is not OutputType.EFFICIENCY:
+        return _REMOVE
+    return _resolve_numeric(100.0, hint, forecast_times, is_percent=True)
 
 
 def _resolve_field(
@@ -196,6 +224,38 @@ def _resolve_entities(
         values = [v / 100.0 for v in values]
 
     return np.array(values)
+
+
+def _resolve_list_items(
+    items: Sequence[Any],
+    hints: ListFieldHints,
+    sm: StateMachine,
+    forecast_times: Sequence[float],
+) -> list[Any]:
+    """Resolve hinted fields within each item of a list config field.
+
+    Non-mapping items are passed through unchanged, so the return type is
+    ``list[Any]`` rather than ``list[dict[str, Any]]``.
+    """
+    loaded_items: list[Any] = []
+    for item in items:
+        if not isinstance(item, Mapping):
+            loaded_items.append(item)
+            continue
+        loaded_item = dict(item)
+        for field_name, hint in hints.fields.items():
+            value = item.get(field_name)
+            if value is None:
+                continue
+            resolved = _resolve_field(value, hint, sm, forecast_times)
+            if isinstance(resolved, _Sentinel):
+                loaded_item.pop(field_name, None)
+            elif resolved is not None:
+                loaded_item[field_name] = resolved
+            else:
+                loaded_item[field_name] = None
+        loaded_items.append(loaded_item)
+    return loaded_items
 
 
 __all__ = [

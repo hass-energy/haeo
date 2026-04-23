@@ -1,6 +1,10 @@
 {
+  "diagnostic_request_time": "2025-11-06T09:00:26.928497+00:00",
+  "diagnostic_target_time": null,
   "ha_version": "2025.9.4",
   "haeo_version": "0.1.0",
-  "timestamp": "2025-11-06T09:00:26.928497+00:00",
+  "horizon_start": "2025-11-06T09:00:26.928497+00:00",
+  "optimization_end_time": "2025-11-06T09:00:26.928497+00:00",
+  "optimization_start_time": "2025-11-06T09:00:26.928497+00:00",
   "timezone": "UTC"
 }

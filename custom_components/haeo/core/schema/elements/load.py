@@ -8,23 +8,19 @@ from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHin
 from custom_components.haeo.core.schema.sections import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
-    CONF_PRICE_TARGET_SOURCE,
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
-    SECTION_PRICING,
     ConnectedCommonConfig,
     ConnectedCommonData,
     CurtailmentConfig,
     CurtailmentData,
     ForecastConfig,
     ForecastData,
-    PricingConfig,
-    PricingData,
 )
 
 ELEMENT_TYPE = ElementType.LOAD
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF_PRICE_TARGET_SOURCE})
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT})
 
 
 class LoadConfigSchema(ConnectedCommonConfig):
@@ -39,19 +35,6 @@ class LoadConfigSchema(ConnectedCommonConfig):
                     output_type=OutputType.POWER,
                     direction="-",
                     time_series=True,
-                ),
-            }
-        ),
-    ]
-    pricing: Annotated[
-        PricingConfig,
-        SectionHints(
-            {
-                CONF_PRICE_TARGET_SOURCE: FieldHint(
-                    output_type=OutputType.PRICE,
-                    direction="+",
-                    time_series=True,
-                    default_value=0.0,
                 ),
             }
         ),
@@ -76,19 +59,16 @@ class LoadConfigData(ConnectedCommonData):
 
     element_type: Literal[ElementType.LOAD]
     forecast: ForecastData
-    pricing: PricingData
     curtailment: CurtailmentData
 
 
 __all__ = [
     "CONF_CURTAILMENT",
     "CONF_FORECAST",
-    "CONF_PRICE_TARGET_SOURCE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_CURTAILMENT",
     "SECTION_FORECAST",
-    "SECTION_PRICING",
     "LoadConfigData",
     "LoadConfigSchema",
 ]

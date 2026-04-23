@@ -23,6 +23,8 @@ class ConnectionTestCaseInputs(TypedDict):
     target_power: NotRequired[Sequence[float | None]]
     source_cost: NotRequired[float]
     target_cost: NotRequired[float]
+    fix_power_in: NotRequired[Sequence[float]]
+    maximize_power_out: NotRequired[bool]
 
 
 class ConnectionTestCase(TypedDict):

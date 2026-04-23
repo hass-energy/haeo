@@ -8,15 +8,32 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 import numpy as np
 
+from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
+from custom_components.haeo.core.adapters.policy_compilation import CompiledPolicyRule, compile_policies
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.elements import ModelElementConfig
 from custom_components.haeo.core.model.reactive import TrackedParam
-from custom_components.haeo.core.schema.elements import ElementConfigData
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _collect_policy_rules(
+    participants: Mapping[str, ElementConfigData],
+) -> list[CompiledPolicyRule]:
+    """Extract compiled policy rules from the single policy participant."""
+    policy_participants = [
+        config for config in participants.values() if config.get(CONF_ELEMENT_TYPE) == ElementType.POLICY
+    ]
+    if not policy_participants:
+        return []
+    if len(policy_participants) > 1:
+        _LOGGER.warning("Expected one policy participant, found %d; merging all policy rules", len(policy_participants))
+    return [rule for config in policy_participants for rule in extract_policy_rules(config)]
 
 
 async def create_network(
@@ -34,9 +51,13 @@ async def create_network(
         _LOGGER.info("No participants configured for hub - returning empty network")
         return net
 
-    sorted_model_elements = collect_model_elements(participants)
+    sorted_model_elements: list[ModelElementConfig] = list(collect_model_elements(participants))
 
-    for model_element_config in sorted_model_elements:
+    # Compile policy rules into tagged power flow constraints
+    policy_rules = _collect_policy_rules(participants)
+    compiled_elements = compile_policies(sorted_model_elements, policy_rules)
+
+    for model_element_config in compiled_elements:
         element_name = model_element_config.get("name")
         try:
             net.add(model_element_config)
@@ -82,11 +103,11 @@ def update_element(
         current = obj
         for part in path[:-1]:
             if isinstance(current, Mapping):
-                if part not in current:
-                    msg = f"Invalid update path {path!r} for element {element_name!r}: missing key {part!r}"
-                    raise ValueError(msg)
-                current = current[part]
-                continue
+                if part in current:
+                    current = current[part]
+                    continue
+                msg = f"Invalid update path {path!r} for element {element_name!r}: missing key {part!r}"
+                raise ValueError(msg)
             if hasattr(current, part):
                 current = getattr(current, part)
                 continue

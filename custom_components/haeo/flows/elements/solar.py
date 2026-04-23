@@ -8,7 +8,7 @@ import voluptuous as vol
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
 from custom_components.haeo.core.schema.elements.solar import CONF_CURTAILMENT, ELEMENT_TYPE, SECTION_CURTAILMENT
-from custom_components.haeo.core.schema.sections import CONF_CONNECTION, CONF_FORECAST, CONF_PRICE_SOURCE_TARGET
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION, CONF_FORECAST
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
@@ -21,7 +21,7 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.sections import build_common_fields, forecast_section, pricing_section
+from custom_components.haeo.sections import build_common_fields, forecast_section
 
 
 class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -31,7 +31,6 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Return sections for the configuration step."""
         return (
             forecast_section((CONF_FORECAST,), collapsed=False),
-            pricing_section((CONF_PRICE_SOURCE_TARGET,), collapsed=False),
             SectionDefinition(key=SECTION_CURTAILMENT, fields=(CONF_CURTAILMENT,), collapsed=True),
         )
 

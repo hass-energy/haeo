@@ -94,11 +94,7 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             "max_power_target_source",
         ):
             power_limits[key] = to_schema_value(value)
-        elif key in (
-            "price_source_target",
-            "price_target_source",
-            "salvage_value",
-        ):
+        elif key in ("salvage_value",):
             pricing[key] = to_schema_value(value)
         elif key == "undercharge" and isinstance(value, dict):
             undercharge.update({subkey: to_schema_value(subvalue) for subkey, subvalue in value.items()})
@@ -162,11 +158,7 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
             "max_power_target_source",
         ):
             power_limits[key] = value
-        elif key in (
-            "price_source_target",
-            "price_target_source",
-            "salvage_value",
-        ):
+        elif key in ("salvage_value",):
             pricing[key] = value
         elif key == "undercharge" and isinstance(value, dict):
             undercharge.update(value)
@@ -278,8 +270,8 @@ async def test_available_with_list_entity_ids_all_exist(hass: HomeAssistant) -> 
     """Battery available() returns True when list[str] entity IDs all exist."""
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
     _set_sensor(hass, "sensor.initial", "50.0", "%")
-    _set_sensor(hass, "sensor.price_source_target_1", "0.05", "$/kWh")
-    _set_sensor(hass, "sensor.price_source_target_2", "0.06", "$/kWh")
+    _set_sensor(hass, "sensor.max_discharge_1", "5.0", "kW")
+    _set_sensor(hass, "sensor.max_discharge_2", "4.0", "kW")
 
     config: battery.BatteryConfigSchema = _wrap_config(
         {
@@ -287,8 +279,7 @@ async def test_available_with_list_entity_ids_all_exist(hass: HomeAssistant) -> 
             "connection": "main_bus",
             "capacity": "sensor.capacity",
             "initial_charge_percentage": "sensor.initial",
-            # List of entity IDs for chained forecasts
-            "price_source_target": ["sensor.price_source_target_1", "sensor.price_source_target_2"],
+            "max_power_source_target": ["sensor.max_discharge_1", "sensor.max_discharge_2"],
         }
     )
 
@@ -300,8 +291,8 @@ async def test_available_with_list_entity_ids_one_missing(hass: HomeAssistant) -
     """Battery available() returns False when list[str] entity ID has one missing."""
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
     _set_sensor(hass, "sensor.initial", "50.0", "%")
-    _set_sensor(hass, "sensor.price_source_target_1", "0.05", "$/kWh")
-    # sensor.price_source_target_2 is missing
+    _set_sensor(hass, "sensor.max_discharge_1", "5.0", "kW")
+    # sensor.max_discharge_missing is missing
 
     config: battery.BatteryConfigSchema = _wrap_config(
         {
@@ -309,8 +300,7 @@ async def test_available_with_list_entity_ids_one_missing(hass: HomeAssistant) -
             "connection": "main_bus",
             "capacity": "sensor.capacity",
             "initial_charge_percentage": "sensor.initial",
-            # List of entity IDs where one is missing
-            "price_source_target": ["sensor.price_source_target_1", "sensor.missing"],
+            "max_power_source_target": ["sensor.max_discharge_1", "sensor.max_discharge_missing"],
         }
     )
 
@@ -323,14 +313,13 @@ async def test_available_with_empty_list_returns_true(hass: HomeAssistant) -> No
     _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
     _set_sensor(hass, "sensor.initial", "50.0", "%")
 
-    # This tests the `if value else True` branch for empty lists
     config: battery.BatteryConfigSchema = _wrap_config(
         {
             "name": "test_battery",
             "connection": "main_bus",
             "capacity": "sensor.capacity",
             "initial_charge_percentage": "sensor.initial",
-            "price_source_target": [],  # Empty list
+            "max_power_source_target": [],
         }
     )
 
@@ -348,8 +337,7 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
             "initial_charge_percentage": 0.5,
             "max_power_target_source": 5.0,
             "max_power_source_target": 4.0,
-            "price_source_target": 0.15,
-            "price_target_source": 0.05,
+            "salvage_value": 0.01,
             "efficiency_source_target": 0.95,
             "efficiency_target_source": 0.94,
             "undercharge": {"partition_percentage": 0.1, "partition_cost": 0.2},
@@ -381,14 +369,40 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
     )
     np.testing.assert_array_equal(battery_element["capacity"], [10.0, 10.0, 10.0])
 
-    connection = _get_connection(elements, "test_battery:connection")
+    connection = _get_connection(elements, "test_battery:discharge")
     segments = connection.get("segments")
     assert segments is not None
     efficiency_segment = segments.get("efficiency")
     assert efficiency_segment is not None
     assert is_efficiency_spec(efficiency_segment)
-    assert efficiency_segment.get("efficiency_source_target") is None
-    assert efficiency_segment.get("efficiency_target_source") is None
+    assert efficiency_segment.get("efficiency") is None
+
+
+def test_model_elements_defaults_salvage_value_when_missing() -> None:
+    """model_elements() defaults salvage_value to 0.0 when omitted."""
+    config_data: battery.BatteryConfigData = {
+        "element_type": battery.ELEMENT_TYPE,
+        "name": "test_battery",
+        "connection": as_connection_target("main_bus"),
+        battery.SECTION_STORAGE: {
+            "capacity": np.array([10.0, 10.0, 10.0]),
+            "initial_charge_percentage": 0.5,
+        },
+        battery.SECTION_LIMITS: {},
+        battery.SECTION_POWER_LIMITS: {},
+        battery.SECTION_PRICING: {},
+        battery.SECTION_EFFICIENCY: {},
+        battery.SECTION_PARTITIONING: {},
+    }
+
+    elements = battery_adapter.model_elements(config_data)
+    battery_element = next(
+        element
+        for element in elements
+        if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY and element["name"] == "test_battery"
+    )
+
+    assert battery_element.get("salvage_value") == 0.0
 
 
 def test_model_elements_passes_efficiency_when_present() -> None:
@@ -406,16 +420,16 @@ def test_model_elements_passes_efficiency_when_present() -> None:
 
     elements = battery_adapter.model_elements(config_data)
 
-    connection = _get_connection(elements, "test_battery:connection")
+    connection = _get_connection(elements, "test_battery:discharge")
     segments = connection.get("segments")
     assert segments is not None
     efficiency_segment = segments.get("efficiency")
     assert efficiency_segment is not None
     assert is_efficiency_spec(efficiency_segment)
-    efficiency_source_target = efficiency_segment.get("efficiency_source_target")
+    efficiency_source_target = efficiency_segment.get("efficiency")
     assert efficiency_source_target is not None
     np.testing.assert_array_equal(efficiency_source_target, [0.95, 0.95])
-    efficiency_target_source = efficiency_segment.get("efficiency_target_source")
+    efficiency_target_source = efficiency_segment.get("efficiency")
     assert efficiency_target_source is not None
     np.testing.assert_array_equal(efficiency_target_source, [0.95, 0.95])
 
@@ -438,7 +452,7 @@ def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
     )
 
     elements = battery_adapter.model_elements(config_data)
-    connection = _get_connection(elements, "test_battery:connection")
+    connection = _get_connection(elements, "test_battery:discharge")
     segments = connection.get("segments")
     assert segments is not None
     soc_pricing = segments.get("soc_pricing")
@@ -474,29 +488,31 @@ def test_discharge_respects_power_limit_with_efficiency() -> None:
 
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
 
-    # Connection with power limit, efficiency, and pricing
+    # Discharge connection: battery -> grid
     network.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "battery_grid",
+            "name": "battery_grid:discharge",
             "source": "battery",
             "target": "grid",
             "segments": {
-                "power_limit": {
-                    "segment_type": "power_limit",
-                    "max_power_source_target": np.array([max_discharge_kw]),
-                    "max_power_target_source": np.array([5.0]),
-                },
-                "efficiency": {
-                    "segment_type": "efficiency",
-                    "efficiency_source_target": np.array([efficiency]),
-                    "efficiency_target_source": np.array([efficiency]),
-                },
-                "pricing": {
-                    "segment_type": "pricing",
-                    "price_source_target": np.array([-0.50]),  # Discharge pays
-                    "price_target_source": np.array([0.10]),
-                },
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([max_discharge_kw])},
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([efficiency])},
+                "pricing": {"segment_type": "pricing", "price": np.array([-0.50])},
+            },
+        }
+    )
+    # Charge connection: grid -> battery
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "battery_grid:charge",
+            "source": "grid",
+            "target": "battery",
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([5.0])},
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([efficiency])},
+                "pricing": {"segment_type": "pricing", "price": np.array([0.10])},
             },
         }
     )
@@ -540,29 +556,31 @@ def test_charge_respects_power_limit_with_efficiency() -> None:
 
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
 
-    # Connection with power limit, efficiency, and pricing
+    # Discharge connection: battery -> grid
     network.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "battery_grid",
+            "name": "battery_grid:discharge",
             "source": "battery",
             "target": "grid",
             "segments": {
-                "power_limit": {
-                    "segment_type": "power_limit",
-                    "max_power_source_target": np.array([5.0]),
-                    "max_power_target_source": np.array([max_charge_kw]),
-                },
-                "efficiency": {
-                    "segment_type": "efficiency",
-                    "efficiency_source_target": np.array([efficiency]),
-                    "efficiency_target_source": np.array([efficiency]),
-                },
-                "pricing": {
-                    "segment_type": "pricing",
-                    "price_source_target": np.array([0.50]),  # Discharge costs
-                    "price_target_source": np.array([-0.10]),  # Charging pays
-                },
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([5.0])},
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([efficiency])},
+                "pricing": {"segment_type": "pricing", "price": np.array([0.50])},
+            },
+        }
+    )
+    # Charge connection: grid -> battery
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "battery_grid:charge",
+            "source": "grid",
+            "target": "battery",
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([max_charge_kw])},
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([efficiency])},
+                "pricing": {"segment_type": "pricing", "price": np.array([-0.10])},
             },
         }
     )

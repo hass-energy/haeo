@@ -24,6 +24,8 @@ class OutputData:
         advanced: Whether the output is intended for advanced diagnostics only.
         state_last: If True, the sensor state uses the last value instead of the first.
             Use for cumulative values where the total is the meaningful current state.
+        priority: Connection time-preference priority. Lower values are preferred
+            earlier by the secondary objective. None for non-connection outputs.
 
     """
 
@@ -33,6 +35,7 @@ class OutputData:
     direction: Literal["+", "-"] | None = None
     advanced: bool = False
     state_last: bool = False
+    priority: int | None = None
 
     def __init__(
         self,
@@ -43,6 +46,7 @@ class OutputData:
         *,
         advanced: bool = False,
         state_last: bool = False,
+        priority: int | None = None,
     ) -> None:
         """Initialize OutputData.
 
@@ -53,6 +57,7 @@ class OutputData:
             direction: Power flow direction relative to the element.
             advanced: Whether the output is intended for advanced diagnostics only.
             state_last: If True, the sensor state uses the last value instead of the first.
+            priority: The connection priority for this output, if applicable.
 
         """
         self.type = type
@@ -60,6 +65,7 @@ class OutputData:
         self.direction = direction
         self.advanced = advanced
         self.state_last = state_last
+        self.priority = priority
 
         # Normalize to a tuple
         if isinstance(values, np.ndarray):

@@ -76,7 +76,6 @@ class DiagnosticsData:
 
     config: dict[str, Any]
     environment: dict[str, Any]
-    info: dict[str, Any]
     inputs: list[dict[str, Any]]
     outputs: dict[str, Any]
 
@@ -96,7 +95,6 @@ class DiagnosticsData:
         return cls(
             config=data.get("config", {}),
             environment=data.get("environment", {}),
-            info=data.get("info", {}),
             inputs=data.get("inputs", []),
             outputs=data.get("outputs", {}),
         )
@@ -106,7 +104,6 @@ class DiagnosticsData:
         """Load diagnostics from split JSON files (config.json, environment.json, etc.)."""
         config_file = directory / "config.json"
         environment_file = directory / "environment.json"
-        info_file = directory / "info.json"
         inputs_file = directory / "inputs.json"
         outputs_file = directory / "outputs.json"
 
@@ -117,17 +114,12 @@ class DiagnosticsData:
         with inputs_file.open() as f:
             inputs = json.load(f)
 
-        info: dict[str, Any] = {}
-        if info_file.exists():
-            with info_file.open() as f:
-                info = json.load(f)
-
         outputs: dict[str, Any] = {}
         if outputs_file.exists():
             with outputs_file.open() as f:
                 outputs = json.load(f)
 
-        return cls(config=config, environment=environment, info=info, inputs=inputs, outputs=outputs)
+        return cls(config=config, environment=environment, inputs=inputs, outputs=outputs)
 
 
 class DiagnosticsStateProvider:
@@ -866,13 +858,16 @@ def run_diagnostics(
     environment = diag.environment
     participants_config = config.get("participants", {})
 
-    # Parse timestamp and timezone
-    timestamp_str = environment.get("timestamp", "")
+    optimization_start_str = environment.get("optimization_start_time", "")
     timezone_str = environment.get("timezone", "UTC")
 
-    start_time = parse_datetime_to_timestamp(timestamp_str) if timestamp_str else datetime.now(tz=UTC).timestamp()
+    start_time = (
+        parse_datetime_to_timestamp(optimization_start_str)
+        if optimization_start_str
+        else datetime.now(tz=UTC).timestamp()
+    )
 
-    print(f"Environment timestamp: {timestamp_str}")
+    print(f"Optimization start time: {optimization_start_str}")
     print(f"Timezone: {timezone_str}")
     print(f"Participants: {list(participants_config.keys())}")
 
@@ -888,8 +883,8 @@ def run_diagnostics(
         return
 
     # Determine the optimization start time for tier alignment.
-    # Priority: info.horizon_start > inferred from outputs > environment timestamp > now
-    horizon_start_str = diag.info.get("horizon_start")
+    # Priority: environment.horizon_start > inferred from outputs > environment.optimization_start_time > now
+    horizon_start_str = environment.get("horizon_start")
     if horizon_start_str:
         start_dt = datetime.fromisoformat(horizon_start_str)
         print(f"Horizon start: {horizon_start_str}")
@@ -905,7 +900,7 @@ def run_diagnostics(
                     print(f"Inferred start time from outputs: {first_time_str}")
                     break
         if start_dt is None:
-            start_dt = datetime.fromisoformat(timestamp_str) if timestamp_str else None
+            start_dt = datetime.fromisoformat(optimization_start_str) if optimization_start_str else None
 
     # Build forecast timeline.
     # Priority:

@@ -26,8 +26,6 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_PARTITION_COST,
     CONF_PARTITION_PERCENTAGE,
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
     CONF_SALVAGE_VALUE,
     ELEMENT_TYPE,
     SECTION_EFFICIENCY,
@@ -54,18 +52,9 @@ def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> 
         )
         if key in user_input
     }
-    has_schema_values = any(isinstance(value, dict) and "type" in value for value in user_input.values())
-    if (as_schema or has_schema_values) and isinstance(common.get(CONF_CONNECTION), str):
+    if as_schema and isinstance(common.get(CONF_CONNECTION), str):
         common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
-    pricing = {
-        key: user_input[key]
-        for key in (
-            CONF_PRICE_SOURCE_TARGET,
-            CONF_PRICE_TARGET_SOURCE,
-            CONF_SALVAGE_VALUE,
-        )
-        if key in user_input
-    }
+    pricing = {key: user_input[key] for key in (CONF_SALVAGE_VALUE,) if key in user_input}
     pricing.setdefault(CONF_SALVAGE_VALUE, 0.0)
 
     return {
@@ -148,8 +137,6 @@ async def test_user_step_with_constant_values_creates_entry(hass: HomeAssistant,
         CONF_EFFICIENCY_TARGET_SOURCE: 0.95,
         CONF_MAX_POWER_TARGET_SOURCE: 5.0,
         CONF_MAX_POWER_SOURCE_TARGET: 5.0,
-        CONF_PRICE_TARGET_SOURCE: 0.001,
-        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: False,
     }
 
@@ -191,8 +178,6 @@ async def test_user_step_with_entity_values_creates_entry(hass: HomeAssistant, h
         CONF_EFFICIENCY_TARGET_SOURCE: None,
         CONF_MAX_POWER_TARGET_SOURCE: ["sensor.max_charge"],
         CONF_MAX_POWER_SOURCE_TARGET: ["sensor.max_discharge"],
-        CONF_PRICE_TARGET_SOURCE: None,
-        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: False,
     }
 
@@ -221,8 +206,6 @@ async def test_partition_flow_enabled_shows_partition_step(hass: HomeAssistant, 
         CONF_EFFICIENCY_TARGET_SOURCE: 0.95,
         CONF_MAX_POWER_TARGET_SOURCE: 5.0,
         CONF_MAX_POWER_SOURCE_TARGET: 5.0,
-        CONF_PRICE_TARGET_SOURCE: None,
-        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: True,
     }
 
@@ -259,8 +242,6 @@ async def test_partition_flow_with_entity_links_creates_entry(hass: HomeAssistan
         CONF_EFFICIENCY_TARGET_SOURCE: None,
         CONF_MAX_POWER_TARGET_SOURCE: 5.0,
         CONF_MAX_POWER_SOURCE_TARGET: 5.0,
-        CONF_PRICE_TARGET_SOURCE: None,
-        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: True,
     }
 
@@ -313,8 +294,6 @@ async def test_partition_flow_with_constant_values_creates_entry(
         CONF_EFFICIENCY_TARGET_SOURCE: None,
         CONF_MAX_POWER_TARGET_SOURCE: 5.0,
         CONF_MAX_POWER_SOURCE_TARGET: 5.0,
-        CONF_PRICE_TARGET_SOURCE: None,
-        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: True,
     }
     await flow.async_step_user(user_input=_wrap_main_input(step1_input))
@@ -402,8 +381,6 @@ async def test_partition_disabled_skips_partition_step(hass: HomeAssistant, hub_
         CONF_EFFICIENCY_TARGET_SOURCE: None,
         CONF_MAX_POWER_TARGET_SOURCE: 5.0,
         CONF_MAX_POWER_SOURCE_TARGET: 5.0,
-        CONF_PRICE_TARGET_SOURCE: None,
-        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: False,
     }
 
@@ -429,7 +406,8 @@ async def test_reconfigure_with_existing_partitions_shows_form(hass: HomeAssista
                 CONF_INITIAL_CHARGE_PERCENTAGE: as_constant_value(50.0),
                 CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
                 CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
-            }
+            },
+            as_schema=True,
         ),
         **_wrap_partition_input(
             {
@@ -476,7 +454,8 @@ async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, 
                 CONF_INITIAL_CHARGE_PERCENTAGE: as_constant_value(50.0),
                 CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
                 CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
-            }
+            },
+            as_schema=True,
         ),
         **_wrap_partition_input(
             {
@@ -523,7 +502,8 @@ async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant,
                 CONF_INITIAL_CHARGE_PERCENTAGE: as_constant_value(50.0),
                 CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
                 CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
-            }
+            },
+            as_schema=True,
         ),
         **_wrap_partition_input(
             {
@@ -683,7 +663,8 @@ async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_ent
                 CONF_INITIAL_CHARGE_PERCENTAGE: as_constant_value(50.0),
                 CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
                 CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(5.0),
-            }
+            },
+            as_schema=True,
         ),
     }
     existing_subentry = ConfigSubentry(
@@ -715,8 +696,6 @@ async def test_reconfigure_updates_existing_battery(hass: HomeAssistant, hub_ent
         CONF_EFFICIENCY_TARGET_SOURCE: None,
         CONF_MAX_POWER_TARGET_SOURCE: 7.5,
         CONF_MAX_POWER_SOURCE_TARGET: 7.5,
-        CONF_PRICE_TARGET_SOURCE: None,
-        CONF_PRICE_SOURCE_TARGET: None,
         CONF_CONFIGURE_PARTITIONS: False,
     }
 

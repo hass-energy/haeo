@@ -96,9 +96,35 @@ def test_is_element_config_schema_valid_battery() -> None:
             "max_power_target_source": as_constant_value(5.0),
         },
         battery.SECTION_PRICING: {
-            "price_target_source": as_constant_value(0.05),
             "salvage_value": as_constant_value(0.0),
         },
+        battery.SECTION_EFFICIENCY: {},
+        battery.SECTION_PARTITIONING: {},
+        battery.SECTION_UNDERCHARGE: {},
+        battery.SECTION_OVERCHARGE: {},
+    }
+    assert is_element_config_schema(valid_config) is True
+
+
+def test_is_element_config_schema_valid_battery_without_salvage_value() -> None:
+    """Battery schema validation accepts pricing without salvage_value."""
+    valid_config = {
+        "element_type": "battery",
+        "name": "test_battery",
+        "connection": as_connection_target("main_bus"),
+        battery.SECTION_STORAGE: {
+            "capacity": as_entity_value(["sensor.capacity"]),
+            "initial_charge_percentage": as_entity_value(["sensor.soc"]),
+        },
+        battery.SECTION_LIMITS: {
+            "min_charge_percentage": as_constant_value(10.0),
+            "max_charge_percentage": as_constant_value(90.0),
+        },
+        battery.SECTION_POWER_LIMITS: {
+            "max_power_source_target": as_constant_value(5.0),
+            "max_power_target_source": as_constant_value(5.0),
+        },
+        battery.SECTION_PRICING: {},
         battery.SECTION_EFFICIENCY: {},
         battery.SECTION_PARTITIONING: {},
         battery.SECTION_UNDERCHARGE: {},
@@ -160,7 +186,6 @@ def test_is_element_config_schema_valid_load() -> None:
         "name": "test_load",
         "connection": as_connection_target("main_bus"),
         load.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.load_forecast"])},
-        load.SECTION_PRICING: {},
         load.SECTION_CURTAILMENT: {},
     }
     assert is_element_config_schema(valid_config) is True
@@ -173,7 +198,6 @@ def test_is_element_config_schema_valid_solar() -> None:
         "name": "test_solar",
         "connection": as_connection_target("main_bus"),
         solar.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.solar_forecast"])},
-        solar.SECTION_PRICING: {"price_source_target": as_constant_value(0.0)},
         solar.SECTION_CURTAILMENT: {"curtailment": as_constant_value(value=True)},
     }
     assert is_element_config_schema(valid_config) is True

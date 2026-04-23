@@ -1,48 +1,43 @@
 """Base class for connection segments.
 
-Segments are modular components that can be chained together to form
-connections. Each segment exposes power flow properties that the Connection
-uses to link segments together.
+Segments are composable transforms on a single direction of power flow.
+Each segment receives an input power expression at construction time
+and exposes an output power expression. Segments may add constraints
+and costs to the solver.
 
-The linking protocol:
-- power_in_st / power_in_ts: Power entering this segment
-- power_out_st / power_out_ts: Power leaving this segment
-
-For simple segments (no losses), in == out (same variable).
-For segments with losses (efficiency), out = in * factor (separate variables with constraint).
-
-Segments are reactive-aware: they can use TrackedParam for parameters and
-@constraint/@cost decorators for methods.
+A segment instance belongs to one directional connection chain.
+Bidirectional paths are modelled as two separate Connection elements,
+each with its own segment chain.
 """
 
-from abc import ABC, abstractmethod
+from functools import reduce
+import operator
 from typing import Any
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons
+from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.model.reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam
+from custom_components.haeo.core.model.reactive import (
+    OutputMethod,
+    ReactiveConstraint,
+    ReactiveCost,
+    TrackedParam,
+    cost,
+)
 
 
-class Segment(ABC):
-    """Abstract base class for connection segments.
+class Segment:
+    """A single-direction transform on power flow.
 
-    Defines the interface that all segments must implement. Subclasses create
-    their own variables and implement the power properties as needed.
-
-    Required properties (subclasses must implement):
-    - power_in_st / power_out_st: Power flow in source→target direction
-    - power_in_ts / power_out_ts: Power flow in target→source direction
-
-    For simple segments, power_in and power_out can return the same variable.
-    For segments with losses, power_out = power_in * efficiency (via constraint).
+    Receives an input power expression at construction and exposes an output
+    power expression. Identity by default — subclasses override `power_out`
+    to transform the flow.
     """
 
-    # TrackedParam for periods - enables reactive invalidation when periods change
     periods: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
 
     def __init__(
@@ -54,8 +49,9 @@ class Segment(ABC):
         *,
         source_element: Element[Any],
         target_element: Element[Any],
+        power_in: dict[int, HighspyArray],
     ) -> None:
-        """Initialize segment with common attributes.
+        """Initialize segment with input power expression.
 
         Args:
             segment_id: Unique identifier for naming LP variables
@@ -64,6 +60,7 @@ class Segment(ABC):
             solver: HiGHS solver instance
             source_element: Connected source element reference
             target_element: Connected target element reference
+            power_in: Per-tag input power flows
 
         """
         self._segment_id = segment_id
@@ -72,6 +69,7 @@ class Segment(ABC):
         self._solver = solver
         self._source_element = source_element
         self._target_element = target_element
+        self._power_in = power_in
 
     @property
     def segment_id(self) -> str:
@@ -94,53 +92,37 @@ class Segment(ABC):
         return self._target_element
 
     @property
-    @abstractmethod
-    def power_in_st(self) -> HighspyArray:
-        """Power entering segment in source→target direction."""
-        ...
+    def power_in(self) -> dict[int, HighspyArray]:
+        """Per-tag input power flows."""
+        return self._power_in
 
     @property
-    @abstractmethod
-    def power_out_st(self) -> HighspyArray:
-        """Power leaving segment in source→target direction."""
-        ...
+    def total_power_in(self) -> HighspyArray:
+        """Sum of all tag input flows."""
+        return reduce(operator.add, self._power_in.values())
 
     @property
-    @abstractmethod
-    def power_in_ts(self) -> HighspyArray:
-        """Power entering segment in target→source direction."""
-        ...
+    def power_out(self) -> dict[int, HighspyArray]:
+        """Per-tag output power flows. Identity by default."""
+        return self._power_in
 
     @property
-    @abstractmethod
-    def power_out_ts(self) -> HighspyArray:
-        """Power leaving segment in target→source direction."""
-        ...
+    def total_power_out(self) -> HighspyArray:
+        """Sum of all tag output flows."""
+        return reduce(operator.add, self.power_out.values())
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
-        """Return all constraints from this segment.
-
-        Discovers and calls all @constraint decorated methods. Calling the methods
-        triggers automatic constraint creation/updating in the solver via decorators.
-
-        Returns:
-            Dictionary mapping constraint method names to constraint objects
-
-        """
+        """Return all constraints from this segment."""
         result: dict[str, highs_cons | list[highs_cons]] = {}
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if isinstance(attr, ReactiveConstraint):
-                # Call the constraint method to trigger decorator lifecycle
                 method = getattr(self, name)
                 method()
-
-                # Get the state after calling to collect constraints
                 state_attr = f"_reactive_state_{name}"
                 state = getattr(self, state_attr, None)
                 if state is not None and "constraint" in state:
-                    cons = state["constraint"]
-                    result[name] = cons
+                    result[name] = state["constraint"]
         return result
 
     def outputs(self) -> dict[str, OutputData]:
@@ -154,34 +136,27 @@ class Segment(ABC):
                 output_name = name
             else:
                 continue
-
             output_data = attr.get_output(self)
             if isinstance(output_data, OutputData):
                 result[output_name] = output_data
         return result
 
-    def cost(self) -> Any:
-        """Return aggregated cost expression from this segment.
+    @cost
+    def cost(self) -> highs_linear_expression | None:
+        """Return aggregated primary cost expression from this segment."""
+        # Access decorator's internal name to skip self in dir() loop
+        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001
 
-        Discovers and calls all @cost decorated methods, summing their results.
-
-        Returns:
-            Cost expression or None if no costs
-
-        """
-        costs: list[Any] = []
+        costs: list[highs_linear_expression] = []
         for name in dir(type(self)):
+            if name == this_method_name:
+                continue
             attr = getattr(type(self), name, None)
             if not isinstance(attr, ReactiveCost):
                 continue
-
-            # Call the cost method
             method = getattr(self, name)
             if (cost_value := method()) is not None:
-                if isinstance(cost_value, list):
-                    costs.extend(cost_value)
-                else:
-                    costs.append(cost_value)
+                costs.append(cost_value)
 
         if not costs:
             return None

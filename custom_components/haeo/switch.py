@@ -12,6 +12,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema import is_none_value
 from custom_components.haeo.elements import (
     get_input_fields,
+    get_list_input_fields,
     get_nested_config_value_by_path,
     is_element_config_schema,
     iter_input_field_paths,
@@ -54,12 +55,14 @@ async def async_setup_entry(
 
         # Get input field definitions for this element type
         input_fields = get_input_fields(element_config)
+        list_input_fields = get_list_input_fields(element_config)
+        all_fields = {**input_fields, **list_input_fields}
 
         # Filter to only switch fields (by entity description class name)
         # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
         switch_fields = [
             (field_path, field_info)
-            for field_path, field_info in iter_input_field_paths(input_fields)
+            for field_path, field_info in iter_input_field_paths(all_fields)
             if type(field_info.entity_description).__name__ == "SwitchEntityDescription"
         ]
 
