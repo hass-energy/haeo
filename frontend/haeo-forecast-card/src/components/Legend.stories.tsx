@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/preact";
 
 import { STORY_SCENARIOS, getScenarioFixture } from "../fixtures/scenarioFixtures";
 import { normalizeSeries } from "../series";
-import { CARD_STYLES } from "../styles";
+import CARD_STYLES from "../styles.css";
 import { Legend } from "./Legend";
 import type { StoryDataMode, StoryScenario } from "../fixtures/scenarioFixtures";
 

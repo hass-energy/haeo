@@ -4,7 +4,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ForecastCardView } from "./components/ForecastCardView";
 import type { HassLike } from "./series";
 import { ForecastCardStore } from "./store";
-import { CARD_STYLES } from "./styles";
+import CARD_STYLES from "./styles.css";
 import type { ForecastCardConfig } from "./types";
 
 export class HaeoForecastCard extends HTMLElement {

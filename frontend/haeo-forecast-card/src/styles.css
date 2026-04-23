@@ -1,0 +1,355 @@
+:host,
+.haeoThemeRoot,
+[data-theme] {
+  display: block;
+  position: relative;
+  --haeo-bg: var(--card-background-color, #ffffff);
+  --haeo-divider: var(--divider-color, #d9dde6);
+  --haeo-text: var(--primary-text-color, #18202a);
+  --haeo-subtext: var(--secondary-text-color, #5d6878);
+  --haeo-accent: var(--primary-color, #1c63e9);
+  --haeo-load-0: color-mix(in oklab, var(--haeo-text) 92%, var(--haeo-bg) 8%);
+  --haeo-load-1: color-mix(in oklab, var(--haeo-text) 84%, var(--haeo-bg) 16%);
+  --haeo-load-2: color-mix(in oklab, var(--haeo-text) 74%, var(--haeo-bg) 26%);
+  --haeo-load-3: color-mix(in oklab, var(--haeo-text) 64%, var(--haeo-bg) 36%);
+  font-family:
+    "Segoe UI",
+    "Roboto",
+    system-ui,
+    sans-serif;
+  color: var(--haeo-text);
+}
+
+@media (prefers-color-scheme: dark) {
+  :host,
+  .haeoThemeRoot,
+  [data-theme] {
+    --haeo-bg: var(--card-background-color, #1f232b);
+    --haeo-divider: var(--divider-color, #414a59);
+    --haeo-text: var(--primary-text-color, #e3e8ef);
+    --haeo-subtext: var(--secondary-text-color, #a8b1c0);
+    --haeo-accent: var(--primary-color, #8ab4ff);
+  }
+}
+
+ha-card {
+  overflow: hidden;
+  position: relative;
+  min-height: 220px;
+  background: var(--haeo-bg);
+  color: var(--haeo-text);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 12px 0;
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0 4px;
+  color: var(--haeo-text);
+}
+
+.modeToggleButton {
+  appearance: none;
+  border: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
+  background: color-mix(in oklab, var(--haeo-bg) 90%, #000 10%);
+  color: var(--haeo-text);
+  border-radius: 999px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.modeToggleIcon {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+svg {
+  width: 100%;
+  display: block;
+  touch-action: none;
+}
+
+.axisLabel {
+  fill: var(--haeo-subtext);
+  font-size: 11px;
+  dominant-baseline: middle;
+}
+
+.axisLabelStrong {
+  fill: var(--haeo-subtext);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.axisTickLabel {
+  fill: var(--haeo-subtext);
+  font-size: 10px;
+}
+
+.laneDivider {
+  stroke: color-mix(in oklab, var(--haeo-divider) 70%, transparent);
+  stroke-width: 1;
+}
+
+.gridMajor {
+  stroke: color-mix(in oklab, var(--haeo-divider) 50%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.gridMinor {
+  stroke: color-mix(in oklab, var(--haeo-divider) 32%, transparent);
+  stroke-width: 0.8;
+  stroke-dasharray: 1 4;
+}
+
+.axisBase {
+  stroke: color-mix(in oklab, var(--haeo-text) 60%, transparent);
+  stroke-width: 1.2;
+}
+
+.axisZero {
+  stroke: color-mix(in oklab, var(--haeo-accent) 50%, var(--haeo-divider));
+  stroke-width: 1.4;
+}
+
+.hoverLine {
+  stroke: var(--haeo-accent);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  pointer-events: none;
+}
+
+.lineSeries {
+  fill: none;
+  stroke-width: 2.2;
+  pointer-events: none;
+  transition:
+    opacity 90ms linear,
+    stroke-width 90ms linear;
+}
+
+.lineSeries.active {
+  stroke-width: 3;
+}
+
+.priceLine {
+  stroke-width: 2.4;
+}
+
+.priceLine.active {
+  stroke-width: 3.2;
+}
+
+.socLine {
+  stroke-width: 1.8;
+  stroke-dasharray: 6 4;
+}
+
+.socLine.active {
+  stroke-width: 2.6;
+}
+
+.areaSeries {
+  stroke-width: 1;
+  pointer-events: none;
+  transition:
+    opacity 90ms linear,
+    stroke-width 90ms linear;
+}
+
+.areaSeries.active {
+  stroke-width: 2;
+}
+
+.legendWrap {
+  padding: 0 16px 14px;
+}
+
+.legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 6px;
+  font-size: 12px;
+  align-items: start;
+}
+
+.legendElement {
+  display: inline-flex;
+  border: 1px solid color-mix(in oklab, var(--haeo-divider) 62%, transparent);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: color-mix(in oklab, var(--haeo-bg) 94%, #000 6%);
+  transition: opacity 120ms ease-out;
+}
+
+.legendElement.active {
+  opacity: 1;
+}
+
+.legendElement.dimmed {
+  opacity: 0.4;
+}
+
+.legendElement.disabled {
+  opacity: 0.45;
+}
+
+.legendElementMain {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+}
+
+.legendElementLabel {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--haeo-text);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.legendGroupTitle {
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--haeo-text);
+  margin: 0;
+}
+
+.legendIconRow {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  max-width: 70%;
+}
+
+.legendItem {
+  appearance: none;
+  border: 1px solid color-mix(in oklab, currentColor 50%, transparent);
+  background: transparent;
+  border-radius: 999px;
+  padding: 4px 7px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  cursor: pointer;
+  color: var(--haeo-text);
+  font: inherit;
+  opacity: 0.72;
+  width: 30px;
+  height: 30px;
+  justify-content: center;
+}
+
+.legendItem.active {
+  box-shadow: 0 0 0 1px color-mix(in oklab, currentColor 30%, transparent);
+}
+
+.legendItem.disabled {
+  opacity: 0.95;
+  background: transparent;
+}
+
+.legendItem:not(.disabled) {
+  background: currentColor;
+}
+
+.legendIcon {
+  width: 18px;
+  height: 18px;
+  color: currentColor;
+  fill: currentColor;
+}
+
+.legendItem:not(.disabled) .legendIcon {
+  color: var(--haeo-bg);
+  fill: var(--haeo-bg);
+}
+
+.tooltip {
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  max-width: min(320px, calc(100% - 28px));
+  background: color-mix(in oklab, var(--haeo-bg) 86%, #000 14%);
+  border: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
+  border-radius: 10px;
+  padding: 10px 11px;
+  backdrop-filter: blur(6px);
+  font-size: 12px;
+  pointer-events: none;
+  color: var(--haeo-text);
+}
+
+.tooltipTime {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.tooltipRow {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.35;
+  margin-bottom: 3px;
+  opacity: 0.74;
+}
+
+.tooltipRow.active {
+  opacity: 1;
+  font-weight: 600;
+}
+
+.tooltipGroup {
+  margin-bottom: 6px;
+}
+
+.tooltipGroupTitle {
+  color: var(--haeo-subtext);
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.tooltipDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.tooltipTotals {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
+  display: grid;
+  gap: 3px;
+}
+
+.empty {
+  padding: 20px 16px 18px;
+  color: var(--haeo-subtext);
+  font-size: 0.9rem;
+}

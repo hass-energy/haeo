@@ -1,6 +1,17 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  plugins: [
+    {
+      name: "css-as-text",
+      enforce: "pre",
+      transform(code, id) {
+        if (id.endsWith(".css")) {
+          return { code: `export default ${JSON.stringify(code)};`, map: null };
+        }
+      },
+    },
+  ],
   test: {
     environment: "jsdom",
     setupFiles: ["./tests/jsdom-polyfills.ts"],
@@ -10,6 +21,7 @@ export default defineConfig({
       include: ["src/**/*.ts", "src/**/*.tsx"],
       exclude: [
         "src/index.ts",
+        "src/css.d.ts",
         "src/custom-elements.d.ts",
         "src/types.ts",
         "src/**/*.stories.tsx",

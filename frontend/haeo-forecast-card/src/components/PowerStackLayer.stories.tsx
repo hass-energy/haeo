@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/preact";
 
 import { STORY_SCENARIOS, getScenarioFixture } from "../fixtures/scenarioFixtures";
 import { ForecastCardStore } from "../store";
-import { CARD_STYLES } from "../styles";
+import CARD_STYLES from "../styles.css";
 import { PowerStackLayer } from "./PowerStackLayer";
 import type { StoryDataMode, StoryScenario } from "../fixtures/scenarioFixtures";
 

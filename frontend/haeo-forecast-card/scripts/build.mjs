@@ -21,6 +21,7 @@ const shared = {
   sourcemap: true,
   legalComments: "none",
   minify: true,
+  loader: { ".css": "text" },
 };
 
 await mkdir(outDir, { recursive: true });

@@ -1,7 +1,7 @@
 import type { Preview } from "@storybook/preact";
 import { h } from "preact";
 
-import { CARD_STYLES } from "../src/styles";
+import CARD_STYLES from "../src/styles.css";
 
 type ThemeChoice = "auto" | "light" | "dark";
 
