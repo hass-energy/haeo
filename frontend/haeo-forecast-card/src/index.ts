@@ -1,5 +1,5 @@
 import "./card";
-import "./editor";
+import "./editor.tsx";
 
 declare global {
   interface Window {

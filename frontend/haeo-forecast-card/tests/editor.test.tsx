@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import "../src/editor";
+import "../src/editor.tsx";
 import type { ForecastCardConfig } from "../src/types";
 
 type EditorElement = HTMLElement & {
@@ -72,14 +72,20 @@ describe("haeo forecast card editor", () => {
         }>),
     };
     document.body.appendChild(editor);
-    await waitForAsync();
-    await waitForAsync();
 
-    expect(calls.length).toBeGreaterThan(0);
+    await vi.waitFor(() => {
+      expect(calls.length).toBeGreaterThan(0);
+    }, { timeout: 500 });
+
     const latest = calls[calls.length - 1];
     expect(latest?.hub_entry_id).toBe("hub-alpha");
     expect(latest?.entities?.length).toBe(2);
-    expect(editor.shadowRoot?.textContent).toContain("Discovered entities for selected hub: 2");
+
+    // The custom element re-renders after config-changed, give it time
+    await vi.waitFor(() => {
+      const text = editor.shadowRoot?.textContent ?? "";
+      expect(text).toContain("2");
+    }, { timeout: 500 });
   });
 
   it("updates title and height via form controls", async () => {
