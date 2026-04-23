@@ -1,6 +1,9 @@
 import type { JSX } from "preact";
 import { t } from "../i18n";
 
+/** Cap rows per tooltip group to prevent the tooltip from obscuring the chart. */
+const MAX_TOOLTIP_ROWS_PER_GROUP = 8;
+
 interface TooltipRow {
   key: string;
   label: string;
@@ -67,7 +70,7 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
       {[...groups.entries()].map(([lane, rows]) => (
         <div key={lane} className="tooltipGroup">
           <div className="tooltipGroupTitle">{laneLabel(lane)}</div>
-          {rows.slice(0, 8).map((row) => (
+          {rows.slice(0, MAX_TOOLTIP_ROWS_PER_GROUP).map((row) => (
             <div key={row.key} className={`tooltipRow ${props.emphasizedKeys.has(row.key) ? "active" : ""}`}>
               <span className="tooltipDot" style={{ background: row.color }} />
               <span>{row.label}</span>

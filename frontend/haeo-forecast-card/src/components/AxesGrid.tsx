@@ -1,6 +1,21 @@
 import type { JSX } from "preact";
 import { t } from "../i18n";
 
+/** Cached Intl.DateTimeFormat for axis tick labels, keyed by locale. */
+let cachedTimeFormatter: Intl.DateTimeFormat | undefined;
+let cachedTimeFormatterLocale = "";
+
+function formatTickTime(ms: number, locale: string): string {
+  if (locale !== cachedTimeFormatterLocale || cachedTimeFormatter === undefined) {
+    cachedTimeFormatter = new Intl.DateTimeFormat(locale !== "" ? locale : undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    cachedTimeFormatterLocale = locale;
+  }
+  return cachedTimeFormatter.format(ms);
+}
+
 interface AxesGridProps {
   locale: string;
   width: number;
@@ -233,7 +248,7 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
             y2={props.bottom}
           />
           <text className="axisTickLabel" x={props.xScale(time)} y={props.bottom + 16} textAnchor="middle">
-            {new Date(time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            {formatTickTime(time, props.locale)}
           </text>
         </g>
       ))}
