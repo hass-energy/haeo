@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { linearScale, linePath, nearestArrayIndex, stepAreaPath, stepPath } from "../src/geometry";
+import { linearScale, linePath, nearestArrayIndex, stepAreaPath, stepPath } from "./geometry";
 
 describe("geometry helpers", () => {
   it("scales values linearly between domains", () => {

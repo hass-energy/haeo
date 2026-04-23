@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import "../src/card";
+import "./card";
 
 interface HaeoCardElement extends HTMLElement {
   setConfig: (config: { type: "custom:haeo-forecast-card"; entities?: string[] }) => void;

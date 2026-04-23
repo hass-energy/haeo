@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeSeries } from "../src/series";
-import { loadScenarioHassState } from "./helpers/scenarioOutputs";
+import { normalizeSeries } from "./series";
+import { loadScenarioHassState } from "./fixtures/scenarioOutputs";
 
 describe("normalizeSeries", () => {
   it("builds typed arrays and inferred lane metadata", () => {

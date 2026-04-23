@@ -1,11 +1,11 @@
 import { render } from "preact";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ForecastCardView } from "../src/components/ForecastCardView";
-import { Legend } from "../src/components/Legend";
-import { normalizeSeries } from "../src/series";
-import { ForecastCardStore } from "../src/store";
-import type { HassLike } from "../src/series";
+import { ForecastCardView } from "./components/ForecastCardView";
+import { Legend } from "./components/Legend";
+import { normalizeSeries } from "./series";
+import { ForecastCardStore } from "./store";
+import type { HassLike } from "./series";
 
 const testFixture: HassLike = {
   states: {

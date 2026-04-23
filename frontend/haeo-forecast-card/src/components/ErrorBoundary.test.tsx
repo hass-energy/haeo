@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render } from "preact";
 
-import { ErrorBoundary } from "../src/components/ErrorBoundary";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 function ThrowingComponent(): never {
   throw new Error("test render error");

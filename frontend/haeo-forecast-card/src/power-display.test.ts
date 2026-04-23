@@ -6,8 +6,8 @@ import {
   emptySectionStacks,
   calculatePowerBounds,
   stepTopStrokePaths,
-} from "../src/power-display";
-import type { ForecastSeries } from "../src/types";
+} from "./power-display";
+import type { ForecastSeries } from "./types";
 
 function makeSeries(overrides: Partial<ForecastSeries> & { key: string }): ForecastSeries {
   return {

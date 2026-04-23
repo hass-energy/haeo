@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { linePath, stepAreaPath, stepPath } from "../src/geometry";
+import { linePath, stepAreaPath, stepPath } from "./geometry";
 
 describe("svg path snapshots", () => {
   it("renders stable step and line path output", () => {

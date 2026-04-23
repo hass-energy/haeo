@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { legendSeriesOrder, seriesIconPath, seriesTooltip } from "../src/legend-helpers";
-import type { ForecastSeries } from "../src/types";
+import { legendSeriesOrder, seriesIconPath, seriesTooltip } from "./legend-helpers";
+import type { ForecastSeries } from "./types";
 
 function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
   return {

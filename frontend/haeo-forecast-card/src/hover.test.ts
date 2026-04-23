@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { stepArrayIndex, sharedTimeline, computeHoverIndices } from "../src/hover";
-import type { ForecastSeries } from "../src/types";
+import { stepArrayIndex, sharedTimeline, computeHoverIndices } from "./hover";
+import type { ForecastSeries } from "./types";
 
 function makeSeries(overrides: Partial<ForecastSeries> & { key: string; times: Float64Array; values: Float64Array }): ForecastSeries {
   return {

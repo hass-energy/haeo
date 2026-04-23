@@ -14,8 +14,8 @@ export default defineConfig({
   ],
   test: {
     environment: "jsdom",
-    setupFiles: ["./tests/jsdom-polyfills.ts"],
-    exclude: ["tests/visual/**", "node_modules/**"],
+    setupFiles: ["./src/test-setup.ts"],
+    exclude: ["tests/**", "node_modules/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
@@ -24,7 +24,10 @@ export default defineConfig({
         "src/index.ts",
         "src/css.d.ts",
         "src/custom-elements.d.ts",
+        "src/test-setup.ts",
         "src/types.ts",
+        "src/**/*.test.ts",
+        "src/**/*.test.tsx",
         "src/**/*.stories.tsx",
         "src/fixtures/**",
         "src/components/ResponsiveStoryFrame.tsx",

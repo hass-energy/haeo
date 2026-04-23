@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import "../src/editor.tsx";
-import type { ForecastCardConfig } from "../src/types";
+import "./editor.tsx";
+import type { ForecastCardConfig } from "./types";
 
 type EditorElement = HTMLElement & {
   setConfig: (config: ForecastCardConfig) => void;

@@ -5,8 +5,8 @@ import {
   tooltipDisplayLabel,
   buildTooltipRows,
   buildTooltipTotals,
-} from "../src/tooltip-helpers";
-import type { ForecastSeries } from "../src/types";
+} from "./tooltip-helpers";
+import type { ForecastSeries } from "./types";
 
 function makeSeries(overrides: Partial<ForecastSeries> & { key: string }): ForecastSeries {
   return {

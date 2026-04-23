@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { ForecastCardStore } from "../src/store";
-import { loadScenarioHassState } from "./helpers/scenarioOutputs";
-import type { HassLike } from "../src/series";
+import { ForecastCardStore } from "./store";
+import { loadScenarioHassState } from "./fixtures/scenarioOutputs";
+import type { HassLike } from "./series";
 
 describe("ForecastCardStore", () => {
   it("builds filtered visible series from real scenario outputs", () => {
