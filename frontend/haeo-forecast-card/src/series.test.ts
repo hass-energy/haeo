@@ -33,7 +33,6 @@ describe("normalizeSeries", () => {
     }
     expect(first.lane).toBe("power");
     expect(first.sourceRole).toBe("output");
-    expect(first.fieldName).toBe(null);
     expect(first.drawType).toBe("step");
     expect(first.times[0]).toBeLessThan(first.times[1] ?? Number.POSITIVE_INFINITY);
     expect(first.values[0]).toBe(1.2);
@@ -70,7 +69,6 @@ describe("normalizeSeries", () => {
     expect(output.some((series) => series.lane === "soc")).toBe(true);
     expect(output.some((series) => series.outputType === "power_flow")).toBe(false);
     expect(output.some((series) => series.outputName.includes("inverter_max_power"))).toBe(false);
-    expect(output.some((series) => series.entityId === "number.battery_max_discharge_power")).toBe(false);
     expect(output.some((series) => series.outputName.endsWith("_power_active"))).toBe(false);
     expect(output.some((series) => series.sourceRole === "forecast")).toBe(true);
     expect(output.some((series) => series.sourceRole === "limit")).toBe(true);

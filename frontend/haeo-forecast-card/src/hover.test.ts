@@ -12,8 +12,6 @@ function makeSeries(overrides: Partial<ForecastSeries> & { key: string; times: F
     outputName: "power",
     outputType: "power",
     direction: null,
-    configMode: null,
-    fieldName: null,
     sourceRole: "output",
     plotStream: null,
     plotPriority: null,

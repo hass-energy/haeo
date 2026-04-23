@@ -17,8 +17,6 @@ function makeSeries(overrides: Partial<ForecastSeries> & { key: string }): Forec
     outputName: "import_power",
     outputType: "power",
     direction: "-",
-    configMode: null,
-    fieldName: null,
     sourceRole: "output",
     plotStream: null,
     plotPriority: null,
@@ -50,11 +48,11 @@ describe("tooltipSection", () => {
   });
 
   it("returns available for production potential (config input)", () => {
-    expect(tooltipSection(makeSeries({ key: "a", direction: "+", outputType: "power", configMode: "forecast" }))).toBe("available");
+    expect(tooltipSection(makeSeries({ key: "a", direction: "+", outputType: "power", sourceRole: "forecast" }))).toBe("available");
   });
 
   it("returns possible for consumption potential (power_limit)", () => {
-    expect(tooltipSection(makeSeries({ key: "a", direction: "-", outputType: "power_limit" }))).toBe("possible");
+    expect(tooltipSection(makeSeries({ key: "a", direction: "-", outputType: "power", sourceRole: "limit" }))).toBe("possible");
   });
 });
 

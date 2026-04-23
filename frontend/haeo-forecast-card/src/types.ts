@@ -25,8 +25,6 @@ export interface ForecastSeries {
   outputName: string;
   outputType: string;
   direction: string | null;
-  configMode: string | null;
-  fieldName: string | null;
   sourceRole: SeriesSourceRole;
   plotStream: string | null;
   plotPriority: number | null;

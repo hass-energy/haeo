@@ -111,27 +111,15 @@ function colorForElement(elementType: string, elementName: string, variant: numb
 
 function includeOutputType(
   outputType: string,
-  elementType: string,
-  configMode: string | null,
-  fieldName: string | null,
   direction: string | null
 ): boolean {
-  if (outputType === "power") {
+  if (outputType === "power" || outputType === "power_limit") {
     // Plot power streams only when explicit directional metadata is present.
-    // Aggregate "active power" streams do not have directional semantics.
     if (direction !== "+" && direction !== "-") {
       return false;
     }
   }
-  if (outputType === "power" && configMode !== null) {
-    // Input power entities should only appear when they are explicit forecasts.
-    return fieldName === "forecast";
-  }
-  if (outputType === "power_limit") {
-    // Keep parity with scenario plotting semantics: only solar power limits are visualized.
-    return elementType === "solar";
-  }
-  return outputType === "power" || outputType === "price" || outputType === "state_of_charge";
+  return outputType === "power" || outputType === "power_limit" || outputType === "price" || outputType === "state_of_charge";
 }
 
 function sourceRoleForSeries(configMode: string | null, fieldName: string | null): SeriesSourceRole {
@@ -239,7 +227,7 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
     const outputName = asString(attrs["output_name"], outputType);
     const directionRaw = attrs["direction"];
     const direction = directionRaw === "+" || directionRaw === "-" ? directionRaw : null;
-    if (!includeOutputType(outputType, elementType, configMode, fieldName, direction)) {
+    if (!includeOutputType(outputType, direction)) {
       continue;
     }
     const plotPriority =
@@ -258,8 +246,6 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       outputName,
       outputType,
       direction,
-      configMode,
-      fieldName,
       sourceRole,
       plotStream,
       plotPriority,

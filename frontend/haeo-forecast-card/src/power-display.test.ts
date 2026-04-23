@@ -18,8 +18,6 @@ function makeSeries(overrides: Partial<ForecastSeries> & { key: string }): Forec
     outputName: "import_power",
     outputType: "power",
     direction: "-",
-    configMode: null,
-    fieldName: null,
     sourceRole: "output",
     plotStream: null,
     plotPriority: null,
@@ -45,12 +43,12 @@ describe("powerSection", () => {
   });
 
   it("returns available for production potential (config input)", () => {
-    const s = makeSeries({ key: "c", direction: "+", outputType: "power", configMode: "forecast" });
+    const s = makeSeries({ key: "c", direction: "+", outputType: "power", sourceRole: "forecast" });
     expect(powerSection(s)).toBe("available");
   });
 
-  it("returns possible for consumption potential (power_limit)", () => {
-    const s = makeSeries({ key: "d", direction: "-", outputType: "power_limit" });
+  it("returns possible for consumption potential (limit)", () => {
+    const s = makeSeries({ key: "d", direction: "-", outputType: "power", sourceRole: "limit" });
     expect(powerSection(s)).toBe("possible");
   });
 });

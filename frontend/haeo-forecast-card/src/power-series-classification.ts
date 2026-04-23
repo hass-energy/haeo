@@ -9,7 +9,6 @@ export interface PowerSeriesCategory {
 }
 
 export function classifyPowerSeries(series: ForecastSeries): PowerSeriesCategory {
-  const hasConfigInput = series.configMode !== null;
   const isPowerLike =
     series.outputType === "power" || series.outputType === "power_flow" || series.outputType === "power_limit";
 
@@ -17,9 +16,7 @@ export function classifyPowerSeries(series: ForecastSeries): PowerSeriesCategory
     return { group: "unknown", subgroup: "utilization" };
   }
 
-  let subgroup: PowerSubgroup = "utilization";
-
-  // Mirror scenario visualizer semantics: use direction metadata as the source of truth.
+  // Direction metadata is the source of truth for production vs consumption.
   // "+" means production/supply, "-" means consumption/demand.
   let group: PowerGroup = "unknown";
   if (series.direction === "+") {
@@ -28,18 +25,10 @@ export function classifyPowerSeries(series: ForecastSeries): PowerSeriesCategory
     group = "consumption";
   }
 
-  // Input power entities represent forecast/potential series.
-  // Direction still defines production vs consumption; subgroup is potential.
-  // Output power_limit remains potential as well.
-  if (hasConfigInput && series.outputType === "power") {
-    subgroup = "potential";
-    // Keep solar input forecasts on production side even if metadata regresses.
-    if (series.elementType.toLowerCase() === "solar") {
-      group = "production";
-    }
-  } else if (series.outputType === "power_limit") {
-    subgroup = "potential";
-  }
+  // Source role metadata determines whether a series represents a forecast/limit
+  // (potential) or an optimizer output (utilization).
+  const subgroup: PowerSubgroup =
+    series.sourceRole === "forecast" || series.sourceRole === "limit" ? "potential" : "utilization";
 
   return { group, subgroup };
 }

@@ -13,8 +13,6 @@ function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
     outputName: "power",
     outputType: "power",
     direction: "-",
-    configMode: null,
-    fieldName: null,
     sourceRole: "output",
     plotStream: null,
     plotPriority: null,
@@ -101,7 +99,7 @@ describe("seriesTooltip", () => {
 describe("legendSeriesOrder", () => {
   it("ranks production utilization before production potential", () => {
     const prod = makeSeries({ direction: "+" });
-    const potential = makeSeries({ direction: "+", configMode: "forecast" });
+    const potential = makeSeries({ direction: "+", sourceRole: "forecast" });
     expect(legendSeriesOrder(prod)).toBeLessThan(legendSeriesOrder(potential));
   });
 

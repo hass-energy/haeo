@@ -4,7 +4,6 @@ import { clamp, linearScale } from "./geometry";
 import { computeHoverIndices, sharedTimeline } from "./hover";
 import {
   calculatePowerBounds,
-  powerSection,
   powerValueForDisplay,
 } from "./power-display";
 import { classifyPowerSeries } from "./power-series-classification";
@@ -219,15 +218,7 @@ export class ForecastCardStore {
 
   get orderedPowerSeries(): ForecastSeries[] {
     return [...this.powerSeries].sort((a, b) => {
-      const sectionOrder = (series: ForecastSeries): number => {
-        const section = powerSection(series);
-        if (section === "possible") return 0;
-        if (section === "available") return 1;
-        if (section === "produced") return 2;
-        return 3;
-      };
-      const order = sectionOrder(a) - sectionOrder(b);
-      if (order !== 0) return order;
+      // Primary sort: plot_priority metadata from the backend determines stack order.
       const aPriority = a.plotPriority ?? Number.POSITIVE_INFINITY;
       const bPriority = b.plotPriority ?? Number.POSITIVE_INFINITY;
       if (aPriority !== bPriority) return aPriority - bPriority;
