@@ -276,3 +276,138 @@ def test_connection_tag_cost_ignores_unknown_tag_and_missing_price(solver: Highs
     solver.addConstr(conn.total_power_in[0] == 4.0)
     solver.minimize(cost[0])
     assert solver.getObjectiveValue() == pytest.approx(0.40)
+
+
+def test_connection_secondary_weights_strictly_negative(solver: Highs) -> None:
+    """Time-preference secondary coefficients must all be < 0.
+
+    The secondary objective is minimised, so negative weights turn it
+    into a gentle incentive to carry flow (earlier first) rather than a
+    penalty that drives flow to zero at cost parity.
+    """
+    n = 3
+    conn: Connection[str] = Connection(
+        name="neg_weights",
+        periods=np.array([1.0] * n),
+        solver=solver,
+        source="a",
+        target="b",
+        segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+    )
+    conn.set_endpoints(DummyElement("a", conn.periods, solver), DummyElement("b", conn.periods, solver))
+    conn.constraints()
+    conn.priority = 0
+    conn.priority_total = 1  # single-connection network
+
+    _, secondary = conn.cost()
+
+    # Recover each per-period weight by solving with exactly one unit of
+    # flow placed in period t and zero elsewhere.
+    def _weight_at(t: int) -> float:
+        s = Highs()
+        s.setOptionValue("output_flag", False)
+        probe: Connection[str] = Connection(
+            name="probe",
+            periods=np.array([1.0] * n),
+            solver=s,
+            source="a",
+            target="b",
+            segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+        )
+        probe.set_endpoints(DummyElement("a", probe.periods, s), DummyElement("b", probe.periods, s))
+        probe.constraints()
+        probe.priority = 0
+        probe.priority_total = 1
+        _, sec = probe.cost()
+        for i in range(n):
+            s.addConstr(probe.total_power_in[i] == (1.0 if i == t else 0.0))
+        s.minimize(sec)
+        return s.getObjectiveValue()
+
+    weights = [_weight_at(t) for t in range(n)]
+    assert all(w < 0.0 for w in weights), weights
+    # priority=0, priority_total=1 -> raw=[1,2,3], offset = 1*3+1 = 4
+    # -> weights=[-3,-2,-1]
+    assert weights == pytest.approx([-3.0, -2.0, -1.0])
+
+    # Silence unused-secondary warning — the expression is used above
+    # via probe cost(); assert it exists on the original connection too.
+    assert secondary is not None
+
+
+def test_connection_secondary_preserves_time_order(solver: Highs) -> None:
+    """Earlier periods get more negative weights than later ones.
+
+    Given unit capacity per period and no primary cost, minimising the
+    secondary must pack flow into the earliest periods first.
+    """
+    periods = np.array([1.0, 1.0, 1.0, 1.0])
+    conn: Connection[str] = Connection(
+        name="ordered",
+        periods=periods,
+        solver=solver,
+        source="a",
+        target="b",
+        segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+    )
+    source = DummyElement("a", periods, solver)
+    target = DummyElement("b", periods, solver)
+    conn.set_endpoints(source, target)
+    conn.priority = 0
+    conn.priority_total = 1
+    conn.constraints()
+
+    _, secondary = conn.cost()
+    # Bound total flow to 2 kWh so the solver must choose 2 of 4 periods.
+    solver.addConstr(Highs.qsum(conn.total_power_in[i] for i in range(4)) == 2.0)
+    solver.minimize(secondary)
+
+    values = [solver.val(conn.total_power_in[i]) for i in range(4)]
+    # Earliest two periods should be filled first.
+    assert values[0] == pytest.approx(1.0)
+    assert values[1] == pytest.approx(1.0)
+    assert values[2] == pytest.approx(0.0)
+    assert values[3] == pytest.approx(0.0)
+
+
+def test_connection_secondary_respects_priority(solver: Highs) -> None:
+    """Lower-priority connections fill before higher-priority ones.
+
+    Two single-period connections share a common per-period capacity
+    budget: minimising the combined secondary must pick the
+    lower-priority connection first.
+    """
+    periods = np.array([1.0])
+    low: Connection[str] = Connection(
+        name="low_prio",
+        periods=periods,
+        solver=solver,
+        source="src_a",
+        target="dst_a",
+        segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+    )
+    high: Connection[str] = Connection(
+        name="high_prio",
+        periods=periods,
+        solver=solver,
+        source="src_b",
+        target="dst_b",
+        segments={"pl": {"segment_type": "power_limit", "max_power": 1.0}},
+    )
+    low.set_endpoints(DummyElement("src_a", periods, solver), DummyElement("dst_a", periods, solver))
+    high.set_endpoints(DummyElement("src_b", periods, solver), DummyElement("dst_b", periods, solver))
+    low.constraints()
+    high.constraints()
+    low.priority = 0
+    high.priority = 1
+    low.priority_total = 2
+    high.priority_total = 2
+
+    _, sec_low = low.cost()
+    _, sec_high = high.cost()
+    # Shared total budget of 1 kWh across both connections.
+    solver.addConstr(low.total_power_in[0] + high.total_power_in[0] == 1.0)
+    solver.minimize(Highs.qsum([sec_low, sec_high]))
+
+    assert solver.val(low.total_power_in[0]) == pytest.approx(1.0)
+    assert solver.val(high.total_power_in[0]) == pytest.approx(0.0)

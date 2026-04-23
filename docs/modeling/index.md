@@ -244,19 +244,20 @@ See individual element pages for specific cost formulations.
 
 ### Secondary objective: time preference
 
-When multiple solutions achieve the same minimum cost, the optimizer prefers earlier energy transfers.
+When multiple solutions achieve the same minimum cost, the optimizer prefers earlier energy transfers and encourages flow on cost-free paths.
 Each connection contributes a time-preference term to the secondary objective:
 
 $$
 \text{minimize} \sum_{\text{connections}} \sum_{t=0}^{T-1} w_{p,t} \cdot E_c(t)
 $$
 
-Where $p$ is the connection priority derived from endpoint element types, $w_{p,t} = p \cdot T + (t + 1)$ assigns monotonically increasing weights by priority group and time step, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
-Connections with different priorities receive non-overlapping weight ranges.
-Connections with the same priority share the same per-period weight sequence.
+Where $p$ is the connection priority derived from endpoint element types, $w_{p,t} = p \cdot T + (t + 1) - (P \cdot T + 1)$ assigns strictly negative weights ordered by priority group and time step, $P$ is the total number of connections in the network, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
+All weights are strictly less than zero so that — all else equal — adding flow improves the secondary objective.
+Connections with different priorities receive non-overlapping weight ranges; lower-priority connections fill before higher-priority ones.
+Earlier periods receive more negative weights than later periods, so ties within a connection are broken by filling the earliest feasible period first.
 
 The secondary objective does not affect the optimal cost.
-It only selects among cost-equivalent solutions for deterministic, physically intuitive schedules.
+It selects among cost-equivalent solutions for deterministic, physically intuitive schedules, and in particular prefers carrying free power (for example, charging a battery from surplus solar) over curtailing it when no primary cost distinguishes the two.
 
 ## Solver
 

@@ -92,6 +92,13 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self.is_external = is_external
         self.is_time_sensitive = is_time_sensitive
         self.priority = 0  # assigned by Network from sort_key
+        # Total number of priority slots in the containing network.  Used to
+        # normalise the time-preference weights so they are strictly negative,
+        # turning the tie-breaker into a gentle incentive to carry flow as
+        # early as possible rather than a penalty on flow.  Default 1 means
+        # "solo connection", which keeps the weights well-defined for any
+        # Connection instance that is not part of a Network.optimize() run.
+        self.priority_total = 1
 
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
@@ -231,6 +238,21 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         Primary: segment costs + tag costs.
         Secondary: time-preference objective for deterministic ordering.
+
+        The secondary weights are strictly negative so that minimising the
+        secondary rewards carrying flow earlier, instead of penalising any
+        flow at all.  The ordering is otherwise identical to the positive
+        formulation:
+
+        * lower-priority connections get more negative weights than higher-
+          priority ones (so they are filled first, all else equal),
+        * within a connection, earlier periods get more negative weights
+          than later ones.
+
+        All-else-equal, the solver therefore prefers to use zero-cost
+        capacity rather than curtail it — e.g. storing free solar in a
+        battery even when there is no downstream revenue — while still
+        breaking ties deterministically in favour of earlier transfer.
         """
         primary_costs: list[highs_linear_expression] = [
             sc for seg in self._segments.values() if (sc := seg.cost()) is not None
@@ -246,9 +268,17 @@ class Connection[TOutputName: str](Element[TOutputName]):
         if primary_costs:
             primary = primary_costs[0] if len(primary_costs) == 1 else Highs.qsum(primary_costs)
 
-        # Time-preference objective: prefer earlier energy transfer
+        # Time-preference objective: prefer earlier energy transfer, and
+        # encourage flow when primary cost is zero.  Weights are shifted so
+        # that the *largest* (least-negative) weight is -1: every positive
+        # flow therefore improves the secondary objective.
         n = self.n_periods
-        weights = self.priority * n + np.arange(1, n + 1, dtype=np.float64)
+        raw = self.priority * n + np.arange(1, n + 1, dtype=np.float64)
+        # priority_total * n is the exclusive upper bound of raw weights
+        # across all connections, so subtracting (priority_total * n + 1)
+        # guarantees the largest weight is -1 and all weights are < 0.
+        offset = self.priority_total * n + 1
+        weights = raw - offset
         secondary = Highs.qsum(self.total_power_in * self.periods * weights)
 
         if primary is None:

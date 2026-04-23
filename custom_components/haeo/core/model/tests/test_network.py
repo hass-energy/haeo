@@ -13,6 +13,7 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.elements.battery import Battery
 from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.network import (
     BlendedOptions,
@@ -252,13 +253,16 @@ def test_network_optimize_success_logs_solver_output(
     network = Network(name="test_network", periods=np.array([1.0] * 2))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "src", "is_source": True, "is_sink": False})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "dst", "is_source": False, "is_sink": True})
+    # A positive price bounds the LP from above (secondary weights are
+    # now strictly negative, so a zero-cost connection with unbounded
+    # endpoints would otherwise run to infinity).
     network.add(
         {
             "element_type": ELEMENT_TYPE_CONNECTION,
             "name": "conn",
             "source": "src",
             "target": "dst",
-            "segments": {"pricing": {"segment_type": "pricing", "price": 0.0}},
+            "segments": {"pricing": {"segment_type": "pricing", "price": 0.10}},
         }
     )
 
@@ -727,6 +731,8 @@ def test_calibrated_mode_zero_primary_cost_vector() -> None:
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
     # Pricing with all-zero prices: primary cost vector exists but is all zeros.
+    # A power limit bounds the LP (secondary weights are strictly negative,
+    # so an unbounded zero-cost connection would otherwise diverge).
     network.add(
         {
             "element_type": ELEMENT_TYPE_CONNECTION,
@@ -735,9 +741,46 @@ def test_calibrated_mode_zero_primary_cost_vector() -> None:
             "target": "sink",
             "segments": {
                 "pricing": {"segment_type": "pricing", "price": np.array([0.0, 0.0])},
+                "limit": {"segment_type": "power_limit", "max_power": 1.0},
             },
         }
     )
     result = network.optimize()
     assert np.isfinite(result)
     assert network._calibrated_weight == pytest.approx(1e-3)
+
+
+def test_secondary_encourages_free_flow_into_battery() -> None:
+    """Free upstream power should charge the battery when no other sink benefits.
+
+    The secondary time-preference objective uses strictly negative
+    weights, so all else equal the solver prefers carrying flow to
+    incurring idle capacity.  In this scenario the only sink is a
+    battery with no downstream revenue; previously (positive weights)
+    the solver curtailed the free source, now it stores it.
+    """
+    n = 2
+    network = Network(name="test", periods=np.array([1.0] * n), options=LexOptions())
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "solar", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 0.0})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "solar_to_battery",
+            "source": "solar",
+            "target": "battery",
+            # Zero primary price (free solar), limited capacity.
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": 0.0},
+                "limit": {"segment_type": "power_limit", "max_power": 2.0},
+            },
+        }
+    )
+
+    network.optimize()
+
+    battery = network.elements["battery"]
+    assert isinstance(battery, Battery)
+    # Battery should have absorbed up to its combined per-period limit.
+    stored = [float(battery._solver.val(battery.stored_energy[i + 1])) for i in range(n)]
+    assert stored[-1] > 0.0, f"Expected battery to charge from free solar, got stored={stored}"
