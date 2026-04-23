@@ -1,6 +1,5 @@
 import type { JSX } from "preact";
 import * as mdi from "@mdi/js";
-import { memo } from "preact/compat";
 
 import { t } from "../i18n";
 import { classifyPowerSeries } from "../power-series-classification";
@@ -224,17 +223,7 @@ function LegendView(props: LegendProps): JSX.Element {
   );
 }
 
-function areLegendPropsEqual(prev: LegendProps, next: LegendProps): boolean {
-  return (
-    prev.series === next.series &&
-    prev.locale === next.locale &&
-    prev.highlightedSeries === next.highlightedSeries &&
-    prev.hoveredElement === next.hoveredElement &&
-    prev.visibilityRevision === next.visibilityRevision
-  );
-}
-
-export const Legend = memo(LegendView, areLegendPropsEqual);
+export const Legend = LegendView;
 
 function seriesTooltip(series: ForecastSeries, locale: string): string {
   if (series.lane === "price") {

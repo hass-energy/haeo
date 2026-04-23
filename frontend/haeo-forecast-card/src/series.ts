@@ -1,18 +1,24 @@
 import type { ForecastCardConfig, ForecastSeries, LaneType, SeriesSourceRole } from "./types";
 
-type HassEntityState = {
+interface HassEntityState {
   entity_id: string;
   state?: unknown;
   attributes: Record<string, unknown>;
-};
+}
 
-type HassLike = {
+interface HassLike {
   states: Record<string, HassEntityState | undefined>;
   language?: string;
   locale?: { language?: string };
 };
 
 export type { HassEntityState, HassLike };
+
+function asString(value: unknown, fallback = ""): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return fallback;
+}
 
 function asNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -79,21 +85,21 @@ function hashString(value: string): number {
   return hash;
 }
 
-function colorForElement(elementName: string, variant: number): string {
-  const name = elementName.toLowerCase();
-  if (name.includes("battery")) {
+function colorForElement(elementType: string, elementName: string, variant: number): string {
+  const type = elementType.toLowerCase();
+  if (type === "battery") {
     const green = ["#22c55e", "#16a34a", "#15803d", "#4ade80"];
     return green[variant % green.length] ?? "#22c55e";
   }
-  if (name.includes("grid")) {
+  if (type === "grid") {
     const blue = ["#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#93c5fd"];
     return blue[variant % blue.length] ?? "#3b82f6";
   }
-  if (name.includes("solar")) {
+  if (type === "solar") {
     const solar = ["#f59e0b", "#fbbf24", "#f97316", "#facc15", "#ea580c"];
     return solar[variant % solar.length] ?? "#f59e0b";
   }
-  if (name.includes("load")) {
+  if (type === "load") {
     const load = ["var(--haeo-load-0)", "var(--haeo-load-1)", "var(--haeo-load-2)", "var(--haeo-load-3)"];
     return load[variant % load.length] ?? "var(--haeo-load-0)";
   }
@@ -183,13 +189,14 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       continue;
     }
 
-    const points = rawForecast
+    const points = (rawForecast as unknown[])
       .map((item) => {
-        if (!item || typeof item !== "object") {
+        if (item === null || item === undefined || typeof item !== "object") {
           return null;
         }
         const row = item as Record<string, unknown>;
-        const time = Date.parse(String(row["time"] ?? ""));
+        const timeRaw = row["time"];
+        const time = Date.parse(asString(timeRaw));
         const value = asNumber(row["value"]);
         if (!Number.isFinite(time) || value === null) {
           return null;
@@ -213,7 +220,7 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       values[idx] = point.value;
     }
 
-    const elementType = String(attrs["element_type"] ?? "");
+    const elementType = asString(attrs["element_type"]);
     const configModeRaw = attrs["config_mode"];
     const configMode = typeof configModeRaw === "string" ? configModeRaw : null;
     const fieldNameRaw = attrs["field_name"];
@@ -227,9 +234,9 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
     const plotStream = typeof plotStreamRaw === "string" ? plotStreamRaw : null;
     const plotPriorityRaw = attrs["plot_priority"];
     const plotPriorityFromMetadata = asNumber(plotPriorityRaw);
-    const outputType = String(attrs["output_type"] ?? "other");
-    const elementName = String(attrs["element_name"] ?? entityId);
-    const outputName = String(attrs["output_name"] ?? outputType);
+    const outputType = asString(attrs["output_type"], "other");
+    const elementName = asString(attrs["element_name"], entityId);
+    const outputName = asString(attrs["output_name"], outputType);
     const directionRaw = attrs["direction"];
     const direction = directionRaw === "+" || directionRaw === "-" ? directionRaw : null;
     if (!includeOutputType(outputType, elementType, configMode, fieldName, direction)) {
@@ -237,15 +244,15 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
     }
     const plotPriority =
       plotPriorityFromMetadata ?? fallbackPlotPriority(elementType, direction, outputType, sourceRole);
-    const unit = String(attrs["unit_of_measurement"] ?? "");
-    const friendlyName = String(attrs["friendly_name"] ?? "");
+    const unit = asString(attrs["unit_of_measurement"]);
+    const friendlyName = asString(attrs["friendly_name"]);
     const variant = elementVariantCount.get(elementName) ?? 0;
     elementVariantCount.set(elementName, variant + 1);
 
     result.push({
       key: `${entityId}:${outputName}`,
       entityId,
-      label: friendlyName || fallbackLabel(elementName, outputName, outputType),
+      label: friendlyName !== "" ? friendlyName : fallbackLabel(elementName, outputName, outputType),
       elementName,
       elementType,
       outputName,
@@ -259,10 +266,9 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       lane: inferLane(outputType),
       drawType: inferDrawType(outputType),
       unit,
-      color: colorForElement(elementName, variant),
+      color: colorForElement(elementType, elementName, variant),
       times,
       values,
-      points: sortedPoints,
     });
   }
 

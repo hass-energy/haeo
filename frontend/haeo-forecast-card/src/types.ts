@@ -41,7 +41,6 @@ export interface ForecastSeries {
   color: string;
   times: Float64Array;
   values: Float64Array;
-  points: ForecastPoint[];
 }
 
 export interface LaneBounds {

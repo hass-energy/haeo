@@ -93,37 +93,87 @@ export function nearestArrayIndex(times: Float64Array, timestamp: number): numbe
   return Math.abs(before - timestamp) <= Math.abs(after - timestamp) ? low - 1 : low;
 }
 
-export function stepPath(points: ForecastPoint[], x: (time: number) => number, y: (value: number) => number): string {
-  if (points.length === 0) {
-    return "";
-  }
-  const first = points[0];
-  if (!first) {
-    return "";
-  }
-  let path = `M ${x(first.time)} ${y(first.value)}`;
-  for (let i = 1; i < points.length; i += 1) {
-    const prev = points[i - 1];
-    const curr = points[i];
-    if (!prev || !curr) {
-      continue;
+export function stepPath(
+  timesOrPoints: Float64Array | ForecastPoint[],
+  valuesOrX: Float64Array | ((time: number) => number),
+  xOrY?: (time: number) => number,
+  yFn?: (value: number) => number,
+): string {
+  let times: Float64Array;
+  let values: Float64Array;
+  let x: (time: number) => number;
+  let y: (value: number) => number;
+  if (timesOrPoints instanceof Float64Array) {
+    times = timesOrPoints;
+    values = valuesOrX as Float64Array;
+    x = xOrY!;
+    y = yFn!;
+  } else {
+    const points = timesOrPoints;
+    if (points.length === 0) return "";
+    times = new Float64Array(points.length);
+    values = new Float64Array(points.length);
+    for (let i = 0; i < points.length; i += 1) {
+      const p = points[i]!;
+      times[i] = p.time;
+      values[i] = p.value;
     }
-    path += ` L ${x(curr.time)} ${y(prev.value)} L ${x(curr.time)} ${y(curr.value)}`;
+    x = valuesOrX as (time: number) => number;
+    y = xOrY!;
+  }
+  if (times.length === 0) return "";
+  const firstTime = times[0];
+  const firstValue = values[0];
+  if (firstTime === undefined || firstValue === undefined) return "";
+  let path = `M ${x(firstTime)} ${y(firstValue)}`;
+  for (let i = 1; i < times.length; i += 1) {
+    const prevValue = values[i - 1];
+    const currTime = times[i];
+    const currValue = values[i];
+    if (prevValue === undefined || currTime === undefined || currValue === undefined) continue;
+    path += ` L ${x(currTime)} ${y(prevValue)} L ${x(currTime)} ${y(currValue)}`;
   }
   return path;
 }
 
-export function linePath(points: ForecastPoint[], x: (time: number) => number, y: (value: number) => number): string {
-  if (points.length === 0) {
-    return "";
+export function linePath(
+  timesOrPoints: Float64Array | ForecastPoint[],
+  valuesOrX: Float64Array | ((time: number) => number),
+  xOrY?: (time: number) => number,
+  yFn?: (value: number) => number,
+): string {
+  let times: Float64Array;
+  let values: Float64Array;
+  let x: (time: number) => number;
+  let y: (value: number) => number;
+  if (timesOrPoints instanceof Float64Array) {
+    times = timesOrPoints;
+    values = valuesOrX as Float64Array;
+    x = xOrY!;
+    y = yFn!;
+  } else {
+    const points = timesOrPoints;
+    if (points.length === 0) return "";
+    times = new Float64Array(points.length);
+    values = new Float64Array(points.length);
+    for (let i = 0; i < points.length; i += 1) {
+      const p = points[i]!;
+      times[i] = p.time;
+      values[i] = p.value;
+    }
+    x = valuesOrX as (time: number) => number;
+    y = xOrY!;
   }
-  const [first, ...rest] = points;
-  if (!first) {
-    return "";
-  }
-  let path = `M ${x(first.time)} ${y(first.value)}`;
-  for (const point of rest) {
-    path += ` L ${x(point.time)} ${y(point.value)}`;
+  if (times.length === 0) return "";
+  const firstTime = times[0];
+  const firstValue = values[0];
+  if (firstTime === undefined || firstValue === undefined) return "";
+  let path = `M ${x(firstTime)} ${y(firstValue)}`;
+  for (let i = 1; i < times.length; i += 1) {
+    const currTime = times[i];
+    const currValue = values[i];
+    if (currTime === undefined || currValue === undefined) continue;
+    path += ` L ${x(currTime)} ${y(currValue)}`;
   }
   return path;
 }
