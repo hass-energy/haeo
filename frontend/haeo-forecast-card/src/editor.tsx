@@ -55,7 +55,7 @@ function discoverHubs(
 ): HubOption[] {
   const byHub = new Map<string, string[]>();
   for (const entry of registry) {
-    if (entry.platform !== "haeo" || entry.disabled_by !== null || !entry.config_entry_id) {
+    if (entry.platform !== "haeo" || entry.disabled_by !== null || entry.config_entry_id === null) {
       continue;
     }
     const state = hass.states[entry.entity_id];
@@ -112,7 +112,7 @@ function EditorForm(props: EditorFormProps): JSX.Element {
       .then((registry) => {
         const options = discoverHubs(hass, registry);
         setHubOptions(options);
-        if (!configRef.current.hub_entry_id && options.length > 0 && !autoSelectedRef.current) {
+        if (configRef.current.hub_entry_id === undefined && options.length > 0 && !autoSelectedRef.current) {
           const first = options[0];
           if (first) {
             autoSelectedRef.current = true;

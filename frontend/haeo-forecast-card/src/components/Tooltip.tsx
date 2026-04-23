@@ -43,7 +43,8 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
       Price: "tooltip.section.price",
       "State of charge": "tooltip.section.soc",
     };
-    return keyByLane[lane] ? t(props.locale, keyByLane[lane]) : lane;
+    const translationKey = keyByLane[lane];
+    return translationKey !== undefined ? t(props.locale, translationKey) : lane;
   };
   const totalLabel = (lane: string): string => {
     if (lane === "Produced") {

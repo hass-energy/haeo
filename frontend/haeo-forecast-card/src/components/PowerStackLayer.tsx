@@ -26,7 +26,7 @@ export function PowerStackLayer(props: PowerStackLayerProps): JSX.Element {
         if (hasGroupFocus) {
           opacity = groupFocused ? Math.max(opacity, shape.isPotential ? 0.32 : 0.68) : 0.12;
         }
-        if (props.highlightedSeries) {
+        if (props.highlightedSeries !== null) {
           opacity = props.highlightedSeries === shape.key ? (shape.isPotential ? 0.34 : 0.76) : 0.14;
         }
         const className = isActiveStroke ? "areaSeries active" : "areaSeries";

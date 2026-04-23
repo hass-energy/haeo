@@ -16,7 +16,7 @@ export function OverlayLineLayer(props: OverlayLineLayerProps): JSX.Element {
         const isHighlighted = props.highlightedSeries === series.key;
         const isActive = isHighlighted || groupFocused;
         let opacity = hasGroupFocus ? (groupFocused ? 1 : 0.14) : 0.9;
-        if (props.highlightedSeries) {
+        if (props.highlightedSeries !== null) {
           opacity = isHighlighted ? 1 : 0.14;
         }
         return (

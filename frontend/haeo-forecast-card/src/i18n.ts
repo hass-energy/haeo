@@ -54,15 +54,15 @@ const TRANSLATIONS: Record<string, TranslationDict> = {
 };
 
 function normalizeLocale(locale: string | null | undefined): string {
-  if (!locale) {
+  if (locale === null || locale === undefined || locale === "") {
     return "en";
   }
   const normalized = locale.toLowerCase().replace("_", "-");
-  if (TRANSLATIONS[normalized]) {
+  if (TRANSLATIONS[normalized] !== undefined) {
     return normalized;
   }
   const base = normalized.split("-")[0];
-  return base && TRANSLATIONS[base] ? base : "en";
+  return base !== undefined && TRANSLATIONS[base] !== undefined ? base : "en";
 }
 
 function interpolate(template: string, params: Record<string, string | number> | undefined): string {

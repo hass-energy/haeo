@@ -18,7 +18,7 @@ const SCENARIO_FIXTURES: Record<string, HassLike> = Object.fromEntries(
   Object.entries(scenarioModules)
     .map(([path, moduleValue]) => {
       const scenario = scenarioNameFromPath(path);
-      if (!scenario) {
+      if (scenario === null) {
         return null;
       }
       return [scenario, { states: moduleValue }];

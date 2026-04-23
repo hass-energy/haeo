@@ -88,7 +88,7 @@ function minorFromMajor(major: number[]): number[] {
   const minorStep = step / 5;
   const start = first;
   const end = major[major.length - 1];
-  if (!Number.isFinite(minorStep) || minorStep <= 0 || start === undefined || end === undefined) {
+  if (!Number.isFinite(minorStep) || minorStep <= 0 || end === undefined) {
     return [];
   }
   const out: number[] = [];
