@@ -103,8 +103,6 @@ describe("buildTooltipRows", () => {
     const rows = buildTooltipRows(
       [produced, consumed],
       indices,
-      "opposed",
-      new Map(),
       (_series, value) => value,
     );
     expect(rows.length).toBe(2);

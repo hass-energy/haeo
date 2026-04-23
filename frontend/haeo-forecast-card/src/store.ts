@@ -591,8 +591,6 @@ export class ForecastCardStore {
     return buildTooltipRows(
       this.visibleSeries,
       this.hoverIndices,
-      this.powerDisplayMode,
-      this.bidirectionalSeriesCache,
       (series, value) => this.powerValueForDisplayBound(series, value),
     );
   }

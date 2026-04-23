@@ -1,5 +1,5 @@
 import { classifyPowerSeries } from "./power-series-classification";
-import type { ForecastSeries, PowerDisplayMode } from "./types";
+import type { ForecastSeries } from "./types";
 
 export function tooltipSection(series: ForecastSeries): string {
   if (series.lane === "price") {
@@ -76,8 +76,6 @@ const LANE_SORT_ORDER = new Map<string, number>([
 export function buildTooltipRows(
   visibleSeries: ForecastSeries[],
   hoverIndices: Map<string, number>,
-  displayMode: PowerDisplayMode,
-  bidirectionalCache: Map<string, boolean>,
   powerValueFn: (series: ForecastSeries, value: number) => number,
 ): TooltipRow[] {
   const rows: TooltipRow[] = [];

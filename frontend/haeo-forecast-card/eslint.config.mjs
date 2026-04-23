@@ -45,9 +45,8 @@ export default tseslint.config(
     },
   },
   {
-    files: ["tests/**/*.ts", "tests/**/*.tsx", "**/*.stories.tsx"],
+    files: ["tests/**/*.ts", "tests/**/*.tsx", "**/*.stories.tsx", ".storybook/**/*.ts"],
     rules: {
-      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unnecessary-condition": "off",
       "@typescript-eslint/strict-boolean-expressions": "off",
       "no-console": "off",

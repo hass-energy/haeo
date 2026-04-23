@@ -2,6 +2,8 @@
   "compilerOptions": {
     "exactOptionalPropertyTypes": true,
     "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
     "lib": ["DOM", "ES2022"],
@@ -12,11 +14,14 @@
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022",
     "types": ["preact", "vite/client"],
-    "useDefineForClassFields": false
+    "useDefineForClassFields": false,
+    "verbatimModuleSyntax": true
   },
   "include": ["src", "tests", "vitest.config.ts", ".storybook/**/*.ts"]
 }
