@@ -17,7 +17,7 @@ import {
   computePricePaths,
   computeSocPaths,
 } from "./store-paths";
-import { buildTooltipRows, buildTooltipTotals } from "./tooltip-helpers";
+import { buildTooltipRows, buildTooltipTotals, type TooltipSectionId } from "./tooltip-helpers";
 import type {
   ChartMargins,
   ForecastCardConfig,
@@ -516,7 +516,7 @@ export class ForecastCardStore {
     return powerValueForDisplay(series, value, this.powerDisplayMode, isBi);
   }
 
-  get tooltipRows(): Array<{ key: string; label: string; value: number; unit: string; color: string; lane: string }> {
+  get tooltipRows(): Array<{ key: string; label: string; value: number; unit: string; color: string; lane: TooltipSectionId }> {
     if (this.hoverTimeMs === null) {
       return [];
     }
@@ -527,7 +527,7 @@ export class ForecastCardStore {
     );
   }
 
-  get tooltipTotals(): Array<{ lane: string; value: number; unit: string }> {
+  get tooltipTotals(): Array<{ lane: TooltipSectionId; value: number; unit: string }> {
     if (this.hoverTimeMs === null) {
       return [];
     }

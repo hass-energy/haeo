@@ -1,21 +1,23 @@
 import { classifyPowerSeries } from "./power-series-classification";
 import type { ForecastSeries } from "./types";
 
-export function tooltipSection(series: ForecastSeries): string {
+export type TooltipSectionId = "produced" | "available" | "consumed" | "possible" | "price" | "soc";
+
+export function tooltipSection(series: ForecastSeries): TooltipSectionId {
   if (series.lane === "price") {
-    return "Price";
+    return "price";
   }
   if (series.lane === "soc") {
-    return "State of charge";
+    return "soc";
   }
   const category = classifyPowerSeries(series);
   if (category.group === "production") {
-    return category.subgroup === "potential" ? "Available" : "Produced";
+    return category.subgroup === "potential" ? "available" : "produced";
   }
   if (category.group === "consumption") {
-    return category.subgroup === "potential" ? "Possible" : "Consumed";
+    return category.subgroup === "potential" ? "possible" : "consumed";
   }
-  return "Consumed";
+  return "consumed";
 }
 
 function prettifyOutput(outputName: string): string {
@@ -24,11 +26,11 @@ function prettifyOutput(outputName: string): string {
 
 export function tooltipDisplayLabel(
   series: ForecastSeries,
-  section: string,
+  section: TooltipSectionId,
   duplicateLabel: boolean,
 ): string {
   const name = series.label.trim();
-  if (section === "Price") {
+  if (section === "price") {
     const output = series.outputName.toLowerCase();
     if (output.includes("import")) {
       return `${name} (import)`;
@@ -52,7 +54,7 @@ export function tooltipDisplayLabel(
   }
   return duplicateLabel
     ? `${name} (${prettifyOutput(series.outputName)})`
-    : `${name} (${section.toLowerCase()})`;
+    : `${name} (${section})`;
 }
 
 interface TooltipRow {
@@ -61,17 +63,17 @@ interface TooltipRow {
   value: number;
   unit: string;
   color: string;
-  lane: string;
+  lane: TooltipSectionId;
 }
 
-const LANE_SORT_ORDER = new Map<string, number>([
-  ["Produced", 0],
-  ["Available", 1],
-  ["Consumed", 2],
-  ["Possible", 3],
-  ["Price", 4],
-  ["State of charge", 5],
-]);
+const LANE_SORT_ORDER: Record<TooltipSectionId, number> = {
+  produced: 0,
+  available: 1,
+  consumed: 2,
+  possible: 3,
+  price: 4,
+  soc: 5,
+};
 
 export function buildTooltipRows(
   visibleSeries: ForecastSeries[],
@@ -101,8 +103,8 @@ export function buildTooltipRows(
     });
   }
   return rows.sort((a, b) => {
-    const la = LANE_SORT_ORDER.get(a.lane) ?? 9;
-    const lb = LANE_SORT_ORDER.get(b.lane) ?? 9;
+    const la = LANE_SORT_ORDER[a.lane];
+    const lb = LANE_SORT_ORDER[b.lane];
     if (la !== lb) {
       return la - lb;
     }
@@ -110,19 +112,19 @@ export function buildTooltipRows(
   });
 }
 
-const SECTION_SORT_ORDER = new Map<string, number>([
-  ["Produced", 0],
-  ["Available", 1],
-  ["Consumed", 2],
-  ["Possible", 3],
-]);
+const SECTION_SORT_ORDER: Partial<Record<TooltipSectionId, number>> = {
+  produced: 0,
+  available: 1,
+  consumed: 2,
+  possible: 3,
+};
 
 export function buildTooltipTotals(
   visibleSeries: ForecastSeries[],
   hoverIndices: Map<string, number>,
   powerValueFn: (series: ForecastSeries, value: number) => number,
-): Array<{ lane: string; value: number; unit: string }> {
-  const totals = new Map<string, { value: number; unit: string }>();
+): Array<{ lane: TooltipSectionId; value: number; unit: string }> {
+  const totals = new Map<TooltipSectionId, { value: number; unit: string }>();
   for (const series of visibleSeries) {
     if (series.lane !== "power") {
       continue;
@@ -138,6 +140,6 @@ export function buildTooltipTotals(
   }
   return [...totals.entries()]
     .filter(([, total]) => Math.abs(total.value) > 1e-9)
-    .sort((a, b) => (SECTION_SORT_ORDER.get(a[0]) ?? 9) - (SECTION_SORT_ORDER.get(b[0]) ?? 9))
+    .sort((a, b) => (SECTION_SORT_ORDER[a[0]] ?? 9) - (SECTION_SORT_ORDER[b[0]] ?? 9))
     .map(([lane, total]) => ({ lane, value: total.value, unit: total.unit }));
 }

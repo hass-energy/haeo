@@ -1,5 +1,6 @@
 import type { JSX } from "preact";
 import { t } from "../i18n";
+import type { TooltipSectionId } from "../tooltip-helpers";
 
 /** Cap rows per tooltip group to prevent the tooltip from obscuring the chart. */
 const MAX_TOOLTIP_ROWS_PER_GROUP = 8;
@@ -10,11 +11,11 @@ interface TooltipRow {
   value: number;
   unit: string;
   color: string;
-  lane: string;
+  lane: TooltipSectionId;
 }
 
 interface TooltipTotal {
-  lane: string;
+  lane: TooltipSectionId;
   value: number;
   unit: string;
 }
@@ -31,38 +32,34 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
   if (props.hoverTimeMs === null || props.rows.length === 0) {
     return null;
   }
-  const groups = new Map<string, TooltipRow[]>();
+  const groups = new Map<TooltipSectionId, TooltipRow[]>();
   for (const row of props.rows) {
     const rows = groups.get(row.lane) ?? [];
     rows.push(row);
     groups.set(row.lane, rows);
   }
-  const laneLabel = (lane: string): string => {
-    const keyByLane: Record<string, string> = {
-      Produced: "tooltip.section.produced",
-      Available: "tooltip.section.available",
-      Consumed: "tooltip.section.consumed",
-      Possible: "tooltip.section.possible",
-      Price: "tooltip.section.price",
-      "State of charge": "tooltip.section.soc",
+  const laneLabel = (lane: TooltipSectionId): string => {
+    const keyByLane: Record<TooltipSectionId, string> = {
+      produced: "tooltip.section.produced",
+      available: "tooltip.section.available",
+      consumed: "tooltip.section.consumed",
+      possible: "tooltip.section.possible",
+      price: "tooltip.section.price",
+      soc: "tooltip.section.soc",
+    };
+    return t(props.locale, keyByLane[lane]);
+  };
+  const totalLabel = (lane: TooltipSectionId): string => {
+    const keyByLane: Partial<Record<TooltipSectionId, string>> = {
+      produced: "tooltip.total.produced",
+      available: "tooltip.total.available",
+      consumed: "tooltip.total.consumed",
+      possible: "tooltip.total.possible",
     };
     const translationKey = keyByLane[lane];
-    return translationKey !== undefined ? t(props.locale, translationKey) : lane;
-  };
-  const totalLabel = (lane: string): string => {
-    if (lane === "Produced") {
-      return t(props.locale, "tooltip.total.produced");
-    }
-    if (lane === "Available") {
-      return t(props.locale, "tooltip.total.available");
-    }
-    if (lane === "Consumed") {
-      return t(props.locale, "tooltip.total.consumed");
-    }
-    if (lane === "Possible") {
-      return t(props.locale, "tooltip.total.possible");
-    }
-    return t(props.locale, "tooltip.total.generic", { lane });
+    return translationKey !== undefined
+      ? t(props.locale, translationKey)
+      : t(props.locale, "tooltip.total.generic", { lane });
   };
   return (
     <div className="tooltip">

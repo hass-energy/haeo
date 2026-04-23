@@ -33,50 +33,50 @@ function makeSeries(overrides: Partial<ForecastSeries> & { key: string }): Forec
 }
 
 describe("tooltipSection", () => {
-  it("returns Price for price lane", () => {
-    expect(tooltipSection(makeSeries({ key: "a", lane: "price", outputType: "price" }))).toBe("Price");
+  it("returns price for price lane", () => {
+    expect(tooltipSection(makeSeries({ key: "a", lane: "price", outputType: "price" }))).toBe("price");
   });
 
-  it("returns State of charge for soc lane", () => {
-    expect(tooltipSection(makeSeries({ key: "a", lane: "soc", outputType: "soc" }))).toBe("State of charge");
+  it("returns soc for soc lane", () => {
+    expect(tooltipSection(makeSeries({ key: "a", lane: "soc", outputType: "soc" }))).toBe("soc");
   });
 
-  it("returns Consumed for consumption utilization", () => {
-    expect(tooltipSection(makeSeries({ key: "a", direction: "-", outputType: "power" }))).toBe("Consumed");
+  it("returns consumed for consumption utilization", () => {
+    expect(tooltipSection(makeSeries({ key: "a", direction: "-", outputType: "power" }))).toBe("consumed");
   });
 
-  it("returns Produced for production utilization", () => {
-    expect(tooltipSection(makeSeries({ key: "a", direction: "+", outputType: "power" }))).toBe("Produced");
+  it("returns produced for production utilization", () => {
+    expect(tooltipSection(makeSeries({ key: "a", direction: "+", outputType: "power" }))).toBe("produced");
   });
 
-  it("returns Available for production potential (config input)", () => {
-    expect(tooltipSection(makeSeries({ key: "a", direction: "+", outputType: "power", configMode: "forecast" }))).toBe("Available");
+  it("returns available for production potential (config input)", () => {
+    expect(tooltipSection(makeSeries({ key: "a", direction: "+", outputType: "power", configMode: "forecast" }))).toBe("available");
   });
 
-  it("returns Possible for consumption potential (power_limit)", () => {
-    expect(tooltipSection(makeSeries({ key: "a", direction: "-", outputType: "power_limit" }))).toBe("Possible");
+  it("returns possible for consumption potential (power_limit)", () => {
+    expect(tooltipSection(makeSeries({ key: "a", direction: "-", outputType: "power_limit" }))).toBe("possible");
   });
 });
 
 describe("tooltipDisplayLabel", () => {
   it("adds import/export qualifier for price series", () => {
     const s = makeSeries({ key: "a", lane: "price", outputName: "import_price", label: "Grid" });
-    expect(tooltipDisplayLabel(s, "Price", false)).toBe("Grid (import)");
+    expect(tooltipDisplayLabel(s, "price", false)).toBe("Grid (import)");
   });
 
   it("returns name without qualifier for non-directional price", () => {
     const s = makeSeries({ key: "a", lane: "price", outputName: "spot_price", label: "Grid" });
-    expect(tooltipDisplayLabel(s, "Price", false)).toBe("Grid");
+    expect(tooltipDisplayLabel(s, "price", false)).toBe("Grid");
   });
 
   it("adds section suffix for power series without direction in name", () => {
     const s = makeSeries({ key: "a", label: "Solar", outputName: "power" });
-    expect(tooltipDisplayLabel(s, "Produced", false)).toBe("Solar (produced)");
+    expect(tooltipDisplayLabel(s, "produced", false)).toBe("Solar (produced)");
   });
 
   it("uses output name for duplicate labels", () => {
     const s = makeSeries({ key: "a", label: "Grid", outputName: "import_power" });
-    expect(tooltipDisplayLabel(s, "Consumed", true)).toBe("Grid (import power)");
+    expect(tooltipDisplayLabel(s, "consumed", true)).toBe("Grid (import power)");
   });
 });
 
@@ -107,8 +107,8 @@ describe("buildTooltipRows", () => {
     );
     expect(rows.length).toBe(2);
     // Produced comes first
-    expect(rows[0]?.lane).toBe("Produced");
-    expect(rows[1]?.lane).toBe("Consumed");
+    expect(rows[0]?.lane).toBe("produced");
+    expect(rows[1]?.lane).toBe("consumed");
   });
 });
 

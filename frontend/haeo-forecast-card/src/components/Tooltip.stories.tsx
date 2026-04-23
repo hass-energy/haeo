@@ -22,7 +22,7 @@ export const Default: Story = {
           value: 2.1,
           unit: "kW",
           color: "#4f46e5",
-          lane: "Consumed",
+          lane: "consumed",
         },
         {
           key: "load-forecast",
@@ -30,12 +30,12 @@ export const Default: Story = {
           value: 2.8,
           unit: "kW",
           color: "#818cf8",
-          lane: "Possible",
+          lane: "possible",
         },
       ]}
       totals={[
-        { lane: "Consumed", value: 2.1, unit: "kW" },
-        { lane: "Possible", value: 2.8, unit: "kW" },
+        { lane: "consumed", value: 2.1, unit: "kW" },
+        { lane: "possible", value: 2.8, unit: "kW" },
       ]}
       emphasizedKeys={new Set(["load-actual"])}
     />
