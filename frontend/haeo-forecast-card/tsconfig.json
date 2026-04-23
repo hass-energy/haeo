@@ -23,5 +23,5 @@
     "useDefineForClassFields": false,
     "verbatimModuleSyntax": true
   },
-  "include": ["src", "tests", "vitest.config.ts", ".storybook/**/*.ts"]
+  "include": ["src", "tests", "vitest.config.ts", "playwright.config.ts", ".storybook/**/*.ts"]
 }

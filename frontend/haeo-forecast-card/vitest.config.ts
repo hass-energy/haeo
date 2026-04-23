@@ -6,7 +6,7 @@ export default defineConfig({
       name: "css-as-text",
       enforce: "pre",
       transform(code, id) {
-        if (id.endsWith(".css")) {
+        if (id.endsWith("/src/styles.css")) {
           return { code: `export default ${JSON.stringify(code)};`, map: null };
         }
       },
@@ -15,6 +15,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./tests/jsdom-polyfills.ts"],
+    exclude: ["tests/visual/**", "node_modules/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],

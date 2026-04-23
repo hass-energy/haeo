@@ -16,6 +16,8 @@
     "check": "npm run typecheck && npm run lint && npm run format && npm run test:coverage",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
+    "test:visual": "playwright test",
+    "test:visual:update": "playwright test --update-snapshots",
     "preview:svg": "node ./scripts/export-preview.mjs"
   },
   "dependencies": {
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.38.0",
+    "@playwright/test": "^1.59.1",
     "@storybook/addon-essentials": "^8.6.14",
     "@storybook/preact-vite": "^8.6.14",
     "@types/node": "^24.6.1",
@@ -32,6 +35,7 @@
     "esbuild": "^0.25.11",
     "eslint": "^9.38.0",
     "eslint-config-prettier": "^10.1.8",
+    "http-server": "^14.1.1",
     "jsdom": "^27.0.0",
     "playwright": "^1.58.2",
     "prettier": "^3.6.2",
