@@ -82,7 +82,7 @@ const HoverOverlay = observer(function HoverOverlay(props: { store: ForecastCard
 
 export const ChartSvg = observer(function ChartSvg(props: ChartSvgProps): JSX.Element {
   const { store } = props;
-  const clipId = "haeo-plot-clip";
+  const clipId = `haeo-plot-clip-${store.instanceId}`;
 
   return (
     <svg

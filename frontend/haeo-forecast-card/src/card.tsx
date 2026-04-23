@@ -1,5 +1,6 @@
 import { render } from "preact";
 
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ForecastCardView } from "./components/ForecastCardView";
 import type { HassLike } from "./series";
 import { ForecastCardStore } from "./store";
@@ -10,7 +11,9 @@ export class HaeoForecastCard extends HTMLElement {
   private static readonly MASONRY_ROW_HEIGHT_PX = 50;
   private static readonly SECTIONS_ROW_HEIGHT_PX = 56;
   private static readonly SECTIONS_ROW_GAP_PX = 8;
-  private readonly store = new ForecastCardStore();
+  private static nextInstanceId = 0;
+  readonly instanceId = HaeoForecastCard.nextInstanceId++;
+  private readonly store = new ForecastCardStore(this.instanceId);
   private resizeObserver: ResizeObserver | null = null;
   private frameHandle = 0;
   private pointerFrameHandle = 0;
@@ -18,6 +21,9 @@ export class HaeoForecastCard extends HTMLElement {
   private pendingPointer: { x: number | null; y: number | null } | null = null;
   private hasRenderedHost = false;
   private _hass: HassLike | null = null;
+  private animationPaused = false;
+  private intersectionObserver: IntersectionObserver | null = null;
+  private isIntersecting = true;
 
   setConfig(config: ForecastCardConfig): void {
     this.store.setConfig(config);
@@ -51,12 +57,16 @@ export class HaeoForecastCard extends HTMLElement {
     this.ensureHostElements();
     this.startAnimationLoop();
     this.observeCardResize();
+    this.observeVisibility();
     this.renderCard();
   }
 
   disconnectedCallback(): void {
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
+    this.intersectionObserver?.disconnect();
+    this.intersectionObserver = null;
+    document.removeEventListener("visibilitychange", this.onVisibilityChange);
     cancelAnimationFrame(this.frameHandle);
     if (this.pointerFlushScheduled) {
       cancelAnimationFrame(this.pointerFrameHandle);
@@ -141,7 +151,10 @@ export class HaeoForecastCard extends HTMLElement {
   }
 
   private startAnimationLoop(): void {
-    const tick = () => {
+    const tick = (): void => {
+      if (this.animationPaused) {
+        return;
+      }
       const hovering = this.store.pointerX !== null && this.store.pointerY !== null;
       if (!hovering) {
         this.store.setNow(Date.now());
@@ -151,6 +164,38 @@ export class HaeoForecastCard extends HTMLElement {
       }
     };
     this.frameHandle = requestAnimationFrame(tick);
+  }
+
+  private observeVisibility(): void {
+    document.addEventListener("visibilitychange", this.onVisibilityChange);
+    if ("IntersectionObserver" in window) {
+      this.intersectionObserver = new IntersectionObserver(
+        (entries) => {
+          const entry = entries[0];
+          if (entry) {
+            this.isIntersecting = entry.isIntersecting;
+            this.updateAnimationPaused();
+          }
+        },
+        { threshold: 0 },
+      );
+      this.intersectionObserver.observe(this);
+    }
+  }
+
+  private readonly onVisibilityChange = (): void => {
+    this.updateAnimationPaused();
+  };
+
+  private updateAnimationPaused(): void {
+    const shouldPause = document.hidden || !this.isIntersecting;
+    if (shouldPause === this.animationPaused) {
+      return;
+    }
+    this.animationPaused = shouldPause;
+    if (!shouldPause && this.store.motionMode === "smooth") {
+      this.startAnimationLoop();
+    }
   }
 
   private onPointerMove(event: PointerEvent): void {
@@ -215,11 +260,13 @@ export class HaeoForecastCard extends HTMLElement {
       return;
     }
     render(
-      <ForecastCardView
-        store={this.store}
-        onPointerMove={(event) => this.onPointerMove(event)}
-        onPointerLeave={() => this.onPointerLeave()}
-      />,
+      <ErrorBoundary>
+        <ForecastCardView
+          store={this.store}
+          onPointerMove={(event) => this.onPointerMove(event)}
+          onPointerLeave={() => this.onPointerLeave()}
+        />
+      </ErrorBoundary>,
       mount
     );
   }
