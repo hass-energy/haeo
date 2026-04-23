@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from types import MappingProxyType
 from unittest.mock import AsyncMock, Mock
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -15,13 +16,21 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import (
     HaeoRuntimeData,
+    _async_register_static_frontend_resources,
     _ensure_required_subentries,
     async_remove_config_entry_device,
+    async_setup,
     async_setup_entry,
     async_unload_entry,
     async_update_listener,
 )
-from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.const import (
+    CONF_INTEGRATION_TYPE,
+    DOMAIN,
+    INTEGRATION_TYPE_HUB,
+    STATIC_FORECAST_CARD_FILE_PATH,
+    STATIC_FORECAST_CARD_URL_PATH,
+)
 from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
     CONF_ELEMENT_TYPE,
@@ -859,3 +868,33 @@ async def test_setup_preserves_config_entry_error_exception(
 
     # Verify the original translation key is preserved (not wrapped in setup_failed_permanent)
     assert exc_info.value.translation_key == "custom_config_error"
+
+
+# ---------------------------------------------------------------------------
+# async_setup / frontend static registration
+# ---------------------------------------------------------------------------
+
+
+async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistant) -> None:
+    """Test that async_setup registers the forecast card static path."""
+    mock_http = Mock()
+    mock_http.async_register_static_paths = AsyncMock()
+    hass.http = mock_http  # type: ignore[attr-defined]
+
+    result = await async_setup(hass, {})
+
+    assert result is True
+    mock_http.async_register_static_paths.assert_called_once()
+    configs: list[StaticPathConfig] = mock_http.async_register_static_paths.call_args[0][0]
+    assert len(configs) == 1
+    assert configs[0].url_path == STATIC_FORECAST_CARD_URL_PATH
+    assert configs[0].path.endswith(STATIC_FORECAST_CARD_FILE_PATH)
+
+
+async def test_async_register_static_skips_when_http_unavailable(
+    hass: HomeAssistant,
+) -> None:
+    """Test that static registration is skipped when HTTP component is not initialized."""
+    # The test hass fixture has no http attribute - this exercises the getattr guard
+    await _async_register_static_frontend_resources(hass)
+    # No error raised - registration simply skipped
