@@ -30,10 +30,7 @@ export function nearestArrayIndex(times: Float64Array, timestamp: number): numbe
   let high = times.length - 1;
   while (low <= high) {
     const mid = (low + high) >> 1;
-    const t = times[mid];
-    if (t === undefined) {
-      return 0;
-    }
+    const t = times[mid]!;
     if (t < timestamp) {
       low = mid + 1;
     } else if (t > timestamp) {
@@ -48,11 +45,8 @@ export function nearestArrayIndex(times: Float64Array, timestamp: number): numbe
   if (low >= times.length) {
     return times.length - 1;
   }
-  const before = times[low - 1];
-  const after = times[low];
-  if (before === undefined || after === undefined) {
-    return 0;
-  }
+  const before = times[low - 1]!;
+  const after = times[low]!;
   return Math.abs(before - timestamp) <= Math.abs(after - timestamp) ? low - 1 : low;
 }
 
@@ -63,16 +57,9 @@ export function stepPath(
   y: (value: number) => number,
 ): string {
   if (times.length === 0) return "";
-  const firstTime = times[0];
-  const firstValue = values[0];
-  if (firstTime === undefined || firstValue === undefined) return "";
-  let path = `M ${x(firstTime)} ${y(firstValue)}`;
+  let path = `M ${x(times[0]!)} ${y(values[0]!)}`;
   for (let i = 1; i < times.length; i += 1) {
-    const prevValue = values[i - 1];
-    const currTime = times[i];
-    const currValue = values[i];
-    if (prevValue === undefined || currTime === undefined || currValue === undefined) continue;
-    path += ` L ${x(currTime)} ${y(prevValue)} L ${x(currTime)} ${y(currValue)}`;
+    path += ` L ${x(times[i]!)} ${y(values[i - 1]!)} L ${x(times[i]!)} ${y(values[i]!)}`;
   }
   return path;
 }
@@ -84,15 +71,9 @@ export function linePath(
   y: (value: number) => number,
 ): string {
   if (times.length === 0) return "";
-  const firstTime = times[0];
-  const firstValue = values[0];
-  if (firstTime === undefined || firstValue === undefined) return "";
-  let path = `M ${x(firstTime)} ${y(firstValue)}`;
+  let path = `M ${x(times[0]!)} ${y(values[0]!)}`;
   for (let i = 1; i < times.length; i += 1) {
-    const currTime = times[i];
-    const currValue = values[i];
-    if (currTime === undefined || currValue === undefined) continue;
-    path += ` L ${x(currTime)} ${y(currValue)}`;
+    path += ` L ${x(times[i]!)} ${y(values[i]!)}`;
   }
   return path;
 }
@@ -107,38 +88,17 @@ export function stepAreaPath(
   if (times.length === 0) {
     return "";
   }
-  const firstTime = times[0];
-  const firstUpper = upper[0];
-  if (firstTime === undefined || firstUpper === undefined) {
-    return "";
-  }
 
-  let path = `M ${x(firstTime)} ${y(firstUpper)}`;
+  let path = `M ${x(times[0]!)} ${y(upper[0]!)}`;
   for (let idx = 1; idx < times.length; idx += 1) {
-    const currTime = times[idx];
-    const prevUpper = upper[idx - 1];
-    const currUpper = upper[idx];
-    if (currTime === undefined || prevUpper === undefined || currUpper === undefined) {
-      continue;
-    }
-    path += ` L ${x(currTime)} ${y(prevUpper)} L ${x(currTime)} ${y(currUpper)}`;
+    path += ` L ${x(times[idx]!)} ${y(upper[idx - 1]!)} L ${x(times[idx]!)} ${y(upper[idx]!)}`;
   }
 
-  const lastTime = times[times.length - 1];
-  const lastLower = lower[times.length - 1];
-  if (lastTime === undefined || lastLower === undefined) {
-    return "";
-  }
-  path += ` L ${x(lastTime)} ${y(lastLower)}`;
+  const last = times.length - 1;
+  path += ` L ${x(times[last]!)} ${y(lower[last]!)}`;
 
   for (let idx = times.length - 1; idx >= 1; idx -= 1) {
-    const currTime = times[idx];
-    const prevTime = times[idx - 1];
-    const prevLower = lower[idx - 1];
-    if (currTime === undefined || prevTime === undefined || prevLower === undefined) {
-      continue;
-    }
-    path += ` L ${x(currTime)} ${y(prevLower)} L ${x(prevTime)} ${y(prevLower)}`;
+    path += ` L ${x(times[idx]!)} ${y(lower[idx - 1]!)} L ${x(times[idx - 1]!)} ${y(lower[idx - 1]!)}`;
   }
   return `${path} Z`;
 }

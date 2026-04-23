@@ -17,6 +17,20 @@ describe("geometry helpers", () => {
     expect(nearestArrayIndex(times, 3900)).toBe(3);
   });
 
+  it("returns exact index for exact timestamp match", () => {
+    const times = new Float64Array([1000, 2000, 3000]);
+    expect(nearestArrayIndex(times, 2000)).toBe(1);
+  });
+
+  it("clamps to last index for timestamp past end", () => {
+    const times = new Float64Array([1000, 2000, 3000]);
+    expect(nearestArrayIndex(times, 9999)).toBe(2);
+  });
+
+  it("returns 0 for single-element array", () => {
+    expect(nearestArrayIndex(new Float64Array([5000]), 5000)).toBe(0);
+  });
+
   it("returns empty area path for empty times", () => {
     const x = (value: number) => value;
     const y = (value: number) => value;
