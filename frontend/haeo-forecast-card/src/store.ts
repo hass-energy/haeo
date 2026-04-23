@@ -1,17 +1,22 @@
 import { computed, makeAutoObservable } from "mobx";
 
-import { clamp, linearScale, linePath, stepAreaPath, stepPath } from "./geometry";
+import { clamp, linearScale } from "./geometry";
 import { computeHoverIndices, sharedTimeline } from "./hover";
 import {
   calculatePowerBounds,
-  emptySectionStacks,
   powerSection,
   powerValueForDisplay,
-  stepTopStrokePaths,
 } from "./power-display";
 import { classifyPowerSeries } from "./power-series-classification";
 import { normalizeSeries } from "./series";
 import type { HassLike } from "./series";
+import type { LineSvgPath, PowerShape } from "./store-paths";
+import {
+  computeHoveredPowerKeys,
+  computePowerShapes,
+  computePricePaths,
+  computeSocPaths,
+} from "./store-paths";
 import { buildTooltipRows, buildTooltipTotals } from "./tooltip-helpers";
 import type {
   ChartMargins,
@@ -450,126 +455,58 @@ export class ForecastCardStore {
 
   // --- Computed: SVG paths ---
 
-  get powerShapes(): Array<{ key: string; color: string; d: string; isPotential: boolean; strokePaths: string[] }> {
-    const seriesList = this.orderedPowerSeries;
-    const firstSeries = seriesList[0];
-    if (!firstSeries) {
-      return [];
-    }
-    const xScale = this.cachedXScale;
-    const { min: powerMin, max: powerMax } = this.powerBounds;
-    const plotBottom = this.plotBottom;
-    const plotTop = this.plotTop;
-    const yScalePower = (value: number): number => linearScale(value, powerMin, powerMax, plotBottom, plotTop);
-    const horizonCount = firstSeries.times.length;
-    const stacks = emptySectionStacks(horizonCount);
-
-    return seriesList.map((series) => {
-      const category = classifyPowerSeries(series);
-      const section = powerSection(series);
-      const stack = stacks[section];
-      const lower = new Float64Array(horizonCount);
-      const upper = new Float64Array(horizonCount);
-      const displayValues = new Float64Array(horizonCount);
-      const isBi = this.bidirectionalSeriesCache.get(series.key) ?? false;
-      for (let idx = 0; idx < horizonCount; idx += 1) {
-        const value = powerValueForDisplay(series, series.values[idx] ?? 0, this.powerDisplayMode, isBi);
-        displayValues[idx] = value;
-        lower[idx] = stack[idx] ?? 0;
-        const next = (stack[idx] ?? 0) + value;
-        upper[idx] = next;
-        stack[idx] = next;
-      }
-      return {
-        key: series.key,
-        color: series.color,
-        isPotential: category.subgroup === "potential",
-        strokePaths: stepTopStrokePaths(series.times, upper, displayValues, xScale, yScalePower),
-        d: stepAreaPath(series.times, lower, upper, xScale, yScalePower),
-      };
-    });
+  get powerShapes(): PowerShape[] {
+    return computePowerShapes(
+      this.orderedPowerSeries,
+      this.powerBounds,
+      this.bidirectionalSeriesCache,
+      this.powerDisplayMode,
+      this.plotTop,
+      this.plotBottom,
+      this.cachedXScale,
+    );
   }
 
   get hoveredPowerSeriesKeys(): Set<string> {
-    if (!this.isHoverInPlot) {
+    if (!this.isHoverInPlot || this.pointerY === null) {
       return new Set();
     }
     const time = this.hoverTimeMs;
-    if (time === null || this.pointerY === null) {
+    if (time === null) {
       return new Set();
     }
-    const hovered = new Set<string>();
-    const series = this.orderedPowerSeries;
-    if (series.length === 0) {
-      return hovered;
-    }
-    const { min: powerMin, max: powerMax } = this.powerBounds;
-    const yScalePower = (value: number): number =>
-      linearScale(value, powerMin, powerMax, this.plotBottom, this.plotTop);
-    const idxBySeries = this.hoverIndices;
-    const stackedAtHover = new Map([
-      ["available" as const, 0],
-      ["produced" as const, 0],
-      ["consumed" as const, 0],
-      ["possible" as const, 0],
-    ]);
-    for (const s of series) {
-      const idx = idxBySeries.get(s.key) ?? 0;
-      const isBi = this.bidirectionalSeriesCache.get(s.key) ?? false;
-      const value = powerValueForDisplay(s, s.values[idx] ?? 0, this.powerDisplayMode, isBi);
-      if (Math.abs(value) < 1e-6) {
-        continue;
-      }
-      const section = powerSection(s);
-      const lower = stackedAtHover.get(section) ?? 0;
-      const upper = lower + value;
-      stackedAtHover.set(section, upper);
-      const y1 = yScalePower(lower);
-      const y2 = yScalePower(upper);
-      const top = Math.min(y1, y2);
-      const bottom = Math.max(y1, y2);
-      if (this.pointerY >= top && this.pointerY <= bottom) {
-        hovered.add(s.key);
-      }
-    }
-    return hovered;
+    return computeHoveredPowerKeys(
+      this.orderedPowerSeries,
+      this.hoverIndices,
+      this.bidirectionalSeriesCache,
+      this.powerDisplayMode,
+      this.powerBounds,
+      this.plotTop,
+      this.plotBottom,
+      this.pointerY,
+    );
   }
 
-  get pricePaths(): Array<{ key: string; color: string; d: string }> {
-    const xScale = this.cachedXScale;
-    const { min: powerMin, max: powerMax } = this.powerBounds;
-    const { min: priceMin, max: priceMax } = this.priceBounds;
-    const plotBottom = this.plotBottom;
-    const plotTop = this.plotTop;
-    const zeroY = linearScale(0, powerMin, powerMax, plotBottom, plotTop);
-    const yScalePrice = (value: number): number => {
-      if (value >= 0) {
-        const positiveMax = Math.max(priceMax, 0.001);
-        return linearScale(value, 0, positiveMax, zeroY, plotTop);
-      }
-      const negativeMin = Math.min(priceMin, -0.001);
-      return linearScale(value, negativeMin, 0, plotBottom, zeroY);
-    };
-    return this.priceSeries.map((series) => ({
-      key: series.key,
-      color: series.color,
-      d: stepPath(series.times, series.values, xScale, yScalePrice),
-    }));
+  get pricePaths(): LineSvgPath[] {
+    return computePricePaths(
+      this.priceSeries,
+      this.powerBounds,
+      this.priceBounds,
+      this.plotTop,
+      this.plotBottom,
+      this.cachedXScale,
+    );
   }
 
-  get socPaths(): Array<{ key: string; color: string; d: string }> {
-    const xScale = this.cachedXScale;
-    const { min: powerMin, max: powerMax } = this.powerBounds;
-    const plotBottom = this.plotBottom;
-    const plotTop = this.plotTop;
-    const zeroY = linearScale(0, powerMin, powerMax, plotBottom, plotTop);
-    const { min: socMin, max: socMax } = this.socBounds;
-    const yScaleSoc = (value: number): number => linearScale(value, socMin, socMax, zeroY, plotTop);
-    return this.socSeries.map((series) => ({
-      key: series.key,
-      color: series.color,
-      d: linePath(series.times, series.values, xScale, yScaleSoc),
-    }));
+  get socPaths(): LineSvgPath[] {
+    return computeSocPaths(
+      this.socSeries,
+      this.powerBounds,
+      this.socBounds,
+      this.plotTop,
+      this.plotBottom,
+      this.cachedXScale,
+    );
   }
 
   // --- Computed: tooltip ---
