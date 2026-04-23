@@ -17,9 +17,9 @@ class OutputData:
         type: The output type (power, energy, SOC, etc.).
         unit: The unit of measurement for the output values (e.g., "W", "Wh", "%").
         values: The sequence of output values.
-        direction: Power flow direction relative to the element.
-            "+" = power flowing into element (charge, import, consumption) or toward target (connections).
-            "-" = power flowing out of element (discharge, export, production) or toward source (connections).
+        direction: Power flow direction from the energy system's perspective.
+            "+" = production: power added to the system (solar generation, battery discharge, grid import).
+            "-" = consumption: power removed from the system (load demand, battery charge, grid export).
             None = non-directional output (SOC, prices, energy, shadow prices).
         advanced: Whether the output is intended for advanced diagnostics only.
         state_last: If True, the sensor state uses the last value instead of the first.

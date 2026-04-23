@@ -36,7 +36,7 @@ class SolarConfigSchema(ConnectedCommonConfig):
             {
                 CONF_FORECAST: FieldHint(
                     output_type=OutputType.POWER,
-                    direction="-",
+                    direction="+",
                     time_series=True,
                 ),
             }

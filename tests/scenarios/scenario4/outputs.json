@@ -125,8 +125,10 @@
       "max": 1000.0,
       "min": 0.1,
       "mode": "auto",
+      "output_name": "capacity",
       "output_type": "energy",
       "source_entities": ["sensor.sigen_plant_rated_energy_capacity"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kWh"
@@ -257,7 +259,9 @@
       "max": 100.0,
       "min": 50.0,
       "mode": "auto",
+      "output_name": "efficiency_target_source",
       "output_type": "efficiency",
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "%"
@@ -388,7 +392,9 @@
       "max": 100.0,
       "min": 50.0,
       "mode": "auto",
+      "output_name": "efficiency_source_target",
       "output_type": "efficiency",
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "%"
@@ -407,8 +413,10 @@
       "max": 100.0,
       "min": 0.0,
       "mode": "auto",
+      "output_name": "initial_charge_percentage",
       "output_type": "state_of_charge",
       "source_entities": ["sensor.sigen_plant_battery_state_of_charge"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": false,
       "unit_of_measurement": "%"
@@ -540,7 +548,9 @@
       "max": 100.0,
       "min": 0.0,
       "mode": "auto",
+      "output_name": "max_charge_percentage",
       "output_type": "state_of_charge",
+      "source_role": "limit",
       "step": 1.0,
       "time_series": true,
       "unit_of_measurement": "%"
@@ -552,7 +562,7 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "power",
-      "direction": "+",
+      "direction": "-",
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "max_power_target_source",
@@ -672,8 +682,12 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
+      "output_name": "max_power_target_source",
       "output_type": "power",
+      "plot_priority": 3,
+      "plot_stream": "battery_charge",
       "source_entities": ["sensor.sigen_plant_ess_rated_charging_power"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -685,7 +699,7 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "power",
-      "direction": "-",
+      "direction": "+",
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "max_power_source_target",
@@ -805,8 +819,12 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
+      "output_name": "max_power_source_target",
       "output_type": "power",
+      "plot_priority": 4,
+      "plot_stream": "battery_discharge",
       "source_entities": ["sensor.sigen_plant_ess_rated_discharging_power"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -938,13 +956,19 @@
       "max": 100.0,
       "min": 0.0,
       "mode": "auto",
+      "output_name": "min_charge_percentage",
       "output_type": "state_of_charge",
+      "source_role": "limit",
       "step": 1.0,
       "time_series": true,
       "unit_of_measurement": "%"
     }
   },
-  "number.battery_salvage_value": { "entity_id": "number.battery_salvage_value", "state": "0.0", "attributes": { "config_mode": "editable", "element_name": "Battery", "element_type": "battery", "field_name": "salvage_value", "friendly_name": "Battery Salvage value", "max": 10.0, "min": -1.0, "mode": "auto", "output_type": "price", "step": 0.001, "time_series": false } },
+  "number.battery_salvage_value": {
+    "entity_id": "number.battery_salvage_value",
+    "state": "0.0",
+    "attributes": { "config_mode": "editable", "element_name": "Battery", "element_type": "battery", "field_name": "salvage_value", "friendly_name": "Battery Salvage value", "max": 10.0, "min": -1.0, "mode": "auto", "output_name": "salvage_value", "output_type": "price", "source_role": "limit", "step": 0.001, "time_series": false }
+  },
   "number.constant_load_forecast": {
     "entity_id": "number.constant_load_forecast",
     "state": "1.0",
@@ -1071,7 +1095,11 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
+      "output_name": "forecast",
       "output_type": "power",
+      "plot_priority": 1,
+      "plot_stream": "load_consumption",
+      "source_role": "forecast",
       "step": 0.01,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1203,7 +1231,9 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
+      "output_name": "max_power_target_source",
       "output_type": "power_limit",
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1214,7 +1244,7 @@
     "state": "0.12",
     "attributes": {
       "config_mode": "driven",
-      "direction": "+",
+      "direction": "-",
       "element_name": "Grid",
       "element_type": "grid",
       "field_name": "price_target_source",
@@ -1334,8 +1364,10 @@
       "max": 10.0,
       "min": -1.0,
       "mode": "auto",
+      "output_name": "price_target_source",
       "output_type": "price",
       "source_entities": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
+      "source_role": "limit",
       "step": 0.001,
       "time_series": true
     }
@@ -1466,7 +1498,9 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
+      "output_name": "max_power_source_target",
       "output_type": "power_limit",
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1477,7 +1511,7 @@
     "state": "0.22",
     "attributes": {
       "config_mode": "driven",
-      "direction": "-",
+      "direction": "+",
       "element_name": "Grid",
       "element_type": "grid",
       "field_name": "price_source_target",
@@ -1597,8 +1631,10 @@
       "max": 10.0,
       "min": -1.0,
       "mode": "auto",
+      "output_name": "price_source_target",
       "output_type": "price",
       "source_entities": ["sensor.home_general_price", "sensor.home_general_forecast"],
+      "source_role": "limit",
       "step": 0.001,
       "time_series": true
     }
@@ -1728,8 +1764,10 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
+      "output_name": "max_power_target_source",
       "output_type": "power_limit",
       "source_entities": ["sensor.sigen_plant_max_active_power"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1860,8 +1898,10 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
+      "output_name": "max_power_source_target",
       "output_type": "power_limit",
       "source_entities": ["sensor.sigen_plant_max_active_power"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1873,7 +1913,7 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "power",
-      "direction": "-",
+      "direction": "+",
       "element_name": "Solar",
       "element_type": "solar",
       "field_name": "forecast",
@@ -1993,8 +2033,12 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
+      "output_name": "forecast",
       "output_type": "power",
+      "plot_priority": 2,
+      "plot_stream": "solar_production",
       "source_entities": ["sensor.solcast_pv_forecast_forecast_day_3", "sensor.solcast_pv_forecast_forecast_today", "sensor.solcast_pv_forecast_forecast_tomorrow"],
+      "source_role": "forecast",
       "step": 0.01,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -2123,6 +2167,7 @@
       "friendly_name": "Battery Active power",
       "output_name": "battery_power_active",
       "output_type": "power",
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -2251,6 +2296,9 @@
       "friendly_name": "Battery Charge power",
       "output_name": "battery_power_charge",
       "output_type": "power",
+      "plot_priority": 3,
+      "plot_stream": "battery_charge",
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -2379,6 +2427,9 @@
       "friendly_name": "Battery Discharge power",
       "output_name": "battery_power_discharge",
       "output_type": "power",
+      "plot_priority": 4,
+      "plot_stream": "battery_discharge",
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -2506,6 +2557,7 @@
       "friendly_name": "Battery Energy in flow shadow price",
       "output_name": "battery_energy_in_flow",
       "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kWh"
     }
   },
@@ -2632,6 +2684,7 @@
       "friendly_name": "Battery Energy out flow shadow price",
       "output_name": "battery_energy_out_flow",
       "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kWh"
     }
   },
@@ -2759,6 +2812,7 @@
       "friendly_name": "Battery Energy stored",
       "output_name": "battery_energy_stored",
       "output_type": "energy",
+      "source_role": "output",
       "unit_of_measurement": "kWh"
     }
   },
@@ -2886,6 +2940,7 @@
       "friendly_name": "Battery Power balance shadow price",
       "output_name": "battery_power_balance",
       "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -3012,6 +3067,7 @@
       "friendly_name": "Battery SOC max shadow price",
       "output_name": "battery_soc_max",
       "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kWh"
     }
   },
@@ -3138,6 +3194,7 @@
       "friendly_name": "Battery SOC min shadow price",
       "output_name": "battery_soc_min",
       "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kWh"
     }
   },
@@ -3265,6 +3322,7 @@
       "friendly_name": "Battery State of charge",
       "output_name": "battery_state_of_charge",
       "output_type": "state_of_charge",
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "%"
     }
@@ -3392,6 +3450,7 @@
       "friendly_name": "Constant Load Forecast limit shadow price",
       "output_name": "load_forecast_limit_price",
       "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -3519,7 +3578,10 @@
       "friendly_name": "Constant Load Power",
       "output_name": "load_power",
       "output_type": "power",
+      "plot_priority": 1,
+      "plot_stream": "load_consumption",
       "priority": 1,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -3648,6 +3710,7 @@
       "output_name": "grid_power_active",
       "output_type": "power",
       "priority": 7,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -3776,7 +3839,10 @@
       "friendly_name": "Grid Export power",
       "output_name": "grid_power_export",
       "output_type": "power",
+      "plot_priority": 5,
+      "plot_stream": "grid_export",
       "priority": 7,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -3905,6 +3971,7 @@
       "friendly_name": "Grid Export revenue",
       "output_name": "grid_revenue_export",
       "output_type": "cost",
+      "source_role": "output",
       "unit_of_measurement": "$"
     }
   },
@@ -4032,6 +4099,7 @@
       "friendly_name": "Grid Import cost",
       "output_name": "grid_cost_import",
       "output_type": "cost",
+      "source_role": "output",
       "unit_of_measurement": "$"
     }
   },
@@ -4159,7 +4227,10 @@
       "friendly_name": "Grid Import power",
       "output_name": "grid_power_import",
       "output_type": "power",
+      "plot_priority": 6,
+      "plot_stream": "grid_import",
       "priority": 6,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -4287,6 +4358,7 @@
       "friendly_name": "Grid Max export power shadow price",
       "output_name": "grid_power_max_export_price",
       "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -4413,6 +4485,7 @@
       "friendly_name": "Grid Max import power shadow price",
       "output_name": "grid_power_max_import_price",
       "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -4539,6 +4612,7 @@
       "friendly_name": "Grid Net cost",
       "output_name": "grid_cost_net",
       "output_type": "cost",
+      "source_role": "output",
       "unit_of_measurement": "$"
     }
   },
@@ -4667,6 +4741,7 @@
       "output_name": "inverter_power_ac_to_dc",
       "output_type": "power_flow",
       "priority": 5,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -4795,6 +4870,7 @@
       "output_name": "inverter_power_active",
       "output_type": "power_flow",
       "priority": 4,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -4922,6 +4998,7 @@
       "friendly_name": "Inverter DC bus power balance shadow price",
       "output_name": "inverter_dc_bus_power_balance",
       "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -5050,6 +5127,7 @@
       "output_name": "inverter_power_dc_to_ac",
       "output_type": "power_flow",
       "priority": 4,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -5177,6 +5255,7 @@
       "friendly_name": "Inverter Max AC to DC power shadow price",
       "output_name": "inverter_max_power_ac_to_dc_price",
       "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -5303,11 +5382,16 @@
       "friendly_name": "Inverter Max DC to AC power shadow price",
       "output_name": "inverter_max_power_dc_to_ac_price",
       "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
-  "sensor.optimizer_cost": { "entity_id": "sensor.optimizer_cost", "state": "-61.3", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Cost", "output_name": "network_optimization_cost", "output_type": "cost", "unit_of_measurement": "$" } },
-  "sensor.optimizer_duration": { "entity_id": "sensor.optimizer_duration", "state": "0.0", "attributes": { "advanced": false, "device_class": "duration", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Duration", "output_name": "network_optimization_duration", "output_type": "duration", "state_class": "measurement", "unit_of_measurement": "s" } },
+  "sensor.optimizer_cost": { "entity_id": "sensor.optimizer_cost", "state": "-61.3", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Cost", "output_name": "network_optimization_cost", "output_type": "cost", "source_role": "output", "unit_of_measurement": "$" } },
+  "sensor.optimizer_duration": {
+    "entity_id": "sensor.optimizer_duration",
+    "state": "0.0",
+    "attributes": { "advanced": false, "device_class": "duration", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Duration", "output_name": "network_optimization_duration", "output_type": "duration", "source_role": "output", "state_class": "measurement", "unit_of_measurement": "s" }
+  },
   "sensor.optimizer_forecast_horizon": {
     "entity_id": "sensor.optimizer_forecast_horizon",
     "state": "2025-10-06T10:50:00+00:00",
@@ -5433,7 +5517,7 @@
   "sensor.optimizer_status": {
     "entity_id": "sensor.optimizer_status",
     "state": "success",
-    "attributes": { "advanced": false, "device_class": "enum", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Status", "last_run": "2025-10-06T10:50:21.031796+00:00", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status" }
+    "attributes": { "advanced": false, "device_class": "enum", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Status", "last_run": "2025-10-06T10:50:21.031796+00:00", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status", "source_role": "output" }
   },
   "sensor.solar_forecast_limit_shadow_price": {
     "entity_id": "sensor.solar_forecast_limit_shadow_price",
@@ -5558,6 +5642,7 @@
       "friendly_name": "Solar Forecast limit shadow price",
       "output_name": "solar_forecast_limit",
       "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -5685,7 +5770,10 @@
       "friendly_name": "Solar Power",
       "output_name": "solar_power",
       "output_type": "power",
+      "plot_priority": 2,
+      "plot_stream": "solar_production",
       "priority": 0,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -5813,6 +5901,7 @@
       "friendly_name": "Switchboard Power balance shadow price",
       "output_name": "node_power_balance",
       "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },

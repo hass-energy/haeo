@@ -15,8 +15,8 @@ _STREAM_PRIORITY_BY_KEY: dict[tuple[str, str], tuple[str, int]] = {
     ("solar", "+"): ("solar_production", 2),
     ("battery", "-"): ("battery_charge", 3),
     ("battery", "+"): ("battery_discharge", 4),
-    ("grid", "+"): ("grid_export", 5),
-    ("grid", "-"): ("grid_import", 6),
+    ("grid", "-"): ("grid_export", 5),
+    ("grid", "+"): ("grid_import", 6),
 }
 
 
