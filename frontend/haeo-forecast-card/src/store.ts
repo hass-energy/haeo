@@ -218,9 +218,9 @@ export class ForecastCardStore {
 
   get orderedPowerSeries(): ForecastSeries[] {
     return [...this.powerSeries].sort((a, b) => {
-      // Primary sort: plot_priority metadata from the backend determines stack order.
-      const aPriority = a.plotPriority ?? Number.POSITIVE_INFINITY;
-      const bPriority = b.plotPriority ?? Number.POSITIVE_INFINITY;
+      // Primary sort: optimizer priority from the backend determines stack order.
+      const aPriority = a.priority ?? Number.POSITIVE_INFINITY;
+      const bPriority = b.priority ?? Number.POSITIVE_INFINITY;
       if (aPriority !== bPriority) return aPriority - bPriority;
       return a.label.localeCompare(b.label);
     });

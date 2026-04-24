@@ -129,27 +129,6 @@ function sourceRoleForSeries(configMode: string | null, fieldName: string | null
   return fieldName === "forecast" ? "forecast" : "limit";
 }
 
-function fallbackPlotPriority(
-  elementType: string,
-  direction: string | null,
-  outputType: string,
-  sourceRole: SeriesSourceRole
-): number | null {
-  if (outputType !== "power" || sourceRole === "limit" || direction === null) {
-    return null;
-  }
-  const key = `${elementType}:${direction}`;
-  const byKey: Record<string, number> = {
-    "load:-": 1,
-    "solar:+": 2,
-    "battery:-": 3,
-    "battery:+": 4,
-    "grid:+": 5,
-    "grid:-": 6,
-  };
-  return byKey[key] ?? null;
-}
-
 export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfig): ForecastSeries[] {
   if (!hass) {
     return [];
@@ -218,10 +197,8 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       sourceRoleRaw === "output" || sourceRoleRaw === "forecast" || sourceRoleRaw === "limit"
         ? sourceRoleRaw
         : sourceRoleForSeries(configMode, fieldName);
-    const plotStreamRaw = attrs["plot_stream"];
-    const plotStream = typeof plotStreamRaw === "string" ? plotStreamRaw : null;
-    const plotPriorityRaw = attrs["plot_priority"];
-    const plotPriorityFromMetadata = asNumber(plotPriorityRaw);
+    const priorityRaw = attrs["priority"];
+    const priority = asNumber(priorityRaw);
     const outputType = asString(attrs["output_type"], "other");
     const elementName = asString(attrs["element_name"], entityId);
     const outputName = asString(attrs["output_name"], outputType);
@@ -230,8 +207,6 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
     if (!includeOutputType(outputType, direction)) {
       continue;
     }
-    const plotPriority =
-      plotPriorityFromMetadata ?? fallbackPlotPriority(elementType, direction, outputType, sourceRole);
     const unit = asString(attrs["unit_of_measurement"]);
     const friendlyName = asString(attrs["friendly_name"]);
     const variant = elementVariantCount.get(elementName) ?? 0;
@@ -247,8 +222,7 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       outputType,
       direction,
       sourceRole,
-      plotStream,
-      plotPriority,
+      priority,
       lane: inferLane(outputType),
       drawType: inferDrawType(outputType),
       unit,

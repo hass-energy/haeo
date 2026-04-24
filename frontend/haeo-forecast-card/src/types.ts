@@ -26,8 +26,7 @@ export interface ForecastSeries {
   outputType: string;
   direction: string | null;
   sourceRole: SeriesSourceRole;
-  plotStream: string | null;
-  plotPriority: number | null;
+  priority: number | null;
   lane: LaneType;
   drawType: DrawType;
   unit: string;

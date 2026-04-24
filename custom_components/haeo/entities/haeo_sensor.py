@@ -13,11 +13,7 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo.const import CONF_RECORD_FORECASTS, OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.core.model import OutputType
-from custom_components.haeo.entities.plot_metadata import (
-    SOURCE_ROLE_KEY,
-    SOURCE_ROLE_OUTPUT,
-    build_plot_metadata,
-)
+from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, SOURCE_ROLE_OUTPUT
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
 
 # Attributes to exclude from recorder when forecast recording is disabled
@@ -101,14 +97,6 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
                 if output_data.priority is not None:
                     attributes["priority"] = output_data.priority
                 attributes["advanced"] = output_data.advanced
-                attributes.update(
-                    build_plot_metadata(
-                        element_type=self._element_type,
-                        output_type=self._output_type,
-                        direction=output_data.direction,
-                        source_role=SOURCE_ROLE_OUTPUT,
-                    )
-                )
                 self._apply_output(output_data)
                 if output_data.state is not None:
                     native_value = self._scale_percentage_state(output_data.unit, output_data.state)
