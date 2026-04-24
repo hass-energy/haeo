@@ -30,7 +30,7 @@ describe("tooltipSection", () => {
   });
 
   it("returns soc for soc lane", () => {
-    expect(tooltipSection(makeSeries({ key: "a", lane: "soc", outputType: "soc" }))).toBe("soc");
+    expect(tooltipSection(makeSeries({ key: "a", lane: "soc", outputType: "state_of_charge" }))).toBe("soc");
   });
 
   it("returns consumed for consumption utilization", () => {

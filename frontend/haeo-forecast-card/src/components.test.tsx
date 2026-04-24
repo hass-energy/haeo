@@ -13,6 +13,7 @@ const testFixture: HassLike = {
       entity_id: "sensor.grid_import_power",
       attributes: {
         element_name: "Grid",
+        element_type: "grid",
         output_name: "import_power",
         field_type: "power",
         direction: "-",
@@ -28,6 +29,7 @@ const testFixture: HassLike = {
       entity_id: "sensor.grid_import_price",
       attributes: {
         element_name: "Grid",
+        element_type: "grid",
         output_name: "import_price",
         field_type: "price",
         unit_of_measurement: "$/kWh",
@@ -42,6 +44,7 @@ const testFixture: HassLike = {
       entity_id: "sensor.battery_soc",
       attributes: {
         element_name: "Battery",
+        element_type: "battery",
         output_name: "state_of_charge",
         field_type: "state_of_charge",
         unit_of_measurement: "%",
@@ -127,7 +130,10 @@ describe("ForecastCardView components", () => {
       />,
       root
     );
-    const firstItem = root.querySelector<HTMLElement>(".legendItem");
+    const gridElement = Array.from(root.querySelectorAll(".legendElement")).find((el) =>
+      el.textContent.includes("Grid")
+    );
+    const firstItem = (gridElement?.querySelector(".legendItem") as HTMLElement | null) ?? null;
     const firstGroup = root.querySelector<HTMLElement>(".legendElementLabel");
     expect(firstItem).toBeTruthy();
     expect(firstGroup).toBeTruthy();
@@ -153,7 +159,10 @@ describe("ForecastCardView components", () => {
     render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
 
     const modeButton = root.querySelector<HTMLButtonElement>(".modeToggleButton");
-    const firstLegendItem = root.querySelector<HTMLButtonElement>(".legendItem");
+    const gridElement = Array.from(root.querySelectorAll(".legendElement")).find((el) =>
+      el.textContent.includes("Grid")
+    );
+    const firstLegendItem = (gridElement?.querySelector(".legendItem") as HTMLButtonElement | null) ?? null;
     expect(modeButton).toBeTruthy();
     expect(firstLegendItem).toBeTruthy();
     modeButton?.click();

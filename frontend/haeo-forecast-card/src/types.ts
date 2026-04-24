@@ -12,6 +12,17 @@ export interface ForecastCardConfig {
   power_display_mode?: PowerDisplayMode;
 }
 
+export type ElementType =
+  | "battery"
+  | "battery_section"
+  | "connection"
+  | "grid"
+  | "inverter"
+  | "load"
+  | "node"
+  | "solar"
+  | "policy";
+export type CardOutputType = "power" | "price" | "state_of_charge";
 export type LaneType = "power" | "price" | "soc" | "shadow" | "other";
 export type DrawType = "step" | "line";
 export type SeriesSourceRole = "output" | "forecast" | "limit";
@@ -21,9 +32,9 @@ export interface ForecastSeries {
   entityId: string;
   label: string;
   elementName: string;
-  elementType: string;
+  elementType: ElementType;
   outputName: string;
-  outputType: string;
+  outputType: CardOutputType;
   direction: "+" | "-" | null;
   sourceRole: SeriesSourceRole;
   priority: number | null;

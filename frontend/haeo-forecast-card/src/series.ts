@@ -1,4 +1,4 @@
-import type { ForecastCardConfig, ForecastSeries, LaneType, SeriesSourceRole } from "./types";
+import type { ForecastCardConfig, ForecastSeries, CardOutputType, ElementType, LaneType, SeriesSourceRole } from "./types";
 
 interface HassEntityState {
   entity_id: string;
@@ -33,27 +33,21 @@ function asNumber(value: unknown): number | null {
   return null;
 }
 
-function inferLane(outputType: string): LaneType {
+function inferLane(outputType: CardOutputType): LaneType {
   if (outputType === "power") {
     return "power";
   }
-  if (outputType === "price" || outputType === "cost") {
+  if (outputType === "price") {
     return "price";
   }
-  if (outputType === "state_of_charge") {
-    return "soc";
-  }
-  if (outputType === "shadow_price") {
-    return "shadow";
-  }
-  return "other";
+  return "soc";
 }
 
-function inferDrawType(outputType: string): "step" | "line" {
+function inferDrawType(outputType: CardOutputType): "step" | "line" {
   return outputType === "state_of_charge" ? "line" : "step";
 }
 
-function fallbackLabel(elementName: string, outputName: string, outputType: string): string {
+function fallbackLabel(elementName: string, outputName: string, outputType: CardOutputType): string {
   const normalizedOutput = outputName.replace(/_/g, " ").trim();
   if (outputType === "state_of_charge") {
     return `${elementName} state of charge`.trim();
@@ -70,11 +64,8 @@ function fallbackLabel(elementName: string, outputName: string, outputType: stri
     }
     return `${elementName} ${stem}`.trim();
   }
-  if (outputType === "price") {
-    const stem = normalizedOutput.replace(/\bprice\b/gi, "").trim();
-    return stem ? `${elementName} ${stem} price`.trim() : `${elementName} price`;
-  }
-  return `${elementName} ${normalizedOutput}`.trim();
+  const stem = normalizedOutput.replace(/\bprice\b/gi, "").trim();
+  return stem ? `${elementName} ${stem} price`.trim() : `${elementName} price`;
 }
 
 function hashString(value: string): number {
@@ -85,21 +76,20 @@ function hashString(value: string): number {
   return hash;
 }
 
-function colorForElement(elementType: string, elementName: string, variant: number): string {
-  const type = elementType.toLowerCase();
-  if (type === "battery") {
+function colorForElement(elementType: ElementType, elementName: string, variant: number): string {
+  if (elementType === "battery") {
     const green = ["#22c55e", "#16a34a", "#15803d", "#4ade80"];
     return green[variant % green.length] ?? "#22c55e";
   }
-  if (type === "grid") {
+  if (elementType === "grid") {
     const blue = ["#60a5fa", "#3b82f6", "#2563eb", "#1d4ed8", "#93c5fd"];
     return blue[variant % blue.length] ?? "#3b82f6";
   }
-  if (type === "solar") {
+  if (elementType === "solar") {
     const solar = ["#f59e0b", "#fbbf24", "#f97316", "#facc15", "#ea580c"];
     return solar[variant % solar.length] ?? "#f59e0b";
   }
-  if (type === "load") {
+  if (elementType === "load") {
     const load = ["var(--haeo-load-0)", "var(--haeo-load-1)", "var(--haeo-load-2)", "var(--haeo-load-3)"];
     return load[variant % load.length] ?? "var(--haeo-load-0)";
   }
@@ -109,7 +99,23 @@ function colorForElement(elementType: string, elementName: string, variant: numb
   return `hsl(${hue} 72% ${lightness}%)`;
 }
 
-function includeOutputType(outputType: string, direction: "+" | "-" | null): boolean {
+const ELEMENT_TYPES: ReadonlySet<string> = new Set<ElementType>([
+  "battery",
+  "battery_section",
+  "connection",
+  "grid",
+  "inverter",
+  "load",
+  "node",
+  "solar",
+  "policy",
+]);
+
+function isElementType(value: string): value is ElementType {
+  return ELEMENT_TYPES.has(value);
+}
+
+function includeOutputType(outputType: string, direction: "+" | "-" | null): outputType is CardOutputType {
   if (outputType === "power") {
     // Plot power streams only when explicit directional metadata is present.
     if (direction !== "+" && direction !== "-") {
@@ -184,7 +190,11 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       values[idx] = point.value;
     }
 
-    const elementType = asString(attrs["element_type"]);
+    const elementTypeRaw = asString(attrs["element_type"]);
+    if (!isElementType(elementTypeRaw)) {
+      continue;
+    }
+    const elementType = elementTypeRaw;
     const configModeRaw = attrs["config_mode"];
     const configMode = typeof configModeRaw === "string" ? configModeRaw : null;
     const fieldNameRaw = attrs["field_name"];
