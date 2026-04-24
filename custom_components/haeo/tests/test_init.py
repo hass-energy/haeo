@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from types import MappingProxyType
 from unittest.mock import AsyncMock, Mock
 
+from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL, UrlManager
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
@@ -880,6 +881,7 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     mock_http = Mock()
     mock_http.async_register_static_paths = AsyncMock()
     hass.http = mock_http  # type: ignore[attr-defined]
+    hass.data[DATA_EXTRA_MODULE_URL] = UrlManager(lambda *_: None, [])
 
     result = await async_setup(hass, {})
 
@@ -889,6 +891,7 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     assert len(configs) == 1
     assert configs[0].url_path == STATIC_FORECAST_CARD_URL_PATH
     assert configs[0].path.endswith(STATIC_FORECAST_CARD_FILE_PATH)
+    assert STATIC_FORECAST_CARD_URL_PATH in hass.data[DATA_EXTRA_MODULE_URL].urls
 
 
 async def test_async_register_static_skips_when_http_unavailable(

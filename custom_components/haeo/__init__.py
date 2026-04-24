@@ -10,6 +10,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Protocol
 
+from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
@@ -127,6 +128,7 @@ async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None
     await http.async_register_static_paths(
         [StaticPathConfig(STATIC_FORECAST_CARD_URL_PATH, str(card_path), cache_headers=False)]
     )
+    add_extra_js_url(hass, STATIC_FORECAST_CARD_URL_PATH)
 
 
 @dataclass(slots=True)
