@@ -42,11 +42,7 @@ export class HaeoForecastCard extends HTMLElement {
       if (!entityId.startsWith("sensor.") || !state) continue;
       const forecast = state.attributes["forecast"];
       const platform = state.attributes["platform"];
-      if (
-        Array.isArray(forecast) &&
-        forecast.length > 0 &&
-        (platform === "haeo" || entityId.includes("haeo"))
-      ) {
+      if (Array.isArray(forecast) && forecast.length > 0 && (platform === "haeo" || entityId.includes("haeo"))) {
         entities.push(entityId);
       }
     }
