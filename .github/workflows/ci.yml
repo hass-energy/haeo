@@ -223,6 +223,14 @@ jobs:
         run: |
           npm --prefix frontend/haeo-forecast-card ci
           npm --prefix frontend/haeo-forecast-card run check
+
+      - name: Upload frontend coverage to Codecov
+        if: ${{ github.event_name != 'release' && !cancelled() }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: frontend/haeo-forecast-card/coverage/lcov.info
+          flags: frontend
+          token: ${{ secrets.CODECOV_TOKEN }}
   #endregion
   #region Tests
   # =============================================================================
@@ -258,6 +266,7 @@ jobs:
         if: ${{ github.event_name != 'release' && !cancelled() }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
+          flags: python
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
 

@@ -5667,6 +5667,7 @@
       "element_name": "Load",
       "element_type": "load",
       "field_type": "power",
+      "fixed": true,
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.5 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.4 },

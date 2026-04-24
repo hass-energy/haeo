@@ -1,4 +1,12 @@
-import type { ForecastCardConfig, ForecastSeries, CardOutputType, ElementType, LaneType, SeriesSourceRole } from "./types";
+import type {
+  ForecastCardConfig,
+  ForecastSeries,
+  CardOutputType,
+  ElementType,
+  LaneType,
+  SeriesSourceRole,
+} from "./types";
+import type { ConfigMode } from "./types";
 
 interface HassEntityState {
   entity_id: string;
@@ -195,8 +203,10 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       continue;
     }
     const elementType = elementTypeRaw;
-    const configModeRaw = attrs["config_mode"];
-    const configMode = typeof configModeRaw === "string" ? configModeRaw : null;
+    const configModeRaw = asString(attrs["config_mode"]);
+    const configMode: ConfigMode | null =
+      configModeRaw === "editable" || configModeRaw === "driven" ? configModeRaw : null;
+    const fixed = attrs["fixed"] === true;
     const fieldNameRaw = attrs["field_name"];
     const fieldName = typeof fieldNameRaw === "string" ? fieldNameRaw : null;
     const sourceRoleRaw = attrs["source_role"];
@@ -227,6 +237,8 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       elementType,
       outputName,
       outputType,
+      configMode,
+      fixed,
       direction,
       sourceRole,
       priority,

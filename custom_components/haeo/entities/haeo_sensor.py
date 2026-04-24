@@ -97,6 +97,8 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
                 if output_data.priority is not None:
                     attributes["priority"] = output_data.priority
                 attributes["advanced"] = output_data.advanced
+                if output_data.fixed:
+                    attributes["fixed"] = True
                 self._apply_output(output_data)
                 if output_data.state is not None:
                     native_value = self._scale_percentage_state(output_data.unit, output_data.state)

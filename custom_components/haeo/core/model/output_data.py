@@ -26,6 +26,7 @@ class OutputData:
             Use for cumulative values where the total is the meaningful current state.
         priority: Connection time-preference priority. Lower values are preferred
             earlier by the secondary objective. None for non-connection outputs.
+        fixed: Whether the output is constrained to equal its forecast (no curtailment).
 
     """
 
@@ -36,6 +37,7 @@ class OutputData:
     advanced: bool = False
     state_last: bool = False
     priority: int | None = None
+    fixed: bool = False
 
     def __init__(
         self,
@@ -47,6 +49,7 @@ class OutputData:
         advanced: bool = False,
         state_last: bool = False,
         priority: int | None = None,
+        fixed: bool = False,
     ) -> None:
         """Initialize OutputData.
 
@@ -58,6 +61,7 @@ class OutputData:
             advanced: Whether the output is intended for advanced diagnostics only.
             state_last: If True, the sensor state uses the last value instead of the first.
             priority: The connection priority for this output, if applicable.
+            fixed: Whether the output is constrained to equal its forecast (no curtailment).
 
         """
         self.type = type
@@ -66,6 +70,7 @@ class OutputData:
         self.advanced = advanced
         self.state_last = state_last
         self.priority = priority
+        self.fixed = fixed
 
         # Normalize to a tuple
         if isinstance(values, np.ndarray):

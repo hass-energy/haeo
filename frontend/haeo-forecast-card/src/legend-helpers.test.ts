@@ -14,6 +14,8 @@ function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
     outputType: "power",
     direction: "-",
     sourceRole: "output",
+    configMode: null,
+    fixed: false,
     priority: null,
     lane: "power",
     drawType: "step",

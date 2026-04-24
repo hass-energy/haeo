@@ -21,6 +21,9 @@ import type {
 const DEFAULT_HEIGHT = 360;
 const VISIBLE_LANES = new Set(["power", "price", "soc"]);
 
+export type HorizonOption = 4 | 8 | 12 | 24 | null;
+export const HORIZON_OPTIONS: readonly HorizonOption[] = [4, 8, 12, 24, null] as const;
+
 export class ForecastCardStore {
   hass: HassLike | null = null;
   config: ForecastCardConfig = { type: "custom:haeo-forecast-card" };
@@ -38,6 +41,7 @@ export class ForecastCardStore {
   forcedVisibleSeriesKeys = new Set<string>();
   visibilityRevision = 0;
   powerDisplayModeOverride: PowerDisplayMode | null = null;
+  horizonHours: HorizonOption = null;
   readonly instanceId: number;
 
   constructor(instanceId = 0) {
@@ -143,6 +147,11 @@ export class ForecastCardStore {
 
   togglePowerDisplayMode(): void {
     this.powerDisplayModeOverride = this.powerDisplayMode === "opposed" ? "overlay" : "opposed";
+    this.recomputePowerBounds();
+  }
+
+  setHorizon(hours: HorizonOption): void {
+    this.horizonHours = hours;
     this.recomputePowerBounds();
   }
 
@@ -273,6 +282,10 @@ export class ForecastCardStore {
       min = Math.min(min, first);
       max = Math.max(max, last);
       step = Math.min(step, Math.max(1, second - first));
+    }
+    if (this.horizonHours !== null) {
+      const horizonMax = min + this.horizonHours * 3_600_000;
+      max = Math.min(max, horizonMax);
     }
     if (!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(step)) {
       const now = this.nowMs;
@@ -550,18 +563,31 @@ export class ForecastCardStore {
       directionalByElement.set(series.elementName, existing);
     }
     for (const series of this.normalizedSeries) {
+      if (this.forcedVisibleSeriesKeys.has(series.key)) {
+        continue;
+      }
+
+      // Hide all policy element series by default.
+      if (series.elementType === "policy") {
+        const before = this.hiddenSeriesKeys.size;
+        this.hiddenSeriesKeys.add(series.key);
+        hiddenChanged ||= this.hiddenSeriesKeys.size !== before;
+        continue;
+      }
+
       if (series.lane !== "power") continue;
       const isGrid = series.elementName.toLowerCase().includes("grid");
       const category = classifyPowerSeries(series);
       const output = series.outputName.toLowerCase();
       const pair = directionalByElement.get(series.elementName);
+
       const hideByDefault =
         (isGrid && category.subgroup === "potential") ||
         ((output.includes("active") || output.includes("balance")) &&
           pair !== undefined &&
           pair.hasProd &&
           pair.hasCons);
-      if (hideByDefault && !this.forcedVisibleSeriesKeys.has(series.key)) {
+      if (hideByDefault) {
         const before = this.hiddenSeriesKeys.size;
         this.hiddenSeriesKeys.add(series.key);
         hiddenChanged ||= this.hiddenSeriesKeys.size !== before;
@@ -573,7 +599,20 @@ export class ForecastCardStore {
   }
 
   private refreshNormalizedSeries(): void {
-    const nextSeries = normalizeSeries(this.hass, this.config);
+    const allSeries = normalizeSeries(this.hass, this.config);
+
+    // Collect element+direction combos where the output is fixed.
+    // Potential series for these are redundant and should not appear at all.
+    const fixedOutputKeys = new Set<string>();
+    for (const s of allSeries) {
+      if (s.lane === "power" && s.sourceRole === "output" && s.fixed) {
+        fixedOutputKeys.add(`${s.elementName}:${s.direction}`);
+      }
+    }
+    const nextSeries = allSeries.filter(
+      (s) => s.sourceRole === "output" || !fixedOutputKeys.has(`${s.elementName}:${s.direction}`)
+    );
+
     this.normalizedSeriesCache = nextSeries;
 
     const seriesKeys = new Set(nextSeries.map((s) => s.key));
@@ -597,9 +636,6 @@ export class ForecastCardStore {
   }
 
   private recomputePowerBounds(): void {
-    this.powerBoundsCache = calculatePowerBounds(
-      this.orderedPowerSeries,
-      this.powerDisplayMode
-    );
+    this.powerBoundsCache = calculatePowerBounds(this.orderedPowerSeries, this.powerDisplayMode);
   }
 }

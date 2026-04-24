@@ -80,6 +80,39 @@ ha-card {
   color: var(--haeo-text);
 }
 
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.horizonSelector {
+  display: flex;
+  border: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--haeo-bg) 90%, #000 10%);
+}
+
+.horizonButton {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--haeo-subtext);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  cursor: pointer;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.horizonButton.active {
+  background: var(--haeo-accent);
+  color: var(--haeo-bg);
+  font-weight: 600;
+}
+
 .modeToggleButton {
   appearance: none;
   border: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);

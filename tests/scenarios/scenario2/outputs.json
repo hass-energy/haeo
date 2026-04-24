@@ -3468,6 +3468,7 @@
       "element_name": "Constant Load",
       "element_type": "load",
       "field_type": "power",
+      "fixed": true,
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 1.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 1.0 },

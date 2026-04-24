@@ -6,12 +6,18 @@ import { Legend } from "./Legend";
 import { Tooltip } from "./Tooltip";
 import { t } from "../i18n";
 import { observer } from "../mobx-observer";
+import { HORIZON_OPTIONS } from "../store";
 import type { ForecastCardStore } from "../store";
+import type { HorizonOption } from "../store";
 
 interface ForecastCardViewProps {
   store: ForecastCardStore;
   onPointerMove: (event: PointerEvent) => void;
   onPointerLeave: () => void;
+}
+
+function horizonLabel(hours: HorizonOption): string {
+  return hours === null ? "All" : `${hours}h`;
 }
 
 const CardTitle = observer(function CardTitle(props: { store: ForecastCardStore }): JSX.Element {
@@ -24,17 +30,32 @@ const CardTitle = observer(function CardTitle(props: { store: ForecastCardStore 
   return (
     <div className="cardHeader">
       <div className="title">{props.store.config.title ?? t(props.store.locale, "card.title.default")}</div>
-      <button
-        type="button"
-        className="modeToggleButton"
-        onClick={() => props.store.togglePowerDisplayMode()}
-        title={`${t(props.store.locale, "legend.mode")}: ${modeLabel}`}
-        aria-label={`${t(props.store.locale, "legend.mode")}: ${modeLabel}`}
-      >
-        <svg className="modeToggleIcon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d={modeIconPath} />
-        </svg>
-      </button>
+      <div className="headerControls">
+        <div className="horizonSelector">
+          {HORIZON_OPTIONS.map((option) => (
+            <button
+              key={String(option)}
+              type="button"
+              className={`horizonButton ${props.store.horizonHours === option ? "active" : ""}`}
+              onClick={() => props.store.setHorizon(option)}
+              title={t(props.store.locale, "header.horizon", { hours: horizonLabel(option) })}
+            >
+              {horizonLabel(option)}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="modeToggleButton"
+          onClick={() => props.store.togglePowerDisplayMode()}
+          title={`${t(props.store.locale, "legend.mode")}: ${modeLabel}`}
+          aria-label={`${t(props.store.locale, "legend.mode")}: ${modeLabel}`}
+        >
+          <svg className="modeToggleIcon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d={modeIconPath} />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 });

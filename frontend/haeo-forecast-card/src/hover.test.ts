@@ -15,6 +15,8 @@ function makeSeries(
     outputType: "power",
     direction: null,
     sourceRole: "output",
+    configMode: null,
+    fixed: false,
     priority: null,
     lane: "power",
     drawType: "step",

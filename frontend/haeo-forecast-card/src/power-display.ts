@@ -13,11 +13,7 @@ export function powerSection(series: ForecastSeries): PowerSection {
   return category.subgroup === "potential" ? "possible" : "consumed";
 }
 
-export function powerValueForDisplay(
-  series: ForecastSeries,
-  value: number,
-  displayMode: PowerDisplayMode
-): number {
+export function powerValueForDisplay(series: ForecastSeries, value: number, displayMode: PowerDisplayMode): number {
   const magnitude = Math.abs(value);
   if (displayMode === "overlay") {
     return magnitude;
@@ -38,10 +34,7 @@ export function emptySectionStacks(length: number): Record<PowerSection, Float64
   };
 }
 
-export function calculatePowerBounds(
-  orderedSeries: ForecastSeries[],
-  displayMode: PowerDisplayMode
-): LaneBounds {
+export function calculatePowerBounds(orderedSeries: ForecastSeries[], displayMode: PowerDisplayMode): LaneBounds {
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
   const firstSeries = orderedSeries[0];

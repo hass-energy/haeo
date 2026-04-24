@@ -1,0 +1,119 @@
+{
+  "advanced": { "advanced_mode": false, "debounce_seconds": 2 },
+  "common": { "name": "Sigenergy System", "horizon_preset": "5_days" },
+  "integration_type": "hub",
+  "minor_version": 3,
+  "record_forecasts": false,
+  "tiers": {
+    "tier_1_count": 5,
+    "tier_1_duration": 1,
+    "tier_2_count": 11,
+    "tier_2_duration": 5,
+    "tier_3_count": 46,
+    "tier_3_duration": 30,
+    "tier_4_count": 48,
+    "tier_4_duration": 60
+  },
+  "version": 1,
+  "participants": {
+    "Battery": {
+      "name": "Battery",
+      "element_type": "battery",
+      "connection": { "type": "connection_target", "value": "Inverter" },
+      "efficiency": {
+        "efficiency_source_target": { "type": "constant", "value": 99.0 },
+        "efficiency_target_source": { "type": "constant", "value": 99.0 }
+      },
+      "limits": {
+        "max_charge_percentage": { "type": "constant", "value": 100.0 },
+        "min_charge_percentage": { "type": "constant", "value": 10.0 }
+      },
+      "overcharge": {},
+      "partitioning": {},
+      "power_limits": {
+        "max_power_source_target": { "type": "entity", "value": ["sensor.sigen_plant_ess_rated_discharging_power"] },
+        "max_power_target_source": { "type": "entity", "value": ["sensor.sigen_plant_ess_rated_charging_power"] }
+      },
+      "pricing": {},
+      "storage": {
+        "capacity": { "type": "entity", "value": ["sensor.sigen_plant_rated_energy_capacity"] },
+        "initial_charge_percentage": { "type": "entity", "value": ["sensor.sigen_plant_battery_state_of_charge"] }
+      },
+      "undercharge": {}
+    },
+    "Grid": {
+      "name": "Grid",
+      "element_type": "grid",
+      "connection": { "type": "connection_target", "value": "Switchboard" },
+      "power_limits": {
+        "max_power_source_target": { "type": "constant", "value": 55.0 },
+        "max_power_target_source": { "type": "constant", "value": 20.0 }
+      },
+      "pricing": {
+        "price_source_target": { "type": "entity", "value": ["sensor.amber_express_home_general_price"] },
+        "price_target_source": { "type": "entity", "value": ["sensor.amber_express_home_feed_in_price"] }
+      }
+    },
+    "Inverter": {
+      "name": "Inverter",
+      "element_type": "inverter",
+      "connection": { "type": "connection_target", "value": "Switchboard" },
+      "efficiency": {},
+      "power_limits": {
+        "max_power_source_target": { "type": "entity", "value": ["sensor.sigen_plant_max_active_power"] },
+        "max_power_target_source": { "type": "entity", "value": ["sensor.sigen_plant_max_active_power"] }
+      }
+    },
+    "Load": {
+      "name": "Load",
+      "element_type": "load",
+      "connection": { "type": "connection_target", "value": "Switchboard" },
+      "curtailment": {},
+      "forecast": {
+        "forecast": {
+          "type": "entity",
+          "value": [
+            "sensor.sigen_plant_consumed_power_forecast",
+            "sensor.sigen_plant_consumed_power",
+            "sensor.load_forecast_night"
+          ]
+        }
+      }
+    },
+    "Policies": {
+      "name": "Policies",
+      "element_type": "policy",
+      "rules": [
+        {
+          "name": "Solar to Load",
+          "enabled": true,
+          "price": { "type": "constant", "value": 0.0 },
+          "source": ["Solar"],
+          "target": ["Load"]
+        },
+        {
+          "name": "Battery to Grid",
+          "enabled": true,
+          "price": { "type": "constant", "value": 0.15 },
+          "source": ["Battery"],
+          "target": ["Grid"]
+        },
+        {
+          "name": "Early charge incentive",
+          "enabled": true,
+          "price": { "type": "constant", "value": -0.001 },
+          "source": ["Solar"],
+          "target": ["Battery"]
+        }
+      ]
+    },
+    "Solar": {
+      "name": "Solar",
+      "element_type": "solar",
+      "connection": { "type": "connection_target", "value": "Inverter" },
+      "curtailment": { "curtailment": { "type": "constant", "value": true } },
+      "forecast": { "forecast": { "type": "entity", "value": ["sensor.solcast_forecast_p10"] } }
+    },
+    "Switchboard": { "name": "Switchboard", "element_type": "node", "role": { "is_sink": false, "is_source": false } }
+  }
+}

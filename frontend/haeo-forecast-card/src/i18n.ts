@@ -6,6 +6,7 @@ const EN_TRANSLATIONS: TranslationDict = {
   "card.title.default": "HAEO forecast",
   "card.empty.message":
     "No forecast data found. Add forecast entities in card config or ensure HAEO output sensors are available.",
+  "header.horizon": "Horizon: {hours}",
   "axis.power": "Power (kW)",
   "axis.price": "Price",
   "axis.soc": "SOC",
