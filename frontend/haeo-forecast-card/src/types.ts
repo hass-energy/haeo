@@ -24,7 +24,7 @@ export interface ForecastSeries {
   elementType: string;
   outputName: string;
   outputType: string;
-  direction: string | null;
+  direction: "+" | "-" | null;
   sourceRole: SeriesSourceRole;
   priority: number | null;
   lane: LaneType;

@@ -14,10 +14,7 @@ export function tooltipSection(series: ForecastSeries): TooltipSectionId {
   if (category.group === "production") {
     return category.subgroup === "potential" ? "available" : "produced";
   }
-  if (category.group === "consumption") {
-    return category.subgroup === "potential" ? "possible" : "consumed";
-  }
-  return "consumed";
+  return category.subgroup === "potential" ? "possible" : "consumed";
 }
 
 function prettifyOutput(outputName: string): string {

@@ -109,7 +109,7 @@ function colorForElement(elementType: string, elementName: string, variant: numb
   return `hsl(${hue} 72% ${lightness}%)`;
 }
 
-function includeOutputType(outputType: string, direction: string | null): boolean {
+function includeOutputType(outputType: string, direction: "+" | "-" | null): boolean {
   if (outputType === "power") {
     // Plot power streams only when explicit directional metadata is present.
     if (direction !== "+" && direction !== "-") {

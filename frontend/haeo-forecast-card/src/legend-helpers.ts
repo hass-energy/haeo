@@ -37,12 +37,9 @@ export function seriesIconPath(series: ForecastSeries): string {
       ? (icons["mdiArrowDownBoldCircleOutline"] ?? fallback)
       : (icons["mdiArrowDownBoldCircle"] ?? fallback);
   }
-  if (output.includes("export") || category.group === "production") {
-    return category.subgroup === "potential"
-      ? (icons["mdiArrowUpBoldCircleOutline"] ?? fallback)
-      : (icons["mdiArrowUpBoldCircle"] ?? fallback);
-  }
-  return fallback;
+  return category.subgroup === "potential"
+    ? (icons["mdiArrowUpBoldCircleOutline"] ?? fallback)
+    : (icons["mdiArrowUpBoldCircle"] ?? fallback);
 }
 
 export function seriesTooltip(series: ForecastSeries, _locale: string): string {
