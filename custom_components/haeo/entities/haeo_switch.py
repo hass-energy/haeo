@@ -360,9 +360,9 @@ class HaeoInputSwitch(SwitchEntity):
 
         self._attr_is_on = True
         self._update_forecast()
-        self.async_write_ha_state()
 
-        # Persist to config entry so value survives restarts and shows in reconfigure
+        # Persist to config entry before writing state so the coordinator
+        # reads the updated config when handling the synchronous state change
         await async_update_subentry_value(
             self.hass,
             self._config_entry,
@@ -370,6 +370,8 @@ class HaeoInputSwitch(SwitchEntity):
             field_path=self._field_path,
             value=as_constant_value(value=True),
         )
+
+        self.async_write_ha_state()
 
     async def async_turn_off(self, **_kwargs: Any) -> None:
         """Handle user turning switch off.
@@ -386,9 +388,9 @@ class HaeoInputSwitch(SwitchEntity):
 
         self._attr_is_on = False
         self._update_forecast()
-        self.async_write_ha_state()
 
-        # Persist to config entry so value survives restarts and shows in reconfigure
+        # Persist to config entry before writing state so the coordinator
+        # reads the updated config when handling the synchronous state change
         await async_update_subentry_value(
             self.hass,
             self._config_entry,
@@ -396,6 +398,8 @@ class HaeoInputSwitch(SwitchEntity):
             field_path=self._field_path,
             value=as_constant_value(value=False),
         )
+
+        self.async_write_ha_state()
 
 
 __all__ = ["HaeoInputSwitch"]

@@ -1484,3 +1484,48 @@ async def test_captured_source_states_driven_mode(
 
     # Return type is Mapping (read-only interface) — not a mutable dict
     assert isinstance(captured, Mapping)
+
+
+async def test_editable_turn_on_updates_config_before_state_change(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Subentry config already reflects the new value when async_write_ha_state fires.
+
+    async_write_ha_state fires a state change event that the coordinator
+    handles synchronously. The coordinator reads the element's config from
+    the subentry to build element data for optimization. If the config
+    still contains the old value at that point, the first optimization
+    runs with stale data.
+    """
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": False})
+    hass.config_entries.async_add_subentry(config_entry, subentry)
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=curtailment_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # When async_write_ha_state fires, capture what the subentry data says
+    captured_config_value: list[Any] = []
+
+    def _capture_config_on_state_write() -> None:
+        live_subentry = config_entry.subentries[subentry.subentry_id]
+        captured_config_value.append(live_subentry.data[SECTION_CURTAILMENT]["allow_curtailment"])
+
+    entity.async_write_ha_state = Mock(side_effect=_capture_config_on_state_write)
+    await _add_entity_to_hass(hass, entity)
+    entity.async_write_ha_state.reset_mock()
+    captured_config_value.clear()
+
+    await entity.async_turn_on()
+
+    # The config must already show the new constant value when state fires
+    assert captured_config_value == [as_constant_value(value=True)]

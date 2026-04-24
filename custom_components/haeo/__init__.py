@@ -194,7 +194,16 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
 
 
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
-    """Handle options update or subentry changes."""
+    """Handle options update or subentry changes.
+
+    This listener is called for all config entry changes including subentry
+    additions, updates, and removals. Value-only updates (from input entities)
+    set value_update_in_progress to skip reload and signal the coordinator.
+
+    Uses async_schedule_reload instead of async_reload to avoid suspending
+    in the listener task. Required subentries are ensured during setup, so
+    no need to check here.
+    """
     # Check if this is a value-only update from an input entity
     runtime_data = entry.runtime_data
     if runtime_data and runtime_data.value_update_in_progress:
@@ -206,9 +215,8 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
             coordinator.signal_optimization_stale()
         return
 
-    await _ensure_required_subentries(hass, entry)
     _LOGGER.info("HAEO configuration changed, reloading integration")
-    await hass.config_entries.async_reload(entry.entry_id)
+    hass.config_entries.async_schedule_reload(entry.entry_id)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:

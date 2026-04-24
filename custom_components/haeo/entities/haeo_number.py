@@ -491,9 +491,9 @@ class HaeoInputNumber(NumberEntity):
 
         self._attr_native_value = value
         self._update_editable_forecast()
-        self.async_write_ha_state()
 
-        # Persist to config entry so value survives restarts and shows in reconfigure
+        # Persist to config entry before writing state so the coordinator
+        # reads the updated config when handling the synchronous state change
         await async_update_subentry_value(
             self.hass,
             self._config_entry,
@@ -501,6 +501,8 @@ class HaeoInputNumber(NumberEntity):
             field_path=self._field_path,
             value=as_constant_value(value),
         )
+
+        self.async_write_ha_state()
 
 
 __all__ = ["ConfigEntityMode", "HaeoInputNumber"]
