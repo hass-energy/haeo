@@ -86,7 +86,7 @@ describe("haeo forecast card editor", () => {
     );
   });
 
-  it("updates title and height via form controls", async () => {
+  it("updates title via form controls", async () => {
     const editor = document.createElement("haeo-forecast-card-editor") as EditorElement;
     const calls: ForecastCardConfig[] = [];
     editor.addEventListener("config-changed", (event) => {
@@ -102,20 +102,13 @@ describe("haeo forecast card editor", () => {
     await waitForAsync();
 
     const titleInput = editor.shadowRoot?.querySelector<HTMLInputElement>("#titleInput");
-    const heightInput = editor.shadowRoot?.querySelector<HTMLInputElement>("#heightInput");
     expect(titleInput).toBeTruthy();
-    expect(heightInput).toBeTruthy();
 
     if (titleInput) {
       titleInput.value = "After";
       titleInput.dispatchEvent(new Event("change", { bubbles: true }));
     }
-    if (heightInput) {
-      heightInput.value = "420";
-      heightInput.dispatchEvent(new Event("change", { bubbles: true }));
-    }
 
     expect(calls.some((config) => config.title === "After")).toBe(true);
-    expect(calls.some((config) => config.height === 420)).toBe(true);
   });
 });

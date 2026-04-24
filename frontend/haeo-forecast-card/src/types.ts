@@ -6,7 +6,6 @@ export interface ForecastCardConfig {
   title?: string;
   hub_entry_id?: string;
   entities?: string[];
-  height?: number;
   animation_mode?: MotionMode;
   animation_speed?: number;
   power_display_mode?: PowerDisplayMode;

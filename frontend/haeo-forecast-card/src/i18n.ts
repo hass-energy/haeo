@@ -44,8 +44,6 @@ const EN_TRANSLATIONS: TranslationDict = {
   "editor.discovery.loading": "Discovering HAEO hubs and forecast entities...",
   "editor.discovery.count": "Discovered entities for selected hub: {count}",
   "editor.elements.label": "Elements: {elements}",
-  "editor.height.label": "Chart height (optional)",
-  "editor.height.placeholder": "auto",
 };
 
 const TRANSLATIONS: Record<string, TranslationDict> = {

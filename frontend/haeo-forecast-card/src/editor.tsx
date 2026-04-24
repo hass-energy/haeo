@@ -176,21 +176,6 @@ function EditorForm(props: EditorFormProps): JSX.Element {
     onConfigChanged(next);
   };
 
-  const onHeightChange = (event: Event): void => {
-    const target = event.target as HTMLInputElement;
-    const parsed = Number(target.value);
-    const next: ForecastCardConfig = {
-      ...config,
-      type: "custom:haeo-forecast-card",
-    };
-    if (Number.isFinite(parsed) && parsed >= 220) {
-      next.height = parsed;
-    } else {
-      delete next.height;
-    }
-    onConfigChanged(next);
-  };
-
   return (
     <div className="wrap">
       <label>
@@ -212,18 +197,6 @@ function EditorForm(props: EditorFormProps): JSX.Element {
       {selectedElementNames.length > 0 && (
         <div className="meta">{t(locale, "editor.elements.label", { elements: selectedElementNames.join(", ") })}</div>
       )}
-      <label>
-        {t(locale, "editor.height.label")}
-        <input
-          id="heightInput"
-          type="number"
-          min={220}
-          step={10}
-          value={config.height ?? ""}
-          placeholder={t(locale, "editor.height.placeholder")}
-          onChange={onHeightChange}
-        />
-      </label>
       {error !== null && <div className="error">{error}</div>}
     </div>
   );

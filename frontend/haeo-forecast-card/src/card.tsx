@@ -96,27 +96,18 @@ export class HaeoForecastCard extends HTMLElement {
   }
 
   getCardSize(): number {
-    const targetHeight = this.store.config.height ?? this.store.responsiveHeight(this.store.width);
+    const targetHeight = this.store.responsiveHeight(this.store.width);
     return Math.max(1, Math.ceil(targetHeight / HaeoForecastCard.MASONRY_ROW_HEIGHT_PX));
   }
 
   getGridOptions(): {
     rows: number;
     min_rows: number;
-    max_rows?: number;
     columns: "full";
   } {
-    const targetHeight = this.store.config.height ?? this.store.responsiveHeight(this.store.width);
+    const targetHeight = this.store.responsiveHeight(this.store.width);
     const rowUnit = HaeoForecastCard.SECTIONS_ROW_HEIGHT_PX + HaeoForecastCard.SECTIONS_ROW_GAP_PX;
     const rows = Math.max(2, Math.ceil((targetHeight + HaeoForecastCard.SECTIONS_ROW_GAP_PX) / rowUnit));
-    if (this.store.config.height !== undefined) {
-      return {
-        rows,
-        min_rows: rows,
-        max_rows: rows,
-        columns: "full",
-      };
-    }
     return {
       rows,
       min_rows: Math.max(2, rows - 1),
