@@ -116,8 +116,12 @@ describe("stepTopStrokePaths", () => {
   const identity = (v: number): number => v;
 
   it("returns empty for short arrays", () => {
-    expect(stepTopStrokePaths(new Float64Array([]), new Float64Array([]), new Float64Array([]), identity, identity)).toEqual([]);
-    expect(stepTopStrokePaths(new Float64Array([1]), new Float64Array([1]), new Float64Array([1]), identity, identity)).toEqual([]);
+    expect(
+      stepTopStrokePaths(new Float64Array([]), new Float64Array([]), new Float64Array([]), identity, identity)
+    ).toEqual([]);
+    expect(
+      stepTopStrokePaths(new Float64Array([1]), new Float64Array([1]), new Float64Array([1]), identity, identity)
+    ).toEqual([]);
   });
 
   it("generates stroke paths for non-zero segments", () => {

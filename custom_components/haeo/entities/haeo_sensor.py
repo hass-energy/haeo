@@ -13,8 +13,8 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo.const import CONF_RECORD_FORECASTS, OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.core.model import OutputType
-from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, SOURCE_ROLE_OUTPUT
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
+from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, SOURCE_ROLE_OUTPUT
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})

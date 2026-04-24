@@ -176,7 +176,7 @@ export class HaeoForecastCard extends HTMLElement {
           this.updateAnimationPaused();
         }
       },
-      { threshold: 0 },
+      { threshold: 0 }
     );
     this.intersectionObserver.observe(this);
   }

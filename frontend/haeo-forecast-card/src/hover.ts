@@ -55,22 +55,16 @@ export function sharedTimeline(visibleSeries: ForecastSeries[]): Float64Array | 
 /**
  * Compute the hover index for each visible series at a given time.
  */
-export function computeHoverIndices(
-  visibleSeries: ForecastSeries[],
-  time: number,
-): Map<string, number> {
+export function computeHoverIndices(visibleSeries: ForecastSeries[], time: number): Map<string, number> {
   const shared = sharedTimeline(visibleSeries);
   if (shared) {
     const nearestIdx = nearestArrayIndex(shared, time);
     const stepIdx = stepArrayIndex(shared, time);
-    return new Map(
-      visibleSeries.map((series) => [series.key, series.drawType === "step" ? stepIdx : nearestIdx]),
-    );
+    return new Map(visibleSeries.map((series) => [series.key, series.drawType === "step" ? stepIdx : nearestIdx]));
   }
   const indices = new Map<string, number>();
   for (const series of visibleSeries) {
-    const idx =
-      series.drawType === "step" ? stepArrayIndex(series.times, time) : nearestArrayIndex(series.times, time);
+    const idx = series.drawType === "step" ? stepArrayIndex(series.times, time) : nearestArrayIndex(series.times, time);
     indices.set(series.key, idx);
   }
   return indices;

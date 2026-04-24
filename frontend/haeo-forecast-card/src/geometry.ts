@@ -54,7 +54,7 @@ export function stepPath(
   times: Float64Array,
   values: Float64Array,
   x: (time: number) => number,
-  y: (value: number) => number,
+  y: (value: number) => number
 ): string {
   if (times.length === 0) return "";
   let path = `M ${x(times[0]!)} ${y(values[0]!)}`;
@@ -68,7 +68,7 @@ export function linePath(
   times: Float64Array,
   values: Float64Array,
   x: (time: number) => number,
-  y: (value: number) => number,
+  y: (value: number) => number
 ): string {
   if (times.length === 0) return "";
   let path = `M ${x(times[0]!)} ${y(values[0]!)}`;

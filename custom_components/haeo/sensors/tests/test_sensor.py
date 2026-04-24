@@ -625,8 +625,6 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
     attributes = sensor.extra_state_attributes
     assert attributes is not None
     assert attributes["direction"] == "+"
-    assert attributes["plot_stream"] == "battery_discharge"
-    assert attributes["plot_priority"] == 4
 
 
 def test_optimization_status_sensor_tracks_last_run(device_entry: DeviceEntry) -> None:

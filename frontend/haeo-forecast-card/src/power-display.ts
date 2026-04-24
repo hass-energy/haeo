@@ -20,7 +20,7 @@ export function powerValueForDisplay(
   series: ForecastSeries,
   value: number,
   displayMode: PowerDisplayMode,
-  isBidirectional: boolean,
+  isBidirectional: boolean
 ): number {
   const magnitude = Math.abs(value);
   if (displayMode === "overlay") {
@@ -48,7 +48,7 @@ export function emptySectionStacks(length: number): Record<PowerSection, Float64
 export function calculatePowerBounds(
   orderedSeries: ForecastSeries[],
   displayMode: PowerDisplayMode,
-  bidirectionalCache: Map<string, boolean>,
+  bidirectionalCache: Map<string, boolean>
 ): LaneBounds {
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
@@ -87,7 +87,7 @@ export function stepTopStrokePaths(
   upper: Float64Array,
   values: Float64Array,
   x: (time: number) => number,
-  y: (value: number) => number,
+  y: (value: number) => number
 ): string[] {
   if (times.length < 2 || upper.length !== times.length || values.length !== times.length) {
     return [];

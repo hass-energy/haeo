@@ -10,7 +10,7 @@ interface HassLike {
   states: Record<string, HassEntityState | undefined>;
   language?: string;
   locale?: { language?: string };
-};
+}
 
 export type { HassEntityState, HassLike };
 
@@ -109,17 +109,16 @@ function colorForElement(elementType: string, elementName: string, variant: numb
   return `hsl(${hue} 72% ${lightness}%)`;
 }
 
-function includeOutputType(
-  outputType: string,
-  direction: string | null
-): boolean {
+function includeOutputType(outputType: string, direction: string | null): boolean {
   if (outputType === "power" || outputType === "power_limit") {
     // Plot power streams only when explicit directional metadata is present.
     if (direction !== "+" && direction !== "-") {
       return false;
     }
   }
-  return outputType === "power" || outputType === "power_limit" || outputType === "price" || outputType === "state_of_charge";
+  return (
+    outputType === "power" || outputType === "power_limit" || outputType === "price" || outputType === "state_of_charge"
+  );
 }
 
 function sourceRoleForSeries(configMode: string | null, fieldName: string | null): SeriesSourceRole {

@@ -27,7 +27,7 @@ function prettifyOutput(outputName: string): string {
 export function tooltipDisplayLabel(
   series: ForecastSeries,
   section: TooltipSectionId,
-  duplicateLabel: boolean,
+  duplicateLabel: boolean
 ): string {
   const name = series.label.trim();
   if (section === "price") {
@@ -44,17 +44,10 @@ export function tooltipDisplayLabel(
     return duplicateLabel ? `${name} (${prettifyOutput(series.outputName)})` : name;
   }
   const lower = name.toLowerCase();
-  if (
-    lower.includes("import") ||
-    lower.includes("export") ||
-    lower.includes("charge") ||
-    lower.includes("discharge")
-  ) {
+  if (lower.includes("import") || lower.includes("export") || lower.includes("charge") || lower.includes("discharge")) {
     return duplicateLabel ? `${name} (${prettifyOutput(series.outputName)})` : name;
   }
-  return duplicateLabel
-    ? `${name} (${prettifyOutput(series.outputName)})`
-    : `${name} (${section})`;
+  return duplicateLabel ? `${name} (${prettifyOutput(series.outputName)})` : `${name} (${section})`;
 }
 
 interface TooltipRow {
@@ -78,7 +71,7 @@ const LANE_SORT_ORDER: Record<TooltipSectionId, number> = {
 export function buildTooltipRows(
   visibleSeries: ForecastSeries[],
   hoverIndices: Map<string, number>,
-  powerValueFn: (series: ForecastSeries, value: number) => number,
+  powerValueFn: (series: ForecastSeries, value: number) => number
 ): TooltipRow[] {
   const rows: TooltipRow[] = [];
   const nameCounts = new Map<string, number>();
@@ -93,10 +86,7 @@ export function buildTooltipRows(
     rows.push({
       key: series.key,
       label: tooltipDisplayLabel(series, section, duplicated),
-      value:
-        series.lane === "power"
-          ? powerValueFn(series, series.values[idx] ?? 0)
-          : (series.values[idx] ?? 0),
+      value: series.lane === "power" ? powerValueFn(series, series.values[idx] ?? 0) : (series.values[idx] ?? 0),
       unit: series.unit,
       color: series.color,
       lane: section,
@@ -122,7 +112,7 @@ const SECTION_SORT_ORDER: Partial<Record<TooltipSectionId, number>> = {
 export function buildTooltipTotals(
   visibleSeries: ForecastSeries[],
   hoverIndices: Map<string, number>,
-  powerValueFn: (series: ForecastSeries, value: number) => number,
+  powerValueFn: (series: ForecastSeries, value: number) => number
 ): Array<{ lane: TooltipSectionId; value: number; unit: string }> {
   const totals = new Map<TooltipSectionId, { value: number; unit: string }>();
   for (const series of visibleSeries) {

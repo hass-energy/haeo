@@ -1,12 +1,7 @@
 import { linearScale, linePath, stepAreaPath, stepPath } from "./geometry";
 import { classifyPowerSeries } from "./power-series-classification";
 import type { ForecastSeries, LaneBounds, PowerDisplayMode } from "./types";
-import {
-  emptySectionStacks,
-  powerSection,
-  powerValueForDisplay,
-  stepTopStrokePaths,
-} from "./power-display";
+import { emptySectionStacks, powerSection, powerValueForDisplay, stepTopStrokePaths } from "./power-display";
 
 export interface PowerShape {
   key: string;
@@ -29,7 +24,7 @@ export function computePowerShapes(
   powerDisplayMode: PowerDisplayMode,
   plotTop: number,
   plotBottom: number,
-  xScale: (time: number) => number,
+  xScale: (time: number) => number
 ): PowerShape[] {
   const firstSeries = orderedPowerSeries[0];
   if (!firstSeries) {
@@ -74,15 +69,14 @@ export function computeHoveredPowerKeys(
   powerBounds: LaneBounds,
   plotTop: number,
   plotBottom: number,
-  pointerY: number,
+  pointerY: number
 ): Set<string> {
   const hovered = new Set<string>();
   if (orderedPowerSeries.length === 0) {
     return hovered;
   }
   const { min: powerMin, max: powerMax } = powerBounds;
-  const yScalePower = (value: number): number =>
-    linearScale(value, powerMin, powerMax, plotBottom, plotTop);
+  const yScalePower = (value: number): number => linearScale(value, powerMin, powerMax, plotBottom, plotTop);
   const stackedAtHover = new Map([
     ["available" as const, 0],
     ["produced" as const, 0],
@@ -117,7 +111,7 @@ export function computePricePaths(
   priceBounds: LaneBounds,
   plotTop: number,
   plotBottom: number,
-  xScale: (time: number) => number,
+  xScale: (time: number) => number
 ): LineSvgPath[] {
   const { min: powerMin, max: powerMax } = powerBounds;
   const { min: priceMin, max: priceMax } = priceBounds;
@@ -143,7 +137,7 @@ export function computeSocPaths(
   socBounds: LaneBounds,
   plotTop: number,
   plotBottom: number,
-  xScale: (time: number) => number,
+  xScale: (time: number) => number
 ): LineSvgPath[] {
   const { min: powerMin, max: powerMax } = powerBounds;
   const zeroY = linearScale(0, powerMin, powerMax, plotBottom, plotTop);

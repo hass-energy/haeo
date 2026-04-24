@@ -2,20 +2,12 @@ import { computed, makeAutoObservable } from "mobx";
 
 import { clamp, linearScale } from "./geometry";
 import { computeHoverIndices, sharedTimeline } from "./hover";
-import {
-  calculatePowerBounds,
-  powerValueForDisplay,
-} from "./power-display";
+import { calculatePowerBounds, powerValueForDisplay } from "./power-display";
 import { classifyPowerSeries } from "./power-series-classification";
 import { normalizeSeries } from "./series";
 import type { HassLike } from "./series";
 import type { LineSvgPath, PowerShape } from "./store-paths";
-import {
-  computeHoveredPowerKeys,
-  computePowerShapes,
-  computePricePaths,
-  computeSocPaths,
-} from "./store-paths";
+import { computeHoveredPowerKeys, computePowerShapes, computePricePaths, computeSocPaths } from "./store-paths";
 import { buildTooltipRows, buildTooltipTotals, type TooltipSectionId } from "./tooltip-helpers";
 import type {
   ChartMargins,
@@ -454,7 +446,7 @@ export class ForecastCardStore {
       this.powerDisplayMode,
       this.plotTop,
       this.plotBottom,
-      this.cachedXScale,
+      this.cachedXScale
     );
   }
 
@@ -474,7 +466,7 @@ export class ForecastCardStore {
       this.powerBounds,
       this.plotTop,
       this.plotBottom,
-      this.pointerY,
+      this.pointerY
     );
   }
 
@@ -485,7 +477,7 @@ export class ForecastCardStore {
       this.priceBounds,
       this.plotTop,
       this.plotBottom,
-      this.cachedXScale,
+      this.cachedXScale
     );
   }
 
@@ -496,7 +488,7 @@ export class ForecastCardStore {
       this.socBounds,
       this.plotTop,
       this.plotBottom,
-      this.cachedXScale,
+      this.cachedXScale
     );
   }
 
@@ -507,14 +499,19 @@ export class ForecastCardStore {
     return powerValueForDisplay(series, value, this.powerDisplayMode, isBi);
   }
 
-  get tooltipRows(): Array<{ key: string; label: string; value: number; unit: string; color: string; lane: TooltipSectionId }> {
+  get tooltipRows(): Array<{
+    key: string;
+    label: string;
+    value: number;
+    unit: string;
+    color: string;
+    lane: TooltipSectionId;
+  }> {
     if (this.hoverTimeMs === null) {
       return [];
     }
-    return buildTooltipRows(
-      this.visibleSeries,
-      this.hoverIndices,
-      (series, value) => this.powerValueForDisplayBound(series, value),
+    return buildTooltipRows(this.visibleSeries, this.hoverIndices, (series, value) =>
+      this.powerValueForDisplayBound(series, value)
     );
   }
 
@@ -522,10 +519,8 @@ export class ForecastCardStore {
     if (this.hoverTimeMs === null) {
       return [];
     }
-    return buildTooltipTotals(
-      this.visibleSeries,
-      this.hoverIndices,
-      (series, value) => this.powerValueForDisplayBound(series, value),
+    return buildTooltipTotals(this.visibleSeries, this.hoverIndices, (series, value) =>
+      this.powerValueForDisplayBound(series, value)
     );
   }
 
@@ -569,7 +564,9 @@ export class ForecastCardStore {
       const hideByDefault =
         (isGrid && category.subgroup === "potential") ||
         ((output.includes("active") || output.includes("balance")) &&
-          pair !== undefined && pair.hasProd && pair.hasCons);
+          pair !== undefined &&
+          pair.hasProd &&
+          pair.hasCons);
       if (hideByDefault && !this.forcedVisibleSeriesKeys.has(series.key)) {
         const before = this.hiddenSeriesKeys.size;
         this.hiddenSeriesKeys.add(series.key);
@@ -593,7 +590,7 @@ export class ForecastCardStore {
       this.highlightedSeries = null;
     }
     this.highlightedSeriesGroupKeys = new Set(
-      [...this.highlightedSeriesGroupKeys].filter((key) => seriesKeys.has(key)),
+      [...this.highlightedSeriesGroupKeys].filter((key) => seriesKeys.has(key))
     );
     if (this.hoveredLegendElement !== null) {
       const hasHoveredElement = nextSeries.some((s) => s.elementName === this.hoveredLegendElement);
@@ -625,7 +622,7 @@ export class ForecastCardStore {
     this.powerBoundsCache = calculatePowerBounds(
       this.orderedPowerSeries,
       this.powerDisplayMode,
-      this.bidirectionalSeriesCache,
+      this.bidirectionalSeriesCache
     );
   }
 }

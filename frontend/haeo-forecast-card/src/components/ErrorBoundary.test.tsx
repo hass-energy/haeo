@@ -14,7 +14,7 @@ describe("ErrorBoundary", () => {
       <ErrorBoundary>
         <p>ok</p>
       </ErrorBoundary>,
-      container,
+      container
     );
     expect(container.textContent).toContain("ok");
   });
@@ -26,7 +26,7 @@ describe("ErrorBoundary", () => {
         <ErrorBoundary>
           <ThrowingComponent />
         </ErrorBoundary>,
-        container,
+        container
       );
     } catch {
       // Error boundaries in Preact may still throw in some environments
@@ -55,7 +55,7 @@ describe("ErrorBoundary", () => {
         <ErrorBoundary>
           <MaybeThrow />
         </ErrorBoundary>,
-        container,
+        container
       );
     } catch {
       // Expected

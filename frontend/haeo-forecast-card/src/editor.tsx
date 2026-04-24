@@ -49,10 +49,7 @@ interface EditorFormProps {
   onConfigChanged: (config: ForecastCardConfig) => void;
 }
 
-function discoverHubs(
-  hass: HassEditorLike,
-  registry: EntityRegistryEntry[],
-): HubOption[] {
+function discoverHubs(hass: HassEditorLike, registry: EntityRegistryEntry[]): HubOption[] {
   const byHub = new Map<string, string[]>();
   for (const entry of registry) {
     if (entry.platform !== "haeo" || entry.disabled_by !== null || entry.config_entry_id === null) {
@@ -219,9 +216,7 @@ function EditorForm(props: EditorFormProps): JSX.Element {
           : t(locale, "editor.discovery.count", { count: selectedEntityCount })}
       </div>
       {selectedElementNames.length > 0 && (
-        <div className="meta">
-          {t(locale, "editor.elements.label", { elements: selectedElementNames.join(", ") })}
-        </div>
+        <div className="meta">{t(locale, "editor.elements.label", { elements: selectedElementNames.join(", ") })}</div>
       )}
       <label>
         {t(locale, "editor.height.label")}
@@ -289,11 +284,11 @@ export class HaeoForecastCardEditor extends HTMLElement {
               detail: { config: next },
               bubbles: true,
               composed: true,
-            }),
+            })
           );
         }}
       />,
-      this.shadowRoot,
+      this.shadowRoot
     );
   }
 }

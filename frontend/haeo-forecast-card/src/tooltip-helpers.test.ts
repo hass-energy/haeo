@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  tooltipSection,
-  tooltipDisplayLabel,
-  buildTooltipRows,
-  buildTooltipTotals,
-} from "./tooltip-helpers";
+import { tooltipSection, tooltipDisplayLabel, buildTooltipRows, buildTooltipTotals } from "./tooltip-helpers";
 import type { ForecastSeries } from "./types";
 
 function makeSeries(overrides: Partial<ForecastSeries> & { key: string }): ForecastSeries {
@@ -47,11 +42,15 @@ describe("tooltipSection", () => {
   });
 
   it("returns available for production potential (config input)", () => {
-    expect(tooltipSection(makeSeries({ key: "a", direction: "+", outputType: "power", sourceRole: "forecast" }))).toBe("available");
+    expect(tooltipSection(makeSeries({ key: "a", direction: "+", outputType: "power", sourceRole: "forecast" }))).toBe(
+      "available"
+    );
   });
 
   it("returns possible for consumption potential (power_limit)", () => {
-    expect(tooltipSection(makeSeries({ key: "a", direction: "-", outputType: "power", sourceRole: "limit" }))).toBe("possible");
+    expect(tooltipSection(makeSeries({ key: "a", direction: "-", outputType: "power", sourceRole: "limit" }))).toBe(
+      "possible"
+    );
   });
 });
 
@@ -97,11 +96,7 @@ describe("buildTooltipRows", () => {
       ["solar:power", 0],
       ["grid:import_power", 0],
     ]);
-    const rows = buildTooltipRows(
-      [produced, consumed],
-      indices,
-      (_series, value) => value,
-    );
+    const rows = buildTooltipRows([produced, consumed], indices, (_series, value) => value);
     expect(rows.length).toBe(2);
     // Produced comes first
     expect(rows[0]?.lane).toBe("produced");
