@@ -178,14 +178,14 @@ class BatteryConfigSchema(ConnectedCommonConfig):
         SectionHints(
             {
                 CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
-                    output_type=OutputType.POWER,
+                    output_type=OutputType.POWER_LIMIT,
                     direction="-",
                     time_series=True,
                     step=0.1,
                     default_mode="entity",
                 ),
                 CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
-                    output_type=OutputType.POWER,
+                    output_type=OutputType.POWER_LIMIT,
                     direction="+",
                     time_series=True,
                     step=0.1,
