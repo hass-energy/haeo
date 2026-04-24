@@ -38,6 +38,11 @@ describe("seriesIconPath", () => {
     expect(seriesIconPath(series)).toBeTruthy();
   });
 
+  it("returns a generic price icon for non-import/export price series", () => {
+    const series = makeSeries({ lane: "price", outputName: "spot_price" });
+    expect(seriesIconPath(series)).toBeTruthy();
+  });
+
   it("returns a battery icon for SOC series", () => {
     const series = makeSeries({ lane: "soc", outputName: "soc" });
     expect(seriesIconPath(series)).toBeTruthy();
@@ -48,8 +53,23 @@ describe("seriesIconPath", () => {
     expect(seriesIconPath(series)).toBeTruthy();
   });
 
+  it("returns a solar potential icon for solar forecast series", () => {
+    const series = makeSeries({
+      elementName: "Solar",
+      elementType: "solar",
+      direction: "+",
+      sourceRole: "forecast",
+    });
+    expect(seriesIconPath(series)).toBeTruthy();
+  });
+
   it("returns a battery icon for battery elements", () => {
     const series = makeSeries({ elementName: "Battery", elementType: "battery", direction: "+" });
+    expect(seriesIconPath(series)).toBeTruthy();
+  });
+
+  it("returns a battery consumption icon for battery consuming", () => {
+    const series = makeSeries({ elementName: "Battery", elementType: "battery", direction: "-" });
     expect(seriesIconPath(series)).toBeTruthy();
   });
 
@@ -58,8 +78,26 @@ describe("seriesIconPath", () => {
     expect(seriesIconPath(series)).toBeTruthy();
   });
 
+  it("returns a consumption potential icon for import forecast series", () => {
+    const series = makeSeries({
+      outputName: "import_power",
+      direction: "-",
+      sourceRole: "forecast",
+    });
+    expect(seriesIconPath(series)).toBeTruthy();
+  });
+
   it("returns an export icon for export series", () => {
     const series = makeSeries({ outputName: "export_power", direction: "+" });
+    expect(seriesIconPath(series)).toBeTruthy();
+  });
+
+  it("returns a production potential icon for generic forecast series", () => {
+    const series = makeSeries({
+      outputName: "generation_power",
+      direction: "+",
+      sourceRole: "forecast",
+    });
     expect(seriesIconPath(series)).toBeTruthy();
   });
 
@@ -103,11 +141,23 @@ describe("legendSeriesOrder", () => {
     expect(legendSeriesOrder(prod)).toBeLessThan(legendSeriesOrder(potential));
   });
 
+  it("ranks consumption utilization before consumption potential", () => {
+    const cons = makeSeries({ direction: "-" });
+    const potential = makeSeries({ direction: "-", sourceRole: "forecast" });
+    expect(legendSeriesOrder(cons)).toBeLessThan(legendSeriesOrder(potential));
+  });
+
   it("ranks power before price before SOC", () => {
     const power = makeSeries({ lane: "power" });
     const price = makeSeries({ lane: "price" });
     const soc = makeSeries({ lane: "soc" });
     expect(legendSeriesOrder(power)).toBeLessThan(legendSeriesOrder(price));
     expect(legendSeriesOrder(price)).toBeLessThan(legendSeriesOrder(soc));
+  });
+
+  it("ranks unknown lane after SOC", () => {
+    const soc = makeSeries({ lane: "soc" });
+    const unknown = makeSeries({ lane: "other" as never });
+    expect(legendSeriesOrder(soc)).toBeLessThan(legendSeriesOrder(unknown));
   });
 });

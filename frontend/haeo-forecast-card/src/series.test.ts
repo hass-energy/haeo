@@ -74,4 +74,88 @@ describe("normalizeSeries", () => {
     expect(output.some((series) => series.sourceRole === "limit")).toBe(true);
     expect(output.every((series) => series.times.length === series.values.length)).toBe(true);
   });
+
+  it("coerces numeric and string attribute values", () => {
+    const hass = {
+      states: {
+        "sensor.coerce": {
+          entity_id: "sensor.coerce",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: "1.5" },
+              { time: "2026-03-14T01:00:00Z", value: 2 },
+            ],
+            field_type: "power",
+            output_name: "power",
+            direction: "-",
+            element_type: "load",
+            element_name: "Load",
+            unit_of_measurement: "kW",
+            priority: "3",
+          },
+        },
+      },
+    };
+    const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
+    expect(output).toHaveLength(1);
+    const first = output[0]!;
+    expect(first.values[0]).toBe(1.5);
+    expect(first.values[1]).toBe(2);
+    expect(first.priority).toBe(3);
+  });
+
+  it("handles state_of_charge output type as line draw", () => {
+    const hass = {
+      states: {
+        "sensor.soc": {
+          entity_id: "sensor.soc",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 50 },
+              { time: "2026-03-14T01:00:00Z", value: 60 },
+            ],
+            field_type: "state_of_charge",
+            output_name: "state_of_charge",
+            element_type: "battery",
+            element_name: "Battery",
+            unit_of_measurement: "%",
+          },
+        },
+      },
+    };
+    const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
+    expect(output).toHaveLength(1);
+    expect(output[0]!.drawType).toBe("line");
+    expect(output[0]!.lane).toBe("soc");
+  });
+
+  it("uses friendly_name as label when present", () => {
+    const hass = {
+      states: {
+        "sensor.power": {
+          entity_id: "sensor.power",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1 },
+              { time: "2026-03-14T01:00:00Z", value: 2 },
+            ],
+            field_type: "power",
+            output_name: "power",
+            direction: "-",
+            element_type: "load",
+            element_name: "Test Load",
+            unit_of_measurement: "kW",
+            friendly_name: "My Custom Name",
+          },
+        },
+      },
+    };
+    const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
+    expect(output).toHaveLength(1);
+    expect(output[0]!.label).toBe("My Custom Name");
+  });
+
+  it("returns empty for null hass", () => {
+    expect(normalizeSeries(null, { type: "custom:haeo-forecast-card" })).toHaveLength(0);
+  });
 });

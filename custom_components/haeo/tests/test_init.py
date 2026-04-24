@@ -901,3 +901,18 @@ async def test_async_register_static_skips_when_http_unavailable(
     # The test hass fixture has no http attribute - this exercises the getattr guard
     await _async_register_static_frontend_resources(hass)
     # No error raised - registration simply skipped
+
+
+async def test_async_register_static_skips_when_card_not_found(
+    hass: HomeAssistant,
+) -> None:
+    """Test that static registration is skipped when card bundle file is missing."""
+    mock_http = Mock()
+    mock_http.async_register_static_paths = AsyncMock()
+    hass.http = mock_http  # type: ignore[attr-defined]
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr("custom_components.haeo.Path.exists", lambda _self: False)
+        await _async_register_static_frontend_resources(hass)
+
+    mock_http.async_register_static_paths.assert_not_called()

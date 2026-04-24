@@ -725,3 +725,51 @@ def test_unrecorded_attributes_based_on_config(
         assert sensor._state_info["unrecorded_attributes"] == FORECAST_UNRECORDED_ATTRIBUTES
     else:
         assert sensor._state_info["unrecorded_attributes"] == frozenset()
+
+
+def test_handle_coordinator_update_sets_fixed_attribute(device_entry: DeviceEntry) -> None:
+    """Fixed outputs expose a fixed=True attribute for the frontend card."""
+    coordinator = _create_mock_coordinator()
+    initial_output = _make_output(
+        type_=OutputType.POWER,
+        unit="kW",
+        state=1.0,
+        forecast=None,
+        entity_category=None,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        options=None,
+    )
+
+    sensor = HaeoSensor(
+        coordinator,
+        device_entry=device_entry,
+        subentry_key="load",
+        device_key=ElementType.LOAD,
+        element_title="Load",
+        element_type="load",
+        output_name=LOAD_POWER,
+        output_data=initial_output,
+        unique_id="sensor-id",
+    )
+    sensor.async_write_ha_state = Mock()
+
+    fixed_output = CoordinatorOutput(
+        type=OutputType.POWER,
+        unit="kW",
+        state=2.0,
+        forecast=[ForecastPoint(time=datetime.now(tz=UTC), value=2.0)],
+        direction="-",
+        entity_category=None,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        options=None,
+        fixed=True,
+    )
+    coordinator.data = _make_coordinator_data({"load": {"load": {LOAD_POWER: fixed_output}}})
+
+    sensor._handle_coordinator_update()
+
+    attributes = sensor.extra_state_attributes
+    assert attributes is not None
+    assert attributes["fixed"] is True

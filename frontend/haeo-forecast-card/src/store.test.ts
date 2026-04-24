@@ -115,4 +115,91 @@ describe("ForecastCardStore", () => {
 
     expect(store.hoverIndices.get(series.key)).toBe(0);
   });
+
+  it("clips xDomain when horizon is set", () => {
+    const store = new ForecastCardStore();
+    store.setHass(loadScenarioHassState("scenario2"));
+    store.setConfig({ type: "custom:haeo-forecast-card" });
+
+    const fullMax = store.xDomain.max;
+    store.setHorizon(4);
+    expect(store.xDomain.max).toBeLessThanOrEqual(store.xDomain.min + 4 * 3_600_000);
+    expect(store.xDomain.max).toBeLessThan(fullMax);
+
+    store.setHorizon(null);
+    expect(store.xDomain.max).toBe(fullMax);
+  });
+
+  it("filters potential series for fixed elements", () => {
+    const store = new ForecastCardStore();
+    const hass: HassLike = {
+      states: {
+        "sensor.load_power": {
+          entity_id: "sensor.load_power",
+          attributes: {
+            field_type: "power",
+            output_name: "load_power",
+            direction: "-",
+            element_type: "load",
+            element_name: "Constant Load",
+            unit_of_measurement: "kW",
+            source_role: "output",
+            fixed: true,
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1 },
+              { time: "2026-03-14T00:10:00Z", value: 1 },
+            ],
+          },
+        },
+        "sensor.load_forecast": {
+          entity_id: "sensor.load_forecast",
+          attributes: {
+            field_type: "power",
+            output_name: "load_forecast",
+            direction: "-",
+            element_type: "load",
+            element_name: "Constant Load",
+            unit_of_measurement: "kW",
+            source_role: "forecast",
+            config_mode: "driven",
+            field_name: "forecast",
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1 },
+              { time: "2026-03-14T00:10:00Z", value: 1 },
+            ],
+          },
+        },
+      },
+    };
+    store.setHass(hass);
+    store.setConfig({ type: "custom:haeo-forecast-card" });
+
+    // Fixed element should only show the output, not the forecast (potential)
+    expect(store.normalizedSeries.some((s) => s.sourceRole === "output")).toBe(true);
+    expect(store.normalizedSeries.some((s) => s.sourceRole === "forecast")).toBe(false);
+  });
+
+  it("toggles element visibility for all series of an element", () => {
+    const store = new ForecastCardStore();
+    store.setHass(loadScenarioHassState("scenario2"));
+    store.setConfig({ type: "custom:haeo-forecast-card" });
+
+    const firstElement = store.legendSeries[0]?.elementName ?? null;
+    expect(firstElement).not.toBeNull();
+    if (firstElement === null) return;
+
+    const elementSeries = store.legendSeries.filter((s) => s.elementName === firstElement);
+    const allVisibleBefore = elementSeries.every((s) => store.visibleSeries.some((v) => v.key === s.key));
+
+    store.toggleElementVisibility(firstElement);
+
+    if (allVisibleBefore) {
+      // All series for the element should now be hidden
+      expect(elementSeries.every((s) => !store.visibleSeries.some((v) => v.key === s.key))).toBe(true);
+    }
+
+    // Toggle back
+    store.toggleElementVisibility(firstElement);
+    expect(elementSeries.every((s) => store.visibleSeries.some((v) => v.key === s.key))).toBe(true);
+  });
 });
