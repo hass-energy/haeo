@@ -1,6 +1,12 @@
 {
   "name": "haeo",
   "private": true,
+  "scripts": {
+    "card:build": "npm --prefix frontend/haeo-forecast-card run build",
+    "card:dev": "npm --prefix frontend/haeo-forecast-card run dev",
+    "card:test": "npm --prefix frontend/haeo-forecast-card run test",
+    "card:check": "npm --prefix frontend/haeo-forecast-card run check"
+  },
   "dependencies": {
     "prettier": "^3.7.3",
     "prettier-plugin-sort-json": "^4.1.1"

@@ -206,8 +206,32 @@ jobs:
 
       - name: Check import boundaries
         run: uv run lint-imports
-  #endregion
 
+  frontend-card-check:
+    name: Frontend card checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: 22
+
+      - name: Run frontend card quality checks
+        run: |
+          npm --prefix frontend/haeo-forecast-card ci
+          npm --prefix frontend/haeo-forecast-card run check
+
+      - name: Upload frontend coverage to Codecov
+        if: ${{ github.event_name != 'release' && !cancelled() }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: frontend/haeo-forecast-card/coverage/lcov.info
+          flags: frontend
+          token: ${{ secrets.CODECOV_TOKEN }}
+  #endregion
   #region Tests
   # =============================================================================
   # Tests
@@ -242,6 +266,7 @@ jobs:
         if: ${{ github.event_name != 'release' && !cancelled() }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
+          flags: python
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -346,6 +371,7 @@ jobs:
       - prettier
       - mdformat
       - import-linter
+      - frontend-card-check
       - test
       - scenario
       - hassfest

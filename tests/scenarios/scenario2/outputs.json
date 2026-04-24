@@ -8,6 +8,7 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "capacity",
+      "field_type": "energy",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 32.2 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 32.2 },
@@ -125,8 +126,8 @@
       "max": 1000.0,
       "min": 0.1,
       "mode": "auto",
-      "output_type": "energy",
       "source_entities": ["sensor.sigen_plant_rated_energy_capacity"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kWh"
@@ -141,6 +142,7 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "efficiency_target_source",
+      "field_type": "efficiency",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 99.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 99.0 },
@@ -257,7 +259,7 @@
       "max": 100.0,
       "min": 50.0,
       "mode": "auto",
-      "output_type": "efficiency",
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "%"
@@ -272,6 +274,7 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "efficiency_source_target",
+      "field_type": "efficiency",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 99.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 99.0 },
@@ -388,7 +391,7 @@
       "max": 100.0,
       "min": 50.0,
       "mode": "auto",
-      "output_type": "efficiency",
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "%"
@@ -403,12 +406,13 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "initial_charge_percentage",
+      "field_type": "state_of_charge",
       "friendly_name": "Battery Initial charge",
       "max": 100.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "state_of_charge",
       "source_entities": ["sensor.sigen_plant_battery_state_of_charge"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": false,
       "unit_of_measurement": "%"
@@ -423,6 +427,7 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "max_charge_percentage",
+      "field_type": "state_of_charge",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 100.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 100.0 },
@@ -540,7 +545,7 @@
       "max": 100.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "state_of_charge",
+      "source_role": "limit",
       "step": 1.0,
       "time_series": true,
       "unit_of_measurement": "%"
@@ -552,10 +557,11 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "power",
-      "direction": "+",
+      "direction": "-",
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "max_power_target_source",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 16.8 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 16.8 },
@@ -672,8 +678,8 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power",
       "source_entities": ["sensor.sigen_plant_ess_rated_charging_power"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -685,10 +691,11 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "power",
-      "direction": "-",
+      "direction": "+",
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "max_power_source_target",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 19.2 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 19.2 },
@@ -805,8 +812,8 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power",
       "source_entities": ["sensor.sigen_plant_ess_rated_discharging_power"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -821,6 +828,7 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "min_charge_percentage",
+      "field_type": "state_of_charge",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 10.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 10.0 },
@@ -938,23 +946,24 @@
       "max": 100.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "state_of_charge",
+      "source_role": "limit",
       "step": 1.0,
       "time_series": true,
       "unit_of_measurement": "%"
     }
   },
-  "number.battery_salvage_value": { "entity_id": "number.battery_salvage_value", "state": "0.0", "attributes": { "config_mode": "editable", "element_name": "Battery", "element_type": "battery", "field_name": "salvage_value", "friendly_name": "Battery Salvage value", "max": 10.0, "min": -1.0, "mode": "auto", "output_type": "price", "step": 0.001, "time_series": false } },
+  "number.battery_salvage_value": { "entity_id": "number.battery_salvage_value", "state": "0.0", "attributes": { "config_mode": "editable", "element_name": "Battery", "element_type": "battery", "field_name": "salvage_value", "field_type": "price", "friendly_name": "Battery Salvage value", "max": 10.0, "min": -1.0, "mode": "auto", "source_role": "limit", "step": 0.001, "time_series": false } },
   "number.constant_load_forecast": {
     "entity_id": "number.constant_load_forecast",
     "state": "1.0",
     "attributes": {
       "config_mode": "editable",
       "device_class": "power",
-      "direction": "+",
+      "direction": "-",
       "element_name": "Constant Load",
       "element_type": "load",
       "field_name": "forecast",
+      "field_type": "power",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 1.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 1.0 },
@@ -1071,7 +1080,7 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power",
+      "source_role": "forecast",
       "step": 0.01,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1087,6 +1096,7 @@
       "element_name": "Grid",
       "element_type": "grid",
       "field_name": "max_power_target_source",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 30.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 30.0 },
@@ -1203,7 +1213,7 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power_limit",
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1214,10 +1224,11 @@
     "state": "-0.02",
     "attributes": {
       "config_mode": "driven",
-      "direction": "+",
+      "direction": "-",
       "element_name": "Grid",
       "element_type": "grid",
       "field_name": "price_target_source",
+      "field_type": "price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": -0.02 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": -0.03 },
@@ -1334,8 +1345,8 @@
       "max": 10.0,
       "min": -1.0,
       "mode": "auto",
-      "output_type": "price",
       "source_entities": ["sensor.home_feed_in_price", "sensor.home_feed_in_forecast"],
+      "source_role": "limit",
       "step": 0.001,
       "time_series": true
     }
@@ -1350,6 +1361,7 @@
       "element_name": "Grid",
       "element_type": "grid",
       "field_name": "max_power_source_target",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 55.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 55.0 },
@@ -1466,7 +1478,7 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power_limit",
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1477,10 +1489,11 @@
     "state": "0.08",
     "attributes": {
       "config_mode": "driven",
-      "direction": "-",
+      "direction": "+",
       "element_name": "Grid",
       "element_type": "grid",
       "field_name": "price_source_target",
+      "field_type": "price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.08 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.07 },
@@ -1597,8 +1610,8 @@
       "max": 10.0,
       "min": -1.0,
       "mode": "auto",
-      "output_type": "price",
       "source_entities": ["sensor.home_general_price", "sensor.home_general_forecast"],
+      "source_role": "limit",
       "step": 0.001,
       "time_series": true
     }
@@ -1612,6 +1625,7 @@
       "element_name": "Inverter",
       "element_type": "inverter",
       "field_name": "max_power_target_source",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 30.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 30.0 },
@@ -1728,8 +1742,8 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power_limit",
       "source_entities": ["sensor.sigen_plant_max_active_power"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1744,6 +1758,7 @@
       "element_name": "Inverter",
       "element_type": "inverter",
       "field_name": "max_power_source_target",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 30.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 30.0 },
@@ -1860,8 +1875,8 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power_limit",
       "source_entities": ["sensor.sigen_plant_max_active_power"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1873,10 +1888,11 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "power",
-      "direction": "-",
+      "direction": "+",
       "element_name": "Solar",
       "element_type": "solar",
       "field_name": "forecast",
+      "field_type": "power",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 18.5 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 18.5 },
@@ -1993,7 +2009,6 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power",
       "source_entities": [
         "sensor.energy_production_today_east",
         "sensor.energy_production_today_north",
@@ -2028,6 +2043,7 @@
         "sensor.energy_production_d7_south",
         "sensor.energy_production_d7_west"
       ],
+      "source_role": "forecast",
       "step": 0.01,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -2035,17 +2051,18 @@
   },
   "sensor.battery_active_power": {
     "entity_id": "sensor.battery_active_power",
-    "state": "-16.8",
+    "state": "-17.0",
     "attributes": {
       "advanced": false,
       "device_class": "power",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "power",
       "forecast": [
-        { "time": "2025-11-04T00:41:00.000000+0000", "value": -16.8 },
-        { "time": "2025-11-04T00:42:00.000000+0000", "value": -16.8 },
-        { "time": "2025-11-04T00:43:00.000000+0000", "value": -16.8 },
-        { "time": "2025-11-04T00:44:00.000000+0000", "value": -7.6 },
+        { "time": "2025-11-04T00:41:00.000000+0000", "value": -17.0 },
+        { "time": "2025-11-04T00:42:00.000000+0000", "value": -17.0 },
+        { "time": "2025-11-04T00:43:00.000000+0000", "value": -17.0 },
+        { "time": "2025-11-04T00:44:00.000000+0000", "value": -7.7 },
         { "time": "2025-11-04T00:45:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:46:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:51:00.000000+0000", "value": 0.0 },
@@ -2066,8 +2083,8 @@
         { "time": "2025-11-04T04:11:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T04:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T05:11:00.000000+0000", "value": 16.8 },
-        { "time": "2025-11-04T05:41:00.000000+0000", "value": -4.9 },
-        { "time": "2025-11-04T06:11:00.000000+0000", "value": -7.1 },
+        { "time": "2025-11-04T05:41:00.000000+0000", "value": -5.0 },
+        { "time": "2025-11-04T06:11:00.000000+0000", "value": -7.2 },
         { "time": "2025-11-04T06:41:00.000000+0000", "value": -4.8 },
         { "time": "2025-11-04T07:11:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T07:41:00.000000+0000", "value": 0.4 },
@@ -2100,10 +2117,10 @@
         { "time": "2025-11-04T21:11:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T21:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T22:11:00.000000+0000", "value": 0.0 },
-        { "time": "2025-11-04T22:41:00.000000+0000", "value": -16.8 },
-        { "time": "2025-11-04T23:11:00.000000+0000", "value": -16.8 },
-        { "time": "2025-11-04T23:41:00.000000+0000", "value": -16.8 },
-        { "time": "2025-11-05T00:11:00.000000+0000", "value": -7.6 },
+        { "time": "2025-11-04T22:41:00.000000+0000", "value": -17.0 },
+        { "time": "2025-11-04T23:11:00.000000+0000", "value": -17.0 },
+        { "time": "2025-11-04T23:41:00.000000+0000", "value": -17.0 },
+        { "time": "2025-11-05T00:11:00.000000+0000", "value": -7.7 },
         { "time": "2025-11-05T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-05T01:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-05T02:41:00.000000+0000", "value": 0.0 },
@@ -2126,8 +2143,8 @@
         { "time": "2025-11-05T19:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-05T20:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-05T21:41:00.000000+0000", "value": 0.0 },
-        { "time": "2025-11-05T22:41:00.000000+0000", "value": -16.8 },
-        { "time": "2025-11-05T23:41:00.000000+0000", "value": -12.2 },
+        { "time": "2025-11-05T22:41:00.000000+0000", "value": -17.0 },
+        { "time": "2025-11-05T23:41:00.000000+0000", "value": -12.3 },
         { "time": "2025-11-06T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-06T01:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-06T02:41:00.000000+0000", "value": 0.0 },
@@ -2155,25 +2172,27 @@
       ],
       "friendly_name": "Battery Active power",
       "output_name": "battery_power_active",
-      "output_type": "power",
+      "priority": 2,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
   },
   "sensor.battery_charge_power": {
     "entity_id": "sensor.battery_charge_power",
-    "state": "16.8",
+    "state": "17.0",
     "attributes": {
       "advanced": false,
       "device_class": "power",
       "direction": "-",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "power",
       "forecast": [
-        { "time": "2025-11-04T00:41:00.000000+0000", "value": 16.8 },
-        { "time": "2025-11-04T00:42:00.000000+0000", "value": 16.8 },
-        { "time": "2025-11-04T00:43:00.000000+0000", "value": 16.8 },
-        { "time": "2025-11-04T00:44:00.000000+0000", "value": 7.6 },
+        { "time": "2025-11-04T00:41:00.000000+0000", "value": 17.0 },
+        { "time": "2025-11-04T00:42:00.000000+0000", "value": 17.0 },
+        { "time": "2025-11-04T00:43:00.000000+0000", "value": 17.0 },
+        { "time": "2025-11-04T00:44:00.000000+0000", "value": 7.7 },
         { "time": "2025-11-04T00:45:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:46:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:51:00.000000+0000", "value": 0.0 },
@@ -2194,8 +2213,8 @@
         { "time": "2025-11-04T04:11:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T04:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T05:11:00.000000+0000", "value": 0.0 },
-        { "time": "2025-11-04T05:41:00.000000+0000", "value": 4.9 },
-        { "time": "2025-11-04T06:11:00.000000+0000", "value": 7.1 },
+        { "time": "2025-11-04T05:41:00.000000+0000", "value": 5.0 },
+        { "time": "2025-11-04T06:11:00.000000+0000", "value": 7.2 },
         { "time": "2025-11-04T06:41:00.000000+0000", "value": 4.8 },
         { "time": "2025-11-04T07:11:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T07:41:00.000000+0000", "value": 0.0 },
@@ -2228,10 +2247,10 @@
         { "time": "2025-11-04T21:11:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T21:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T22:11:00.000000+0000", "value": 0.0 },
-        { "time": "2025-11-04T22:41:00.000000+0000", "value": 16.8 },
-        { "time": "2025-11-04T23:11:00.000000+0000", "value": 16.8 },
-        { "time": "2025-11-04T23:41:00.000000+0000", "value": 16.8 },
-        { "time": "2025-11-05T00:11:00.000000+0000", "value": 7.6 },
+        { "time": "2025-11-04T22:41:00.000000+0000", "value": 17.0 },
+        { "time": "2025-11-04T23:11:00.000000+0000", "value": 17.0 },
+        { "time": "2025-11-04T23:41:00.000000+0000", "value": 17.0 },
+        { "time": "2025-11-05T00:11:00.000000+0000", "value": 7.7 },
         { "time": "2025-11-05T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-05T01:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-05T02:41:00.000000+0000", "value": 0.0 },
@@ -2254,8 +2273,8 @@
         { "time": "2025-11-05T19:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-05T20:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-05T21:41:00.000000+0000", "value": 0.0 },
-        { "time": "2025-11-05T22:41:00.000000+0000", "value": 16.8 },
-        { "time": "2025-11-05T23:41:00.000000+0000", "value": 12.2 },
+        { "time": "2025-11-05T22:41:00.000000+0000", "value": 17.0 },
+        { "time": "2025-11-05T23:41:00.000000+0000", "value": 12.3 },
         { "time": "2025-11-06T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-06T01:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-06T02:41:00.000000+0000", "value": 0.0 },
@@ -2283,7 +2302,8 @@
       ],
       "friendly_name": "Battery Charge power",
       "output_name": "battery_power_charge",
-      "output_type": "power",
+      "priority": 3,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -2297,6 +2317,7 @@
       "direction": "+",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "power",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -2411,7 +2432,8 @@
       ],
       "friendly_name": "Battery Discharge power",
       "output_name": "battery_power_discharge",
-      "output_type": "power",
+      "priority": 2,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -2424,6 +2446,7 @@
       "device_class": "monetary",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -2538,7 +2561,7 @@
       ],
       "friendly_name": "Battery Energy in flow shadow price",
       "output_name": "battery_energy_in_flow",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kWh"
     }
   },
@@ -2550,6 +2573,7 @@
       "device_class": "monetary",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -2664,7 +2688,7 @@
       ],
       "friendly_name": "Battery Energy out flow shadow price",
       "output_name": "battery_energy_out_flow",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kWh"
     }
   },
@@ -2676,6 +2700,7 @@
       "device_class": "energy",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "energy",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 31.3 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 31.6 },
@@ -2791,7 +2816,7 @@
       ],
       "friendly_name": "Battery Energy stored",
       "output_name": "battery_energy_stored",
-      "output_type": "energy",
+      "source_role": "output",
       "unit_of_measurement": "kWh"
     }
   },
@@ -2803,6 +2828,7 @@
       "device_class": "monetary",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -2918,7 +2944,7 @@
       ],
       "friendly_name": "Battery Power balance shadow price",
       "output_name": "battery_power_balance",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -2930,6 +2956,7 @@
       "device_class": "monetary",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -3044,7 +3071,7 @@
       ],
       "friendly_name": "Battery SOC max shadow price",
       "output_name": "battery_soc_max",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kWh"
     }
   },
@@ -3056,6 +3083,7 @@
       "device_class": "monetary",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -3170,7 +3198,7 @@
       ],
       "friendly_name": "Battery SOC min shadow price",
       "output_name": "battery_soc_min",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kWh"
     }
   },
@@ -3182,6 +3210,7 @@
       "device_class": "battery",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "state_of_charge",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 97.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 98.0 },
@@ -3297,7 +3326,7 @@
       ],
       "friendly_name": "Battery State of charge",
       "output_name": "battery_state_of_charge",
-      "output_type": "state_of_charge",
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "%"
     }
@@ -3310,6 +3339,7 @@
       "device_class": "monetary",
       "element_name": "Constant Load",
       "element_type": "load",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -3424,7 +3454,7 @@
       ],
       "friendly_name": "Constant Load Forecast limit shadow price",
       "output_name": "load_forecast_limit_price",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -3437,6 +3467,8 @@
       "direction": "-",
       "element_name": "Constant Load",
       "element_type": "load",
+      "field_type": "power",
+      "fixed": true,
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 1.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 1.0 },
@@ -3551,8 +3583,8 @@
       ],
       "friendly_name": "Constant Load Power",
       "output_name": "load_power",
-      "output_type": "power",
       "priority": 1,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -3565,6 +3597,7 @@
       "device_class": "power",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "power",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -3679,8 +3712,8 @@
       ],
       "friendly_name": "Grid Active power",
       "output_name": "grid_power_active",
-      "output_type": "power",
       "priority": 7,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -3694,6 +3727,7 @@
       "direction": "-",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "power",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -3808,8 +3842,8 @@
       ],
       "friendly_name": "Grid Export power",
       "output_name": "grid_power_export",
-      "output_type": "power",
       "priority": 7,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -3823,6 +3857,7 @@
       "direction": "+",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "cost",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -3937,7 +3972,7 @@
       ],
       "friendly_name": "Grid Export revenue",
       "output_name": "grid_revenue_export",
-      "output_type": "cost",
+      "source_role": "output",
       "unit_of_measurement": "$"
     }
   },
@@ -3950,6 +3985,7 @@
       "direction": "-",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "cost",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -4064,7 +4100,7 @@
       ],
       "friendly_name": "Grid Import cost",
       "output_name": "grid_cost_import",
-      "output_type": "cost",
+      "source_role": "output",
       "unit_of_measurement": "$"
     }
   },
@@ -4077,6 +4113,7 @@
       "direction": "+",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "power",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -4191,8 +4228,8 @@
       ],
       "friendly_name": "Grid Import power",
       "output_name": "grid_power_import",
-      "output_type": "power",
       "priority": 6,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -4205,6 +4242,7 @@
       "device_class": "monetary",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -4319,7 +4357,7 @@
       ],
       "friendly_name": "Grid Max export power shadow price",
       "output_name": "grid_power_max_export_price",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -4331,6 +4369,7 @@
       "device_class": "monetary",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -4445,7 +4484,7 @@
       ],
       "friendly_name": "Grid Max import power shadow price",
       "output_name": "grid_power_max_import_price",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -4457,6 +4496,7 @@
       "device_class": "monetary",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "cost",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -4571,7 +4611,7 @@
       ],
       "friendly_name": "Grid Net cost",
       "output_name": "grid_cost_net",
-      "output_type": "cost",
+      "source_role": "output",
       "unit_of_measurement": "$"
     }
   },
@@ -4584,6 +4624,7 @@
       "direction": "-",
       "element_name": "Inverter",
       "element_type": "inverter",
+      "field_type": "power_flow",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -4698,8 +4739,8 @@
       ],
       "friendly_name": "Inverter AC to DC power",
       "output_name": "inverter_power_ac_to_dc",
-      "output_type": "power_flow",
       "priority": 5,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -4712,6 +4753,7 @@
       "device_class": "power",
       "element_name": "Inverter",
       "element_type": "inverter",
+      "field_type": "power_flow",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 1.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 1.0 },
@@ -4826,8 +4868,8 @@
       ],
       "friendly_name": "Inverter Active power",
       "output_name": "inverter_power_active",
-      "output_type": "power_flow",
       "priority": 4,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -4840,6 +4882,7 @@
       "device_class": "monetary",
       "element_name": "Inverter",
       "element_type": "inverter",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -4954,7 +4997,7 @@
       ],
       "friendly_name": "Inverter DC bus power balance shadow price",
       "output_name": "inverter_dc_bus_power_balance",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -4967,6 +5010,7 @@
       "direction": "+",
       "element_name": "Inverter",
       "element_type": "inverter",
+      "field_type": "power_flow",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 1.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 1.0 },
@@ -5081,8 +5125,8 @@
       ],
       "friendly_name": "Inverter DC to AC power",
       "output_name": "inverter_power_dc_to_ac",
-      "output_type": "power_flow",
       "priority": 4,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -5095,6 +5139,7 @@
       "device_class": "monetary",
       "element_name": "Inverter",
       "element_type": "inverter",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -5209,7 +5254,7 @@
       ],
       "friendly_name": "Inverter Max AC to DC power shadow price",
       "output_name": "inverter_max_power_ac_to_dc_price",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -5221,6 +5266,7 @@
       "device_class": "monetary",
       "element_name": "Inverter",
       "element_type": "inverter",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -5335,12 +5381,16 @@
       ],
       "friendly_name": "Inverter Max DC to AC power shadow price",
       "output_name": "inverter_max_power_dc_to_ac_price",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
-  "sensor.optimizer_cost": { "entity_id": "sensor.optimizer_cost", "state": "-19.2", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Cost", "output_name": "network_optimization_cost", "output_type": "cost", "unit_of_measurement": "$" } },
-  "sensor.optimizer_duration": { "entity_id": "sensor.optimizer_duration", "state": "0.0", "attributes": { "advanced": false, "device_class": "duration", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Duration", "output_name": "network_optimization_duration", "output_type": "duration", "state_class": "measurement", "unit_of_measurement": "s" } },
+  "sensor.optimizer_cost": { "entity_id": "sensor.optimizer_cost", "state": "-19.2", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "System", "element_type": "network", "field_type": "cost", "friendly_name": "Optimizer Cost", "output_name": "network_optimization_cost", "source_role": "output", "unit_of_measurement": "$" } },
+  "sensor.optimizer_duration": {
+    "entity_id": "sensor.optimizer_duration",
+    "state": "0.0",
+    "attributes": { "advanced": false, "device_class": "duration", "element_name": "System", "element_type": "network", "field_type": "duration", "friendly_name": "Optimizer Duration", "output_name": "network_optimization_duration", "source_role": "output", "state_class": "measurement", "unit_of_measurement": "s" }
+  },
   "sensor.optimizer_forecast_horizon": {
     "entity_id": "sensor.optimizer_forecast_horizon",
     "state": "2025-11-04T00:41:00+00:00",
@@ -5466,7 +5516,7 @@
   "sensor.optimizer_status": {
     "entity_id": "sensor.optimizer_status",
     "state": "success",
-    "attributes": { "advanced": false, "device_class": "enum", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Status", "last_run": "2025-11-04T00:41:42.057378+00:00", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status" }
+    "attributes": { "advanced": false, "device_class": "enum", "element_name": "System", "element_type": "network", "field_type": "status", "friendly_name": "Optimizer Status", "last_run": "2025-11-04T00:41:42.057378+00:00", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "source_role": "output" }
   },
   "sensor.solar_forecast_limit_shadow_price": {
     "entity_id": "sensor.solar_forecast_limit_shadow_price",
@@ -5476,6 +5526,7 @@
       "device_class": "monetary",
       "element_name": "Solar",
       "element_type": "solar",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -5590,7 +5641,7 @@
       ],
       "friendly_name": "Solar Forecast limit shadow price",
       "output_name": "solar_forecast_limit",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -5603,6 +5654,7 @@
       "direction": "+",
       "element_name": "Solar",
       "element_type": "solar",
+      "field_type": "power",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 18.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 18.0 },
@@ -5717,8 +5769,8 @@
       ],
       "friendly_name": "Solar Power",
       "output_name": "solar_power",
-      "output_type": "power",
       "priority": 0,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -5731,6 +5783,7 @@
       "device_class": "monetary",
       "element_name": "Switchboard",
       "element_type": "node",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -5845,7 +5898,7 @@
       ],
       "friendly_name": "Switchboard Power balance shadow price",
       "output_name": "node_power_balance",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -5858,6 +5911,7 @@
       "element_name": "Solar",
       "element_type": "solar",
       "field_name": "curtailment",
+      "field_type": "status",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 1.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 1.0 },
@@ -5971,8 +6025,7 @@
         { "time": "2025-11-06T23:41:00.000000+0000", "value": 1.0 },
         { "time": "2025-11-07T00:41:00.000000+0000", "value": 1.0 }
       ],
-      "friendly_name": "Solar Curtailment",
-      "output_type": "status"
+      "friendly_name": "Solar Curtailment"
     }
   },
   "switch.switchboard_is_sink": {
@@ -5983,6 +6036,7 @@
       "element_name": "Switchboard",
       "element_type": "node",
       "field_name": "is_sink",
+      "field_type": "status",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -6096,8 +6150,7 @@
         { "time": "2025-11-06T23:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-07T00:41:00.000000+0000", "value": 0.0 }
       ],
-      "friendly_name": "Switchboard Is sink",
-      "output_type": "status"
+      "friendly_name": "Switchboard Is sink"
     }
   },
   "switch.switchboard_is_source": {
@@ -6108,6 +6161,7 @@
       "element_name": "Switchboard",
       "element_type": "node",
       "field_name": "is_source",
+      "field_type": "status",
       "forecast": [
         { "time": "2025-11-04T00:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-04T00:42:00.000000+0000", "value": 0.0 },
@@ -6221,8 +6275,7 @@
         { "time": "2025-11-06T23:41:00.000000+0000", "value": 0.0 },
         { "time": "2025-11-07T00:41:00.000000+0000", "value": 0.0 }
       ],
-      "friendly_name": "Switchboard Is source",
-      "output_type": "status"
+      "friendly_name": "Switchboard Is source"
     }
   }
 }

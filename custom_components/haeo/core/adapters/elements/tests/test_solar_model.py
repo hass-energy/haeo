@@ -35,6 +35,7 @@ class OutputsCase(TypedDict):
 
     description: str
     name: str
+    config: SolarConfigData
     model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
@@ -80,6 +81,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     {
         "description": "Solar with forecast limit",
         "name": "pv_main",
+        "config": SolarConfigData(
+            element_type=ElementType.SOLAR,
+            name="pv_main",
+            connection=as_connection_target("network"),
+            forecast={"forecast": np.array([2.0])},
+            curtailment={"curtailment": True},
+        ),
         "model_outputs": {
             "pv_main:connection": {
                 connection.CONNECTION_POWER: OutputData(
@@ -102,6 +110,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     {
         "description": "Solar with shadow price output",
         "name": "pv_with_price",
+        "config": SolarConfigData(
+            element_type=ElementType.SOLAR,
+            name="pv_with_price",
+            connection=as_connection_target("network"),
+            forecast={"forecast": np.array([1.5])},
+            curtailment={"curtailment": True},
+        ),
         "model_outputs": {
             "pv_with_price:connection": {
                 connection.CONNECTION_POWER: OutputData(
@@ -134,5 +149,5 @@ def test_model_elements(case: CreateCase) -> None:
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES[ElementType.SOLAR]
-    result = entry.outputs(case["name"], case["model_outputs"])
+    result = entry.outputs(case["name"], case["model_outputs"], config=case["config"])
     assert result == case["outputs"]

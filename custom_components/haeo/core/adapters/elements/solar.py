@@ -79,14 +79,17 @@ class SolarAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
+        *,
+        config: SolarConfigData,
         **_kwargs: Any,
     ) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
         """Map model outputs to solar-specific output names."""
         connection = model_outputs[f"{name}:connection"]
+        fixed = not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, True)
 
         power = expect_output_data(connection[CONNECTION_POWER])
         solar_outputs: dict[SolarOutputName, OutputData] = {
-            SOLAR_POWER: replace(power, type=OutputType.POWER),
+            SOLAR_POWER: replace(power, type=OutputType.POWER, fixed=fixed),
         }
 
         # Shadow price from power_limit segment (if present)
