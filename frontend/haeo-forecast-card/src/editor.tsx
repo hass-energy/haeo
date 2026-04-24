@@ -1,5 +1,5 @@
 import { render } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 
 import { t } from "./i18n";
@@ -19,8 +19,7 @@ interface HassEditorLike {
   locale?: { language?: string };
 }
 
-interface HubOption {
-  entryId: string;
+interface HubEntities {
   entities: string[];
   elementNames: string[];
 }
@@ -33,7 +32,7 @@ const EDITOR_STYLES = `
   }
   .wrap { display: grid; gap: 12px; }
   label { display: grid; gap: 6px; font-size: 13px; font-weight: 500; }
-  select, input {
+  input {
     font: inherit; color: inherit;
     background: var(--card-background-color);
     border: 1px solid var(--divider-color);
@@ -49,10 +48,19 @@ interface EditorFormProps {
   onConfigChanged: (config: ForecastCardConfig) => void;
 }
 
-function discoverHubs(hass: HassEditorLike, registry: EntityRegistryEntry[]): HubOption[] {
-  const byHub = new Map<string, string[]>();
+function discoverEntitiesForHub(
+  hass: HassEditorLike,
+  registry: EntityRegistryEntry[],
+  hubEntryId: string
+): HubEntities {
+  const entities: string[] = [];
+  const names = new Set<string>();
   for (const entry of registry) {
-    if (entry.platform !== "haeo" || entry.disabled_by !== null || entry.config_entry_id === null) {
+    if (
+      entry.platform !== "haeo" ||
+      entry.disabled_by !== null ||
+      entry.config_entry_id !== hubEntryId
+    ) {
       continue;
     }
     const state = hass.states[entry.entity_id];
@@ -60,35 +68,56 @@ function discoverHubs(hass: HassEditorLike, registry: EntityRegistryEntry[]): Hu
     if (!Array.isArray(forecast) || forecast.length === 0) {
       continue;
     }
-    const list = byHub.get(entry.config_entry_id) ?? [];
-    list.push(entry.entity_id);
-    byHub.set(entry.config_entry_id, list);
-  }
-  const options: HubOption[] = [];
-  for (const [entryId, entityIds] of byHub.entries()) {
-    const names = new Set<string>();
-    for (const entityId of entityIds) {
-      const attrs = hass.states[entityId]?.attributes ?? {};
-      const elementName = attrs["element_name"];
-      if (typeof elementName === "string" && elementName.trim().length > 0) {
-        names.add(elementName);
-      }
+    entities.push(entry.entity_id);
+    const elementName = state?.attributes?.["element_name"];
+    if (typeof elementName === "string" && elementName.trim().length > 0) {
+      names.add(elementName);
     }
-    options.push({
-      entryId,
-      entities: entityIds.sort((a, b) => a.localeCompare(b)),
-      elementNames: [...names].sort((a, b) => a.localeCompare(b)),
-    });
   }
-  return options.sort((a, b) => a.entryId.localeCompare(b.entryId));
+  return {
+    entities: entities.sort((a, b) => a.localeCompare(b)),
+    elementNames: [...names].sort((a, b) => a.localeCompare(b)),
+  };
+}
+
+function HaSelectorBridge(props: {
+  hass: HassEditorLike | null;
+  value: string;
+  onValueChanged: (value: string) => void;
+}): JSX.Element {
+  const ref = useRef<HTMLElement | null>(null);
+  const onValueChangedRef = useRef(props.onValueChanged);
+  onValueChangedRef.current = props.onValueChanged;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const handler = (ev: Event): void => {
+      const detail = (ev as CustomEvent).detail;
+      const value = detail?.value ?? "";
+      onValueChangedRef.current(value);
+    };
+    el.addEventListener("value-changed", handler);
+    return () => el.removeEventListener("value-changed", handler);
+  }, []);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const bridge = el as unknown as Record<string, unknown>;
+    bridge["hass"] = props.hass;
+    bridge["selector"] = { config_entry: { integration: "haeo" } };
+    bridge["value"] = props.value;
+  }, [props.hass, props.value]);
+
+  return <ha-selector-config_entry ref={ref} />;
 }
 
 function EditorForm(props: EditorFormProps): JSX.Element {
   const { config, hass, onConfigChanged } = props;
-  const [hubOptions, setHubOptions] = useState<HubOption[]>([]);
+  const [hubEntities, setHubEntities] = useState<HubEntities | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const autoSelectedRef = useRef(false);
   const configRef = useRef(config);
   const onConfigChangedRef = useRef(onConfigChanged);
   configRef.current = config;
@@ -96,62 +125,44 @@ function EditorForm(props: EditorFormProps): JSX.Element {
 
   const locale = hass?.language ?? hass?.locale?.language ?? "en";
 
+  const refreshEntities = useCallback(
+    (hubEntryId: string) => {
+      if (!hass?.callWS) return;
+      setLoading(true);
+      setError(null);
+      void hass
+        .callWS<EntityRegistryEntry[]>({ type: "config/entity_registry/list" })
+        .then((registry) => {
+          const result = discoverEntitiesForHub(hass, registry, hubEntryId);
+          setHubEntities(result);
+          onConfigChangedRef.current({
+            ...configRef.current,
+            type: "custom:haeo-forecast-card",
+            hub_entry_id: hubEntryId,
+            entities: result.entities,
+          });
+        })
+        .catch((err: unknown) => {
+          setHubEntities(null);
+          setError(err instanceof Error ? err.message : String(err));
+        })
+        .finally(() => setLoading(false));
+    },
+    [hass]
+  );
+
   useEffect(() => {
-    if (!hass?.callWS) {
-      setHubOptions([]);
-      setError(t(locale, "editor.error.ws_unavailable"));
-      return;
+    if (config.hub_entry_id) {
+      refreshEntities(config.hub_entry_id);
     }
-    setLoading(true);
-    setError(null);
-    const callWS = hass.callWS;
-    void callWS<EntityRegistryEntry[]>({ type: "config/entity_registry/list" })
-      .then((registry) => {
-        const options = discoverHubs(hass, registry);
-        setHubOptions(options);
-        if (configRef.current.hub_entry_id === undefined && options.length > 0 && !autoSelectedRef.current) {
-          const first = options[0];
-          if (first) {
-            autoSelectedRef.current = true;
-            const option = options.find((o) => o.entryId === first.entryId);
-            if (option) {
-              onConfigChangedRef.current({
-                ...configRef.current,
-                type: "custom:haeo-forecast-card",
-                hub_entry_id: first.entryId,
-                entities: option.entities,
-              });
-            }
-          }
-        }
-      })
-      .catch((err: unknown) => {
-        setHubOptions([]);
-        setError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [hass?.callWS]);
+  }, [config.hub_entry_id, refreshEntities]);
 
-  const selectedHub = config.hub_entry_id ?? "";
-  const selectedOption = hubOptions.find((o) => o.entryId === selectedHub) ?? null;
-  const selectedEntityCount = selectedOption?.entities.length ?? config.entities?.length ?? 0;
-  const selectedElementNames = selectedOption?.elementNames ?? [];
+  const selectedEntityCount = hubEntities?.entities.length ?? config.entities?.length ?? 0;
+  const selectedElementNames = hubEntities?.elementNames ?? [];
 
-  const onHubChange = (event: Event): void => {
-    const target = event.target as HTMLSelectElement;
-    const hubEntryId = target.value;
-    const option = hubOptions.find((o) => o.entryId === hubEntryId);
-    if (!option) {
-      return;
-    }
-    onConfigChanged({
-      ...config,
-      type: "custom:haeo-forecast-card",
-      hub_entry_id: hubEntryId,
-      entities: option.entities,
-    });
+  const onHubChange = (hubEntryId: string): void => {
+    if (!hubEntryId) return;
+    refreshEntities(hubEntryId);
   };
 
   const onTitleChange = (event: Event): void => {
@@ -196,20 +207,7 @@ function EditorForm(props: EditorFormProps): JSX.Element {
           onChange={onTitleChange}
         />
       </label>
-      <label>
-        {t(locale, "editor.hub.label")}
-        <select id="hubSelect" disabled={hubOptions.length === 0} onChange={onHubChange} value={selectedHub}>
-          {hubOptions.length === 0 ? (
-            <option value="">{t(locale, "editor.hub.none")}</option>
-          ) : (
-            hubOptions.map((option) => (
-              <option key={option.entryId} value={option.entryId}>
-                {option.entryId}
-              </option>
-            ))
-          )}
-        </select>
-      </label>
+      <HaSelectorBridge hass={hass} value={config.hub_entry_id ?? ""} onValueChanged={onHubChange} />
       <div className="meta">
         {loading
           ? t(locale, "editor.discovery.loading")

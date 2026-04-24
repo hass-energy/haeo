@@ -24,7 +24,7 @@ describe("haeo forecast card editor", () => {
     expect(ctor).toBeDefined();
   });
 
-  it("discovers HAEO hubs and auto-emits config for selected hub", async () => {
+  it("discovers entities when hub_entry_id is set and emits config", async () => {
     const editor = document.createElement("haeo-forecast-card-editor") as EditorElement;
     const calls: ForecastCardConfig[] = [];
     editor.addEventListener("config-changed", (event) => {
@@ -32,7 +32,7 @@ describe("haeo forecast card editor", () => {
       calls.push(customEvent.detail.config);
     });
 
-    editor.setConfig({ type: "custom:haeo-forecast-card" });
+    editor.setConfig({ type: "custom:haeo-forecast-card", hub_entry_id: "hub-alpha" });
     editor.hass = {
       states: {
         "sensor.grid_import_power": {
@@ -62,12 +62,7 @@ describe("haeo forecast card editor", () => {
             config_entry_id: "hub-alpha",
             disabled_by: null,
           },
-        ] as Array<{
-          entity_id: string;
-          platform: string;
-          config_entry_id: string | null;
-          disabled_by: string | null;
-        }>),
+        ]),
     };
     document.body.appendChild(editor);
 
@@ -82,7 +77,6 @@ describe("haeo forecast card editor", () => {
     expect(latest?.hub_entry_id).toBe("hub-alpha");
     expect(latest?.entities?.length).toBe(2);
 
-    // The custom element re-renders after config-changed, give it time
     await vi.waitFor(
       () => {
         const text = editor.shadowRoot?.textContent ?? "";

@@ -33,9 +33,29 @@ export class HaeoForecastCard extends HTMLElement {
     return document.createElement("haeo-forecast-card-editor");
   }
 
-  static getStubConfig(): Omit<ForecastCardConfig, "type"> {
+  static getStubConfig(hass?: HassLike): Omit<ForecastCardConfig, "type"> {
+    if (!hass) {
+      return { title: "HAEO forecast" };
+    }
+    const entities: string[] = [];
+    for (const [entityId, state] of Object.entries(hass.states)) {
+      if (!entityId.startsWith("sensor.") || !state) continue;
+      const forecast = state.attributes["forecast"];
+      const platform = state.attributes["platform"];
+      if (
+        Array.isArray(forecast) &&
+        forecast.length > 0 &&
+        (platform === "haeo" || entityId.includes("haeo"))
+      ) {
+        entities.push(entityId);
+      }
+    }
+    if (entities.length === 0) {
+      return { title: "HAEO forecast" };
+    }
     return {
       title: "HAEO forecast",
+      entities: entities.sort((a, b) => a.localeCompare(b)),
     };
   }
 

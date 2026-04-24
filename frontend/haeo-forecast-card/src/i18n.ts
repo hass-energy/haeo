@@ -40,8 +40,6 @@ const EN_TRANSLATIONS: TranslationDict = {
   "editor.error.ws_unavailable": "Home Assistant websocket API unavailable in editor.",
   "editor.title.label": "Title",
   "editor.title.placeholder": "HAEO forecast",
-  "editor.hub.label": "HAEO hub entry",
-  "editor.hub.none": "No HAEO hubs with forecast entities found",
   "editor.discovery.loading": "Discovering HAEO hubs and forecast entities...",
   "editor.discovery.count": "Discovered entities for selected hub: {count}",
   "editor.elements.label": "Elements: {elements}",
