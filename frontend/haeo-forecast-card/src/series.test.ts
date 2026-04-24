@@ -63,11 +63,12 @@ describe("normalizeSeries", () => {
     const hass = loadScenarioHassState("scenario1");
     const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
 
-    expect(output.length).toBeGreaterThanOrEqual(15);
+    expect(output.length).toBeGreaterThanOrEqual(13);
     expect(output.some((series) => series.lane === "power")).toBe(true);
     expect(output.some((series) => series.lane === "price")).toBe(true);
     expect(output.some((series) => series.lane === "soc")).toBe(true);
     expect(output.some((series) => series.outputType === "power_flow")).toBe(false);
+    expect(output.some((series) => series.outputType === "power_limit")).toBe(false);
     expect(output.some((series) => series.outputName.includes("inverter_max_power"))).toBe(false);
     expect(output.some((series) => series.outputName.endsWith("_power_active"))).toBe(false);
     expect(output.some((series) => series.sourceRole === "forecast")).toBe(true);

@@ -34,7 +34,7 @@ function asNumber(value: unknown): number | null {
 }
 
 function inferLane(outputType: string): LaneType {
-  if (outputType === "power" || outputType === "power_limit") {
+  if (outputType === "power") {
     return "power";
   }
   if (outputType === "price" || outputType === "cost") {
@@ -110,15 +110,13 @@ function colorForElement(elementType: string, elementName: string, variant: numb
 }
 
 function includeOutputType(outputType: string, direction: string | null): boolean {
-  if (outputType === "power" || outputType === "power_limit") {
+  if (outputType === "power") {
     // Plot power streams only when explicit directional metadata is present.
     if (direction !== "+" && direction !== "-") {
       return false;
     }
   }
-  return (
-    outputType === "power" || outputType === "power_limit" || outputType === "price" || outputType === "state_of_charge"
-  );
+  return outputType === "power" || outputType === "price" || outputType === "state_of_charge";
 }
 
 function sourceRoleForSeries(configMode: string | null, fieldName: string | null): SeriesSourceRole {
