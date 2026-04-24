@@ -63,7 +63,7 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
   };
   return (
     <div className="tooltip">
-      <div className="tooltipTime">{new Date(props.hoverTimeMs).toLocaleString()}</div>
+      <div className="tooltipTime">{new Date(props.hoverTimeMs).toLocaleString(props.locale)}</div>
       {[...groups.entries()].map(([lane, rows]) => (
         <div key={lane} className="tooltipGroup">
           <div className="tooltipGroupTitle">{laneLabel(lane)}</div>

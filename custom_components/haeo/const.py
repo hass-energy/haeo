@@ -7,7 +7,6 @@ DOMAIN: Final = "haeo"
 
 # External URLs
 URL_HAFO: Final = "https://hafo.haeo.io"
-URL_DOCS_FORECAST_CARD: Final = "https://github.com/hass-energy/haeo/blob/main/docs/user-guide/lovelace-card.md"
 
 # Integration types
 INTEGRATION_TYPE_HUB: Final = "hub"

@@ -132,7 +132,7 @@ function EditorForm(props: EditorFormProps): JSX.Element {
       .finally(() => {
         setLoading(false);
       });
-  }, [hass]);
+  }, [hass?.callWS]);
 
   const selectedHub = config.hub_entry_id ?? "";
   const selectedOption = hubOptions.find((o) => o.entryId === selectedHub) ?? null;
