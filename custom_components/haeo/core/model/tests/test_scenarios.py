@@ -22,13 +22,11 @@ def test_simple_optimization() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": np.array([10000.0, 10000.0, 10000.0]),
-                    "max_power_target_source": np.array([5000.0, 5000.0, 5000.0]),
+                    "max_power": np.array([10000.0, 10000.0, 10000.0]),
                 },
                 "pricing": {
                     "segment_type": "pricing",
-                    "price_source_target": np.array([0.1, 0.2, 0.15]),
-                    "price_target_source": np.array([0.05, 0.08, 0.06]),
+                    "price": np.array([0.1, 0.2, 0.15]),
                 },
             },
         }
@@ -43,7 +41,7 @@ def test_simple_optimization() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": np.array([1000.0, 1500.0, 2000.0]),
+                    "max_power": np.array([1000.0, 1500.0, 2000.0]),
                     "fixed": True,
                 }
             },
@@ -74,14 +72,15 @@ def test_network_validation() -> None:
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power_source_target": np.array([1000.0, 1000.0, 1000.0]),
-                }
+                    "max_power": np.array([1000.0, 1000.0, 1000.0]),
+                },
+                "pricing": {
+                    "segment_type": "pricing",
+                    "price": 0.0,
+                },
             },
         }
     )
-
-    # Should validate successfully
-    network.validate()
 
     # Run optimization to ensure it completes
     cost = network.optimize()

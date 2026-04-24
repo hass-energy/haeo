@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Any, cast
 
+from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.components.recorder import history as recorder_history
 from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant, State
@@ -26,10 +27,31 @@ from custom_components.haeo.sensor_utils import (
     get_output_sensors,
 )
 
+"""Schema version of the serialized diagnostics output. Bump on breaking shape changes."""
+# Keys to redact from diagnostics output. Following HA convention, ``async_redact_data``
+# is also responsible for unwrapping ``MappingProxyType`` (HA's wrapper around
+# ``ConfigEntry.data`` / ``ConfigSubentry.data``) into plain dicts as a side-effect of
+# its ``{**data}`` recursion -- without that, ``ExtendedJSONEncoder`` falls back to
+# ``{"__type": ..., "repr": ...}`` placeholders for those values.
+_REDACTED_CONFIG_KEYS: frozenset[str] = frozenset()
+DIAGNOSTICS_SCHEMA_VERSION = 2
+
 
 @dataclass(frozen=True, slots=True)
-class DiagnosticsInfo:
-    """Timestamps and context for a diagnostics snapshot."""
+class EnvironmentInfo:
+    """Runtime environment facts and per-snapshot timing for a diagnostics capture."""
+
+    diagnostics_version: int
+    """Schema version of the serialized diagnostics output. Bump on breaking shape changes."""
+
+    ha_version: str
+    """Home Assistant version."""
+
+    haeo_version: str
+    """HAEO integration version."""
+
+    timezone: str
+    """System timezone."""
 
     diagnostic_request_time: str
     """Wall-clock time when the diagnostic was requested (ISO 8601)."""
@@ -48,20 +70,6 @@ class DiagnosticsInfo:
 
 
 @dataclass(frozen=True, slots=True)
-class EnvironmentInfo:
-    """Static runtime environment facts."""
-
-    ha_version: str
-    """Home Assistant version."""
-
-    haeo_version: str
-    """HAEO integration version."""
-
-    timezone: str
-    """System timezone."""
-
-
-@dataclass(frozen=True, slots=True)
 class DiagnosticsResult:
     """Result of collecting diagnostics."""
 
@@ -69,13 +77,10 @@ class DiagnosticsResult:
     """HAEO configuration (hub settings, participants)."""
 
     environment: EnvironmentInfo
-    """Static runtime info (HA version, HAEO version, timezone)."""
+    """Runtime info plus per-snapshot timestamps."""
 
     inputs: list[dict[str, Any]]
     """Input sensor states used in optimization."""
-
-    info: DiagnosticsInfo
-    """Per-snapshot context (timestamps, horizon)."""
 
     outputs: dict[str, SensorStateDict] | None
     """Output sensor states (None for historical diagnostics)."""
@@ -87,7 +92,6 @@ class DiagnosticsResult:
         """Serialize to a JSON-compatible dict for HA diagnostics output."""
         data: dict[str, Any] = {
             "environment": asdict(self.environment),
-            "info": asdict(self.info),
             "config": self.config,
             "inputs": self.inputs,
         }
@@ -286,18 +290,30 @@ async def _get_last_run_before(
 async def _build_environment(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
+    *,
+    diagnostic_request_time: str,
+    diagnostic_target_time: str | None,
+    optimization_start_time: str,
+    optimization_end_time: str,
+    horizon_start: str,
 ) -> EnvironmentInfo:
     """Build the environment section of diagnostics.
 
-    Static facts about the runtime — does not vary per invocation.
+    Combines static runtime facts (versions, timezone) with per-snapshot timestamps.
     """
     integration = await async_get_integration(hass, config_entry.domain)
     haeo_version = integration.version or "unknown"
 
     return EnvironmentInfo(
+        diagnostics_version=DIAGNOSTICS_SCHEMA_VERSION,
         ha_version=ha_version,
         haeo_version=haeo_version,
         timezone=str(dt_util.get_default_time_zone()),
+        diagnostic_request_time=diagnostic_request_time,
+        diagnostic_target_time=diagnostic_target_time,
+        optimization_start_time=optimization_start_time,
+        optimization_end_time=optimization_end_time,
+        horizon_start=horizon_start,
     )
 
 
@@ -337,14 +353,12 @@ async def collect_diagnostics(
 
         started_at, completed_at, horizon_start = run
         config = _config_from_entry(config_entry)
+        config["version"] = config_entry.version
+        config["minor_version"] = config_entry.minor_version
         inputs, missing = await _fetch_inputs_at(hass, config_entry, started_at)
-        info = DiagnosticsInfo(
-            diagnostic_request_time=now,
-            diagnostic_target_time=_to_local_iso(target_time),
-            optimization_start_time=_to_local_iso(started_at),
-            optimization_end_time=_to_local_iso(completed_at),
-            horizon_start=horizon_start,
-        )
+        diagnostic_target_time = _to_local_iso(target_time)
+        optimization_start_time = _to_local_iso(started_at)
+        optimization_end_time = _to_local_iso(completed_at)
         outputs = None
     else:
         runtime_data = config_entry.runtime_data
@@ -358,27 +372,33 @@ async def collect_diagnostics(
 
         coordinator_data = runtime_data.coordinator.data
         config = _config_from_context(coordinator_data.context)
+        config["version"] = config_entry.version
+        config["minor_version"] = config_entry.minor_version
         inputs = _inputs_from_context(coordinator_data.context)
         missing = []
-        info = DiagnosticsInfo(
-            diagnostic_request_time=now,
-            diagnostic_target_time=None,
-            optimization_start_time=_to_local_iso(coordinator_data.started_at),
-            optimization_end_time=_to_local_iso(coordinator_data.completed_at),
-            horizon_start=_to_local_iso(coordinator_data.context.horizon_start),
-        )
+        diagnostic_target_time = None
+        optimization_start_time = _to_local_iso(coordinator_data.started_at)
+        optimization_end_time = _to_local_iso(coordinator_data.completed_at)
+        horizon_start = _to_local_iso(coordinator_data.context.horizon_start)
         outputs = get_output_sensors(hass, config_entry)
 
-    environment = await _build_environment(hass, config_entry)
+    environment = await _build_environment(
+        hass,
+        config_entry,
+        diagnostic_request_time=now,
+        diagnostic_target_time=diagnostic_target_time,
+        optimization_start_time=optimization_start_time,
+        optimization_end_time=optimization_end_time,
+        horizon_start=horizon_start,
+    )
 
     return DiagnosticsResult(
-        config=config,
+        config=async_redact_data(config, _REDACTED_CONFIG_KEYS),
         environment=environment,
         inputs=inputs,
-        info=info,
         outputs=outputs,
         missing_entity_ids=tuple(missing),
     )
 
 
-__all__ = ["DiagnosticsInfo", "DiagnosticsResult", "EnvironmentInfo", "collect_diagnostics"]
+__all__ = ["DIAGNOSTICS_SCHEMA_VERSION", "DiagnosticsResult", "EnvironmentInfo", "collect_diagnostics"]

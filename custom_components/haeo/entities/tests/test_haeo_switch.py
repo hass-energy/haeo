@@ -19,16 +19,12 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
-from custom_components.haeo.core.const import CONF_NAME
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
-from custom_components.haeo.core.schema.elements.solar import (
-    CONF_FORECAST,
-    CONF_PRICE_SOURCE_TARGET,
-    SECTION_CURTAILMENT,
-    SECTION_FORECAST,
-    SECTION_PRICING,
-)
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.policy import CONF_ENABLED, CONF_RULES
+from custom_components.haeo.core.schema.elements.solar import CONF_FORECAST, SECTION_CURTAILMENT, SECTION_FORECAST
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.entities.haeo_number import ConfigEntityMode
@@ -123,9 +119,6 @@ def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
                 SECTION_FORECAST: {
                     CONF_FORECAST: as_entity_value(["sensor.solar_forecast"]),
                 },
-                SECTION_PRICING: {
-                    CONF_PRICE_SOURCE_TARGET: as_constant_value(0.0),
-                },
                 SECTION_CURTAILMENT: {key: schema_value(value) for key, value in data.items()},
             }
         ),
@@ -199,7 +192,6 @@ async def test_editable_mode_with_raw_boolean(
                 CONF_NAME: "Raw Bool",
                 CONF_CONNECTION: as_connection_target("Switchboard"),
                 SECTION_FORECAST: {CONF_FORECAST: as_entity_value(["sensor.solar_forecast"])},
-                SECTION_PRICING: {CONF_PRICE_SOURCE_TARGET: as_constant_value(0.0)},
                 SECTION_CURTAILMENT: {curtailment_field_info.field_name: True},
             }
         ),
@@ -493,9 +485,51 @@ async def test_unique_id_includes_all_components(
         horizon_manager=horizon_manager,
     )
 
-    expected_unique_id = (
-        f"{config_entry.entry_id}_{subentry.subentry_id}_curtailment.{curtailment_field_info.field_name}"
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{curtailment_field_info.field_name}"
+    assert entity.unique_id == expected_unique_id
+
+
+async def test_unique_id_disambiguates_reused_section_field_names(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """Section switch fields with repeated leaf names use a unique stable key."""
+    field_info = InputFieldInfo(
+        field_name="enabled",
+        entity_description=SwitchEntityDescription(
+            key="enabled",
+            translation_key="enabled",
+        ),
+        output_type=OutputType.STATUS,
+        device_type="undercharge_toggle",
     )
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "element_type": "battery",
+                CONF_NAME: "Test Battery",
+                "undercharge": {"enabled": as_constant_value(True)},
+                "overcharge": {"enabled": as_constant_value(False)},
+            }
+        ),
+        subentry_type="battery",
+        title="Test Battery",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+        field_path=("undercharge", "enabled"),
+    )
+
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_undercharge_toggle.enabled"
     assert entity.unique_id == expected_unique_id
 
 
@@ -596,6 +630,126 @@ async def test_translation_key_defaults_to_field_name(
 
     # Field has no translation_key, so it uses field_name
     assert entity.entity_description.translation_key == "allow_curtailment"
+
+
+async def test_translation_placeholders_include_rule_name_for_list_field(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """List-based switch fields expose rule_name for translation placeholders."""
+    field_info = InputFieldInfo(
+        field_name=CONF_ENABLED,
+        entity_description=SwitchEntityDescription(
+            key=CONF_ENABLED,
+            translation_key="policy_enabled",
+        ),
+        output_type=OutputType.STATUS,
+    )
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.POLICY,
+                CONF_NAME: "Policies",
+                CONF_RULES: [
+                    {"name": "Export", CONF_ENABLED: True},
+                ],
+            }
+        ),
+        subentry_type=ElementType.POLICY,
+        title="Policies",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+        field_path=(CONF_RULES, "0", CONF_ENABLED),
+    )
+
+    placeholders = entity._attr_translation_placeholders
+    assert placeholders is not None
+    assert placeholders.get("rule_name") == "Export"
+
+
+async def test_translation_placeholders_skip_invalid_list_index(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """Invalid list index in field_path does not raise and omits rule_name."""
+    field_info = InputFieldInfo(
+        field_name=CONF_ENABLED,
+        entity_description=SwitchEntityDescription(
+            key=CONF_ENABLED,
+            translation_key="policy_enabled",
+        ),
+        output_type=OutputType.STATUS,
+    )
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.POLICY,
+                CONF_NAME: "Policies",
+                CONF_RULES: [
+                    {"name": "Export", CONF_ENABLED: True},
+                ],
+            }
+        ),
+        subentry_type=ElementType.POLICY,
+        title="Policies",
+        unique_id=None,
+    )
+    config_entry.runtime_data = None
+
+    entity = HaeoInputSwitch(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+        field_path=(CONF_RULES, "not-an-index", CONF_ENABLED),
+    )
+
+    placeholders = entity._attr_translation_placeholders
+    assert placeholders is not None
+    assert "rule_name" not in placeholders
+
+
+async def test_invalid_config_value_raises_runtime_error(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Unknown switch config value types fail loudly."""
+    subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
+    # Inject an invalid nested value shape for this field
+    invalid_data = dict(subentry.data)
+    invalid_data[SECTION_CURTAILMENT] = {curtailment_field_info.field_name: {"type": "invalid"}}
+    invalid_subentry = ConfigSubentry(
+        data=MappingProxyType(invalid_data),
+        subentry_type=subentry.subentry_type,
+        title=subentry.title,
+        unique_id=subentry.unique_id,
+    )
+    config_entry.runtime_data = None
+
+    with pytest.raises(RuntimeError, match="Invalid config value"):
+        HaeoInputSwitch(
+            config_entry=config_entry,
+            subentry=invalid_subentry,
+            field_info=curtailment_field_info,
+            device_entry=device_entry,
+            horizon_manager=horizon_manager,
+        )
 
 
 # --- Tests for horizon_start and get_values properties ---

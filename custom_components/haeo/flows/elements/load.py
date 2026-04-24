@@ -13,7 +13,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
     CONF_FORECAST,
-    CONF_PRICE_TARGET_SOURCE,
     SECTION_CURTAILMENT,
 )
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
@@ -28,7 +27,7 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.sections import build_common_fields, forecast_section, pricing_section
+from custom_components.haeo.sections import build_common_fields, forecast_section
 
 
 class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -38,7 +37,6 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Return sections for the configuration step."""
         return (
             forecast_section((CONF_FORECAST,), collapsed=False),
-            pricing_section((CONF_PRICE_TARGET_SOURCE,), collapsed=True),
             SectionDefinition(key=SECTION_CURTAILMENT, fields=(CONF_CURTAILMENT,), collapsed=True),
         )
 

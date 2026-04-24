@@ -206,8 +206,32 @@ jobs:
 
       - name: Check import boundaries
         run: uv run lint-imports
-  #endregion
 
+  frontend-card-check:
+    name: Frontend card checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: 22
+
+      - name: Run frontend card quality checks
+        run: |
+          npm --prefix frontend/haeo-forecast-card ci
+          npm --prefix frontend/haeo-forecast-card run check
+
+      - name: Upload frontend coverage to Codecov
+        if: ${{ github.event_name != 'release' && !cancelled() }}
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          files: frontend/haeo-forecast-card/coverage/lcov.info
+          flags: frontend
+          token: ${{ secrets.CODECOV_TOKEN }}
+  #endregion
   #region Tests
   # =============================================================================
   # Tests
@@ -229,7 +253,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Run Tests
-        run: uv run pytest -m "not guide" --cov=custom_components/haeo --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
+        run: uv run pytest -m "not guide and not scenario and not benchmark" --cov=custom_components/haeo --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
       - name: Upload test results to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
@@ -242,8 +266,25 @@ jobs:
         if: ${{ github.event_name != 'release' && !cancelled() }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
+          flags: python
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  scenario:
+    name: Scenario tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
+
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
+
+      - name: Run scenario tests
+        run: uv run pytest -m scenario -vv
   #endregion
 
   #region Validation
@@ -330,7 +371,9 @@ jobs:
       - prettier
       - mdformat
       - import-linter
+      - frontend-card-check
       - test
+      - scenario
       - hassfest
       - version-check
       - hacs

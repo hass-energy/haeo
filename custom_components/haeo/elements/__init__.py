@@ -23,7 +23,7 @@ Sub-element Naming Convention:
         - "home_battery:connection" (implicit connection to network)
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, MutableSequence
 import logging
 import types
 from typing import (
@@ -91,6 +91,7 @@ from custom_components.haeo.core.adapters.elements.node import (
     NodeDeviceName,
     NodeOutputName,
 )
+from custom_components.haeo.core.adapters.elements.policy import POLICY_DEVICE_NAMES, PolicyDeviceName
 from custom_components.haeo.core.adapters.elements.solar import (
     SOLAR_DEVICE_NAMES,
     SOLAR_OUTPUT_NAMES,
@@ -123,10 +124,11 @@ from custom_components.haeo.core.schema.elements.load import OPTIONAL_INPUT_FIEL
 from custom_components.haeo.core.schema.elements.load import LoadConfigData
 from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.node import NodeConfigData
+from custom_components.haeo.core.schema.elements.policy import PolicyConfigData
 from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData
-from custom_components.haeo.core.schema.field_hints import extract_field_hints
-from custom_components.haeo.elements.field_hints import build_input_fields
+from custom_components.haeo.core.schema.field_hints import extract_field_hints, extract_list_field_hints
+from custom_components.haeo.elements.field_hints import build_input_fields, build_list_input_fields
 
 from .field_schema import FieldSchemaInfo
 from .input_fields import InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
@@ -167,6 +169,7 @@ type ElementDeviceName = (
     | LoadDeviceName
     | NodeDeviceName
     | SolarDeviceName
+    | PolicyDeviceName
     | NetworkDeviceName
 )
 
@@ -181,6 +184,7 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | LOAD_DEVICE_NAMES
     | NODE_DEVICE_NAMES
     | SOLAR_DEVICE_NAMES
+    | POLICY_DEVICE_NAMES
     | NETWORK_DEVICE_NAMES
 )
 
@@ -192,6 +196,7 @@ ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
     ElementType.GRID: frozenset(GRID_DEVICE_NAMES),
     ElementType.LOAD: frozenset(LOAD_DEVICE_NAMES),
     ElementType.NODE: frozenset(NODE_DEVICE_NAMES),
+    ElementType.POLICY: frozenset(POLICY_DEVICE_NAMES),
     ElementType.SOLAR: frozenset(SOLAR_DEVICE_NAMES),
     ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
 }
@@ -214,6 +219,7 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     ElementType.INVERTER: InverterConfigData,
     ElementType.LOAD: LoadConfigData,
     ElementType.NODE: NodeConfigData,
+    ElementType.POLICY: PolicyConfigData,
     ElementType.SOLAR: SolarConfigData,
 }
 
@@ -434,12 +440,53 @@ def get_input_fields(element_type: str | ElementType | Mapping[str, Any] | None)
     return build_input_fields(str(element_type), extract_field_hints(schema_cls))
 
 
+def get_list_input_fields(element_config: Mapping[str, Any]) -> InputFieldGroups:
+    """Return dynamic input fields for list-based config structures.
+
+    Finds list fields annotated with ``ListFieldHints`` and generates
+    per-item input field definitions based on the actual config data.
+    Field paths use ``(list_key, str(index), field_name)`` to navigate
+    into the list items.
+    """
+    element_type = element_config.get(CONF_ELEMENT_TYPE)
+    if not is_element_type(element_type):
+        return {}
+
+    schema_cls = ELEMENT_CONFIG_SCHEMAS.get(element_type)
+    if schema_cls is None:
+        return {}
+
+    list_hints = extract_list_field_hints(schema_cls)
+    if not list_hints:
+        return {}
+
+    result: dict[str, dict[str, InputFieldInfo[Any]]] = {}
+    for list_key, hints in list_hints.items():
+        items = element_config.get(list_key)
+        if not isinstance(items, (list, tuple)):
+            continue
+        result.update(
+            build_list_input_fields(str(element_type), list_key, hints, items),
+        )
+
+    return result
+
+
 def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, InputFieldInfo[Any]]]:
-    """Return (field_path, InputFieldInfo) pairs from nested input fields."""
+    """Return (field_path, InputFieldInfo) pairs from nested input fields.
+
+    For section-based fields, paths are 2-tuples: ``(section_key, field_name)``.
+    For list-based fields (section keys containing ``"."``), paths are expanded
+    into 3-tuples: ``(list_key, index, field_name)``.
+    """
     results: list[tuple[InputFieldPath, InputFieldInfo[Any]]] = []
     for section_key, section_fields in input_fields.items():
         for field_name, field_info in section_fields.items():
-            results.append(((section_key, field_name), field_info))
+            if "." in section_key:
+                parts = tuple(section_key.split("."))
+                results.append(((*parts, field_name), field_info))
+            else:
+                results.append(((section_key, field_name), field_info))
     return results
 
 
@@ -468,14 +515,25 @@ def find_nested_config_path(config: Mapping[str, Any], field_name: str) -> Input
 
 
 def get_nested_config_value_by_path(config: Mapping[str, Any], field_path: InputFieldPath) -> Any | None:
-    """Find a field value in a nested element config using a path."""
+    """Find a field value in a nested element config using a path.
+
+    Supports both mapping keys and integer indices for list traversal.
+    A path like ``("rules", "0", "price")`` navigates into
+    ``config["rules"][0]["price"]``.
+    """
     current: Any = config
     for key in field_path:
-        if not isinstance(current, Mapping):
+        if isinstance(current, Mapping):
+            if key not in current:
+                return None
+            current = current[key]
+        elif isinstance(current, (list, tuple)):
+            try:
+                current = current[int(key)]
+            except (ValueError, IndexError):
+                return None
+        else:
             return None
-        if key not in current:
-            return None
-        current = current[key]
     return current
 
 
@@ -492,19 +550,36 @@ def set_nested_config_value(config: dict[str, Any], field_name: str, value: Any)
 
 
 def set_nested_config_value_by_path(config: dict[str, Any], field_path: InputFieldPath, value: Any) -> bool:
-    """Set a field value in a nested element config using a path."""
+    """Set a field value in a nested element config using a path.
+
+    Supports both mapping keys and integer indices for list traversal.
+    """
     current: Any = config
     for key in field_path[:-1]:
-        if not isinstance(current, dict):
+        if isinstance(current, dict):
+            next_value = current.get(key)
+            if isinstance(next_value, (dict, list, tuple)):
+                current = next_value
+            else:
+                return False
+        elif isinstance(current, (list, tuple)):
+            try:
+                current = current[int(key)]
+            except (ValueError, IndexError):
+                return False
+        else:
             return False
-        next_value = current.get(key)
-        if not isinstance(next_value, dict):
+    last_key = field_path[-1]
+    if isinstance(current, dict):
+        current[last_key] = value
+        return True
+    if isinstance(current, MutableSequence):
+        try:
+            current[int(last_key)] = value
+            return True
+        except (ValueError, IndexError):
             return False
-        current = next_value
-    if not isinstance(current, dict):
-        return False
-    current[field_path[-1]] = value
-    return True
+    return False
 
 
 __all__ = [
@@ -523,6 +598,7 @@ __all__ = [
     "find_nested_config_path",
     "get_input_field_schema_info",
     "get_input_fields",
+    "get_list_input_fields",
     "get_nested_config_value",
     "get_nested_config_value_by_path",
     "is_element_config_data",

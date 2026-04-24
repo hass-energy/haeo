@@ -1,4 +1,4 @@
-"""SOC-based pricing segment for battery level penalties."""
+"""SOC-based pricing segment — penalizes operation outside SOC thresholds."""
 
 from typing import Any, Literal, NotRequired
 
@@ -26,7 +26,7 @@ class SocPricingSegmentSpec(TypedDict):
 
 
 class SocPricingSegment(Segment):
-    """Segment that penalizes discharging energy or charging capacity outside thresholds."""
+    """Penalizes battery operation outside SOC thresholds using slack variables."""
 
     def __init__(
         self,
@@ -38,6 +38,7 @@ class SocPricingSegment(Segment):
         spec: SocPricingSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
+        power_in: dict[int, HighspyArray],
     ) -> None:
         """Initialize SOC pricing segment."""
         super().__init__(
@@ -47,12 +48,9 @@ class SocPricingSegment(Segment):
             solver,
             source_element=source_element,
             target_element=target_element,
+            power_in=power_in,
         )
         self._battery = self._get_battery()
-
-        # Power variables (lossless segment, in == out)
-        self._power_st = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_st_", out_array=True)
-        self._power_ts = solver.addVariables(n_periods, lb=0, name_prefix=f"{segment_id}_ts_", out_array=True)
 
         self._discharge_energy_threshold = broadcast_to_sequence(spec.get("discharge_energy_threshold"), n_periods)
         self._charge_capacity_threshold = broadcast_to_sequence(spec.get("charge_capacity_threshold"), n_periods)
@@ -65,7 +63,10 @@ class SocPricingSegment(Segment):
                 msg = "discharge_energy_threshold is required when discharge_energy_price is set"
                 raise ValueError(msg)
             self._discharge_energy_slack = solver.addVariables(
-                n_periods, lb=0, name_prefix=f"{segment_id}_discharge_energy_", out_array=True
+                n_periods,
+                lb=0,
+                name_prefix=f"{segment_id}_discharge_energy_",
+                out_array=True,
             )
 
         self._charge_capacity_slack: HighspyArray | None = None
@@ -74,10 +75,14 @@ class SocPricingSegment(Segment):
                 msg = "charge_capacity_threshold is required when charge_capacity_price is set"
                 raise ValueError(msg)
             self._charge_capacity_slack = solver.addVariables(
-                n_periods, lb=0, name_prefix=f"{segment_id}_charge_capacity_", out_array=True
+                n_periods,
+                lb=0,
+                name_prefix=f"{segment_id}_charge_capacity_",
+                out_array=True,
             )
 
     def _get_battery(self) -> Any:
+        """Find the battery element from the connection endpoints."""
         for element in (self.source_element, self.target_element):
             if hasattr(element, "stored_energy"):
                 return element
@@ -86,37 +91,17 @@ class SocPricingSegment(Segment):
 
     @property
     def discharge_energy_slack(self) -> HighspyArray | None:
-        """Return slack for energy below discharge threshold."""
+        """Slack for energy below discharge threshold."""
         return self._discharge_energy_slack
 
     @property
     def charge_capacity_slack(self) -> HighspyArray | None:
-        """Return slack for energy above charge capacity threshold."""
+        """Slack for energy above charge capacity threshold."""
         return self._charge_capacity_slack
-
-    @property
-    def power_in_st(self) -> HighspyArray:
-        """Power entering segment in source→target direction."""
-        return self._power_st
-
-    @property
-    def power_out_st(self) -> HighspyArray:
-        """Power leaving segment in source→target direction (lossless)."""
-        return self._power_st
-
-    @property
-    def power_in_ts(self) -> HighspyArray:
-        """Power entering segment in target→source direction."""
-        return self._power_ts
-
-    @property
-    def power_out_ts(self) -> HighspyArray:
-        """Power leaving segment in target→source direction (lossless)."""
-        return self._power_ts
 
     @constraint
     def discharge_energy_slack_bound(self) -> list[highs_linear_expression] | None:
-        """Slack constraint for energy below discharge threshold."""
+        """Bound discharge slack to threshold violation."""
         if self._discharge_energy_slack is None or self._discharge_energy_threshold is None:
             return None
         stored_energy = np.asarray(self._battery.stored_energy, dtype=object)
@@ -124,7 +109,7 @@ class SocPricingSegment(Segment):
 
     @constraint
     def charge_capacity_slack_bound(self) -> list[highs_linear_expression] | None:
-        """Slack constraint for energy above charge capacity threshold."""
+        """Bound charge slack to threshold violation."""
         if self._charge_capacity_slack is None or self._charge_capacity_threshold is None:
             return None
         stored_energy = np.asarray(self._battery.stored_energy, dtype=object)
@@ -132,7 +117,7 @@ class SocPricingSegment(Segment):
 
     @cost
     def soc_pricing_cost(self) -> highs_linear_expression | None:
-        """Return cost contribution from SOC pricing."""
+        """Penalty cost for operating outside SOC thresholds."""
         cost_terms = []
         if self._discharge_energy_slack is not None and self._discharge_energy_price is not None:
             cost_terms.append(Highs.qsum(self._discharge_energy_slack * self._discharge_energy_price))

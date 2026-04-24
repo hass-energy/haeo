@@ -22,6 +22,8 @@ from pathlib import Path
 import types
 from typing import TYPE_CHECKING, Any, get_args
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -501,6 +503,100 @@ def verify_setup(page: HAPage) -> None:
     page._capture("final_overview")
 
     _LOGGER.info("Setup verified")
+
+
+@guide_step
+def add_policies(
+    page: HAPage,
+    *,
+    name: str,
+    source: str | list[str] | None = None,
+    target: str | list[str] | None = None,
+    price: float | None = None,
+) -> None:
+    """Add a policy rule via the Policies subentry flow.
+
+    Works for both the first rule (creates subentry) and subsequent
+    rules (appends to existing subentry).
+
+    Source and target use a ChooseSelector with Any/Nodes choices.
+    When nodes are specified, the nested dropdown multi-select is used.
+    Pass a string for a single node, a list for multiple nodes, or None for "Any".
+    Price uses a ChooseSelector with Constant/Entity/None choices.
+    """
+    et = "policy"
+    _LOGGER.info("Adding policy rule: %s", name)
+
+    page.click_button(_button_label(et), first=True)
+    page.wait_for_dialog(_dialog_title(et))
+
+    step_data = _step_user(et)["data"]
+    page.fill_textbox(step_data["name"], name)
+
+    if source is not None:
+        nodes = [source] if isinstance(source, str) else source
+        page.choose_select_option(step_data["source"], "Elements")
+        page.choose_dropdown_multi(step_data["source"], nodes)
+    if target is not None:
+        nodes = [target] if isinstance(target, str) else target
+        page.choose_select_option(step_data["target"], "Elements")
+        page.choose_dropdown_multi(step_data["target"], nodes)
+    if price is not None:
+        page.choose_select_option(step_data["price"], "Constant")
+        page.choose_constant(step_data["price"], str(price))
+
+    page.submit()
+
+    # First add: async_create_entry shows a Finish dialog.
+    # Subsequent adds: async_update_and_abort shows an abort dialog
+    # with a close button in the header (Escape/scrim are disabled).
+    finish = page.page.get_by_role("button", name="Finish")
+    try:
+        finish.wait_for(state="visible", timeout=2000)
+    except PlaywrightTimeoutError:
+        # Close the abort dialog via the header X button
+        close_btn = page.page.locator(
+            "dialog-data-entry-flow ha-icon-button[dialogaction='close']",
+        )
+        close_btn.click(timeout=2000)
+        page.page.locator("dialog-data-entry-flow ha-dialog[open]").wait_for(
+            state="detached",
+            timeout=5000,
+        )
+        _LOGGER.info("Policy appended to existing subentry")
+    else:
+        page.close_element_dialog()
+
+    _LOGGER.info("Policy rule added: %s", name)
+
+
+@guide_step
+def reconfigure_policies(page: HAPage) -> None:
+    """Open the reconfigure flow for the Policies subentry.
+
+    Scrolls to and clicks the gear icon on the Policies subentry row.
+    """
+    _LOGGER.info("Opening policy reconfigure...")
+
+    et = "policy"
+    policies_row = page.page.locator("ha-md-list-item.sub-entry").filter(has_text="Policies")
+    policies_row.wait_for(state="visible", timeout=5000)
+    policies_row.scroll_into_view_if_needed()
+
+    # The first ha-icon-button in a subentry row is the expand/collapse chevron
+    # (class="expand-button", slot="start"). The gear button comes after it.
+    gear_button = policies_row.locator("ha-icon-button:not([slot='start'])").first
+    page._capture("reconfigure_gear")
+    gear_button.click(timeout=2000)
+
+    page.wait_for_dialog(_step_title(et, "reconfigure"))
+
+    _LOGGER.info("Policy reconfigure opened")
+
+
+def _step_title(element_type: str, step: str) -> str:
+    """Get the title for a specific flow step."""
+    return _subentry(element_type)["step"][step]["title"]
 
 
 # endregion

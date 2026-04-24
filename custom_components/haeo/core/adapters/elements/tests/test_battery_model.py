@@ -24,7 +24,11 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as battery_model
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_BATTERY,
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    connection,
+)
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -69,8 +73,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "max_power_target_source": np.array([5.0]),
             },
             pricing={
-                "price_source_target": np.array([0.03]),
-                "price_target_source": np.array([0.01]),
                 "salvage_value": 0.0,
             },
             efficiency={
@@ -97,32 +99,29 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "battery_main:connection",
+                "name": "battery_main:discharge",
                 "source": "battery_main",
                 "target": "network",
                 "segments": {
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency_source_target": [0.95],
-                        "efficiency_target_source": [0.95],
-                    },
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": [5.0],
-                        "max_power_target_source": [5.0],
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": [0.04],
-                        "price_target_source": [-0.01],
-                    },
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
                     "soc_pricing": {
                         "segment_type": "soc_pricing",
                         "discharge_energy_threshold": [0.5],
-                        "charge_capacity_threshold": [8.5],
                         "discharge_energy_price": [0.03],
+                        "charge_capacity_threshold": [8.5],
                         "charge_capacity_price": [0.04],
                     },
+                },
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "battery_main:charge",
+                "source": "network",
+                "target": "battery_main",
+                "segments": {
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
                 },
             },
         ],
@@ -146,8 +145,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "max_power_target_source": np.array([5.0]),
             },
             pricing={
-                "price_source_target": np.array([0.003]),
-                "price_target_source": np.array([0.001]),
                 "salvage_value": 0.0,
             },
             efficiency={
@@ -168,25 +165,22 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "battery_normal:connection",
+                "name": "battery_normal:discharge",
                 "source": "battery_normal",
                 "target": "network",
                 "segments": {
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency_source_target": [0.95],
-                        "efficiency_target_source": [0.95],
-                    },
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": [5.0],
-                        "max_power_target_source": [5.0],
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": [0.004],
-                        "price_target_source": [-0.001],
-                    },
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
+                },
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "battery_normal:charge",
+                "source": "network",
+                "target": "battery_normal",
+                "segments": {
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
                 },
             },
         ],
@@ -210,8 +204,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "max_power_target_source": np.array([4.0]),
             },
             pricing={
-                "price_source_target": np.array([0.02]),
-                "price_target_source": np.array([0.01]),
                 "salvage_value": 0.05,
             },
             efficiency={
@@ -232,25 +224,22 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "battery_salvage:connection",
+                "name": "battery_salvage:discharge",
                 "source": "battery_salvage",
                 "target": "network",
                 "segments": {
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency_source_target": [0.95],
-                        "efficiency_target_source": [0.95],
-                    },
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power_source_target": [4.0],
-                        "max_power_target_source": [4.0],
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": [0.03],
-                        "price_target_source": [-0.01],
-                    },
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [4.0]},
+                },
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "battery_salvage:charge",
+                "source": "network",
+                "target": "battery_salvage",
+                "segments": {
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [4.0]},
                 },
             },
         ],
@@ -279,8 +268,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "max_power_target_source": np.array([5.0]),
             },
             pricing={
-                "price_source_target": np.array([0.003]),
-                "price_target_source": np.array([0.001]),
                 "salvage_value": 0.0,
             },
             efficiency={
@@ -311,6 +298,16 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 battery_model.BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
                 battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+            },
+            "battery_no_balance:discharge": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"
+                ),
+            },
+            "battery_no_balance:charge": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"
+                ),
             },
         },
         "outputs": {
@@ -352,8 +349,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "max_power_target_source": np.array([5.0]),
             },
             pricing={
-                "price_source_target": np.array([0.003]),
-                "price_target_source": np.array([0.001]),
                 "salvage_value": 0.0,
             },
             efficiency={
@@ -390,6 +385,16 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 battery_model.BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
                 battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+            },
+            "battery_with_thresholds:discharge": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"
+                ),
+            },
+            "battery_with_thresholds:charge": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"
+                ),
             },
         },
         "outputs": {

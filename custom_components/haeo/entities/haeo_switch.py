@@ -31,6 +31,23 @@ from custom_components.haeo.util import async_update_subentry_value
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
+LIST_ITEM_FIELD_PATH_LENGTH = 3
+SECTION_FIELD_PATH_LENGTH = 2
+
+
+def _field_name_is_reused_in_other_sections(
+    subentry_data: Mapping[str, Any],
+    *,
+    current_section: str,
+    field_name: str,
+) -> bool:
+    """Return True when another section reuses this field name."""
+    for section_key, section_data in subentry_data.items():
+        if section_key == current_section or not isinstance(section_data, Mapping):
+            continue
+        if field_name in section_data:
+            return True
+    return False
 
 
 class HaeoInputSwitch(SwitchEntity):
@@ -101,9 +118,21 @@ class HaeoInputSwitch(SwitchEntity):
                 msg = f"Invalid config value for field {field_info.field_name}"
                 raise RuntimeError(msg)
 
-        # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
+        # Unique ID: stable key with section disambiguation when required.
         field_path_key = ".".join(self._field_path)
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_path_key}"
+        is_list_item_field = len(self._field_path) >= LIST_ITEM_FIELD_PATH_LENGTH
+        unique_key = field_info.field_name
+        if is_list_item_field:
+            unique_key = field_path_key
+        elif len(self._field_path) == SECTION_FIELD_PATH_LENGTH and _field_name_is_reused_in_other_sections(
+            subentry.data,
+            current_section=self._field_path[0],
+            field_name=field_info.field_name,
+        ):
+            unique_key = (
+                f"{field_info.device_type}.{field_info.field_name}" if field_info.device_type else field_path_key
+            )
+        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{unique_key}"
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
@@ -129,6 +158,18 @@ class HaeoInputSwitch(SwitchEntity):
                 continue
             placeholders[key] = format_placeholder(value)
         placeholders.setdefault("name", subentry.title)
+
+        # For list item fields (e.g., rules.0.enabled), expose item name.
+        if len(self._field_path) > 1:
+            list_key, index_str, *_ = self._field_path
+            try:
+                items = subentry.data.get(list_key)
+                if isinstance(items, (list, tuple)):
+                    item = items[int(index_str)]
+                    if isinstance(item, Mapping) and "name" in item:
+                        placeholders["rule_name"] = str(item["name"])
+            except (ValueError, IndexError, KeyError):
+                pass
         self._attr_translation_placeholders = placeholders
 
         # Build base extra state attributes (static values)
@@ -138,7 +179,7 @@ class HaeoInputSwitch(SwitchEntity):
             "element_type": subentry.subentry_type,
             "field_name": field_info.field_name,
             "field_path": field_path_key,
-            "output_type": field_info.output_type,
+            "field_type": field_info.output_type,
         }
         if self._source_entity_id:
             self._base_extra_attrs["source_entity"] = self._source_entity_id

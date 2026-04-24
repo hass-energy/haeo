@@ -6,8 +6,8 @@ from typing import Any, Final, Literal
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
+from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.node import NODE_POWER_BALANCE
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.node import (
@@ -25,6 +25,7 @@ DEFAULT_IS_SINK: Final[bool] = False
 # Node output names
 type NodeOutputName = Literal["node_power_balance"]
 
+NODE_POWER_BALANCE: Final[NodeOutputName] = "node_power_balance"
 NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
 
 type NodeDeviceName = Literal[ElementType.NODE]
@@ -40,6 +41,8 @@ class NodeAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
+    can_source: bool = True
+    can_sink: bool = True
 
     def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Node configuration."""
@@ -63,8 +66,8 @@ class NodeAdapter:
 
         # Map Node power_balance to node_power_balance (only present for constrained nodes)
         node_outputs: dict[NodeOutputName, OutputData] = {}
-        if NODE_POWER_BALANCE in node_model:
-            node_outputs[NODE_POWER_BALANCE] = expect_output_data(node_model[NODE_POWER_BALANCE])
+        if ELEMENT_POWER_BALANCE in node_model:
+            node_outputs[NODE_POWER_BALANCE] = expect_output_data(node_model[ELEMENT_POWER_BALANCE])
 
         return {NODE_DEVICE_NODE: node_outputs}
 

@@ -22,7 +22,7 @@ VALID_CASES: list[ElementTestCase] = [
         "data": {
             "name": "hub_node",
             "periods": np.array([1.0] * 3),
-            "is_source": False,
+            "is_source": True,
             "is_sink": False,
         },
         "inputs": {
@@ -31,7 +31,7 @@ VALID_CASES: list[ElementTestCase] = [
             "output_cost": 0.1,
         },
         "expected_outputs": {
-            "node_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
+            "element_power_balance": {"type": "shadow_price", "unit": "$/kW", "values": (0.0, 0.0, 0.0)},
         },
     },
 ]

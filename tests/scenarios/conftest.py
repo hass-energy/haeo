@@ -19,6 +19,10 @@ def expand_diagnostics_scenario() -> None:
     - inputs.json
     - outputs.json
 
+    The unified file's top-level ``schema_version`` is asserted to match the
+    current ``DIAGNOSTICS_SCHEMA_VERSION`` and is not persisted into the split
+    fixtures (it is only meaningful at the top of an unmigrated capture).
+
     After splitting, the original scenario.json is deleted.
     """
     scenarios_dir = Path(__file__).parent
@@ -28,7 +32,6 @@ def expand_diagnostics_scenario() -> None:
         scenario_file = scenario_path / "scenario.json"
 
         if scenario_file.exists():
-            # Load the unified file
             with scenario_file.open() as f:
                 data = json.load(f)
 
@@ -36,8 +39,9 @@ def expand_diagnostics_scenario() -> None:
 
             # Validate structure
             required_keys = {"config", "environment", "inputs", "outputs"}
-            if required_keys <= diagnostics.keys() is False:
-                msg = f"Scenario file {scenario_file} missing required keys: {required_keys - diagnostics.keys()}"
+            missing = required_keys - diagnostics.keys()
+            if missing:
+                msg = f"Scenario file {scenario_file} missing required keys: {missing}"
                 raise ValueError(msg)
 
             # Write split files with consistent formatting

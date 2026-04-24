@@ -1,6 +1,8 @@
 name: Deploy Documentation
 
 on:
+  push:
+    branches: [main]
   release:
     types: [published]
   workflow_dispatch:
@@ -20,19 +22,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Get latest release tag
-        id: latest_release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          LATEST_TAG=$(gh api repos/${{ github.repository }}/releases/latest --jq '.tag_name')
-          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          echo "Building documentation for release: $LATEST_TAG"
-
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ steps.latest_release.outputs.tag }}
           fetch-depth: 0
 
       - name: Install uv
@@ -54,13 +46,19 @@ jobs:
           sudo apt-get install -y optipng
           find docs -name '*.png' -exec optipng -o5 -quiet {} +
 
-      - name: Build documentation
+      - name: Build main documentation
         run: uv run zensical build
+
+      - name: Assemble versioned site
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: uv run python tools/assemble_docs.py --main-site ./site --output ./public
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
         with:
-          path: ./site
+          path: ./public
 
   deploy:
     environment:

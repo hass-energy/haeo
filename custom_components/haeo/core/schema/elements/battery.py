@@ -15,8 +15,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_PRICE_SOURCE_TARGET,
-    CONF_PRICE_TARGET_SOURCE,
     SECTION_EFFICIENCY,
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
@@ -26,8 +24,6 @@ from custom_components.haeo.core.schema.sections import (
     EfficiencyData,
     PowerLimitsConfig,
     PowerLimitsData,
-    PricingConfig,
-    PricingData,
 )
 
 ELEMENT_TYPE = ElementType.BATTERY
@@ -57,8 +53,6 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
         CONF_MAX_POWER_TARGET_SOURCE,
         CONF_EFFICIENCY_SOURCE_TARGET,
         CONF_EFFICIENCY_TARGET_SOURCE,
-        CONF_PRICE_SOURCE_TARGET,
-        CONF_PRICE_TARGET_SOURCE,
         CONF_PARTITION_PERCENTAGE,
         CONF_PARTITION_COST,
     }
@@ -127,13 +121,13 @@ class PartitionData(TypedDict, total=False):
     cost: NDArray[np.floating[Any]] | float
 
 
-class BatteryPricingConfig(PricingConfig):
+class BatteryPricingConfig(TypedDict, total=False):
     """Battery pricing configuration values."""
 
     salvage_value: NotRequired[EntityValue | ConstantValue | NoneValue]
 
 
-class BatteryPricingData(PricingData):
+class BatteryPricingData(TypedDict, total=False):
     """Loaded battery pricing values."""
 
     salvage_value: NotRequired[float]
@@ -184,15 +178,15 @@ class BatteryConfigSchema(ConnectedCommonConfig):
         SectionHints(
             {
                 CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
-                    output_type=OutputType.POWER,
-                    direction="+",
+                    output_type=OutputType.POWER_LIMIT,
+                    direction="-",
                     time_series=True,
                     step=0.1,
                     default_mode="entity",
                 ),
                 CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
-                    output_type=OutputType.POWER,
-                    direction="-",
+                    output_type=OutputType.POWER_LIMIT,
+                    direction="+",
                     time_series=True,
                     step=0.1,
                     default_mode="entity",
@@ -204,18 +198,6 @@ class BatteryConfigSchema(ConnectedCommonConfig):
         BatteryPricingConfig,
         SectionHints(
             {
-                CONF_PRICE_SOURCE_TARGET: FieldHint(
-                    output_type=OutputType.PRICE,
-                    direction="-",
-                    time_series=True,
-                    default_value=0.0,
-                ),
-                CONF_PRICE_TARGET_SOURCE: FieldHint(
-                    output_type=OutputType.PRICE,
-                    direction="-",
-                    time_series=True,
-                    default_value=0.0,
-                ),
                 CONF_SALVAGE_VALUE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=False,
@@ -328,8 +310,6 @@ __all__ = [
     "CONF_MIN_CHARGE_PERCENTAGE",
     "CONF_PARTITION_COST",
     "CONF_PARTITION_PERCENTAGE",
-    "CONF_PRICE_SOURCE_TARGET",
-    "CONF_PRICE_TARGET_SOURCE",
     "CONF_SALVAGE_VALUE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",

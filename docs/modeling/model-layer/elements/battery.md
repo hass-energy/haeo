@@ -46,6 +46,8 @@ For each time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for ener
 **Optional parameters**:
 
 - $v_{\text{salvage}}$: Terminal value of stored energy (\$/kWh) - `salvage_value`
+- `outbound_tags`: Tags that discharged power can be placed on (see [Tagged Power](../../tagged-power.md))
+- `inbound_tags`: Tags this battery can consume (charge from) — None means all tags
 
 ### Constraints
 
@@ -82,16 +84,22 @@ $$
 Net battery power equals the power from network connections:
 
 $$
-P_{\text{connection}}(t) = P_{\text{charge}}(t) - P_{\text{discharge}}(t) \quad \forall t \in [0, T-1]
+P_{\text{connection}}(t) + P_{\text{discharge}}(t) - P_{\text{charge}}(t) = 0 \quad \forall t \in [0, T-1]
 $$
 
 Where:
 
 - $P_{\text{connection}}(t)$ is the power from network connections (positive = charging, negative = discharging)
-- $P_{\text{charge}}(t) = \frac{E_{\text{in}}(t+1) - E_{\text{in}}(t)}{\Delta t}$ is the charging power
-- $P_{\text{discharge}}(t) = \frac{E_{\text{out}}(t+1) - E_{\text{out}}(t)}{\Delta t}$ is the discharging power
+- $P_{\text{charge}}(t) = \frac{E_{\text{in}}(t+1) - E_{\text{in}}(t)}{\Delta t}$ is the charging power (consumed)
+- $P_{\text{discharge}}(t) = \frac{E_{\text{out}}(t+1) - E_{\text{out}}(t)}{\Delta t}$ is the discharging power (produced)
 
 **Shadow price**: The `power_balance` shadow price represents the marginal value of power at the battery terminals.
+
+#### 4. Tag Balance
+
+The Element base class creates per-tag power balance constraints for all elements with tagged connections.
+Discharge power is placed on `outbound_tags`; charge power draws from `inbound_tags`.
+See the [tagged power formulation](../../tagged-power.md#per-tag-balance) for details.
 
 ### Cost Contribution
 
@@ -158,13 +166,16 @@ Consider a 10 kWh battery section with initial charge of 4 kWh:
 The battery participates in network power balance through the connection power:
 
 $$
-P_{\text{connection}}(t) = P_{\text{charge}}(t) - P_{\text{discharge}}(t)
+P_{\text{connection}}(t) + P_{\text{discharge}}(t) - P_{\text{charge}}(t) = 0
 $$
 
 Where:
 
-- **Positive** $P_{\text{connection}}$: Battery is charging (consuming power from network)
-- **Negative** $P_{\text{connection}}$: Battery is discharging (providing power to network)
+- **Positive** $P_{\text{connection}}$: Net power flowing into the battery (charging)
+- **Negative** $P_{\text{connection}}$: Net power flowing out of the battery (discharging)
+
+The battery exposes separate produced (discharge) and consumed (charge) power for per-tag decomposition.
+See [Tagged Power](../../tagged-power.md) for how production and consumption are routed to specific tags.
 
 ## Numerical Considerations
 

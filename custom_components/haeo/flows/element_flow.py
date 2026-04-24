@@ -9,7 +9,7 @@ This module provides:
 """
 
 from collections.abc import Mapping
-from typing import Any, Final
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry, UnknownSubEntry
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
@@ -22,10 +22,8 @@ from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_T
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.util import UnitSpec
+from custom_components.haeo.core.units import PRICE_UNIT_SPEC
 from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
-
-# Price unit pattern: matches any currency divided by energy unit ($/kWh, €/MWh, etc.)
-PRICE_UNIT_SPEC: Final[list[UnitSpec]] = [("*", "/", unit.value) for unit in UnitOfEnergy]
 
 
 def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[UnitSpec] | None:
@@ -189,8 +187,10 @@ class ElementFlowMixin:
             if subentry.subentry_id == current_id:
                 continue
 
-            element_type = subentry.data.get(CONF_ELEMENT_TYPE)
-            if not isinstance(element_type, ElementType):
+            element_type_raw = subentry.data.get(CONF_ELEMENT_TYPE)
+            try:
+                element_type = ElementType(element_type_raw)
+            except (TypeError, ValueError):
                 continue
 
             connectivity = ELEMENT_TYPES[element_type].connectivity

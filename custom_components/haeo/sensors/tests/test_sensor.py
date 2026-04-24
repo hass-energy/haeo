@@ -36,11 +36,18 @@ from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMO
 from custom_components.haeo.sensor import async_setup_entry
 
 
-def _make_coordinator_data(outputs: dict[str, Any] | None = None) -> CoordinatorData | None:
+def _make_coordinator_data(
+    outputs: dict[str, Any] | None = None,
+    *,
+    started_at: datetime | None = None,
+    completed_at: datetime | None = None,
+) -> CoordinatorData | None:
     """Create a CoordinatorData instance for tests.
 
     Args:
         outputs: Dict of outputs. If None, returns None to simulate no data.
+        started_at: Optimization start time; defaults to current UTC time.
+        completed_at: Optimization completion time; defaults to current UTC time.
 
     Returns:
         CoordinatorData with the given outputs, or None.
@@ -54,11 +61,13 @@ def _make_coordinator_data(outputs: dict[str, Any] | None = None) -> Coordinator
         participants={},
         source_states={},
     )
+    run_started_at = started_at or datetime.now(UTC)
+    run_completed_at = completed_at or datetime.now(UTC)
     return CoordinatorData(
         context=context,
         outputs=outputs,
-        started_at=datetime.now(UTC),
-        completed_at=datetime.now(UTC),
+        started_at=run_started_at,
+        completed_at=run_completed_at,
     )
 
 
@@ -356,7 +365,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
 
     attributes = sensor.extra_state_attributes
     assert attributes is not None
-    assert attributes["output_type"] == OutputType.POWER
+    assert attributes["field_type"] == OutputType.POWER
     assert attributes["forecast"] == updated_output.forecast
     assert attributes["forecast"] is not updated_output.forecast
 
@@ -446,7 +455,8 @@ def test_handle_coordinator_update_clears_value_when_missing_data(
         "element_name": "Battery",
         "element_type": BATTERY_TYPE,
         "output_name": LOAD_POWER,
-        "output_type": OutputType.POWER,
+        "field_type": OutputType.POWER,
+        "source_role": "output",
         "advanced": False,
     }
 
@@ -617,6 +627,54 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
     assert attributes["direction"] == "+"
 
 
+def test_optimization_status_sensor_tracks_last_run(device_entry: DeviceEntry) -> None:
+    """Optimization status sensor exposes completed timestamp for each run."""
+    coordinator = _create_mock_coordinator()
+    output = _make_output(
+        type_=OutputType.STATUS,
+        unit=None,
+        state="success",
+        forecast=None,
+        entity_category=None,
+        device_class=SensorDeviceClass.ENUM,
+        state_class=None,
+        options=("failed", "pending", "success"),
+    )
+    sensor = HaeoSensor(
+        coordinator,
+        device_entry=device_entry,
+        subentry_key="Network",
+        device_key=ELEMENT_TYPE_NETWORK,
+        element_title="Network",
+        element_type=ELEMENT_TYPE_NETWORK,
+        output_name=OUTPUT_NAME_OPTIMIZATION_STATUS,
+        output_data=output,
+        unique_id="status-sensor-id",
+    )
+    sensor.async_write_ha_state = Mock()
+
+    first_completed_at = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
+    second_completed_at = datetime(2024, 1, 1, 12, 5, tzinfo=UTC)
+
+    coordinator.data = _make_coordinator_data(
+        {"Network": {"network": {OUTPUT_NAME_OPTIMIZATION_STATUS: output}}},
+        completed_at=first_completed_at,
+    )
+    sensor._handle_coordinator_update()
+    first_attributes = sensor.extra_state_attributes
+    assert first_attributes is not None
+    assert first_attributes["last_run"] == dt_util.as_utc(first_completed_at).isoformat()
+
+    coordinator.data = _make_coordinator_data(
+        {"Network": {"network": {OUTPUT_NAME_OPTIMIZATION_STATUS: output}}},
+        completed_at=second_completed_at,
+    )
+    sensor._handle_coordinator_update()
+    second_attributes = sensor.extra_state_attributes
+    assert second_attributes is not None
+    assert second_attributes["last_run"] == dt_util.as_utc(second_completed_at).isoformat()
+
+
 # --- Recorder Filtering Tests ---
 
 
@@ -667,3 +725,51 @@ def test_unrecorded_attributes_based_on_config(
         assert sensor._state_info["unrecorded_attributes"] == FORECAST_UNRECORDED_ATTRIBUTES
     else:
         assert sensor._state_info["unrecorded_attributes"] == frozenset()
+
+
+def test_handle_coordinator_update_sets_fixed_attribute(device_entry: DeviceEntry) -> None:
+    """Fixed outputs expose a fixed=True attribute for the frontend card."""
+    coordinator = _create_mock_coordinator()
+    initial_output = _make_output(
+        type_=OutputType.POWER,
+        unit="kW",
+        state=1.0,
+        forecast=None,
+        entity_category=None,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        options=None,
+    )
+
+    sensor = HaeoSensor(
+        coordinator,
+        device_entry=device_entry,
+        subentry_key="load",
+        device_key=ElementType.LOAD,
+        element_title="Load",
+        element_type="load",
+        output_name=LOAD_POWER,
+        output_data=initial_output,
+        unique_id="sensor-id",
+    )
+    sensor.async_write_ha_state = Mock()
+
+    fixed_output = CoordinatorOutput(
+        type=OutputType.POWER,
+        unit="kW",
+        state=2.0,
+        forecast=[ForecastPoint(time=datetime.now(tz=UTC), value=2.0)],
+        direction="-",
+        entity_category=None,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        options=None,
+        fixed=True,
+    )
+    coordinator.data = _make_coordinator_data({"load": {"load": {LOAD_POWER: fixed_output}}})
+
+    sensor._handle_coordinator_update()
+
+    attributes = sensor.extra_state_attributes
+    assert attributes is not None
+    assert attributes["fixed"] is True

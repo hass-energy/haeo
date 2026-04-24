@@ -47,10 +47,10 @@ async def async_update_subentry_value(
             subentry,
             data=new_data,
         )
-    finally:
-        # Ensure flag is cleared even if update fails
+    except Exception:
         if runtime_data is not None:
             runtime_data.value_update_in_progress = False
+        raise
 
 
 __all__ = [

@@ -81,6 +81,11 @@ Each component should do one thing well without needing to know about the intern
 When making changes, don't leave behind comments describing what was once there.
 Comments should always describe code as it exists without reference to former code.
 
+### Commit messages
+
+Use plain English commit messages without conventional commit prefixes (`feat:`, `fix:`, `refactor:`, etc.).
+Write a short summary line in imperative mood, followed by a blank line and bullet points if needed.
+
 ### API evolution
 
 When making changes, don't leave behind backwards-compatible interfaces for internal APIs.

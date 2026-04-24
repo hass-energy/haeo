@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Mapping
 from datetime import datetime
 from enum import Enum
+import logging
 from typing import Any
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
@@ -28,12 +29,32 @@ from custom_components.haeo.core.schema import (
 )
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
 
+_LOGGER = logging.getLogger(__name__)
+
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
+LIST_ITEM_FIELD_PATH_LENGTH = 3
+SECTION_FIELD_PATH_LENGTH = 2
+
+
+def _field_name_is_reused_in_other_sections(
+    subentry_data: Mapping[str, Any],
+    *,
+    current_section: str,
+    field_name: str,
+) -> bool:
+    """Return True when another section reuses this field name."""
+    for section_key, section_data in subentry_data.items():
+        if section_key == current_section or not isinstance(section_data, Mapping):
+            continue
+        if field_name in section_data:
+            return True
+    return False
 
 
 class ConfigEntityMode(Enum):
@@ -107,9 +128,23 @@ class HaeoInputNumber(NumberEntity):
                 msg = f"Invalid config value for field {field_info.field_name}"
                 raise RuntimeError(msg)
 
-        # Unique ID for multi-hub safety: entry_id + subentry_id + field_name
+        # Unique ID: entry_id + subentry_id + stable_key.
+        # Keep leaf-only keys for simple fields, but disambiguate section fields
+        # when the same leaf appears in multiple sections.
         field_path_key = ".".join(self._field_path)
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{field_path_key}"
+        is_list_item_field = len(self._field_path) >= LIST_ITEM_FIELD_PATH_LENGTH
+        unique_key = field_info.field_name
+        if is_list_item_field:
+            unique_key = field_path_key
+        elif len(self._field_path) == SECTION_FIELD_PATH_LENGTH and _field_name_is_reused_in_other_sections(
+            subentry.data,
+            current_section=self._field_path[0],
+            field_name=field_info.field_name,
+        ):
+            unique_key = (
+                f"{field_info.device_type}.{field_info.field_name}" if field_info.device_type else field_path_key
+            )
+        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{unique_key}"
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
@@ -135,22 +170,47 @@ class HaeoInputNumber(NumberEntity):
                 continue
             placeholders[key] = format_placeholder(value)
         placeholders.setdefault("name", subentry.title)
+
+        # For list item fields (e.g., rules.0.price), add the item's name as a placeholder
+        if len(self._field_path) > 1:
+            list_key, index_str, *_ = self._field_path
+            try:
+                items = subentry.data.get(list_key)
+                if isinstance(items, (list, tuple)):
+                    item = items[int(index_str)]
+                    if isinstance(item, Mapping) and "name" in item:
+                        placeholders["rule_name"] = str(item["name"])
+            except (ValueError, IndexError, KeyError):
+                pass
+
         self._attr_translation_placeholders = placeholders
 
         # Build base extra state attributes (static values)
+        source_role = classify_source_role(self._entity_mode.value, field_info.field_name)
         self._base_extra_attrs: dict[str, Any] = {
             "config_mode": self._entity_mode.value,
+            SOURCE_ROLE_KEY: source_role,
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,
             "field_name": field_info.field_name,
             "field_path": field_path_key,
-            "output_type": field_info.output_type,
+            "field_type": field_info.output_type,
             "time_series": field_info.time_series,
         }
         if self._source_entity_ids:
             self._base_extra_attrs["source_entities"] = self._source_entity_ids
         if field_info.direction:
             self._base_extra_attrs["direction"] = field_info.direction
+
+        # For list item fields, expose sibling fields from the list item
+        if len(self._field_path) >= LIST_ITEM_FIELD_PATH_LENGTH:
+            own_field = field_info.field_name
+            item = get_nested_config_value_by_path(subentry.data, self._field_path[:2])
+            if isinstance(item, Mapping):
+                for key, value in item.items():
+                    if key != own_field:
+                        self._base_extra_attrs[key] = value
+
         self._attr_extra_state_attributes = dict(self._base_extra_attrs)
 
         # Loaders for time series and scalar data
@@ -256,6 +316,12 @@ class HaeoInputNumber(NumberEntity):
                     value=as_entity_value(self._source_entity_ids),
                 )
             except Exception:
+                _LOGGER.debug(
+                    "Scalar load failed for %s from sources %s; keeping previous value",
+                    self.entity_id or self._attr_unique_id,
+                    self._source_entity_ids,
+                    exc_info=True,
+                )
                 return
 
             self._attr_native_value = scalar_value
@@ -281,10 +347,23 @@ class HaeoInputNumber(NumberEntity):
                     forecast_times=list(forecast_timestamps),
                 )
         except Exception:
-            # If loading fails, don't update state
+            # If loading fails, don't update state. Log at debug so persistent
+            # failures can be investigated via component log level without
+            # spamming warnings during ordinary source-entity transients.
+            _LOGGER.debug(
+                "Time-series load failed for %s from sources %s; keeping previous forecast",
+                self.entity_id or self._attr_unique_id,
+                self._source_entity_ids,
+                exc_info=True,
+            )
             return
 
         if not values:
+            _LOGGER.debug(
+                "Time-series load returned no values for %s from sources %s; keeping previous forecast",
+                self.entity_id or self._attr_unique_id,
+                self._source_entity_ids,
+            )
             return
 
         # Build forecast as list of ForecastPoint-style dicts.

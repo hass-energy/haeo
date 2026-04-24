@@ -18,7 +18,6 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
         "name": "test_solar",
         "connection": as_connection_target("dc_bus"),
         solar.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.forecast"])},
-        solar.SECTION_PRICING: {"price_source_target": as_constant_value(0.0)},
         solar.SECTION_CURTAILMENT: {"curtailment": as_constant_value(value=True)},
     }
 
@@ -33,7 +32,6 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
         "name": "test_solar",
         "connection": as_connection_target("dc_bus"),
         solar.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.missing"])},
-        solar.SECTION_PRICING: {"price_source_target": as_constant_value(0.0)},
         solar.SECTION_CURTAILMENT: {"curtailment": as_constant_value(value=True)},
     }
 

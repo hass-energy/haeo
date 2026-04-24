@@ -8,11 +8,13 @@ from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.const import CONF_RECORD_FORECASTS
+from custom_components.haeo.const import CONF_RECORD_FORECASTS, OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
+from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, SOURCE_ROLE_OUTPUT
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -76,7 +78,8 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
             "element_name": self._element_title,
             "element_type": self._element_type,
             "output_name": self._output_name,
-            "output_type": self._output_type,
+            "field_type": self._output_type,
+            SOURCE_ROLE_KEY: SOURCE_ROLE_OUTPUT,
             "advanced": False,
         }
         native_value: StateType | None = None
@@ -88,16 +91,24 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
             output_data = outputs.get(self._output_name)
             if output_data is not None:
                 self._output_type = output_data.type
-                attributes["output_type"] = self._output_type
+                attributes["field_type"] = self._output_type
                 if output_data.direction is not None:
                     attributes["direction"] = output_data.direction
+                if output_data.priority is not None:
+                    attributes["priority"] = output_data.priority
                 attributes["advanced"] = output_data.advanced
+                if output_data.fixed:
+                    attributes["fixed"] = True
                 self._apply_output(output_data)
                 if output_data.state is not None:
                     native_value = self._scale_percentage_state(output_data.unit, output_data.state)
 
                 if output_data.forecast:
                     attributes["forecast"] = self._scale_percentage_forecast(output_data.unit, output_data.forecast)
+
+        if self._output_name == OUTPUT_NAME_OPTIMIZATION_STATUS:
+            # UTC keeps last_run stable across CI machines and HA time zones (snapshot tests).
+            attributes["last_run"] = dt_util.as_utc(self.coordinator.data.completed_at).isoformat()
 
         self._attr_native_value = native_value
         self._attr_extra_state_attributes = attributes

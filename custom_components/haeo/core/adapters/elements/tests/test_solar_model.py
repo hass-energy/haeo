@@ -35,6 +35,7 @@ class OutputsCase(TypedDict):
 
     description: str
     name: str
+    config: SolarConfigData
     model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
@@ -43,18 +44,17 @@ CREATE_CASES: Sequence[CreateCase] = [
     {
         "description": "Solar with production price",
         "data": SolarConfigData(
-            element_type=ElementType.SOLAR,
-            name="pv_main",
-            connection=as_connection_target("network"),
-            forecast={
-                "forecast": np.array([2.0, 1.5]),
-            },
-            pricing={
-                "price_source_target": np.array([0.15, 0.15]),
-            },
-            curtailment={
-                "curtailment": False,
-            },
+            {
+                "element_type": ElementType.SOLAR,
+                "name": "pv_main",
+                "connection": as_connection_target("network"),
+                "forecast": {
+                    "forecast": np.array([2.0, 1.5]),
+                },
+                "curtailment": {
+                    "curtailment": False,
+                },
+            }
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "pv_main", "is_source": True, "is_sink": False},
@@ -63,17 +63,12 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "name": "pv_main:connection",
                 "source": "pv_main",
                 "target": "network",
+                "is_time_sensitive": True,
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power_source_target": [2.0, 1.5],
-                        "max_power_target_source": 0.0,
+                        "max_power": [2.0, 1.5],
                         "fixed": True,
-                    },
-                    "pricing": {
-                        "segment_type": "pricing",
-                        "price_source_target": [0.15, 0.15],
-                        "price_target_source": None,
                     },
                 },
             },
@@ -86,14 +81,21 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     {
         "description": "Solar with forecast limit",
         "name": "pv_main",
+        "config": SolarConfigData(
+            element_type=ElementType.SOLAR,
+            name="pv_main",
+            connection=as_connection_target("network"),
+            forecast={"forecast": np.array([2.0])},
+            curtailment={"curtailment": True},
+        ),
         "model_outputs": {
             "pv_main:connection": {
-                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(
+                connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(2.0,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,))
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,))
                     }
                 },
             }
@@ -108,15 +110,20 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     {
         "description": "Solar with shadow price output",
         "name": "pv_with_price",
+        "config": SolarConfigData(
+            element_type=ElementType.SOLAR,
+            name="pv_with_price",
+            connection=as_connection_target("network"),
+            forecast={"forecast": np.array([1.5])},
+            curtailment={"curtailment": True},
+        ),
         "model_outputs": {
             "pv_with_price:connection": {
-                connection.CONNECTION_POWER_SOURCE_TARGET: OutputData(
+                connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
-                    "power_limit": {
-                        "source_target": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,))
-                    }
+                    "power_limit": {"power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,))}
                 },
             }
         },
@@ -142,5 +149,5 @@ def test_model_elements(case: CreateCase) -> None:
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES[ElementType.SOLAR]
-    result = entry.outputs(case["name"], case["model_outputs"])
+    result = entry.outputs(case["name"], case["model_outputs"], config=case["config"])
     assert result == case["outputs"]
