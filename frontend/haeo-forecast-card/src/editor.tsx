@@ -56,11 +56,7 @@ function discoverEntitiesForHub(
   const entities: string[] = [];
   const names = new Set<string>();
   for (const entry of registry) {
-    if (
-      entry.platform !== "haeo" ||
-      entry.disabled_by !== null ||
-      entry.config_entry_id !== hubEntryId
-    ) {
+    if (entry.platform !== "haeo" || entry.disabled_by !== null || entry.config_entry_id !== hubEntryId) {
       continue;
     }
     const state = hass.states[entry.entity_id];
@@ -93,8 +89,8 @@ function HaSelectorBridge(props: {
     const el = ref.current;
     if (!el) return;
     const handler = (ev: Event): void => {
-      const detail = (ev as CustomEvent).detail;
-      const value = detail?.value ?? "";
+      const detail = (ev as CustomEvent<{ value?: string }>).detail;
+      const value = detail.value ?? "";
       onValueChangedRef.current(value);
     };
     el.addEventListener("value-changed", handler);
@@ -152,7 +148,7 @@ function EditorForm(props: EditorFormProps): JSX.Element {
   );
 
   useEffect(() => {
-    if (config.hub_entry_id) {
+    if (config.hub_entry_id !== undefined && config.hub_entry_id !== "") {
       refreshEntities(config.hub_entry_id);
     }
   }, [config.hub_entry_id, refreshEntities]);

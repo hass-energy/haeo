@@ -561,7 +561,7 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "max_power_target_source",
-      "field_type": "power",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2025-10-06T10:50:00.000000+0000", "value": 46.2 },
         { "time": "2025-10-06T10:51:00.000000+0000", "value": 46.2 },
@@ -695,7 +695,7 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "max_power_source_target",
-      "field_type": "power",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2025-10-06T10:50:00.000000+0000", "value": 52.8 },
         { "time": "2025-10-06T10:51:00.000000+0000", "value": 52.8 },
