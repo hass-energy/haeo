@@ -1,7 +1,6 @@
 :host,
 .haeoThemeRoot,
 [data-theme] {
-  display: block;
   position: relative;
   --haeo-bg: var(--card-background-color, #ffffff);
   --haeo-divider: var(--divider-color, #d9dde6);
@@ -14,6 +13,17 @@
   --haeo-load-3: color-mix(in oklab, var(--haeo-text) 64%, var(--haeo-bg) 36%);
   font-family: "Segoe UI", "Roboto", system-ui, sans-serif;
   color: var(--haeo-text);
+}
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.haeoThemeRoot,
+[data-theme] {
+  display: block;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -29,6 +39,9 @@
 }
 
 ha-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   overflow: hidden;
   position: relative;
   min-height: 220px;
@@ -38,10 +51,17 @@ ha-card {
 
 .cardHeader {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 12px 12px 0;
+}
+
+.chartContainer {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .title {
@@ -172,6 +192,7 @@ svg {
 }
 
 .legendWrap {
+  flex: 0 0 auto;
   padding: 0 16px 14px;
 }
 

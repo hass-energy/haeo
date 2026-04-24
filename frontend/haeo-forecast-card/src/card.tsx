@@ -72,9 +72,9 @@ export class HaeoForecastCard extends HTMLElement {
     }
     this.ensureHostElements();
     this.startAnimationLoop();
-    this.observeCardResize();
     this.observeVisibility();
     this.renderCard();
+    this.observeCardResize();
   }
 
   disconnectedCallback(): void {
@@ -96,7 +96,7 @@ export class HaeoForecastCard extends HTMLElement {
   }
 
   getCardSize(): number {
-    const targetHeight = this.store.config.height ?? this.store.height;
+    const targetHeight = this.store.config.height ?? this.store.responsiveHeight(this.store.width);
     return Math.max(1, Math.ceil(targetHeight / HaeoForecastCard.MASONRY_ROW_HEIGHT_PX));
   }
 
@@ -106,7 +106,7 @@ export class HaeoForecastCard extends HTMLElement {
     max_rows?: number;
     columns: "full";
   } {
-    const targetHeight = this.store.config.height ?? this.store.height;
+    const targetHeight = this.store.config.height ?? this.store.responsiveHeight(this.store.width);
     const rowUnit = HaeoForecastCard.SECTIONS_ROW_HEIGHT_PX + HaeoForecastCard.SECTIONS_ROW_GAP_PX;
     const rows = Math.max(2, Math.ceil((targetHeight + HaeoForecastCard.SECTIONS_ROW_GAP_PX) / rowUnit));
     if (this.store.config.height !== undefined) {
@@ -134,7 +134,7 @@ export class HaeoForecastCard extends HTMLElement {
 
     const mount = document.createElement("div");
     mount.id = "mount";
-    mount.style.width = "100%";
+    mount.style.cssText = "width: 100%; height: 100%; display: flex; flex-direction: column;";
     this.shadowRoot.appendChild(mount);
     this.hasRenderedHost = true;
   }
@@ -143,8 +143,8 @@ export class HaeoForecastCard extends HTMLElement {
     if (!this.shadowRoot) {
       return;
     }
-    const mount = this.shadowRoot.querySelector("#mount");
-    if (!mount) {
+    const target = this.shadowRoot.querySelector(".chartContainer") ?? this.shadowRoot.querySelector("#mount");
+    if (!target) {
       return;
     }
     this.resizeObserver?.disconnect();
@@ -153,16 +153,18 @@ export class HaeoForecastCard extends HTMLElement {
       if (!rect) {
         return;
       }
-      const width = rect.width > 0 ? rect.width : mount.getBoundingClientRect().width;
+      const width = rect.width > 0 ? rect.width : target.getBoundingClientRect().width;
       if (width <= 0) {
         return;
       }
-      this.store.setSize(width, this.store.responsiveHeight(width));
+      const height = rect.height > 0 ? rect.height : this.store.responsiveHeight(width);
+      this.store.setSize(width, height);
     });
-    this.resizeObserver.observe(mount);
-    const initialWidth = mount.getBoundingClientRect().width;
-    if (initialWidth > 0) {
-      this.store.setSize(initialWidth, this.store.responsiveHeight(initialWidth));
+    this.resizeObserver.observe(target);
+    const initialRect = target.getBoundingClientRect();
+    if (initialRect.width > 0) {
+      const height = initialRect.height > 0 ? initialRect.height : this.store.responsiveHeight(initialRect.width);
+      this.store.setSize(initialRect.width, height);
     }
   }
 

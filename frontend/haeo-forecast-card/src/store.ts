@@ -162,10 +162,6 @@ export class ForecastCardStore {
     return clamp(raw, 0.2, 3);
   }
 
-  get chartHeight(): number {
-    return this.config.height ?? DEFAULT_HEIGHT;
-  }
-
   get locale(): string {
     return this.hass?.language ?? this.hass?.locale?.language ?? "en";
   }

@@ -86,21 +86,26 @@ const TooltipSection = observer(function TooltipSection(props: { store: Forecast
 });
 
 export const ForecastCardView = observer(function ForecastCardView(props: ForecastCardViewProps): JSX.Element {
-  if (!props.store.hasData) {
-    return (
-      <ha-card>
-        <CardTitle store={props.store} />
-        <div className="empty">{t(props.store.locale, "card.empty.message")}</div>
-      </ha-card>
-    );
-  }
-
   return (
     <ha-card>
       <CardTitle store={props.store} />
-      <ChartSection store={props.store} onPointerMove={props.onPointerMove} onPointerLeave={props.onPointerLeave} />
-      <LegendSection store={props.store} />
-      <TooltipSection store={props.store} />
+      <div className="chartContainer">
+        {props.store.hasData ? (
+          <ChartSection
+            store={props.store}
+            onPointerMove={props.onPointerMove}
+            onPointerLeave={props.onPointerLeave}
+          />
+        ) : (
+          <div className="empty">{t(props.store.locale, "card.empty.message")}</div>
+        )}
+      </div>
+      {props.store.hasData && (
+        <>
+          <LegendSection store={props.store} />
+          <TooltipSection store={props.store} />
+        </>
+      )}
     </ha-card>
   );
 });
