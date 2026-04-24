@@ -87,7 +87,6 @@ export const ChartSvg = observer(function ChartSvg(props: ChartSvgProps): JSX.El
   return (
     <svg
       viewBox={`0 0 ${store.width} ${store.height}`}
-      height={store.height}
       preserveAspectRatio="none"
       onPointerMove={(event) => props.onPointerMove(event as unknown as PointerEvent)}
       onPointerLeave={props.onPointerLeave}

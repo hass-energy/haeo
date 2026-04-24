@@ -62,6 +62,7 @@ ha-card {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .title {
@@ -93,7 +94,10 @@ ha-card {
 }
 
 svg {
+  position: absolute;
+  inset: 0;
   width: 100%;
+  height: 100%;
   display: block;
   touch-action: none;
 }
