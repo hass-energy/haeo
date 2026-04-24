@@ -322,9 +322,11 @@ ha-card {
   width: 280px;
   min-width: 200px;
   overflow-y: auto;
-  border-left: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
+  margin: 8px 8px 8px 0;
+  border: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
+  border-radius: 12px;
   background: color-mix(in oklab, var(--haeo-bg) 94%, #000 6%);
-  padding: 10px 11px;
+  padding: 10px 12px;
   font-size: 12px;
   color: var(--haeo-text);
 }

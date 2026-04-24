@@ -59,10 +59,10 @@ describe("powerValueForDisplay", () => {
     expect(powerValueForDisplay(s, 3, "overlay", false)).toBe(3);
   });
 
-  it("returns raw value for bidirectional series in opposed mode", () => {
+  it("enforces sign from direction even for bidirectional series in opposed mode", () => {
     const s = makeSeries({ key: "a", direction: "-" });
     expect(powerValueForDisplay(s, -5, "opposed", true)).toBe(-5);
-    expect(powerValueForDisplay(s, 3, "opposed", true)).toBe(3);
+    expect(powerValueForDisplay(s, 3, "opposed", true)).toBe(-3);
   });
 
   it("returns negative magnitude for consumption in opposed mode", () => {

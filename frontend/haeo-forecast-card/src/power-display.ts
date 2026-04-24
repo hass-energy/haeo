@@ -26,12 +26,15 @@ export function powerValueForDisplay(
   if (displayMode === "overlay") {
     return magnitude;
   }
-  if (isBidirectional) {
-    return value;
-  }
   const category = classifyPowerSeries(series);
   if (category.group === "consumption") {
     return -magnitude;
+  }
+  if (category.group === "production") {
+    return magnitude;
+  }
+  if (isBidirectional) {
+    return value;
   }
   return magnitude;
 }
