@@ -14,7 +14,7 @@ describe("normalizeSeries", () => {
               { time: "2026-03-14T01:00:00Z", value: 2.4 },
               { time: "2026-03-14T00:00:00Z", value: 1.2 },
             ],
-            output_type: "power",
+            field_type: "power",
             output_name: "import_power",
             direction: "-",
             element_name: "Grid",

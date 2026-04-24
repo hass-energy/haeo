@@ -14,7 +14,7 @@ const testFixture: HassLike = {
       attributes: {
         element_name: "Grid",
         output_name: "import_power",
-        output_type: "power",
+        field_type: "power",
         direction: "-",
         unit_of_measurement: "kW",
         forecast: [
@@ -29,7 +29,7 @@ const testFixture: HassLike = {
       attributes: {
         element_name: "Grid",
         output_name: "import_price",
-        output_type: "price",
+        field_type: "price",
         unit_of_measurement: "$/kWh",
         forecast: [
           { time: "2025-10-06T10:50:00.000000+0000", value: 0.18 },
@@ -43,7 +43,7 @@ const testFixture: HassLike = {
       attributes: {
         element_name: "Battery",
         output_name: "state_of_charge",
-        output_type: "state_of_charge",
+        field_type: "state_of_charge",
         unit_of_measurement: "%",
         forecast: [
           { time: "2025-10-06T10:50:00.000000+0000", value: 60.2 },

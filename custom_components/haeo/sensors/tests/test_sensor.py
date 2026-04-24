@@ -365,7 +365,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
 
     attributes = sensor.extra_state_attributes
     assert attributes is not None
-    assert attributes["output_type"] == OutputType.POWER
+    assert attributes["field_type"] == OutputType.POWER
     assert attributes["forecast"] == updated_output.forecast
     assert attributes["forecast"] is not updated_output.forecast
 
@@ -455,7 +455,7 @@ def test_handle_coordinator_update_clears_value_when_missing_data(
         "element_name": "Battery",
         "element_type": BATTERY_TYPE,
         "output_name": LOAD_POWER,
-        "output_type": OutputType.POWER,
+        "field_type": OutputType.POWER,
         "source_role": "output",
         "advanced": False,
     }

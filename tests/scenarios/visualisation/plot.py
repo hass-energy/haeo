@@ -99,8 +99,8 @@ def extract_forecast_data(output_sensors: Mapping[str, Mapping[str, Any]]) -> di
             },
         )
 
-        # Both output sensors and input entities use output_name and output_type
-        output_type = attrs.get("output_type")
+        # Both output sensors and input entities use output_name and field_type
+        output_type = attrs.get("field_type")
         output_name = attrs.get("output_name", "")
         direction = attrs.get("direction")
         config_mode = attrs.get("config_mode")

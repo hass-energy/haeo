@@ -31,7 +31,7 @@ describe("haeo-forecast-card smoke", () => {
         "sensor.haeo_grid_import_power": {
           entity_id: "sensor.haeo_grid_import_power",
           attributes: {
-            output_type: "power",
+            field_type: "power",
             output_name: "import_power",
             direction: "-",
             element_name: "Grid",

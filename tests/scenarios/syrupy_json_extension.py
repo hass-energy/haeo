@@ -239,7 +239,7 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
 
     @staticmethod
     def _unstable_output_keys(*datasets: SerializableData) -> frozenset[str]:
-        """Collect top-level keys whose output_type is numerically unstable across platforms.
+        """Collect top-level keys whose field_type is numerically unstable across platforms.
 
         Shadow prices (LP dual values) depend on the solver basis and can
         differ between platforms even when primal variables are identical.
@@ -252,7 +252,7 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
                     if (
                         isinstance(value, Mapping)
                         and isinstance(value.get("attributes"), Mapping)
-                        and value["attributes"].get("output_type") in unstable_types
+                        and value["attributes"].get("field_type") in unstable_types
                     ):
                         keys.add(key)
         return frozenset(keys)

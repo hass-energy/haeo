@@ -199,7 +199,7 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
         : sourceRoleForSeries(configMode, fieldName);
     const priorityRaw = attrs["priority"];
     const priority = asNumber(priorityRaw);
-    const outputType = asString(attrs["output_type"], "other");
+    const outputType = asString(attrs["field_type"], "other");
     const elementName = asString(attrs["element_name"], entityId);
     const outputName = asString(attrs["output_name"], outputType);
     const directionRaw = attrs["direction"];

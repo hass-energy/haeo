@@ -194,7 +194,7 @@ class HaeoInputNumber(NumberEntity):
             "element_type": subentry.subentry_type,
             "field_name": field_info.field_name,
             "field_path": field_path_key,
-            "output_type": field_info.output_type,
+            "field_type": field_info.output_type,
             "time_series": field_info.time_series,
         }
         if self._source_entity_ids:

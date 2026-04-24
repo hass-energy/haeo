@@ -78,7 +78,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
             "element_name": self._element_title,
             "element_type": self._element_type,
             "output_name": self._output_name,
-            "output_type": self._output_type,
+            "field_type": self._output_type,
             SOURCE_ROLE_KEY: SOURCE_ROLE_OUTPUT,
             "advanced": False,
         }
@@ -91,7 +91,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
             output_data = outputs.get(self._output_name)
             if output_data is not None:
                 self._output_type = output_data.type
-                attributes["output_type"] = self._output_type
+                attributes["field_type"] = self._output_type
                 if output_data.direction is not None:
                     attributes["direction"] = output_data.direction
                 if output_data.priority is not None:

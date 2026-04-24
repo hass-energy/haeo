@@ -84,7 +84,7 @@ describe("ForecastCardStore", () => {
         "sensor.test_power": {
           entity_id: "sensor.test_power",
           attributes: {
-            output_type: "power",
+            field_type: "power",
             output_name: "load_power",
             direction: "-",
             element_name: "Load",
