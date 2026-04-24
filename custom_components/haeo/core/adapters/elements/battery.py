@@ -222,12 +222,8 @@ class BatteryAdapter:
         discharge_conn = model_outputs[f"{name}:discharge"]
         charge_conn = model_outputs[f"{name}:charge"]
 
-        power_discharge = replace(
-            expect_output_data(discharge_conn[CONNECTION_POWER]), type=OutputType.POWER
-        )
-        power_charge = replace(
-            expect_output_data(charge_conn[CONNECTION_POWER]), type=OutputType.POWER, direction="-"
-        )
+        power_discharge = replace(expect_output_data(discharge_conn[CONNECTION_POWER]), type=OutputType.POWER)
+        power_charge = replace(expect_output_data(charge_conn[CONNECTION_POWER]), type=OutputType.POWER, direction="-")
 
         # Battery-internal outputs (energy, SOC, shadow prices)
         battery_outputs = {key: expect_output_data(value) for key, value in model_outputs[name].items()}
