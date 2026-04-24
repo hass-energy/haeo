@@ -58,9 +58,17 @@ ha-card {
   padding: 12px 12px 0;
 }
 
+.chartRow {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .chartContainer {
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
   position: relative;
 }
@@ -93,7 +101,7 @@ ha-card {
   fill: currentColor;
 }
 
-svg {
+.chartContainer svg {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -310,17 +318,14 @@ svg {
 }
 
 .tooltip {
-  position: absolute;
-  right: 14px;
-  top: 14px;
-  max-width: min(320px, calc(100% - 28px));
-  background: color-mix(in oklab, var(--haeo-bg) 86%, #000 14%);
-  border: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
-  border-radius: 10px;
+  flex: 0 0 auto;
+  width: 280px;
+  min-width: 200px;
+  overflow-y: auto;
+  border-left: 1px solid color-mix(in oklab, var(--haeo-divider) 70%, transparent);
+  background: color-mix(in oklab, var(--haeo-bg) 94%, #000 6%);
   padding: 10px 11px;
-  backdrop-filter: blur(6px);
   font-size: 12px;
-  pointer-events: none;
   color: var(--haeo-text);
 }
 

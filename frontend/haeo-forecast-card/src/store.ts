@@ -415,6 +415,10 @@ export class ForecastCardStore {
     return min + ratio * (max - min) + this.animatedOffsetMs;
   }
 
+  get panelTimeMs(): number {
+    return this.hoverTimeMs ?? this.nowMs;
+  }
+
   get hoverX(): number | null {
     const time = this.hoverTimeMs;
     return time === null ? null : this.xScale(time);
@@ -426,6 +430,10 @@ export class ForecastCardStore {
       return new Map();
     }
     return computeHoverIndices(this.visibleSeries, time);
+  }
+
+  get panelIndices(): Map<string, number> {
+    return computeHoverIndices(this.visibleSeries, this.panelTimeMs);
   }
 
   get sharedTimeline(): Float64Array | null {
@@ -503,19 +511,13 @@ export class ForecastCardStore {
     color: string;
     lane: TooltipSectionId;
   }> {
-    if (this.hoverTimeMs === null) {
-      return [];
-    }
-    return buildTooltipRows(this.visibleSeries, this.hoverIndices, (series, value) =>
+    return buildTooltipRows(this.visibleSeries, this.panelIndices, (series, value) =>
       this.powerValueForDisplayBound(series, value)
     );
   }
 
   get tooltipTotals(): Array<{ lane: TooltipSectionId; value: number; unit: string }> {
-    if (this.hoverTimeMs === null) {
-      return [];
-    }
-    return buildTooltipTotals(this.visibleSeries, this.hoverIndices, (series, value) =>
+    return buildTooltipTotals(this.visibleSeries, this.panelIndices, (series, value) =>
       this.powerValueForDisplayBound(series, value)
     );
   }

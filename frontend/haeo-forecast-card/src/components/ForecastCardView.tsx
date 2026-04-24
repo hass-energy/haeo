@@ -77,7 +77,7 @@ const TooltipSection = observer(function TooltipSection(props: { store: Forecast
   return (
     <Tooltip
       locale={props.store.locale}
-      hoverTimeMs={props.store.hoverTimeMs}
+      panelTimeMs={props.store.panelTimeMs}
       rows={props.store.tooltipRows}
       totals={props.store.tooltipTotals}
       emphasizedKeys={props.store.tooltipEmphasisKeys}
@@ -89,23 +89,21 @@ export const ForecastCardView = observer(function ForecastCardView(props: Foreca
   return (
     <ha-card>
       <CardTitle store={props.store} />
-      <div className="chartContainer">
-        {props.store.hasData ? (
-          <ChartSection
-            store={props.store}
-            onPointerMove={props.onPointerMove}
-            onPointerLeave={props.onPointerLeave}
-          />
-        ) : (
-          <div className="empty">{t(props.store.locale, "card.empty.message")}</div>
-        )}
+      <div className="chartRow">
+        <div className="chartContainer">
+          {props.store.hasData ? (
+            <ChartSection
+              store={props.store}
+              onPointerMove={props.onPointerMove}
+              onPointerLeave={props.onPointerLeave}
+            />
+          ) : (
+            <div className="empty">{t(props.store.locale, "card.empty.message")}</div>
+          )}
+        </div>
+        {props.store.hasData && <TooltipSection store={props.store} />}
       </div>
-      {props.store.hasData && (
-        <>
-          <LegendSection store={props.store} />
-          <TooltipSection store={props.store} />
-        </>
-      )}
+      {props.store.hasData && <LegendSection store={props.store} />}
     </ha-card>
   );
 });

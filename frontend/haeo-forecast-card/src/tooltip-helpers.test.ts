@@ -55,9 +55,9 @@ describe("tooltipSection", () => {
 });
 
 describe("tooltipDisplayLabel", () => {
-  it("adds import/export qualifier for price series", () => {
+  it("returns plain label for price series", () => {
     const s = makeSeries({ key: "a", lane: "price", outputName: "import_price", label: "Grid" });
-    expect(tooltipDisplayLabel(s, "price", false)).toBe("Grid (import)");
+    expect(tooltipDisplayLabel(s, "price", false)).toBe("Grid");
   });
 
   it("returns name without qualifier for non-directional price", () => {
@@ -65,14 +65,14 @@ describe("tooltipDisplayLabel", () => {
     expect(tooltipDisplayLabel(s, "price", false)).toBe("Grid");
   });
 
-  it("adds section suffix for power series without direction in name", () => {
+  it("returns plain label for power series", () => {
     const s = makeSeries({ key: "a", label: "Solar", outputName: "power" });
-    expect(tooltipDisplayLabel(s, "produced", false)).toBe("Solar (produced)");
+    expect(tooltipDisplayLabel(s, "produced", false)).toBe("Solar");
   });
 
-  it("uses output name for duplicate labels", () => {
+  it("uses en-dash and output name for duplicate labels", () => {
     const s = makeSeries({ key: "a", label: "Grid", outputName: "import_power" });
-    expect(tooltipDisplayLabel(s, "consumed", true)).toBe("Grid (import power)");
+    expect(tooltipDisplayLabel(s, "consumed", true)).toBe("Grid \u2013 import power");
   });
 });
 

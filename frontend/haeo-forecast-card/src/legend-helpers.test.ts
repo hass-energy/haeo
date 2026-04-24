@@ -68,25 +68,24 @@ describe("seriesIconPath", () => {
 });
 
 describe("seriesTooltip", () => {
-  it("returns import price label for import price series", () => {
+  it("returns label for import price series", () => {
     const series = makeSeries({ lane: "price", outputName: "import_price", label: "Grid" });
-    expect(seriesTooltip(series, "en")).toContain("Grid");
-    expect(seriesTooltip(series, "en")).toContain("import");
+    expect(seriesTooltip(series, "en")).toBe("Grid");
   });
 
-  it("returns export price label for export price series", () => {
+  it("returns label for export price series", () => {
     const series = makeSeries({ lane: "price", outputName: "export_price", label: "Grid" });
-    expect(seriesTooltip(series, "en")).toContain("export");
+    expect(seriesTooltip(series, "en")).toBe("Grid");
   });
 
-  it("returns produced label for production power", () => {
+  it("returns label for production power", () => {
     const series = makeSeries({ direction: "+", label: "Solar" });
-    expect(seriesTooltip(series, "en")).toContain("produced");
+    expect(seriesTooltip(series, "en")).toBe("Solar");
   });
 
-  it("returns consumed label for consumption power", () => {
+  it("returns label for consumption power", () => {
     const series = makeSeries({ direction: "-", label: "Load" });
-    expect(seriesTooltip(series, "en")).toContain("consumed");
+    expect(seriesTooltip(series, "en")).toBe("Load");
   });
 
   it("returns raw label for non-power non-price series", () => {

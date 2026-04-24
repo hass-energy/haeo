@@ -22,14 +22,14 @@ interface TooltipTotal {
 
 interface TooltipProps {
   locale: string;
-  hoverTimeMs: number | null;
+  panelTimeMs: number;
   rows: TooltipRow[];
   totals: TooltipTotal[];
   emphasizedKeys: Set<string>;
 }
 
 export function Tooltip(props: TooltipProps): JSX.Element | null {
-  if (props.hoverTimeMs === null || props.rows.length === 0) {
+  if (props.rows.length === 0) {
     return null;
   }
   const groups = new Map<TooltipSectionId, TooltipRow[]>();
@@ -63,7 +63,7 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
   };
   return (
     <div className="tooltip">
-      <div className="tooltipTime">{new Date(props.hoverTimeMs).toLocaleString(props.locale)}</div>
+      <div className="tooltipTime">{new Date(props.panelTimeMs).toLocaleString(props.locale)}</div>
       {[...groups.entries()].map(([lane, rows]) => (
         <div key={lane} className="tooltipGroup">
           <div className="tooltipGroupTitle">{laneLabel(lane)}</div>

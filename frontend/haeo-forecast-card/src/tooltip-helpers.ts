@@ -26,28 +26,14 @@ function prettifyOutput(outputName: string): string {
 
 export function tooltipDisplayLabel(
   series: ForecastSeries,
-  section: TooltipSectionId,
+  _section: TooltipSectionId,
   duplicateLabel: boolean
 ): string {
   const name = series.label.trim();
-  if (section === "price") {
-    const output = series.outputName.toLowerCase();
-    if (output.includes("import")) {
-      return `${name} (import)`;
-    }
-    if (output.includes("export")) {
-      return `${name} (export)`;
-    }
-    return name;
+  if (duplicateLabel) {
+    return `${name} – ${prettifyOutput(series.outputName)}`;
   }
-  if (series.lane !== "power") {
-    return duplicateLabel ? `${name} (${prettifyOutput(series.outputName)})` : name;
-  }
-  const lower = name.toLowerCase();
-  if (lower.includes("import") || lower.includes("export") || lower.includes("charge") || lower.includes("discharge")) {
-    return duplicateLabel ? `${name} (${prettifyOutput(series.outputName)})` : name;
-  }
-  return duplicateLabel ? `${name} (${prettifyOutput(series.outputName)})` : `${name} (${section})`;
+  return name;
 }
 
 interface TooltipRow {

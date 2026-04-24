@@ -1,6 +1,5 @@
 import * as mdi from "@mdi/js";
 
-import { t } from "./i18n";
 import { classifyPowerSeries } from "./power-series-classification";
 import type { ForecastSeries } from "./types";
 
@@ -46,31 +45,7 @@ export function seriesIconPath(series: ForecastSeries): string {
   return fallback;
 }
 
-export function seriesTooltip(series: ForecastSeries, locale: string): string {
-  if (series.lane === "price") {
-    const output = series.outputName.toLowerCase();
-    if (output.includes("import")) {
-      return t(locale, "legend.series.import_price", { label: series.label });
-    }
-    if (output.includes("export")) {
-      return t(locale, "legend.series.export_price", { label: series.label });
-    }
-  }
-  if (series.lane === "power") {
-    const category = classifyPowerSeries(series);
-    if (category.group === "production" && category.subgroup === "potential") {
-      return t(locale, "legend.series.available", { label: series.label });
-    }
-    if (category.group === "production") {
-      return t(locale, "legend.series.produced", { label: series.label });
-    }
-    if (category.group === "consumption" && category.subgroup === "potential") {
-      return t(locale, "legend.series.possible", { label: series.label });
-    }
-    if (category.group === "consumption") {
-      return t(locale, "legend.series.consumed", { label: series.label });
-    }
-  }
+export function seriesTooltip(series: ForecastSeries, _locale: string): string {
   return series.label;
 }
 
