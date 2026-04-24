@@ -25,7 +25,6 @@ export class ForecastCardStore {
   hass: HassLike | null = null;
   config: ForecastCardConfig = { type: "custom:haeo-forecast-card" };
   normalizedSeriesCache: ForecastSeries[] = [];
-  bidirectionalSeriesCache = new Map<string, boolean>();
   powerBoundsCache: LaneBounds = { min: -1, max: 1 };
   width = 640;
   height = DEFAULT_HEIGHT;
@@ -446,7 +445,6 @@ export class ForecastCardStore {
     return computePowerShapes(
       this.orderedPowerSeries,
       this.powerBounds,
-      this.bidirectionalSeriesCache,
       this.powerDisplayMode,
       this.plotTop,
       this.plotBottom,
@@ -465,7 +463,6 @@ export class ForecastCardStore {
     return computeHoveredPowerKeys(
       this.orderedPowerSeries,
       this.hoverIndices,
-      this.bidirectionalSeriesCache,
       this.powerDisplayMode,
       this.powerBounds,
       this.plotTop,
@@ -499,8 +496,7 @@ export class ForecastCardStore {
   // --- Computed: tooltip ---
 
   private powerValueForDisplayBound(series: ForecastSeries, value: number): number {
-    const isBi = this.bidirectionalSeriesCache.get(series.key) ?? false;
-    return powerValueForDisplay(series, value, this.powerDisplayMode, isBi);
+    return powerValueForDisplay(series, value, this.powerDisplayMode);
   }
 
   get tooltipRows(): Array<{
@@ -579,7 +575,6 @@ export class ForecastCardStore {
   private refreshNormalizedSeries(): void {
     const nextSeries = normalizeSeries(this.hass, this.config);
     this.normalizedSeriesCache = nextSeries;
-    this.rebuildBidirectionalSeriesCache(nextSeries);
 
     const seriesKeys = new Set(nextSeries.map((s) => s.key));
     this.hiddenSeriesKeys = new Set([...this.hiddenSeriesKeys].filter((key) => seriesKeys.has(key)));
@@ -601,26 +596,10 @@ export class ForecastCardStore {
     this.recomputePowerBounds();
   }
 
-  private rebuildBidirectionalSeriesCache(seriesList: ForecastSeries[]): void {
-    const byKey = new Map<string, boolean>();
-    for (const series of seriesList) {
-      let hasPositive = false;
-      let hasNegative = false;
-      for (const value of series.values) {
-        if (value > 0) hasPositive = true;
-        else if (value < 0) hasNegative = true;
-        if (hasPositive && hasNegative) break;
-      }
-      byKey.set(series.key, hasPositive && hasNegative);
-    }
-    this.bidirectionalSeriesCache = byKey;
-  }
-
   private recomputePowerBounds(): void {
     this.powerBoundsCache = calculatePowerBounds(
       this.orderedPowerSeries,
-      this.powerDisplayMode,
-      this.bidirectionalSeriesCache
+      this.powerDisplayMode
     );
   }
 }

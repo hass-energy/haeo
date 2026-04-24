@@ -19,8 +19,7 @@ export function powerSection(series: ForecastSeries): PowerSection {
 export function powerValueForDisplay(
   series: ForecastSeries,
   value: number,
-  displayMode: PowerDisplayMode,
-  isBidirectional: boolean
+  displayMode: PowerDisplayMode
 ): number {
   const magnitude = Math.abs(value);
   if (displayMode === "overlay") {
@@ -29,12 +28,6 @@ export function powerValueForDisplay(
   const category = classifyPowerSeries(series);
   if (category.group === "consumption") {
     return -magnitude;
-  }
-  if (category.group === "production") {
-    return magnitude;
-  }
-  if (isBidirectional) {
-    return value;
   }
   return magnitude;
 }
@@ -50,8 +43,7 @@ export function emptySectionStacks(length: number): Record<PowerSection, Float64
 
 export function calculatePowerBounds(
   orderedSeries: ForecastSeries[],
-  displayMode: PowerDisplayMode,
-  bidirectionalCache: Map<string, boolean>
+  displayMode: PowerDisplayMode
 ): LaneBounds {
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
@@ -64,8 +56,7 @@ export function calculatePowerBounds(
     const section = powerSection(series);
     const stack = stacks[section];
     for (let idx = 0; idx < firstSeries.times.length; idx += 1) {
-      const isBi = bidirectionalCache.get(series.key) ?? false;
-      const transformed = powerValueForDisplay(series, series.values[idx] ?? 0, displayMode, isBi);
+      const transformed = powerValueForDisplay(series, series.values[idx] ?? 0, displayMode);
       const next = (stack[idx] ?? 0) + transformed;
       stack[idx] = next;
       min = Math.min(min, next);

@@ -20,7 +20,6 @@ export interface LineSvgPath {
 export function computePowerShapes(
   orderedPowerSeries: ForecastSeries[],
   powerBounds: LaneBounds,
-  bidirectionalCache: Map<string, boolean>,
   powerDisplayMode: PowerDisplayMode,
   plotTop: number,
   plotBottom: number,
@@ -42,9 +41,8 @@ export function computePowerShapes(
     const lower = new Float64Array(horizonCount);
     const upper = new Float64Array(horizonCount);
     const displayValues = new Float64Array(horizonCount);
-    const isBi = bidirectionalCache.get(series.key) ?? false;
     for (let idx = 0; idx < horizonCount; idx += 1) {
-      const value = powerValueForDisplay(series, series.values[idx] ?? 0, powerDisplayMode, isBi);
+      const value = powerValueForDisplay(series, series.values[idx] ?? 0, powerDisplayMode);
       displayValues[idx] = value;
       lower[idx] = stack[idx] ?? 0;
       const next = (stack[idx] ?? 0) + value;
@@ -64,7 +62,6 @@ export function computePowerShapes(
 export function computeHoveredPowerKeys(
   orderedPowerSeries: ForecastSeries[],
   hoverIndices: Map<string, number>,
-  bidirectionalCache: Map<string, boolean>,
   powerDisplayMode: PowerDisplayMode,
   powerBounds: LaneBounds,
   plotTop: number,
@@ -85,8 +82,7 @@ export function computeHoveredPowerKeys(
   ]);
   for (const s of orderedPowerSeries) {
     const idx = hoverIndices.get(s.key) ?? 0;
-    const isBi = bidirectionalCache.get(s.key) ?? false;
-    const value = powerValueForDisplay(s, s.values[idx] ?? 0, powerDisplayMode, isBi);
+    const value = powerValueForDisplay(s, s.values[idx] ?? 0, powerDisplayMode);
     if (Math.abs(value) < 1e-6) {
       continue;
     }

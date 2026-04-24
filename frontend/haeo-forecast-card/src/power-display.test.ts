@@ -55,24 +55,24 @@ describe("powerSection", () => {
 describe("powerValueForDisplay", () => {
   it("returns magnitude in overlay mode", () => {
     const s = makeSeries({ key: "a", direction: "-" });
-    expect(powerValueForDisplay(s, -5, "overlay", false)).toBe(5);
-    expect(powerValueForDisplay(s, 3, "overlay", false)).toBe(3);
+    expect(powerValueForDisplay(s, -5, "overlay")).toBe(5);
+    expect(powerValueForDisplay(s, 3, "overlay")).toBe(3);
   });
 
-  it("enforces sign from direction even for bidirectional series in opposed mode", () => {
+  it("enforces negative for consumption regardless of raw sign", () => {
     const s = makeSeries({ key: "a", direction: "-" });
-    expect(powerValueForDisplay(s, -5, "opposed", true)).toBe(-5);
-    expect(powerValueForDisplay(s, 3, "opposed", true)).toBe(-3);
+    expect(powerValueForDisplay(s, -5, "opposed")).toBe(-5);
+    expect(powerValueForDisplay(s, 3, "opposed")).toBe(-3);
   });
 
   it("returns negative magnitude for consumption in opposed mode", () => {
     const s = makeSeries({ key: "a", direction: "-", outputType: "power" });
-    expect(powerValueForDisplay(s, 5, "opposed", false)).toBe(-5);
+    expect(powerValueForDisplay(s, 5, "opposed")).toBe(-5);
   });
 
   it("returns positive magnitude for production in opposed mode", () => {
     const s = makeSeries({ key: "a", direction: "+", outputType: "power" });
-    expect(powerValueForDisplay(s, 3, "opposed", false)).toBe(3);
+    expect(powerValueForDisplay(s, 3, "opposed")).toBe(3);
   });
 });
 
@@ -89,7 +89,7 @@ describe("emptySectionStacks", () => {
 
 describe("calculatePowerBounds", () => {
   it("returns default bounds for empty series", () => {
-    const bounds = calculatePowerBounds([], "opposed", new Map());
+    const bounds = calculatePowerBounds([], "opposed");
     expect(bounds).toEqual({ min: -1, max: 1 });
   });
 
@@ -106,7 +106,7 @@ describe("calculatePowerBounds", () => {
       outputType: "power",
       values: new Float64Array([2, 1, 1]),
     });
-    const bounds = calculatePowerBounds([a, b], "opposed", new Map());
+    const bounds = calculatePowerBounds([a, b], "opposed");
     expect(bounds.min).toBeLessThan(0);
     expect(bounds.max).toBeGreaterThan(0);
   });
