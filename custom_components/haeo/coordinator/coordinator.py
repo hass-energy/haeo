@@ -40,7 +40,12 @@ from custom_components.haeo.core.schema.elements import ElementConfigData, Eleme
 from custom_components.haeo.core.schema.util import extract_unit_parts
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import PRICE_UNIT_SPEC
-from custom_components.haeo.elements import ElementDeviceName, ElementOutputName, collect_element_subentries
+from custom_components.haeo.elements import (
+    ElementDeviceName,
+    ElementOutputName,
+    collect_element_subentries,
+    get_element_configs,
+)
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
@@ -320,19 +325,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def _get_participant_configs(self) -> dict[str, ElementConfigSchema]:
         """Read fresh participant configs from the config entry's subentries.
 
-        Looks up each participant's subentry by ID and returns its current data.
-        This ensures we always read the latest data, even after
-        async_update_subentry_value replaces a subentry's MappingProxyType.
-
-        Subentries were validated by collect_element_subentries at init time,
-        so we trust they conform to ElementConfigSchema without re-checking.
+        Delegates to ``get_element_configs`` which validates each subentry via
+        the ``is_element_config_schema`` TypeGuard, ensuring the returned data
+        is properly typed as ``ElementConfigSchema`` with no ``Any``.
         """
-        subentries = self.config_entry.subentries
-        configs: dict[str, ElementConfigSchema] = {}
-        for name, subentry_id in self._participant_subentry_ids.items():
-            if subentry_id in subentries:
-                configs[name] = subentries[subentry_id].data
-        return configs
+        return get_element_configs(self.config_entry, self._participant_subentry_ids)
 
     async def async_initialize(self) -> None:
         """Initialize the network and set up subscriptions.

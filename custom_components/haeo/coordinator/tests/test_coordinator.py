@@ -1270,12 +1270,12 @@ async def test_async_update_data_raises_when_runtime_data_none_in_body(
         await coordinator._async_update_data()
 
 
-def test_load_from_input_entities_raises_for_invalid_element_type(
+def test_load_from_input_entities_skips_invalid_element_type(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Loading raises error for elements with invalid element types."""
+    """Invalid element types are filtered out during config reading."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
     invalid_subentry = ConfigSubentry(
@@ -1292,8 +1292,9 @@ def test_load_from_input_entities_raises_for_invalid_element_type(
     hass.config_entries.async_add_subentry(mock_hub_entry, invalid_subentry)
     coordinator._participant_subentry_ids["Invalid Element"] = invalid_subentry.subentry_id
 
-    with pytest.raises(ValueError, match="Unknown element type: invalid_type"):
-        coordinator._load_from_input_entities()
+    # The invalid element is excluded by get_element_configs validation
+    configs = coordinator._get_participant_configs()
+    assert "Invalid Element" not in configs
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
