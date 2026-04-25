@@ -25,7 +25,10 @@ See docs/developer-guide/vlan-optimization.md for optimization proofs.
 from collections import defaultdict, deque
 from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
-from typing import NotRequired, TypedDict, cast
+from typing import Any, NotRequired, TypedDict
+
+import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, ModelElementConfig
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
@@ -51,7 +54,7 @@ class CompiledPolicyRule(TypedDict):
     sources: list[str]
     destinations: list[str]
     enabled: NotRequired[bool]
-    price: NotRequired[object]
+    price: NotRequired[float | NDArray[np.floating[Any]]]
 
 
 class CompilationResult(TypedDict):
@@ -100,8 +103,10 @@ def compile_policies(
     for elem in elements:
         if elem["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION:
             connections.append(elem)
+        elif elem["element_type"] == MODEL_ELEMENT_TYPE_POLICY_PRICING:
+            non_connections.append(elem)
         else:
-            by_name[elem["name"]] = cast("_TaggableConfig", elem)
+            by_name[elem["name"]] = elem
             non_connections.append(elem)
 
     if not connections:
@@ -242,7 +247,7 @@ def compile_policies(
         sources = _resolve_wildcard(_as_name_list(policy.get("sources")), names, wildcard_set=source_names)
         destinations = _resolve_wildcard(_as_name_list(policy.get("destinations")), names, wildcard_set=sink_names)
         price = policy.get("price")
-        if price is None:
+        if not isinstance(price, int | float | np.ndarray):
             continue
         # Disabled rules compile into the network structure (VLANs, tags)
         # but start with zero price so they have no cost influence.

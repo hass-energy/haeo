@@ -7,16 +7,17 @@ and the caching system automatically invalidates and rebuilds only the affected 
 import numpy as np
 import pytest
 
-from custom_components.haeo.coordinator.network import update_element
+from custom_components.haeo.coordinator.network import _build_element_updater
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
+    ModelElementConfig,
 )
 from custom_components.haeo.core.model.elements.battery import Battery
-from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.connection import Connection, ConnectionElementConfig
 from custom_components.haeo.core.model.elements.segments import PowerLimitSegment, PricingSegment
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -498,8 +499,21 @@ def test_network_add_connection_updates_prices() -> None:
 
     cost1 = network.optimize()
 
-    update_element(
-        network,
+    initial_model_configs: list[ModelElementConfig] = [
+        ConnectionElementConfig(
+            element_type="connection",
+            name="conn",
+            source="source",
+            target="sink",
+            segments={
+                "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
+                "pricing": {"segment_type": "pricing", "price": -0.10},
+            },
+        )
+    ]
+    updater = _build_element_updater(network, ElementType.CONNECTION, initial_model_configs)
+
+    updater(
         {
             CONF_ELEMENT_TYPE: ElementType.CONNECTION,
             "name": "conn",

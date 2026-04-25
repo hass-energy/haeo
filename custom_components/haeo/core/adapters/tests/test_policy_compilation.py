@@ -10,7 +10,7 @@ Tests cover:
 - End-to-end network optimization with policies
 """
 
-from typing import Any, Literal, cast, overload
+from typing import Any, Literal, overload
 
 import numpy as np
 import pytest
@@ -238,7 +238,7 @@ def test_disabled_and_enabled_rules_coexist() -> None:
     pricing = _pricing_configs(compiled)
     assert len(pricing) == 2
     # One has zero price (disabled), one has 0.05 (enabled)
-    prices = sorted(cast("float", p["price"]) for p in pricing)
+    prices = sorted(float(p["price"]) for p in pricing)
     assert prices[0] == 0.0
     assert prices[1] == 0.05
 

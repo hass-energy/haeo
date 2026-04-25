@@ -7,7 +7,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import create_network
-from custom_components.haeo.coordinator.network import update_policy_pricing
 from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricing
 from custom_components.haeo.core.schema import as_connection_target
@@ -114,7 +113,7 @@ async def test_create_network_applies_policy_rules_to_connections(hass: HomeAssi
         "policies": policies_cfg,
     }
 
-    network, pricing_rule_map = await create_network(
+    network, element_updaters = await create_network(
         entry,
         periods_seconds=[900],
         participants=participants,
@@ -126,13 +125,11 @@ async def test_create_network_applies_policy_rules_to_connections(hass: HomeAssi
     assert 0 in tags
     assert max(tags) >= 1
 
-    # Policy pricing is handled by PolicyPricing elements, not tag_costs
-    assert pricing_rule_map
-    pricing_names = [name for names in pricing_rule_map.values() for name in names]
-    assert len(pricing_names) >= 1
-    pricing_elem = network.elements[pricing_names[0]]
-    assert isinstance(pricing_elem, PolicyPricing)
-    assert pricing_elem.price == pytest.approx(0.07)
+    # Policy pricing is handled by PolicyPricing elements via element updaters
+    assert "policies" in element_updaters
+    pricing_elems = [e for e in network.elements.values() if isinstance(e, PolicyPricing)]
+    assert len(pricing_elems) >= 1
+    assert pricing_elems[0].price == pytest.approx(0.07)
 
 
 async def test_create_network_disabled_policy_rule_has_zero_price(hass: HomeAssistant) -> None:
@@ -181,22 +178,20 @@ async def test_create_network_disabled_policy_rule_has_zero_price(hass: HomeAssi
         "policies": policies_cfg,
     }
 
-    network, pricing_rule_map = await create_network(
+    network, _updaters = await create_network(
         entry,
         periods_seconds=[900],
         participants=participants,
     )
 
     # Disabled rule still creates pricing elements but with zero price
-    assert pricing_rule_map
-    pricing_names = [name for names in pricing_rule_map.values() for name in names]
-    pricing_elem = network.elements[pricing_names[0]]
-    assert isinstance(pricing_elem, PolicyPricing)
-    assert pricing_elem.price == pytest.approx([0.0])
+    pricing_elems = [e for e in network.elements.values() if isinstance(e, PolicyPricing)]
+    assert len(pricing_elems) >= 1
+    assert pricing_elems[0].price == pytest.approx([0.0])
 
 
-async def test_update_policy_pricing_disabling_zeros_price(hass: HomeAssistant) -> None:
-    """Disabling a rule via update_policy_pricing sets price to zero."""
+async def test_policy_updater_disabling_zeros_price(hass: HomeAssistant) -> None:
+    """Disabling a rule via the policy element updater sets price to zero."""
     entry = MockConfigEntry(domain=DOMAIN, entry_id="toggle_policy")
     entry.add_to_hass(hass)
 
@@ -234,32 +229,33 @@ async def test_update_policy_pricing_disabling_zeros_price(hass: HomeAssistant) 
         "policies": policies_cfg,
     }
 
-    network, pricing_rule_map = await create_network(
+    network, element_updaters = await create_network(
         entry,
         periods_seconds=[900],
         participants=participants,
     )
-    pricing_names = [name for names in pricing_rule_map.values() for name in names]
-    pricing_elem = network.elements[pricing_names[0]]
-    assert isinstance(pricing_elem, PolicyPricing)
+    pricing_elems = [e for e in network.elements.values() if isinstance(e, PolicyPricing)]
+    pricing_elem = pricing_elems[0]
     assert pricing_elem.price == pytest.approx([0.07])
 
-    # Disable the rule
+    # Disable the rule via the updater
+    policy_updater = element_updaters["policies"]
+
     disabled_cfg: PolicyConfigData = {
         "element_type": ElementType.POLICY,
         "name": "Policies",
         "rules": [{"name": "A to B", "enabled": False, "source": ["node_a"], "target": ["node_b"], "price": 0.07}],
     }
-    update_policy_pricing(network, disabled_cfg, pricing_rule_map)
+    policy_updater(disabled_cfg)
     assert pricing_elem.price == pytest.approx([0.0])
 
-    # Re-enable the rule
+    # Re-enable the rule via the updater
     reenabled_cfg: PolicyConfigData = {
         "element_type": ElementType.POLICY,
         "name": "Policies",
         "rules": [{"name": "A to B", "enabled": True, "source": ["node_a"], "target": ["node_b"], "price": 0.07}],
     }
-    update_policy_pricing(network, reenabled_cfg, pricing_rule_map)
+    policy_updater(reenabled_cfg)
     assert pricing_elem.price == pytest.approx([0.07])
 
 

@@ -21,10 +21,10 @@ import numpy as np
 import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
-from custom_components.haeo.coordinator.network import update_element
+from custom_components.haeo.coordinator.network import ElementUpdater, _build_element_updater, _build_policy_updater
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
 from custom_components.haeo.core.adapters.policy_compilation import compile_policies
-from custom_components.haeo.core.adapters.registry import collect_model_elements
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model.network import CalibratedOptions, LexOptions, Network, SolveOptions
@@ -92,7 +92,7 @@ def _build_network(
     sm: _ScenarioStateMachine,
     frozen_dt: datetime,
     options: SolveOptions | None = None,
-) -> Network:
+) -> tuple[Network, dict[str, ElementUpdater]]:
     """Build a Network from scenario data without Home Assistant."""
     participants: dict[str, ElementConfigSchema] = config["participants"]
     periods_seconds = tiers_to_periods_seconds(config, start_time=frozen_dt)
@@ -120,7 +120,23 @@ def _build_network(
     for element_config in compiled_elements["elements"]:
         network.add(element_config)
 
-    return network
+    # Build element updaters
+    updaters: dict[str, ElementUpdater] = {}
+    for name, elem_config in loaded_configs.items():
+        element_type = elem_config.get("element_type")
+        if element_type == ElementType.POLICY:
+            continue
+        adapter = ELEMENT_TYPES[element_type]
+        initial_model_configs = adapter.model_elements(elem_config)
+        updaters[name] = _build_element_updater(network, element_type, initial_model_configs)
+
+    if compiled_elements["pricing_rule_map"]:
+        policy_updater = _build_policy_updater(network, compiled_elements["pricing_rule_map"])
+        for name, elem_config in loaded_configs.items():
+            if elem_config.get("element_type") == ElementType.POLICY:
+                updaters[name] = policy_updater
+
+    return network, updaters
 
 
 def _load_configs(
@@ -200,7 +216,7 @@ def test_cold_start(scenario_path: Path, options: SolveOptions, benchmark: Bench
     sm = _ScenarioStateMachine(inputs)
 
     def run() -> float:
-        net = _build_network(config, sm, frozen_dt, options=options)
+        net, _ = _build_network(config, sm, frozen_dt, options=options)
         return net.optimize()
 
     result = benchmark(run)
@@ -215,12 +231,14 @@ def test_update_all(scenario_path: Path, options: SolveOptions, benchmark: Bench
     sm = _ScenarioStateMachine(inputs)
 
     loaded_configs = _load_configs(config, sm, frozen_dt)
-    network = _build_network(config, sm, frozen_dt, options=options)
+    network, updaters = _build_network(config, sm, frozen_dt, options=options)
     network.optimize()  # prime
 
     def run() -> float:
-        for elem_config in loaded_configs.values():
-            update_element(network, elem_config)
+        for elem_name, elem_config in loaded_configs.items():
+            updater = updaters.get(elem_name)
+            if updater is not None:
+                updater(elem_config)
         return network.optimize()
 
     result = benchmark(run)
@@ -238,12 +256,14 @@ def test_time_shift(scenario_path: Path, options: SolveOptions, benchmark: Bench
     shift_seconds = periods_seconds[0]
     shifted_configs = _load_shifted_configs(config, sm, frozen_dt, shift_seconds)
 
-    network = _build_network(config, sm, frozen_dt, options=options)
+    network, updaters = _build_network(config, sm, frozen_dt, options=options)
     network.optimize()  # prime
 
     def run() -> float:
-        for elem_config in shifted_configs.values():
-            update_element(network, elem_config)
+        for elem_name, elem_config in shifted_configs.items():
+            updater = updaters.get(elem_name)
+            if updater is not None:
+                updater(elem_config)
         return network.optimize()
 
     result = benchmark(run)
@@ -257,7 +277,7 @@ def test_warm_reentrant(scenario_path: Path, options: SolveOptions, benchmark: B
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
 
-    network = _build_network(config, sm, frozen_dt, options=options)
+    network, _ = _build_network(config, sm, frozen_dt, options=options)
     network.optimize()  # prime
 
     result = benchmark(network.optimize)

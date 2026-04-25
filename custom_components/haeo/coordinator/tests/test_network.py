@@ -1,31 +1,52 @@
 """Tests for coordinator network utilities."""
 
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 import pytest
 
-from custom_components.haeo.coordinator.network import _collect_policy_rules, update_element
-from custom_components.haeo.core.adapters.elements.connection import adapter as connection_adapter
+from custom_components.haeo.coordinator.network import (
+    _MISSING,
+    _build_element_updater,
+    _build_policy_updater,
+    _collect_policy_rules,
+    _discover_setters,
+    _extract_at_path,
+)
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.model import Network
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_NODE,
+)
+from custom_components.haeo.core.model.elements import ModelElementConfig
+from custom_components.haeo.core.model.elements.connection import Connection, ConnectionElementConfig
+from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_POLICY_PRICING
+from custom_components.haeo.core.model.elements.policy_pricing import (
+    PolicyPricing,
+    PolicyPricingElementConfig,
+    PolicyPricingTerm,
+)
 from custom_components.haeo.core.model.elements.segments import EfficiencySegment, PowerLimitSegment
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.connection import (
+    CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_PRICE_SOURCE_TARGET,
-    SECTION_EFFICIENCY,
-    SECTION_ENDPOINTS,
-    SECTION_POWER_LIMITS,
-    SECTION_PRICING,
+    ConnectionConfigData,
 )
+from custom_components.haeo.core.schema.sections.efficiency import EfficiencyData
+from custom_components.haeo.core.schema.sections.power_limits import PowerLimitsData
+from custom_components.haeo.core.schema.sections.pricing import PricingData
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 
-def test_update_element_updates_tracked_params() -> None:
-    """Test update_element updates TrackedParams on existing elements."""
+def _simple_network() -> Network:
+    """Create a network with a source, sink, and connection."""
     network = Network(name="test", periods=np.array([1.0, 1.0]))
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
@@ -40,7 +61,105 @@ def test_update_element_updates_tracked_params() -> None:
             },
         }
     )
+    return network
 
+
+def _connection_config(
+    *,
+    max_power: Any = None,
+    price: Any = None,
+    efficiency: Any = None,
+) -> ConnectionConfigData:
+    """Build a connection ConnectionConfigData."""
+    power_limits = PowerLimitsData()
+    if max_power is not None:
+        power_limits[CONF_MAX_POWER_SOURCE_TARGET] = max_power
+    pricing = PricingData()
+    if price is not None:
+        pricing[CONF_PRICE_SOURCE_TARGET] = price
+    eff = EfficiencyData()
+    if efficiency is not None:
+        eff[CONF_EFFICIENCY_SOURCE_TARGET] = efficiency
+    return ConnectionConfigData(
+        element_type=ElementType.CONNECTION,
+        name="conn",
+        endpoints={
+            "source": as_connection_target("source"),
+            "target": as_connection_target("target"),
+        },
+        power_limits=power_limits,
+        pricing=pricing,
+        efficiency=eff,
+    )
+
+
+# ---------------------------------------------------------------------------
+# _extract_at_path
+# ---------------------------------------------------------------------------
+
+
+def test_extract_at_path_returns_leaf_value() -> None:
+    """Nested path extraction returns the leaf value."""
+    config = {"a": {"b": {"c": 42}}}
+    assert _extract_at_path(config, ("a", "b", "c")) == 42
+
+
+def test_extract_at_path_returns_missing_for_absent_key() -> None:
+    """Missing intermediate key returns the _MISSING sentinel."""
+    config: dict[str, Any] = {"a": {"b": 1}}
+    assert _extract_at_path(config, ("a", "x", "y")) is _MISSING
+
+
+# ---------------------------------------------------------------------------
+# _discover_setters
+# ---------------------------------------------------------------------------
+
+
+def test_discover_setters_finds_tracked_params() -> None:
+    """Setters are created for TrackedParam descriptors on model elements."""
+    network = _simple_network()
+    conn = network.elements["conn"]
+    model_config = {
+        "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+        "name": "conn",
+        "source": "source",
+        "target": "target",
+        "segments": {
+            "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
+        },
+    }
+    setters = _discover_setters(conn, model_config)
+    paths = [path for path, _setter in setters]
+    assert ("segments", "power_limit", "max_power") in paths
+
+
+def test_discover_setters_skips_non_tracked_params() -> None:
+    """Non-TrackedParam attributes like source/target are not bound."""
+    network = _simple_network()
+    conn = network.elements["conn"]
+    model_config = {
+        "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+        "name": "conn",
+        "source": "source",
+        "target": "target",
+        "segments": {
+            "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
+        },
+    }
+    setters = _discover_setters(conn, model_config)
+    paths = {path for path, _setter in setters}
+    assert ("source",) not in paths
+    assert ("target",) not in paths
+
+
+# ---------------------------------------------------------------------------
+# _build_element_updater
+# ---------------------------------------------------------------------------
+
+
+def test_element_updater_updates_tracked_params() -> None:
+    """Element updater writes fresh values to TrackedParams."""
+    network = _simple_network()
     conn = network.elements["conn"]
     assert isinstance(conn, Connection)
     pl = conn.segments["power_limit"]
@@ -48,50 +167,27 @@ def test_update_element_updates_tracked_params() -> None:
     assert pl.max_power is not None
     assert pl.max_power[0] == 10.0
 
-    config: ElementConfigData = {
-        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-        CONF_NAME: "conn",
-        SECTION_ENDPOINTS: {
-            "source": as_connection_target("source"),
-            "target": as_connection_target("target"),
-        },
-        SECTION_POWER_LIMITS: {
-            CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),
-        },
-        SECTION_PRICING: {},
-        SECTION_EFFICIENCY: {},
-    }
-    update_element(network, config)
+    initial_model_configs: list[ModelElementConfig] = [
+        ConnectionElementConfig(
+            element_type=MODEL_ELEMENT_TYPE_CONNECTION,
+            name="conn",
+            source="source",
+            target="target",
+            segments={
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
+            },
+        )
+    ]
+    updater = _build_element_updater(network, ElementType.CONNECTION, initial_model_configs)
+
+    fresh_config = _connection_config(max_power=np.array([20.0, 20.0]))
+    updater(fresh_config)
 
     assert pl.max_power[0] == 20.0
 
 
-def test_update_element_raises_for_missing_model_element() -> None:
-    """Test update_element raises ValueError when model element is not found."""
-    network = Network(name="test", periods=np.array([1.0, 1.0]))
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
-
-    config: ElementConfigData = {
-        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-        CONF_NAME: "nonexistent_conn",
-        SECTION_ENDPOINTS: {
-            "source": as_connection_target("source"),
-            "target": as_connection_target("target"),
-        },
-        SECTION_POWER_LIMITS: {
-            CONF_MAX_POWER_SOURCE_TARGET: np.array([20.0, 20.0]),
-        },
-        SECTION_PRICING: {},
-        SECTION_EFFICIENCY: {},
-    }
-
-    with pytest.raises(ValueError, match="Model element 'nonexistent_conn' not found in network during update"):
-        update_element(network, config)
-
-
-def test_update_element_allows_empty_efficiency_section() -> None:
-    """Clearing optional efficiency should behave as 100% and not crash optimization."""
+def test_element_updater_handles_none_efficiency() -> None:
+    """Clearing optional efficiency via updater sets TrackedParam to None."""
     network = Network(name="test", periods=np.array([1.0, 1.0]))
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
@@ -109,22 +205,26 @@ def test_update_element_allows_empty_efficiency_section() -> None:
         }
     )
 
-    config: ElementConfigData = {
-        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-        CONF_NAME: "conn",
-        SECTION_ENDPOINTS: {
-            "source": as_connection_target("source"),
-            "target": as_connection_target("target"),
-        },
-        SECTION_POWER_LIMITS: {
-            CONF_MAX_POWER_SOURCE_TARGET: np.array([10.0, 10.0]),
-        },
-        SECTION_PRICING: {
-            CONF_PRICE_SOURCE_TARGET: np.array([0.10, 0.10]),
-        },
-        SECTION_EFFICIENCY: {},
-    }
-    update_element(network, config)
+    initial_model_configs: list[ModelElementConfig] = [
+        ConnectionElementConfig(
+            element_type=MODEL_ELEMENT_TYPE_CONNECTION,
+            name="conn",
+            source="source",
+            target="target",
+            segments={
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([0.95, 0.95])},
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
+                "pricing": {"segment_type": "pricing", "price": np.array([0.10, 0.10])},
+            },
+        )
+    ]
+    updater = _build_element_updater(network, ElementType.CONNECTION, initial_model_configs)
+
+    fresh_config = _connection_config(
+        max_power=np.array([10.0, 10.0]),
+        price=np.array([0.10, 0.10]),
+    )
+    updater(fresh_config)
 
     conn = network.elements["conn"]
     assert isinstance(conn, Connection)
@@ -135,277 +235,126 @@ def test_update_element_allows_empty_efficiency_section() -> None:
     network.optimize()
 
 
-def test_update_element_raises_on_empty_tuple_path(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Strict tuple update paths must be non-empty tuples of strings."""
-    network = Network(name="test", periods=np.array([1.0, 1.0]))
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
+# ---------------------------------------------------------------------------
+# _build_policy_updater
+# ---------------------------------------------------------------------------
+
+
+def _policy_network() -> Network:
+    """Create a network with a tagged connection and PolicyPricing element."""
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "src", "is_source": True, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "dst", "is_source": False, "is_sink": True})
     network.add(
         {
             "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
-            "source": "source",
-            "target": "target",
-            "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
-            },
-        }
-    )
-
-    def fake_model_elements(_config: ElementConfigData) -> list[dict[Any, Any]]:
-        bad: dict[Any, Any] = {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
-        }
-        bad[()] = 1.0
-        return [bad]
-
-    monkeypatch.setattr(connection_adapter, "model_elements", fake_model_elements)
-
-    config: ElementConfigData = {
-        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-        CONF_NAME: "conn",
-        SECTION_ENDPOINTS: {
-            "source": as_connection_target("source"),
-            "target": as_connection_target("target"),
-        },
-        SECTION_POWER_LIMITS: {
-            CONF_MAX_POWER_SOURCE_TARGET: np.array([10.0, 10.0]),
-        },
-        SECTION_PRICING: {},
-        SECTION_EFFICIENCY: {},
-    }
-
-    with pytest.raises(ValueError, match="Invalid update path"):
-        update_element(network, config)
-
-
-def test_update_element_raises_on_malformed_tuple_path(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Tuple paths must contain only string segments."""
-    network = Network(name="test", periods=np.array([1.0, 1.0]))
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
-    network.add(
-        {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
-            "source": "source",
-            "target": "target",
-            "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
-            },
-        }
-    )
-
-    def fake_model_elements(_config: ElementConfigData) -> list[dict[Any, Any]]:
-        return [
-            {
-                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "conn",
-                (1, "bad"): 1.0,
-            }
-        ]
-
-    monkeypatch.setattr(connection_adapter, "model_elements", fake_model_elements)
-
-    config: ElementConfigData = {
-        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-        CONF_NAME: "conn",
-        SECTION_ENDPOINTS: {
-            "source": as_connection_target("source"),
-            "target": as_connection_target("target"),
-        },
-        SECTION_POWER_LIMITS: {
-            CONF_MAX_POWER_SOURCE_TARGET: np.array([10.0, 10.0]),
-        },
-        SECTION_PRICING: {},
-        SECTION_EFFICIENCY: {},
-    }
-
-    with pytest.raises(ValueError, match="Invalid update path"):
-        update_element(network, config)
-
-
-def test_update_element_skips_non_string_keys(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Non-string keys in model element updates are ignored."""
-    network = Network(name="test", periods=np.array([1.0, 1.0]))
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
-    network.add(
-        {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
-            "source": "source",
-            "target": "target",
-            "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
-            },
-        }
-    )
-
-    def fake_model_elements(_config: ElementConfigData) -> list[dict[Any, Any]]:
-        row: dict[Any, Any] = {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
-            "source": "source",
-            "target": "target",
+            "name": "line",
+            "source": "src",
+            "target": "dst",
+            "tags": {0, 1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
-                    "max_power": np.array([33.0, 33.0]),
+                    "max_power": np.array([10.0]),
+                    "max_power_source_target": np.array([10.0]),
+                    "max_power_target_source": np.array([10.0]),
                 },
-            },
-        }
-        row[999] = "ignored"
-        return [row]
-
-    monkeypatch.setattr(connection_adapter, "model_elements", fake_model_elements)
-
-    config: ElementConfigData = {
-        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-        CONF_NAME: "conn",
-        SECTION_ENDPOINTS: {
-            "source": as_connection_target("source"),
-            "target": as_connection_target("target"),
-        },
-        SECTION_POWER_LIMITS: {
-            CONF_MAX_POWER_SOURCE_TARGET: np.array([10.0, 10.0]),
-        },
-        SECTION_PRICING: {},
-        SECTION_EFFICIENCY: {},
-    }
-
-    update_element(network, config)
-
-    conn = network.elements["conn"]
-    assert isinstance(conn, Connection)
-    pl = conn.segments["power_limit"]
-    assert isinstance(pl, PowerLimitSegment)
-    assert pl.max_power is not None
-    assert pl.max_power[0] == 33.0
-
-
-def test_update_element_ignores_non_strict_resolve_errors(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Updates that fail path resolution are skipped when not marked strict."""
-    network = Network(name="test", periods=np.array([1.0, 1.0]))
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
-    network.add(
-        {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
-            "source": "source",
-            "target": "target",
-            "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
             },
         }
     )
+    network.add(
+        PolicyPricingElementConfig(
+            element_type=MODEL_ELEMENT_TYPE_POLICY_PRICING,
+            name="policy_pricing_r0_v1",
+            price=0.05,
+            terms=[PolicyPricingTerm(connection="line", tag=1)],
+        )
+    )
+    return network
 
-    def fake_model_elements(_config: ElementConfigData) -> list[dict[str, Any]]:
-        return [
-            {
-                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "conn",
-                "source": "source",
-                "target": "target",
-                "segments": {
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power": np.array([44.0, 44.0]),
-                    },
-                },
-                "nonesuch": {"x": 1.0},
-            }
-        ]
 
-    monkeypatch.setattr(connection_adapter, "model_elements", fake_model_elements)
+def test_policy_updater_updates_price() -> None:
+    """Policy updater writes fresh price to PolicyPricing elements."""
+    network = _policy_network()
+    updater = _build_policy_updater(network, {0: ["policy_pricing_r0_v1"]})
 
     config: ElementConfigData = {
-        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-        CONF_NAME: "conn",
-        SECTION_ENDPOINTS: {
-            "source": as_connection_target("source"),
-            "target": as_connection_target("target"),
-        },
-        SECTION_POWER_LIMITS: {
-            CONF_MAX_POWER_SOURCE_TARGET: np.array([10.0, 10.0]),
-        },
-        SECTION_PRICING: {},
-        SECTION_EFFICIENCY: {},
+        CONF_ELEMENT_TYPE: ElementType.POLICY,
+        CONF_NAME: "Policies",
+        "rules": [{"name": "rule", "enabled": True, "source": ["src"], "target": ["dst"], "price": 0.10}],
     }
+    updater(config)
 
-    update_element(network, config)
-
-    conn = network.elements["conn"]
-    assert isinstance(conn, Connection)
-    pl = conn.segments["power_limit"]
-    assert isinstance(pl, PowerLimitSegment)
-    assert pl.max_power is not None
-    assert pl.max_power[0] == 44.0
+    elem = network.elements["policy_pricing_r0_v1"]
+    assert isinstance(elem, PolicyPricing)
+    assert elem.price == pytest.approx([0.10])
 
 
-def test_update_element_strict_tuple_propagates_set_errors(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Strict tuple paths surface ValueError from invalid final keys."""
-    network = Network(name="test", periods=np.array([1.0, 1.0]))
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
-    network.add(
+def test_policy_updater_zeros_disabled_rule() -> None:
+    """Policy updater writes zero price for disabled rules."""
+    network = _policy_network()
+    updater = _build_policy_updater(network, {0: ["policy_pricing_r0_v1"]})
+
+    config: ElementConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.POLICY,
+        CONF_NAME: "Policies",
+        "rules": [{"name": "rule", "enabled": False, "source": ["src"], "target": ["dst"], "price": 0.10}],
+    }
+    updater(config)
+
+    elem = network.elements["policy_pricing_r0_v1"]
+    assert isinstance(elem, PolicyPricing)
+    assert elem.price == pytest.approx([0.0])
+
+
+def test_policy_updater_zeros_stale_rules() -> None:
+    """Policy updater zeros pricing when rule index exceeds rule count."""
+    network = _policy_network()
+    updater = _build_policy_updater(network, {0: ["policy_pricing_r0_v1"]})
+
+    config: ElementConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.POLICY,
+        CONF_NAME: "Policies",
+        "rules": [],
+    }
+    updater(config)
+
+    elem = network.elements["policy_pricing_r0_v1"]
+    assert isinstance(elem, PolicyPricing)
+    assert elem.price == pytest.approx([0.0])
+
+
+def test_policy_updater_reenables_rule() -> None:
+    """Policy updater restores price when re-enabling a rule."""
+    network = _policy_network()
+    updater = _build_policy_updater(network, {0: ["policy_pricing_r0_v1"]})
+
+    # Disable
+    updater(
         {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
-            "source": "source",
-            "target": "target",
-            "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
-            },
+            CONF_ELEMENT_TYPE: ElementType.POLICY,
+            CONF_NAME: "Policies",
+            "rules": [{"name": "rule", "enabled": False, "source": ["src"], "target": ["dst"], "price": 0.07}],
         }
     )
+    elem = network.elements["policy_pricing_r0_v1"]
+    assert isinstance(elem, PolicyPricing)
+    assert elem.price == pytest.approx([0.0])
 
-    def fake_model_elements(_config: ElementConfigData) -> list[dict[Any, Any]]:
-        row: dict[Any, Any] = {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
-            "source": "source",
-            "target": "target",
-            "segments": {
-                "power_limit": {
-                    "segment_type": "power_limit",
-                    "max_power": np.array([10.0, 10.0]),
-                },
-            },
+    # Re-enable
+    updater(
+        {
+            CONF_ELEMENT_TYPE: ElementType.POLICY,
+            CONF_NAME: "Policies",
+            "rules": [{"name": "rule", "enabled": True, "source": ["src"], "target": ["dst"], "price": 0.07}],
         }
-        row["segments", "power_limit", "nonexistent"] = np.array([1.0])
-        return [row]
+    )
+    assert elem.price == pytest.approx([0.07])
 
-    monkeypatch.setattr(connection_adapter, "model_elements", fake_model_elements)
 
-    config: ElementConfigData = {
-        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-        CONF_NAME: "conn",
-        SECTION_ENDPOINTS: {
-            "source": as_connection_target("source"),
-            "target": as_connection_target("target"),
-        },
-        SECTION_POWER_LIMITS: {
-            CONF_MAX_POWER_SOURCE_TARGET: np.array([10.0, 10.0]),
-        },
-        SECTION_PRICING: {},
-        SECTION_EFFICIENCY: {},
-    }
-
-    with pytest.raises(ValueError, match=r"Invalid update path|missing attribute|missing key"):
-        update_element(network, config)
+# ---------------------------------------------------------------------------
+# _collect_policy_rules
+# ---------------------------------------------------------------------------
 
 
 def test_collect_policy_rules_merges_multiple_policy_participants() -> None:
@@ -427,104 +376,3 @@ def test_collect_policy_rules_merges_multiple_policy_participants() -> None:
 
     rules = _collect_policy_rules(participants)
     assert len(rules) == 2
-
-
-def test_update_element_strict_tuple_raises_for_missing_mapping_key(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Strict tuple mapping updates raise when the final mapping key is missing."""
-    network = Network(name="test", periods=np.array([1.0, 1.0]))
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "target", "is_source": False, "is_sink": True})
-    network.add(
-        {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
-            "source": "source",
-            "target": "target",
-            "segments": {
-                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
-            },
-        }
-    )
-
-    def fake_model_elements(_config: ElementConfigData) -> list[dict[Any, Any]]:
-        row: dict[Any, Any] = {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "conn",
-            "source": "source",
-            "target": "target",
-            "segments": {
-                "power_limit": {
-                    "segment_type": "power_limit",
-                    "max_power": np.array([10.0, 10.0]),
-                },
-            },
-        }
-        row["segments", "missing_key"] = {"value": 1.0}
-        return [row]
-
-    monkeypatch.setattr(connection_adapter, "model_elements", fake_model_elements)
-
-    config: ElementConfigData = {
-        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-        CONF_NAME: "conn",
-        SECTION_ENDPOINTS: {
-            "source": as_connection_target("source"),
-            "target": as_connection_target("target"),
-        },
-        SECTION_POWER_LIMITS: {
-            CONF_MAX_POWER_SOURCE_TARGET: np.array([10.0, 10.0]),
-        },
-        SECTION_PRICING: {},
-        SECTION_EFFICIENCY: {},
-    }
-
-    with pytest.raises(ValueError, match="missing key"):
-        update_element(network, config)
-
-
-def test_update_element_strict_tuple_sets_non_tracked_attribute(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Strict tuple updates can set regular attributes via setattr."""
-
-    class DummyElement:
-        """Simple test element with a regular settable attribute."""
-
-        def __init__(self) -> None:
-            self.value = 1.0
-
-    network = Network(name="test", periods=np.array([1.0, 1.0]))
-    cast("Any", network.elements)["conn"] = DummyElement()
-
-    def fake_model_elements(_config: ElementConfigData) -> list[dict[Any, Any]]:
-        return [
-            {
-                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": "conn",
-                ("value",): 2.0,
-            }
-        ]
-
-    monkeypatch.setattr(connection_adapter, "model_elements", fake_model_elements)
-
-    config: ElementConfigData = {
-        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
-        CONF_NAME: "conn",
-        SECTION_ENDPOINTS: {
-            "source": as_connection_target("source"),
-            "target": as_connection_target("target"),
-        },
-        SECTION_POWER_LIMITS: {
-            CONF_MAX_POWER_SOURCE_TARGET: np.array([10.0, 10.0]),
-        },
-        SECTION_PRICING: {},
-        SECTION_EFFICIENCY: {},
-    }
-
-    update_element(network, config)
-
-    conn = network.elements["conn"]
-    dummy_conn = cast("DummyElement", conn)
-    assert dummy_conn.value == 2.0

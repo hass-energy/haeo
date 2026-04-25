@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 import logging
-from typing import Any, Final, Literal, cast, overload
+from typing import Any, Final, Literal, overload
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
@@ -204,12 +204,12 @@ class Network:
             The created element
 
         """
-        element_type = element_config["element_type"]
         name = element_config["name"]
 
-        if element_type == "policy_pricing":
-            return self._add_policy_pricing(element_config)  # type: ignore[arg-type]
+        if element_config["element_type"] == "policy_pricing":
+            return self._add_policy_pricing(element_config)
 
+        element_type = element_config["element_type"]
         kwargs = {key: value for key, value in element_config.items() if key not in ("element_type", "name")}
 
         # Create new element using registry
@@ -259,7 +259,7 @@ class Network:
             name=name,
             periods=self.periods,
             solver=self._solver,
-            price=cast("float", config["price"]),
+            price=config["price"],
             power_terms=power_terms,
         )
         self.elements[name] = element

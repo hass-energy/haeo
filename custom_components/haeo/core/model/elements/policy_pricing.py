@@ -36,7 +36,7 @@ class PolicyPricingElementConfig(TypedDict):
 
     element_type: PolicyPricingElementTypeName
     name: str
-    price: object
+    price: float | NDArray[np.floating[Any]]
     terms: list[PolicyPricingTerm]
 
 
