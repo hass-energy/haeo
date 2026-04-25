@@ -437,14 +437,9 @@ def get_element_configs(
     ``is_element_config_schema`` TypeGuard so downstream code receives fully
     narrowed types with no ``Any``.
 
-    Args:
-        entry: The config entry whose subentries to read.
-        participant_subentry_ids: Mapping of element name → subentry ID.
-
-    Returns:
-        Dict of element name → typed config for every subentry that is still
-        present and passes validation.
-
+    Raises ValueError if any subentry fails validation — these were already
+    validated at init by ``collect_element_subentries``, so a failure here
+    indicates a bug.
     """
     subentries = entry.subentries
     configs: dict[str, ElementConfigSchema] = {}
@@ -453,11 +448,8 @@ def get_element_configs(
             continue
         data = subentries[subentry_id].data
         if not is_element_config_schema(data):
-            _LOGGER.warning(
-                "Subentry '%s' failed config validation on read, skipping",
-                name,
-            )
-            continue
+            msg = f"Subentry '{name}' failed config validation on read"
+            raise ValueError(msg)
         configs[name] = data
     return configs
 
