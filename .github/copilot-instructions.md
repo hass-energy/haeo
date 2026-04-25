@@ -173,7 +173,7 @@ The version number must be consistent across:
 - `pyproject.toml` (`version = "x.y.z"`)
 - `custom_components/haeo/manifest.json` (`"version": "x.y.z"`)
 
-When updating version numbers, update both files together.
+When updating version numbers, update both files together, then run `uv sync` to regenerate `uv.lock`.
 
 Key patterns for sensor display names using sentence case (capital first letter, rest lowercase):
 
