@@ -371,38 +371,26 @@ async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
 async def test_async_update_listener(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test async_update_listener triggers reload."""
+    """Test async_update_listener schedules reload."""
     # Set up runtime_data (required by async_update_listener)
     mock_coordinator = Mock()
     mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
 
-    # Mock the reload function
-    reload_called = False
-    ensure_called = False
+    # Mock the schedule_reload function
+    schedule_reload_called = False
 
-    async def mock_reload(entry_id: str) -> bool:
-        nonlocal reload_called
-        reload_called = True
-        return True
+    def mock_schedule_reload(entry_id: str) -> None:
+        nonlocal schedule_reload_called
+        schedule_reload_called = True
 
-    hass.config_entries.async_reload = mock_reload
-
-    async def mock_ensure(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
-        nonlocal ensure_called
-        assert hass_arg is hass
-        assert entry_arg is mock_hub_entry
-        ensure_called = True
-
-    monkeypatch.setattr("custom_components.haeo._ensure_required_subentries", mock_ensure)
+    hass.config_entries.async_schedule_reload = mock_schedule_reload
 
     # Call update listener
     await async_update_listener(hass, mock_hub_entry)
 
-    # Verify reload was called
-    assert reload_called
-    assert ensure_called
+    # Verify reload was scheduled
+    assert schedule_reload_called
 
 
 async def test_async_remove_config_entry_device(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
@@ -449,19 +437,18 @@ async def test_async_update_listener_value_update_in_progress(
         value_update_in_progress=True,
     )
 
-    reload_called = False
+    schedule_reload_called = False
 
-    async def mock_reload(entry_id: str) -> bool:
-        nonlocal reload_called
-        reload_called = True
-        return True
+    def mock_schedule_reload(entry_id: str) -> None:
+        nonlocal schedule_reload_called
+        schedule_reload_called = True
 
-    hass.config_entries.async_reload = mock_reload
+    hass.config_entries.async_schedule_reload = mock_schedule_reload
 
     await async_update_listener(hass, mock_hub_entry)
 
     assert mock_hub_entry.runtime_data.value_update_in_progress is False
-    assert not reload_called
+    assert not schedule_reload_called
     if expect_signal:
         assert mock_coordinator is not None
         mock_coordinator.signal_optimization_stale.assert_called_once()

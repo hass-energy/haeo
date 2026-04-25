@@ -425,6 +425,35 @@ def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSuben
     return result
 
 
+def get_element_configs(
+    entry: ConfigEntry,
+    participant_subentry_ids: Mapping[str, str],
+) -> dict[str, ElementConfigSchema]:
+    """Read fresh, typed element configs from a config entry's subentries.
+
+    This is the typed boundary between Home Assistant's untyped
+    ``MappingProxyType[str, Any]`` subentry data and HAEO's
+    ``ElementConfigSchema`` TypedDicts.  Each subentry is validated via the
+    ``is_element_config_schema`` TypeGuard so downstream code receives fully
+    narrowed types with no ``Any``.
+
+    Raises ValueError if any subentry fails validation — these were already
+    validated at init by ``collect_element_subentries``, so a failure here
+    indicates a bug.
+    """
+    subentries = entry.subentries
+    configs: dict[str, ElementConfigSchema] = {}
+    for name, subentry_id in participant_subentry_ids.items():
+        if subentry_id not in subentries:
+            continue
+        data = subentries[subentry_id].data
+        if not is_element_config_schema(data):
+            msg = f"Subentry '{name}' failed config validation on read"
+            raise ValueError(msg)
+        configs[name] = data
+    return configs
+
+
 def get_input_fields(element_type: str | ElementType | Mapping[str, Any] | None) -> InputFieldGroups:
     """Return input field definitions for an element type."""
     if isinstance(element_type, Mapping):
@@ -596,6 +625,7 @@ __all__ = [
     "ValidatedElementSubentry",
     "collect_element_subentries",
     "find_nested_config_path",
+    "get_element_configs",
     "get_input_field_schema_info",
     "get_input_fields",
     "get_list_input_fields",

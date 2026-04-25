@@ -40,7 +40,12 @@ from custom_components.haeo.core.schema.elements import ElementConfigData, Eleme
 from custom_components.haeo.core.schema.util import extract_unit_parts
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import PRICE_UNIT_SPEC
-from custom_components.haeo.elements import ElementDeviceName, ElementOutputName, collect_element_subentries
+from custom_components.haeo.elements import (
+    ElementDeviceName,
+    ElementOutputName,
+    collect_element_subentries,
+    get_element_configs,
+)
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
@@ -286,12 +291,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Tests may set this manually before the first optimization.
         self.network: Network = None  # type: ignore[assignment]
 
-        # Build participant configs and track subentry IDs
-        self._participant_configs: dict[str, ElementConfigSchema] = {}
+        # Map element names to subentry IDs so we can look up fresh data
+        # from config_entry.subentries at load time. We don't cache subentry.data
+        # because async_update_subentry_value replaces the MappingProxyType,
+        # making cached references stale.
         self._participant_subentry_ids: dict[str, str] = {}  # element_name -> subentry_id
 
         for participant in collect_element_subentries(config_entry):
-            self._participant_configs[participant.name] = participant.config
             self._participant_subentry_ids[participant.name] = participant.subentry.subentry_id
 
         # Custom debouncing state
@@ -315,6 +321,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # State change subscriptions - set up in async_initialize()
         self._state_change_unsubs: list[Callable[[], None]] = []
+
+    def _get_participant_configs(self) -> dict[str, ElementConfigSchema]:
+        """Read fresh participant configs from the config entry's subentries.
+
+        Delegates to ``get_element_configs`` which validates each subentry via
+        the ``is_element_config_schema`` TypeGuard, ensuring the returned data
+        is properly typed as ``ElementConfigSchema`` with no ``Any``.
+        """
+        return get_element_configs(self.config_entry, self._participant_subentry_ids)
 
     async def async_initialize(self) -> None:
         """Initialize the network and set up subscriptions.
@@ -602,7 +617,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             ValueError: If element not found or data unavailable
 
         """
-        if element_name not in self._participant_configs:
+        participant_configs = self._get_participant_configs()
+        if element_name not in participant_configs:
             msg = f"Element '{element_name}' not found in participant configs"
             raise ValueError(msg)
 
@@ -613,7 +629,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         forecast_times = runtime_data.horizon_manager.get_forecast_timestamps()
         sm = HomeAssistantStateMachine(self.hass)
-        return _core_load_element_config(element_name, self._participant_configs[element_name], sm, forecast_times)
+        return _core_load_element_config(element_name, participant_configs[element_name], sm, forecast_times)
 
     def _load_from_input_entities(self) -> dict[str, ElementConfigData]:
         """Load element configurations via the core config loader.
@@ -628,7 +644,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         forecast_times = runtime_data.horizon_manager.get_forecast_timestamps()
         sm = HomeAssistantStateMachine(self.hass)
-        return load_element_configs(self._participant_configs, sm, forecast_times)
+        return load_element_configs(self._get_participant_configs(), sm, forecast_times)
 
     def cleanup(self) -> None:
         """Clean up coordinator resources when unloading."""
@@ -690,7 +706,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # Build optimization context capturing all inputs for reproducibility
             context = _build_optimization_context(
                 hub_config=self.config_entry.data,
-                participant_configs=self._participant_configs,
+                participant_configs=self._get_participant_configs(),
                 input_entities=runtime_data.input_entities,
                 horizon_manager=runtime_data.horizon_manager,
             )

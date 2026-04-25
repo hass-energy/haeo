@@ -513,6 +513,51 @@ async def test_editable_mode_set_native_value(
     hass.config_entries.async_update_subentry.assert_called_once()
 
 
+async def test_editable_set_value_updates_config_before_state_change(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Subentry config already reflects the new value when async_write_ha_state fires.
+
+    async_write_ha_state fires a state change event that the coordinator
+    handles synchronously. The coordinator reads the element's config from
+    the subentry to build element data for optimization. If the config
+    still contains the old value at that point, the first optimization
+    runs with stale data.
+    """
+    subentry = _create_subentry("Test Battery", {"power_limit": 5.0})
+    hass.config_entries.async_add_subentry(config_entry, subentry)
+    config_entry.runtime_data = None
+
+    entity = HaeoInputNumber(
+        config_entry=config_entry,
+        subentry=subentry,
+        field_info=power_field_info,
+        device_entry=device_entry,
+        horizon_manager=horizon_manager,
+    )
+
+    # When async_write_ha_state fires, capture what the subentry data says
+    captured_config_value: list[Any] = []
+
+    def _capture_config_on_state_write() -> None:
+        live_subentry = config_entry.subentries[subentry.subentry_id]
+        captured_config_value.append(live_subentry.data[SECTION_EFFICIENCY]["power_limit"])
+
+    entity.async_write_ha_state = Mock(side_effect=_capture_config_on_state_write)
+    await _add_entity_to_hass(hass, entity)
+    entity.async_write_ha_state.reset_mock()
+    captured_config_value.clear()
+
+    await entity.async_set_native_value(15.0)
+
+    # The config must already show the new constant value when state fires
+    assert captured_config_value == [as_constant_value(15.0)]
+
+
 async def test_editable_mode_set_native_value_with_runtime_data(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
