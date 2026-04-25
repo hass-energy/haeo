@@ -14,7 +14,9 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import ModelElementConfig
+from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricing
 from custom_components.haeo.core.model.reactive import TrackedParam
+from custom_components.haeo.core.model.util import broadcast_to_sequence
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
@@ -41,23 +43,27 @@ async def create_network(
     *,
     periods_seconds: Sequence[int],
     participants: Mapping[str, ElementConfigData],
-) -> Network:
-    """Create a new Network from configuration."""
+) -> tuple[Network, dict[int, list[str]]]:
+    """Create a new Network from configuration.
+
+    Returns the network and a pricing rule map that maps policy rule indices
+    to the names of PolicyPricing elements in the network.
+    """
     # Convert seconds to hours for model layer
     periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
     net = Network(name=f"haeo_network_{entry.entry_id}", periods=periods_hours)
 
     if not participants:
         _LOGGER.info("No participants configured for hub - returning empty network")
-        return net
+        return net, {}
 
     sorted_model_elements: list[ModelElementConfig] = list(collect_model_elements(participants))
 
     # Compile policy rules into tagged power flow constraints
     policy_rules = _collect_policy_rules(participants)
-    compiled_elements = compile_policies(sorted_model_elements, policy_rules)
+    result = compile_policies(sorted_model_elements, policy_rules)
 
-    for model_element_config in compiled_elements:
+    for model_element_config in result["elements"]:
         element_name = model_element_config.get("name")
         try:
             net.add(model_element_config)
@@ -66,7 +72,7 @@ async def create_network(
             _LOGGER.exception(msg)
             raise ValueError(msg) from e
 
-    return net
+    return net, result["pricing_rule_map"]
 
 
 def update_element(
@@ -154,6 +160,29 @@ def update_element(
                     raise
 
 
+def update_policy_pricing(
+    network: Network,
+    element_config: ElementConfigData,
+    pricing_rule_map: dict[int, list[str]],
+) -> None:
+    """Update policy pricing elements with new prices from a policy config.
+
+    Extracts enabled rules from the policy config and updates the
+    corresponding PolicyPricing elements' tracked price parameters.
+    """
+    rules = extract_policy_rules(element_config)
+    for rule_idx, pricing_names in pricing_rule_map.items():
+        if rule_idx >= len(rules):
+            continue
+        rule = rules[rule_idx]
+        # Disabled rules get zero price so they have no cost influence
+        price = rule.get("price") if rule.get("enabled", True) else 0.0
+        for name in pricing_names:
+            element = network.elements.get(name)
+            if isinstance(element, PolicyPricing):
+                element.price = broadcast_to_sequence(cast("float | None", price), network.n_periods)
+
+
 async def evaluate_network_connectivity(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -182,4 +211,5 @@ __all__ = [
     "create_network",
     "evaluate_network_connectivity",
     "update_element",
+    "update_policy_pricing",
 ]

@@ -17,8 +17,8 @@ import pytest
 
 from custom_components.haeo.core.adapters import policy_compilation
 from custom_components.haeo.core.adapters.policy_compilation import (
+    CompilationResult,
     _find_reachable_connections,
-    _merge_tag_costs,
     _min_cut_edges,
     compile_policies,
 )
@@ -28,6 +28,7 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNEC
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
+from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig
 from custom_components.haeo.core.model.network import Network
 
 
@@ -46,29 +47,35 @@ def _conn(name: str, source: str, target: str, segments: dict[str, Any] | None =
     return c
 
 
-def _connections(result: list[ModelElementConfig]) -> list[ConnectionElementConfig]:
-    return [e for e in result if e["element_type"] == "connection"]
+def _connections(result: CompilationResult) -> list[ConnectionElementConfig]:
+    return [e for e in result["elements"] if e["element_type"] == "connection"]
+
+
+def _pricing_configs(result: CompilationResult) -> list[PolicyPricingElementConfig]:
+    return [e for e in result["elements"] if e["element_type"] == "policy_pricing"]
 
 
 @overload
 def _find(
-    result: list[ModelElementConfig], name: str, *, element_type: Literal["connection"]
+    result: CompilationResult, name: str, *, element_type: Literal["connection"]
 ) -> ConnectionElementConfig: ...
 @overload
-def _find(result: list[ModelElementConfig], name: str, *, element_type: Literal["node"]) -> NodeElementConfig: ...
+def _find(result: CompilationResult, name: str, *, element_type: Literal["node"]) -> NodeElementConfig: ...
 @overload
-def _find(result: list[ModelElementConfig], name: str, *, element_type: Literal["battery"]) -> BatteryElementConfig: ...
+def _find(result: CompilationResult, name: str, *, element_type: Literal["battery"]) -> BatteryElementConfig: ...
 @overload
-def _find(result: list[ModelElementConfig], name: str) -> ModelElementConfig: ...
+def _find(result: CompilationResult, name: str) -> ModelElementConfig: ...
 
 
-def _find(result: list[ModelElementConfig], name: str, *, element_type: str | None = None) -> ModelElementConfig:
+def _find(result: CompilationResult, name: str, *, element_type: str | None = None) -> ModelElementConfig:
     return next(
-        e for e in result if e.get("name") == name and (element_type is None or e.get("element_type") == element_type)
+        e
+        for e in result["elements"]
+        if e.get("name") == name and (element_type is None or e.get("element_type") == element_type)
     )
 
 
-def _outbound_tag(result: list[ModelElementConfig], name: str) -> int:
+def _outbound_tag(result: CompilationResult, name: str) -> int:
     """Get the single outbound tag for a source node."""
     node = _find(result, name, element_type=MODEL_ELEMENT_TYPE_NODE)
     tags = node.get("outbound_tags")
@@ -84,33 +91,55 @@ def _network_element(network: Network, name: str) -> NetworkElement[Any]:
     return elem
 
 
+_ELEMENT_SORT_ORDER = {"node": 0, "battery": 0, "connection": 1, "policy_pricing": 2}
+
+
+def _build_network(result: CompilationResult) -> Network:
+    """Build a network from a CompilationResult, adding elements in correct order."""
+    network = Network(name="test", periods=np.array([1.0]))
+    for elem in sorted(result["elements"], key=lambda e: _ELEMENT_SORT_ORDER.get(e["element_type"], 1)):
+        network.add(elem)
+    return network
+
+
 # --- Signature merging ---
 
 
-def test_identical_prices_merge() -> None:
-    """Grid and Solar with same price to Load still get correct costs."""
+def test_identical_prices_separate_rules_get_separate_vlans() -> None:
+    """Sources from separate rules get separate VLANs even with identical prices."""
     elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
     policies = [
         {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
         {"sources": ["solar"], "destinations": ["load"], "price": 0.05},
     ]
     result = compile_policies(elements, policies)
-    # Both get distinct outbound tags (hidden * -> * prevents merging)
     grid_tag = _outbound_tag(result, "grid")
     solar_tag = _outbound_tag(result, "solar")
     assert grid_tag != 0
     assert solar_tag != 0
+    assert grid_tag != solar_tag
 
 
-def test_different_prices_separate() -> None:
-    """Grid and Solar with different prices get separate VLANs."""
+def test_same_rule_sources_share_vlan() -> None:
+    """Sources listed in a single rule share a VLAN regardless of price."""
     elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
     policies = [
-        {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
-        {"sources": ["solar"], "destinations": ["load"], "price": 0.02},
+        {"sources": ["grid", "solar"], "destinations": ["load"], "price": 0.05},
     ]
     result = compile_policies(elements, policies)
-    assert _outbound_tag(result, "grid") != _outbound_tag(result, "solar")
+    assert _outbound_tag(result, "grid") == _outbound_tag(result, "solar")
+
+
+def test_identical_groupings_different_prices_share_vlan() -> None:
+    """Rules with the same source/destination grouping share a VLAN even with different prices."""
+    elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
+    policies = [
+        {"sources": ["grid", "solar"], "destinations": ["load"], "price": 0.05},
+        {"sources": ["grid", "solar"], "destinations": ["load"], "price": 0.03},
+    ]
+    result = compile_policies(elements, policies)
+    assert _outbound_tag(result, "grid") == _outbound_tag(result, "solar")
+    assert _outbound_tag(result, "grid") != 0
 
 
 def test_wildcard_all_same_merges() -> None:
@@ -131,10 +160,64 @@ def test_wildcard_all_same_merges() -> None:
     assert _outbound_tag(result, "c") != 0
 
 
+def test_disabled_rule_still_creates_vlans() -> None:
+    """Disabled rules compile into VLANs so re-enabling updates reactively."""
+    elements = [_node("grid", is_source=True), _node("load", is_sink=True), _conn("c1", "grid", "load")]
+    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.05, "enabled": False}]
+    result = compile_policies(elements, policies)
+    assert _outbound_tag(result, "grid") != 0
+    assert len(_pricing_configs(result)) == 1
+
+
+def test_disabled_rule_has_zero_price() -> None:
+    """Disabled rules get zero price in their PolicyPricing elements."""
+    elements = [
+        _node("grid", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load", {"power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([10.0]), "max_power_target_source": np.array([10.0])}}),
+    ]
+    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.50, "enabled": False}]
+    compiled = compile_policies(elements, policies)
+    pricing = _pricing_configs(compiled)
+    assert len(pricing) == 1
+    assert pricing[0]["price"] == 0.0
+
+    # Optimize: with zero price, cost should be zero
+    network = _build_network(compiled)
+    h = network._solver
+    h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
+    cost = network.optimize()
+    assert cost == pytest.approx(0.0, abs=0.01)
+
+
+def test_disabled_and_enabled_rules_coexist() -> None:
+    """Disabled and enabled rules produce correct pricing side by side."""
+    elements = [
+        _node("grid", is_source=True),
+        _node("solar", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load", {"power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([10.0]), "max_power_target_source": np.array([10.0])}}),
+        _conn("c2", "solar", "load", {"power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([10.0]), "max_power_target_source": np.array([10.0])}}),
+    ]
+    policies = [
+        {"sources": ["grid"], "destinations": ["load"], "price": 0.10, "enabled": False},
+        {"sources": ["solar"], "destinations": ["load"], "price": 0.05, "enabled": True},
+    ]
+    compiled = compile_policies(elements, policies)
+    pricing = _pricing_configs(compiled)
+    assert len(pricing) == 2
+    # One has zero price (disabled), one has 0.05 (enabled)
+    prices = sorted(p["price"] for p in pricing)
+    assert prices[0] == 0.0
+    assert prices[1] == 0.05
+
+
 def test_no_policies_no_vlans() -> None:
     """Without policies, elements pass through unchanged."""
     elements = [_node("grid"), _conn("c1", "grid", "load")]
-    assert compile_policies(elements, []) == elements
+    result = compile_policies(elements, [])
+    assert result["elements"] is elements
+    assert result["pricing_rule_map"] == {}
 
 
 def test_node_without_policy_gets_outbound_tags() -> None:
@@ -303,10 +386,7 @@ def test_unpolicied_source_flows_to_policied_destination() -> None:
     policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.10}]
     compiled = compile_policies(elements, policies)
 
-    network = Network(name="test", periods=np.array([1.0]))
-    for elem in sorted(compiled, key=lambda e: e.get("element_type") == "connection"):
-        network.add(elem)
-
+    network = _build_network(compiled)
     h = network._solver
     h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
@@ -344,10 +424,7 @@ def test_policied_source_cannot_bypass_cost_via_default_tag() -> None:
     policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.10}]
     compiled = compile_policies(elements, policies)
 
-    network = Network(name="test", periods=np.array([1.0]))
-    for elem in sorted(compiled, key=lambda e: e.get("element_type") == "connection"):
-        network.add(elem)
-
+    network = _build_network(compiled)
     h = network._solver
     h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
@@ -393,10 +470,7 @@ def test_policy_on_one_source_does_not_affect_other_sources() -> None:
     policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.50}]
     compiled = compile_policies(elements, policies)
 
-    network = Network(name="test", periods=np.array([1.0]))
-    for elem in sorted(compiled, key=lambda e: e.get("element_type") == "connection"):
-        network.add(elem)
-
+    network = _build_network(compiled)
     h = network._solver
     h.addConstrs(_network_element(network, "load").connection_power() == np.array([7.0]))
     cost = network.optimize()
@@ -446,16 +520,13 @@ def test_additive_pricing_stacking() -> None:
     ]
     compiled = compile_policies(elements, policies)
 
-    # Battery and Solar should have different VLANs (different signatures)
+    # Battery participates in two groupings, solar in one — different VLANs.
     bat = _find(compiled, "battery", element_type=MODEL_ELEMENT_TYPE_NODE)
     sol = _find(compiled, "solar", element_type=MODEL_ELEMENT_TYPE_NODE)
     assert bat.get("outbound_tags") != sol.get("outbound_tags")
 
     # Build and optimize
-    network = Network(name="test", periods=np.array([1.0]))
-    for elem in sorted(compiled, key=lambda e: e.get("element_type") == "connection"):
-        network.add(elem)
-
+    network = _build_network(compiled)
     h = network._solver
     h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
@@ -502,10 +573,7 @@ def test_multi_hop_policy_through_switchboard() -> None:
     policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.10}]
     compiled = compile_policies(elements, policies)
 
-    network = Network(name="test", periods=np.array([1.0]))
-    for elem in sorted(compiled, key=lambda e: e.get("element_type") == "connection"):
-        network.add(elem)
-
+    network = _build_network(compiled)
     h = network._solver
     h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
@@ -538,9 +606,7 @@ def test_single_source_policy_adds_cost() -> None:
     policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.10}]
     compiled = compile_policies(elements, policies)
 
-    network = Network(name="test", periods=np.array([1.0]))
-    for elem in sorted(compiled, key=lambda e: e.get("element_type") == "connection"):
-        network.add(elem)
+    network = _build_network(compiled)
     h = network._solver
     h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
@@ -577,9 +643,7 @@ def test_cheaper_source_preferred() -> None:
     ]
     compiled = compile_policies(elements, policies)
 
-    network = Network(name="test", periods=np.array([1.0]))
-    for elem in sorted(compiled, key=lambda e: e.get("element_type") == "connection"):
-        network.add(elem)
+    network = _build_network(compiled)
     h = network._solver
     h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
@@ -612,8 +676,8 @@ def test_diamond_multi_path_all_branches_tagged() -> None:
         assert isinstance(_t, set)
 
 
-def test_duplicate_policies_merge_tag_costs() -> None:
-    """Identical policy rows should sum into one tag_cost per tag on a connection."""
+def test_duplicate_policies_create_separate_pricing_elements() -> None:
+    """Identical policy rows create separate pricing elements whose costs stack."""
     elements = [
         _node("grid", is_source=True),
         _node("load", is_sink=True),
@@ -624,18 +688,15 @@ def test_duplicate_policies_merge_tag_costs() -> None:
         {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
     ]
     result = compile_policies(elements, policies)
-    conn = _find(result, "c1", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
-    assert conn.get("tag_costs") is not None
-    _tc = conn.get("tag_costs")
-    assert _tc is not None
-    assert len(_tc) == 1
-    _tc = conn.get("tag_costs")
-    assert _tc is not None
-    assert _tc[0]["price"] == pytest.approx(0.10)
+    pricing = _pricing_configs(result)
+    # Each rule creates its own pricing element
+    assert len(pricing) == 2
+    for p in pricing:
+        assert p["price"] == pytest.approx(0.05)
 
 
-def test_price_target_source_on_connection_where_policy_dest_is_source_endpoint() -> None:
-    """price_target_source applies to power leaving the policy destination node on an incident edge."""
+def test_price_target_source_on_connection_creates_pricing_element() -> None:
+    """Pricing element is created for power flow from source to destination."""
     elements = [
         _node("grid", is_source=True, is_sink=True),
         _node("load", is_sink=True),
@@ -649,21 +710,18 @@ def test_price_target_source_on_connection_where_policy_dest_is_source_endpoint(
         },
     ]
     result = compile_policies(elements, policies)
-    conn = _find(result, "export", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
-    assert conn.get("tag_costs") is not None
-    _tc = conn.get("tag_costs")
-    assert _tc is not None
-    assert len(_tc) == 1
-    _tc = conn.get("tag_costs")
-    assert _tc is not None
-    assert _tc[0]["price"] == pytest.approx(0.07)
+    pricing = _pricing_configs(result)
+    assert len(pricing) == 1
+    assert pricing[0]["price"] == pytest.approx(0.07)
 
 
 def test_compile_policies_without_connections_returns_unchanged() -> None:
     """Policies with only nodes do not mutate elements (no connections to tag)."""
     elements = [_node("a"), _node("b")]
     policies = [{"sources": ["a"], "destinations": ["b"], "price": 0.05}]
-    assert compile_policies(elements, policies) is elements
+    result = compile_policies(elements, policies)
+    assert result["elements"] is elements
+    assert result["pricing_rule_map"] == {}
 
 
 def test_compile_policies_junctions_only_returns_unchanged() -> None:
@@ -672,7 +730,8 @@ def test_compile_policies_junctions_only_returns_unchanged() -> None:
     policies = [{"sources": ["*"], "destinations": ["*"], "price": 0.05}]
     result = compile_policies(elements, policies)
     # No source or sink nodes, so wildcard expansion yields no flows — elements unchanged
-    assert result is elements
+    assert result["elements"] is elements
+    assert result["pricing_rule_map"] == {}
 
 
 def test_compile_policies_resolves_to_no_flows() -> None:
@@ -685,7 +744,8 @@ def test_compile_policies_resolves_to_no_flows() -> None:
     policies = [{"sources": ["nosuch"], "destinations": ["alsomissing"], "price": 0.05}]
     result = compile_policies(elements, policies)
     # No valid flows from unknown endpoints — elements pass through unchanged
-    assert result is elements
+    assert result["elements"] is elements
+    assert result["pricing_rule_map"] == {}
 
 
 def test_compile_policies_non_list_endpoints_resolve_to_no_flows() -> None:
@@ -698,11 +758,12 @@ def test_compile_policies_non_list_endpoints_resolve_to_no_flows() -> None:
     policies = [{"sources": "grid", "destinations": ("load",), "price": 0.05}]
     result = compile_policies(elements, policies)
     # Non-list endpoints are not resolved — no flows, elements unchanged
-    assert result is elements
+    assert result["elements"] is elements
+    assert result["pricing_rule_map"] == {}
 
 
 def test_wildcard_destination_tags_each_sources_paths() -> None:
-    """Wildcard destination applies separate VLANs per source when signatures differ."""
+    """Wildcard destination with same destinations shares VLANs; pricing is per-element."""
     elements = [
         _node("a", is_source=True),
         _node("b", is_source=True),
@@ -751,17 +812,18 @@ def test_vlan_reaches_non_policy_sinks() -> None:
     )
     assert vlan_solar in conns["sw_grid"].get("tags", set())
 
-    # Pricing must still only appear on the cut separating Solar from the
-    # policy-specific destination (Grid); non-policy sinks remain cost-free.
-    assert conns["sw_load"].get("tag_costs") in (None, [])
-    sw_grid_costs = conns["sw_grid"].get("tag_costs") or []
-    assert len(sw_grid_costs) == 1
-    assert sw_grid_costs[0]["tag"] == vlan_solar
-    assert sw_grid_costs[0]["price"] == pytest.approx(0.02)
+    # Pricing element should reference only the cut edge(s) separating Solar
+    # from Grid (the policy destination); non-policy sinks remain cost-free.
+    pricing = _pricing_configs(result)
+    assert len(pricing) == 1
+    assert pricing[0]["price"] == pytest.approx(0.02)
+    # The pricing terms should reference the min-cut connection(s) with the solar VLAN tag
+    for term in pricing[0]["terms"]:
+        assert term["tag"] == vlan_solar
 
 
 def test_policies_without_price_apply_tags_only() -> None:
-    """Rules with no price still assign VLANs; pricing step is skipped."""
+    """Rules with no price still assign VLANs; no pricing elements are created."""
     elements = [
         _node("grid", is_source=True),
         _node("load", is_sink=True),
@@ -770,14 +832,15 @@ def test_policies_without_price_apply_tags_only() -> None:
     policies = [{"sources": ["grid"], "destinations": ["load"]}]
     result = compile_policies(elements, policies)
     conn = _find(result, "c1", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
-    assert conn.get("tag_costs") in (None, [])
     assert _outbound_tag(result, "grid") in conn.get("tags", set())
+    # No pricing elements for rules without a price
+    assert len(_pricing_configs(result)) == 0
 
 
 def test_pricing_injection_skips_non_tagged_incident_connections(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Destination-adjacent edges without the source VLAN are ignored for pricing injection."""
+    """Pricing element terms only reference connections on the min-cut, not untagged ones."""
     elements = [
         _node("source"),
         _node("dest"),
@@ -793,32 +856,37 @@ def test_pricing_injection_skips_non_tagged_incident_connections(
     policies = [{"sources": ["source"], "destinations": ["dest"], "price": 0.07}]
     result = compile_policies(elements, policies)
 
-    priced = _find(result, "source_dest", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
-    unpriced = _find(result, "other_dest", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
-    assert priced.get("tag_costs") is not None
-    assert unpriced.get("tag_costs") in (None, [])
+    pricing = _pricing_configs(result)
+    assert len(pricing) == 1
+    assert pricing[0]["price"] == pytest.approx(0.07)
+    # Pricing terms should only reference tagged connections, not untagged ones
+    term_connections = {term["connection"] for term in pricing[0]["terms"]}
+    assert "source_dest" in term_connections
+    assert "other_dest" not in term_connections
 
 
-def test_identical_numpy_prices_merge_vlans() -> None:
-    """Per-period price arrays that match element-wise produce correct costs."""
-    elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
+def test_identical_numpy_prices_separate_rules_get_separate_vlans() -> None:
+    """Sources from separate rules get separate VLANs; each rule creates a pricing element."""
+    elements = [
+        _node("grid", is_source=True),
+        _node("solar", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+        _conn("c2", "solar", "load"),
+    ]
     price = np.array([0.05, 0.05])
     policies = [
         {"sources": ["grid"], "destinations": ["load"], "price": price},
         {"sources": ["solar"], "destinations": ["load"], "price": price.copy()},
     ]
     result = compile_policies(elements, policies)
-    # Both sources get distinct outbound tags
-    assert _outbound_tag(result, "grid") != 0
-    assert _outbound_tag(result, "solar") != 0
-
-
-def test_merge_tag_costs_ignores_rows_without_price() -> None:
-    """Rows missing a price key do not contribute to merged totals."""
-    conn = ConnectionElementConfig(element_type=MODEL_ELEMENT_TYPE_CONNECTION, name="c", source="a", target="b")
-    conn["tag_costs"] = [{"tag": 1, "price": 0.05}, {"tag": 1}, {"tag": 2, "price": 0.10}]
-    _merge_tag_costs(conn)
-    assert conn["tag_costs"] == [{"tag": 1, "price": pytest.approx(0.05)}, {"tag": 2, "price": pytest.approx(0.10)}]
+    # Separate rules → separate VLANs
+    grid_tag = _outbound_tag(result, "grid")
+    solar_tag = _outbound_tag(result, "solar")
+    assert grid_tag != solar_tag
+    assert grid_tag != 0
+    # Each rule creates its own pricing element
+    assert len(_pricing_configs(result)) == 2
 
 
 def test_find_reachable_connections_returns_empty_for_missing_endpoints() -> None:

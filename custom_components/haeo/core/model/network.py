@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 import logging
-from typing import Any, Final, Literal, overload
+from typing import Any, Final, Literal, cast, overload
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
@@ -15,6 +15,7 @@ from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
+from .elements.policy_pricing import PolicyPricing, PolicyPricingElementConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -183,12 +184,18 @@ class Network:
     @overload
     def add(self, element_config: ConnectionElementConfig) -> Connection[ConnectionOutputName]: ...
 
+    @overload
+    def add(self, element_config: PolicyPricingElementConfig) -> PolicyPricing: ...
+
     def add(self, element_config: ModelElementConfig) -> Element[Any]:
         """Add a new element to the network.
 
         Creates the element and registers connections. For parameter updates,
         modify the element's TrackedParam attributes directly - this will
         automatically invalidate dependent constraints for the next optimization.
+
+        For PolicyPricingElementConfig, resolves connection/tag references to
+        LP power flow variables from already-added Connection elements.
 
         Args:
             element_config: Typed model element configuration dictionary
@@ -199,6 +206,10 @@ class Network:
         """
         element_type = element_config["element_type"]
         name = element_config["name"]
+
+        if element_type == "policy_pricing":
+            return self._add_policy_pricing(element_config)  # type: ignore[arg-type]
+
         kwargs = {key: value for key, value in element_config.items() if key not in ("element_type", "name")}
 
         # Create new element using registry
@@ -227,6 +238,32 @@ class Network:
             element_instance.set_endpoints(source_element, target_element)
 
         return element_instance
+
+    def _add_policy_pricing(self, config: PolicyPricingElementConfig) -> PolicyPricing:
+        """Create a PolicyPricing element by resolving connection/tag references."""
+        name = config["name"]
+        power_terms = []
+        for term in config["terms"]:
+            conn_name = term["connection"]
+            tag = term["tag"]
+            conn_element = self.elements.get(conn_name)
+            if not isinstance(conn_element, Connection):
+                msg = f"PolicyPricing '{name}' references unknown connection '{conn_name}'"
+                raise TypeError(msg)
+            if tag not in conn_element.power_in:
+                msg = f"PolicyPricing '{name}' references tag {tag} not on connection '{conn_name}'"
+                raise ValueError(msg)
+            power_terms.append(conn_element.power_in[tag])
+
+        element = PolicyPricing(
+            name=name,
+            periods=self.periods,
+            solver=self._solver,
+            price=cast("float", config["price"]),
+            power_terms=power_terms,
+        )
+        self.elements[name] = element
+        return element
 
     def cost(self) -> tuple[highs_linear_expression | None, highs_linear_expression | None] | None:
         """Aggregate (primary, secondary) costs from all elements.

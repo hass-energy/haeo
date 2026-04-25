@@ -1306,8 +1306,8 @@ async def test_user_step_stores_enabled_true_by_default(
     assert created_data[CONF_RULES][0].get("enabled") is True
 
 
-def test_extract_policy_rules_skips_disabled() -> None:
-    """Disabled rules are skipped by extract_policy_rules."""
+def test_extract_policy_rules_includes_disabled_with_enabled_flag() -> None:
+    """Disabled rules are included by extract_policy_rules with enabled=False."""
     config: dict[str, Any] = {
         "rules": [
             {"name": "Active", "source": ["Solar"], "target": ["Grid"], "price": 0.02, "enabled": True},
@@ -1322,11 +1322,16 @@ def test_extract_policy_rules_skips_disabled() -> None:
         ],
     }
     result = extract_policy_rules(config)
-    assert len(result) == 2
+    assert len(result) == 3
     assert result[0]["sources"] == ["Solar"]
     assert result[0]["destinations"] == ["Grid"]
-    assert result[1]["sources"] == ["Solar"]
+    assert result[0].get("enabled") is True
+    assert result[1]["sources"] == ["Grid"]
     assert result[1]["destinations"] == ["Battery"]
+    assert result[1].get("enabled") is False
+    assert result[2]["sources"] == ["Solar"]
+    assert result[2]["destinations"] == ["Battery"]
+    assert result[2].get("enabled") is True
 
 
 # --- Issue 5: Empty node list normalizes to 'any' ---

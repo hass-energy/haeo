@@ -117,7 +117,7 @@ def _build_network(
     ]
     compiled_elements = compile_policies(sorted_model_elements, policy_rules)
 
-    for element_config in compiled_elements:
+    for element_config in compiled_elements["elements"]:
         network.add(element_config)
 
     return network

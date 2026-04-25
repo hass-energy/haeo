@@ -27,6 +27,12 @@ from .node import Node as Node
 from .node import NodeElementConfig as NodeElementConfig
 from .node import NodeElementTypeName as NodeElementTypeName
 from .node import NodeOutputName as NodeOutputName
+from .policy_pricing import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_POLICY_PRICING
+from .policy_pricing import POLICY_PRICING_OUTPUT_NAMES as POLICY_PRICING_OUTPUT_NAMES
+from .policy_pricing import PolicyPricing as PolicyPricing
+from .policy_pricing import PolicyPricingElementConfig as PolicyPricingElementConfig
+from .policy_pricing import PolicyPricingElementTypeName as PolicyPricingElementTypeName
+from .policy_pricing import PolicyPricingTerm as PolicyPricingTerm
 from .segments import EfficiencySegment as EfficiencySegment
 from .segments import PassthroughSegment as PassthroughSegment
 from .segments import PowerLimitSegment as PowerLimitSegment
@@ -38,10 +44,12 @@ from .segments import SocPricingSegment as SocPricingSegment
 from .segments import SocPricingSegmentSpec as SocPricingSegmentSpec
 
 # Type for all model element types
-ModelElementType = BatteryElementTypeName | NodeElementTypeName | ConnectionElementTypeName
+ModelElementType = (
+    BatteryElementTypeName | NodeElementTypeName | ConnectionElementTypeName | PolicyPricingElementTypeName
+)
 
 # Typed configs for all model elements (discriminated by element_type)
-ModelElementConfig = BatteryElementConfig | NodeElementConfig | ConnectionElementConfig
+ModelElementConfig = BatteryElementConfig | NodeElementConfig | ConnectionElementConfig | PolicyPricingElementConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,6 +86,7 @@ __all__ = [
     "MODEL_ELEMENT_TYPE_BATTERY",
     "MODEL_ELEMENT_TYPE_CONNECTION",
     "MODEL_ELEMENT_TYPE_NODE",
+    "MODEL_ELEMENT_TYPE_POLICY_PRICING",
     "Battery",
     "BatteryConstraintName",
     "BatteryElementConfig",
@@ -94,6 +103,9 @@ __all__ = [
     "NodeElementConfig",
     "NodeOutputName",
     "PassthroughSegment",
+    "PolicyPricing",
+    "PolicyPricingElementConfig",
+    "PolicyPricingTerm",
     "PowerLimitSegment",
     "PricingSegment",
     "Segment",
