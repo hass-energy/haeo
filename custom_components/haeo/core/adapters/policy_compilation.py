@@ -269,8 +269,7 @@ def compile_policies(
                 continue
 
             terms: list[PolicyPricingTerm] = [
-                PolicyPricingTerm(connection=conn_name, tag=source_vlan)
-                for conn_name in sorted(cut)
+                PolicyPricingTerm(connection=conn_name, tag=source_vlan) for conn_name in sorted(cut)
             ]
             element_name = f"policy_pricing_r{rule_idx}_v{source_vlan}"
             pricing_elements.append(

@@ -7,6 +7,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import create_network
+from custom_components.haeo.coordinator.network import update_policy_pricing
 from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricing
 from custom_components.haeo.core.schema import as_connection_target
@@ -191,13 +192,11 @@ async def test_create_network_disabled_policy_rule_has_zero_price(hass: HomeAssi
     pricing_names = [name for names in pricing_rule_map.values() for name in names]
     pricing_elem = network.elements[pricing_names[0]]
     assert isinstance(pricing_elem, PolicyPricing)
-    assert pricing_elem.price == pytest.approx(0.0)
+    assert pricing_elem.price == pytest.approx([0.0])
 
 
 async def test_update_policy_pricing_disabling_zeros_price(hass: HomeAssistant) -> None:
     """Disabling a rule via update_policy_pricing sets price to zero."""
-    from custom_components.haeo.coordinator.network import update_policy_pricing
-
     entry = MockConfigEntry(domain=DOMAIN, entry_id="toggle_policy")
     entry.add_to_hass(hass)
 
@@ -243,7 +242,7 @@ async def test_update_policy_pricing_disabling_zeros_price(hass: HomeAssistant) 
     pricing_names = [name for names in pricing_rule_map.values() for name in names]
     pricing_elem = network.elements[pricing_names[0]]
     assert isinstance(pricing_elem, PolicyPricing)
-    assert pricing_elem.price == pytest.approx(0.07)
+    assert pricing_elem.price == pytest.approx([0.07])
 
     # Disable the rule
     disabled_cfg: PolicyConfigData = {
@@ -252,7 +251,7 @@ async def test_update_policy_pricing_disabling_zeros_price(hass: HomeAssistant) 
         "rules": [{"name": "A to B", "enabled": False, "source": ["node_a"], "target": ["node_b"], "price": 0.07}],
     }
     update_policy_pricing(network, disabled_cfg, pricing_rule_map)
-    assert pricing_elem.price == pytest.approx(0.0)
+    assert pricing_elem.price == pytest.approx([0.0])
 
     # Re-enable the rule
     reenabled_cfg: PolicyConfigData = {
@@ -261,7 +260,7 @@ async def test_update_policy_pricing_disabling_zeros_price(hass: HomeAssistant) 
         "rules": [{"name": "A to B", "enabled": True, "source": ["node_a"], "target": ["node_b"], "price": 0.07}],
     }
     update_policy_pricing(network, reenabled_cfg, pricing_rule_map)
-    assert pricing_elem.price == pytest.approx(0.07)
+    assert pricing_elem.price == pytest.approx([0.07])
 
 
 async def test_create_network_sorts_connections_after_elements(hass: HomeAssistant) -> None:

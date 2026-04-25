@@ -10,7 +10,7 @@ Tests cover:
 - End-to-end network optimization with policies
 """
 
-from typing import Any, Literal, overload
+from typing import Any, Literal, cast, overload
 
 import numpy as np
 import pytest
@@ -56,9 +56,7 @@ def _pricing_configs(result: CompilationResult) -> list[PolicyPricingElementConf
 
 
 @overload
-def _find(
-    result: CompilationResult, name: str, *, element_type: Literal["connection"]
-) -> ConnectionElementConfig: ...
+def _find(result: CompilationResult, name: str, *, element_type: Literal["connection"]) -> ConnectionElementConfig: ...
 @overload
 def _find(result: CompilationResult, name: str, *, element_type: Literal["node"]) -> NodeElementConfig: ...
 @overload
@@ -174,7 +172,18 @@ def test_disabled_rule_has_zero_price() -> None:
     elements = [
         _node("grid", is_source=True),
         _node("load", is_sink=True),
-        _conn("c1", "grid", "load", {"power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([10.0]), "max_power_target_source": np.array([10.0])}}),
+        _conn(
+            "c1",
+            "grid",
+            "load",
+            {
+                "power_limit": {
+                    "segment_type": "power_limit",
+                    "max_power_source_target": np.array([10.0]),
+                    "max_power_target_source": np.array([10.0]),
+                }
+            },
+        ),
     ]
     policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.50, "enabled": False}]
     compiled = compile_policies(elements, policies)
@@ -196,8 +205,30 @@ def test_disabled_and_enabled_rules_coexist() -> None:
         _node("grid", is_source=True),
         _node("solar", is_source=True),
         _node("load", is_sink=True),
-        _conn("c1", "grid", "load", {"power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([10.0]), "max_power_target_source": np.array([10.0])}}),
-        _conn("c2", "solar", "load", {"power_limit": {"segment_type": "power_limit", "max_power_source_target": np.array([10.0]), "max_power_target_source": np.array([10.0])}}),
+        _conn(
+            "c1",
+            "grid",
+            "load",
+            {
+                "power_limit": {
+                    "segment_type": "power_limit",
+                    "max_power_source_target": np.array([10.0]),
+                    "max_power_target_source": np.array([10.0]),
+                }
+            },
+        ),
+        _conn(
+            "c2",
+            "solar",
+            "load",
+            {
+                "power_limit": {
+                    "segment_type": "power_limit",
+                    "max_power_source_target": np.array([10.0]),
+                    "max_power_target_source": np.array([10.0]),
+                }
+            },
+        ),
     ]
     policies = [
         {"sources": ["grid"], "destinations": ["load"], "price": 0.10, "enabled": False},
@@ -207,7 +238,7 @@ def test_disabled_and_enabled_rules_coexist() -> None:
     pricing = _pricing_configs(compiled)
     assert len(pricing) == 2
     # One has zero price (disabled), one has 0.05 (enabled)
-    prices = sorted(p["price"] for p in pricing)
+    prices = sorted(cast("float", p["price"]) for p in pricing)
     assert prices[0] == 0.0
     assert prices[1] == 0.05
 

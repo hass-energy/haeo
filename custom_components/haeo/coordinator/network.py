@@ -173,6 +173,11 @@ def update_policy_pricing(
     rules = extract_policy_rules(element_config)
     for rule_idx, pricing_names in pricing_rule_map.items():
         if rule_idx >= len(rules):
+            stale_price = broadcast_to_sequence(0.0, network.n_periods)
+            for name in pricing_names:
+                element = network.elements.get(name)
+                if isinstance(element, PolicyPricing):
+                    element.price = stale_price
             continue
         rule = rules[rule_idx]
         # Disabled rules get zero price so they have no cost influence

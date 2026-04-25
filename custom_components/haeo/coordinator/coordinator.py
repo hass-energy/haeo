@@ -668,9 +668,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         """
         for element_config in self._pending_element_updates.values():
             if element_config[CONF_ELEMENT_TYPE] == ElementType.POLICY:
-                network_module.update_policy_pricing(
-                    self.network, element_config, self._pricing_rule_map
-                )
+                network_module.update_policy_pricing(self.network, element_config, self._pricing_rule_map)
             else:
                 network_module.update_element(self.network, element_config)
         self._pending_element_updates.clear()
