@@ -258,6 +258,7 @@ async def test_editable_mode_with_static_value(
     assert attrs["element_name"] == "Test Battery"
     assert attrs["element_type"] == "battery"
     assert attrs["field_name"] == "power_limit"
+    assert attrs["source_role"] == "limit"
     assert attrs["direction"] == "+"
     assert attrs["time_series"] is True
 

@@ -1292,7 +1292,7 @@ def test_load_from_input_entities_raises_for_invalid_element_type(
     hass.config_entries.async_add_subentry(mock_hub_entry, invalid_subentry)
     coordinator._participant_subentry_ids["Invalid Element"] = invalid_subentry.subentry_id
 
-    with pytest.raises(ValueError, match="invalid config schema"):
+    with pytest.raises(ValueError, match="Unknown element type: invalid_type"):
         coordinator._load_from_input_entities()
 
 

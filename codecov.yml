@@ -1,0 +1,19 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: 90%
+
+flags:
+  python:
+    paths:
+      - custom_components/haeo/
+    carryforward: true
+  frontend:
+    paths:
+      - frontend/haeo-forecast-card/src/
+    carryforward: true

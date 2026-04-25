@@ -12,6 +12,7 @@ from custom_components.haeo.core.model import ModelElementConfig, ModelOutputNam
 from custom_components.haeo.core.model import battery as model_battery
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER
 from custom_components.haeo.core.model.elements.segments import SegmentSpec, SocPricingSegmentSpec
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.util import broadcast_to_sequence
@@ -216,14 +217,16 @@ class BatteryAdapter:
         config: BatteryConfigData,
         **_kwargs: Any,
     ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
-        """Map model outputs to battery-specific output names.
+        """Map model outputs to battery-specific output names."""
+        # Power from connections (same pattern as solar/load/grid adapters)
+        discharge_conn = model_outputs[f"{name}:discharge"]
+        charge_conn = model_outputs[f"{name}:charge"]
 
-        Maps outputs from a single battery model element.
-        """
+        power_discharge = replace(expect_output_data(discharge_conn[CONNECTION_POWER]), type=OutputType.POWER)
+        power_charge = replace(expect_output_data(charge_conn[CONNECTION_POWER]), type=OutputType.POWER, direction="-")
+
+        # Battery-internal outputs (energy, SOC, shadow prices)
         battery_outputs = {key: expect_output_data(value) for key, value in model_outputs[name].items()}
-
-        power_charge = battery_outputs[model_battery.BATTERY_POWER_CHARGE]
-        power_discharge = battery_outputs[model_battery.BATTERY_POWER_DISCHARGE]
         energy_stored = battery_outputs[model_battery.BATTERY_ENERGY_STORED]
 
         total_energy_stored = _calculate_total_energy(energy_stored, config)

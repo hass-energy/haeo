@@ -11,12 +11,18 @@
 
 # Ignore generated coverage reports
 htmlcov/
+frontend/haeo-forecast-card/coverage/
+frontend/haeo-forecast-card/storybook-static/
 # Ignore hacs, if installed.
 hacs/
 
 # Ignore python caches
 .grimp_cache/
 .import_linter_cache/
+
+# Ignore generated frontend card bundles
+custom_components/haeo/www/haeo-forecast-card.min.js
+custom_components/haeo/www/haeo-forecast-card.min.js.map
 
 # Ignore generated HA diagnostics output
 config/haeo/diagnostics/

@@ -62,6 +62,16 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Setup Node
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: 22
+
+      - name: Build forecast card bundle
+        run: |
+          npm --prefix frontend/haeo-forecast-card ci
+          npm --prefix frontend/haeo-forecast-card run build
+
       - name: Create release package
         run: |
           cd custom_components/haeo

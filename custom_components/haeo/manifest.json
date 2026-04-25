@@ -1,7 +1,7 @@
 {
   "domain": "haeo",
   "name": "HAEO",
-  "after_dependencies": ["recorder"],
+  "after_dependencies": ["http", "recorder"],
   "codeowners": ["@TrentHouliston", "@BrendanAnnable"],
   "config_flow": true,
   "dependencies": [],

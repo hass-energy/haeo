@@ -56,12 +56,12 @@ class GridConfigSchema(ConnectedCommonConfig):
             {
                 CONF_PRICE_SOURCE_TARGET: FieldHint(
                     output_type=OutputType.PRICE,
-                    direction="-",
+                    direction="+",
                     time_series=True,
                 ),
                 CONF_PRICE_TARGET_SOURCE: FieldHint(
                     output_type=OutputType.PRICE,
-                    direction="+",
+                    direction="-",
                     time_series=True,
                 ),
             }

@@ -8,6 +8,7 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "capacity",
+      "field_type": "energy",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 32.2 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 32.2 },
@@ -125,8 +126,8 @@
       "max": 1000.0,
       "min": 0.1,
       "mode": "auto",
-      "output_type": "energy",
       "source_entities": ["sensor.sigen_plant_rated_energy_capacity"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kWh"
@@ -141,6 +142,7 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "efficiency_target_source",
+      "field_type": "efficiency",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 98.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 98.0 },
@@ -257,7 +259,7 @@
       "max": 100.0,
       "min": 50.0,
       "mode": "auto",
-      "output_type": "efficiency",
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "%"
@@ -272,6 +274,7 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "efficiency_source_target",
+      "field_type": "efficiency",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 98.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 98.0 },
@@ -388,7 +391,7 @@
       "max": 100.0,
       "min": 50.0,
       "mode": "auto",
-      "output_type": "efficiency",
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "%"
@@ -403,12 +406,13 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "initial_charge_percentage",
+      "field_type": "state_of_charge",
       "friendly_name": "Battery Initial charge",
       "max": 100.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "state_of_charge",
       "source_entities": ["sensor.sigen_plant_battery_state_of_charge"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": false,
       "unit_of_measurement": "%"
@@ -423,6 +427,7 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "max_charge_percentage",
+      "field_type": "state_of_charge",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 100.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 100.0 },
@@ -540,7 +545,7 @@
       "max": 100.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "state_of_charge",
+      "source_role": "limit",
       "step": 1.0,
       "time_series": true,
       "unit_of_measurement": "%"
@@ -552,10 +557,11 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "power",
-      "direction": "+",
+      "direction": "-",
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "max_power_target_source",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 16.8 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 16.8 },
@@ -672,8 +678,8 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power",
       "source_entities": ["sensor.sigen_plant_ess_rated_charging_power"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -685,10 +691,11 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "power",
-      "direction": "-",
+      "direction": "+",
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "max_power_source_target",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 19.2 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 19.2 },
@@ -805,8 +812,8 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power",
       "source_entities": ["sensor.sigen_plant_ess_rated_discharging_power"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -821,6 +828,7 @@
       "element_name": "Battery",
       "element_type": "battery",
       "field_name": "min_charge_percentage",
+      "field_type": "state_of_charge",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 5.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 5.0 },
@@ -938,7 +946,7 @@
       "max": 100.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "state_of_charge",
+      "source_role": "limit",
       "step": 1.0,
       "time_series": true,
       "unit_of_measurement": "%"
@@ -954,6 +962,7 @@
       "element_name": "Grid",
       "element_type": "grid",
       "field_name": "max_power_target_source",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 30.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 30.0 },
@@ -1070,7 +1079,7 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power_limit",
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1081,10 +1090,11 @@
     "state": "0.08",
     "attributes": {
       "config_mode": "driven",
-      "direction": "+",
+      "direction": "-",
       "element_name": "Grid",
       "element_type": "grid",
       "field_name": "price_target_source",
+      "field_type": "price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.08 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.08 },
@@ -1201,8 +1211,8 @@
       "max": 10.0,
       "min": -1.0,
       "mode": "auto",
-      "output_type": "price",
       "source_entities": ["sensor.amber_express_home_feed_in_price"],
+      "source_role": "limit",
       "step": 0.001,
       "time_series": true
     }
@@ -1217,6 +1227,7 @@
       "element_name": "Grid",
       "element_type": "grid",
       "field_name": "max_power_source_target",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 55.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 55.0 },
@@ -1333,7 +1344,7 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power_limit",
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1344,10 +1355,11 @@
     "state": "0.179",
     "attributes": {
       "config_mode": "driven",
-      "direction": "-",
+      "direction": "+",
       "element_name": "Grid",
       "element_type": "grid",
       "field_name": "price_source_target",
+      "field_type": "price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.179 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.179 },
@@ -1464,8 +1476,8 @@
       "max": 10.0,
       "min": -1.0,
       "mode": "auto",
-      "output_type": "price",
       "source_entities": ["sensor.amber_express_home_general_price"],
+      "source_role": "limit",
       "step": 0.001,
       "time_series": true
     }
@@ -1479,6 +1491,7 @@
       "element_name": "Inverter",
       "element_type": "inverter",
       "field_name": "max_power_target_source",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 30.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 30.0 },
@@ -1595,8 +1608,8 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power_limit",
       "source_entities": ["sensor.sigen_plant_max_active_power"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1611,6 +1624,7 @@
       "element_name": "Inverter",
       "element_type": "inverter",
       "field_name": "max_power_source_target",
+      "field_type": "power_limit",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 30.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 30.0 },
@@ -1727,8 +1741,8 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power_limit",
       "source_entities": ["sensor.sigen_plant_max_active_power"],
+      "source_role": "limit",
       "step": 0.1,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1740,10 +1754,11 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "power",
-      "direction": "+",
+      "direction": "-",
       "element_name": "Load",
       "element_type": "load",
       "field_name": "forecast",
+      "field_type": "power",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.5 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.4 },
@@ -1860,8 +1875,8 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power",
       "source_entities": ["sensor.sigen_plant_consumed_power_forecast", "sensor.sigen_plant_consumed_power"],
+      "source_role": "forecast",
       "step": 0.01,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -1876,6 +1891,7 @@
       "element_type": "policy",
       "enabled": { "type": "constant", "value": true },
       "field_name": "price",
+      "field_type": "price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.04 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.04 },
@@ -1993,8 +2009,8 @@
       "min": -1.0,
       "mode": "auto",
       "name": "Battery min sell",
-      "output_type": "price",
       "source": ["Battery"],
+      "source_role": "limit",
       "step": 0.001,
       "target": ["Grid"],
       "time_series": true
@@ -2009,6 +2025,7 @@
       "element_type": "policy",
       "enabled": { "type": "constant", "value": true },
       "field_name": "price",
+      "field_type": "price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.01 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.01 },
@@ -2126,8 +2143,8 @@
       "min": -1.0,
       "mode": "auto",
       "name": "Battery Wear",
-      "output_type": "price",
       "source": ["Battery"],
+      "source_role": "limit",
       "step": 0.001,
       "time_series": true
     }
@@ -2141,6 +2158,7 @@
       "element_type": "policy",
       "enabled": { "type": "constant", "value": true },
       "field_name": "price",
+      "field_type": "price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.02 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.02 },
@@ -2258,8 +2276,8 @@
       "min": -1.0,
       "mode": "auto",
       "name": "Solar Minimum Sell",
-      "output_type": "price",
       "source": ["Solar"],
+      "source_role": "limit",
       "step": 0.001,
       "target": ["Grid"],
       "time_series": true
@@ -2271,10 +2289,11 @@
     "attributes": {
       "config_mode": "driven",
       "device_class": "power",
-      "direction": "-",
+      "direction": "+",
       "element_name": "Solar",
       "element_type": "solar",
       "field_name": "forecast",
+      "field_type": "power",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -2391,7 +2410,6 @@
       "max": 1000.0,
       "min": 0.0,
       "mode": "auto",
-      "output_type": "power",
       "source_entities": [
         "sensor.energy_production_d3_east",
         "sensor.energy_production_d4_east",
@@ -2427,6 +2445,7 @@
         "sensor.energy_production_tomorrow_west",
         "sensor.sigen_plant_pv_power"
       ],
+      "source_role": "forecast",
       "step": 0.01,
       "time_series": true,
       "unit_of_measurement": "kW"
@@ -2440,6 +2459,7 @@
       "device_class": "power",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "power",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -2479,10 +2499,10 @@
         { "time": "2026-04-20T08:28:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T08:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T09:28:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-20T09:58:00.000000+1000", "value": -16.6 },
-        { "time": "2026-04-20T10:28:00.000000+1000", "value": -16.8 },
-        { "time": "2026-04-20T10:58:00.000000+1000", "value": -16.8 },
-        { "time": "2026-04-20T11:28:00.000000+1000", "value": -11.1 },
+        { "time": "2026-04-20T09:58:00.000000+1000", "value": -16.9 },
+        { "time": "2026-04-20T10:28:00.000000+1000", "value": -17.1 },
+        { "time": "2026-04-20T10:58:00.000000+1000", "value": -17.1 },
+        { "time": "2026-04-20T11:28:00.000000+1000", "value": -11.3 },
         { "time": "2026-04-20T11:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T12:28:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T12:58:00.000000+1000", "value": 0.0 },
@@ -2515,9 +2535,9 @@
         { "time": "2026-04-21T06:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T07:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T08:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-21T09:58:00.000000+1000", "value": -12.8 },
-        { "time": "2026-04-21T10:58:00.000000+1000", "value": -14.4 },
-        { "time": "2026-04-21T11:58:00.000000+1000", "value": -3.4 },
+        { "time": "2026-04-21T09:58:00.000000+1000", "value": -13.1 },
+        { "time": "2026-04-21T10:58:00.000000+1000", "value": -14.7 },
+        { "time": "2026-04-21T11:58:00.000000+1000", "value": -3.5 },
         { "time": "2026-04-21T12:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T13:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T14:58:00.000000+1000", "value": 0.0 },
@@ -2539,9 +2559,9 @@
         { "time": "2026-04-22T06:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T07:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T08:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-22T09:58:00.000000+1000", "value": -12.8 },
-        { "time": "2026-04-22T10:58:00.000000+1000", "value": -13.3 },
-        { "time": "2026-04-22T11:58:00.000000+1000", "value": -4.5 },
+        { "time": "2026-04-22T09:58:00.000000+1000", "value": -13.1 },
+        { "time": "2026-04-22T10:58:00.000000+1000", "value": -13.6 },
+        { "time": "2026-04-22T11:58:00.000000+1000", "value": -4.6 },
         { "time": "2026-04-22T12:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T13:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T14:58:00.000000+1000", "value": 0.0 },
@@ -2554,7 +2574,8 @@
       ],
       "friendly_name": "Battery Active power",
       "output_name": "battery_power_active",
-      "output_type": "power",
+      "priority": 2,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -2568,6 +2589,7 @@
       "direction": "-",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "power",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -2607,10 +2629,10 @@
         { "time": "2026-04-20T08:28:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T08:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T09:28:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-20T09:58:00.000000+1000", "value": 16.6 },
-        { "time": "2026-04-20T10:28:00.000000+1000", "value": 16.8 },
-        { "time": "2026-04-20T10:58:00.000000+1000", "value": 16.8 },
-        { "time": "2026-04-20T11:28:00.000000+1000", "value": 11.1 },
+        { "time": "2026-04-20T09:58:00.000000+1000", "value": 16.9 },
+        { "time": "2026-04-20T10:28:00.000000+1000", "value": 17.1 },
+        { "time": "2026-04-20T10:58:00.000000+1000", "value": 17.1 },
+        { "time": "2026-04-20T11:28:00.000000+1000", "value": 11.3 },
         { "time": "2026-04-20T11:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T12:28:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T12:58:00.000000+1000", "value": 0.0 },
@@ -2643,9 +2665,9 @@
         { "time": "2026-04-21T06:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T07:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T08:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-21T09:58:00.000000+1000", "value": 12.8 },
-        { "time": "2026-04-21T10:58:00.000000+1000", "value": 14.4 },
-        { "time": "2026-04-21T11:58:00.000000+1000", "value": 3.4 },
+        { "time": "2026-04-21T09:58:00.000000+1000", "value": 13.1 },
+        { "time": "2026-04-21T10:58:00.000000+1000", "value": 14.7 },
+        { "time": "2026-04-21T11:58:00.000000+1000", "value": 3.5 },
         { "time": "2026-04-21T12:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T13:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T14:58:00.000000+1000", "value": 0.0 },
@@ -2667,9 +2689,9 @@
         { "time": "2026-04-22T06:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T07:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T08:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-22T09:58:00.000000+1000", "value": 12.8 },
-        { "time": "2026-04-22T10:58:00.000000+1000", "value": 13.3 },
-        { "time": "2026-04-22T11:58:00.000000+1000", "value": 4.5 },
+        { "time": "2026-04-22T09:58:00.000000+1000", "value": 13.1 },
+        { "time": "2026-04-22T10:58:00.000000+1000", "value": 13.6 },
+        { "time": "2026-04-22T11:58:00.000000+1000", "value": 4.6 },
         { "time": "2026-04-22T12:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T13:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T14:58:00.000000+1000", "value": 0.0 },
@@ -2682,7 +2704,8 @@
       ],
       "friendly_name": "Battery Charge power",
       "output_name": "battery_power_charge",
-      "output_type": "power",
+      "priority": 3,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -2696,6 +2719,7 @@
       "direction": "+",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "power",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -2810,7 +2834,8 @@
       ],
       "friendly_name": "Battery Discharge power",
       "output_name": "battery_power_discharge",
-      "output_type": "power",
+      "priority": 2,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -2823,6 +2848,7 @@
       "device_class": "monetary",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -2937,7 +2963,7 @@
       ],
       "friendly_name": "Battery Energy in flow shadow price",
       "output_name": "battery_energy_in_flow",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kWh"
     }
   },
@@ -2949,6 +2975,7 @@
       "device_class": "monetary",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -3063,7 +3090,7 @@
       ],
       "friendly_name": "Battery Energy out flow shadow price",
       "output_name": "battery_energy_out_flow",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kWh"
     }
   },
@@ -3075,6 +3102,7 @@
       "device_class": "energy",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "energy",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 4.1 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 4.1 },
@@ -3190,7 +3218,7 @@
       ],
       "friendly_name": "Battery Energy stored",
       "output_name": "battery_energy_stored",
-      "output_type": "energy",
+      "source_role": "output",
       "unit_of_measurement": "kWh"
     }
   },
@@ -3202,6 +3230,7 @@
       "device_class": "monetary",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0028 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0028 },
@@ -3233,12 +3262,12 @@
         { "time": "2026-04-20T04:28:00.000000+1000", "value": 0.0833 },
         { "time": "2026-04-20T04:58:00.000000+1000", "value": 0.0833 },
         { "time": "2026-04-20T05:28:00.000000+1000", "value": 0.0833 },
-        { "time": "2026-04-20T05:58:00.000000+1000", "value": 0.0449 },
-        { "time": "2026-04-20T06:28:00.000000+1000", "value": 0.0449 },
-        { "time": "2026-04-20T06:58:00.000000+1000", "value": 0.0344 },
-        { "time": "2026-04-20T07:28:00.000000+1000", "value": 0.0082 },
-        { "time": "2026-04-20T07:58:00.000000+1000", "value": 0.0011 },
-        { "time": "2026-04-20T08:28:00.000000+1000", "value": 0.0 },
+        { "time": "2026-04-20T05:58:00.000000+1000", "value": 0.0468 },
+        { "time": "2026-04-20T06:28:00.000000+1000", "value": 0.0468 },
+        { "time": "2026-04-20T06:58:00.000000+1000", "value": 0.0281 },
+        { "time": "2026-04-20T07:28:00.000000+1000", "value": 0.0078 },
+        { "time": "2026-04-20T07:58:00.000000+1000", "value": 0.006 },
+        { "time": "2026-04-20T08:28:00.000000+1000", "value": 0.0027 },
         { "time": "2026-04-20T08:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T09:28:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T09:58:00.000000+1000", "value": 0.0 },
@@ -3251,7 +3280,7 @@
         { "time": "2026-04-20T13:28:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T13:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T14:28:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-20T14:58:00.000000+1000", "value": 0.007 },
+        { "time": "2026-04-20T14:58:00.000000+1000", "value": 0.0018 },
         { "time": "2026-04-20T15:28:00.000000+1000", "value": 0.0129 },
         { "time": "2026-04-20T15:58:00.000000+1000", "value": 0.042 },
         { "time": "2026-04-20T16:28:00.000000+1000", "value": 0.0462 },
@@ -3273,16 +3302,16 @@
         { "time": "2026-04-21T02:58:00.000000+1000", "value": 0.0924 },
         { "time": "2026-04-21T03:58:00.000000+1000", "value": 0.0924 },
         { "time": "2026-04-21T04:58:00.000000+1000", "value": 0.0924 },
-        { "time": "2026-04-21T05:58:00.000000+1000", "value": 0.0924 },
+        { "time": "2026-04-21T05:58:00.000000+1000", "value": 0.0899 },
         { "time": "2026-04-21T06:58:00.000000+1000", "value": 0.0458 },
-        { "time": "2026-04-21T07:58:00.000000+1000", "value": 0.009 },
+        { "time": "2026-04-21T07:58:00.000000+1000", "value": 0.0087 },
         { "time": "2026-04-21T08:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T09:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T10:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T11:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T12:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T13:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-21T14:58:00.000000+1000", "value": 0.0093 },
+        { "time": "2026-04-21T14:58:00.000000+1000", "value": 0.0191 },
         { "time": "2026-04-21T15:58:00.000000+1000", "value": 0.0906 },
         { "time": "2026-04-21T16:58:00.000000+1000", "value": 0.0906 },
         { "time": "2026-04-21T17:58:00.000000+1000", "value": 0.0906 },
@@ -3297,10 +3326,10 @@
         { "time": "2026-04-22T02:58:00.000000+1000", "value": 0.0906 },
         { "time": "2026-04-22T03:58:00.000000+1000", "value": 0.0906 },
         { "time": "2026-04-22T04:58:00.000000+1000", "value": 0.0906 },
-        { "time": "2026-04-22T05:58:00.000000+1000", "value": 0.0906 },
+        { "time": "2026-04-22T05:58:00.000000+1000", "value": 0.08 },
         { "time": "2026-04-22T06:58:00.000000+1000", "value": 0.0477 },
-        { "time": "2026-04-22T07:58:00.000000+1000", "value": 0.0086 },
-        { "time": "2026-04-22T08:58:00.000000+1000", "value": 0.0015 },
+        { "time": "2026-04-22T07:58:00.000000+1000", "value": 0.0087 },
+        { "time": "2026-04-22T08:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T09:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T10:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T11:58:00.000000+1000", "value": 0.0 },
@@ -3317,7 +3346,7 @@
       ],
       "friendly_name": "Battery Power balance shadow price",
       "output_name": "battery_power_balance",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -3329,6 +3358,7 @@
       "device_class": "monetary",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -3377,8 +3407,8 @@
         { "time": "2026-04-20T12:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T13:28:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T13:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-20T14:28:00.000000+1000", "value": -0.0139 },
-        { "time": "2026-04-20T14:58:00.000000+1000", "value": -0.0119 },
+        { "time": "2026-04-20T14:28:00.000000+1000", "value": -0.0035 },
+        { "time": "2026-04-20T14:58:00.000000+1000", "value": -0.0223 },
         { "time": "2026-04-20T15:28:00.000000+1000", "value": -0.0582 },
         { "time": "2026-04-20T15:58:00.000000+1000", "value": -0.0083 },
         { "time": "2026-04-20T16:28:00.000000+1000", "value": 0.0 },
@@ -3408,8 +3438,8 @@
         { "time": "2026-04-21T10:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T11:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T12:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-21T13:58:00.000000+1000", "value": -0.0092 },
-        { "time": "2026-04-21T14:58:00.000000+1000", "value": -0.0813 },
+        { "time": "2026-04-21T13:58:00.000000+1000", "value": -0.0191 },
+        { "time": "2026-04-21T14:58:00.000000+1000", "value": -0.0715 },
         { "time": "2026-04-21T15:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T16:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T17:58:00.000000+1000", "value": 0.0 },
@@ -3443,7 +3473,7 @@
       ],
       "friendly_name": "Battery SOC max shadow price",
       "output_name": "battery_soc_max",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kWh"
     }
   },
@@ -3455,6 +3485,7 @@
       "device_class": "monetary",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -3485,13 +3516,13 @@
         { "time": "2026-04-20T03:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T04:28:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T04:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-20T05:28:00.000000+1000", "value": 0.0768 },
+        { "time": "2026-04-20T05:28:00.000000+1000", "value": 0.0731 },
         { "time": "2026-04-20T05:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-20T06:28:00.000000+1000", "value": 0.021 },
-        { "time": "2026-04-20T06:58:00.000000+1000", "value": 0.0525 },
-        { "time": "2026-04-20T07:28:00.000000+1000", "value": 0.0141 },
-        { "time": "2026-04-20T07:58:00.000000+1000", "value": 0.0022 },
-        { "time": "2026-04-20T08:28:00.000000+1000", "value": 0.0 },
+        { "time": "2026-04-20T06:28:00.000000+1000", "value": 0.0372 },
+        { "time": "2026-04-20T06:58:00.000000+1000", "value": 0.0407 },
+        { "time": "2026-04-20T07:28:00.000000+1000", "value": 0.0037 },
+        { "time": "2026-04-20T07:58:00.000000+1000", "value": 0.0064 },
+        { "time": "2026-04-20T08:28:00.000000+1000", "value": 0.0055 },
         { "time": "2026-04-20T08:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T09:28:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T09:58:00.000000+1000", "value": 0.0 },
@@ -3525,10 +3556,10 @@
         { "time": "2026-04-21T01:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T02:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T03:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-21T04:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-21T05:58:00.000000+1000", "value": 0.0465 },
-        { "time": "2026-04-21T06:58:00.000000+1000", "value": 0.0368 },
-        { "time": "2026-04-21T07:58:00.000000+1000", "value": 0.009 },
+        { "time": "2026-04-21T04:58:00.000000+1000", "value": 0.0025 },
+        { "time": "2026-04-21T05:58:00.000000+1000", "value": 0.044 },
+        { "time": "2026-04-21T06:58:00.000000+1000", "value": 0.0371 },
+        { "time": "2026-04-21T07:58:00.000000+1000", "value": 0.0087 },
         { "time": "2026-04-21T08:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T09:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T10:58:00.000000+1000", "value": 0.0 },
@@ -3549,11 +3580,11 @@
         { "time": "2026-04-22T01:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T02:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T03:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-22T04:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-22T05:58:00.000000+1000", "value": 0.0429 },
-        { "time": "2026-04-22T06:58:00.000000+1000", "value": 0.0391 },
-        { "time": "2026-04-22T07:58:00.000000+1000", "value": 0.0071 },
-        { "time": "2026-04-22T08:58:00.000000+1000", "value": 0.0015 },
+        { "time": "2026-04-22T04:58:00.000000+1000", "value": 0.0106 },
+        { "time": "2026-04-22T05:58:00.000000+1000", "value": 0.0323 },
+        { "time": "2026-04-22T06:58:00.000000+1000", "value": 0.039 },
+        { "time": "2026-04-22T07:58:00.000000+1000", "value": 0.0087 },
+        { "time": "2026-04-22T08:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T09:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T10:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T11:58:00.000000+1000", "value": 0.0 },
@@ -3569,7 +3600,7 @@
       ],
       "friendly_name": "Battery SOC min shadow price",
       "output_name": "battery_soc_min",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kWh"
     }
   },
@@ -3581,6 +3612,7 @@
       "device_class": "battery",
       "element_name": "Battery",
       "element_type": "battery",
+      "field_type": "state_of_charge",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 13.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 13.0 },
@@ -3696,7 +3728,7 @@
       ],
       "friendly_name": "Battery State of charge",
       "output_name": "battery_state_of_charge",
-      "output_type": "state_of_charge",
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "%"
     }
@@ -3709,6 +3741,7 @@
       "device_class": "power",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "power",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.5 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.4 },
@@ -3823,8 +3856,8 @@
       ],
       "friendly_name": "Grid Active power",
       "output_name": "grid_power_active",
-      "output_type": "power",
       "priority": 7,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -3838,6 +3871,7 @@
       "direction": "-",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "power",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -3952,8 +3986,8 @@
       ],
       "friendly_name": "Grid Export power",
       "output_name": "grid_power_export",
-      "output_type": "power",
       "priority": 7,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -3967,6 +4001,7 @@
       "direction": "+",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "cost",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -4081,7 +4116,7 @@
       ],
       "friendly_name": "Grid Export revenue",
       "output_name": "grid_revenue_export",
-      "output_type": "cost",
+      "source_role": "output",
       "unit_of_measurement": "$"
     }
   },
@@ -4094,6 +4129,7 @@
       "direction": "-",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "cost",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.001 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.003 },
@@ -4208,7 +4244,7 @@
       ],
       "friendly_name": "Grid Import cost",
       "output_name": "grid_cost_import",
-      "output_type": "cost",
+      "source_role": "output",
       "unit_of_measurement": "$"
     }
   },
@@ -4221,6 +4257,7 @@
       "direction": "+",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "power",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.501 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.4 },
@@ -4335,8 +4372,8 @@
       ],
       "friendly_name": "Grid Import power",
       "output_name": "grid_power_import",
-      "output_type": "power",
       "priority": 6,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -4349,6 +4386,7 @@
       "device_class": "monetary",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -4463,7 +4501,7 @@
       ],
       "friendly_name": "Grid Max export power shadow price",
       "output_name": "grid_power_max_export_price",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -4475,6 +4513,7 @@
       "device_class": "monetary",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -4589,7 +4628,7 @@
       ],
       "friendly_name": "Grid Max import power shadow price",
       "output_name": "grid_power_max_import_price",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -4601,6 +4640,7 @@
       "device_class": "monetary",
       "element_name": "Grid",
       "element_type": "grid",
+      "field_type": "cost",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -4715,7 +4755,7 @@
       ],
       "friendly_name": "Grid Net cost",
       "output_name": "grid_cost_net",
-      "output_type": "cost",
+      "source_role": "output",
       "unit_of_measurement": "$"
     }
   },
@@ -4728,6 +4768,7 @@
       "direction": "-",
       "element_name": "Inverter",
       "element_type": "inverter",
+      "field_type": "power_flow",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -4842,8 +4883,8 @@
       ],
       "friendly_name": "Inverter AC to DC power",
       "output_name": "inverter_power_ac_to_dc",
-      "output_type": "power_flow",
       "priority": 5,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -4856,6 +4897,7 @@
       "device_class": "power",
       "element_name": "Inverter",
       "element_type": "inverter",
+      "field_type": "power_flow",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -4970,8 +5012,8 @@
       ],
       "friendly_name": "Inverter Active power",
       "output_name": "inverter_power_active",
-      "output_type": "power_flow",
       "priority": 4,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -4984,6 +5026,7 @@
       "device_class": "monetary",
       "element_name": "Inverter",
       "element_type": "inverter",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.003 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.003 },
@@ -5013,12 +5056,12 @@
         { "time": "2026-04-20T03:28:00.000000+1000", "value": 0.09 },
         { "time": "2026-04-20T03:58:00.000000+1000", "value": 0.09 },
         { "time": "2026-04-20T04:28:00.000000+1000", "value": 0.09 },
-        { "time": "2026-04-20T04:58:00.000000+1000", "value": 0.101 },
+        { "time": "2026-04-20T04:58:00.000000+1000", "value": 0.09 },
         { "time": "2026-04-20T05:28:00.000000+1000", "value": 0.09 },
         { "time": "2026-04-20T05:58:00.000000+1000", "value": 0.056 },
         { "time": "2026-04-20T06:28:00.000000+1000", "value": 0.056 },
         { "time": "2026-04-20T06:58:00.000000+1000", "value": 0.044 },
-        { "time": "2026-04-20T07:28:00.000000+1000", "value": 0.071 },
+        { "time": "2026-04-20T07:28:00.000000+1000", "value": 0.023 },
         { "time": "2026-04-20T07:58:00.000000+1000", "value": 0.016 },
         { "time": "2026-04-20T08:28:00.000000+1000", "value": 0.013 },
         { "time": "2026-04-20T08:58:00.000000+1000", "value": 0.011 },
@@ -5035,9 +5078,9 @@
         { "time": "2026-04-20T14:28:00.000000+1000", "value": 0.007 },
         { "time": "2026-04-20T14:58:00.000000+1000", "value": 0.017 },
         { "time": "2026-04-20T15:28:00.000000+1000", "value": 0.071 },
-        { "time": "2026-04-20T15:58:00.000000+1000", "value": 0.051 },
+        { "time": "2026-04-20T15:58:00.000000+1000", "value": 0.082 },
         { "time": "2026-04-20T16:28:00.000000+1000", "value": 0.067 },
-        { "time": "2026-04-20T16:58:00.000000+1000", "value": 0.106 },
+        { "time": "2026-04-20T16:58:00.000000+1000", "value": 0.074 },
         { "time": "2026-04-20T17:28:00.000000+1000", "value": 0.074 },
         { "time": "2026-04-20T17:58:00.000000+1000", "value": 0.072 },
         { "time": "2026-04-20T18:28:00.000000+1000", "value": 0.07 },
@@ -5066,14 +5109,14 @@
         { "time": "2026-04-21T13:58:00.000000+1000", "value": 0.012 },
         { "time": "2026-04-21T14:58:00.000000+1000", "value": 0.039 },
         { "time": "2026-04-21T15:58:00.000000+1000", "value": 0.119 },
-        { "time": "2026-04-21T16:58:00.000000+1000", "value": 0.212 },
-        { "time": "2026-04-21T17:58:00.000000+1000", "value": 0.206 },
+        { "time": "2026-04-21T16:58:00.000000+1000", "value": 0.148 },
+        { "time": "2026-04-21T17:58:00.000000+1000", "value": 0.143 },
         { "time": "2026-04-21T18:58:00.000000+1000", "value": 0.14 },
-        { "time": "2026-04-21T19:58:00.000000+1000", "value": 0.133 },
-        { "time": "2026-04-21T20:58:00.000000+1000", "value": 0.102 },
+        { "time": "2026-04-21T19:58:00.000000+1000", "value": 0.196 },
+        { "time": "2026-04-21T20:58:00.000000+1000", "value": 0.103 },
         { "time": "2026-04-21T21:58:00.000000+1000", "value": 0.102 },
-        { "time": "2026-04-21T22:58:00.000000+1000", "value": 0.102 },
-        { "time": "2026-04-21T23:58:00.000000+1000", "value": 0.103 },
+        { "time": "2026-04-21T22:58:00.000000+1000", "value": 0.103 },
+        { "time": "2026-04-21T23:58:00.000000+1000", "value": 0.102 },
         { "time": "2026-04-22T00:58:00.000000+1000", "value": 0.102 },
         { "time": "2026-04-22T01:58:00.000000+1000", "value": 0.102 },
         { "time": "2026-04-22T02:58:00.000000+1000", "value": 0.102 },
@@ -5099,7 +5142,7 @@
       ],
       "friendly_name": "Inverter DC bus power balance shadow price",
       "output_name": "inverter_dc_bus_power_balance",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -5112,6 +5155,7 @@
       "direction": "+",
       "element_name": "Inverter",
       "element_type": "inverter",
+      "field_type": "power_flow",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -5226,8 +5270,8 @@
       ],
       "friendly_name": "Inverter DC to AC power",
       "output_name": "inverter_power_dc_to_ac",
-      "output_type": "power_flow",
       "priority": 4,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -5240,6 +5284,7 @@
       "device_class": "monetary",
       "element_name": "Inverter",
       "element_type": "inverter",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -5354,7 +5399,7 @@
       ],
       "friendly_name": "Inverter Max AC to DC power shadow price",
       "output_name": "inverter_max_power_ac_to_dc_price",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -5366,6 +5411,7 @@
       "device_class": "monetary",
       "element_name": "Inverter",
       "element_type": "inverter",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -5480,7 +5526,7 @@
       ],
       "friendly_name": "Inverter Max DC to AC power shadow price",
       "output_name": "inverter_max_power_dc_to_ac_price",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -5492,6 +5538,7 @@
       "device_class": "monetary",
       "element_name": "Load",
       "element_type": "load",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.003 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.003 },
@@ -5606,7 +5653,7 @@
       ],
       "friendly_name": "Load Forecast limit shadow price",
       "output_name": "load_forecast_limit_price",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -5619,6 +5666,8 @@
       "direction": "-",
       "element_name": "Load",
       "element_type": "load",
+      "field_type": "power",
+      "fixed": true,
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.5 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.4 },
@@ -5733,14 +5782,18 @@
       ],
       "friendly_name": "Load Power",
       "output_name": "load_power",
-      "output_type": "power",
       "priority": 1,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
   },
-  "sensor.optimizer_cost": { "entity_id": "sensor.optimizer_cost", "state": "-9.76", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Cost", "output_name": "network_optimization_cost", "output_type": "cost", "unit_of_measurement": "$" } },
-  "sensor.optimizer_duration": { "entity_id": "sensor.optimizer_duration", "state": "0.0", "attributes": { "advanced": false, "device_class": "duration", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Duration", "output_name": "network_optimization_duration", "output_type": "duration", "state_class": "measurement", "unit_of_measurement": "s" } },
+  "sensor.optimizer_cost": { "entity_id": "sensor.optimizer_cost", "state": "-9.76", "attributes": { "advanced": false, "device_class": "monetary", "element_name": "System", "element_type": "network", "field_type": "cost", "friendly_name": "Optimizer Cost", "output_name": "network_optimization_cost", "source_role": "output", "unit_of_measurement": "$" } },
+  "sensor.optimizer_duration": {
+    "entity_id": "sensor.optimizer_duration",
+    "state": "0.0",
+    "attributes": { "advanced": false, "device_class": "duration", "element_name": "System", "element_type": "network", "field_type": "duration", "friendly_name": "Optimizer Duration", "output_name": "network_optimization_duration", "source_role": "output", "state_class": "measurement", "unit_of_measurement": "s" }
+  },
   "sensor.optimizer_forecast_horizon": {
     "entity_id": "sensor.optimizer_forecast_horizon",
     "state": "2026-04-19T21:58:00+10:00",
@@ -5866,7 +5919,7 @@
   "sensor.optimizer_status": {
     "entity_id": "sensor.optimizer_status",
     "state": "success",
-    "attributes": { "advanced": false, "device_class": "enum", "element_name": "System", "element_type": "network", "friendly_name": "Optimizer Status", "last_run": "2026-04-19T11:58:43.155722+00:00", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "output_type": "status" }
+    "attributes": { "advanced": false, "device_class": "enum", "element_name": "System", "element_type": "network", "field_type": "status", "friendly_name": "Optimizer Status", "last_run": "2026-04-19T11:58:43.155722+00:00", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "source_role": "output" }
   },
   "sensor.solar_forecast_limit_shadow_price": {
     "entity_id": "sensor.solar_forecast_limit_shadow_price",
@@ -5876,6 +5929,7 @@
       "device_class": "monetary",
       "element_name": "Solar",
       "element_type": "solar",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": -0.003 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": -0.003 },
@@ -5933,7 +5987,7 @@
         { "time": "2026-04-20T17:28:00.000000+1000", "value": -0.064 },
         { "time": "2026-04-20T17:58:00.000000+1000", "value": -0.062 },
         { "time": "2026-04-20T18:28:00.000000+1000", "value": -0.06 },
-        { "time": "2026-04-20T18:58:00.000000+1000", "value": -0.101 },
+        { "time": "2026-04-20T18:58:00.000000+1000", "value": -0.06 },
         { "time": "2026-04-20T19:28:00.000000+1000", "value": -0.06 },
         { "time": "2026-04-20T19:58:00.000000+1000", "value": -0.058 },
         { "time": "2026-04-20T20:28:00.000000+1000", "value": -0.056 },
@@ -5983,14 +6037,14 @@
         { "time": "2026-04-22T14:58:00.000000+1000", "value": -0.019 },
         { "time": "2026-04-22T15:58:00.000000+1000", "value": -0.099 },
         { "time": "2026-04-22T16:58:00.000000+1000", "value": -0.128 },
-        { "time": "2026-04-22T17:58:00.000000+1000", "value": -0.142 },
+        { "time": "2026-04-22T17:58:00.000000+1000", "value": -0.122 },
         { "time": "2026-04-22T18:58:00.000000+1000", "value": -0.12 },
         { "time": "2026-04-22T19:58:00.000000+1000", "value": -0.113 },
         { "time": "2026-04-22T20:58:00.000000+1000", "value": -0.102 }
       ],
       "friendly_name": "Solar Forecast limit shadow price",
       "output_name": "solar_forecast_limit",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -6003,6 +6057,7 @@
       "direction": "+",
       "element_name": "Solar",
       "element_type": "solar",
+      "field_type": "power",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -6117,8 +6172,8 @@
       ],
       "friendly_name": "Solar Power",
       "output_name": "solar_power",
-      "output_type": "power",
       "priority": 0,
+      "source_role": "output",
       "state_class": "measurement",
       "unit_of_measurement": "kW"
     }
@@ -6131,6 +6186,7 @@
       "device_class": "monetary",
       "element_name": "Switchboard",
       "element_type": "node",
+      "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.003 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.003 },
@@ -6160,12 +6216,12 @@
         { "time": "2026-04-20T03:28:00.000000+1000", "value": 0.09 },
         { "time": "2026-04-20T03:58:00.000000+1000", "value": 0.09 },
         { "time": "2026-04-20T04:28:00.000000+1000", "value": 0.09 },
-        { "time": "2026-04-20T04:58:00.000000+1000", "value": 0.101 },
+        { "time": "2026-04-20T04:58:00.000000+1000", "value": 0.09 },
         { "time": "2026-04-20T05:28:00.000000+1000", "value": 0.09 },
         { "time": "2026-04-20T05:58:00.000000+1000", "value": 0.056 },
         { "time": "2026-04-20T06:28:00.000000+1000", "value": 0.056 },
         { "time": "2026-04-20T06:58:00.000000+1000", "value": 0.044 },
-        { "time": "2026-04-20T07:28:00.000000+1000", "value": 0.071 },
+        { "time": "2026-04-20T07:28:00.000000+1000", "value": 0.023 },
         { "time": "2026-04-20T07:58:00.000000+1000", "value": 0.016 },
         { "time": "2026-04-20T08:28:00.000000+1000", "value": 0.013 },
         { "time": "2026-04-20T08:58:00.000000+1000", "value": 0.011 },
@@ -6182,9 +6238,9 @@
         { "time": "2026-04-20T14:28:00.000000+1000", "value": 0.007 },
         { "time": "2026-04-20T14:58:00.000000+1000", "value": 0.017 },
         { "time": "2026-04-20T15:28:00.000000+1000", "value": 0.071 },
-        { "time": "2026-04-20T15:58:00.000000+1000", "value": 0.051 },
+        { "time": "2026-04-20T15:58:00.000000+1000", "value": 0.082 },
         { "time": "2026-04-20T16:28:00.000000+1000", "value": 0.068 },
-        { "time": "2026-04-20T16:58:00.000000+1000", "value": 0.106 },
+        { "time": "2026-04-20T16:58:00.000000+1000", "value": 0.074 },
         { "time": "2026-04-20T17:28:00.000000+1000", "value": 0.074 },
         { "time": "2026-04-20T17:58:00.000000+1000", "value": 0.072 },
         { "time": "2026-04-20T18:28:00.000000+1000", "value": 0.07 },
@@ -6213,10 +6269,10 @@
         { "time": "2026-04-21T13:58:00.000000+1000", "value": 0.012 },
         { "time": "2026-04-21T14:58:00.000000+1000", "value": 0.039 },
         { "time": "2026-04-21T15:58:00.000000+1000", "value": 0.119 },
-        { "time": "2026-04-21T16:58:00.000000+1000", "value": 0.212 },
-        { "time": "2026-04-21T17:58:00.000000+1000", "value": 0.206 },
+        { "time": "2026-04-21T16:58:00.000000+1000", "value": 0.148 },
+        { "time": "2026-04-21T17:58:00.000000+1000", "value": 0.142 },
         { "time": "2026-04-21T18:58:00.000000+1000", "value": 0.14 },
-        { "time": "2026-04-21T19:58:00.000000+1000", "value": 0.133 },
+        { "time": "2026-04-21T19:58:00.000000+1000", "value": 0.196 },
         { "time": "2026-04-21T20:58:00.000000+1000", "value": 0.102 },
         { "time": "2026-04-21T21:58:00.000000+1000", "value": 0.102 },
         { "time": "2026-04-21T22:58:00.000000+1000", "value": 0.102 },
@@ -6246,7 +6302,7 @@
       ],
       "friendly_name": "Switchboard Power balance shadow price",
       "output_name": "node_power_balance",
-      "output_type": "shadow_price",
+      "source_role": "output",
       "unit_of_measurement": "$/kW"
     }
   },
@@ -6259,6 +6315,7 @@
       "element_name": "Policies",
       "element_type": "policy",
       "field_name": "enabled",
+      "field_type": "status",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 1.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 1.0 },
@@ -6372,8 +6429,7 @@
         { "time": "2026-04-22T20:58:00.000000+1000", "value": 1.0 },
         { "time": "2026-04-22T21:58:00.000000+1000", "value": 1.0 }
       ],
-      "friendly_name": "Policies Battery min sell enabled",
-      "output_type": "status"
+      "friendly_name": "Policies Battery min sell enabled"
     }
   },
   "switch.policies_battery_wear_enabled": {
@@ -6384,6 +6440,7 @@
       "element_name": "Policies",
       "element_type": "policy",
       "field_name": "enabled",
+      "field_type": "status",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 1.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 1.0 },
@@ -6497,8 +6554,7 @@
         { "time": "2026-04-22T20:58:00.000000+1000", "value": 1.0 },
         { "time": "2026-04-22T21:58:00.000000+1000", "value": 1.0 }
       ],
-      "friendly_name": "Policies Battery Wear enabled",
-      "output_type": "status"
+      "friendly_name": "Policies Battery Wear enabled"
     }
   },
   "switch.policies_solar_minimum_sell_enabled": {
@@ -6509,6 +6565,7 @@
       "element_name": "Policies",
       "element_type": "policy",
       "field_name": "enabled",
+      "field_type": "status",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 1.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 1.0 },
@@ -6622,8 +6679,7 @@
         { "time": "2026-04-22T20:58:00.000000+1000", "value": 1.0 },
         { "time": "2026-04-22T21:58:00.000000+1000", "value": 1.0 }
       ],
-      "friendly_name": "Policies Solar Minimum Sell enabled",
-      "output_type": "status"
+      "friendly_name": "Policies Solar Minimum Sell enabled"
     }
   },
   "switch.solar_curtailment": {
@@ -6634,6 +6690,7 @@
       "element_name": "Solar",
       "element_type": "solar",
       "field_name": "curtailment",
+      "field_type": "status",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 1.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 1.0 },
@@ -6747,8 +6804,7 @@
         { "time": "2026-04-22T20:58:00.000000+1000", "value": 1.0 },
         { "time": "2026-04-22T21:58:00.000000+1000", "value": 1.0 }
       ],
-      "friendly_name": "Solar Curtailment",
-      "output_type": "status"
+      "friendly_name": "Solar Curtailment"
     }
   },
   "switch.switchboard_is_sink": {
@@ -6759,6 +6815,7 @@
       "element_name": "Switchboard",
       "element_type": "node",
       "field_name": "is_sink",
+      "field_type": "status",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -6872,8 +6929,7 @@
         { "time": "2026-04-22T20:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T21:58:00.000000+1000", "value": 0.0 }
       ],
-      "friendly_name": "Switchboard Is sink",
-      "output_type": "status"
+      "friendly_name": "Switchboard Is sink"
     }
   },
   "switch.switchboard_is_source": {
@@ -6884,6 +6940,7 @@
       "element_name": "Switchboard",
       "element_type": "node",
       "field_name": "is_source",
+      "field_type": "status",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-19T21:59:00.000000+1000", "value": 0.0 },
@@ -6997,8 +7054,7 @@
         { "time": "2026-04-22T20:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T21:58:00.000000+1000", "value": 0.0 }
       ],
-      "friendly_name": "Switchboard Is source",
-      "output_type": "status"
+      "friendly_name": "Switchboard Is source"
     }
   }
 }

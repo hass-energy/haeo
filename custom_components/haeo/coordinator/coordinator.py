@@ -40,12 +40,7 @@ from custom_components.haeo.core.schema.elements import ElementConfigData, Eleme
 from custom_components.haeo.core.schema.util import extract_unit_parts
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import PRICE_UNIT_SPEC
-from custom_components.haeo.elements import (
-    ElementDeviceName,
-    ElementOutputName,
-    collect_element_subentries,
-    is_element_config_schema,
-)
+from custom_components.haeo.elements import ElementDeviceName, ElementOutputName, collect_element_subentries
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
@@ -87,6 +82,7 @@ class CoordinatorOutput:
     options: tuple[str, ...] | None = None
     advanced: bool = False
     priority: int | None = None
+    fixed: bool = False
 
 
 DEVICE_CLASS_MAP: dict[OutputType, SensorDeviceClass] = {
@@ -218,6 +214,7 @@ def _build_coordinator_output(
         options=(STATUS_OPTIONS if output_data.type == OutputType.STATUS else None),
         advanced=output_data.advanced,
         priority=output_data.priority,
+        fixed=output_data.fixed,
     )
 
 
@@ -326,17 +323,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         Looks up each participant's subentry by ID and returns its current data.
         This ensures we always read the latest data, even after
         async_update_subentry_value replaces a subentry's MappingProxyType.
+
+        Subentries were validated by collect_element_subentries at init time,
+        so we trust they conform to ElementConfigSchema without re-checking.
         """
         subentries = self.config_entry.subentries
         configs: dict[str, ElementConfigSchema] = {}
         for name, subentry_id in self._participant_subentry_ids.items():
-            if subentry_id not in subentries:
-                continue
-            data = subentries[subentry_id].data
-            if not is_element_config_schema(data):
-                msg = f"Subentry '{name}' has invalid config schema"
-                raise ValueError(msg)
-            configs[name] = data
+            if subentry_id in subentries:
+                configs[name] = subentries[subentry_id].data
         return configs
 
     async def async_initialize(self) -> None:

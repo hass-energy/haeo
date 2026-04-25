@@ -24,7 +24,11 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as battery_model
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_BATTERY,
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    connection,
+)
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -295,6 +299,16 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_model.BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
                 battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             },
+            "battery_no_balance:discharge": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"
+                ),
+            },
+            "battery_no_balance:charge": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"
+                ),
+            },
         },
         "outputs": {
             BATTERY_DEVICE_BATTERY: {
@@ -371,6 +385,16 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 battery_model.BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
                 battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+            },
+            "battery_with_thresholds:discharge": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"
+                ),
+            },
+            "battery_with_thresholds:charge": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"
+                ),
             },
         },
         "outputs": {
