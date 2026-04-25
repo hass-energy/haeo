@@ -1296,6 +1296,21 @@ def test_get_participant_configs_raises_for_invalid_element_type(
         coordinator._get_participant_configs()
 
 
+def test_get_participant_configs_skips_removed_subentry(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Removed subentries are silently excluded from participant configs."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    # Reference a subentry ID that doesn't exist in the config entry
+    coordinator._participant_subentry_ids["Gone Element"] = "nonexistent_id"
+
+    configs = coordinator._get_participant_configs()
+    assert "Gone Element" not in configs
+
+
 @pytest.mark.usefixtures("mock_battery_subentry")
 async def test_async_initialize_raises_without_runtime_data(
     hass: HomeAssistant,
