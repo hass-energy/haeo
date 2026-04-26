@@ -23,8 +23,8 @@ class OutputTypeMetadata:
 
     unit: str | None
     device_class: NumberDeviceClass | None
-    min_value: float
-    max_value: float
+    min_value: float | None
+    max_value: float | None
     step: float
 
 
@@ -67,8 +67,8 @@ OUTPUT_TYPE_DEFAULTS: dict[OutputType, OutputTypeMetadata] = {
     OutputType.PRICE: OutputTypeMetadata(
         unit=None,
         device_class=None,
-        min_value=-1.0,
-        max_value=10.0,
+        min_value=None,
+        max_value=None,
         step=0.001,
     ),
 }
