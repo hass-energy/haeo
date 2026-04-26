@@ -182,9 +182,9 @@ export class ForecastCardStore {
     const compact = this.width < 400;
     return {
       top: compact ? 20 : 26,
-      right: compact ? 64 : 92,
+      right: compact ? 92 : 118,
       bottom: compact ? 42 : 50,
-      left: compact ? 54 : 72,
+      left: compact ? 66 : 86,
     };
   }
 

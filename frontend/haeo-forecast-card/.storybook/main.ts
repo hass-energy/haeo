@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { StorybookConfig } from "@storybook/preact-vite";
+import type { ViteDevServer } from "vite";
 
 const STYLES_CSS = resolve(process.cwd(), "src/styles.css");
 const VIRTUAL_ID = "\0styles-as-text";
@@ -21,9 +22,23 @@ const config: StorybookConfig = {
       },
       load(id: string) {
         if (id === VIRTUAL_ID) {
+          this.addWatchFile(STYLES_CSS);
           const css = readFileSync(STYLES_CSS, "utf-8");
           return `export default ${JSON.stringify(css)};`;
         }
+      },
+      configureServer(server: ViteDevServer) {
+        server.watcher.add(STYLES_CSS);
+        server.watcher.on("change", (file) => {
+          if (resolve(file) !== STYLES_CSS) {
+            return;
+          }
+          const mod = server.moduleGraph.getModuleById(VIRTUAL_ID);
+          if (mod) {
+            server.moduleGraph.invalidateModule(mod);
+          }
+          server.ws.send({ type: "full-reload" });
+        });
       },
     });
     return config;

@@ -74,16 +74,6 @@ ha-card {
   position: relative;
 }
 
-.showChartBounds .chartRow {
-  outline: 2px dashed color-mix(in oklab, var(--haeo-accent) 70%, transparent);
-  outline-offset: -2px;
-}
-
-.showChartBounds .chartContainer {
-  outline: 2px solid color-mix(in oklab, #e00000 75%, transparent);
-  outline-offset: -2px;
-}
-
 .title {
   font-size: 1rem;
   font-weight: 600;

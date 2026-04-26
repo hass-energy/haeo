@@ -80,14 +80,3 @@ export const NarrowHovered: Story = {
     );
   },
 };
-
-export const NarrowLayoutDebug: Story = {
-  render: (args) => {
-    const store = makeStore(args.powerDisplayMode, args.scenario, args.dataMode);
-    return (
-      <div style={{ width: "360px" }}>
-        <ResponsiveStoryFrame store={store} initialPointer={{ x: 220, y: 120 }} showChartBounds />
-      </div>
-    );
-  },
-};

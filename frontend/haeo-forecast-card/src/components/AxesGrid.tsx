@@ -198,7 +198,9 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
   const clampYAxisLabelY = (y: number): number => Math.min(props.bottom - 2, Math.max(props.top + 10, y));
   const isVisibleY = (y: number): boolean => y >= props.top - 0.5 && y <= props.bottom + 0.5;
   const rightAxisX = props.width - props.right;
-  const rightMarginEndX = props.width - 4;
+  const powerLabelX = props.left - 14;
+  const priceLabelX = rightAxisX + 8;
+  const socLabelX = rightAxisX + Math.max(42, props.right * 0.48);
   const xMajor = timeTicks(props.xMin, props.xMax, 7);
   const xMinor = timeTicks(props.xMin, props.xMax, 13);
   const yMajor = niceLinearTicks(props.powerMin, props.powerMax, 6, true).filter((value) =>
@@ -266,7 +268,7 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
           />
           <text
             className="axisTickLabel"
-            x={props.left - 8}
+            x={powerLabelX}
             y={clampYAxisLabelY(props.yScalePower(value))}
             textAnchor="end"
             dominantBaseline="middle"
@@ -280,7 +282,7 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
         <text
           key={`price-major-${idx}`}
           className="axisTickLabel"
-          x={rightAxisX + 6}
+          x={priceLabelX}
           y={clampYAxisLabelY(props.yScalePrice(value))}
           textAnchor="start"
           dominantBaseline="middle"
@@ -293,9 +295,9 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
         <text
           key={`soc-major-${idx}`}
           className="axisTickLabel"
-          x={rightMarginEndX}
+          x={socLabelX}
           y={clampYAxisLabelY(props.yScaleSoc(value))}
-          textAnchor="end"
+          textAnchor="start"
           dominantBaseline="middle"
         >
           {value}%
@@ -313,13 +315,13 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
       <line className="axisBase" x1={props.left} y1={props.top} x2={props.left} y2={props.bottom} />
       <line className="axisBase" x1={rightAxisX} y1={props.top} x2={rightAxisX} y2={props.bottom} />
 
-      <text className="axisLabelStrong" x={props.left - 8} y={props.top - 6} textAnchor="end">
+      <text className="axisLabelStrong" x={powerLabelX} y={props.top - 6} textAnchor="end">
         {t(props.locale, "axis.power")}
       </text>
-      <text className="axisLabelStrong" x={rightAxisX + 6} y={props.top - 6} textAnchor="start">
+      <text className="axisLabelStrong" x={priceLabelX} y={props.top - 6} textAnchor="start">
         {t(props.locale, "axis.price")}
       </text>
-      <text className="axisLabelStrong" x={rightMarginEndX} y={props.bottom + 20} textAnchor="end">
+      <text className="axisLabelStrong" x={socLabelX} y={props.bottom + 20} textAnchor="start">
         {t(props.locale, "axis.soc")}
       </text>
     </>
