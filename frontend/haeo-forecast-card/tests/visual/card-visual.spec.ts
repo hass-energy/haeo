@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const stories = [
   { id: "forecastcard-forecastcardview--default", name: "ForecastCardView-default" },
+  { id: "forecastcard-forecastcardview--four-hour", name: "ForecastCardView-four-hour" },
   { id: "forecastcard-forecastcardview--hovered", name: "ForecastCardView-hovered" },
   { id: "forecastcard-forecastcardview--narrow-hovered", name: "ForecastCardView-narrow-hovered" },
   { id: "forecastcard-legend--default", name: "Legend-default" },
