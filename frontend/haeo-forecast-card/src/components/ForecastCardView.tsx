@@ -71,7 +71,7 @@ const CardTitle = observer(function CardTitle(props: { store: ForecastCardStore 
           onClick={() => props.store.toggleTooltipVisibility()}
           title={tooltipLabel}
           aria-label={tooltipLabel}
-          aria-pressed={!props.store.tooltipVisible}
+          aria-pressed={props.store.tooltipVisible}
         >
           <svg className="modeToggleIcon" viewBox="0 0 24 24" aria-hidden="true">
             <path d={tooltipIconPath} />

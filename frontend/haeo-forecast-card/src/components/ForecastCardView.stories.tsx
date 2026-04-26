@@ -73,7 +73,7 @@ function setShadowHorizon(element: StoryCardElement, horizon: HorizonOption): vo
 }
 
 function dispatchInitialPointer(element: StoryCardElement, initialPointer: { x: number; y: number }): void {
-  const svg = element.shadowRoot?.querySelector<SVGSVGElement>("svg");
+  const svg = element.shadowRoot?.querySelector<SVGSVGElement>(".chartContainer > svg");
   if (!svg) {
     return;
   }
@@ -125,7 +125,13 @@ function ForecastCardElementFrame(props: {
       cancelAnimationFrame(firstFrame);
       cancelAnimationFrame(secondFrame);
     };
-  }, [props.args, props.initialPointer]);
+  }, [
+    props.args.scenario,
+    props.args.dataMode,
+    props.args.powerDisplayMode,
+    props.initialHorizon,
+    props.initialPointer,
+  ]);
 
   return (
     <haeo-forecast-card

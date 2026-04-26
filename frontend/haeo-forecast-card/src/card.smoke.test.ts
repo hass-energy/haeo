@@ -109,47 +109,49 @@ describe("haeo-forecast-card smoke", () => {
     });
 
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
-    element.setConfig({
-      type: "custom:haeo-forecast-card",
-    });
-    document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
+    try {
+      element.setConfig({
+        type: "custom:haeo-forecast-card",
+      });
+      document.body.appendChild(element);
+      await new Promise((resolve) => {
+        setTimeout(resolve, 20);
+      });
 
-    const chartContainer = element.shadowRoot?.querySelector(".chartContainer");
-    expect(chartContainer).toBeTruthy();
-    expect(element.getCardSize()).toBe(14);
-    expect(element.getGridOptions()).toEqual({ rows: 11, min_rows: 10, columns: "full" });
+      const chartContainer = element.shadowRoot?.querySelector(".chartContainer");
+      expect(chartContainer).toBeTruthy();
+      expect(element.getCardSize()).toBe(14);
+      expect(element.getGridOptions()).toEqual({ rows: 11, min_rows: 10, columns: "full" });
 
-    const callback = observerCallbacks[0];
-    expect(callback).toBeTruthy();
-    if (!callback) {
-      return;
+      const callback = observerCallbacks[0];
+      expect(callback).toBeTruthy();
+      if (!callback) {
+        throw new Error("Expected ResizeObserver callback");
+      }
+      callback(
+        [
+          {
+            contentRect: new DOMRect(0, 0, 300, 260),
+            target: chartContainer!,
+          } as ResizeObserverEntry,
+        ],
+        {} as ResizeObserver
+      );
+      expect(element.getCardSize()).toBe(14);
+      callback(
+        [
+          {
+            contentRect: new DOMRect(0, 0, 300, 0),
+            target: chartContainer!,
+          } as ResizeObserverEntry,
+        ],
+        {} as ResizeObserver
+      );
+      expect(element.getCardSize()).toBe(14);
+    } finally {
+      element.remove();
+      globalThis.ResizeObserver = OriginalResizeObserver;
     }
-    callback(
-      [
-        {
-          contentRect: new DOMRect(0, 0, 300, 260),
-          target: chartContainer!,
-        } as ResizeObserverEntry,
-      ],
-      {} as ResizeObserver
-    );
-    expect(element.getCardSize()).toBe(14);
-    callback(
-      [
-        {
-          contentRect: new DOMRect(0, 0, 300, 0),
-          target: chartContainer!,
-        } as ResizeObserverEntry,
-      ],
-      {} as ResizeObserver
-    );
-    expect(element.getCardSize()).toBe(14);
-
-    element.remove();
-    globalThis.ResizeObserver = OriginalResizeObserver;
   });
 
   it("uses responsive height when initial chart height is unavailable", async () => {
