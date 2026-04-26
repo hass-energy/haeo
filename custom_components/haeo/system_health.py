@@ -18,7 +18,7 @@ from .core.data.forecast_times import tiers_to_periods_seconds
 
 @callback
 def async_register(
-    hass: HomeAssistant,  # noqa: ARG001
+    hass: HomeAssistant,  # noqa: ARG001 (required by HA system health registration callback signature)
     register: system_health.SystemHealthRegistration,
 ) -> None:
     """Register system health callbacks."""

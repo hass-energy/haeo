@@ -143,6 +143,7 @@ def _field_label(element_type: str, section_key: str, field_name: str) -> str:
 def _has_none_value(value_type: Any) -> bool:
     """Check if NoneValue is part of a union type annotation."""
     if isinstance(value_type, types.UnionType):
+        # Avoid circular import with schema module
         from custom_components.haeo.core.schema import NoneValue  # noqa: PLC0415
 
         return NoneValue in get_args(value_type)
@@ -220,6 +221,7 @@ def _fill_element_fields(
     Fields must be ordered by section (matching the form's top-to-bottom
     layout) to ensure correct section expansion behavior.
     """
+    # Avoid circular import with elements module
     from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields  # noqa: PLC0415
 
     input_fields = get_input_fields(element_type)

@@ -16,7 +16,7 @@ class ConstantValue(TypedDict):
     value: float | bool
 
 
-def as_constant_value(value: float | bool) -> ConstantValue:  # noqa: FBT001
+def as_constant_value(value: float | bool) -> ConstantValue:  # noqa: FBT001 (bool is a valid constant value in the schema type system)
     """Create a constant schema value from a scalar."""
     return {"type": VALUE_TYPE_CONSTANT, "value": value}
 

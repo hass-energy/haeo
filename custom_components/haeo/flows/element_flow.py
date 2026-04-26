@@ -173,6 +173,7 @@ class ElementFlowMixin:
             List of element names that can be used as connection targets.
 
         """
+        # Avoid circular import with adapter registry, core constants, and schema module
         from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES  # noqa: PLC0415
         from custom_components.haeo.core.const import ConnectivityLevel  # noqa: PLC0415
         from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415

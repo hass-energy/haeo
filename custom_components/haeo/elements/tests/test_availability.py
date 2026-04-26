@@ -27,7 +27,7 @@ def test_schema_config_available_returns_false_for_unavailable_entity(
 ) -> None:
     """schema_config_available returns False when entity values are unavailable."""
 
-    def _fake_available(self: TimeSeriesLoader, *, sm: FakeStateMachine, value: Any) -> bool:  # noqa: ARG001
+    def _fake_available(self: TimeSeriesLoader, *, sm: FakeStateMachine, value: Any) -> bool:  # noqa: ARG001 (matches TimeSeriesLoader.available signature)
         return False
 
     monkeypatch.setattr(TimeSeriesLoader, "available", _fake_available)
@@ -43,7 +43,7 @@ def test_schema_config_available_handles_nested_entity(
     """schema_config_available returns True for nested entity values when available."""
     calls: list[Any] = []
 
-    def _fake_available(self: TimeSeriesLoader, *, sm: FakeStateMachine, value: Any) -> bool:  # noqa: ARG001
+    def _fake_available(self: TimeSeriesLoader, *, sm: FakeStateMachine, value: Any) -> bool:  # noqa: ARG001 (matches TimeSeriesLoader.available signature)
         calls.append(value)
         return True
 

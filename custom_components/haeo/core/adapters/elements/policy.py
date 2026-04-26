@@ -69,14 +69,14 @@ class PolicyAdapter:
     can_source: bool = False
     can_sink: bool = False
 
-    def model_elements(self, config: PolicyConfigData) -> list[ModelElementConfig]:  # noqa: ARG002
+    def model_elements(self, config: PolicyConfigData) -> list[ModelElementConfig]:  # noqa: ARG002 (required by adapter protocol — policy has no model elements)
         """Policy does not create model elements — policies are compiled separately."""
         return []
 
     def outputs(
         self,
-        name: str,  # noqa: ARG002
-        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],  # noqa: ARG002
+        name: str,  # noqa: ARG002 (required by adapter protocol — policy has no model outputs)
+        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],  # noqa: ARG002 (required by adapter protocol — policy has no model outputs)
         **_kwargs: Any,
     ) -> Mapping[PolicyDeviceName, Mapping[PolicyOutputName, OutputData]]:
         """Map model outputs to policy-specific output names."""

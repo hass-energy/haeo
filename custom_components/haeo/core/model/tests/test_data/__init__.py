@@ -30,7 +30,7 @@ def highs_sequence(h: Highs, name: str, length: int) -> tuple[list[highs_var], H
 
 
 # Import modules after defining utilities to avoid circular imports
-from . import battery, connection, connection_segments, node, segments  # noqa: E402
+from . import battery, connection, connection_segments, node, segments  # noqa: E402 (must import after utility functions are defined)
 
 
 def _aggregate_element_cases() -> list[ElementTestCase]:
