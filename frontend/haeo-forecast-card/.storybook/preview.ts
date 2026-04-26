@@ -46,8 +46,8 @@ const preview: Preview = {
         {
           "data-theme": appliedTheme,
           style: {
+            boxSizing: "border-box",
             width: "100%",
-            maxWidth: "1280px",
             margin: "0 auto",
             padding: "12px",
             background: wrapperBackground,

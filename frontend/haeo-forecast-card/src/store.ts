@@ -8,7 +8,7 @@ import { normalizeSeries } from "./series";
 import type { HassLike } from "./series";
 import type { LineSvgPath, PowerShape } from "./store-paths";
 import { computeHoveredPowerKeys, computePowerShapes, computePricePaths, computeSocPaths } from "./store-paths";
-import { buildTooltipRows, buildTooltipTotals, type TooltipSectionId } from "./tooltip-helpers";
+import { buildTooltipRows, type TooltipSectionId } from "./tooltip-helpers";
 import type {
   ChartMargins,
   ForecastCardConfig,
@@ -20,15 +20,55 @@ import type {
 
 const DEFAULT_HEIGHT = 360;
 const VISIBLE_LANES = new Set(["power", "price", "soc"]);
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+const HORIZON_ANIMATION_MS = 220;
+const BASE_HORIZON_OPTIONS_MS = [
+  15 * MINUTE_MS,
+  30 * MINUTE_MS,
+  HOUR_MS,
+  2 * HOUR_MS,
+  4 * HOUR_MS,
+  8 * HOUR_MS,
+  12 * HOUR_MS,
+] as const;
 
-export type HorizonOption = 4 | 8 | 12 | 24 | null;
-export const HORIZON_OPTIONS: readonly HorizonOption[] = [4, 8, 12, 24, null] as const;
+function between(min: number, value: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+export type HorizonOption = number | null;
+
+export function formatHorizonDuration(durationMs: number): string {
+  if (durationMs < HOUR_MS) {
+    return `${Math.round(durationMs / MINUTE_MS)}m`;
+  }
+  if (durationMs < DAY_MS) {
+    return `${Math.round(durationMs / HOUR_MS)}h`;
+  }
+  const days = durationMs / DAY_MS;
+  return Number.isInteger(days) ? `${days}d` : `${days.toFixed(1)}d`;
+}
+
+interface Domain {
+  min: number;
+  max: number;
+  step: number;
+}
+
+interface HorizonAnimation {
+  from: Domain;
+  to: Domain;
+  startMs: number;
+}
 
 export class ForecastCardStore {
   hass: HassLike | null = null;
   config: ForecastCardConfig = { type: "custom:haeo-forecast-card" };
   normalizedSeriesCache: ForecastSeries[] = [];
   powerBoundsCache: LaneBounds = { min: -1, max: 1 };
+  cardWidth = 640;
   width = 640;
   height = DEFAULT_HEIGHT;
   pointerX: number | null = null;
@@ -41,7 +81,12 @@ export class ForecastCardStore {
   forcedVisibleSeriesKeys = new Set<string>();
   visibilityRevision = 0;
   powerDisplayModeOverride: PowerDisplayMode | null = null;
-  horizonHours: HorizonOption = null;
+  horizonDurationMs: HorizonOption = null;
+  horizonRevision = 0;
+  horizonAnimation: HorizonAnimation | null = null;
+  horizonAnimationNowMs = 0;
+  horizonAnimationFrame = 0;
+  tooltipVisible = true;
   readonly instanceId: number;
 
   constructor(instanceId = 0) {
@@ -71,12 +116,16 @@ export class ForecastCardStore {
     this.refreshNormalizedSeries();
   }
 
-  setSize(width: number, height: number): void {
+  setSize(width: number, height: number, cardWidth = width): void {
+    this.cardWidth = Math.max(240, cardWidth);
     this.width = Math.max(240, width);
     this.height = Math.max(220, height);
   }
 
   responsiveHeight(width: number): number {
+    if (width <= 640) {
+      return 680;
+    }
     return Math.max(260, Math.min(520, Math.round(width * 0.52)));
   }
 
@@ -147,8 +196,19 @@ export class ForecastCardStore {
     this.recomputePowerBounds();
   }
 
-  setHorizon(hours: HorizonOption): void {
-    this.horizonHours = hours;
+  toggleTooltipVisibility(): void {
+    this.tooltipVisible = !this.tooltipVisible;
+  }
+
+  setHorizon(durationMs: HorizonOption): void {
+    if (this.horizonDurationMs === durationMs) {
+      return;
+    }
+    const from = this.xDomain;
+    this.horizonDurationMs = durationMs;
+    this.horizonRevision += 1;
+    const to = this.selectedXDomain;
+    this.startHorizonAnimation(from, to);
     this.recomputePowerBounds();
   }
 
@@ -174,12 +234,14 @@ export class ForecastCardStore {
   // --- Computed: layout ---
 
   get margins(): ChartMargins {
-    const compact = this.width < 400;
+    const compact = this.width < 420;
+    const left = between(compact ? 56 : 72, this.width * 0.075, 92);
+    const right = between(compact ? 64 : 84, this.width * 0.085, 112);
     return {
       top: compact ? 20 : 26,
-      right: compact ? 46 : 74,
+      right: Math.round(right),
       bottom: compact ? 42 : 50,
-      left: compact ? 44 : 58,
+      left: Math.round(left),
     };
   }
 
@@ -262,7 +324,7 @@ export class ForecastCardStore {
 
   // --- Computed: x-axis / animation ---
 
-  get xDomain(): { min: number; max: number; step: number } {
+  get fullXDomain(): Domain {
     if (!this.hasPlottedData) {
       const now = this.nowMs;
       return { min: now, max: now + 60_000, step: 60_000 };
@@ -280,15 +342,52 @@ export class ForecastCardStore {
       max = Math.max(max, last);
       step = Math.min(step, Math.max(1, second - first));
     }
-    if (this.horizonHours !== null) {
-      const horizonMax = min + this.horizonHours * 3_600_000;
-      max = Math.min(max, horizonMax);
-    }
     if (!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(step)) {
       const now = this.nowMs;
       return { min: now, max: now + 60_000, step: 60_000 };
     }
     return { min, max, step };
+  }
+
+  get selectedXDomain(): Domain {
+    const domain = this.fullXDomain;
+    if (this.horizonDurationMs === null) {
+      return domain;
+    }
+    const horizonMax = domain.min + this.horizonDurationMs;
+    return {
+      min: domain.min,
+      max: Math.min(domain.max, horizonMax),
+      step: domain.step,
+    };
+  }
+
+  get xDomain(): Domain {
+    const animation = this.horizonAnimation;
+    if (animation === null) {
+      return this.selectedXDomain;
+    }
+    const elapsed = this.horizonAnimationNowMs - animation.startMs;
+    const progress = clamp(elapsed / HORIZON_ANIMATION_MS, 0, 1);
+    const eased = 1 - (1 - progress) ** 3;
+    return {
+      min: animation.from.min + (animation.to.min - animation.from.min) * eased,
+      max: animation.from.max + (animation.to.max - animation.from.max) * eased,
+      step: animation.to.step,
+    };
+  }
+
+  get horizonOptions(): HorizonOption[] {
+    const fullDuration = this.fullXDomain.max - this.fullXDomain.min;
+    const options = BASE_HORIZON_OPTIONS_MS.filter((duration) => duration < fullDuration);
+    const maxWholeDays = Math.max(0, Math.floor(fullDuration / DAY_MS));
+    for (let day = 1; day < maxWholeDays; day += 1) {
+      const duration = day * DAY_MS;
+      if (duration > (options[options.length - 1] ?? 0) && duration < fullDuration) {
+        options.push(duration);
+      }
+    }
+    return [...options, null];
   }
 
   get hasUniformTimeline(): boolean {
@@ -522,12 +621,6 @@ export class ForecastCardStore {
     );
   }
 
-  get tooltipTotals(): Array<{ lane: TooltipSectionId; value: number; unit: string }> {
-    return buildTooltipTotals(this.visibleSeries, this.panelIndices, (series, value) =>
-      this.powerValueForDisplayBound(series, value)
-    );
-  }
-
   get tooltipEmphasisKeys(): Set<string> {
     const keys = new Set<string>();
     for (const key of this.hoveredPowerSeriesKeys) {
@@ -630,6 +723,26 @@ export class ForecastCardStore {
 
     this.applyDefaultHiddenSeries();
     this.recomputePowerBounds();
+  }
+
+  private startHorizonAnimation(from: Domain, to: Domain): void {
+    if (this.horizonAnimationFrame !== 0) {
+      cancelAnimationFrame(this.horizonAnimationFrame);
+      this.horizonAnimationFrame = 0;
+    }
+    const startMs = globalThis.performance.now();
+    this.horizonAnimation = { from, to, startMs };
+    this.horizonAnimationNowMs = startMs;
+    const tick = (nowMs: number): void => {
+      this.horizonAnimationNowMs = nowMs;
+      if (nowMs - startMs >= HORIZON_ANIMATION_MS) {
+        this.horizonAnimation = null;
+        this.horizonAnimationFrame = 0;
+        return;
+      }
+      this.horizonAnimationFrame = requestAnimationFrame(tick);
+    };
+    this.horizonAnimationFrame = requestAnimationFrame(tick);
   }
 
   private recomputePowerBounds(): void {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ForecastCardStore } from "./store";
 import { loadScenarioHassState } from "./fixtures/scenarioOutputs";
@@ -25,7 +25,15 @@ describe("ForecastCardStore", () => {
 
     expect(store.hoverTimeMs).not.toBeNull();
     expect(store.tooltipRows.length).toBeGreaterThan(0);
-    expect(store.tooltipTotals.length).toBeGreaterThan(0);
+  });
+
+  it("allocates extra height for narrow wrapped layouts", () => {
+    const store = new ForecastCardStore();
+
+    expect(store.responsiveHeight(360)).toBe(680);
+    expect(store.responsiveHeight(360)).toBeGreaterThan(store.responsiveHeight(641));
+    store.setSize(360, 300, 520);
+    expect(store.cardWidth).toBe(520);
   });
 
   it("supports reduced and smooth animation modes", () => {
@@ -58,6 +66,9 @@ describe("ForecastCardStore", () => {
     expect(store.powerDisplayMode).toBe("opposed");
     store.togglePowerDisplayMode();
     expect(store.powerDisplayMode).toBe("overlay");
+    expect(store.tooltipVisible).toBe(true);
+    store.toggleTooltipVisibility();
+    expect(store.tooltipVisible).toBe(false);
 
     const first = store.visibleSeries[0] ?? store.legendSeries[0];
     expect(first).toBeTruthy();
@@ -121,13 +132,82 @@ describe("ForecastCardStore", () => {
     store.setHass(loadScenarioHassState("scenario2"));
     store.setConfig({ type: "custom:haeo-forecast-card" });
 
+    const fourHoursMs = 4 * 3_600_000;
     const fullMax = store.xDomain.max;
-    store.setHorizon(4);
-    expect(store.xDomain.max).toBeLessThanOrEqual(store.xDomain.min + 4 * 3_600_000);
-    expect(store.xDomain.max).toBeLessThan(fullMax);
+    expect(store.horizonOptions).toContain(fourHoursMs);
+    expect(store.horizonOptions[store.horizonOptions.length - 1]).toBeNull();
+    expect(store.horizonRevision).toBe(0);
+    store.setHorizon(fourHoursMs);
+    expect(store.horizonRevision).toBe(1);
+    expect(store.horizonDurationMs).toBe(fourHoursMs);
+    expect(store.horizonAnimation).not.toBeNull();
+    expect(store.selectedXDomain.max).toBeLessThanOrEqual(store.selectedXDomain.min + fourHoursMs);
+    expect(store.selectedXDomain.max).toBeLessThan(fullMax);
+    store.setHorizon(fourHoursMs);
+    expect(store.horizonRevision).toBe(1);
 
     store.setHorizon(null);
+    expect(store.horizonRevision).toBe(2);
     expect(store.xDomain.max).toBe(fullMax);
+  });
+
+  it("finishes horizon animations and clears stale hover state", () => {
+    let frameCallback: FrameRequestCallback = () => undefined;
+    let frameCallbackSet = false;
+    const requestFrame = vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((callback) => {
+      frameCallback = callback;
+      frameCallbackSet = true;
+      return 1;
+    });
+    const cancelFrame = vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined);
+    try {
+      const store = new ForecastCardStore();
+      store.setHass(loadScenarioHassState("scenario2"));
+      store.setConfig({ type: "custom:haeo-forecast-card" });
+      store.setHoveredLegendElement("missing element");
+      store.setHighlightedSeries("missing:series");
+
+      store.setHorizon(4 * 3_600_000);
+      expect(store.horizonAnimation).not.toBeNull();
+      expect(frameCallbackSet).toBe(true);
+      frameCallback(store.horizonAnimationNowMs + 250);
+      expect(store.horizonAnimation).toBeNull();
+      expect(cancelFrame).not.toHaveBeenCalled();
+
+      store.setHass({ states: {} });
+      expect(store.hoveredLegendElement).toBeNull();
+      expect(store.highlightedSeries).toBeNull();
+    } finally {
+      requestFrame.mockRestore();
+      cancelFrame.mockRestore();
+    }
+  });
+
+  it("hides policy series by default", () => {
+    const store = new ForecastCardStore();
+    store.setHass({
+      states: {
+        "sensor.policy_power": {
+          entity_id: "sensor.policy_power",
+          attributes: {
+            field_type: "power",
+            output_name: "active_power",
+            direction: "+",
+            element_type: "policy",
+            element_name: "Policy",
+            unit_of_measurement: "kW",
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1 },
+              { time: "2026-03-14T00:10:00Z", value: 1 },
+            ],
+          },
+        },
+      },
+    });
+    store.setConfig({ type: "custom:haeo-forecast-card" });
+
+    expect(store.hiddenSeriesKeys.size).toBe(1);
+    expect(store.visibilityRevision).toBe(1);
   });
 
   it("filters potential series for fixed elements", () => {

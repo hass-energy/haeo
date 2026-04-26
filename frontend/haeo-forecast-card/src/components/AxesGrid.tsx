@@ -29,13 +29,10 @@ interface AxesGridProps {
   xScale: (time: number) => number;
   yScalePower: (value: number) => number;
   yScalePrice: (value: number) => number;
-  yScaleSoc: (value: number) => number;
   powerMin: number;
   powerMax: number;
   priceMin: number;
   priceMax: number;
-  socMin: number;
-  socMax: number;
 }
 
 const TIME_STEPS_MS = [
@@ -167,10 +164,6 @@ function timeTicks(min: number, max: number, targetCount: number): number[] {
   return out;
 }
 
-function hasNearbyLabel(y: number, others: number[], spacing: number): boolean {
-  return others.some((other) => Math.abs(other - y) < spacing);
-}
-
 function priceAtY(y: number, top: number, bottom: number, zeroY: number, priceMin: number, priceMax: number): number {
   const positiveMax = Math.max(priceMax, 0.001);
   const negativeMin = Math.min(priceMin, -0.001);
@@ -197,6 +190,9 @@ function dedupeClose(values: number[], epsilon: number): number[] {
 export function AxesGrid(props: AxesGridProps): JSX.Element {
   const clampYAxisLabelY = (y: number): number => Math.min(props.bottom - 2, Math.max(props.top + 10, y));
   const isVisibleY = (y: number): boolean => y >= props.top - 0.5 && y <= props.bottom + 0.5;
+  const rightAxisX = props.width - props.right;
+  const powerLabelX = props.left * 0.78;
+  const priceLabelX = rightAxisX + props.right * 0.08;
   const xMajor = timeTicks(props.xMin, props.xMax, 7);
   const xMinor = timeTicks(props.xMin, props.xMax, 13);
   const yMajor = niceLinearTicks(props.powerMin, props.powerMax, 6, true).filter((value) =>
@@ -211,9 +207,6 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
       .filter((value) => value >= props.priceMin - 1e-6 && value <= props.priceMax + 1e-6),
     1e-3
   );
-  const socMajor = [0, 20, 40, 60, 80, 100];
-  const priceLabelYs = priceMajor.map((value) => props.yScalePrice(value));
-  const socVisible = socMajor.filter((value) => !hasNearbyLabel(props.yScaleSoc(value), priceLabelYs, 12));
 
   return (
     <>
@@ -264,7 +257,7 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
           />
           <text
             className="axisTickLabel"
-            x={props.left - 8}
+            x={powerLabelX}
             y={clampYAxisLabelY(props.yScalePower(value))}
             textAnchor="end"
             dominantBaseline="middle"
@@ -278,25 +271,12 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
         <text
           key={`price-major-${idx}`}
           className="axisTickLabel"
-          x={props.width - props.right + 6}
+          x={priceLabelX}
           y={clampYAxisLabelY(props.yScalePrice(value))}
           textAnchor="start"
           dominantBaseline="middle"
         >
           {value.toFixed(Math.abs(value) >= 10 ? 0 : 2)}
-        </text>
-      ))}
-
-      {socVisible.map((value, idx) => (
-        <text
-          key={`soc-major-${idx}`}
-          className="axisTickLabel"
-          x={props.width - props.right - 6}
-          y={clampYAxisLabelY(props.yScaleSoc(value))}
-          textAnchor="end"
-          dominantBaseline="middle"
-        >
-          {value}%
         </text>
       ))}
 
@@ -309,22 +289,13 @@ export function AxesGrid(props: AxesGridProps): JSX.Element {
       />
       <line className="axisBase" x1={props.left} y1={props.bottom} x2={props.width - props.right} y2={props.bottom} />
       <line className="axisBase" x1={props.left} y1={props.top} x2={props.left} y2={props.bottom} />
-      <line
-        className="axisBase"
-        x1={props.width - props.right}
-        y1={props.top}
-        x2={props.width - props.right}
-        y2={props.bottom}
-      />
+      <line className="axisBase" x1={rightAxisX} y1={props.top} x2={rightAxisX} y2={props.bottom} />
 
-      <text className="axisLabelStrong" x={props.left} y={props.top - 6} textAnchor="start">
+      <text className="axisLabelStrong" x={powerLabelX} y={props.top - 6} textAnchor="end">
         {t(props.locale, "axis.power")}
       </text>
-      <text className="axisLabelStrong" x={props.width - props.right + 6} y={props.top - 6} textAnchor="start">
+      <text className="axisLabelStrong" x={priceLabelX} y={props.top - 6} textAnchor="start">
         {t(props.locale, "axis.price")}
-      </text>
-      <text className="axisLabelStrong" x={props.width - props.right + 6} y={props.bottom + 20} textAnchor="start">
-        {t(props.locale, "axis.soc")}
       </text>
     </>
   );

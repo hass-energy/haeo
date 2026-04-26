@@ -96,7 +96,7 @@ export class HaeoForecastCard extends HTMLElement {
   }
 
   getCardSize(): number {
-    const targetHeight = this.store.responsiveHeight(this.store.width);
+    const targetHeight = this.store.responsiveHeight(this.store.cardWidth);
     return Math.max(1, Math.ceil(targetHeight / HaeoForecastCard.MASONRY_ROW_HEIGHT_PX));
   }
 
@@ -105,7 +105,7 @@ export class HaeoForecastCard extends HTMLElement {
     min_rows: number;
     columns: "full";
   } {
-    const targetHeight = this.store.responsiveHeight(this.store.width);
+    const targetHeight = this.store.responsiveHeight(this.store.cardWidth);
     const rowUnit = HaeoForecastCard.SECTIONS_ROW_HEIGHT_PX + HaeoForecastCard.SECTIONS_ROW_GAP_PX;
     const rows = Math.max(2, Math.ceil((targetHeight + HaeoForecastCard.SECTIONS_ROW_GAP_PX) / rowUnit));
     return {
@@ -148,15 +148,23 @@ export class HaeoForecastCard extends HTMLElement {
       if (width <= 0) {
         return;
       }
-      const height = rect.height > 0 ? rect.height : this.store.responsiveHeight(width);
-      this.store.setSize(width, height);
+      const cardWidth = this.getCardWidth();
+      const height = rect.height > 0 ? rect.height : this.store.responsiveHeight(cardWidth);
+      this.store.setSize(width, height, cardWidth);
     });
     this.resizeObserver.observe(target);
     const initialRect = target.getBoundingClientRect();
     if (initialRect.width > 0) {
-      const height = initialRect.height > 0 ? initialRect.height : this.store.responsiveHeight(initialRect.width);
-      this.store.setSize(initialRect.width, height);
+      const cardWidth = this.getCardWidth();
+      const height = initialRect.height > 0 ? initialRect.height : this.store.responsiveHeight(cardWidth);
+      this.store.setSize(initialRect.width, height, cardWidth);
     }
+  }
+
+  private getCardWidth(): number {
+    const mount = this.shadowRoot?.querySelector("#mount");
+    const width = mount?.getBoundingClientRect().width ?? this.getBoundingClientRect().width;
+    return width > 0 ? width : this.store.cardWidth;
   }
 
   private startAnimationLoop(): void {
