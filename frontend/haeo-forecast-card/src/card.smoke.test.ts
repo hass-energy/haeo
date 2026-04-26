@@ -11,6 +11,7 @@ interface HaeoCardElement extends HTMLElement {
     min_rows: number;
     columns: "full";
   };
+  getCardWidth: () => number;
 }
 
 describe("haeo-forecast-card smoke", () => {
@@ -102,7 +103,7 @@ describe("haeo-forecast-card smoke", () => {
         return new DOMRect(0, 0, 520, 0);
       }
       if (this.classList.contains("chartContainer")) {
-        return new DOMRect(0, 0, 320, 0);
+        return new DOMRect(0, 0, 320, 260);
       }
       return new DOMRect(0, 0, 520, 0);
     });
@@ -129,6 +130,16 @@ describe("haeo-forecast-card smoke", () => {
     callback(
       [
         {
+          contentRect: new DOMRect(0, 0, 300, 260),
+          target: chartContainer!,
+        } as ResizeObserverEntry,
+      ],
+      {} as ResizeObserver
+    );
+    expect(element.getCardSize()).toBe(11);
+    callback(
+      [
+        {
           contentRect: new DOMRect(0, 0, 300, 0),
           target: chartContainer!,
         } as ResizeObserverEntry,
@@ -139,5 +150,39 @@ describe("haeo-forecast-card smoke", () => {
 
     element.remove();
     globalThis.ResizeObserver = OriginalResizeObserver;
+  });
+
+  it("uses responsive height when initial chart height is unavailable", async () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (this.id === "mount") {
+        return new DOMRect(0, 0, 520, 0);
+      }
+      if (this.classList.contains("chartContainer")) {
+        return new DOMRect(0, 0, 320, 0);
+      }
+      return new DOMRect(0, 0, 520, 0);
+    });
+
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    element.setConfig({
+      type: "custom:haeo-forecast-card",
+    });
+    document.body.appendChild(element);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
+
+    expect(element.getCardSize()).toBe(11);
+    element.remove();
+  });
+
+  it("falls back to the host width before the shadow mount exists", () => {
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    const bounds = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 480, 0));
+
+    expect(element.getCardWidth()).toBe(480);
+
+    bounds.mockReturnValue(new DOMRect(0, 0, 0, 0));
+    expect(element.getCardWidth()).toBe(640);
   });
 });
