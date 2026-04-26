@@ -75,7 +75,7 @@ export const NarrowHovered: Story = {
     const store = makeStore(args.powerDisplayMode, args.scenario, args.dataMode);
     return (
       <div style={{ width: "360px" }}>
-        <ResponsiveStoryFrame store={store} initialPointer={{ x: 220, y: 120 }} />
+        <ResponsiveStoryFrame store={store} initialPointer={{ x: 220, y: 120 }} height="680px" />
       </div>
     );
   },

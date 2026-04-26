@@ -80,7 +80,7 @@ export class ForecastCardStore {
 
   responsiveHeight(width: number): number {
     if (width <= 640) {
-      return 520;
+      return 680;
     }
     return Math.max(260, Math.min(520, Math.round(width * 0.52)));
   }

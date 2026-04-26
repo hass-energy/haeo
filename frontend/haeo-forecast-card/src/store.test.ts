@@ -31,7 +31,7 @@ describe("ForecastCardStore", () => {
   it("allocates extra height for narrow wrapped layouts", () => {
     const store = new ForecastCardStore();
 
-    expect(store.responsiveHeight(360)).toBe(520);
+    expect(store.responsiveHeight(360)).toBe(680);
     expect(store.responsiveHeight(360)).toBeGreaterThan(store.responsiveHeight(641));
     store.setSize(360, 300, 520);
     expect(store.cardWidth).toBe(520);

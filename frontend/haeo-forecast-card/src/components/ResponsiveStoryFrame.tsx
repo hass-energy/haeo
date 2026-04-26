@@ -7,6 +7,7 @@ import type { ForecastCardStore } from "../store";
 interface ResponsiveStoryFrameProps {
   store: ForecastCardStore;
   initialPointer?: { x: number; y: number };
+  height?: string;
 }
 
 export function ResponsiveStoryFrame(props: ResponsiveStoryFrameProps): JSX.Element {
@@ -17,22 +18,45 @@ export function ResponsiveStoryFrame(props: ResponsiveStoryFrameProps): JSX.Elem
     if (!element) {
       return;
     }
-    const observer = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (!rect) {
+    const chartContainer = element.querySelector<HTMLElement>(".chartContainer");
+    const updateSize = (): void => {
+      const cardRect = element.getBoundingClientRect();
+      const chartRect = chartContainer?.getBoundingClientRect();
+      const cardWidth = cardRect.width > 0 ? cardRect.width : props.store.cardWidth;
+      const chartWidth = chartRect && chartRect.width > 0 ? chartRect.width : cardWidth;
+      if (chartWidth <= 0) {
         return;
       }
-      props.store.setSize(rect.width, props.store.responsiveHeight(rect.width));
+      const chartHeight =
+        chartRect && chartRect.height > 0 ? chartRect.height : props.store.responsiveHeight(cardWidth);
+      props.store.setSize(chartWidth, chartHeight, cardWidth);
       if (props.initialPointer) {
         props.store.setPointer(props.initialPointer.x, props.initialPointer.y);
       }
+    };
+    const observer = new ResizeObserver(() => {
+      updateSize();
     });
     observer.observe(element);
+    if (chartContainer) {
+      observer.observe(chartContainer);
+    }
+    updateSize();
     return () => observer.disconnect();
   }, [props]);
 
   return (
-    <div ref={ref} className="haeoThemeRoot" style={{ width: "100%", maxWidth: "1200px", minHeight: "520px" }}>
+    <div
+      ref={ref}
+      className="haeoThemeRoot"
+      style={{
+        width: "100%",
+        maxWidth: "1200px",
+        height: props.height ?? "520px",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <ForecastCardView
         store={props.store}
         onPointerMove={(event) => {
