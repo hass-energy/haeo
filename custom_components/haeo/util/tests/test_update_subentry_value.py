@@ -6,7 +6,10 @@ from unittest.mock import Mock
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.schema.constant_value import as_constant_value
 from custom_components.haeo.util import async_update_subentry_value
 
 
@@ -96,23 +99,19 @@ async def test_nested_value_update_fires_listener(
     the original data.  async_update_subentry then sees no change and
     skips the listener.
     """
-    # Only needed in this test, not the module
-    from pytest_homeassistant_custom_component.common import MockConfigEntry  # noqa: PLC0415
-
-    from custom_components.haeo.const import DOMAIN  # noqa: PLC0415
-    from custom_components.haeo.core.schema.constant_value import as_constant_value  # noqa: PLC0415
-
     entry = MockConfigEntry(domain=DOMAIN, entry_id="nested_test")
     entry.add_to_hass(hass)
     entry.runtime_data = Mock()
     entry.runtime_data.value_update_in_progress = False
 
     subentry = ConfigSubentry(
-        data=MappingProxyType({
-            "rules": [
-                {"name": "r1", "price": as_constant_value(0.02)},
-            ],
-        }),
+        data=MappingProxyType(
+            {
+                "rules": [
+                    {"name": "r1", "price": as_constant_value(0.02)},
+                ],
+            }
+        ),
         subentry_type="policy",
         title="Policies",
         unique_id=None,
