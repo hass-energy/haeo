@@ -31,10 +31,7 @@ const AxesLayer = observer(function AxesLayer(props: { store: ForecastCardStore 
       powerMax={store.powerBounds.max}
       priceMin={store.priceBounds.min}
       priceMax={store.priceBounds.max}
-      socMin={store.socBounds.min}
-      socMax={store.socBounds.max}
       yScalePrice={(value) => store.yScalePrice(value)}
-      yScaleSoc={(value) => store.yScaleSoc(value)}
     />
   );
 });
@@ -74,15 +71,38 @@ const OverlayLayers = observer(function OverlayLayers(props: { store: ForecastCa
 
 const HoverOverlay = observer(function HoverOverlay(props: { store: ForecastCardStore }): JSX.Element | null {
   const { store } = props;
-  if (store.hoverX === null) {
+  const time = store.hoverTimeMs;
+  if (time === null) {
     return null;
   }
-  return <line className="hoverLine" x1={store.hoverX} y1={store.plotTop} x2={store.hoverX} y2={store.plotBottom} />;
+  const x = store.xScale(time);
+  return <line className="hoverLine" x1={x} y1={store.plotTop} x2={x} y2={store.plotBottom} />;
+});
+
+const PlotViewport = observer(function PlotViewport(props: { store: ForecastCardStore }): JSX.Element {
+  const { store } = props;
+  const plotWidth = store.width - store.margins.left - store.margins.right;
+  const plotHeight = store.plotBottom - store.plotTop;
+  return (
+    <svg
+      className="plotViewport"
+      x={store.margins.left}
+      y={store.plotTop}
+      width={plotWidth}
+      height={plotHeight}
+      overflow="hidden"
+    >
+      <g transform={`translate(${-store.margins.left} ${-store.plotTop})`}>
+        <PowerLayer store={store} />
+        <OverlayLayers store={store} />
+        <HoverOverlay store={store} />
+      </g>
+    </svg>
+  );
 });
 
 export const ChartSvg = observer(function ChartSvg(props: ChartSvgProps): JSX.Element {
   const { store } = props;
-  const clipId = `haeo-plot-clip-${store.instanceId}`;
 
   return (
     <svg
@@ -91,25 +111,8 @@ export const ChartSvg = observer(function ChartSvg(props: ChartSvgProps): JSX.El
       onPointerMove={(event) => props.onPointerMove(event as unknown as PointerEvent)}
       onPointerLeave={props.onPointerLeave}
     >
-      <defs>
-        <clipPath id={clipId}>
-          <rect
-            x={store.margins.left}
-            y={store.plotTop}
-            width={store.width - store.margins.left - store.margins.right}
-            height={store.plotBottom - store.plotTop}
-          />
-        </clipPath>
-      </defs>
-
       <AxesLayer store={store} />
-
-      <g clipPath={`url(#${clipId})`}>
-        <PowerLayer store={store} />
-        <OverlayLayers store={store} />
-      </g>
-
-      <HoverOverlay store={store} />
+      <PlotViewport store={store} />
     </svg>
   );
 });

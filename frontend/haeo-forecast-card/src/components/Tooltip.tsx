@@ -14,17 +14,10 @@ interface TooltipRow {
   lane: TooltipSectionId;
 }
 
-interface TooltipTotal {
-  lane: TooltipSectionId;
-  value: number;
-  unit: string;
-}
-
 interface TooltipProps {
   locale: string;
   panelTimeMs: number;
   rows: TooltipRow[];
-  totals: TooltipTotal[];
   emphasizedKeys: Set<string>;
 }
 
@@ -49,18 +42,6 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
     };
     return t(props.locale, keyByLane[lane]);
   };
-  const totalLabel = (lane: TooltipSectionId): string => {
-    const keyByLane: Partial<Record<TooltipSectionId, string>> = {
-      produced: "tooltip.total.produced",
-      available: "tooltip.total.available",
-      consumed: "tooltip.total.consumed",
-      possible: "tooltip.total.possible",
-    };
-    const translationKey = keyByLane[lane];
-    return translationKey !== undefined
-      ? t(props.locale, translationKey)
-      : t(props.locale, "tooltip.total.generic", { lane });
-  };
   return (
     <div className="tooltip">
       <div className="tooltipTime">{new Date(props.panelTimeMs).toLocaleString(props.locale)}</div>
@@ -78,15 +59,6 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
           ))}
         </div>
       ))}
-      {props.totals.length > 0 && (
-        <div className="tooltipTotals">
-          {props.totals.map((total) => (
-            <div key={total.lane}>
-              <strong>{totalLabel(total.lane)}:</strong> {total.value.toFixed(2)} {total.unit}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

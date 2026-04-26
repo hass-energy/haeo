@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { tooltipSection, tooltipDisplayLabel, buildTooltipRows, buildTooltipTotals } from "./tooltip-helpers";
+import { tooltipSection, tooltipDisplayLabel, buildTooltipRows } from "./tooltip-helpers";
 import type { ForecastSeries } from "./types";
 
 function makeSeries(overrides: Partial<ForecastSeries> & { key: string }): ForecastSeries {
@@ -103,41 +103,5 @@ describe("buildTooltipRows", () => {
     // Produced comes first
     expect(rows[0]?.lane).toBe("produced");
     expect(rows[1]?.lane).toBe("consumed");
-  });
-});
-
-describe("buildTooltipTotals", () => {
-  it("sums power series by section", () => {
-    const a = makeSeries({
-      key: "a",
-      direction: "+",
-      outputType: "power",
-      values: new Float64Array([3, 0, 0]),
-    });
-    const b = makeSeries({
-      key: "b",
-      direction: "+",
-      outputType: "power",
-      values: new Float64Array([2, 0, 0]),
-    });
-    const indices = new Map([
-      ["a", 0],
-      ["b", 0],
-    ]);
-    const totals = buildTooltipTotals([a, b], indices, (_s, v) => v);
-    expect(totals.length).toBe(1);
-    expect(totals[0]?.value).toBe(5);
-  });
-
-  it("excludes near-zero totals", () => {
-    const a = makeSeries({
-      key: "a",
-      direction: "+",
-      outputType: "power",
-      values: new Float64Array([0, 0, 0]),
-    });
-    const indices = new Map([["a", 0]]);
-    const totals = buildTooltipTotals([a], indices, (_s, v) => v);
-    expect(totals.length).toBe(0);
   });
 });

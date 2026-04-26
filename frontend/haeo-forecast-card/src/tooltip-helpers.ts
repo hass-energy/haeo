@@ -84,35 +84,3 @@ export function buildTooltipRows(
     return Math.abs(b.value) - Math.abs(a.value);
   });
 }
-
-const SECTION_SORT_ORDER: Partial<Record<TooltipSectionId, number>> = {
-  produced: 0,
-  available: 1,
-  consumed: 2,
-  possible: 3,
-};
-
-export function buildTooltipTotals(
-  visibleSeries: ForecastSeries[],
-  hoverIndices: Map<string, number>,
-  powerValueFn: (series: ForecastSeries, value: number) => number
-): Array<{ lane: TooltipSectionId; value: number; unit: string }> {
-  const totals = new Map<TooltipSectionId, { value: number; unit: string }>();
-  for (const series of visibleSeries) {
-    if (series.lane !== "power") {
-      continue;
-    }
-    const idx = hoverIndices.get(series.key) ?? 0;
-    const section = tooltipSection(series);
-    const existing = totals.get(section) ?? { value: 0, unit: series.unit };
-    const value = powerValueFn(series, series.values[idx] ?? 0);
-    totals.set(section, {
-      value: existing.value + value,
-      unit: existing.unit || series.unit,
-    });
-  }
-  return [...totals.entries()]
-    .filter(([, total]) => Math.abs(total.value) > 1e-9)
-    .sort((a, b) => (SECTION_SORT_ORDER[a[0]] ?? 9) - (SECTION_SORT_ORDER[b[0]] ?? 9))
-    .map(([lane, total]) => ({ lane, value: total.value, unit: total.unit }));
-}

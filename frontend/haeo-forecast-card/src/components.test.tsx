@@ -92,6 +92,24 @@ describe("ForecastCardView components", () => {
     expect(root.querySelectorAll(".tooltipRow").length).toBeGreaterThan(0);
   });
 
+  it("hides tooltip details from the header toggle", async () => {
+    const store = new ForecastCardStore();
+    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setHass(testFixture);
+    store.setSize(900, 380);
+    store.setPointer(300, 110);
+
+    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+
+    const tooltipButton = root.querySelector<HTMLButtonElement>(".tooltipToggleButton");
+    expect(tooltipButton).toBeTruthy();
+    expect(root.querySelector(".tooltip")).toBeTruthy();
+    tooltipButton?.click();
+    expect(store.tooltipVisible).toBe(false);
+    await Promise.resolve();
+    expect(root.querySelector(".tooltip")).toBeNull();
+  });
+
   it("renders empty state when there is no data", () => {
     const store = new ForecastCardStore();
     store.setConfig({ type: "custom:haeo-forecast-card" });
@@ -158,13 +176,15 @@ describe("ForecastCardView components", () => {
     store.setPointer(300, 120);
     render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
 
-    const modeButton = root.querySelector<HTMLButtonElement>(".modeToggleButton");
+    const modeButton = root.querySelector<HTMLButtonElement>(".powerModeToggleButton");
     const gridElement = Array.from(root.querySelectorAll(".legendElement")).find((el) =>
       el.textContent.includes("Grid")
     );
     const firstLegendItem = (gridElement?.querySelector(".legendItem") as HTMLButtonElement | null) ?? null;
+    const horizonSlider = root.querySelector<HTMLInputElement>(".horizonSlider");
     expect(modeButton).toBeTruthy();
     expect(firstLegendItem).toBeTruthy();
+    expect(horizonSlider).toBeTruthy();
     modeButton?.click();
     firstLegendItem?.click();
     firstLegendItem?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));

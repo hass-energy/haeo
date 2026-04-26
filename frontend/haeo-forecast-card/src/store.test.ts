@@ -25,7 +25,6 @@ describe("ForecastCardStore", () => {
 
     expect(store.hoverTimeMs).not.toBeNull();
     expect(store.tooltipRows.length).toBeGreaterThan(0);
-    expect(store.tooltipTotals.length).toBeGreaterThan(0);
   });
 
   it("allocates extra height for narrow wrapped layouts", () => {
@@ -67,6 +66,9 @@ describe("ForecastCardStore", () => {
     expect(store.powerDisplayMode).toBe("opposed");
     store.togglePowerDisplayMode();
     expect(store.powerDisplayMode).toBe("overlay");
+    expect(store.tooltipVisible).toBe(true);
+    store.toggleTooltipVisibility();
+    expect(store.tooltipVisible).toBe(false);
 
     const first = store.visibleSeries[0] ?? store.legendSeries[0];
     expect(first).toBeTruthy();
@@ -130,12 +132,22 @@ describe("ForecastCardStore", () => {
     store.setHass(loadScenarioHassState("scenario2"));
     store.setConfig({ type: "custom:haeo-forecast-card" });
 
+    const fourHoursMs = 4 * 3_600_000;
     const fullMax = store.xDomain.max;
-    store.setHorizon(4);
-    expect(store.xDomain.max).toBeLessThanOrEqual(store.xDomain.min + 4 * 3_600_000);
-    expect(store.xDomain.max).toBeLessThan(fullMax);
+    expect(store.horizonOptions).toContain(fourHoursMs);
+    expect(store.horizonOptions[store.horizonOptions.length - 1]).toBeNull();
+    expect(store.horizonRevision).toBe(0);
+    store.setHorizon(fourHoursMs);
+    expect(store.horizonRevision).toBe(1);
+    expect(store.horizonDurationMs).toBe(fourHoursMs);
+    expect(store.horizonAnimation).not.toBeNull();
+    expect(store.selectedXDomain.max).toBeLessThanOrEqual(store.selectedXDomain.min + fourHoursMs);
+    expect(store.selectedXDomain.max).toBeLessThan(fullMax);
+    store.setHorizon(fourHoursMs);
+    expect(store.horizonRevision).toBe(1);
 
     store.setHorizon(null);
+    expect(store.horizonRevision).toBe(2);
     expect(store.xDomain.max).toBe(fullMax);
   });
 
