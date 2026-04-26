@@ -216,9 +216,10 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
         : sourceRoleForSeries(configMode, fieldName);
     const priorityRaw = attrs["priority"];
     const priority = asNumber(priorityRaw);
-    const outputType = asString(attrs["field_type"], "other");
+    const fieldType = asString(attrs["field_type"], "other");
+    const outputType = fieldType === "power_limit" ? "power" : fieldType;
     const elementName = asString(attrs["element_name"], entityId);
-    const outputName = asString(attrs["output_name"], outputType);
+    const outputName = asString(attrs["output_name"], fieldType);
     const directionRaw = attrs["direction"];
     const direction = directionRaw === "+" || directionRaw === "-" ? directionRaw : null;
     if (!includeOutputType(outputType, direction)) {

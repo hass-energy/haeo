@@ -7,8 +7,10 @@ const MAX_TOOLTIP_ROWS_PER_GROUP = 8;
 
 interface TooltipRow {
   key: string;
+  possibleKey?: string;
   label: string;
   value: number;
+  possibleValue?: number;
   unit: string;
   color: string;
   lane: TooltipSectionId;
@@ -49,11 +51,22 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
         <div key={lane} className="tooltipGroup">
           <div className="tooltipGroupTitle">{laneLabel(lane)}</div>
           {rows.slice(0, MAX_TOOLTIP_ROWS_PER_GROUP).map((row) => (
-            <div key={row.key} className={`tooltipRow ${props.emphasizedKeys.has(row.key) ? "active" : ""}`}>
+            <div
+              key={row.key}
+              className={`tooltipRow ${
+                props.emphasizedKeys.has(row.key) ||
+                (row.possibleKey !== undefined ? props.emphasizedKeys.has(row.possibleKey) : false)
+                  ? "active"
+                  : ""
+              }`}
+            >
               <span className="tooltipDot" style={{ background: row.color }} />
               <span>{row.label}</span>
               <span>
-                {row.value.toFixed(2)} {row.unit}
+                {row.possibleValue === undefined
+                  ? row.value.toFixed(2)
+                  : `${row.value.toFixed(2)} / ${row.possibleValue.toFixed(2)}`}{" "}
+                {row.unit}
               </span>
             </div>
           ))}

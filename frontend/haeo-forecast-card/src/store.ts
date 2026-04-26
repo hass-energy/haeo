@@ -3,7 +3,7 @@ import { computed, makeAutoObservable } from "mobx";
 import { clamp, linearScale } from "./geometry";
 import { computeHoverIndices, sharedTimeline } from "./hover";
 import { calculatePowerBounds, powerValueForDisplay } from "./power-display";
-import { classifyPowerSeries } from "./power-series-classification";
+import { classifyPowerSeries, isPowerPotentialSeries, powerPairKey } from "./power-series-classification";
 import { normalizeSeries } from "./series";
 import type { HassLike } from "./series";
 import type { LineSvgPath, PowerShape } from "./store-paths";
@@ -151,24 +151,28 @@ export class ForecastCardStore {
   }
 
   toggleSeriesVisibility(key: string): void {
-    if (this.hiddenSeriesKeys.has(key)) {
-      this.hiddenSeriesKeys.delete(key);
-      this.forcedVisibleSeriesKeys.add(key);
-      this.visibilityRevision += 1;
-      this.recomputePowerBounds();
-      return;
+    const keys = this.visibilityGroupKeys(key);
+    const allHidden = keys.every((seriesKey) => this.hiddenSeriesKeys.has(seriesKey));
+    for (const seriesKey of keys) {
+      if (allHidden) {
+        this.hiddenSeriesKeys.delete(seriesKey);
+        this.forcedVisibleSeriesKeys.add(seriesKey);
+      } else {
+        this.hiddenSeriesKeys.add(seriesKey);
+        this.forcedVisibleSeriesKeys.delete(seriesKey);
+      }
     }
-    this.hiddenSeriesKeys.add(key);
-    this.forcedVisibleSeriesKeys.delete(key);
     this.visibilityRevision += 1;
     this.recomputePowerBounds();
-    if (this.highlightedSeries === key) {
+    if (this.highlightedSeries !== null && keys.includes(this.highlightedSeries)) {
       this.highlightedSeries = null;
     }
   }
 
   toggleElementVisibility(elementName: string): void {
-    const keys = this.legendSeries.filter((s) => s.elementName === elementName).map((s) => s.key);
+    const keys = this.normalizedSeries
+      .filter((s) => VISIBLE_LANES.has(s.lane) && s.elementName === elementName)
+      .map((s) => s.key);
     if (keys.length === 0) {
       return;
     }
@@ -259,16 +263,30 @@ export class ForecastCardStore {
     return this.normalizedSeriesCache;
   }
 
+  get pairedPowerPotentialKeys(): Set<string> {
+    const utilizationPairs = new Set(
+      this.normalizedSeries
+        .filter((series) => series.lane === "power" && series.sourceRole === "output")
+        .map((series) => powerPairKey(series))
+    );
+    return new Set(
+      this.normalizedSeries
+        .filter((series) => isPowerPotentialSeries(series) && utilizationPairs.has(powerPairKey(series)))
+        .map((series) => series.key)
+    );
+  }
+
   get legendSeries(): ForecastSeries[] {
-    return this.normalizedSeries.filter((s) => VISIBLE_LANES.has(s.lane));
+    const pairedPotentials = this.pairedPowerPotentialKeys;
+    return this.normalizedSeries.filter((s) => VISIBLE_LANES.has(s.lane) && !pairedPotentials.has(s.key));
   }
 
   get visibleSeries(): ForecastSeries[] {
-    return this.legendSeries.filter((s) => !this.hiddenSeriesKeys.has(s.key));
+    return this.normalizedSeries.filter((s) => VISIBLE_LANES.has(s.lane) && !this.hiddenSeriesKeys.has(s.key));
   }
 
   get powerSeries(): ForecastSeries[] {
-    return this.visibleSeries.filter((s) => s.lane === "power");
+    return this.visibleSeries.filter((s) => s.lane === "power" && s.sourceRole !== "limit");
   }
 
   get orderedPowerSeries(): ForecastSeries[] {
@@ -610,14 +628,20 @@ export class ForecastCardStore {
 
   get tooltipRows(): Array<{
     key: string;
+    possibleKey?: string;
     label: string;
     value: number;
+    possibleValue?: number;
     unit: string;
     color: string;
     lane: TooltipSectionId;
   }> {
-    return buildTooltipRows(this.visibleSeries, this.panelIndices, (series, value) =>
-      this.powerValueForDisplayBound(series, value)
+    return buildTooltipRows(
+      this.visibleSeries,
+      this.panelIndices,
+      this.normalizedSeries,
+      computeHoverIndices(this.normalizedSeries, this.panelTimeMs),
+      (series, value) => this.powerValueForDisplayBound(series, value)
     );
   }
 
@@ -636,6 +660,17 @@ export class ForecastCardStore {
   }
 
   // --- Internal ---
+
+  private visibilityGroupKeys(key: string): string[] {
+    const series = this.normalizedSeries.find((item) => item.key === key);
+    if (series?.lane !== "power" || series.sourceRole !== "output") {
+      return [key];
+    }
+    const pairKey = powerPairKey(series);
+    return this.normalizedSeries
+      .filter((item) => item.key === key || (isPowerPotentialSeries(item) && powerPairKey(item) === pairKey))
+      .map((item) => item.key);
+  }
 
   private applyDefaultHiddenSeries(): void {
     let hiddenChanged = false;
@@ -689,19 +724,7 @@ export class ForecastCardStore {
   }
 
   private refreshNormalizedSeries(): void {
-    const allSeries = normalizeSeries(this.hass, this.config);
-
-    // Collect element+direction combos where the output is fixed.
-    // Potential series for these are redundant and should not appear at all.
-    const fixedOutputKeys = new Set<string>();
-    for (const s of allSeries) {
-      if (s.lane === "power" && s.sourceRole === "output" && s.fixed) {
-        fixedOutputKeys.add(`${s.elementName}:${s.direction}`);
-      }
-    }
-    const nextSeries = allSeries.filter(
-      (s) => s.sourceRole === "output" || !fixedOutputKeys.has(`${s.elementName}:${s.direction}`)
-    );
+    const nextSeries = normalizeSeries(this.hass, this.config);
 
     this.normalizedSeriesCache = nextSeries;
 
