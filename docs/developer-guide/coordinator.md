@@ -53,7 +53,7 @@ sequenceDiagram
             C->>N: create_network() from inputs
             N-->>C: New network
         else Subsequent optimization
-            C->>N: update_element() with new parameters
+            C->>N: Call element updaters with new parameters
             Note over N: Only invalidated constraints rebuilt
         end
         C->>LP: Optimize (executor)
@@ -86,15 +86,16 @@ This blocking operation is tracked for diagnostics timing.
 **Network building and warm start**:
 
 On the first optimization cycle, the coordinator calls `create_network()` from `coordinator/network.py` to build the complete network from configuration.
-On subsequent cycles, it calls `update_element()` to update element parameters without recreating the network.
+On subsequent cycles, it calls pre-built `ElementUpdater` closures to update element parameters without recreating the network.
 
 The warm start pattern works by:
 
 1. Elements declare parameters using `TrackedParam` descriptors
-2. `update_element()` modifies these parameters directly
-3. Changed parameters automatically invalidate dependent constraints
-4. Only invalidated constraints are rebuilt during optimization
-5. Unchanged constraints are reused from the previous solve
+2. At network creation time, `create_network()` discovers all `TrackedParam` locations and builds `ElementUpdater` closures with pre-resolved setters
+3. On update, each `ElementUpdater` calls the adapter's `model_elements()` for fresh values and writes them via the captured setters
+4. Changed parameters automatically invalidate dependent constraints
+5. Only invalidated constraints are rebuilt during optimization
+6. Unchanged constraints are reused from the previous solve
 
 This selective rebuilding is more efficient than recreating the entire problem, particularly when only forecasts change between cycles.
 

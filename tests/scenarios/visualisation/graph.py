@@ -19,6 +19,7 @@ import networkx as nx
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements import Battery, Connection, Node
+from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricing
 
 from .svg_normalize import normalize_svg_file_clip_paths
 
@@ -117,7 +118,7 @@ def build_graph(
 
     # Add non-connection elements as nodes (sorted for deterministic order)
     for name, element in sorted(network.elements.items()):
-        if isinstance(element, Connection):
+        if isinstance(element, (Connection, PolicyPricing)):
             continue
 
         element_type = _get_element_type(element)

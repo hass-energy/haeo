@@ -168,6 +168,9 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
 @pytest.fixture
 def mock_grid_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> ConfigSubentry:
     """Create a mock grid subentry."""
+    hass.states.async_set("sensor.import_price", "0.30")
+    hass.states.async_set("sensor.export_price", "0.05")
+
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
@@ -1731,3 +1734,42 @@ def test_optimization_context_is_immutable() -> None:
 
     with pytest.raises(AttributeError):
         context.horizon_start = datetime.fromtimestamp(2000.0, tz=dt_util.UTC)  # type: ignore[misc]
+
+
+async def test_async_update_data_raises_when_inputs_unavailable(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Optimization raises UpdateFailed when any element has unavailable inputs.
+
+    A grid subentry references sensor.missing_price which is not registered
+    in HA, so schema_config_available returns False.
+    """
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.GRID,
+                CONF_NAME: "Unavailable Grid",
+                CONF_CONNECTION_GRID: as_connection_target("AC Bus"),
+                SECTION_PRICING: {
+                    CONF_PRICE_SOURCE_TARGET: as_entity_value(["sensor.missing_price"]),
+                    CONF_PRICE_TARGET_SOURCE: as_entity_value(["sensor.missing_export"]),
+                },
+                SECTION_POWER_LIMITS: {
+                    CONF_GRID_MAX_POWER_SOURCE_TARGET: as_constant_value(10000),
+                    CONF_GRID_MAX_POWER_TARGET_SOURCE: as_constant_value(5000),
+                },
+            }
+        ),
+        subentry_type=ElementType.GRID,
+        title="Unavailable Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(mock_hub_entry, subentry)
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+
+    with pytest.raises(UpdateFailed, match="unavailable"):
+        await coordinator._async_update_data()

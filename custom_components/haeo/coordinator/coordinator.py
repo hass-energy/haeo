@@ -46,6 +46,7 @@ from custom_components.haeo.elements import (
     collect_element_subentries,
     get_element_configs,
 )
+from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
@@ -290,6 +291,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Typed as Network (not optional) since it's guaranteed to exist after initialization.
         # Tests may set this manually before the first optimization.
         self.network: Network = None  # type: ignore[assignment]
+        self._element_updaters: dict[str, network_module.ElementUpdater] = {}
 
         # Map element names to subentry IDs so we can look up fresh data
         # from config_entry.subentries at load time. We don't cache subentry.data
@@ -348,7 +350,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
 
-        self.network = await network_module.create_network(
+        self.network, self._element_updaters = await network_module.create_network(
             self.config_entry,
             periods_seconds=periods_seconds,
             participants=loaded_configs,
@@ -662,10 +664,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         """Apply all pending element updates to the network.
 
         Called at optimization time to batch-apply updates that were deferred
-        during input entity state changes.
+        during input entity state changes. Each element's pre-resolved updater
+        re-derives values through the adapter and writes directly to the
+        captured TrackedParam descriptors.
         """
-        for element_config in self._pending_element_updates.values():
-            network_module.update_element(self.network, element_config)
+        for element_name, element_config in self._pending_element_updates.items():
+            updater = self._element_updaters.get(element_name)
+            if updater is not None:
+                updater(element_config)
         self._pending_element_updates.clear()
 
     async def _async_update_data(self) -> CoordinatorData:
@@ -710,6 +716,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 input_entities=runtime_data.input_entities,
                 horizon_manager=runtime_data.horizon_manager,
             )
+
+            # Verify all entity-backed inputs are available before proceeding.
+            # When any input is unavailable the optimization is skipped, matching
+            # the behaviour during initial setup where the integration stays in
+            # the "not ready" state until every entity can supply data.
+            sm = HomeAssistantStateMachine(self.hass)
+            participant_configs = context.participants
+            for name, config in participant_configs.items():
+                if not schema_config_available(config, sm=sm):
+                    msg = f"Element '{name}' has unavailable inputs"
+                    raise UpdateFailed(msg)
 
             # Load element configurations from input entities
             # All input entities are guaranteed to be fully loaded by the time we get here

@@ -34,7 +34,7 @@ from custom_components.haeo.core.schema.elements.policy import (
                     },
                 ],
             },
-            [{"sources": [WILDCARD], "destinations": [WILDCARD], "price": 0.05}],
+            [{"sources": [WILDCARD], "destinations": [WILDCARD], "enabled": True, "price": 0.05}],
         ),
         (
             {
@@ -42,7 +42,7 @@ from custom_components.haeo.core.schema.elements.policy import (
                     {"enabled": True, "source": ["a"], "target": ["b"], "price": {"type": "constant", "value": 0.0}},
                 ],
             },
-            [{"sources": ["a"], "destinations": ["b"], "price": {"type": "constant", "value": 0.0}}],
+            [{"sources": ["a"], "destinations": ["b"], "enabled": True, "price": {"type": "constant", "value": 0.0}}],
         ),
         (
             {
@@ -50,7 +50,7 @@ from custom_components.haeo.core.schema.elements.policy import (
                     {"enabled": True, "source": ["g"], "target": ["l"], "price": np.array([0.1, 0.2])},
                 ],
             },
-            [{"sources": ["g"], "destinations": ["l"], "price": np.array([0.1, 0.2])}],
+            [{"sources": ["g"], "destinations": ["l"], "enabled": True, "price": np.array([0.1, 0.2])}],
         ),
         (
             {
@@ -59,7 +59,10 @@ from custom_components.haeo.core.schema.elements.policy import (
                     {"enabled": True, "source": ["c"], "target": ["d"], "price": 0.2},
                 ],
             },
-            [{"sources": ["c"], "destinations": ["d"], "price": 0.2}],
+            [
+                {"sources": ["a"], "destinations": ["b"], "enabled": False, "price": 0.1},
+                {"sources": ["c"], "destinations": ["d"], "enabled": True, "price": 0.2},
+            ],
         ),
     ],
 )

@@ -92,7 +92,7 @@ Each hub entry creates one coordinator instance.
 The coordinator is organized as a module in `coordinator/`:
 
 - `coordinator/coordinator.py`: Main coordinator class and optimization cycle
-- `coordinator/network.py`: Network building functions (`create_network()`, `update_element()`)
+- `coordinator/network.py`: Network building functions (`create_network()`, `ElementUpdater`)
 
 See the [DataUpdateCoordinator documentation](https://developers.home-assistant.io/docs/integration_fetching_data/#coordinated-single-api-poll-for-data-for-all-entities) for the base pattern.
 HAEO's coordinator reads from `runtime_data.inputs`, assembles the optimization network, runs the optimizer in an executor, and pushes the results back to sensor entities.
