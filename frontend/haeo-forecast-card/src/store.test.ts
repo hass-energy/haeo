@@ -16,7 +16,7 @@ describe("ForecastCardStore", () => {
     expect(store.xDomain.max).toBeGreaterThan(store.xDomain.min);
   });
 
-  it("computes hover rows and totals", () => {
+  it("computes hover rows", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario3"));
     store.setConfig({ type: "custom:haeo-forecast-card" });
@@ -25,6 +25,38 @@ describe("ForecastCardStore", () => {
 
     expect(store.hoverTimeMs).not.toBeNull();
     expect(store.tooltipRows.length).toBeGreaterThan(0);
+  });
+
+  it("keeps limit series available for tooltip values without plotting them", () => {
+    const store = new ForecastCardStore();
+    store.setHass(loadScenarioHassState("scenario1"));
+    store.setConfig({ type: "custom:haeo-forecast-card" });
+
+    expect(store.visibleSeries.some((series) => series.sourceRole === "limit" && series.lane === "power")).toBe(true);
+    expect(store.powerSeries.some((series) => series.sourceRole === "limit")).toBe(false);
+  });
+
+  it("shows grid limits as paired tooltip totals even when default-hidden", () => {
+    const store = new ForecastCardStore();
+    store.setHass(loadScenarioHassState("scenario1"));
+    store.setConfig({ type: "custom:haeo-forecast-card" });
+
+    const gridLimitKeys = store.normalizedSeries
+      .filter((series) => series.elementName === "Grid" && series.sourceRole === "limit" && series.lane === "power")
+      .map((series) => series.key);
+
+    expect(gridLimitKeys.length).toBeGreaterThan(0);
+    expect(gridLimitKeys.every((key) => store.hiddenSeriesKeys.has(key))).toBe(true);
+    expect(
+      store.tooltipRows.some(
+        (row) => row.key.includes("grid_power_import") && gridLimitKeys.includes(row.possibleKey ?? "")
+      )
+    ).toBe(true);
+    expect(
+      store.tooltipRows.some(
+        (row) => row.key.includes("grid_power_export") && gridLimitKeys.includes(row.possibleKey ?? "")
+      )
+    ).toBe(true);
   });
 
   it("allocates extra height for narrow wrapped layouts", () => {
@@ -210,7 +242,7 @@ describe("ForecastCardStore", () => {
     expect(store.visibilityRevision).toBe(1);
   });
 
-  it("filters potential series for fixed elements", () => {
+  it("keeps potential totals for fixed elements", () => {
     const store = new ForecastCardStore();
     const hass: HassLike = {
       states: {
@@ -254,9 +286,14 @@ describe("ForecastCardStore", () => {
     store.setHass(hass);
     store.setConfig({ type: "custom:haeo-forecast-card" });
 
-    // Fixed element should only show the output, not the forecast (potential)
     expect(store.normalizedSeries.some((s) => s.sourceRole === "output")).toBe(true);
-    expect(store.normalizedSeries.some((s) => s.sourceRole === "forecast")).toBe(false);
+    expect(store.normalizedSeries.some((s) => s.sourceRole === "forecast")).toBe(true);
+    expect(store.tooltipRows[0]).toMatchObject({
+      key: "sensor.load_power:load_power",
+      possibleKey: "sensor.load_forecast:load_forecast",
+      value: -1,
+      possibleValue: -1,
+    });
   });
 
   it("toggles element visibility for all series of an element", () => {

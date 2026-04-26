@@ -17,3 +17,11 @@ export function classifyPowerSeries(series: ForecastSeries): PowerSeriesCategory
   }
   return { group: "consumption", subgroup };
 }
+
+export function powerPairKey(series: ForecastSeries): string {
+  return `${series.elementName}:${series.direction ?? ""}`;
+}
+
+export function isPowerPotentialSeries(series: ForecastSeries): boolean {
+  return series.lane === "power" && (series.sourceRole === "forecast" || series.sourceRole === "limit");
+}
