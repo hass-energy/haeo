@@ -136,7 +136,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         # Extract shadow prices from the constraint using the solver
         cons = state["constraint"]
         arr = np.asarray(cons, dtype=object)
-        values = tuple(obj._solver.constrDuals(arr).flat)  # noqa: SLF001 # pyright: ignore[reportPrivateUsage]
+        values = tuple(obj._solver.constrDuals(arr).flat)  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit=self.unit,
@@ -175,7 +175,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             return expr  # type: ignore[return-value]
 
         # Get solver from element
-        solver: Highs = obj._solver  # noqa: SLF001 # pyright: ignore[reportPrivateUsage] (tightly coupled reactive infrastructure)
+        solver: Highs = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
 
         # First call: create constraint(s) in solver
         if is_first_call:
@@ -204,12 +204,12 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         """
         if isinstance(existing, list):
             # Both existing and expr are lists - update element-wise
-            assert isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101
+            assert isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101 (runtime invariant check for constraint type consistency)
             for cons, exp in zip(existing, expr, strict=True):
                 self._update_single_constraint(solver, cons, exp)
         else:
             # Both existing and expr are single values
-            assert not isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101
+            assert not isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101 (runtime invariant check for constraint type consistency)
             self._update_single_constraint(solver, existing, expr)
 
     def _update_single_constraint(

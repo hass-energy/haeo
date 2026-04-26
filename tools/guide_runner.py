@@ -201,7 +201,7 @@ def _run_guide_silently(page: HAPage, hass: LiveHomeAssistant, guide_name: str) 
     with pause_screenshots():
         for block in ref_blocks:
             if block.captures:
-                exec(compile(block.source, f"<{guide_name} block {block.index}>", "exec"), namespace)  # noqa: S102
+                exec(compile(block.source, f"<{guide_name} block {block.index}>", "exec"), namespace)  # noqa: S102 (guide runner must execute user-authored code blocks)
 
 
 def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, object]:
@@ -282,14 +282,14 @@ def run_blocks_for_mode(
                     if not block.captures:
                         # Setup blocks run without screenshot capture
                         with pause_screenshots():
-                            exec(compile(block.source, f"<guide-setup block {block.index}>", "exec"), namespace)  # noqa: S102
+                            exec(compile(block.source, f"<guide-setup block {block.index}>", "exec"), namespace)  # noqa: S102 (guide runner must execute user-authored code blocks)
                         continue
 
                     # Record screenshots before this block
                     before_count = len(ctx.screenshots)
 
                     # Execute the block in the shared namespace
-                    exec(compile(block.source, f"<guide block {block.index}>", "exec"), namespace)  # noqa: S102
+                    exec(compile(block.source, f"<guide block {block.index}>", "exec"), namespace)  # noqa: S102 (guide runner must execute user-authored code blocks)
 
                     # Collect screenshots produced by this block
                     all_names = list(ctx.screenshots.keys())
@@ -395,7 +395,7 @@ def main() -> None:
     """CLI entry point: run guide(s) from markdown files."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-    if len(sys.argv) < 2:  # noqa: PLR2004
+    if len(sys.argv) < 2:  # noqa: PLR2004 (CLI argument count check, not a meaningful constant)
         print("Usage: uv run python -m tools.guide_runner <markdown_file> [--force] [--headed]")
         sys.exit(1)
 

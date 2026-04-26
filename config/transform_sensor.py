@@ -420,7 +420,7 @@ def main() -> int:
         logger.debug("Applied %s transform", args.transform_type)
 
         # Output to stdout (JSON only, no logging)
-        print(json.dumps(transformed))  # noqa: T201
+        print(json.dumps(transformed))  # noqa: T201 (CLI tool output to stdout)
         return 0
 
     except (FileNotFoundError, json.JSONDecodeError):

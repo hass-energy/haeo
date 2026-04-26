@@ -144,7 +144,7 @@ def _default_for_hint(hint: FieldHint, forecast_times: Sequence[float]) -> _Sent
 
 
 def _resolve_field(
-    value: SchemaValue | bool,  # noqa: FBT001
+    value: SchemaValue | bool,  # noqa: FBT001 (bool is a valid schema field value from config flow)
     hint: FieldHint,
     sm: StateMachine,
     forecast_times: Sequence[float],

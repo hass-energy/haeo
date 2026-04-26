@@ -162,14 +162,14 @@ class FlowTestSubentryFlowHandler(ConfigSubentryFlow):
 
     async def async_step_user(
         self,
-        user_input: dict[str, Any] | None = None,  # noqa: ARG002
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002 (required by ConfigSubentryFlow interface)
     ) -> SubentryFlowResult:
         """Handle user step for mock element."""
         return self.async_create_entry(title="Test", data={})
 
     async def async_step_reconfigure(
         self,
-        user_input: dict[str, Any] | None = None,  # noqa: ARG002
+        user_input: dict[str, Any] | None = None,  # noqa: ARG002 (required by ConfigSubentryFlow interface)
     ) -> SubentryFlowResult:
         """Handle reconfigure step for mock element."""
         return self.async_update_and_abort(self._get_entry(), self._get_reconfigure_subentry(), data={})
@@ -195,13 +195,13 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
             _ = config
             return {}
 
-        def model_elements(self, config: Any) -> list[dict[str, Any]]:  # noqa: ARG002
+        def model_elements(self, config: Any) -> list[dict[str, Any]]:  # noqa: ARG002 (required by adapter protocol)
             return []
 
         def outputs(
             self,
-            name: str,  # noqa: ARG002
-            model_outputs: Mapping[str, Mapping[Any, OutputData]],  # noqa: ARG002
+            name: str,  # noqa: ARG002 (required by adapter protocol)
+            model_outputs: Mapping[str, Mapping[Any, OutputData]],  # noqa: ARG002 (required by adapter protocol)
             **_kwargs: Any,
         ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
             return {}

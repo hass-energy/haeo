@@ -16,6 +16,7 @@ class EntityMetadata:
 
     def is_compatible_with(self, accepted_units: "UnitSpec | Sequence[UnitSpec]") -> bool:
         """Check if this entity's unit is compatible with the accepted units."""
+        # Avoid circular import with schema module
         from custom_components.haeo.core.schema.util import matches_unit_spec  # noqa: PLC0415
 
         if self.unit_of_measurement is None:
