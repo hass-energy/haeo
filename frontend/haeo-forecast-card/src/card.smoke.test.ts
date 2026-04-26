@@ -1,13 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import "./card";
 
 interface HaeoCardElement extends HTMLElement {
   setConfig: (config: { type: "custom:haeo-forecast-card"; entities?: string[] }) => void;
   hass: unknown;
+  getCardSize: () => number;
+  getGridOptions: () => {
+    rows: number;
+    min_rows: number;
+    columns: "full";
+  };
 }
 
 describe("haeo-forecast-card smoke", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("defines the custom element and accepts config", () => {
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
     element.setConfig({
@@ -68,5 +78,66 @@ describe("haeo-forecast-card smoke", () => {
     });
     expect(element.shadowRoot?.textContent).toContain("No forecast data found");
     element.remove();
+  });
+
+  it("sizes the card from full card width when the chart is narrower", async () => {
+    const observerCallbacks: ResizeObserverCallback[] = [];
+    const OriginalResizeObserver = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class ResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        observerCallbacks.push(callback);
+      }
+      observe(): void {
+        return undefined;
+      }
+      unobserve(): void {
+        return undefined;
+      }
+      disconnect(): void {
+        return undefined;
+      }
+    };
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (this.id === "mount") {
+        return new DOMRect(0, 0, 520, 0);
+      }
+      if (this.classList.contains("chartContainer")) {
+        return new DOMRect(0, 0, 320, 0);
+      }
+      return new DOMRect(0, 0, 520, 0);
+    });
+
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    element.setConfig({
+      type: "custom:haeo-forecast-card",
+    });
+    document.body.appendChild(element);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
+
+    const chartContainer = element.shadowRoot?.querySelector(".chartContainer");
+    expect(chartContainer).toBeTruthy();
+    expect(element.getCardSize()).toBe(11);
+    expect(element.getGridOptions()).toEqual({ rows: 9, min_rows: 8, columns: "full" });
+
+    const callback = observerCallbacks[0];
+    expect(callback).toBeTruthy();
+    if (!callback) {
+      return;
+    }
+    callback(
+      [
+        {
+          contentRect: new DOMRect(0, 0, 300, 0),
+          target: chartContainer!,
+        } as ResizeObserverEntry,
+      ],
+      {} as ResizeObserver
+    );
+    expect(element.getCardSize()).toBe(11);
+
+    element.remove();
+    globalThis.ResizeObserver = OriginalResizeObserver;
   });
 });
