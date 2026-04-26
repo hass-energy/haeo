@@ -18,8 +18,8 @@ from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
+    ModelElementConfig,
 )
-from custom_components.haeo.core.model.elements import ModelElementConfig
 from custom_components.haeo.core.model.elements.connection import Connection, ConnectionElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import (

@@ -48,7 +48,7 @@ class PolicyPricing(Element[str]):
     or different connections/tags; their costs are summed by the network.
     """
 
-    price: TrackedParam[NDArray[np.floating[Any]] | None] = TrackedParam()
+    price: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
 
     def __init__(
         self,
@@ -73,9 +73,5 @@ class PolicyPricing(Element[str]):
     def pricing_cost(self) -> highs_linear_expression | None:
         """Compute the pricing cost for this policy rule placement."""
         price = self.price
-        if price is None:
-            return None
         costs = [Highs.qsum(pt * price * self.periods) for pt in self._power_terms]
-        if not costs:
-            return None
         return costs[0] if len(costs) == 1 else Highs.qsum(costs)

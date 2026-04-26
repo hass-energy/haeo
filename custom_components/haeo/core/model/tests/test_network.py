@@ -14,6 +14,8 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTER
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
+from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
 from custom_components.haeo.core.model.network import (
     BlendedOptions,
     CalibratedOptions,
@@ -741,3 +743,45 @@ def test_calibrated_mode_zero_primary_cost_vector() -> None:
     result = network.optimize()
     assert np.isfinite(result)
     assert network._calibrated_weight == pytest.approx(1e-3)
+
+
+def test_add_policy_pricing_unknown_connection() -> None:
+    """Adding PolicyPricing referencing a missing connection raises TypeError."""
+    network = Network(name="test", periods=np.array([1.0]))
+    with pytest.raises(TypeError, match="references unknown connection"):
+        network.add(
+            PolicyPricingElementConfig(
+                element_type=ELEMENT_TYPE_POLICY_PRICING,
+                name="pp",
+                price=0.05,
+                terms=[PolicyPricingTerm(connection="missing", tag=0)],
+            )
+        )
+
+
+def test_add_policy_pricing_unknown_tag() -> None:
+    """Adding PolicyPricing referencing a tag not on the connection raises ValueError."""
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "a", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "b", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "a",
+            "target": "b",
+            "tags": {0},
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0])},
+            },
+        }
+    )
+    with pytest.raises(ValueError, match="references tag 99"):
+        network.add(
+            PolicyPricingElementConfig(
+                element_type=ELEMENT_TYPE_POLICY_PRICING,
+                name="pp",
+                price=0.05,
+                terms=[PolicyPricingTerm(connection="conn", tag=99)],
+            )
+        )
