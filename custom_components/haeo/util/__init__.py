@@ -1,5 +1,6 @@
 """Utility functions for HAEO."""
 
+import copy
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigSubentry
@@ -38,7 +39,7 @@ async def async_update_subentry_value(
         runtime_data.value_update_in_progress = True
 
     # Update subentry data with new value
-    new_data = dict(subentry.data)
+    new_data = copy.deepcopy(dict(subentry.data))
     set_nested_config_value_by_path(new_data, field_path, value)
 
     try:
