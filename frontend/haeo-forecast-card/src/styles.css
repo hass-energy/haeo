@@ -146,9 +146,10 @@ ha-card {
 }
 
 .chartContainer svg {
-  position: static;
-  width: auto;
-  height: auto;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   display: block;
   overflow: hidden;
   touch-action: none;
@@ -427,13 +428,19 @@ ha-card {
 }
 
 @container (max-width: 640px) {
-  .chartRow {
-    flex-direction: column;
+  ha-card {
     overflow-y: auto;
+  }
+
+  .chartRow {
+    flex: 0 0 auto;
+    flex-direction: column;
+    overflow: visible;
   }
 
   .chartContainer {
     flex: 0 0 280px;
+    height: 280px;
     min-height: 220px;
   }
 
@@ -445,7 +452,8 @@ ha-card {
     flex: 0 0 auto;
     width: auto;
     min-width: 0;
-    max-height: 180px;
+    max-height: none;
+    overflow: visible;
     margin: 0 8px 8px;
   }
 }
