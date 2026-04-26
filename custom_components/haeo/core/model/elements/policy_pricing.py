@@ -1,10 +1,9 @@
 """Policy pricing element for reactive policy cost updates.
 
-A PolicyPricing element holds a single policy pricing term. Each instance
-multiplies per-tag power flow variables (from connections on the min-cut)
-by a tracked price parameter. Updating the price triggers reactive cost
-invalidation so the next optimization picks up the new value without
-rebuilding the network.
+A PolicyPricing element applies a single tracked price to one or more
+connection/tag power flow terms (from connections on the min-cut).
+Updating the price triggers reactive cost invalidation so the next
+optimization picks up the new value without rebuilding the network.
 """
 
 from typing import Any, Final, Literal, TypedDict
@@ -41,11 +40,12 @@ class PolicyPricingElementConfig(TypedDict):
 
 
 class PolicyPricing(Element[str]):
-    """A single policy pricing term with reactive price updates.
+    """Policy pricing with reactive price updates.
 
-    Each PolicyPricing element computes a cost by multiplying per-tag power
-    flow variables by a tracked price. Multiple elements can price the same
-    or different connections/tags; their costs are summed by the network.
+    Each PolicyPricing element applies a tracked price to one or more
+    per-tag power flow terms and computes a cost from their product.
+    Multiple elements can price the same or different connections/tags;
+    their costs are summed by the network.
     """
 
     price: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
