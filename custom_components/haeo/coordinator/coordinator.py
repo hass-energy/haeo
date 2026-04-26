@@ -46,6 +46,7 @@ from custom_components.haeo.elements import (
     collect_element_subentries,
     get_element_configs,
 )
+from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
@@ -715,6 +716,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 input_entities=runtime_data.input_entities,
                 horizon_manager=runtime_data.horizon_manager,
             )
+
+            # Verify all entity-backed inputs are available before proceeding.
+            # When any input is unavailable the optimization is skipped, matching
+            # the behaviour during initial setup where the integration stays in
+            # the "not ready" state until every entity can supply data.
+            sm = HomeAssistantStateMachine(self.hass)
+            participant_configs = context.participants
+            for name, config in participant_configs.items():
+                if not schema_config_available(config, sm=sm):
+                    msg = f"Element '{name}' has unavailable inputs"
+                    raise UpdateFailed(msg)
 
             # Load element configurations from input entities
             # All input entities are guaranteed to be fully loaded by the time we get here

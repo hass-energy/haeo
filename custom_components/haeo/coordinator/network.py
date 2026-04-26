@@ -177,8 +177,10 @@ def _build_policy_updater(
                     elem.price = stale_price
                 continue
             rule = rules[rule_idx]
-            price = rule.get("price", 0.0) if rule.get("enabled", True) else 0.0
-            broadcast_price = broadcast_to_sequence(price, n_periods)
+            if not rule.get("enabled", True):
+                broadcast_price = broadcast_to_sequence(0.0, n_periods)
+            else:
+                broadcast_price = broadcast_to_sequence(rule["price"], n_periods)
             for elem in pricing_elements:
                 elem.price = broadcast_price
 

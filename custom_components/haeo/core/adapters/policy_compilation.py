@@ -54,7 +54,7 @@ class CompiledPolicyRule(TypedDict):
     sources: list[str]
     destinations: list[str]
     enabled: NotRequired[bool]
-    price: NotRequired[float | NDArray[np.floating[Any]]]
+    price: float | NDArray[np.floating[Any]]
 
 
 class CompilationResult(TypedDict):
@@ -73,7 +73,7 @@ def _as_name_list(value: object) -> list[str]:
 
 def compile_policies(
     elements: list[ModelElementConfig],
-    policy_configs: Sequence[Mapping[str, object]],
+    policy_configs: Sequence[CompiledPolicyRule],
 ) -> CompilationResult:
     """Compile policy rules into tagged power flow constraints on model elements.
 
@@ -86,7 +86,7 @@ def compile_policies(
         policy_configs: List of policy rule configs, each with:
             - sources: list of node names, or ["*"] for any
             - destinations: list of node names, or ["*"] for any
-            - price: $/kWh or None
+            - price: $/kWh (omitted for tagging-only rules)
 
     Returns:
         CompilationResult with the element configs and a mapping from
@@ -133,8 +133,8 @@ def compile_policies(
     source_memberships: dict[str, set[_RuleGrouping]] = defaultdict(set)
     has_flows = False
     for policy in policy_configs:
-        sources = _resolve_wildcard(_as_name_list(policy.get("sources")), names, wildcard_set=source_names)
-        destinations = _resolve_wildcard(_as_name_list(policy.get("destinations")), names, wildcard_set=sink_names)
+        sources = _resolve_wildcard(_as_name_list(policy["sources"]), names, wildcard_set=source_names)
+        destinations = _resolve_wildcard(_as_name_list(policy["destinations"]), names, wildcard_set=sink_names)
         grouping: _RuleGrouping = (frozenset(sources), frozenset(destinations))
         rule_groupings.append(grouping)
         for src in sources:
@@ -244,14 +244,12 @@ def compile_policies(
     pricing_rule_map: dict[int, list[str]] = {}
 
     for rule_idx, policy in enumerate(policy_configs):
-        sources = _resolve_wildcard(_as_name_list(policy.get("sources")), names, wildcard_set=source_names)
-        destinations = _resolve_wildcard(_as_name_list(policy.get("destinations")), names, wildcard_set=sink_names)
-        price = policy.get("price")
-        if not isinstance(price, int | float | np.ndarray):
-            continue
+        sources = _resolve_wildcard(_as_name_list(policy["sources"]), names, wildcard_set=source_names)
+        destinations = _resolve_wildcard(_as_name_list(policy["destinations"]), names, wildcard_set=sink_names)
         # Disabled rules compile into the network structure (VLANs, tags)
         # but start with zero price so they have no cost influence.
         # Toggling enabled/disabled updates the TrackedParam reactively.
+        price = policy["price"]
         if not policy.get("enabled", True):
             price = 0.0
 

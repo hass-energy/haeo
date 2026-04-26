@@ -18,6 +18,7 @@ import pytest
 from custom_components.haeo.core.adapters import policy_compilation
 from custom_components.haeo.core.adapters.policy_compilation import (
     CompilationResult,
+    CompiledPolicyRule,
     _find_reachable_connections,
     _min_cut_edges,
     compile_policies,
@@ -45,6 +46,19 @@ def _conn(name: str, source: str, target: str, segments: dict[str, Any] | None =
     if segments:
         c["segments"] = segments
     return c
+
+
+def _policy(
+    sources: list[str],
+    destinations: list[str],
+    price: float | np.ndarray[Any, np.dtype[np.floating[Any]]] = 0.0,
+    *,
+    enabled: bool = True,
+) -> CompiledPolicyRule:
+    rule = CompiledPolicyRule(sources=sources, destinations=destinations, price=price)
+    if not enabled:
+        rule["enabled"] = False
+    return rule
 
 
 def _connections(result: CompilationResult) -> list[ConnectionElementConfig]:
@@ -107,8 +121,8 @@ def test_identical_prices_separate_rules_get_separate_vlans() -> None:
     """Sources from separate rules get separate VLANs even with identical prices."""
     elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
     policies = [
-        {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
-        {"sources": ["solar"], "destinations": ["load"], "price": 0.05},
+        _policy(["grid"], ["load"], 0.05),
+        _policy(["solar"], ["load"], 0.05),
     ]
     result = compile_policies(elements, policies)
     grid_tag = _outbound_tag(result, "grid")
@@ -122,7 +136,7 @@ def test_same_rule_sources_share_vlan() -> None:
     """Sources listed in a single rule share a VLAN regardless of price."""
     elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
     policies = [
-        {"sources": ["grid", "solar"], "destinations": ["load"], "price": 0.05},
+        _policy(["grid", "solar"], ["load"], 0.05),
     ]
     result = compile_policies(elements, policies)
     assert _outbound_tag(result, "grid") == _outbound_tag(result, "solar")
@@ -132,8 +146,8 @@ def test_identical_groupings_different_prices_share_vlan() -> None:
     """Rules with the same source/destination grouping share a VLAN even with different prices."""
     elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
     policies = [
-        {"sources": ["grid", "solar"], "destinations": ["load"], "price": 0.05},
-        {"sources": ["grid", "solar"], "destinations": ["load"], "price": 0.03},
+        _policy(["grid", "solar"], ["load"], 0.05),
+        _policy(["grid", "solar"], ["load"], 0.03),
     ]
     result = compile_policies(elements, policies)
     assert _outbound_tag(result, "grid") == _outbound_tag(result, "solar")
@@ -151,7 +165,7 @@ def test_wildcard_all_same_merges() -> None:
         _conn("c2", "b", "d"),
         _conn("c3", "c", "d"),
     ]
-    policies = [{"sources": ["*"], "destinations": ["d"], "price": 0.05}]
+    policies = [_policy(["*"], ["d"], 0.05)]
     result = compile_policies(elements, policies)
     assert _outbound_tag(result, "a") != 0
     assert _outbound_tag(result, "b") != 0
@@ -161,7 +175,7 @@ def test_wildcard_all_same_merges() -> None:
 def test_disabled_rule_still_creates_vlans() -> None:
     """Disabled rules compile into VLANs so re-enabling updates reactively."""
     elements = [_node("grid", is_source=True), _node("load", is_sink=True), _conn("c1", "grid", "load")]
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.05, "enabled": False}]
+    policies = [_policy(["grid"], ["load"], 0.05, enabled=False)]
     result = compile_policies(elements, policies)
     assert _outbound_tag(result, "grid") != 0
     assert len(_pricing_configs(result)) == 1
@@ -185,7 +199,7 @@ def test_disabled_rule_has_zero_price() -> None:
             },
         ),
     ]
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.50, "enabled": False}]
+    policies = [_policy(["grid"], ["load"], 0.50, enabled=False)]
     compiled = compile_policies(elements, policies)
     pricing = _pricing_configs(compiled)
     assert len(pricing) == 1
@@ -231,8 +245,8 @@ def test_disabled_and_enabled_rules_coexist() -> None:
         ),
     ]
     policies = [
-        {"sources": ["grid"], "destinations": ["load"], "price": 0.10, "enabled": False},
-        {"sources": ["solar"], "destinations": ["load"], "price": 0.05, "enabled": True},
+        _policy(["grid"], ["load"], 0.10, enabled=False),
+        _policy(["solar"], ["load"], 0.05),
     ]
     compiled = compile_policies(elements, policies)
     pricing = _pricing_configs(compiled)
@@ -259,7 +273,7 @@ def test_node_without_policy_gets_outbound_tags() -> None:
         _node("load", is_sink=True),
         _conn("c1", "grid", "load"),
     ]
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.05}]
+    policies = [_policy(["grid"], ["load"], 0.05)]
     result = compile_policies(elements, policies)
     battery = _find(result, "battery", element_type=MODEL_ELEMENT_TYPE_NODE)
     assert battery.get("outbound_tags") is not None
@@ -274,7 +288,7 @@ def test_wildcard_excludes_sink_only_from_sources() -> None:
         _conn("solar_sw", "solar", "sw"),
         _conn("sw_load", "sw", "load"),
     ]
-    policies = [{"sources": ["*"], "destinations": ["load"], "price": 0.05}]
+    policies = [_policy(["*"], ["load"], 0.05)]
     result = compile_policies(elements, policies)
     # Solar is a source — gets a VLAN
     assert _outbound_tag(result, "solar") != 0
@@ -295,7 +309,7 @@ def test_wildcard_excludes_source_only_from_destinations() -> None:
         _conn("grid_load", "grid", "load"),
         _conn("grid_solar", "grid", "solar"),
     ]
-    policies = [{"sources": ["grid"], "destinations": ["*"], "price": 0.05}]
+    policies = [_policy(["grid"], ["*"], 0.05)]
     result = compile_policies(elements, policies)
     # Load (sink) gets inbound tag from grid
     load = _find(result, "load", element_type=MODEL_ELEMENT_TYPE_NODE)
@@ -322,7 +336,7 @@ def test_vlan_covers_reachable_subgraph() -> None:
         _conn("solar_sw", "solar", "sw"),
         _conn("sw_load", "sw", "load"),
     ]
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.05}]
+    policies = [_policy(["grid"], ["load"], 0.05)]
     result = compile_policies(elements, policies)
 
     conns = {c["name"]: c for c in _connections(result)}
@@ -353,8 +367,8 @@ def test_inbound_tags_set_on_destination() -> None:
         _conn("c2", "solar", "load"),
     ]
     policies = [
-        {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
-        {"sources": ["solar"], "destinations": ["load"], "price": 0.02},
+        _policy(["grid"], ["load"], 0.05),
+        _policy(["solar"], ["load"], 0.02),
     ]
     result = compile_policies(elements, policies)
 
@@ -377,7 +391,7 @@ def test_routing_nodes_get_inbound_tags() -> None:
         _conn("c1", "grid", "sw"),
         _conn("c2", "sw", "load"),
     ]
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.05}]
+    policies = [_policy(["grid"], ["load"], 0.05)]
     result = compile_policies(elements, policies)
     sw = _find(result, "sw", element_type=MODEL_ELEMENT_TYPE_NODE)
     # Junction doesn't consume, so no inbound_tags needed
@@ -414,7 +428,7 @@ def test_unpolicied_source_flows_to_policied_destination() -> None:
         ),
     ]
     # Only grid has a policy to load; solar has no policy at all
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.10}]
+    policies = [_policy(["grid"], ["load"], 0.10)]
     compiled = compile_policies(elements, policies)
 
     network = _build_network(compiled)
@@ -452,7 +466,7 @@ def test_policied_source_cannot_bypass_cost_via_default_tag() -> None:
     ]
     # Grid has a $0.10 policy to load; solar has no policy (free on tag 0)
     # Solar is capped at 3 kW, so grid must supply the remaining 2 kW
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.10}]
+    policies = [_policy(["grid"], ["load"], 0.10)]
     compiled = compile_policies(elements, policies)
 
     network = _build_network(compiled)
@@ -498,7 +512,7 @@ def test_policy_on_one_source_does_not_affect_other_sources() -> None:
         ),
     ]
     # Only grid has a policy; solar and battery are unpolicied
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.50}]
+    policies = [_policy(["grid"], ["load"], 0.50)]
     compiled = compile_policies(elements, policies)
 
     network = _build_network(compiled)
@@ -546,8 +560,8 @@ def test_additive_pricing_stacking() -> None:
         ),
     ]
     policies = [
-        {"sources": ["battery", "solar"], "destinations": ["load"], "price": 0.05},
-        {"sources": ["battery"], "destinations": ["load"], "price": 0.03},
+        _policy(["battery", "solar"], ["load"], 0.05),
+        _policy(["battery"], ["load"], 0.03),
     ]
     compiled = compile_policies(elements, policies)
 
@@ -601,7 +615,7 @@ def test_multi_hop_policy_through_switchboard() -> None:
             },
         ),
     ]
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.10}]
+    policies = [_policy(["grid"], ["load"], 0.10)]
     compiled = compile_policies(elements, policies)
 
     network = _build_network(compiled)
@@ -634,7 +648,7 @@ def test_single_source_policy_adds_cost() -> None:
             },
         ),
     ]
-    policies = [{"sources": ["grid"], "destinations": ["load"], "price": 0.10}]
+    policies = [_policy(["grid"], ["load"], 0.10)]
     compiled = compile_policies(elements, policies)
 
     network = _build_network(compiled)
@@ -669,8 +683,8 @@ def test_cheaper_source_preferred() -> None:
         ),
     ]
     policies = [
-        {"sources": ["grid"], "destinations": ["load"], "price": 0.10},
-        {"sources": ["solar"], "destinations": ["load"], "price": 0.01},
+        _policy(["grid"], ["load"], 0.10),
+        _policy(["solar"], ["load"], 0.01),
     ]
     compiled = compile_policies(elements, policies)
 
@@ -695,7 +709,7 @@ def test_diamond_multi_path_all_branches_tagged() -> None:
         _conn("bd", "b", "d"),
         _conn("cd", "c", "d"),
     ]
-    policies = [{"sources": ["a"], "destinations": ["d"], "price": 0.04}]
+    policies = [_policy(["a"], ["d"], 0.04)]
     result = compile_policies(elements, policies)
     vlan = _outbound_tag(result, "a")
     conns = {c["name"]: c for c in _connections(result)}
@@ -715,8 +729,8 @@ def test_duplicate_policies_create_separate_pricing_elements() -> None:
         _conn("c1", "grid", "load"),
     ]
     policies = [
-        {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
-        {"sources": ["grid"], "destinations": ["load"], "price": 0.05},
+        _policy(["grid"], ["load"], 0.05),
+        _policy(["grid"], ["load"], 0.05),
     ]
     result = compile_policies(elements, policies)
     pricing = _pricing_configs(result)
@@ -734,11 +748,7 @@ def test_price_target_source_on_connection_creates_pricing_element() -> None:
         _conn("export", "load", "grid"),
     ]
     policies = [
-        {
-            "sources": ["load"],
-            "destinations": ["grid"],
-            "price": 0.07,
-        },
+        _policy(["load"], ["grid"], 0.07),
     ]
     result = compile_policies(elements, policies)
     pricing = _pricing_configs(result)
@@ -749,7 +759,7 @@ def test_price_target_source_on_connection_creates_pricing_element() -> None:
 def test_compile_policies_without_connections_returns_unchanged() -> None:
     """Policies with only nodes do not mutate elements (no connections to tag)."""
     elements = [_node("a"), _node("b")]
-    policies = [{"sources": ["a"], "destinations": ["b"], "price": 0.05}]
+    policies = [_policy(["a"], ["b"], 0.05)]
     result = compile_policies(elements, policies)
     assert result["elements"] is elements
     assert result["pricing_rule_map"] == {}
@@ -758,7 +768,7 @@ def test_compile_policies_without_connections_returns_unchanged() -> None:
 def test_compile_policies_junctions_only_returns_unchanged() -> None:
     """Wildcards that resolve to no source/sink nodes produce no flows."""
     elements = [_junction("sw1"), _junction("sw2"), _conn("c1", "sw1", "sw2")]
-    policies = [{"sources": ["*"], "destinations": ["*"], "price": 0.05}]
+    policies = [_policy(["*"], ["*"], 0.05)]
     result = compile_policies(elements, policies)
     # No source or sink nodes, so wildcard expansion yields no flows — elements unchanged
     assert result["elements"] is elements
@@ -772,7 +782,7 @@ def test_compile_policies_resolves_to_no_flows() -> None:
         _node("load", is_sink=True),
         _conn("c1", "grid", "load"),
     ]
-    policies = [{"sources": ["nosuch"], "destinations": ["alsomissing"], "price": 0.05}]
+    policies = [_policy(["nosuch"], ["alsomissing"], 0.05)]
     result = compile_policies(elements, policies)
     # No valid flows from unknown endpoints — elements pass through unchanged
     assert result["elements"] is elements
@@ -786,7 +796,9 @@ def test_compile_policies_non_list_endpoints_resolve_to_no_flows() -> None:
         _node("load", is_sink=True),
         _conn("c1", "grid", "load"),
     ]
-    policies = [{"sources": "grid", "destinations": ("load",), "price": 0.05}]
+    policies: list[CompiledPolicyRule] = [
+        {"sources": "grid", "destinations": ("load",), "price": 0.05},  # type: ignore[typeddict-item]
+    ]
     result = compile_policies(elements, policies)
     # Non-list endpoints are not resolved — no flows, elements unchanged
     assert result["elements"] is elements
@@ -802,7 +814,7 @@ def test_wildcard_destination_tags_each_sources_paths() -> None:
         _conn("ac", "a", "c"),
         _conn("bc", "b", "c"),
     ]
-    policies = [{"sources": ["a", "b"], "destinations": ["*"], "price": 0.04}]
+    policies = [_policy(["a", "b"], ["*"], 0.04)]
     result = compile_policies(elements, policies)
     conns = {x["name"]: x for x in _connections(result)}
     vlan_a = _outbound_tag(result, "a")
@@ -828,7 +840,7 @@ def test_vlan_reaches_non_policy_sinks() -> None:
         _conn("sw_grid", "sw", "grid"),
         _conn("sw_load", "sw", "load"),
     ]
-    policies = [{"sources": ["solar"], "destinations": ["grid"], "price": 0.02}]
+    policies = [_policy(["solar"], ["grid"], 0.02)]
     result = compile_policies(elements, policies)
     conns = {x["name"]: x for x in _connections(result)}
     vlan_solar = _outbound_tag(result, "solar")
@@ -853,19 +865,21 @@ def test_vlan_reaches_non_policy_sinks() -> None:
         assert term["tag"] == vlan_solar
 
 
-def test_policies_without_price_apply_tags_only() -> None:
-    """Rules with no price still assign VLANs; no pricing elements are created."""
+def test_zero_price_policy_applies_tags_with_zero_cost() -> None:
+    """Rules with zero price assign VLANs and create pricing elements with zero cost."""
     elements = [
         _node("grid", is_source=True),
         _node("load", is_sink=True),
         _conn("c1", "grid", "load"),
     ]
-    policies = [{"sources": ["grid"], "destinations": ["load"]}]
+    policies = [_policy(["grid"], ["load"], price=0.0)]
     result = compile_policies(elements, policies)
     conn = _find(result, "c1", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
     assert _outbound_tag(result, "grid") in conn.get("tags", set())
-    # No pricing elements for rules without a price
-    assert len(_pricing_configs(result)) == 0
+    # Zero-price rules still create pricing elements (price=0 means no cost influence)
+    pricing = _pricing_configs(result)
+    assert len(pricing) > 0
+    assert all(p["price"] == 0.0 for p in pricing)
 
 
 def test_pricing_injection_skips_non_tagged_incident_connections(
@@ -884,7 +898,7 @@ def test_pricing_injection_skips_non_tagged_incident_connections(
         "_find_reachable_connections",
         lambda _source_nodes, _dest_nodes, _graph, **_kwargs: {"source_dest"},
     )
-    policies = [{"sources": ["source"], "destinations": ["dest"], "price": 0.07}]
+    policies = [_policy(["source"], ["dest"], 0.07)]
     result = compile_policies(elements, policies)
 
     pricing = _pricing_configs(result)
@@ -907,8 +921,8 @@ def test_identical_numpy_prices_separate_rules_get_separate_vlans() -> None:
     ]
     price = np.array([0.05, 0.05])
     policies = [
-        {"sources": ["grid"], "destinations": ["load"], "price": price},
-        {"sources": ["solar"], "destinations": ["load"], "price": price.copy()},
+        _policy(["grid"], ["load"], price),
+        _policy(["solar"], ["load"], price.copy()),
     ]
     result = compile_policies(elements, policies)
     # Separate rules → separate VLANs
@@ -1022,8 +1036,8 @@ def test_compile_policies_excludes_battery_self_loop_vlan() -> None:
         _conn("inv_load", "inv", "load"),
     ]
     policies = [
-        {"sources": ["solar"], "destinations": ["battery"], "price": -0.001},
-        {"sources": ["battery"], "destinations": ["*"], "price": 0.01},
+        _policy(["solar"], ["battery"], -0.001),
+        _policy(["battery"], ["*"], 0.01),
     ]
     result = compile_policies(elements, policies)
     conns = {c["name"]: c for c in _connections(result)}
@@ -1051,8 +1065,8 @@ def test_compile_policies_absorbs_solar_tag_at_battery_sink() -> None:
         _conn("inv_load", "inv", "load"),
     ]
     policies = [
-        {"sources": ["solar"], "destinations": ["battery"], "price": -0.001},
-        {"sources": ["battery"], "destinations": ["*"], "price": 0.01},
+        _policy(["solar"], ["battery"], -0.001),
+        _policy(["battery"], ["*"], 0.01),
     ]
     result = compile_policies(elements, policies)
     conns = {c["name"]: c for c in _connections(result)}
