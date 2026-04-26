@@ -28,6 +28,15 @@ describe("ForecastCardStore", () => {
     expect(store.tooltipTotals.length).toBeGreaterThan(0);
   });
 
+  it("allocates extra height for narrow wrapped layouts", () => {
+    const store = new ForecastCardStore();
+
+    expect(store.responsiveHeight(360)).toBe(520);
+    expect(store.responsiveHeight(360)).toBeGreaterThan(store.responsiveHeight(641));
+    store.setSize(360, 300, 520);
+    expect(store.cardWidth).toBe(520);
+  });
+
   it("supports reduced and smooth animation modes", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario4"));

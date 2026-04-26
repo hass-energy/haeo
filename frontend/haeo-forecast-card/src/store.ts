@@ -29,6 +29,7 @@ export class ForecastCardStore {
   config: ForecastCardConfig = { type: "custom:haeo-forecast-card" };
   normalizedSeriesCache: ForecastSeries[] = [];
   powerBoundsCache: LaneBounds = { min: -1, max: 1 };
+  cardWidth = 640;
   width = 640;
   height = DEFAULT_HEIGHT;
   pointerX: number | null = null;
@@ -71,12 +72,16 @@ export class ForecastCardStore {
     this.refreshNormalizedSeries();
   }
 
-  setSize(width: number, height: number): void {
+  setSize(width: number, height: number, cardWidth = width): void {
+    this.cardWidth = Math.max(240, cardWidth);
     this.width = Math.max(240, width);
     this.height = Math.max(220, height);
   }
 
   responsiveHeight(width: number): number {
+    if (width <= 640) {
+      return 520;
+    }
     return Math.max(260, Math.min(520, Math.round(width * 0.52)));
   }
 

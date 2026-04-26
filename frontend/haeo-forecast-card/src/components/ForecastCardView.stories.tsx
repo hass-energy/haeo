@@ -69,3 +69,14 @@ export const Hovered: Story = {
     return <ResponsiveStoryFrame store={store} initialPointer={{ x: 520, y: 120 }} />;
   },
 };
+
+export const NarrowHovered: Story = {
+  render: (args) => {
+    const store = makeStore(args.powerDisplayMode, args.scenario, args.dataMode);
+    return (
+      <div style={{ width: "360px" }}>
+        <ResponsiveStoryFrame store={store} initialPointer={{ x: 220, y: 120 }} />
+      </div>
+    );
+  },
+};

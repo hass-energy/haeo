@@ -42,6 +42,7 @@ ha-card {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
+  container-type: inline-size;
   overflow: hidden;
   position: relative;
   min-height: 220px;
@@ -413,4 +414,22 @@ ha-card {
   padding: 20px 16px 18px;
   color: var(--haeo-subtext);
   font-size: 0.9rem;
+}
+
+@container (max-width: 640px) {
+  .chartRow {
+    flex-direction: column;
+  }
+
+  .chartContainer {
+    flex: 1 1 280px;
+  }
+
+  .tooltip {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    max-height: 180px;
+    margin: 0 8px 8px;
+  }
 }
