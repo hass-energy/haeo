@@ -419,10 +419,12 @@ ha-card {
 @container (max-width: 640px) {
   .chartRow {
     flex-direction: column;
+    overflow-y: auto;
   }
 
   .chartContainer {
-    flex: 1 1 280px;
+    flex: 0 0 280px;
+    min-height: 220px;
   }
 
   .tooltip {
