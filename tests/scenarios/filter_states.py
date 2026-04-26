@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# ruff: noqa: T201
+# ruff: noqa: T201 (CLI script that outputs to stdout by design)
 
 """HAEO Scenario States Filter Script.
 
@@ -37,12 +37,12 @@ def fetch_home_assistant_states(url: str, token: str) -> list[dict[str, Any]]:
         print(states_url)
 
         # Create request with authorization header
-        req = urllib_request.Request(states_url)  # noqa: S310
+        req = urllib_request.Request(states_url)  # noqa: S310 (connecting to user-configured local HA instance)
         req.add_header("Authorization", f"Bearer {token}")
         req.add_header("Content-Type", "application/json")
 
         # Make the request
-        with urllib_request.urlopen(req) as response:  # noqa: S310
+        with urllib_request.urlopen(req) as response:  # noqa: S310 (connecting to user-configured local HA instance)
             raw = json.loads(response.read().decode("utf-8"))
 
         print(raw)

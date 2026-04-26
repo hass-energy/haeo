@@ -244,6 +244,7 @@ def mock_runtime_data(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> H
 
     The horizon_manager is a MagicMock - use _get_mock_horizon() to access mock methods.
     """
+    # Avoid circular import with entities and horizon modules
     from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch  # noqa: PLC0415
     from custom_components.haeo.horizon import HorizonManager  # noqa: PLC0415
 
@@ -1417,6 +1418,7 @@ def test_auto_optimize_enabled_raises_when_no_switch(
 ) -> None:
     """Auto-optimize raises error when no switch is available."""
     # Create runtime data without auto_optimize_switch
+    # Avoid circular import with horizon module
     from custom_components.haeo.horizon import HorizonManager  # noqa: PLC0415
 
     mock_horizon: Any = MagicMock(spec=HorizonManager)

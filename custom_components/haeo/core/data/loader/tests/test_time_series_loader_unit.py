@@ -68,7 +68,7 @@ def test_time_series_loader_available_invalid_value(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(tsl, "load_sensors", fail_load_sensors)
 
     with pytest.raises(TypeError):
-        loader.available(sm=FakeStateMachine({}), value=cast(EntityValue, object()))  # noqa: TC006
+        loader.available(sm=FakeStateMachine({}), value=cast(EntityValue, object()))  # noqa: TC006 (cast needed to test runtime behavior with invalid type)
 
 
 @pytest.mark.asyncio

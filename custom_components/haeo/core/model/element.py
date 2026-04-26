@@ -188,7 +188,7 @@ class Element[OutputNameT: str]:
         """
         # Access the decorator's internal name to skip self in the dir() loop.
         # _name is set by ReactiveCost.__set_name__ and is not part of the public API.
-        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001
+        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (_name is set by ReactiveCost.__set_name__, not part of public API)
 
         costs: list[highs_linear_expression] = []
         for name in dir(type(self)):

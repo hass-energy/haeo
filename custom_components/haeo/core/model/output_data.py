@@ -41,7 +41,7 @@ class OutputData:
 
     def __init__(
         self,
-        type: OutputType,  # noqa: A002
+        type: OutputType,  # noqa: A002 (shadows builtin but matches OutputType field naming convention)
         unit: str | None,
         values: Sequence[Any] | Any,
         direction: Literal["+", "-"] | None = None,

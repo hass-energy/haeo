@@ -117,6 +117,31 @@ See [typing philosophy](../../docs/developer-guide/typing.md) for detailed patte
 - American English for all code and comments
 - Sentence case for messages
 
+### Lint suppressions
+
+Every `# noqa` comment must include an explicit reason explaining why the suppression is necessary and why there was no other choice.
+The reason goes in parentheses after the rule code:
+
+```python
+# ✅ Good
+from .internals import _private  # noqa: PLC0415 (avoid circular import with parent package)
+
+# ❌ Bad - no reason
+from .internals import _private  # noqa: PLC0415
+```
+
+**Exception for deferred imports (PLC0415)**: Ruff's isort (`force-sort-within-sections`) strips inline reasons from import lines.
+For PLC0415, put the reason in a comment on the preceding line and keep the noqa bare:
+
+```python
+# ✅ Good - reason on preceding line, bare noqa
+# Avoid circular import with parent package
+from .internals import _private  # noqa: PLC0415
+
+# ❌ Bad - inline reason triggers isort I001
+from .internals import _private  # noqa: PLC0415 (avoid circular import with parent package)
+```
+
 ## Docstrings
 
 - Required for all public functions and methods

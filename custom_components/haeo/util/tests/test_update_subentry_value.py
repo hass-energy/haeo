@@ -96,6 +96,7 @@ async def test_nested_value_update_fires_listener(
     the original data.  async_update_subentry then sees no change and
     skips the listener.
     """
+    # Only needed in this test, not the module
     from pytest_homeassistant_custom_component.common import MockConfigEntry  # noqa: PLC0415
 
     from custom_components.haeo.const import DOMAIN  # noqa: PLC0415

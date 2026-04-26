@@ -227,11 +227,11 @@ class Network:
 
             if not isinstance(source_element, NetworkElement):
                 msg = f"Source element '{element_instance.source}' is not a network participant"
-                raise ValueError(msg)  # noqa: TRY004 value error is appropriate here
+                raise ValueError(msg)  # noqa: TRY004 (ValueError is appropriate here, not TypeError)
 
             if not isinstance(target_element, NetworkElement):
                 msg = f"Target element '{element_instance.target}' is not a network participant"
-                raise ValueError(msg)  # noqa: TRY004 value error is appropriate here
+                raise ValueError(msg)  # noqa: TRY004 (ValueError is appropriate here, not TypeError)
 
             source_element.register_connection(element_instance, "source")
             target_element.register_connection(element_instance, "target")

@@ -54,7 +54,7 @@ def expand_diagnostics_scenario() -> None:
             # Delete the unified file after successful split
             scenario_file.unlink()
 
-            print(f"Migrated {scenario_file.name} to split format in {scenario_path.name}")  # noqa: T201
+            print(f"Migrated {scenario_file.name} to split format in {scenario_path.name}")  # noqa: T201 (migration CLI output)
 
 
 class ScenarioData(TypedDict):
@@ -137,6 +137,6 @@ def scenario_data(scenario_path: Path) -> ScenarioData:
 
 
 @pytest.fixture
-def snapshot(snapshot):  # type: ignore[no-untyped-def]  # noqa: ANN001, ANN201
+def snapshot(snapshot):  # type: ignore[no-untyped-def]  # noqa: ANN001, ANN201 (pytest fixture override cannot add type hints without breaking syrupy)
     """Override the default snapshot fixture with custom ScenarioJSONExtension."""
     return snapshot.use_extension(ScenarioJSONExtension)
