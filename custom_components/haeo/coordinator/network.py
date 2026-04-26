@@ -237,7 +237,9 @@ async def create_network(
         initial_model_configs = adapter.model_elements(config)
         updaters[name] = _build_element_updater(net, element_type, initial_model_configs)
 
-    # Build policy updaters (one per policy participant)
+    # Build the policy updater.  The config flow enforces a single policy
+    # element, so the pricing_rule_map covers that one element's rules and
+    # the shared updater is called exactly once per update cycle.
     if result["pricing_rule_map"]:
         policy_updater = _build_policy_updater(net, result["pricing_rule_map"])
         for name, config in participants.items():
