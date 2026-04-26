@@ -53,7 +53,7 @@ export function ResponsiveStoryFrame(props: ResponsiveStoryFrameProps): JSX.Elem
       style={{
         width: "100%",
         maxWidth: "1200px",
-        height: props.height ?? "520px",
+        height: props.height ?? "calc(100vh - 56px)",
         display: "flex",
         flexDirection: "column",
       }}
