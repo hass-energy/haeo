@@ -8,6 +8,7 @@ interface ResponsiveStoryFrameProps {
   store: ForecastCardStore;
   initialPointer?: { x: number; y: number };
   height?: string;
+  showChartBounds?: boolean;
 }
 
 export function ResponsiveStoryFrame(props: ResponsiveStoryFrameProps): JSX.Element {
@@ -48,7 +49,7 @@ export function ResponsiveStoryFrame(props: ResponsiveStoryFrameProps): JSX.Elem
   return (
     <div
       ref={ref}
-      className="haeoThemeRoot"
+      className={`haeoThemeRoot ${props.showChartBounds === true ? "showChartBounds" : ""}`}
       style={{
         width: "100%",
         maxWidth: "1200px",
