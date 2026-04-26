@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { ForecastCardView } from "./components/ForecastCardView";
 import { Legend } from "./components/Legend";
+import { loadScenarioHassState } from "./fixtures/scenarioOutputs";
 import { normalizeSeries } from "./series";
 import { ForecastCardStore } from "./store";
 import type { HassLike } from "./series";
@@ -181,15 +182,39 @@ describe("ForecastCardView components", () => {
       el.textContent.includes("Grid")
     );
     const firstLegendItem = (gridElement?.querySelector(".legendItem") as HTMLButtonElement | null) ?? null;
+    const gridElementLabel = gridElement?.querySelector<HTMLButtonElement>(".legendElementLabel") ?? null;
     const horizonSlider = root.querySelector<HTMLInputElement>(".horizonSlider");
     expect(modeButton).toBeTruthy();
     expect(firstLegendItem).toBeTruthy();
+    expect(gridElementLabel).toBeTruthy();
     expect(horizonSlider).toBeTruthy();
     modeButton?.click();
+    gridElementLabel?.click();
     firstLegendItem?.click();
     firstLegendItem?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
     expect(store.powerDisplayMode).toBe("overlay");
     expect(store.highlightedSeries).toBeTruthy();
     expect(root.querySelector(".tooltipRow.active") || root.querySelector(".tooltip")).toBeTruthy();
+  });
+
+  it("updates the horizon from the slider", async () => {
+    const store = new ForecastCardStore();
+    store.setConfig({ type: "custom:haeo-forecast-card", animation_mode: "off" });
+    store.setHass(loadScenarioHassState("scenario2"));
+    store.setSize(900, 380);
+    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+
+    const horizonValue = root.querySelector(".horizonValue");
+    const horizonSlider = root.querySelector<HTMLInputElement>(".horizonSlider");
+    expect(horizonValue?.textContent).toBe("3d");
+    expect(horizonSlider).toBeTruthy();
+    if (horizonSlider) {
+      horizonSlider.value = "4";
+      horizonSlider.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    }
+    await Promise.resolve();
+
+    expect(store.horizonDurationMs).toBe(4 * 3_600_000);
+    expect(root.querySelector(".horizonValue")?.textContent).toBe("4h");
   });
 });
