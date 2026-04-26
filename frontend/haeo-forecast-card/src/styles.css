@@ -138,9 +138,10 @@ ha-card {
 .chartContainer svg {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
   display: block;
+  overflow: hidden;
   touch-action: none;
 }
 
