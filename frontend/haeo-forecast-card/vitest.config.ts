@@ -30,7 +30,6 @@ export default defineConfig({
         "src/**/*.test.tsx",
         "src/**/*.stories.tsx",
         "src/fixtures/**",
-        "src/components/ResponsiveStoryFrame.tsx",
       ],
       thresholds: {
         lines: 83,

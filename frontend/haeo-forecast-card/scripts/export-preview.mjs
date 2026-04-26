@@ -61,6 +61,10 @@ async function main() {
     observe() {}
     disconnect() {}
   };
+  globalThis.IntersectionObserver = class {
+    observe() {}
+    disconnect() {}
+  };
   globalThis.requestAnimationFrame = (cb) => setTimeout(() => cb(Date.now()), 16);
   globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
 
