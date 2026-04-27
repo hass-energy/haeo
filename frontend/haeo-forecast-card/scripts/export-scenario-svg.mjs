@@ -6,20 +6,14 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
-let JSDOM;
-try {
-  ({ JSDOM } = await import("jsdom"));
-} catch {
-  console.error("Missing jsdom — run: npm --prefix frontend/haeo-forecast-card ci");
-  process.exit(1);
-}
+import { JSDOM } from "jsdom";
 
 const rootDir = resolve(import.meta.dirname, "..");
 const workspaceRoot = resolve(rootDir, "..", "..");
 const bundlePath = resolve(workspaceRoot, "custom_components", "haeo", "www", "haeo-forecast-card.min.js");
 
-const CARD_WIDTH = 1920;
-const CARD_HEIGHT = 900;
+const CARD_WIDTH = 1200;
+const CARD_HEIGHT = 500;
 
 function pickEntities(states) {
   const preferred = [
