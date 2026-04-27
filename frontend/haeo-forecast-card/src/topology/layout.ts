@@ -286,7 +286,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
     });
   }
 
-  // ALL edges routed through ELK
+  // Route each edge directly — no ghost nodes
   for (const edge of topology.edges) {
     const sg = findGroup(topology, edge.source);
     const tg = findGroup(topology, edge.target);
@@ -311,6 +311,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "40",
       "org.eclipse.elk.spacing.edgeEdge": "20",
       "org.eclipse.elk.spacing.edgeNode": "20",
+      "org.eclipse.elk.edgeRouting": "SPLINES",
       "org.eclipse.elk.randomSeed": "42",
     },
   });
