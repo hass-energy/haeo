@@ -22,8 +22,7 @@
   },
   "dependencies": {
     "@mdi/js": "^7.4.47",
-    "@types/dagre": "^0.7.54",
-    "dagre": "^0.8.5",
+    "elkjs": "^0.11.1",
     "mobx": "^6.15.0",
     "preact": "^10.27.2"
   },
