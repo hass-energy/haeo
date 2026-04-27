@@ -18,8 +18,8 @@ const rootDir = resolve(import.meta.dirname, "..");
 const workspaceRoot = resolve(rootDir, "..", "..");
 const bundlePath = resolve(workspaceRoot, "custom_components", "haeo", "www", "haeo-forecast-card.min.js");
 
-const CARD_WIDTH = 1200;
-const CARD_HEIGHT = 500;
+const CARD_WIDTH = 1920;
+const CARD_HEIGHT = 900;
 
 function pickEntities(states) {
   const preferred = [
