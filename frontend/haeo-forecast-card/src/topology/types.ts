@@ -2,8 +2,12 @@
 
 export interface TopologyNode {
   name: string;
-  type: string; // "battery" | "node" | "unknown"
+  type: string; // "battery" | "grid" | "solar" | "inverter" | "load" | "node"
   group: string;
+  /** VLAN IDs this node produces on (omitted if untagged). */
+  outbound_tags?: number[];
+  /** VLAN IDs this node accepts (omitted if untagged). */
+  inbound_tags?: number[];
 }
 
 export interface TopologySegment {
@@ -16,10 +20,24 @@ export interface TopologyEdge {
   source: string;
   target: string;
   segments: TopologySegment[];
+  /** VLAN IDs carried by this connection (omitted when only default tag 0). */
+  tags?: number[];
+}
+
+export interface PolicyPricingTerm {
+  connection: string;
+  tag: number;
+}
+
+export interface PolicyPlacement {
+  name: string;
+  terms: PolicyPricingTerm[];
 }
 
 export interface TopologyData {
   nodes: TopologyNode[];
   edges: TopologyEdge[];
   groups: Record<string, string[]>;
+  /** Policy pricing placements (min-cut positions). */
+  policies?: PolicyPlacement[];
 }
