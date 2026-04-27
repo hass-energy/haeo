@@ -68,6 +68,7 @@ export interface LayoutResult {
   groups: LayoutGroup[];
   externalEdges: LayoutEdge[];
   policyPills: PolicyPillLayout[];
+  legend: { x: number; y: number; width: number; height: number } | null;
   width: number;
   height: number;
 }
@@ -362,6 +363,22 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
     }
   }
 
+  // Add VLAN legend as a layout node if there are active VLANs
+  const activeVlans = new Set<number>();
+  for (const edge of topology.edges) {
+    if (edge.tags != null) {
+      for (const t of edge.tags) activeVlans.add(t);
+    }
+  }
+  if (activeVlans.size > 0) {
+    const legendH = 24 + activeVlans.size * 16;
+    elkChildren.push({
+      id: "legend:vlans",
+      width: 90,
+      height: legendH,
+    });
+  }
+
   const graph: ElkNode = await elk.layout({
     id: "root",
     children: elkChildren,
@@ -392,6 +409,7 @@ function extractResult(
   for (const child of graph.children ?? []) {
     // Skip policy pill nodes (handled separately)
     if (child.id.startsWith("policy-pill:")) continue;
+    if (child.id.startsWith("legend:")) continue;
     const groupName = child.id.replace("group:", "");
     const gType = topology.nodes.find((n) => topology.groups[groupName]?.includes(n.name) === true)?.type ?? "unknown";
 
@@ -524,10 +542,18 @@ function extractResult(
     });
   }
 
+  // Extract legend position
+  const legendNode = (graph.children ?? []).find((c) => c.id === "legend:vlans");
+  const legend =
+    legendNode != null
+      ? { x: legendNode.x ?? 0, y: legendNode.y ?? 0, width: legendNode.width ?? 90, height: legendNode.height ?? 40 }
+      : null;
+
   return {
     groups,
     externalEdges,
     policyPills,
+    legend,
     width: (graph.width ?? 800) + 20,
     height: (graph.height ?? 400) + 20,
   };

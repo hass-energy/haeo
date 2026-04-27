@@ -97,6 +97,7 @@ export function NetworkTopology(props: Props): JSX.Element {
     for (const t of tags) activeVlans.add(t);
   }
 
+  const leg = layout.legend;
   const w = props.width ?? layout.width;
   const h = props.height ?? layout.height;
   const hide = (): void => setTooltip(null);
@@ -213,39 +214,32 @@ export function NetworkTopology(props: Props): JSX.Element {
             </g>
           );
         })}
+        {/* VLAN Legend (positioned by ELK) */}
+        {leg != null && activeVlans.size > 0 && (
+          <g>
+            <rect
+              x={leg.x}
+              y={leg.y}
+              width={leg.width}
+              height={leg.height}
+              rx={6}
+              fill="rgba(30,30,30,0.9)"
+              stroke="#555"
+            />
+            <text x={leg.x + 8} y={leg.y + 14} font-size="11" font-weight="700" fill="#eee">
+              VLANs
+            </text>
+            {[...activeVlans].sort().map((tag, i) => (
+              <g key={tag}>
+                <rect x={leg.x + 8} y={leg.y + 22 + i * 16} width={16} height={3} rx={1} fill={vlanColor(tag)} />
+                <text x={leg.x + 30} y={leg.y + 26 + i * 16} font-size="10" fill="#ccc">
+                  {tag === 0 ? "Default" : `VLAN ${String(tag)}`}
+                </text>
+              </g>
+            ))}
+          </g>
+        )}
       </svg>
-
-      {/* VLAN Legend */}
-      {activeVlans.size > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            top: "8px",
-            right: "8px",
-            background: "rgba(30,30,30,0.9)",
-            border: "1px solid #555",
-            borderRadius: "6px",
-            padding: "6px 10px",
-            fontSize: "11px",
-            color: "#eee",
-          }}
-        >
-          <div style={{ fontWeight: 700, marginBottom: "4px" }}>VLANs</div>
-          {[...activeVlans].sort().map((tag) => (
-            <div key={tag} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
-              <div
-                style={{
-                  width: "16px",
-                  height: "3px",
-                  background: vlanColor(tag),
-                  borderRadius: "1px",
-                }}
-              />
-              <span>{tag === 0 ? "Default" : `VLAN ${String(tag)}`}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Tooltip */}
       {tooltip != null && (
