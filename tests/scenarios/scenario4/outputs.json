@@ -5483,7 +5483,87 @@
   "sensor.optimizer_status": {
     "entity_id": "sensor.optimizer_status",
     "state": "success",
-    "attributes": { "advanced": false, "device_class": "enum", "element_name": "System", "element_type": "network", "field_type": "status", "friendly_name": "Optimizer Status", "last_run": "2025-10-06T10:50:21.031796+00:00", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "source_role": "output" }
+    "attributes": {
+      "advanced": false,
+      "device_class": "enum",
+      "element_name": "System",
+      "element_type": "network",
+      "field_type": "status",
+      "friendly_name": "Optimizer Status",
+      "last_run": "2025-10-06T10:50:21.031796+00:00",
+      "options": ["failed", "pending", "success"],
+      "output_name": "network_optimization_status",
+      "source_role": "output",
+      "topology": {
+        "edges": [
+          {
+            "name": "Battery:charge",
+            "segments": [
+              { "id": "efficiency", "type": "EfficiencySegment" },
+              { "id": "power_limit", "type": "PowerLimitSegment" }
+            ],
+            "source": "Inverter",
+            "target": "Battery"
+          },
+          {
+            "name": "Battery:discharge",
+            "segments": [
+              { "id": "efficiency", "type": "EfficiencySegment" },
+              { "id": "power_limit", "type": "PowerLimitSegment" }
+            ],
+            "source": "Battery",
+            "target": "Inverter"
+          },
+          { "name": "Constant Load:connection", "segments": [{ "id": "power_limit", "type": "PowerLimitSegment" }], "source": "Switchboard", "target": "Constant Load" },
+          {
+            "name": "Grid:export",
+            "segments": [
+              { "id": "power_limit", "type": "PowerLimitSegment" },
+              { "id": "pricing", "type": "PricingSegment" }
+            ],
+            "source": "Switchboard",
+            "target": "Grid"
+          },
+          {
+            "name": "Grid:import",
+            "segments": [
+              { "id": "power_limit", "type": "PowerLimitSegment" },
+              { "id": "pricing", "type": "PricingSegment" }
+            ],
+            "source": "Grid",
+            "target": "Switchboard"
+          },
+          {
+            "name": "Inverter:ac_to_dc",
+            "segments": [
+              { "id": "efficiency", "type": "EfficiencySegment" },
+              { "id": "power_limit", "type": "PowerLimitSegment" }
+            ],
+            "source": "Switchboard",
+            "target": "Inverter"
+          },
+          {
+            "name": "Inverter:dc_to_ac",
+            "segments": [
+              { "id": "efficiency", "type": "EfficiencySegment" },
+              { "id": "power_limit", "type": "PowerLimitSegment" }
+            ],
+            "source": "Inverter",
+            "target": "Switchboard"
+          },
+          { "name": "Solar:connection", "segments": [{ "id": "power_limit", "type": "PowerLimitSegment" }], "source": "Solar", "target": "Inverter" }
+        ],
+        "groups": { "Battery": ["Battery"], "Constant Load": ["Constant Load"], "Grid": ["Grid"], "Inverter": ["Inverter"], "Solar": ["Solar"], "Switchboard": ["Switchboard"] },
+        "nodes": [
+          { "group": "Battery", "name": "Battery", "type": "battery" },
+          { "group": "Constant Load", "name": "Constant Load", "type": "load" },
+          { "group": "Grid", "name": "Grid", "type": "grid" },
+          { "group": "Inverter", "name": "Inverter", "type": "inverter" },
+          { "group": "Solar", "name": "Solar", "type": "solar" },
+          { "group": "Switchboard", "name": "Switchboard", "type": "node" }
+        ]
+      }
+    }
   },
   "sensor.solar_forecast_limit_shadow_price": {
     "entity_id": "sensor.solar_forecast_limit_shadow_price",
