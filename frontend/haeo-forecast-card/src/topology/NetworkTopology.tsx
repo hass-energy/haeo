@@ -153,20 +153,66 @@ export function NetworkTopology(props: Props): JSX.Element {
           return renderEdgePath(edge, "#888", true);
         })}
 
-        {/* Policy pricing pills on min-cut edges */}
-        {(topology.policies ?? []).map((policy) =>
-          policy.terms.map((term) => {
-            const edge = layout.externalEdges.find((e) => e.name === `ext:${term.connection}`);
-            if (edge == null || edge.points.length < 2) return null;
-            // Count how many policies are on this connection for offset
-            const sameCon = (topology.policies ?? []).flatMap((p) =>
-              p.terms.filter((t) => t.connection === term.connection)
-            );
-            const idx = sameCon.findIndex((t) => t.connection === term.connection && t.tag === term.tag);
-            const count = sameCon.length;
-            return renderPolicyPill(policy.name, term.tag, edge, idx, count, setTooltip, hide);
-          })
-        )}
+        {/* Policy pricing pills (positioned by ELK) */}
+        {layout.policyPills.map((pill) => {
+          const terms = pill.terms;
+          const pillW = pill.width;
+          const pillH = pill.height;
+          const cellW = 32;
+          return (
+            <g key={pill.id}>
+              <rect
+                x={pill.x}
+                y={pill.y}
+                width={pillW}
+                height={pillH}
+                rx={pillH / 2}
+                fill="white"
+                stroke="#aaa"
+                stroke-width="1.5"
+              />
+              {terms.map((term, i) => {
+                const color = vlanColor(term.tag);
+                const cx = pill.x + 4 + i * cellW + cellW / 2;
+                return (
+                  <g
+                    key={`${term.policyName}-${String(term.tag)}`}
+                    onMouseEnter={(e: MouseEvent) =>
+                      setTooltip({
+                        x: e.clientX,
+                        y: e.clientY,
+                        title: term.policyName,
+                        lines: [`VLAN ${String(term.tag)}`, `Edge: ${pill.connectionName}`],
+                      })
+                    }
+                    onMouseLeave={hide}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {i > 0 && (
+                      <line
+                        x1={pill.x + 4 + i * cellW}
+                        y1={pill.y + 3}
+                        x2={pill.x + 4 + i * cellW}
+                        y2={pill.y + pillH - 3}
+                        stroke="#ddd"
+                      />
+                    )}
+                    <text
+                      x={cx}
+                      y={pill.y + pillH / 2 + 4}
+                      text-anchor="middle"
+                      font-size="10"
+                      font-weight="700"
+                      fill={color}
+                    >
+                      \ud83d\udcb2v{String(term.tag)}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })}
       </svg>
 
       {/* VLAN Legend */}
@@ -267,71 +313,6 @@ function renderVlanEdge(edge: LayoutEdge, tags: number[]): JSX.Element | null {
  * Positioned at the midpoint of the edge, offset vertically when
  * multiple policies share the same connection.
  */
-function renderPolicyPill(
-  policyName: string,
-  tag: number,
-  edge: LayoutEdge,
-  idx: number,
-  count: number,
-  setTooltip: (t: TooltipInfo) => void,
-  hide: () => void
-): JSX.Element {
-  // Find midpoint along the edge polyline
-  const pts = edge.points;
-  let totalLen = 0;
-  for (let i = 1; i < pts.length; i++) {
-    const dx = pts[i]!.x - pts[i - 1]!.x;
-    const dy = pts[i]!.y - pts[i - 1]!.y;
-    totalLen += Math.sqrt(dx * dx + dy * dy);
-  }
-  const targetLen = totalLen / 2;
-  let accum = 0;
-  let mx = pts[0]!.x;
-  let my = pts[0]!.y;
-  for (let i = 1; i < pts.length; i++) {
-    const dx = pts[i]!.x - pts[i - 1]!.x;
-    const dy = pts[i]!.y - pts[i - 1]!.y;
-    const segLen = Math.sqrt(dx * dx + dy * dy);
-    if (accum + segLen >= targetLen && segLen > 0) {
-      const t = (targetLen - accum) / segLen;
-      mx = pts[i - 1]!.x + dx * t;
-      my = pts[i - 1]!.y + dy * t;
-      break;
-    }
-    accum += segLen;
-  }
-
-  // Offset vertically for multiple pills on same edge
-  const PILL_H = 18;
-  const PILL_W = 36;
-  const GAP = 4;
-  const yOffset = (idx - (count - 1) / 2) * (PILL_H + GAP);
-  const px = mx - PILL_W / 2;
-  const py = my + yOffset - PILL_H / 2;
-  const color = vlanColor(tag);
-
-  return (
-    <g
-      key={`${policyName}-${String(tag)}`}
-      onMouseEnter={(e: MouseEvent) =>
-        setTooltip({
-          x: e.clientX,
-          y: e.clientY,
-          title: policyName,
-          lines: [`VLAN ${String(tag)}`, `Edge: ${edge.name.replace("ext:", "")}`],
-        })
-      }
-      onMouseLeave={hide}
-      style={{ cursor: "pointer" }}
-    >
-      <rect x={px} y={py} width={PILL_W} height={PILL_H} rx={PILL_H / 2} fill="white" stroke={color} stroke-width="2" />
-      <text x={mx} y={py + PILL_H / 2 + 4} text-anchor="middle" font-size="10" font-weight="700" fill={color}>
-        💲{tag > 0 ? `v${String(tag)}` : ""}
-      </text>
-    </g>
-  );
-}
-
 function renderGroup(group: LayoutGroup, setTooltip: (t: TooltipInfo) => void, hide: () => void): JSX.Element {
   const s = NODE_STYLES[group.type] ?? NODE_STYLES["unknown"];
 

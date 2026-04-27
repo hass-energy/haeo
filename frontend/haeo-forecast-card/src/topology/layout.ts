@@ -54,9 +54,20 @@ export interface LayoutGroup {
   internalEdges: LayoutEdge[];
 }
 
+export interface PolicyPillLayout {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  connectionName: string;
+  terms: Array<{ policyName: string; tag: number }>;
+}
+
 export interface LayoutResult {
   groups: LayoutGroup[];
   externalEdges: LayoutEdge[];
+  policyPills: PolicyPillLayout[];
   width: number;
   height: number;
 }
@@ -301,17 +312,54 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
     });
   }
 
-  // ALL edges routed through ELK — no deduplication
+  // Build lookup: connection name → policy terms placed on it
+  const policyTermsByConnection = new Map<string, Array<{ policyName: string; tag: number }>>();
+  for (const policy of topology.policies ?? []) {
+    for (const term of policy.terms) {
+      if (!policyTermsByConnection.has(term.connection)) {
+        policyTermsByConnection.set(term.connection, []);
+      }
+      policyTermsByConnection.get(term.connection)!.push({
+        policyName: policy.name,
+        tag: term.tag,
+      });
+    }
+  }
+
+  // Route edges through ELK, inserting policy pill nodes where needed
   for (const edge of topology.edges) {
     const sg = findGroup(topology, edge.source);
     const tg = findGroup(topology, edge.target);
     if (sg === tg) continue;
 
-    elkEdges.push({
-      id: `ext:${edge.name}`,
-      sources: [`port:${edge.name}:layout-out`],
-      targets: [`port:${edge.name}:layout-in`],
-    });
+    const policyTerms = policyTermsByConnection.get(edge.name);
+    if (policyTerms != null && policyTerms.length > 0) {
+      // Create a pill node for this connection's policies
+      const pillId = `policy-pill:${edge.name}`;
+      const pillW = policyTerms.length * 32 + 8;
+      elkChildren.push({
+        id: pillId,
+        width: pillW,
+        height: PILL_H,
+      });
+      // Edge: source port → pill → target port
+      elkEdges.push({
+        id: `ext:${edge.name}:a`,
+        sources: [`port:${edge.name}:layout-out`],
+        targets: [pillId],
+      });
+      elkEdges.push({
+        id: `ext:${edge.name}:b`,
+        sources: [pillId],
+        targets: [`port:${edge.name}:layout-in`],
+      });
+    } else {
+      elkEdges.push({
+        id: `ext:${edge.name}`,
+        sources: [`port:${edge.name}:layout-out`],
+        targets: [`port:${edge.name}:layout-in`],
+      });
+    }
   }
 
   const graph: ElkNode = await elk.layout({
@@ -330,13 +378,20 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
     },
   });
 
-  return extractResult(graph, topology, reversed);
+  return extractResult(graph, topology, reversed, policyTermsByConnection);
 }
 
-function extractResult(graph: ElkNode, topology: TopologyData, reversed: Set<string>): LayoutResult {
+function extractResult(
+  graph: ElkNode,
+  topology: TopologyData,
+  reversed: Set<string>,
+  policyTermsByConnection: Map<string, Array<{ policyName: string; tag: number }>>
+): LayoutResult {
   const groups: LayoutGroup[] = [];
 
   for (const child of graph.children ?? []) {
+    // Skip policy pill nodes (handled separately)
+    if (child.id.startsWith("policy-pill:")) continue;
     const groupName = child.id.replace("group:", "");
     const gType = topology.nodes.find((n) => topology.groups[groupName]?.includes(n.name) === true)?.type ?? "unknown";
 
@@ -393,9 +448,11 @@ function extractResult(graph: ElkNode, topology: TopologyData, reversed: Set<str
     });
   }
 
-  const externalEdges: LayoutEdge[] = (graph.edges ?? []).map((e) => {
-    const edgeName = e.id.replace("ext:", "");
-    const topoEdge = topology.edges.find((te) => te.name === edgeName);
+  // Extract external edges — combine half-edges for policy-split connections
+  const halfEdgePoints = new Map<string, Array<{ x: number; y: number }>>();
+  const directEdges: Array<{ id: string; points: Array<{ x: number; y: number }> }> = [];
+
+  for (const e of graph.edges ?? []) {
     const sections = e.sections ?? [];
     const points: Array<{ x: number; y: number }> = [];
     for (const s of sections) {
@@ -403,20 +460,74 @@ function extractResult(graph: ElkNode, topology: TopologyData, reversed: Set<str
       for (const bp of s.bendPoints ?? []) points.push(bp);
       points.push(s.endPoint);
     }
+
+    // Check if this is a half-edge (ext:Name:a or ext:Name:b)
+    const halfMatch = /^ext:(.+):(a|b)$/.exec(e.id);
+    if (halfMatch != null) {
+      halfEdgePoints.set(e.id, points);
+    } else {
+      directEdges.push({ id: e.id, points });
+    }
+  }
+
+  const externalEdges: LayoutEdge[] = [];
+
+  // Direct edges (no policy pill)
+  for (const { id, points } of directEdges) {
+    const edgeName = id.replace("ext:", "");
+    const topoEdge = topology.edges.find((te) => te.name === edgeName);
     const isReversed = reversed.has(edgeName);
-    return {
-      name: e.id,
+    externalEdges.push({
+      name: id,
       source: topoEdge?.source ?? "",
       target: topoEdge?.target ?? "",
-      points: isReversed ? [...points].reverse() : points,
+      points,
       internal: false,
       reversed: isReversed,
-    };
-  });
+    });
+  }
+
+  // Combined half-edges
+  for (const edge of topology.edges) {
+    const aKey = `ext:${edge.name}:a`;
+    const bKey = `ext:${edge.name}:b`;
+    const ptsA = halfEdgePoints.get(aKey);
+    const ptsB = halfEdgePoints.get(bKey);
+    if (ptsA == null || ptsB == null) continue;
+    // Join: drop last point of A (pill center) since B starts there
+    const combined = [...ptsA.slice(0, -1), ...ptsB];
+    const isReversed = reversed.has(edge.name);
+    externalEdges.push({
+      name: `ext:${edge.name}`,
+      source: edge.source,
+      target: edge.target,
+      points: combined,
+      internal: false,
+      reversed: isReversed,
+    });
+  }
+
+  // Extract policy pill positions
+  const policyPills: PolicyPillLayout[] = [];
+  for (const child of graph.children ?? []) {
+    if (!child.id.startsWith("policy-pill:")) continue;
+    const connectionName = child.id.replace("policy-pill:", "");
+    const terms = policyTermsByConnection.get(connectionName) ?? [];
+    policyPills.push({
+      id: child.id,
+      x: child.x ?? 0,
+      y: child.y ?? 0,
+      width: child.width ?? 40,
+      height: child.height ?? PILL_H,
+      connectionName,
+      terms,
+    });
+  }
 
   return {
     groups,
     externalEdges,
+    policyPills,
     width: (graph.width ?? 800) + 20,
     height: (graph.height ?? 400) + 20,
   };
