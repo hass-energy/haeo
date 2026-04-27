@@ -1,9 +1,9 @@
 """Serialize network topology to a JSON-friendly structure.
 
 Produces a lightweight graph description suitable for frontend rendering.
-Contains only structural data (nodes, edges, segment types) — no time-series
-values. Entity IDs are included as references so the frontend can look up
-live values from HA states.
+Contains only structural data (nodes, edges, segment types, VLAN tags) —
+no time-series values. Entity IDs are included as references so the frontend
+can look up live values from HA states.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from typing import Any
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements import Battery, Connection, Node
+from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricing
 
 
 def _get_element_type(element: Element[Any]) -> str:
@@ -47,7 +48,8 @@ def serialize_topology(
             inferred from model classes (battery/node only).
 
     Returns:
-        Dict with "nodes" and "edges" lists describing the graph structure.
+        Dict with "nodes", "edges", "groups", and "vlans" describing the
+        full graph structure including tagged power flow routing.
 
     """
     nodes: list[dict[str, Any]] = []
@@ -56,7 +58,7 @@ def serialize_topology(
 
     # Collect non-connection elements as nodes
     for name, element in sorted(network.elements.items()):
-        if isinstance(element, Connection):
+        if isinstance(element, (Connection, PolicyPricing)):
             continue
 
         element_type = (
@@ -65,13 +67,23 @@ def serialize_topology(
         group = _get_parent_device(name)
         groups[group].append(name)
 
-        nodes.append({
+        node_data: dict[str, Any] = {
             "name": name,
             "type": element_type,
             "group": group,
-        })
+        }
 
-    # Collect connections as edges with segment metadata
+        # Add VLAN tag info if present
+        outbound = getattr(element, "outbound_tags", None)
+        inbound = getattr(element, "inbound_tags", None)
+        if outbound is not None:
+            node_data["outbound_tags"] = sorted(outbound)
+        if inbound is not None:
+            node_data["inbound_tags"] = sorted(inbound)
+
+        nodes.append(node_data)
+
+    # Collect connections as edges with segment metadata and tags
     for name, element in sorted(network.elements.items()):
         if not isinstance(element, Connection):
             continue
@@ -83,15 +95,41 @@ def serialize_topology(
                 "type": type(segment).__name__,
             })
 
-        edges.append({
+        edge_data: dict[str, Any] = {
             "name": name,
             "source": element.source,
             "target": element.target,
             "segments": segments,
+        }
+
+        # Add VLAN tags carried by this connection
+        tags = element.connection_tags()
+        if tags != {0}:
+            edge_data["tags"] = sorted(tags)
+
+        edges.append(edge_data)
+
+    # Collect policy pricing placements (min-cut positions)
+    policies: list[dict[str, Any]] = []
+    for name, element in sorted(network.elements.items()):
+        if not isinstance(element, PolicyPricing):
+            continue
+        policies.append({
+            "name": name,
+            "terms": [
+                {"connection": t["connection"], "tag": t["tag"]}
+                for t in element.terms
+            ],
         })
 
-    return {
+    result: dict[str, Any] = {
         "nodes": nodes,
         "edges": edges,
         "groups": dict(sorted(groups.items())),
     }
+
+    # Only include policies section if there are any
+    if policies:
+        result["policies"] = policies
+
+    return result

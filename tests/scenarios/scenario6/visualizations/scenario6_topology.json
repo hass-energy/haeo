@@ -3,12 +3,28 @@
     {
       "name": "Battery",
       "type": "battery",
-      "group": "Battery"
+      "group": "Battery",
+      "outbound_tags": [
+        2
+      ],
+      "inbound_tags": [
+        0,
+        1,
+        2
+      ]
     },
     {
       "name": "Grid",
       "type": "node",
-      "group": "Grid"
+      "group": "Grid",
+      "outbound_tags": [
+        0
+      ],
+      "inbound_tags": [
+        0,
+        1,
+        2
+      ]
     },
     {
       "name": "Inverter",
@@ -18,32 +34,25 @@
     {
       "name": "Load",
       "type": "node",
-      "group": "Load"
+      "group": "Load",
+      "inbound_tags": [
+        0,
+        1,
+        2
+      ]
     },
     {
       "name": "Solar",
       "type": "node",
-      "group": "Solar"
+      "group": "Solar",
+      "outbound_tags": [
+        1
+      ]
     },
     {
       "name": "Switchboard",
       "type": "node",
       "group": "Switchboard"
-    },
-    {
-      "name": "policy_pricing_r0_v1",
-      "type": "unknown",
-      "group": "policy_pricing_r0_v1"
-    },
-    {
-      "name": "policy_pricing_r1_v1",
-      "type": "unknown",
-      "group": "policy_pricing_r1_v1"
-    },
-    {
-      "name": "policy_pricing_r2_v2",
-      "type": "unknown",
-      "group": "policy_pricing_r2_v2"
     }
   ],
   "edges": [
@@ -60,6 +69,10 @@
           "id": "power_limit",
           "type": "PowerLimitSegment"
         }
+      ],
+      "tags": [
+        0,
+        1
       ]
     },
     {
@@ -75,6 +88,10 @@
           "id": "power_limit",
           "type": "PowerLimitSegment"
         }
+      ],
+      "tags": [
+        0,
+        2
       ]
     },
     {
@@ -90,6 +107,11 @@
           "id": "pricing",
           "type": "PricingSegment"
         }
+      ],
+      "tags": [
+        0,
+        1,
+        2
       ]
     },
     {
@@ -120,6 +142,11 @@
           "id": "power_limit",
           "type": "PowerLimitSegment"
         }
+      ],
+      "tags": [
+        0,
+        1,
+        2
       ]
     },
     {
@@ -135,6 +162,11 @@
           "id": "power_limit",
           "type": "PowerLimitSegment"
         }
+      ],
+      "tags": [
+        0,
+        1,
+        2
       ]
     },
     {
@@ -146,6 +178,11 @@
           "id": "power_limit",
           "type": "PowerLimitSegment"
         }
+      ],
+      "tags": [
+        0,
+        1,
+        2
       ]
     },
     {
@@ -157,6 +194,10 @@
           "id": "power_limit",
           "type": "PowerLimitSegment"
         }
+      ],
+      "tags": [
+        0,
+        1
       ]
     }
   ],
@@ -178,15 +219,35 @@
     ],
     "Switchboard": [
       "Switchboard"
-    ],
-    "policy_pricing_r0_v1": [
-      "policy_pricing_r0_v1"
-    ],
-    "policy_pricing_r1_v1": [
-      "policy_pricing_r1_v1"
-    ],
-    "policy_pricing_r2_v2": [
-      "policy_pricing_r2_v2"
     ]
-  }
+  },
+  "policies": [
+    {
+      "name": "policy_pricing_r0_v2",
+      "terms": [
+        {
+          "connection": "Inverter:dc_to_ac",
+          "tag": 2
+        }
+      ]
+    },
+    {
+      "name": "policy_pricing_r1_v2",
+      "terms": [
+        {
+          "connection": "Grid:export",
+          "tag": 2
+        }
+      ]
+    },
+    {
+      "name": "policy_pricing_r2_v1",
+      "terms": [
+        {
+          "connection": "Grid:export",
+          "tag": 1
+        }
+      ]
+    }
+  ]
 }
