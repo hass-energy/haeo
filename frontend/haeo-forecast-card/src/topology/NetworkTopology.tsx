@@ -82,38 +82,97 @@ export function NetworkTopology(props: Props): JSX.Element {
                   {s?.icon ?? "?"} {group.id.replace("group:", "")}
                 </text>
 
-                {/* Sub-elements inside group */}
-                {group.children.map((child) => (
-                  <g
-                    key={child.id}
-                    onMouseEnter={(e: MouseEvent) =>
-                      setTooltip({ x: e.clientX, y: e.clientY, title: child.id, lines: [`Type: ${child.type}`] })
-                    }
-                    onMouseLeave={hide}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <rect
-                      x={group.x + child.x}
-                      y={group.y + child.y}
-                      width={child.width}
-                      height={child.height}
-                      rx={NODE_RX}
-                      fill={s?.color ?? "#bbb"}
-                      stroke="rgba(0,0,0,0.15)"
-                      opacity="0.85"
-                    />
-                    <text
-                      x={group.x + child.x + child.width / 2}
-                      y={group.y + child.y + child.height / 2 + 4}
-                      text-anchor="middle"
-                      font-size="11"
-                      font-weight="600"
-                      fill="white"
+                {/* Sub-elements and segment pills inside group */}
+                {group.children.map((child) => {
+                  const isPill = child.id.startsWith("pill:");
+                  if (isPill) {
+                    // Segment pill — find the edge and its segments
+                    const edgeName = child.id.slice(5);
+                    const topoEdge = topology.edges.find((e) => e.name === edgeName);
+                    const segs = topoEdge?.segments.filter((seg) => seg.type !== "PassthroughSegment") ?? [];
+                    const cellW = 28;
+                    const px = group.x + child.x;
+                    const py = group.y + child.y;
+                    return (
+                      <g key={child.id}>
+                        <rect
+                          x={px}
+                          y={py}
+                          width={child.width}
+                          height={child.height}
+                          rx={child.height / 2}
+                          fill="white"
+                          stroke="#bbb"
+                          stroke-width="1"
+                        />
+                        {segs.map((seg, i) => {
+                          const sx = px + 4 + i * cellW + cellW / 2;
+                          const icon = SEGMENT_ICONS[seg.type] ?? "?";
+                          return (
+                            <g
+                              key={seg.id}
+                              onMouseEnter={(e: MouseEvent) =>
+                                setTooltip({
+                                  x: e.clientX,
+                                  y: e.clientY,
+                                  title: seg.id,
+                                  lines: [`${seg.type.replace("Segment", "")}`, edgeName],
+                                })
+                              }
+                              onMouseLeave={hide}
+                              style={{ cursor: "pointer" }}
+                            >
+                              {i > 0 && (
+                                <line
+                                  x1={px + 4 + i * cellW}
+                                  y1={py + 3}
+                                  x2={px + 4 + i * cellW}
+                                  y2={py + child.height - 3}
+                                  stroke="#ddd"
+                                />
+                              )}
+                              <text x={sx} y={py + child.height / 2 + 4} text-anchor="middle" font-size="12">
+                                {icon}
+                              </text>
+                            </g>
+                          );
+                        })}
+                      </g>
+                    );
+                  }
+                  // Regular model element
+                  return (
+                    <g
+                      key={child.id}
+                      onMouseEnter={(e: MouseEvent) =>
+                        setTooltip({ x: e.clientX, y: e.clientY, title: child.id, lines: [`Type: ${child.type}`] })
+                      }
+                      onMouseLeave={hide}
+                      style={{ cursor: "pointer" }}
                     >
-                      {child.id}
-                    </text>
-                  </g>
-                ))}
+                      <rect
+                        x={group.x + child.x}
+                        y={group.y + child.y}
+                        width={child.width}
+                        height={child.height}
+                        rx={NODE_RX}
+                        fill={s?.color ?? "#bbb"}
+                        stroke="rgba(0,0,0,0.15)"
+                        opacity="0.85"
+                      />
+                      <text
+                        x={group.x + child.x + child.width / 2}
+                        y={group.y + child.y + child.height / 2 + 4}
+                        text-anchor="middle"
+                        font-size="11"
+                        font-weight="600"
+                        fill="white"
+                      >
+                        {child.id}
+                      </text>
+                    </g>
+                  );
+                })}
 
                 {/* Ports with internal connections to child elements */}
                 {group.ports.map((port) => {
@@ -156,7 +215,7 @@ export function NetworkTopology(props: Props): JSX.Element {
           })}
 
         {/* Edges with segment nodules */}
-        {layout.edges.map((edge) => renderEdge(edge, setTooltip, hide))}
+        {layout.edges.map((edge) => renderEdge(edge))}
       </svg>
 
       {/* Tooltip overlay */}
@@ -189,7 +248,7 @@ export function NetworkTopology(props: Props): JSX.Element {
   );
 }
 
-function renderEdge(edge: LayoutEdge, setTooltip: (t: TooltipInfo) => void, hide: () => void): JSX.Element | null {
+function renderEdge(edge: LayoutEdge): JSX.Element | null {
   if (edge.points.length < 2) return null;
 
   const d = edge.points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
@@ -210,70 +269,6 @@ function renderEdge(edge: LayoutEdge, setTooltip: (t: TooltipInfo) => void, hide
           {edge.name}
         </text>
       )}
-
-      {/* Segment pill — connected series of segments */}
-      {edge.segments.length > 0 &&
-        (() => {
-          const segs = edge.segments;
-          // Center point of the segment cluster
-          const cx = segs.reduce((sum, s) => sum + s.x, 0) / segs.length;
-          const cy = segs.reduce((sum, s) => sum + s.y, 0) / segs.length;
-          const cellW = 28;
-          const cellH = 22;
-          const totalW = segs.length * cellW;
-          const startX = cx - totalW / 2;
-          const startY = cy - cellH / 2;
-
-          return (
-            <g>
-              {/* Background pill */}
-              <rect
-                x={startX}
-                y={startY}
-                width={totalW}
-                height={cellH}
-                rx={cellH / 2}
-                fill="white"
-                stroke="#999"
-                stroke-width="1"
-              />
-              {/* Dividers and icons */}
-              {segs.map((seg, i) => {
-                const sx = startX + i * cellW + cellW / 2;
-                const icon = SEGMENT_ICONS[seg.type] ?? "?";
-                return (
-                  <g
-                    key={`${edge.name}-${seg.id}`}
-                    onMouseEnter={(e: MouseEvent) =>
-                      setTooltip({
-                        x: e.clientX,
-                        y: e.clientY,
-                        title: seg.id,
-                        lines: [`Type: ${seg.type.replace("Segment", "")}`, `Edge: ${edge.name}`],
-                      })
-                    }
-                    onMouseLeave={hide}
-                    style={{ cursor: "pointer" }}
-                  >
-                    {i > 0 && (
-                      <line
-                        x1={startX + i * cellW}
-                        y1={startY + 3}
-                        x2={startX + i * cellW}
-                        y2={startY + cellH - 3}
-                        stroke="#ddd"
-                        stroke-width="1"
-                      />
-                    )}
-                    <text x={sx} y={cy + 4} text-anchor="middle" font-size="12">
-                      {icon}
-                    </text>
-                  </g>
-                );
-              })}
-            </g>
-          );
-        })()}
     </g>
   );
 }
