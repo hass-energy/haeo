@@ -1,4 +1,4 @@
-/** ELK-based layout for HAEO network topology with ports and compound nodes. */
+/** ELK-based layout for HAEO network topology. */
 
 import ELK, { type ElkExtendedEdge, type ElkNode, type ElkPort } from "elkjs/lib/elk.bundled.js";
 import type { TopologyData, TopologySegment } from "./types";
@@ -22,26 +22,21 @@ export interface LayoutPort {
   width: number;
   height: number;
   side: "EAST" | "WEST";
-  label: string;
+}
+
+export interface LayoutSegmentNodule {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
 }
 
 export interface LayoutEdge {
   name: string;
   source: string;
   target: string;
-  sourcePort: string;
-  targetPort: string;
-  sections: Array<{
-    startPoint: { x: number; y: number };
-    endPoint: { x: number; y: number };
-    bendPoints?: Array<{ x: number; y: number }> | undefined;
-  }>;
-  segments: Array<{
-    id: string;
-    type: string;
-    x: number;
-    y: number;
-  }>;
+  points: Array<{ x: number; y: number }>;
+  segments: LayoutSegmentNodule[];
 }
 
 export interface LayoutResult {
@@ -51,160 +46,104 @@ export interface LayoutResult {
   height: number;
 }
 
-/** Element type to style mapping. */
-export const NODE_STYLES: Record<string, { color: string; icon: string; label: string }> = {
-  battery: { color: "#4CAF50", icon: "🔋", label: "Battery" },
-  node: { color: "#90CAF9", icon: "⚡", label: "Node" },
-  grid: { color: "#FF9800", icon: "🏭", label: "Grid" },
-  solar: { color: "#FFD600", icon: "☀️", label: "Solar" },
-  load: { color: "#E91E63", icon: "🏠", label: "Load" },
-  inverter: { color: "#9C27B0", icon: "🔄", label: "Inverter" },
-  network: { color: "#607D8B", icon: "📡", label: "System" },
-  unknown: { color: "#BDBDBD", icon: "?", label: "Unknown" },
+export const NODE_STYLES: Record<string, { color: string; icon: string }> = {
+  battery: { color: "#4CAF50", icon: "🔋" },
+  node: { color: "#90CAF9", icon: "⚡" },
+  grid: { color: "#FF9800", icon: "🏭" },
+  solar: { color: "#FFD600", icon: "☀️" },
+  load: { color: "#E91E63", icon: "🏠" },
+  inverter: { color: "#9C27B0", icon: "🔄" },
+  network: { color: "#607D8B", icon: "📡" },
+  unknown: { color: "#BDBDBD", icon: "?" },
 };
 
-const SEGMENT_ICONS: Record<string, string> = {
-  PricingSegment: "💲",
-  PowerLimitSegment: "⚡",
-  EfficiencySegment: "η",
-  SocPricingSegment: "📊",
-  TagFilterSegment: "🏷",
-  TagPricingSegment: "🏷",
-};
-
-const NODE_MIN_WIDTH = 140;
+const NODE_WIDTH = 130;
 const NODE_HEIGHT = 45;
-const GROUP_PADDING = 15;
-const PORT_SIZE = 10;
-const SEGMENT_NODE_WIDTH = 70;
-const SEGMENT_NODE_HEIGHT = 28;
-
-function segmentLabel(seg: TopologySegment): string {
-  const icon = SEGMENT_ICONS[seg.type] ?? "";
-  const name = seg.type.replace("Segment", "");
-  return `${icon} ${name}`.trim();
-}
+const GROUP_HEADER = 24;
+const GROUP_PAD = 12;
+const PORT_SIZE = 8;
 
 export async function computeLayout(topology: TopologyData): Promise<LayoutResult> {
   const elk = new ELK();
 
-  // Build ELK graph: each element is a compound node containing its internal
-  // structure. Connections become edges between ports on the compound nodes.
-  const elkNodes: ElkNode[] = [];
-  const elkEdges: ElkExtendedEdge[] = [];
-
-  // Create compound node for each element group
-  const groupNodes = new Map<string, ElkNode>();
+  // Each group is a compound node containing its model-layer sub-elements.
+  // Connections (edges) stay OUTSIDE groups, with segments as nodules along edges.
+  const elkChildren: ElkNode[] = [];
 
   for (const [groupName, members] of Object.entries(topology.groups)) {
-    // Child nodes within the group (the actual element nodes)
+    const groupType = topology.nodes.find((n) => members.includes(n.name) === true)?.type ?? "unknown";
+
+    // Sub-elements within this group
     const children: ElkNode[] = members.map((name) => ({
       id: name,
-      width: NODE_MIN_WIDTH,
+      width: NODE_WIDTH,
       height: NODE_HEIGHT,
       labels: [{ text: name }],
     }));
 
-    // Ports for incoming/outgoing connections
-    const inPorts: ElkPort[] = [];
-    const outPorts: ElkPort[] = [];
-
+    // Ports for connections entering/leaving this group
+    const ports: ElkPort[] = [];
     for (const edge of topology.edges) {
-      if (members.includes(edge.target)) {
-        inPorts.push({
-          id: `port:${edge.name}:in`,
-          width: PORT_SIZE,
-          height: PORT_SIZE,
-          layoutOptions: { "org.eclipse.elk.port.side": "WEST" },
-        });
-
-        // Add segment nodes inside the group for this incoming edge
-        for (const seg of edge.segments.filter((s) => s.type !== "PassthroughSegment")) {
-          children.push({
-            id: `seg:${edge.name}:${seg.id}`,
-            width: SEGMENT_NODE_WIDTH,
-            height: SEGMENT_NODE_HEIGHT,
-            labels: [{ text: segmentLabel(seg) }],
-          });
-        }
-      }
       if (members.includes(edge.source)) {
-        outPorts.push({
+        ports.push({
           id: `port:${edge.name}:out`,
           width: PORT_SIZE,
           height: PORT_SIZE,
           layoutOptions: { "org.eclipse.elk.port.side": "EAST" },
         });
       }
+      if (members.includes(edge.target)) {
+        ports.push({
+          id: `port:${edge.name}:in`,
+          width: PORT_SIZE,
+          height: PORT_SIZE,
+          layoutOptions: { "org.eclipse.elk.port.side": "WEST" },
+        });
+      }
     }
 
-    const groupNode: ElkNode = {
+    elkChildren.push({
       id: `group:${groupName}`,
-      labels: [{ text: groupName }],
+      labels: [{ text: `${groupName} (${groupType})` }],
       children,
-      ports: [...inPorts, ...outPorts],
+      ports,
       layoutOptions: {
-        "org.eclipse.elk.padding": `[top=${GROUP_PADDING + 20},left=${GROUP_PADDING},bottom=${GROUP_PADDING},right=${GROUP_PADDING}]`,
+        "org.eclipse.elk.padding": `[top=${GROUP_HEADER + GROUP_PAD},left=${GROUP_PAD},bottom=${GROUP_PAD},right=${GROUP_PAD}]`,
         "org.eclipse.elk.nodeLabels.placement": "H_LEFT V_TOP INSIDE",
       },
-    };
-
-    groupNodes.set(groupName, groupNode);
-    elkNodes.push(groupNode);
-  }
-
-  // Create edges between group ports
-  for (const edge of topology.edges) {
-    const sourceGroup = findGroup(topology, edge.source);
-    const targetGroup = findGroup(topology, edge.target);
-    if (sourceGroup === undefined || targetGroup === undefined) continue;
-
-    elkEdges.push({
-      id: `edge:${edge.name}`,
-      sources: [`port:${edge.name}:out`],
-      targets: [`port:${edge.name}:in`],
     });
   }
 
-  const elkGraph: ElkNode = {
+  // Edges between groups (connections) — segments become labels, not nodes
+  const elkEdges: ElkExtendedEdge[] = topology.edges.map((edge) => ({
+    id: `edge:${edge.name}`,
+    sources: [`port:${edge.name}:out`],
+    targets: [`port:${edge.name}:in`],
+    labels: [{ text: edge.name, width: edge.name.length * 6, height: 12 }],
+  }));
+
+  const layoutGraph = await elk.layout({
     id: "root",
-    children: elkNodes,
+    children: elkChildren,
     edges: elkEdges,
     layoutOptions: {
       "org.eclipse.elk.algorithm": "layered",
       "org.eclipse.elk.direction": "RIGHT",
       "org.eclipse.elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
-      "org.eclipse.elk.spacing.nodeNode": "40",
-      "org.eclipse.elk.spacing.edgeNode": "20",
-      "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "80",
+      "org.eclipse.elk.spacing.nodeNode": "30",
+      "org.eclipse.elk.spacing.edgeNode": "15",
+      "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "60",
       "org.eclipse.elk.portConstraints": "FIXED_SIDE",
       "org.eclipse.elk.randomSeed": "42",
+      "org.eclipse.elk.layered.spacing.edgeEdgeBetweenLayers": "15",
     },
-  };
+  });
 
-  const layoutGraph = await elk.layout(elkGraph);
-
-  // Extract results
-  const nodes = extractNodes(layoutGraph, topology);
-  const edges = extractEdges(layoutGraph, topology);
-
-  return {
-    nodes,
-    edges,
-    width: (layoutGraph.width ?? 800) + 40,
-    height: (layoutGraph.height ?? 400) + 40,
-  };
+  return extractLayout(layoutGraph, topology);
 }
 
-function findGroup(topology: TopologyData, nodeName: string): string | undefined {
-  for (const [group, members] of Object.entries(topology.groups)) {
-    if (members.includes(nodeName)) return group;
-  }
-  return undefined;
-}
-
-function extractNodes(graph: ElkNode, topology: TopologyData): LayoutNode[] {
-  const result: LayoutNode[] = [];
+function extractLayout(graph: ElkNode, topology: TopologyData): LayoutResult {
+  const nodes: LayoutNode[] = [];
 
   for (const child of graph.children ?? []) {
     if (!child.id.startsWith("group:")) continue;
@@ -212,36 +151,28 @@ function extractNodes(graph: ElkNode, topology: TopologyData): LayoutNode[] {
     const groupType =
       topology.nodes.find((n) => topology.groups[groupName]?.includes(n.name) === true)?.type ?? "unknown";
 
-    const children: LayoutNode[] = [];
-    const ports: LayoutPort[] = [];
+    const children: LayoutNode[] = (child.children ?? []).map((inner) => ({
+      id: inner.id,
+      x: inner.x ?? 0,
+      y: inner.y ?? 0,
+      width: inner.width ?? NODE_WIDTH,
+      height: inner.height ?? NODE_HEIGHT,
+      type: groupType,
+      isGroup: false,
+      children: [],
+      ports: [],
+    }));
 
-    for (const inner of child.children ?? []) {
-      children.push({
-        id: inner.id,
-        x: inner.x ?? 0,
-        y: inner.y ?? 0,
-        width: inner.width ?? NODE_MIN_WIDTH,
-        height: inner.height ?? NODE_HEIGHT,
-        type: inner.id.startsWith("seg:") ? "segment" : groupType,
-        isGroup: false,
-        children: [],
-        ports: [],
-      });
-    }
+    const ports: LayoutPort[] = (child.ports ?? []).map((port) => ({
+      id: port.id,
+      x: port.x ?? 0,
+      y: port.y ?? 0,
+      width: port.width ?? PORT_SIZE,
+      height: port.height ?? PORT_SIZE,
+      side: port.layoutOptions?.["org.eclipse.elk.port.side"] === "WEST" ? ("WEST" as const) : ("EAST" as const),
+    }));
 
-    for (const port of child.ports ?? []) {
-      ports.push({
-        id: port.id,
-        x: port.x ?? 0,
-        y: port.y ?? 0,
-        width: port.width ?? PORT_SIZE,
-        height: port.height ?? PORT_SIZE,
-        side: port.layoutOptions?.["org.eclipse.elk.port.side"] === "WEST" ? "WEST" : "EAST",
-        label: port.id,
-      });
-    }
-
-    result.push({
+    nodes.push({
       id: child.id,
       x: child.x ?? 0,
       y: child.y ?? 0,
@@ -254,33 +185,78 @@ function extractNodes(graph: ElkNode, topology: TopologyData): LayoutNode[] {
     });
   }
 
-  return result;
-}
+  // Extract edges with segment nodules positioned along the path
+  const edges: LayoutEdge[] = [];
+  for (const elkEdge of graph.edges ?? []) {
+    const topoEdge = topology.edges.find((e) => `edge:${e.name}` === elkEdge.id);
+    if (topoEdge === undefined) continue;
 
-function extractEdges(graph: ElkNode, topology: TopologyData): LayoutEdge[] {
-  const result: LayoutEdge[] = [];
+    const sections = (elkEdge).sections ?? [];
+    const points: Array<{ x: number; y: number }> = [];
+    for (const section of sections) {
+      points.push(section.startPoint);
+      for (const bp of section.bendPoints ?? []) {
+        points.push(bp);
+      }
+      points.push(section.endPoint);
+    }
 
-  for (const edge of graph.edges ?? []) {
-    const topoEdge = topology.edges.find((e) => `edge:${e.name}` === edge.id);
-    if (!topoEdge) continue;
+    // Distribute segment nodules along the edge path
+    const visibleSegments = topoEdge.segments.filter((s) => s.type !== "PassthroughSegment");
+    const segmentNodules = distributeAlongPath(points, visibleSegments);
 
-    const sections =
-      edge.sections?.map((s) => ({
-        startPoint: s.startPoint,
-        endPoint: s.endPoint,
-        bendPoints: s.bendPoints ?? undefined,
-      })) ?? [];
-
-    result.push({
+    edges.push({
       name: topoEdge.name,
       source: topoEdge.source,
       target: topoEdge.target,
-      sourcePort: `port:${topoEdge.name}:out`,
-      targetPort: `port:${topoEdge.name}:in`,
-      sections,
-      segments: [],
+      points,
+      segments: segmentNodules,
     });
   }
 
-  return result;
+  return {
+    nodes,
+    edges,
+    width: (graph.width ?? 800) + 20,
+    height: (graph.height ?? 400) + 20,
+  };
+}
+
+function distributeAlongPath(
+  points: Array<{ x: number; y: number }>,
+  segments: TopologySegment[]
+): LayoutSegmentNodule[] {
+  if (segments.length === 0 || points.length < 2) return [];
+
+  let totalLength = 0;
+  const cumLengths = [0];
+  for (let i = 1; i < points.length; i++) {
+    const dx = points[i]!.x - points[i - 1]!.x;
+    const dy = points[i]!.y - points[i - 1]!.y;
+    totalLength += Math.sqrt(dx * dx + dy * dy);
+    cumLengths.push(totalLength);
+  }
+  if (totalLength === 0) return [];
+
+  return segments.map((seg, i) => {
+    const t = (i + 1) / (segments.length + 1);
+    const dist = t * totalLength;
+
+    let idx = 0;
+    while (idx < cumLengths.length - 1 && cumLengths[idx + 1]! < dist) idx++;
+
+    const segStart = cumLengths[idx]!;
+    const segEnd = cumLengths[idx + 1] ?? segStart;
+    const localT = segEnd > segStart ? (dist - segStart) / (segEnd - segStart) : 0;
+
+    const p0 = points[idx]!;
+    const p1 = points[idx + 1] ?? p0;
+
+    return {
+      id: seg.id,
+      type: seg.type,
+      x: p0.x + (p1.x - p0.x) * localT,
+      y: p0.y + (p1.y - p0.y) * localT,
+    };
+  });
 }
