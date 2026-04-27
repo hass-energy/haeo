@@ -260,14 +260,6 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       }
     }
 
-    // Sort ports by edge name to ensure consistent ordering across groups.
-    // This prevents bidirectional pairs from crossing.
-    ports.sort((a, b) => {
-      const nameA = a.id.replace(/^port:/, "").replace(/:layout-(in|out)$/, "");
-      const nameB = b.id.replace(/^port:/, "").replace(/:layout-(in|out)$/, "");
-      return nameA.localeCompare(nameB);
-    });
-
     elkChildren.push({
       id: `group:${groupName}`,
       labels: [{ text: groupName }],
@@ -279,14 +271,14 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
         "org.eclipse.elk.direction": "RIGHT",
         "org.eclipse.elk.padding": `[top=${HDR + PAD},left=${PAD},bottom=${PAD},right=${PAD}]`,
         "org.eclipse.elk.nodeLabels.placement": "H_LEFT V_TOP INSIDE",
-        "org.eclipse.elk.portConstraints": "FIXED_ORDER",
+        "org.eclipse.elk.portConstraints": "FREE",
         "org.eclipse.elk.spacing.nodeNode": "10",
         "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "15",
       },
     });
   }
 
-  // Route each edge directly — no ghost nodes
+  // ALL edges routed through ELK — no deduplication
   for (const edge of topology.edges) {
     const sg = findGroup(topology, edge.source);
     const tg = findGroup(topology, edge.target);
@@ -309,9 +301,8 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       "org.eclipse.elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
       "org.eclipse.elk.spacing.nodeNode": "25",
       "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "40",
-      "org.eclipse.elk.spacing.edgeEdge": "20",
-      "org.eclipse.elk.spacing.edgeNode": "20",
-      "org.eclipse.elk.edgeRouting": "SPLINES",
+      "org.eclipse.elk.spacing.edgeEdge": "12",
+      "org.eclipse.elk.spacing.edgeNode": "12",
       "org.eclipse.elk.randomSeed": "42",
     },
   });
@@ -394,7 +385,7 @@ function extractResult(graph: ElkNode, topology: TopologyData, reversed: Set<str
       name: e.id,
       source: topoEdge?.source ?? "",
       target: topoEdge?.target ?? "",
-      points,
+      points: isReversed ? [...points].reverse() : points,
       internal: false,
       reversed: isReversed,
     };
