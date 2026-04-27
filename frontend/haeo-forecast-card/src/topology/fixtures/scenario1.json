@@ -1,0 +1,140 @@
+{
+  "edges": [
+    {
+      "name": "Battery:charge",
+      "segments": [
+        {
+          "id": "passthrough",
+          "type": "PassthroughSegment"
+        }
+      ],
+      "source": "Inverter",
+      "target": "Battery"
+    },
+    {
+      "name": "Battery:discharge",
+      "segments": [
+        {
+          "id": "efficiency",
+          "type": "EfficiencySegment"
+        }
+      ],
+      "source": "Battery",
+      "target": "Inverter"
+    },
+    {
+      "name": "Grid:export",
+      "segments": [
+        {
+          "id": "pricing",
+          "type": "PricingSegment"
+        },
+        {
+          "id": "power_limit",
+          "type": "PowerLimitSegment"
+        }
+      ],
+      "source": "Switchboard",
+      "target": "Grid"
+    },
+    {
+      "name": "Grid:import",
+      "segments": [
+        {
+          "id": "pricing",
+          "type": "PricingSegment"
+        },
+        {
+          "id": "power_limit",
+          "type": "PowerLimitSegment"
+        }
+      ],
+      "source": "Grid",
+      "target": "Switchboard"
+    },
+    {
+      "name": "Inverter:ac_to_dc",
+      "segments": [
+        {
+          "id": "efficiency",
+          "type": "EfficiencySegment"
+        }
+      ],
+      "source": "Switchboard",
+      "target": "Inverter"
+    },
+    {
+      "name": "Inverter:dc_to_ac",
+      "segments": [
+        {
+          "id": "efficiency",
+          "type": "EfficiencySegment"
+        }
+      ],
+      "source": "Inverter",
+      "target": "Switchboard"
+    },
+    {
+      "name": "Load:connection",
+      "segments": [
+        {
+          "id": "power_limit",
+          "type": "PowerLimitSegment"
+        }
+      ],
+      "source": "Switchboard",
+      "target": "Load"
+    },
+    {
+      "name": "Solar:connection",
+      "segments": [
+        {
+          "id": "power_limit",
+          "type": "PowerLimitSegment"
+        }
+      ],
+      "source": "Solar",
+      "target": "Inverter"
+    }
+  ],
+  "groups": {
+    "Battery": ["Battery"],
+    "Grid": ["Grid"],
+    "Inverter": ["Inverter"],
+    "Load": ["Load"],
+    "Solar": ["Solar"],
+    "Switchboard": ["Switchboard"]
+  },
+  "nodes": [
+    {
+      "group": "Battery",
+      "name": "Battery",
+      "type": "battery"
+    },
+    {
+      "group": "Grid",
+      "name": "Grid",
+      "type": "node"
+    },
+    {
+      "group": "Inverter",
+      "name": "Inverter",
+      "type": "node"
+    },
+    {
+      "group": "Load",
+      "name": "Load",
+      "type": "node"
+    },
+    {
+      "group": "Solar",
+      "name": "Solar",
+      "type": "node"
+    },
+    {
+      "group": "Switchboard",
+      "name": "Switchboard",
+      "type": "node"
+    }
+  ]
+}

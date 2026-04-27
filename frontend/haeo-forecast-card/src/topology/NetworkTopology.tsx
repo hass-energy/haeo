@@ -1,9 +1,16 @@
-/** Network topology SVG component with ELK layout. */
+/** Network topology SVG component. */
 
 import type { JSX } from "preact";
 import { useEffect, useState } from "preact/hooks";
-import { computeLayout, NODE_STYLES, type LayoutEdge, type LayoutResult } from "./layout";
-import type { TopologyData } from "./types";
+import {
+  computeLayout,
+  NODE_STYLES,
+  type LayoutEdge,
+  type LayoutGroup,
+  type LayoutNode,
+  type LayoutResult,
+} from "./layout";
+import type { TopologyData, TopologySegment } from "./types";
 
 const NODE_RX = 6;
 const GROUP_RX = 10;
@@ -47,7 +54,6 @@ export function NetworkTopology(props: Props): JSX.Element {
 
   const w = props.width ?? layout.width;
   const h = props.height ?? layout.height;
-
   const hide = (): void => setTooltip(null);
 
   return (
@@ -55,170 +61,18 @@ export function NetworkTopology(props: Props): JSX.Element {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-            <polygon points="0 0, 8 3, 0 6" fill="#666" />
+            <polygon points="0 0, 8 3, 0 6" fill="#888" />
           </marker>
         </defs>
 
         {/* Groups */}
-        {layout.nodes
-          .filter((n) => n.isGroup)
-          .map((group) => {
-            const s = NODE_STYLES[group.type] ?? NODE_STYLES["unknown"];
-            return (
-              <g key={group.id}>
-                {/* Group background */}
-                <rect
-                  x={group.x}
-                  y={group.y}
-                  width={group.width}
-                  height={group.height}
-                  rx={GROUP_RX}
-                  fill={`${s?.color ?? "#bbb"}15`}
-                  stroke={`${s?.color ?? "#bbb"}50`}
-                  stroke-width="1.5"
-                />
-                {/* Group label */}
-                <text x={group.x + 8} y={group.y + 15} font-size="11" font-weight="700" fill={s?.color ?? "#666"}>
-                  {s?.icon ?? "?"} {group.id.replace("group:", "")}
-                </text>
+        {layout.groups.map((group) => renderGroup(group, setTooltip, hide))}
 
-                {/* Sub-elements and segment pills inside group */}
-                {group.children.map((child) => {
-                  const isPill = child.id.startsWith("pill:");
-                  if (isPill) {
-                    // Segment pill — find the edge and its segments
-                    const edgeName = child.id.slice(5);
-                    const topoEdge = topology.edges.find((e) => e.name === edgeName);
-                    const segs = topoEdge?.segments.filter((seg) => seg.type !== "PassthroughSegment") ?? [];
-                    const cellW = 28;
-                    const px = group.x + child.x;
-                    const py = group.y + child.y;
-                    return (
-                      <g key={child.id}>
-                        <rect
-                          x={px}
-                          y={py}
-                          width={child.width}
-                          height={child.height}
-                          rx={child.height / 2}
-                          fill="white"
-                          stroke="#bbb"
-                          stroke-width="1"
-                        />
-                        {segs.map((seg, i) => {
-                          const sx = px + 4 + i * cellW + cellW / 2;
-                          const icon = SEGMENT_ICONS[seg.type] ?? "?";
-                          return (
-                            <g
-                              key={seg.id}
-                              onMouseEnter={(e: MouseEvent) =>
-                                setTooltip({
-                                  x: e.clientX,
-                                  y: e.clientY,
-                                  title: seg.id,
-                                  lines: [`${seg.type.replace("Segment", "")}`, edgeName],
-                                })
-                              }
-                              onMouseLeave={hide}
-                              style={{ cursor: "pointer" }}
-                            >
-                              {i > 0 && (
-                                <line
-                                  x1={px + 4 + i * cellW}
-                                  y1={py + 3}
-                                  x2={px + 4 + i * cellW}
-                                  y2={py + child.height - 3}
-                                  stroke="#ddd"
-                                />
-                              )}
-                              <text x={sx} y={py + child.height / 2 + 4} text-anchor="middle" font-size="12">
-                                {icon}
-                              </text>
-                            </g>
-                          );
-                        })}
-                      </g>
-                    );
-                  }
-                  // Regular model element
-                  return (
-                    <g
-                      key={child.id}
-                      onMouseEnter={(e: MouseEvent) =>
-                        setTooltip({ x: e.clientX, y: e.clientY, title: child.id, lines: [`Type: ${child.type}`] })
-                      }
-                      onMouseLeave={hide}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <rect
-                        x={group.x + child.x}
-                        y={group.y + child.y}
-                        width={child.width}
-                        height={child.height}
-                        rx={NODE_RX}
-                        fill={s?.color ?? "#bbb"}
-                        stroke="rgba(0,0,0,0.15)"
-                        opacity="0.85"
-                      />
-                      <text
-                        x={group.x + child.x + child.width / 2}
-                        y={group.y + child.y + child.height / 2 + 4}
-                        text-anchor="middle"
-                        font-size="11"
-                        font-weight="600"
-                        fill="white"
-                      >
-                        {child.id}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {/* Ports with internal connections to child elements */}
-                {group.ports.map((port) => {
-                  const px = group.x + port.x + port.width / 2;
-                  const py = group.y + port.y + port.height / 2;
-                  // Find the nearest child element to draw a connection line
-                  let nearestChild = group.children[0];
-                  if (nearestChild !== undefined) {
-                    let minDist = Infinity;
-                    for (const child of group.children) {
-                      const childCx = group.x + child.x + child.width / 2;
-                      const childCy = group.y + child.y + child.height / 2;
-                      const dist = Math.sqrt((px - childCx) ** 2 + (py - childCy) ** 2);
-                      if (dist < minDist) {
-                        minDist = dist;
-                        nearestChild = child;
-                      }
-                    }
-                    const childCx = group.x + nearestChild.x + (port.side === "WEST" ? 0 : nearestChild.width);
-                    const childCy = group.y + nearestChild.y + nearestChild.height / 2;
-                    return (
-                      <g key={port.id}>
-                        <line
-                          x1={px}
-                          y1={py}
-                          x2={childCx}
-                          y2={childCy}
-                          stroke="#ccc"
-                          stroke-width="1"
-                          stroke-dasharray="3 2"
-                        />
-                        <circle cx={px} cy={py} r={3} fill="#888" />
-                      </g>
-                    );
-                  }
-                  return <circle key={port.id} cx={px} cy={py} r={3} fill="#888" />;
-                })}
-              </g>
-            );
-          })}
-
-        {/* Edges with segment nodules */}
-        {layout.edges.map((edge) => renderEdge(edge))}
+        {/* External edges between groups */}
+        {layout.externalEdges.map((edge) => renderEdgePath(edge, "#666", true))}
       </svg>
 
-      {/* Tooltip overlay */}
+      {/* Tooltip */}
       {tooltip != null && (
         <div
           style={{
@@ -248,27 +102,151 @@ export function NetworkTopology(props: Props): JSX.Element {
   );
 }
 
-function renderEdge(edge: LayoutEdge): JSX.Element | null {
-  if (edge.points.length < 2) return null;
-
-  const d = edge.points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+function renderGroup(group: LayoutGroup, setTooltip: (t: TooltipInfo) => void, hide: () => void): JSX.Element {
+  const s = NODE_STYLES[group.type] ?? NODE_STYLES["unknown"];
 
   return (
-    <g key={`edge-${edge.name}`}>
-      <path d={d} fill="none" stroke="#666" stroke-width="1.5" marker-end="url(#arrow)" />
+    <g key={group.id}>
+      {/* Group background */}
+      <rect
+        x={group.x}
+        y={group.y}
+        width={group.width}
+        height={group.height}
+        rx={GROUP_RX}
+        fill={`${s?.color ?? "#bbb"}12`}
+        stroke={`${s?.color ?? "#bbb"}40`}
+        stroke-width="1.5"
+      />
+      <text x={group.x + 8} y={group.y + 14} font-size="11" font-weight="700" fill={s?.color ?? "#666"}>
+        {s?.icon ?? "?"} {group.id.replace("group:", "")}
+      </text>
 
-      {/* Edge label */}
-      {edge.points.length >= 2 && (
-        <text
-          x={(edge.points[0]!.x + edge.points[edge.points.length - 1]!.x) / 2}
-          y={(edge.points[0]!.y + edge.points[edge.points.length - 1]!.y) / 2 - 8}
-          text-anchor="middle"
-          font-size="9"
-          fill="#999"
-        >
-          {edge.name}
-        </text>
+      {/* Internal edges (within group) */}
+      {group.internalEdges.map((edge) => (
+        <g key={edge.name} transform={`translate(${group.x},${group.y})`}>
+          {renderEdgePathRaw(edge.points, "#ccc", false)}
+        </g>
+      ))}
+
+      {/* Child nodes */}
+      {group.children.map((child) =>
+        child.isPill
+          ? renderPill(child, group, setTooltip, hide)
+          : renderModelNode(child, group, s?.color ?? "#bbb", setTooltip, hide)
       )}
+
+      {/* Ports */}
+      {group.ports.map((port) => (
+        <circle
+          key={port.id}
+          cx={group.x + port.x + port.width / 2}
+          cy={group.y + port.y + port.height / 2}
+          r={3}
+          fill="#888"
+        />
+      ))}
     </g>
   );
+}
+
+function renderModelNode(
+  node: LayoutNode,
+  group: LayoutGroup,
+  color: string,
+  setTooltip: (t: TooltipInfo) => void,
+  hide: () => void
+): JSX.Element {
+  return (
+    <g
+      key={node.id}
+      onMouseEnter={(e: MouseEvent) =>
+        setTooltip({ x: e.clientX, y: e.clientY, title: node.id, lines: [`Type: ${node.type}`] })
+      }
+      onMouseLeave={hide}
+      style={{ cursor: "pointer" }}
+    >
+      <rect
+        x={group.x + node.x}
+        y={group.y + node.y}
+        width={node.width}
+        height={node.height}
+        rx={NODE_RX}
+        fill={color}
+        stroke="rgba(0,0,0,0.15)"
+        opacity="0.85"
+      />
+      <text
+        x={group.x + node.x + node.width / 2}
+        y={group.y + node.y + node.height / 2 + 4}
+        text-anchor="middle"
+        font-size="11"
+        font-weight="600"
+        fill="white"
+      >
+        {node.id}
+      </text>
+    </g>
+  );
+}
+
+function renderPill(
+  node: LayoutNode,
+  group: LayoutGroup,
+  setTooltip: (t: TooltipInfo) => void,
+  hide: () => void
+): JSX.Element {
+  const px = group.x + node.x;
+  const py = group.y + node.y;
+  const cellW = 28;
+  const segs = node.segments;
+
+  return (
+    <g key={node.id}>
+      <rect x={px} y={py} width={node.width} height={node.height} rx={node.height / 2} fill="white" stroke="#bbb" />
+      {segs.map((seg: TopologySegment, i: number) => {
+        const sx = px + 4 + i * cellW + cellW / 2;
+        const icon = SEGMENT_ICONS[seg.type] ?? "?";
+        return (
+          <g
+            key={seg.id}
+            onMouseEnter={(e: MouseEvent) =>
+              setTooltip({
+                x: e.clientX,
+                y: e.clientY,
+                title: seg.id,
+                lines: [seg.type.replace("Segment", ""), node.id.replace("pill:", "")],
+              })
+            }
+            onMouseLeave={hide}
+            style={{ cursor: "pointer" }}
+          >
+            {i > 0 && (
+              <line
+                x1={px + 4 + i * cellW}
+                y1={py + 3}
+                x2={px + 4 + i * cellW}
+                y2={py + node.height - 3}
+                stroke="#ddd"
+              />
+            )}
+            <text x={sx} y={py + node.height / 2 + 4} text-anchor="middle" font-size="12">
+              {icon}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function renderEdgePath(edge: LayoutEdge, color: string, arrow: boolean): JSX.Element | null {
+  if (edge.points.length < 2) return null;
+  return <g key={edge.name}>{renderEdgePathRaw(edge.points, color, arrow)}</g>;
+}
+
+function renderEdgePathRaw(points: Array<{ x: number; y: number }>, color: string, arrow: boolean): JSX.Element | null {
+  if (points.length < 2) return null;
+  const d = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  return <path d={d} fill="none" stroke={color} stroke-width="1.5" marker-end={arrow ? "url(#arrow)" : undefined} />;
 }
