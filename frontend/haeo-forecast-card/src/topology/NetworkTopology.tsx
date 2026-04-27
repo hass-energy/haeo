@@ -412,9 +412,9 @@ function renderModelNode(
         rx={NODE_RX}
         fill={color}
         stroke={
-          outTags.length > 0 && outTags[0] !== 0 ? vlanColor(outTags.find((t) => t !== 0)!) : "rgba(0,0,0,0.15)"
+          outTags.length > 0 ? vlanColor(outTags.find((t) => t !== 0) ?? 0) : "rgba(0,0,0,0.15)"
         }
-        stroke-width={outTags.some((t) => t !== 0) ? "3" : "1"}
+        stroke-width={outTags.length > 0 ? "3" : "1"}
         opacity="0.85"
       />
       <text
