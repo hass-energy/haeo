@@ -1,6 +1,6 @@
-/** Dagre-based layout for HAEO network topology. */
+/** ELK-based layout for HAEO network topology with ports and compound nodes. */
 
-import dagre from "dagre";
+import ELK, { type ElkExtendedEdge, type ElkNode, type ElkPort } from "elkjs/lib/elk.bundled.js";
 import type { TopologyData, TopologySegment } from "./types";
 
 export interface LayoutNode {
@@ -10,222 +10,275 @@ export interface LayoutNode {
   width: number;
   height: number;
   type: string;
-  group: string;
   isGroup: boolean;
+  children: LayoutNode[];
+  ports: LayoutPort[];
 }
 
-export interface LayoutSegmentNodule {
+export interface LayoutPort {
+  id: string;
   x: number;
   y: number;
-  id: string;
-  type: string;
-  edgeName: string;
+  width: number;
+  height: number;
+  side: "EAST" | "WEST";
+  label: string;
 }
 
 export interface LayoutEdge {
   name: string;
   source: string;
   target: string;
-  points: Array<{ x: number; y: number }>;
-  segments: LayoutSegmentNodule[];
-}
-
-export interface LayoutGroup {
-  name: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  members: string[];
+  sourcePort: string;
+  targetPort: string;
+  sections: Array<{
+    startPoint: { x: number; y: number };
+    endPoint: { x: number; y: number };
+    bendPoints?: Array<{ x: number; y: number }> | undefined;
+  }>;
+  segments: Array<{
+    id: string;
+    type: string;
+    x: number;
+    y: number;
+  }>;
 }
 
 export interface LayoutResult {
   nodes: LayoutNode[];
   edges: LayoutEdge[];
-  groups: LayoutGroup[];
   width: number;
   height: number;
 }
 
-const NODE_WIDTH = 120;
-const NODE_HEIGHT = 50;
-const GROUP_PADDING = 20;
-
-/** Element type to icon/color mapping. */
-export const NODE_STYLES: Record<string, { color: string; icon: string }> = {
-  battery: { color: "#4CAF50", icon: "🔋" },
-  node: { color: "#90CAF9", icon: "⚡" },
-  grid: { color: "#FF9800", icon: "🏭" },
-  solar: { color: "#FFD600", icon: "☀️" },
-  load: { color: "#E91E63", icon: "🏠" },
-  inverter: { color: "#9C27B0", icon: "🔄" },
-  unknown: { color: "#BDBDBD", icon: "?" },
+/** Element type to style mapping. */
+export const NODE_STYLES: Record<string, { color: string; icon: string; label: string }> = {
+  battery: { color: "#4CAF50", icon: "🔋", label: "Battery" },
+  node: { color: "#90CAF9", icon: "⚡", label: "Node" },
+  grid: { color: "#FF9800", icon: "🏭", label: "Grid" },
+  solar: { color: "#FFD600", icon: "☀️", label: "Solar" },
+  load: { color: "#E91E63", icon: "🏠", label: "Load" },
+  inverter: { color: "#9C27B0", icon: "🔄", label: "Inverter" },
+  network: { color: "#607D8B", icon: "📡", label: "System" },
+  unknown: { color: "#BDBDBD", icon: "?", label: "Unknown" },
 };
 
-export function computeLayout(topology: TopologyData): LayoutResult {
-  const g = new dagre.graphlib.Graph({ compound: true });
-  g.setGraph({
-    rankdir: "LR",
-    ranksep: 100,
-    nodesep: 60,
-    edgesep: 30,
-    marginx: 40,
-    marginy: 40,
-  });
-  g.setDefaultEdgeLabel(() => ({}));
+const SEGMENT_ICONS: Record<string, string> = {
+  PricingSegment: "💲",
+  PowerLimitSegment: "⚡",
+  EfficiencySegment: "η",
+  SocPricingSegment: "📊",
+  TagFilterSegment: "🏷",
+  TagPricingSegment: "🏷",
+};
 
-  // Identify which groups have multiple members (worth grouping visually)
-  const multiGroups = new Set(
-    Object.entries(topology.groups)
-      .filter(([, members]) => members.length > 1)
-      .map(([name]) => name)
-  );
+const NODE_MIN_WIDTH = 140;
+const NODE_HEIGHT = 45;
+const GROUP_PADDING = 15;
+const PORT_SIZE = 10;
+const SEGMENT_NODE_WIDTH = 70;
+const SEGMENT_NODE_HEIGHT = 28;
 
-  // Add group compound nodes
-  for (const groupName of multiGroups) {
-    g.setNode(`group:${groupName}`, {
-      label: groupName,
-      clusterLabelPos: "top",
-      width: 0,
-      height: 0,
-    });
-  }
-
-  // Add nodes
-  for (const node of topology.nodes) {
-    g.setNode(node.name, {
-      label: node.name,
-      width: NODE_WIDTH,
-      height: NODE_HEIGHT,
-    });
-    if (multiGroups.has(node.group)) {
-      g.setParent(node.name, `group:${node.group}`);
-    }
-  }
-
-  // Add edges — account for segment nodules needing space
-  for (const edge of topology.edges) {
-    const visibleSegments = edge.segments.filter((s) => s.type !== "PassthroughSegment");
-    g.setEdge(edge.source, edge.target, {
-      label: edge.name,
-      minlen: visibleSegments.length > 0 ? 2 : 1,
-      width: visibleSegments.length * 24,
-    });
-  }
-
-  dagre.layout(g);
-
-  // Extract layout results
-  const nodes: LayoutNode[] = [];
-  const groups: LayoutGroup[] = [];
-
-  for (const nodeId of g.nodes()) {
-    const n = g.node(nodeId) as { x: number; y: number; width: number; height: number; label?: string } | undefined;
-    if (n == null) continue;
-
-    if (nodeId.startsWith("group:")) {
-      const groupName = nodeId.slice(6);
-      groups.push({
-        name: groupName,
-        x: n.x - n.width / 2,
-        y: n.y - n.height / 2,
-        width: n.width + GROUP_PADDING * 2,
-        height: n.height + GROUP_PADDING * 2,
-        members: topology.groups[groupName] ?? [],
-      });
-    } else {
-      const topoNode = topology.nodes.find((tn) => tn.name === nodeId);
-      nodes.push({
-        id: nodeId,
-        x: n.x,
-        y: n.y,
-        width: n.width,
-        height: n.height,
-        type: topoNode?.type ?? "unknown",
-        group: topoNode?.group ?? nodeId,
-        isGroup: false,
-      });
-    }
-  }
-
-  // Extract edges with segment nodule positions
-  const edges: LayoutEdge[] = [];
-  for (const edge of topology.edges) {
-    const edgeData = g.edge(edge.source, edge.target) as { points?: Array<{ x: number; y: number }> } | undefined;
-    if (edgeData?.points == null) continue;
-
-    const points = edgeData.points.map((p: { x: number; y: number }) => ({
-      x: p.x,
-      y: p.y,
-    }));
-
-    // Place segment nodules evenly along the edge path
-    const visibleSegments = edge.segments.filter((s) => s.type !== "PassthroughSegment");
-    const segmentNodules = distributeSegments(points, visibleSegments, edge.name);
-
-    edges.push({
-      name: edge.name,
-      source: edge.source,
-      target: edge.target,
-      points,
-      segments: segmentNodules,
-    });
-  }
-
-  // Compute overall dimensions
-  const graph = g.graph() as { width?: number; height?: number };
-  const width = (graph.width ?? 800) + 80;
-  const height = (graph.height ?? 400) + 80;
-
-  return { nodes, edges, groups, width, height };
+function segmentLabel(seg: TopologySegment): string {
+  const icon = SEGMENT_ICONS[seg.type] ?? "";
+  const name = seg.type.replace("Segment", "");
+  return `${icon} ${name}`.trim();
 }
 
-/** Distribute segment nodules evenly along an edge path. */
-function distributeSegments(
-  points: Array<{ x: number; y: number }>,
-  segments: TopologySegment[],
-  edgeName: string
-): LayoutSegmentNodule[] {
-  if (segments.length === 0 || points.length < 2) return [];
+export async function computeLayout(topology: TopologyData): Promise<LayoutResult> {
+  const elk = new ELK();
 
-  // Compute total path length
-  let totalLength = 0;
-  const lengths: number[] = [0];
-  for (let i = 1; i < points.length; i++) {
-    const dx = points[i]!.x - points[i - 1]!.x;
-    const dy = points[i]!.y - points[i - 1]!.y;
-    totalLength += Math.sqrt(dx * dx + dy * dy);
-    lengths.push(totalLength);
-  }
+  // Build ELK graph: each element is a compound node containing its internal
+  // structure. Connections become edges between ports on the compound nodes.
+  const elkNodes: ElkNode[] = [];
+  const elkEdges: ElkExtendedEdge[] = [];
 
-  if (totalLength === 0) return [];
+  // Create compound node for each element group
+  const groupNodes = new Map<string, ElkNode>();
 
-  // Place segments evenly along the path
-  const result: LayoutSegmentNodule[] = [];
-  for (let i = 0; i < segments.length; i++) {
-    const t = (i + 1) / (segments.length + 1);
-    const targetDist = t * totalLength;
+  for (const [groupName, members] of Object.entries(topology.groups)) {
+    // Child nodes within the group (the actual element nodes)
+    const children: ElkNode[] = members.map((name) => ({
+      id: name,
+      width: NODE_MIN_WIDTH,
+      height: NODE_HEIGHT,
+      labels: [{ text: name }],
+    }));
 
-    // Find the segment of the path this falls on
-    let segIdx = 0;
-    while (segIdx < lengths.length - 1 && lengths[segIdx + 1]! < targetDist) {
-      segIdx++;
+    // Ports for incoming/outgoing connections
+    const inPorts: ElkPort[] = [];
+    const outPorts: ElkPort[] = [];
+
+    for (const edge of topology.edges) {
+      if (members.includes(edge.target)) {
+        inPorts.push({
+          id: `port:${edge.name}:in`,
+          width: PORT_SIZE,
+          height: PORT_SIZE,
+          layoutOptions: { "org.eclipse.elk.port.side": "WEST" },
+        });
+
+        // Add segment nodes inside the group for this incoming edge
+        for (const seg of edge.segments.filter((s) => s.type !== "PassthroughSegment")) {
+          children.push({
+            id: `seg:${edge.name}:${seg.id}`,
+            width: SEGMENT_NODE_WIDTH,
+            height: SEGMENT_NODE_HEIGHT,
+            labels: [{ text: segmentLabel(seg) }],
+          });
+        }
+      }
+      if (members.includes(edge.source)) {
+        outPorts.push({
+          id: `port:${edge.name}:out`,
+          width: PORT_SIZE,
+          height: PORT_SIZE,
+          layoutOptions: { "org.eclipse.elk.port.side": "EAST" },
+        });
+      }
     }
 
-    const segStart = lengths[segIdx] ?? 0;
-    const segEnd = lengths[segIdx + 1] ?? segStart;
-    const segLen = segEnd - segStart;
-    const localT = segLen > 0 ? (targetDist - segStart) / segLen : 0;
+    const groupNode: ElkNode = {
+      id: `group:${groupName}`,
+      labels: [{ text: groupName }],
+      children,
+      ports: [...inPorts, ...outPorts],
+      layoutOptions: {
+        "org.eclipse.elk.padding": `[top=${GROUP_PADDING + 20},left=${GROUP_PADDING},bottom=${GROUP_PADDING},right=${GROUP_PADDING}]`,
+        "org.eclipse.elk.nodeLabels.placement": "H_LEFT V_TOP INSIDE",
+      },
+    };
 
-    const p0 = points[segIdx]!;
-    const p1 = points[segIdx + 1] ?? p0;
+    groupNodes.set(groupName, groupNode);
+    elkNodes.push(groupNode);
+  }
+
+  // Create edges between group ports
+  for (const edge of topology.edges) {
+    const sourceGroup = findGroup(topology, edge.source);
+    const targetGroup = findGroup(topology, edge.target);
+    if (sourceGroup === undefined || targetGroup === undefined) continue;
+
+    elkEdges.push({
+      id: `edge:${edge.name}`,
+      sources: [`group:${sourceGroup}`, `port:${edge.name}:out`],
+      targets: [`group:${targetGroup}`, `port:${edge.name}:in`],
+    });
+  }
+
+  const elkGraph: ElkNode = {
+    id: "root",
+    children: elkNodes,
+    edges: elkEdges,
+    layoutOptions: {
+      "org.eclipse.elk.algorithm": "layered",
+      "org.eclipse.elk.direction": "RIGHT",
+      "org.eclipse.elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+      "org.eclipse.elk.spacing.nodeNode": "40",
+      "org.eclipse.elk.spacing.edgeNode": "20",
+      "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "80",
+      "org.eclipse.elk.portConstraints": "FIXED_SIDE",
+      "org.eclipse.elk.randomSeed": "42",
+    },
+  };
+
+  const layoutGraph = await elk.layout(elkGraph);
+
+  // Extract results
+  const nodes = extractNodes(layoutGraph, topology);
+  const edges = extractEdges(layoutGraph, topology);
+
+  return {
+    nodes,
+    edges,
+    width: (layoutGraph.width ?? 800) + 40,
+    height: (layoutGraph.height ?? 400) + 40,
+  };
+}
+
+function findGroup(topology: TopologyData, nodeName: string): string | undefined {
+  for (const [group, members] of Object.entries(topology.groups)) {
+    if (members.includes(nodeName)) return group;
+  }
+  return undefined;
+}
+
+function extractNodes(graph: ElkNode, topology: TopologyData): LayoutNode[] {
+  const result: LayoutNode[] = [];
+
+  for (const child of graph.children ?? []) {
+    if (!child.id.startsWith("group:")) continue;
+    const groupName = child.id.slice(6);
+    const groupType =
+      topology.nodes.find((n) => topology.groups[groupName]?.includes(n.name) === true)?.type ?? "unknown";
+
+    const children: LayoutNode[] = [];
+    const ports: LayoutPort[] = [];
+
+    for (const inner of child.children ?? []) {
+      children.push({
+        id: inner.id,
+        x: inner.x ?? 0,
+        y: inner.y ?? 0,
+        width: inner.width ?? NODE_MIN_WIDTH,
+        height: inner.height ?? NODE_HEIGHT,
+        type: inner.id.startsWith("seg:") ? "segment" : groupType,
+        isGroup: false,
+        children: [],
+        ports: [],
+      });
+    }
+
+    for (const port of child.ports ?? []) {
+      ports.push({
+        id: port.id,
+        x: port.x ?? 0,
+        y: port.y ?? 0,
+        width: port.width ?? PORT_SIZE,
+        height: port.height ?? PORT_SIZE,
+        side: port.layoutOptions?.["org.eclipse.elk.port.side"] === "WEST" ? "WEST" : "EAST",
+        label: port.id,
+      });
+    }
 
     result.push({
-      x: p0.x + (p1.x - p0.x) * localT,
-      y: p0.y + (p1.y - p0.y) * localT,
-      id: segments[i]!.id,
-      type: segments[i]!.type,
-      edgeName,
+      id: child.id,
+      x: child.x ?? 0,
+      y: child.y ?? 0,
+      width: child.width ?? 200,
+      height: child.height ?? 100,
+      type: groupType,
+      isGroup: true,
+      children,
+      ports,
+    });
+  }
+
+  return result;
+}
+
+function extractEdges(graph: ElkNode, topology: TopologyData): LayoutEdge[] {
+  const result: LayoutEdge[] = [];
+
+  for (const edge of graph.edges ?? []) {
+    const topoEdge = topology.edges.find((e) => `edge:${e.name}` === edge.id);
+    if (!topoEdge) continue;
+
+    const sections =
+      edge.sections?.map((s) => ({
+        startPoint: s.startPoint,
+        endPoint: s.endPoint,
+        bendPoints: s.bendPoints ?? undefined,
+      })) ?? [];
+
+    result.push({
+      name: topoEdge.name,
+      source: topoEdge.source,
+      target: topoEdge.target,
+      sourcePort: `port:${topoEdge.name}:out`,
+      targetPort: `port:${topoEdge.name}:in`,
+      sections,
+      segments: [],
     });
   }
 
