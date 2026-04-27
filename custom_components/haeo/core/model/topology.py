@@ -34,13 +34,20 @@ def _get_parent_device(name: str) -> str:
     return name.split(":")[0]
 
 
-def serialize_topology(network: Network) -> dict[str, Any]:
+def serialize_topology(
+    network: Network,
+    element_types: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """Serialize network topology to a JSON structure.
+
+    Args:
+        network: The network to serialize.
+        element_types: Optional mapping of element name to type string
+            (e.g. "battery", "grid", "solar"). If not provided, types are
+            inferred from model classes (battery/node only).
 
     Returns:
         Dict with "nodes" and "edges" lists describing the graph structure.
-        Node values and time-series data are NOT included — the frontend
-        should look those up via entity_id references.
 
     """
     nodes: list[dict[str, Any]] = []
@@ -52,7 +59,9 @@ def serialize_topology(network: Network) -> dict[str, Any]:
         if isinstance(element, Connection):
             continue
 
-        element_type = _get_element_type(element)
+        element_type = (
+            element_types.get(name) if element_types else None
+        ) or _get_element_type(element)
         group = _get_parent_device(name)
         groups[group].append(name)
 
@@ -84,5 +93,5 @@ def serialize_topology(network: Network) -> dict[str, Any]:
     return {
         "nodes": nodes,
         "edges": edges,
-        "groups": {k: v for k, v in sorted(groups.items())},
+        "groups": dict(sorted(groups.items())),
     }

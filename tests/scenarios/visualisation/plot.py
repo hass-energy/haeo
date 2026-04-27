@@ -11,6 +11,7 @@ import tempfile
 from typing import Any
 
 from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.topology import serialize_topology
 
 from .graph import create_graph_visualization
 
@@ -94,12 +95,9 @@ def visualize_scenario_results(
     graph_plot_path = output_dir_path / f"{scenario_name}_network_topology.svg"
     create_graph_visualization(network, str(graph_plot_path), f"{scenario_name.title()} Network Topology")
 
-    # Export topology JSON for the frontend card
-    from custom_components.haeo.core.model.topology import serialize_topology
 
     topology_path = output_dir_path / f"{scenario_name}_topology.json"
     topology_data = serialize_topology(network)
     with topology_path.open("w") as f:
         json.dump(topology_data, f, indent=2)
         f.write("\n")
-    _LOGGER.info("Topology JSON saved to %s", topology_path)

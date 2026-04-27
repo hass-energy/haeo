@@ -36,6 +36,7 @@ from custom_components.haeo.core.data.forecast_times import tiers_to_periods_sec
 from custom_components.haeo.core.data.loader.config_loader import load_element_config as _core_load_element_config
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.util import extract_unit_parts
 from custom_components.haeo.core.state import EntityState
@@ -292,6 +293,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Tests may set this manually before the first optimization.
         self.network: Network = None  # type: ignore[assignment]
         self._element_updaters: dict[str, network_module.ElementUpdater] = {}
+        self.topology: dict[str, Any] = {}  # Serialized topology for frontend
 
         # Map element names to subentry IDs so we can look up fresh data
         # from config_entry.subentries at load time. We don't cache subentry.data
@@ -355,6 +357,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             periods_seconds=periods_seconds,
             participants=loaded_configs,
         )
+
+        # Build topology for frontend card
+        element_types = {
+            name: str(config[CONF_ELEMENT_TYPE])
+            for name, config in loaded_configs.items()
+        }
+        self.topology = serialize_topology(self.network, element_types=element_types)
         await network_module.evaluate_network_connectivity(
             self.hass,
             self.config_entry,
