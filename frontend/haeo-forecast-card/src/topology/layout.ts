@@ -69,8 +69,79 @@ const PORT_SZ = 8;
 const PAD = 12;
 const HDR = 22;
 
+/**
+ * Pre-layout: position groups as simple nodes to determine relative positions.
+ * Returns a map: "groupA->groupB" => "EAST"|"WEST"|"NORTH"|"SOUTH"
+ */
+async function computePeerSides(elk: InstanceType<typeof ELK>, topology: TopologyData): Promise<Map<string, string>> {
+  // Build simple undirected graph of groups
+  const groupNames = Object.keys(topology.groups);
+  const edgePairs = new Set<string>();
+
+  for (const edge of topology.edges) {
+    const sg = Object.entries(topology.groups).find(([, m]) => m.includes(edge.source))?.[0] ?? "";
+    const tg = Object.entries(topology.groups).find(([, m]) => m.includes(edge.target))?.[0] ?? "";
+    if (sg !== "" && tg !== "" && sg !== tg) {
+      const key = [sg, tg].sort().join("--");
+      edgePairs.add(key);
+    }
+  }
+
+  const simpleGraph: ElkNode = {
+    id: "pre",
+    children: groupNames.map((name) => ({ id: name, width: 80, height: 40 })),
+    edges: [...edgePairs].map((pair, i) => {
+      const [a, b] = pair.split("--");
+      return { id: `pe${String(i)}`, sources: [a ?? ""], targets: [b ?? ""] };
+    }),
+    layoutOptions: {
+      "org.eclipse.elk.algorithm": "layered",
+      "org.eclipse.elk.direction": "RIGHT",
+      "org.eclipse.elk.randomSeed": "42",
+    },
+  };
+
+  const result = await elk.layout(simpleGraph);
+  const positions = new Map<string, { x: number; y: number }>();
+  for (const child of result.children ?? []) {
+    positions.set(child.id, {
+      x: (child.x ?? 0) + (child.width ?? 80) / 2,
+      y: (child.y ?? 0) + (child.height ?? 40) / 2,
+    });
+  }
+
+  // For each pair of groups, determine which side of A faces B
+  const sideMap = new Map<string, string>();
+  for (const a of groupNames) {
+    for (const b of groupNames) {
+      if (a === b) continue;
+      const posA = positions.get(a);
+      const posB = positions.get(b);
+      if (posA === undefined || posB === undefined) continue;
+
+      const dx = posB.x - posA.x;
+      const dy = posB.y - posA.y;
+
+      let side: string;
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        side = dx >= 0 ? "EAST" : "WEST";
+      } else {
+        side = dy >= 0 ? "SOUTH" : "NORTH";
+      }
+      sideMap.set(`${a}->${b}`, side);
+    }
+  }
+
+  return sideMap;
+}
+
 export async function computeLayout(topology: TopologyData): Promise<LayoutResult> {
   const elk = new ELK();
+
+  // Phase 1: Quick layout of just groups as simple nodes to determine
+  // relative positions (which side of A faces B).
+  const peerSides = await computePeerSides(elk, topology);
+
   const elkChildren: ElkNode[] = [];
   const elkEdges: ElkExtendedEdge[] = [];
 
@@ -90,10 +161,13 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       const visible = edge.segments.filter((s) => s.type !== "PassthroughSegment");
 
       if (members.includes(edge.source)) {
+        const targetGroup = Object.entries(topology.groups).find(([, m]) => m.includes(edge.target))?.[0] ?? "";
+        const outSide = peerSides.get(`${groupName}->${targetGroup}`) ?? "EAST";
         ports.push({
           id: `port:${edge.name}:out`,
           width: PORT_SZ,
           height: PORT_SZ,
+          layoutOptions: { "org.eclipse.elk.port.side": outSide },
         });
 
         if (visible.length > 0) {
@@ -127,10 +201,13 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       }
 
       if (members.includes(edge.target)) {
+        const sourceGroup = Object.entries(topology.groups).find(([, m]) => m.includes(edge.source))?.[0] ?? "";
+        const inSide = peerSides.get(`${groupName}->${sourceGroup}`) ?? "WEST";
         ports.push({
           id: `port:${edge.name}:in`,
           width: PORT_SZ,
           height: PORT_SZ,
+          layoutOptions: { "org.eclipse.elk.port.side": inSide },
         });
         // in-port → element
         internalEdges.push({
@@ -152,7 +229,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
         "org.eclipse.elk.direction": "RIGHT",
         "org.eclipse.elk.padding": `[top=${HDR + PAD},left=${PAD},bottom=${PAD},right=${PAD}]`,
         "org.eclipse.elk.nodeLabels.placement": "H_LEFT V_TOP INSIDE",
-        "org.eclipse.elk.portConstraints": "FREE",
+        "org.eclipse.elk.portConstraints": "FIXED_SIDE",
         "org.eclipse.elk.spacing.nodeNode": "15",
         "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "25",
       },
@@ -178,7 +255,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       "org.eclipse.elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
       "org.eclipse.elk.spacing.nodeNode": "30",
       "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "60",
-      "org.eclipse.elk.portConstraints": "FREE",
+      "org.eclipse.elk.portConstraints": "FIXED_SIDE",
       "org.eclipse.elk.randomSeed": "42",
     },
   });
