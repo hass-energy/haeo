@@ -270,6 +270,19 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       }
     }
 
+    // Sort ports by edge name within each side so bidirectional pairs
+    // have consistent y-ordering across groups (prevents crossings).
+    ports.sort((a, b) => {
+      // First by side (WEST before EAST)
+      const sideA = a.layoutOptions?.["org.eclipse.elk.port.side"] ?? "";
+      const sideB = b.layoutOptions?.["org.eclipse.elk.port.side"] ?? "";
+      if (sideA !== sideB) return sideA < sideB ? -1 : 1;
+      // Then by edge name
+      const nameA = a.id.replace(/^port:|:layout-(in|out)$/g, "");
+      const nameB = b.id.replace(/^port:|:layout-(in|out)$/g, "");
+      return nameA.localeCompare(nameB);
+    });
+
     elkChildren.push({
       id: `group:${groupName}`,
       labels: [{ text: groupName }],
@@ -281,7 +294,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
         "org.eclipse.elk.direction": "RIGHT",
         "org.eclipse.elk.padding": `[top=${HDR + PAD},left=${PAD},bottom=${PAD},right=${PAD}]`,
         "org.eclipse.elk.nodeLabels.placement": "H_LEFT V_TOP INSIDE",
-        "org.eclipse.elk.portConstraints": "FIXED_SIDE",
+        "org.eclipse.elk.portConstraints": "FIXED_ORDER",
         "org.eclipse.elk.spacing.nodeNode": "10",
         "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "15",
       },
