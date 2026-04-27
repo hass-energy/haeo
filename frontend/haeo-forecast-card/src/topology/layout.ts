@@ -69,107 +69,10 @@ const PORT_SZ = 8;
 const PAD = 12;
 const HDR = 22;
 
-/**
- * Determine whether each group is "upstream" (power source) or "downstream"
- * (power sink) relative to a central hub node. This determines port placement:
- * - Upstream elements: outgoing ports on EAST, incoming on WEST (flow: upstream → hub)
- * - Downstream elements: outgoing ports on WEST, incoming on EAST (flow: hub → downstream)
- * - The hub itself: both sides
- */
-function classifyDirection(topology: TopologyData): Map<string, "upstream" | "downstream" | "hub"> {
-  const result = new Map<string, "upstream" | "downstream" | "hub">();
-
-  // Find the hub — the node with most connections (typically Switchboard)
-  const connectionCount = new Map<string, number>();
-  for (const edge of topology.edges) {
-    connectionCount.set(edge.source, (connectionCount.get(edge.source) ?? 0) + 1);
-    connectionCount.set(edge.target, (connectionCount.get(edge.target) ?? 0) + 1);
-  }
-
-  let hub = "";
-  let maxConns = 0;
-  for (const [name, count] of connectionCount) {
-    if (count > maxConns) {
-      maxConns = count;
-      hub = name;
-    }
-  }
-
-  // Find which group each node belongs to
-  const nodeToGroup = new Map<string, string>();
-  for (const [group, members] of Object.entries(topology.groups)) {
-    for (const m of members) nodeToGroup.set(m, group);
-  }
-
-  const hubGroup = nodeToGroup.get(hub) ?? hub;
-  result.set(hubGroup, "hub");
-
-  // BFS from hub to classify groups
-  // Elements that SOURCE power TO the hub are upstream
-  // Elements that RECEIVE power FROM the hub are downstream
-  for (const [groupName] of Object.entries(topology.groups)) {
-    if (result.has(groupName)) continue;
-
-    const members = new Set(topology.groups[groupName] ?? []);
-    let sourcesToHub = 0;
-    let receivesFromHub = 0;
-
-    for (const edge of topology.edges) {
-      if (members.has(edge.source) && nodeToGroup.get(edge.target) === hubGroup) {
-        sourcesToHub++;
-      }
-      if (members.has(edge.target) && nodeToGroup.get(edge.source) === hubGroup) {
-        receivesFromHub++;
-      }
-    }
-
-    // If more connections flow TO hub than FROM hub, it's upstream
-    if (sourcesToHub > receivesFromHub) {
-      result.set(groupName, "upstream");
-    } else if (receivesFromHub > sourcesToHub) {
-      result.set(groupName, "downstream");
-    } else {
-      // Equal or no direct connection — check indirect via other nodes
-      // Default: upstream if it has any source connections
-      const hasSource = topology.edges.some((e) => members.has(e.source));
-      result.set(groupName, hasSource ? "upstream" : "downstream");
-    }
-  }
-
-  return result;
-}
-
-/**
- * Determine which side of `group` should face `peer`.
- * Both outgoing and incoming ports to the same peer go on the same side,
- * so bidirectional connections don't loop around.
- */
-function peerSide(group: string, peer: string, directions: Map<string, "upstream" | "downstream" | "hub">): string {
-  const myDir = directions.get(group) ?? "downstream";
-  const peerDir = directions.get(peer) ?? "downstream";
-
-  if (myDir === "hub") {
-    // Hub: upstream peers on WEST, downstream peers on EAST
-    return peerDir === "upstream" ? "WEST" : "EAST";
-  }
-  if (peerDir === "hub") {
-    // Non-hub facing hub: upstream faces EAST toward hub, downstream faces WEST
-    return myDir === "upstream" ? "EAST" : "WEST";
-  }
-  // Both non-hub: face toward each other based on relative direction
-  // Upstream elements are to the left, downstream to the right
-  if (myDir === "upstream" && peerDir === "downstream") return "EAST";
-  if (myDir === "downstream" && peerDir === "upstream") return "WEST";
-  // Same direction — use EAST as default
-  return "EAST";
-}
-
 export async function computeLayout(topology: TopologyData): Promise<LayoutResult> {
   const elk = new ELK();
   const elkChildren: ElkNode[] = [];
   const elkEdges: ElkExtendedEdge[] = [];
-
-  const directions = classifyDirection(topology);
 
   for (const [groupName, members] of Object.entries(topology.groups)) {
     const children: ElkNode[] = [];
@@ -187,14 +90,10 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       const visible = edge.segments.filter((s) => s.type !== "PassthroughSegment");
 
       if (members.includes(edge.source)) {
-        // Outgoing port — face toward the peer group
-        const peerGroup = Object.entries(topology.groups).find(([, m]) => m.includes(edge.target))?.[0];
-        const side = peerSide(groupName, peerGroup ?? "", directions);
         ports.push({
           id: `port:${edge.name}:out`,
           width: PORT_SZ,
           height: PORT_SZ,
-          layoutOptions: { "org.eclipse.elk.port.side": side },
         });
 
         if (visible.length > 0) {
@@ -228,14 +127,10 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       }
 
       if (members.includes(edge.target)) {
-        // Incoming port — face toward the peer group (same side as outgoing to that peer)
-        const peerGroup = Object.entries(topology.groups).find(([, m]) => m.includes(edge.source))?.[0];
-        const side = peerSide(groupName, peerGroup ?? "", directions);
         ports.push({
           id: `port:${edge.name}:in`,
           width: PORT_SZ,
           height: PORT_SZ,
-          layoutOptions: { "org.eclipse.elk.port.side": side },
         });
         // in-port → element
         internalEdges.push({
@@ -257,7 +152,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
         "org.eclipse.elk.direction": "RIGHT",
         "org.eclipse.elk.padding": `[top=${HDR + PAD},left=${PAD},bottom=${PAD},right=${PAD}]`,
         "org.eclipse.elk.nodeLabels.placement": "H_LEFT V_TOP INSIDE",
-        "org.eclipse.elk.portConstraints": "FIXED_SIDE",
+        "org.eclipse.elk.portConstraints": "FREE",
         "org.eclipse.elk.spacing.nodeNode": "15",
         "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "25",
       },
@@ -283,7 +178,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       "org.eclipse.elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
       "org.eclipse.elk.spacing.nodeNode": "30",
       "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "60",
-      "org.eclipse.elk.portConstraints": "FIXED_SIDE",
+      "org.eclipse.elk.portConstraints": "FREE",
       "org.eclipse.elk.randomSeed": "42",
     },
   });
