@@ -389,20 +389,6 @@ function renderModelNode(
       onMouseLeave={hide}
       style={{ cursor: "pointer" }}
     >
-      {/* VLAN outbound indicators — colored dots on left side (produces) */}
-      {outTags
-        .filter((t) => t !== 0)
-        .map((tag, i) => (
-          <circle
-            key={`out-${String(tag)}`}
-            cx={nx - 4}
-            cy={ny + 8 + i * 10}
-            r={4}
-            fill={vlanColor(tag)}
-            stroke="white"
-            stroke-width="1"
-          />
-        ))}
       {/* VLAN inbound indicators — colored dots on right side (accepts) */}
       {hasVlans &&
         inTags
@@ -425,7 +411,10 @@ function renderModelNode(
         height={node.height}
         rx={NODE_RX}
         fill={color}
-        stroke="rgba(0,0,0,0.15)"
+        stroke={
+          outTags.length > 0 && outTags[0] !== 0 ? vlanColor(outTags.find((t) => t !== 0)!) : "rgba(0,0,0,0.15)"
+        }
+        stroke-width={outTags.some((t) => t !== 0) ? "3" : "1"}
         opacity="0.85"
       />
       <text
