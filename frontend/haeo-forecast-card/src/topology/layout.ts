@@ -200,7 +200,12 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       // Layout source group gets outgoing port (+ pill if owner)
       if (groupName === layoutSource) {
         const outPortId = `port:${edge.name}:layout-out`;
-        ports.push({ id: outPortId, width: PORT_SZ, height: PORT_SZ });
+        ports.push({
+          id: outPortId,
+          width: PORT_SZ,
+          height: PORT_SZ,
+          layoutOptions: { "org.eclipse.elk.port.side": "EAST" },
+        });
 
         if (owner === groupName && visible.length > 0) {
           const pillId = `pill:${edge.name}`;
@@ -231,7 +236,12 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       // Layout target group gets incoming port (+ pill if owner)
       if (groupName === layoutTarget) {
         const inPortId = `port:${edge.name}:layout-in`;
-        ports.push({ id: inPortId, width: PORT_SZ, height: PORT_SZ });
+        ports.push({
+          id: inPortId,
+          width: PORT_SZ,
+          height: PORT_SZ,
+          layoutOptions: { "org.eclipse.elk.port.side": "WEST" },
+        });
 
         if (owner === groupName && visible.length > 0) {
           const pillId = `pill:${edge.name}`;
@@ -271,7 +281,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
         "org.eclipse.elk.direction": "RIGHT",
         "org.eclipse.elk.padding": `[top=${HDR + PAD},left=${PAD},bottom=${PAD},right=${PAD}]`,
         "org.eclipse.elk.nodeLabels.placement": "H_LEFT V_TOP INSIDE",
-        "org.eclipse.elk.portConstraints": "FREE",
+        "org.eclipse.elk.portConstraints": "FIXED_SIDE",
         "org.eclipse.elk.spacing.nodeNode": "10",
         "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "15",
       },
