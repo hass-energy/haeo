@@ -63,9 +63,6 @@ export function NetworkTopology(props: Props): JSX.Element {
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
             <polygon points="0 0, 8 3, 0 6" fill="#888" />
           </marker>
-          <marker id="arrow-rev" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto">
-            <polygon points="8 0, 0 3, 8 6" fill="#888" />
-          </marker>
         </defs>
 
         {/* Groups */}
@@ -245,15 +242,7 @@ function renderPill(
 
 function renderEdgePath(edge: LayoutEdge, color: string, arrow: boolean): JSX.Element | null {
   if (edge.points.length < 2) return null;
-  const d = edge.points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-  // Reversed edges: arrow at start (pointing toward actual target)
-  const markerEnd = arrow && !edge.reversed ? "url(#arrow)" : undefined;
-  const markerStart = arrow && edge.reversed ? "url(#arrow-rev)" : undefined;
-  return (
-    <g key={edge.name}>
-      <path d={d} fill="none" stroke={color} stroke-width="1.5" marker-end={markerEnd} marker-start={markerStart} />
-    </g>
-  );
+  return <g key={edge.name}>{renderEdgePathRaw(edge.points, color, arrow)}</g>;
 }
 
 function renderEdgePathRaw(points: Array<{ x: number; y: number }>, color: string, arrow: boolean): JSX.Element | null {
