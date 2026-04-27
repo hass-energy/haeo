@@ -7,7 +7,6 @@ import type { TopologyData } from "./types";
 
 const NODE_RX = 6;
 const GROUP_RX = 10;
-const NODULE_R = 9;
 
 const SEGMENT_ICONS: Record<string, string> = {
   PricingSegment: "💲",
@@ -116,16 +115,42 @@ export function NetworkTopology(props: Props): JSX.Element {
                   </g>
                 ))}
 
-                {/* Ports */}
-                {group.ports.map((port) => (
-                  <circle
-                    key={port.id}
-                    cx={group.x + port.x + port.width / 2}
-                    cy={group.y + port.y + port.height / 2}
-                    r={3}
-                    fill="#888"
-                  />
-                ))}
+                {/* Ports with internal connections to child elements */}
+                {group.ports.map((port) => {
+                  const px = group.x + port.x + port.width / 2;
+                  const py = group.y + port.y + port.height / 2;
+                  // Find the nearest child element to draw a connection line
+                  let nearestChild = group.children[0];
+                  if (nearestChild !== undefined) {
+                    let minDist = Infinity;
+                    for (const child of group.children) {
+                      const childCx = group.x + child.x + child.width / 2;
+                      const childCy = group.y + child.y + child.height / 2;
+                      const dist = Math.sqrt((px - childCx) ** 2 + (py - childCy) ** 2);
+                      if (dist < minDist) {
+                        minDist = dist;
+                        nearestChild = child;
+                      }
+                    }
+                    const childCx = group.x + nearestChild.x + (port.side === "WEST" ? 0 : nearestChild.width);
+                    const childCy = group.y + nearestChild.y + nearestChild.height / 2;
+                    return (
+                      <g key={port.id}>
+                        <line
+                          x1={px}
+                          y1={py}
+                          x2={childCx}
+                          y2={childCy}
+                          stroke="#ccc"
+                          stroke-width="1"
+                          stroke-dasharray="3 2"
+                        />
+                        <circle cx={px} cy={py} r={3} fill="#888" />
+                      </g>
+                    );
+                  }
+                  return <circle key={port.id} cx={px} cy={py} r={3} fill="#888" />;
+                })}
               </g>
             );
           })}
@@ -186,30 +211,69 @@ function renderEdge(edge: LayoutEdge, setTooltip: (t: TooltipInfo) => void, hide
         </text>
       )}
 
-      {/* Segment nodules */}
-      {edge.segments.map((seg) => {
-        const icon = SEGMENT_ICONS[seg.type] ?? "?";
-        return (
-          <g
-            key={`${edge.name}-${seg.id}`}
-            onMouseEnter={(e: MouseEvent) =>
-              setTooltip({
-                x: e.clientX,
-                y: e.clientY,
-                title: `${seg.id}`,
-                lines: [`Type: ${seg.type.replace("Segment", "")}`, `Edge: ${edge.name}`],
-              })
-            }
-            onMouseLeave={hide}
-            style={{ cursor: "pointer" }}
-          >
-            <circle cx={seg.x} cy={seg.y} r={NODULE_R} fill="white" stroke="#999" stroke-width="1" />
-            <text x={seg.x} y={seg.y + 4} text-anchor="middle" font-size="10">
-              {icon}
-            </text>
-          </g>
-        );
-      })}
+      {/* Segment pill — connected series of segments */}
+      {edge.segments.length > 0 &&
+        (() => {
+          const segs = edge.segments;
+          // Center point of the segment cluster
+          const cx = segs.reduce((sum, s) => sum + s.x, 0) / segs.length;
+          const cy = segs.reduce((sum, s) => sum + s.y, 0) / segs.length;
+          const cellW = 28;
+          const cellH = 22;
+          const totalW = segs.length * cellW;
+          const startX = cx - totalW / 2;
+          const startY = cy - cellH / 2;
+
+          return (
+            <g>
+              {/* Background pill */}
+              <rect
+                x={startX}
+                y={startY}
+                width={totalW}
+                height={cellH}
+                rx={cellH / 2}
+                fill="white"
+                stroke="#999"
+                stroke-width="1"
+              />
+              {/* Dividers and icons */}
+              {segs.map((seg, i) => {
+                const sx = startX + i * cellW + cellW / 2;
+                const icon = SEGMENT_ICONS[seg.type] ?? "?";
+                return (
+                  <g
+                    key={`${edge.name}-${seg.id}`}
+                    onMouseEnter={(e: MouseEvent) =>
+                      setTooltip({
+                        x: e.clientX,
+                        y: e.clientY,
+                        title: seg.id,
+                        lines: [`Type: ${seg.type.replace("Segment", "")}`, `Edge: ${edge.name}`],
+                      })
+                    }
+                    onMouseLeave={hide}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {i > 0 && (
+                      <line
+                        x1={startX + i * cellW}
+                        y1={startY + 3}
+                        x2={startX + i * cellW}
+                        y2={startY + cellH - 3}
+                        stroke="#ddd"
+                        stroke-width="1"
+                      />
+                    )}
+                    <text x={sx} y={cy + 4} text-anchor="middle" font-size="12">
+                      {icon}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })()}
     </g>
   );
 }
