@@ -69,15 +69,88 @@ const PORT_SZ = 8;
 const PAD = 12;
 const HDR = 22;
 
+/**
+ * Determine whether each group is "upstream" (power source) or "downstream"
+ * (power sink) relative to a central hub node. This determines port placement:
+ * - Upstream elements: outgoing ports on EAST, incoming on WEST (flow: upstream → hub)
+ * - Downstream elements: outgoing ports on WEST, incoming on EAST (flow: hub → downstream)
+ * - The hub itself: both sides
+ */
+function classifyDirection(topology: TopologyData): Map<string, "upstream" | "downstream" | "hub"> {
+  const result = new Map<string, "upstream" | "downstream" | "hub">();
+
+  // Find the hub — the node with most connections (typically Switchboard)
+  const connectionCount = new Map<string, number>();
+  for (const edge of topology.edges) {
+    connectionCount.set(edge.source, (connectionCount.get(edge.source) ?? 0) + 1);
+    connectionCount.set(edge.target, (connectionCount.get(edge.target) ?? 0) + 1);
+  }
+
+  let hub = "";
+  let maxConns = 0;
+  for (const [name, count] of connectionCount) {
+    if (count > maxConns) {
+      maxConns = count;
+      hub = name;
+    }
+  }
+
+  // Find which group each node belongs to
+  const nodeToGroup = new Map<string, string>();
+  for (const [group, members] of Object.entries(topology.groups)) {
+    for (const m of members) nodeToGroup.set(m, group);
+  }
+
+  const hubGroup = nodeToGroup.get(hub) ?? hub;
+  result.set(hubGroup, "hub");
+
+  // BFS from hub to classify groups
+  // Elements that SOURCE power TO the hub are upstream
+  // Elements that RECEIVE power FROM the hub are downstream
+  for (const [groupName] of Object.entries(topology.groups)) {
+    if (result.has(groupName)) continue;
+
+    const members = new Set(topology.groups[groupName] ?? []);
+    let sourcesToHub = 0;
+    let receivesFromHub = 0;
+
+    for (const edge of topology.edges) {
+      if (members.has(edge.source) && nodeToGroup.get(edge.target) === hubGroup) {
+        sourcesToHub++;
+      }
+      if (members.has(edge.target) && nodeToGroup.get(edge.source) === hubGroup) {
+        receivesFromHub++;
+      }
+    }
+
+    // If more connections flow TO hub than FROM hub, it's upstream
+    if (sourcesToHub > receivesFromHub) {
+      result.set(groupName, "upstream");
+    } else if (receivesFromHub > sourcesToHub) {
+      result.set(groupName, "downstream");
+    } else {
+      // Equal or no direct connection — check indirect via other nodes
+      // Default: upstream if it has any source connections
+      const hasSource = topology.edges.some((e) => members.has(e.source));
+      result.set(groupName, hasSource ? "upstream" : "downstream");
+    }
+  }
+
+  return result;
+}
+
 export async function computeLayout(topology: TopologyData): Promise<LayoutResult> {
   const elk = new ELK();
   const elkChildren: ElkNode[] = [];
   const elkEdges: ElkExtendedEdge[] = [];
 
+  const directions = classifyDirection(topology);
+
   for (const [groupName, members] of Object.entries(topology.groups)) {
     const children: ElkNode[] = [];
     const internalEdges: ElkExtendedEdge[] = [];
     const ports: ElkPort[] = [];
+    const dir = directions.get(groupName) ?? "downstream";
 
     // Model element nodes
     for (const name of members) {
@@ -90,12 +163,20 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       const visible = edge.segments.filter((s) => s.type !== "PassthroughSegment");
 
       if (members.includes(edge.source)) {
-        // Outgoing port
+        // Outgoing port — side depends on flow direction
+        const targetGroup = Object.entries(topology.groups).find(([, m]) => m.includes(edge.target))?.[0];
+        const targetDir = directions.get(targetGroup ?? "") ?? "downstream";
+        let outSide: string;
+        if (dir === "hub") {
+          outSide = targetDir === "upstream" ? "WEST" : "EAST";
+        } else {
+          outSide = dir === "upstream" ? "EAST" : "WEST";
+        }
         ports.push({
           id: `port:${edge.name}:out`,
           width: PORT_SZ,
           height: PORT_SZ,
-          layoutOptions: { "org.eclipse.elk.port.side": "EAST" },
+          layoutOptions: { "org.eclipse.elk.port.side": outSide },
         });
 
         if (visible.length > 0) {
@@ -129,12 +210,20 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       }
 
       if (members.includes(edge.target)) {
-        // Incoming port
+        // Incoming port — side depends on flow direction
+        const sourceGroup = Object.entries(topology.groups).find(([, m]) => m.includes(edge.source))?.[0];
+        const sourceDir = directions.get(sourceGroup ?? "") ?? "upstream";
+        let inSide: string;
+        if (dir === "hub") {
+          inSide = sourceDir === "upstream" ? "WEST" : "EAST";
+        } else {
+          inSide = dir === "upstream" ? "WEST" : "EAST";
+        }
         ports.push({
           id: `port:${edge.name}:in`,
           width: PORT_SZ,
           height: PORT_SZ,
-          layoutOptions: { "org.eclipse.elk.port.side": "WEST" },
+          layoutOptions: { "org.eclipse.elk.port.side": inSide },
         });
         // in-port → element
         internalEdges.push({
@@ -227,7 +316,7 @@ function extractResult(graph: ElkNode, topology: TopologyData): LayoutResult {
     }));
 
     const internalEdges: LayoutEdge[] = (child.edges ?? []).map((e) => {
-      const sections = (e).sections ?? [];
+      const sections = e.sections ?? [];
       const points: Array<{ x: number; y: number }> = [];
       for (const s of sections) {
         points.push(s.startPoint);
@@ -251,7 +340,7 @@ function extractResult(graph: ElkNode, topology: TopologyData): LayoutResult {
   }
 
   const externalEdges: LayoutEdge[] = (graph.edges ?? []).map((e) => {
-    const sections = (e).sections ?? [];
+    const sections = e.sections ?? [];
     const points: Array<{ x: number; y: number }> = [];
     for (const s of sections) {
       points.push(s.startPoint);
