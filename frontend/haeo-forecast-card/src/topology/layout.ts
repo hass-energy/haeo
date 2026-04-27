@@ -185,27 +185,27 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       children.push({ id: name, width: NODE_W, height: NODE_H });
     }
 
-    // For each connection, add pills and ports inside the appropriate group.
-    // Port ownership follows the LAYOUT direction (outward from hub),
-    // not the actual edge direction.
+    // For each connection, add pills and ports.
+    // Ports follow LAYOUT direction (outward from hub) for ELK.
+    // Pills go in the ACTUAL source group (connection owner).
     for (const edge of topology.edges) {
       const sg = findGroup(topology, edge.source);
       const tg = findGroup(topology, edge.target);
       if (sg === tg) continue;
 
       const isReversed = reversed.has(edge.name);
-      // Layout source (outward from hub) = actual source if not reversed
       const layoutSource = isReversed ? tg : sg;
       const layoutTarget = isReversed ? sg : tg;
 
       const visible = edge.segments.filter((s) => s.type !== "PassthroughSegment");
 
-      // Source group gets outgoing port + pill
+      // Layout source group gets outgoing port
       if (groupName === layoutSource) {
         const outPortId = `port:${edge.name}:layout-out`;
         ports.push({ id: outPortId, width: PORT_SZ, height: PORT_SZ });
 
-        if (visible.length > 0) {
+        if (!isReversed && visible.length > 0) {
+          // Not reversed: pill in layout source (= actual source)
           const pillId = `pill:${edge.name}`;
           const sourceNode = members[0] ?? "";
           children.push({
@@ -224,6 +224,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
             targets: [outPortId],
           });
         } else {
+          // Reversed or no segments: direct element → port
           const sourceNode = members[0] ?? "";
           internalEdges.push({
             id: `int:${edge.name}`,
@@ -233,16 +234,37 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
         }
       }
 
-      // Target group gets incoming port
+      // Layout target group gets incoming port
       if (groupName === layoutTarget) {
         const inPortId = `port:${edge.name}:layout-in`;
         ports.push({ id: inPortId, width: PORT_SZ, height: PORT_SZ });
         const targetNode = members[0] ?? "";
-        internalEdges.push({
-          id: `int:${edge.name}:in`,
-          sources: [inPortId],
-          targets: [targetNode],
-        });
+
+        if (isReversed && visible.length > 0) {
+          // Reversed: pill in layout target (= actual source)
+          const pillId = `pill:${edge.name}`;
+          children.push({
+            id: pillId,
+            width: visible.length * PILL_CELL_W + 8,
+            height: PILL_H,
+          });
+          internalEdges.push({
+            id: `int:${edge.name}:in`,
+            sources: [inPortId],
+            targets: [pillId],
+          });
+          internalEdges.push({
+            id: `int:${edge.name}:pill`,
+            sources: [pillId],
+            targets: [targetNode],
+          });
+        } else {
+          internalEdges.push({
+            id: `int:${edge.name}:in`,
+            sources: [inPortId],
+            targets: [targetNode],
+          });
+        }
       }
     }
 
@@ -264,16 +286,28 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
     });
   }
 
-  // External edges — all oriented outward from hub
+  // External edges — deduplicate per group pair to prevent parallel crossings.
+  // Multiple connections between the same pair share a single layout edge.
+  const pairEdgeMap = new Map<string, string[]>();
   for (const edge of topology.edges) {
     const sg = findGroup(topology, edge.source);
     const tg = findGroup(topology, edge.target);
     if (sg === tg) continue;
+    const isReversed = reversed.has(edge.name);
+    const layoutSource = isReversed ? tg : sg;
+    const layoutTarget = isReversed ? sg : tg;
+    const pairKey = `${layoutSource}--${layoutTarget}`;
+    if (!pairEdgeMap.has(pairKey)) pairEdgeMap.set(pairKey, []);
+    pairEdgeMap.get(pairKey)!.push(edge.name);
+  }
 
+  // Create one ELK edge per pair, using the first connection's ports
+  for (const [, edgeNames] of pairEdgeMap) {
+    const firstName = edgeNames[0]!;
     elkEdges.push({
-      id: `ext:${edge.name}`,
-      sources: [`port:${edge.name}:layout-out`],
-      targets: [`port:${edge.name}:layout-in`],
+      id: `ext:${firstName}`,
+      sources: [`port:${firstName}:layout-out`],
+      targets: [`port:${firstName}:layout-in`],
     });
   }
 
@@ -287,14 +321,22 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       "org.eclipse.elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
       "org.eclipse.elk.spacing.nodeNode": "25",
       "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "40",
+      "org.eclipse.elk.layered.mergeEdges": "true",
+      "org.eclipse.elk.spacing.edgeEdge": "15",
+      "org.eclipse.elk.spacing.edgeNode": "15",
       "org.eclipse.elk.randomSeed": "42",
     },
   });
 
-  return extractResult(graph, topology, reversed);
+  return extractResult(graph, topology, reversed, pairEdgeMap);
 }
 
-function extractResult(graph: ElkNode, topology: TopologyData, reversed: Set<string>): LayoutResult {
+function extractResult(
+  graph: ElkNode,
+  topology: TopologyData,
+  reversed: Set<string>,
+  pairEdgeMap: Map<string, string[]>
+): LayoutResult {
   const groups: LayoutGroup[] = [];
 
   for (const child of graph.children ?? []) {
@@ -361,9 +403,10 @@ function extractResult(graph: ElkNode, topology: TopologyData, reversed: Set<str
     });
   }
 
-  const externalEdges: LayoutEdge[] = (graph.edges ?? []).map((e) => {
-    const edgeName = e.id.replace("ext:", "");
-    const topoEdge = topology.edges.find((te) => te.name === edgeName);
+  // Expand deduped edges back to one LayoutEdge per connection
+  const externalEdges: LayoutEdge[] = [];
+  for (const e of graph.edges ?? []) {
+    const primaryName = e.id.replace("ext:", "");
     const sections = e.sections ?? [];
     const points: Array<{ x: number; y: number }> = [];
     for (const s of sections) {
@@ -371,16 +414,24 @@ function extractResult(graph: ElkNode, topology: TopologyData, reversed: Set<str
       for (const bp of s.bendPoints ?? []) points.push(bp);
       points.push(s.endPoint);
     }
-    const isReversed = reversed.has(edgeName);
-    return {
-      name: e.id,
-      source: topoEdge?.source ?? "",
-      target: topoEdge?.target ?? "",
-      points: isReversed ? [...points].reverse() : points,
-      internal: false,
-      reversed: isReversed,
-    };
-  });
+
+    // Find which pair this belongs to and get all edges in that pair
+    for (const [, edgeNames] of pairEdgeMap) {
+      if (edgeNames[0] !== primaryName) continue;
+      for (const edgeName of edgeNames) {
+        const topoEdge = topology.edges.find((te) => te.name === edgeName);
+        const isReversed = reversed.has(edgeName);
+        externalEdges.push({
+          name: `ext:${edgeName}`,
+          source: topoEdge?.source ?? "",
+          target: topoEdge?.target ?? "",
+          points: isReversed ? [...points].reverse() : [...points],
+          internal: false,
+          reversed: isReversed,
+        });
+      }
+    }
+  }
 
   return {
     groups,
