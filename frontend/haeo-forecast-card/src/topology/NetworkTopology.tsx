@@ -24,12 +24,18 @@ interface NetworkTopologyProps {
 export function NetworkTopology(props: NetworkTopologyProps): JSX.Element {
   const { topology } = props;
   const [layout, setLayout] = useState<LayoutResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
 
   useEffect(() => {
-    void computeLayout(topology).then(setLayout);
+    void computeLayout(topology)
+      .then(setLayout)
+      .catch((e: unknown) => setError(String(e)));
   }, [topology]);
 
+  if (error != null) {
+    return <div style={{ color: "red" }}>Layout error: {error}</div>;
+  }
   if (layout == null) {
     return <div>Computing layout…</div>;
   }

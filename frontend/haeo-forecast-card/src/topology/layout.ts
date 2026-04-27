@@ -161,8 +161,8 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
 
     elkEdges.push({
       id: `edge:${edge.name}`,
-      sources: [`group:${sourceGroup}`, `port:${edge.name}:out`],
-      targets: [`group:${targetGroup}`, `port:${edge.name}:in`],
+      sources: [`port:${edge.name}:out`],
+      targets: [`port:${edge.name}:in`],
     });
   }
 
