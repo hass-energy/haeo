@@ -81,6 +81,29 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       labels: [{ text: name }],
     }));
 
+    // Add segment pill nodes for connections belonging to this group
+    const internalEdges: ElkExtendedEdge[] = [];
+    for (const edge of topology.edges) {
+      const visibleSegs = edge.segments.filter((s) => s.type !== "PassthroughSegment");
+      if (visibleSegs.length > 0 && members.includes(edge.target)) {
+        // Segment pill belongs to the TARGET group (adapter defines segments)
+        const pillId = `pill:${edge.name}`;
+        const pillWidth = visibleSegs.length * 28 + 8;
+        children.push({
+          id: pillId,
+          width: pillWidth,
+          height: 24,
+          labels: [{ text: edge.name }],
+        });
+        // Internal edge from pill to the target element
+        internalEdges.push({
+          id: `internal:${edge.name}`,
+          sources: [pillId],
+          targets: [edge.target],
+        });
+      }
+    }
+
     // Ports for connections entering/leaving this group
     const ports: ElkPort[] = [];
     for (const edge of topology.edges) {
@@ -107,6 +130,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       labels: [{ text: `${groupName} (${groupType})` }],
       children,
       ports,
+      edges: internalEdges,
       layoutOptions: {
         "org.eclipse.elk.padding": `[top=${GROUP_HEADER + GROUP_PAD},left=${GROUP_PAD},bottom=${GROUP_PAD},right=${GROUP_PAD}]`,
         "org.eclipse.elk.nodeLabels.placement": "H_LEFT V_TOP INSIDE",
@@ -191,7 +215,7 @@ function extractLayout(graph: ElkNode, topology: TopologyData): LayoutResult {
     const topoEdge = topology.edges.find((e) => `edge:${e.name}` === elkEdge.id);
     if (topoEdge === undefined) continue;
 
-    const sections = (elkEdge).sections ?? [];
+    const sections = elkEdge.sections ?? [];
     const points: Array<{ x: number; y: number }> = [];
     for (const section of sections) {
       points.push(section.startPoint);
