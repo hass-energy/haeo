@@ -22,7 +22,7 @@ export interface LayoutPort {
   y: number;
   width: number;
   height: number;
-  side: "EAST" | "WEST";
+  side: "EAST" | "WEST" | "NORTH" | "SOUTH";
 }
 
 export interface LayoutEdge {
@@ -95,9 +95,9 @@ async function computePeerSides(elk: InstanceType<typeof ELK>, topology: Topolog
       return { id: `pe${String(i)}`, sources: [a ?? ""], targets: [b ?? ""] };
     }),
     layoutOptions: {
-      "org.eclipse.elk.algorithm": "layered",
-      "org.eclipse.elk.direction": "RIGHT",
+      "org.eclipse.elk.algorithm": "stress",
       "org.eclipse.elk.randomSeed": "42",
+      "org.eclipse.elk.stress.desiredEdgeLength": "150",
     },
   };
 
@@ -218,6 +218,12 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       }
     }
 
+    // Determine internal layout direction from dominant port sides
+    const portSides = ports.map((p) => p.layoutOptions?.["org.eclipse.elk.port.side"] ?? "EAST");
+    const horizontal = portSides.filter((s) => s === "EAST" || s === "WEST").length;
+    const vertical = portSides.filter((s) => s === "NORTH" || s === "SOUTH").length;
+    const internalDir = vertical > horizontal ? "DOWN" : "RIGHT";
+
     elkChildren.push({
       id: `group:${groupName}`,
       labels: [{ text: groupName }],
@@ -226,7 +232,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       edges: internalEdges,
       layoutOptions: {
         "org.eclipse.elk.algorithm": "layered",
-        "org.eclipse.elk.direction": "RIGHT",
+        "org.eclipse.elk.direction": internalDir,
         "org.eclipse.elk.padding": `[top=${HDR + PAD},left=${PAD},bottom=${PAD},right=${PAD}]`,
         "org.eclipse.elk.nodeLabels.placement": "H_LEFT V_TOP INSIDE",
         "org.eclipse.elk.portConstraints": "FIXED_SIDE",
@@ -296,7 +302,7 @@ function extractResult(graph: ElkNode, topology: TopologyData): LayoutResult {
       y: p.y ?? 0,
       width: p.width ?? PORT_SZ,
       height: p.height ?? PORT_SZ,
-      side: p.layoutOptions?.["org.eclipse.elk.port.side"] === "WEST" ? ("WEST" as const) : ("EAST" as const),
+      side: (p.layoutOptions?.["org.eclipse.elk.port.side"] ?? "EAST") as LayoutPort["side"],
     }));
 
     const internalEdges: LayoutEdge[] = (child.edges ?? []).map((e) => {
