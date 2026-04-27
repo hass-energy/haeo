@@ -139,6 +139,31 @@ function classifyDirection(topology: TopologyData): Map<string, "upstream" | "do
   return result;
 }
 
+/**
+ * Determine which side of `group` should face `peer`.
+ * Both outgoing and incoming ports to the same peer go on the same side,
+ * so bidirectional connections don't loop around.
+ */
+function peerSide(group: string, peer: string, directions: Map<string, "upstream" | "downstream" | "hub">): string {
+  const myDir = directions.get(group) ?? "downstream";
+  const peerDir = directions.get(peer) ?? "downstream";
+
+  if (myDir === "hub") {
+    // Hub: upstream peers on WEST, downstream peers on EAST
+    return peerDir === "upstream" ? "WEST" : "EAST";
+  }
+  if (peerDir === "hub") {
+    // Non-hub facing hub: upstream faces EAST toward hub, downstream faces WEST
+    return myDir === "upstream" ? "EAST" : "WEST";
+  }
+  // Both non-hub: face toward each other based on relative direction
+  // Upstream elements are to the left, downstream to the right
+  if (myDir === "upstream" && peerDir === "downstream") return "EAST";
+  if (myDir === "downstream" && peerDir === "upstream") return "WEST";
+  // Same direction — use EAST as default
+  return "EAST";
+}
+
 export async function computeLayout(topology: TopologyData): Promise<LayoutResult> {
   const elk = new ELK();
   const elkChildren: ElkNode[] = [];
@@ -150,7 +175,6 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
     const children: ElkNode[] = [];
     const internalEdges: ElkExtendedEdge[] = [];
     const ports: ElkPort[] = [];
-    const dir = directions.get(groupName) ?? "downstream";
 
     // Model element nodes
     for (const name of members) {
@@ -163,20 +187,14 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       const visible = edge.segments.filter((s) => s.type !== "PassthroughSegment");
 
       if (members.includes(edge.source)) {
-        // Outgoing port — side depends on flow direction
-        const targetGroup = Object.entries(topology.groups).find(([, m]) => m.includes(edge.target))?.[0];
-        const targetDir = directions.get(targetGroup ?? "") ?? "downstream";
-        let outSide: string;
-        if (dir === "hub") {
-          outSide = targetDir === "upstream" ? "WEST" : "EAST";
-        } else {
-          outSide = dir === "upstream" ? "EAST" : "WEST";
-        }
+        // Outgoing port — face toward the peer group
+        const peerGroup = Object.entries(topology.groups).find(([, m]) => m.includes(edge.target))?.[0];
+        const side = peerSide(groupName, peerGroup ?? "", directions);
         ports.push({
           id: `port:${edge.name}:out`,
           width: PORT_SZ,
           height: PORT_SZ,
-          layoutOptions: { "org.eclipse.elk.port.side": outSide },
+          layoutOptions: { "org.eclipse.elk.port.side": side },
         });
 
         if (visible.length > 0) {
@@ -210,20 +228,14 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       }
 
       if (members.includes(edge.target)) {
-        // Incoming port — side depends on flow direction
-        const sourceGroup = Object.entries(topology.groups).find(([, m]) => m.includes(edge.source))?.[0];
-        const sourceDir = directions.get(sourceGroup ?? "") ?? "upstream";
-        let inSide: string;
-        if (dir === "hub") {
-          inSide = sourceDir === "upstream" ? "WEST" : "EAST";
-        } else {
-          inSide = dir === "upstream" ? "WEST" : "EAST";
-        }
+        // Incoming port — face toward the peer group (same side as outgoing to that peer)
+        const peerGroup = Object.entries(topology.groups).find(([, m]) => m.includes(edge.source))?.[0];
+        const side = peerSide(groupName, peerGroup ?? "", directions);
         ports.push({
           id: `port:${edge.name}:in`,
           width: PORT_SZ,
           height: PORT_SZ,
-          layoutOptions: { "org.eclipse.elk.port.side": inSide },
+          layoutOptions: { "org.eclipse.elk.port.side": side },
         });
         // in-port → element
         internalEdges.push({
