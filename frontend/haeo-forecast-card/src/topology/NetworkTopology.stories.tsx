@@ -15,62 +15,53 @@ function scenarioNameFromPath(path: string): string | null {
   return match ? (match[1] ?? null) : null;
 }
 
-function getTopologyFromScenario(scenarioName: string): TopologyData | null {
-  for (const [path, states] of Object.entries(scenarioModules)) {
-    if (scenarioNameFromPath(path) !== scenarioName) continue;
-    // Find the optimizer status entity
-    for (const [, entity] of Object.entries(states)) {
-      const topo = (entity as Record<string, unknown> | undefined)?.["attributes"] as Record<string, unknown> | undefined;
-      if (topo?.["topology"] != null) {
-        return topo["topology"] as TopologyData;
-      }
+const SCENARIO_TOPOLOGIES: Record<string, TopologyData> = {};
+for (const [path, states] of Object.entries(scenarioModules)) {
+  const name = scenarioNameFromPath(path);
+  if (name === null) continue;
+  for (const entity of Object.values(states)) {
+    const attrs = (entity as Record<string, unknown> | undefined)?.["attributes"] as
+      | Record<string, unknown>
+      | undefined;
+    if (attrs?.["topology"] != null) {
+      SCENARIO_TOPOLOGIES[name] = attrs["topology"] as TopologyData;
+      break;
     }
   }
-  return null;
 }
 
-const meta: Meta<typeof NetworkTopology> = {
+const SCENARIOS = Object.keys(SCENARIO_TOPOLOGIES).sort(
+  (a, b) => Number(a.replace("scenario", "")) - Number(b.replace("scenario", ""))
+);
+
+const defaultScenario = SCENARIOS[0] ?? "scenario1";
+
+interface StoryArgs {
+  scenario: string;
+}
+
+const meta: Meta<StoryArgs> = {
   title: "Topology/NetworkTopology",
-  component: NetworkTopology,
-};
-
-export default meta;
-type Story = StoryObj<typeof NetworkTopology>;
-
-export const Scenario1: Story = {
   args: {
-    topology: getTopologyFromScenario("scenario1") ?? ({} as TopologyData),
+    scenario: defaultScenario,
+  },
+  argTypes: {
+    scenario: {
+      control: { type: "inline-radio" },
+      options: SCENARIOS,
+    },
   },
 };
 
-export const SimpleGrid: Story = {
-  args: {
-    topology: {
-      nodes: [
-        { name: "Switchboard", type: "node", group: "Switchboard" },
-        { name: "Grid", type: "grid", group: "Grid" },
-      ],
-      edges: [
-        {
-          name: "Grid:import",
-          source: "Grid",
-          target: "Switchboard",
-          segments: [
-            { id: "pricing", type: "PricingSegment" },
-            { id: "power_limit", type: "PowerLimitSegment" },
-          ],
-        },
-        {
-          name: "Grid:export",
-          source: "Switchboard",
-          target: "Grid",
-          segments: [{ id: "pricing", type: "PricingSegment" }],
-        },
-      ],
-      groups: {
-        Switchboard: ["Switchboard"],
-        Grid: ["Grid"],
-      },
-    },
+export default meta;
+type Story = StoryObj<StoryArgs>;
+
+export const Default: Story = {
+  render: (args) => {
+    const topology = SCENARIO_TOPOLOGIES[args.scenario];
+    if (topology == null) {
+      return <div>No topology for {args.scenario}</div>;
+    }
+    return <NetworkTopology topology={topology} />;
   },
 };
