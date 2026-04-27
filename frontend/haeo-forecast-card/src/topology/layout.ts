@@ -87,21 +87,29 @@ function findGroup(topology: TopologyData, nodeName: string): string {
 }
 
 /**
- * Find the hub node — the one with the most connections.
+ * Find the hub node — the one with the most unique peer group connections.
+ * Ties broken by name to be deterministic.
  */
 function findHub(topology: TopologyData): string {
-  const counts = new Map<string, number>();
+  const peerCounts = new Map<string, Set<string>>();
   for (const edge of topology.edges) {
     const sg = findGroup(topology, edge.source);
     const tg = findGroup(topology, edge.target);
-    counts.set(sg, (counts.get(sg) ?? 0) + 1);
-    counts.set(tg, (counts.get(tg) ?? 0) + 1);
+    if (sg === tg) continue;
+    if (!peerCounts.has(sg)) peerCounts.set(sg, new Set());
+    if (!peerCounts.has(tg)) peerCounts.set(tg, new Set());
+    peerCounts.get(sg)!.add(tg);
+    peerCounts.get(tg)!.add(sg);
   }
   let hub = "";
   let max = 0;
-  for (const [name, count] of counts) {
-    if (count > max) {
-      max = count;
+  for (const [name, peers] of peerCounts) {
+    if (
+      peers.size > max ||
+      (peers.size === max && name.length > hub.length) ||
+      (peers.size === max && name.length === hub.length && name > hub)
+    ) {
+      max = peers.size;
       hub = name;
     }
   }
@@ -109,39 +117,49 @@ function findHub(topology: TopologyData): string {
 }
 
 /**
- * BFS from hub to orient all edges outward (hub → leaf direction).
- * Returns a set of edge names that should be reversed for layout.
+ * BFS from hub to orient ALL edges outward (hub → leaf direction).
+ * All edges between the same pair of groups get the same layout direction,
+ * determined by the BFS tree. This gives ELK a clean DAG.
  */
 function orientEdgesFromHub(topology: TopologyData, hub: string): Set<string> {
-  // Build adjacency: group → [{edge, peerGroup, isSourceSide}]
-  const adj = new Map<string, Array<{ edge: string; peer: string; isSource: boolean }>>();
+  const adj = new Map<string, Array<{ peer: string }>>();
   for (const edge of topology.edges) {
     const sg = findGroup(topology, edge.source);
     const tg = findGroup(topology, edge.target);
     if (sg === tg) continue;
     if (!adj.has(sg)) adj.set(sg, []);
     if (!adj.has(tg)) adj.set(tg, []);
-    adj.get(sg)!.push({ edge: edge.name, peer: tg, isSource: true });
-    adj.get(tg)!.push({ edge: edge.name, peer: sg, isSource: false });
+    adj.get(sg)!.push({ peer: tg });
+    adj.get(tg)!.push({ peer: sg });
   }
 
-  // BFS from hub — edges should point away from hub
+  // BFS to determine parent→child for each group pair
   const visited = new Set<string>();
-  const reversed = new Set<string>();
+  const pairDirection = new Map<string, string>();
   const queue = [hub];
   visited.add(hub);
 
   while (queue.length > 0) {
     const current = queue.shift()!;
-    for (const { edge, peer, isSource } of adj.get(current) ?? []) {
+    for (const { peer } of adj.get(current) ?? []) {
       if (visited.has(peer)) continue;
       visited.add(peer);
       queue.push(peer);
-      // Edge should go current→peer (outward from hub)
-      // If current is actually the target (not source), we need to reverse
-      if (!isSource) {
-        reversed.add(edge);
-      }
+      const pairKey = [current, peer].sort().join("--");
+      pairDirection.set(pairKey, current);
+    }
+  }
+
+  // Reverse any edge whose actual source doesn't match the BFS layout source
+  const reversed = new Set<string>();
+  for (const edge of topology.edges) {
+    const sg = findGroup(topology, edge.source);
+    const tg = findGroup(topology, edge.target);
+    if (sg === tg) continue;
+    const pairKey = [sg, tg].sort().join("--");
+    const layoutSource = pairDirection.get(pairKey);
+    if (layoutSource !== undefined && layoutSource !== sg) {
+      reversed.add(edge.name);
     }
   }
 
@@ -239,6 +257,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
         "org.eclipse.elk.direction": "RIGHT",
         "org.eclipse.elk.padding": `[top=${HDR + PAD},left=${PAD},bottom=${PAD},right=${PAD}]`,
         "org.eclipse.elk.nodeLabels.placement": "H_LEFT V_TOP INSIDE",
+        "org.eclipse.elk.portConstraints": "FREE",
         "org.eclipse.elk.spacing.nodeNode": "10",
         "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "15",
       },
