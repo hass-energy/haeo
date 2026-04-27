@@ -18,6 +18,7 @@ from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, SOURC
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
+TOPOLOGY_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"topology"})
 
 
 class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
@@ -109,6 +110,8 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         if self._output_name == OUTPUT_NAME_OPTIMIZATION_STATUS:
             # UTC keeps last_run stable across CI machines and HA time zones (snapshot tests).
             attributes["last_run"] = dt_util.as_utc(self.coordinator.data.completed_at).isoformat()
+            # Network topology for the frontend card (not recorded to keep DB clean)
+            attributes["topology"] = self.coordinator.topology
 
         self._attr_native_value = native_value
         self._attr_extra_state_attributes = attributes
@@ -122,9 +125,15 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
 
     def _apply_recorder_attribute_filtering(self) -> None:
         """Apply recorder filtering to this entity's runtime state info."""
-        if self._record_forecasts:
-            return
-        self._state_info["unrecorded_attributes"] = FORECAST_UNRECORDED_ATTRIBUTES
+        unrecorded: frozenset[str] = frozenset()
+        # Topology is always excluded from recording
+        if self._output_name == OUTPUT_NAME_OPTIMIZATION_STATUS:
+            unrecorded = unrecorded | TOPOLOGY_UNRECORDED_ATTRIBUTES
+        # Forecasts excluded unless explicitly opted in
+        if not self._record_forecasts:
+            unrecorded = unrecorded | FORECAST_UNRECORDED_ATTRIBUTES
+        if unrecorded:
+            self._state_info["unrecorded_attributes"] = unrecorded
 
     def _apply_output(self, output: CoordinatorOutput) -> None:
         """Apply device class, options, and unit metadata for an output."""
