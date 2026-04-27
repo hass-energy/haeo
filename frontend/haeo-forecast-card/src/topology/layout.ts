@@ -82,6 +82,24 @@ const HDR = 18;
 
 type Side = "EAST" | "WEST" | "NORTH" | "SOUTH";
 
+/**
+ * Offset a polyline path perpendicular to each segment.
+ * Positive offset = right side of travel direction.
+ */
+function offsetPath(points: Array<{ x: number; y: number }>, offset: number): Array<{ x: number; y: number }> {
+  return points.map((p, i) => {
+    // Use the direction from this point to the next (or previous for last point)
+    const next = points[Math.min(i + 1, points.length - 1)]!;
+    const prev = points[Math.max(i - 1, 0)]!;
+    const dx = next.x - prev.x;
+    const dy = next.y - prev.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) return { ...p };
+    // Perpendicular: rotate 90° clockwise
+    return { x: p.x + (dy / len) * offset, y: p.y - (dx / len) * offset };
+  });
+}
+
 function findGroup(topology: TopologyData, nodeName: string): string {
   return Object.entries(topology.groups).find(([, m]) => m.includes(nodeName))?.[0] ?? "";
 }
@@ -418,18 +436,22 @@ function extractResult(
     // Find which pair this belongs to and get all edges in that pair
     for (const [, edgeNames] of pairEdgeMap) {
       if (edgeNames[0] !== primaryName) continue;
-      for (const edgeName of edgeNames) {
+      const count = edgeNames.length;
+      edgeNames.forEach((edgeName, idx) => {
         const topoEdge = topology.edges.find((te) => te.name === edgeName);
         const isReversed = reversed.has(edgeName);
+        // Offset parallel edges perpendicular to the path
+        const offset = count > 1 ? (idx - (count - 1) / 2) * 6 : 0;
+        const offsetPoints = offset === 0 ? [...points] : offsetPath(points, offset);
         externalEdges.push({
           name: `ext:${edgeName}`,
           source: topoEdge?.source ?? "",
           target: topoEdge?.target ?? "",
-          points: isReversed ? [...points].reverse() : [...points],
+          points: isReversed ? [...offsetPoints].reverse() : offsetPoints,
           internal: false,
           reversed: isReversed,
         });
-      }
+      });
     }
   }
 
