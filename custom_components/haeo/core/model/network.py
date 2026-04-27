@@ -261,6 +261,7 @@ class Network:
             solver=self._solver,
             price=config["price"],
             power_terms=power_terms,
+            terms=config["terms"],
         )
         self.elements[name] = element
         return element
