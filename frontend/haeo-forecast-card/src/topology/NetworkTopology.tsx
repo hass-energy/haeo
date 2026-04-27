@@ -141,7 +141,7 @@ export function NetworkTopology(props: Props): JSX.Element {
         </defs>
 
         {/* Groups */}
-        {layout.groups.map((group) => renderGroup(group, setTooltip, hide))}
+        {layout.groups.map((group) => renderGroup(group, topology, setTooltip, hide))}
 
         {/* External edges — VLAN colored */}
         {layout.externalEdges.map((edge) => {
@@ -205,7 +205,7 @@ export function NetworkTopology(props: Props): JSX.Element {
                       font-weight="700"
                       fill={color}
                     >
-                      \ud83d\udcb2v{String(term.tag)}
+                      💲v{String(term.tag)}
                     </text>
                   </g>
                 );
@@ -222,11 +222,12 @@ export function NetworkTopology(props: Props): JSX.Element {
             position: "absolute",
             top: "8px",
             right: "8px",
-            background: "rgba(255,255,255,0.95)",
-            border: "1px solid #ddd",
+            background: "rgba(30,30,30,0.9)",
+            border: "1px solid #555",
             borderRadius: "6px",
             padding: "6px 10px",
             fontSize: "11px",
+            color: "#eee",
           }}
         >
           <div style={{ fontWeight: 700, marginBottom: "4px" }}>VLANs</div>
@@ -313,7 +314,12 @@ function renderVlanEdge(edge: LayoutEdge, tags: number[]): JSX.Element | null {
  * Positioned at the midpoint of the edge, offset vertically when
  * multiple policies share the same connection.
  */
-function renderGroup(group: LayoutGroup, setTooltip: (t: TooltipInfo) => void, hide: () => void): JSX.Element {
+function renderGroup(
+  group: LayoutGroup,
+  topology: TopologyData,
+  setTooltip: (t: TooltipInfo) => void,
+  hide: () => void
+): JSX.Element {
   const s = NODE_STYLES[group.type] ?? NODE_STYLES["unknown"];
 
   return (
@@ -344,7 +350,7 @@ function renderGroup(group: LayoutGroup, setTooltip: (t: TooltipInfo) => void, h
       {group.children.map((child) =>
         child.isPill
           ? renderPill(child, group, setTooltip, hide)
-          : renderModelNode(child, group, s?.color ?? "#bbb", setTooltip, hide)
+          : renderModelNode(child, group, s?.color ?? "#bbb", topology, setTooltip, hide)
       )}
 
       {/* Ports */}
@@ -365,26 +371,62 @@ function renderModelNode(
   node: LayoutNode,
   group: LayoutGroup,
   color: string,
+  topology: TopologyData,
   setTooltip: (t: TooltipInfo) => void,
   hide: () => void
 ): JSX.Element {
+  const topoNode = topology.nodes.find((n) => n.name === node.id);
+  const outTags = topoNode?.outbound_tags ?? [];
+  const inTags = topoNode?.inbound_tags ?? [];
+  const hasVlans = outTags.length > 0 || inTags.length > 0;
+
+  const nx = group.x + node.x;
+  const ny = group.y + node.y;
+  const tooltipLines = [`Type: ${node.type}`];
+  if (outTags.length > 0)
+    tooltipLines.push(`Produces: ${outTags.map((t) => (t === 0 ? "default" : `VLAN ${String(t)}`)).join(", ")}`);
+  if (inTags.length > 0)
+    tooltipLines.push(`Accepts: ${inTags.map((t) => (t === 0 ? "default" : `VLAN ${String(t)}`)).join(", ")}`);
+
   return (
     <g
       key={node.id}
-      onMouseEnter={(e: MouseEvent) =>
-        setTooltip({
-          x: e.clientX,
-          y: e.clientY,
-          title: node.id,
-          lines: [`Type: ${node.type}`],
-        })
-      }
+      onMouseEnter={(e: MouseEvent) => setTooltip({ x: e.clientX, y: e.clientY, title: node.id, lines: tooltipLines })}
       onMouseLeave={hide}
       style={{ cursor: "pointer" }}
     >
+      {/* VLAN outbound indicators — colored dots on left side (produces) */}
+      {outTags
+        .filter((t) => t !== 0)
+        .map((tag, i) => (
+          <circle
+            key={`out-${String(tag)}`}
+            cx={nx - 4}
+            cy={ny + 8 + i * 10}
+            r={4}
+            fill={vlanColor(tag)}
+            stroke="white"
+            stroke-width="1"
+          />
+        ))}
+      {/* VLAN inbound indicators — colored dots on right side (accepts) */}
+      {hasVlans &&
+        inTags
+          .filter((t) => t !== 0)
+          .map((tag, i) => (
+            <circle
+              key={`in-${String(tag)}`}
+              cx={nx + node.width + 4}
+              cy={ny + 8 + i * 10}
+              r={4}
+              fill="none"
+              stroke={vlanColor(tag)}
+              stroke-width="2"
+            />
+          ))}
       <rect
-        x={group.x + node.x}
-        y={group.y + node.y}
+        x={nx}
+        y={ny}
         width={node.width}
         height={node.height}
         rx={NODE_RX}
@@ -393,8 +435,8 @@ function renderModelNode(
         opacity="0.85"
       />
       <text
-        x={group.x + node.x + node.width / 2}
-        y={group.y + node.y + node.height / 2 + 4}
+        x={nx + node.width / 2}
+        y={ny + node.height / 2 + 4}
         text-anchor="middle"
         font-size="11"
         font-weight="600"
