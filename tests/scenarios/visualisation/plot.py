@@ -3,8 +3,11 @@
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 import itertools
+import json
 import logging
 from pathlib import Path
+import subprocess
+import tempfile
 from typing import Any, Final, Literal, Required, TypedDict, cast
 
 from cycler import cycler
@@ -472,7 +475,7 @@ def create_stacked_visualization(output_sensors: Mapping[str, Mapping[str, Any]]
 
 def create_shadow_price_visualization(
     output_sensors: Mapping[str, Mapping[str, Any]], output_path: str, title: str
-) -> bool:
+) -> None:
     """Create a dedicated visualization for shadow price series using matplotlib cycling."""
 
     forecast_data = extract_forecast_data(output_sensors)
@@ -481,7 +484,7 @@ def create_shadow_price_visualization(
 
     if not series:
         _LOGGER.info("No shadow price data available; skipping shadow price visualization")
-        return False
+        return
 
     fig, ax = plt.subplots(1, 1, figsize=(16, 6))
 
@@ -522,7 +525,7 @@ def create_shadow_price_visualization(
     _LOGGER.info("Shadow price visualization saved to %s", png_path)
 
     plt.close(fig)
-    return True
+    return
 
 
 def visualize_scenario_results(
@@ -547,9 +550,9 @@ def visualize_scenario_results(
     output_dir_path = Path(output_dir)
     output_dir_path.mkdir(parents=True, exist_ok=True)
 
-    # Create stacked area/line plots (SVG format for vector graphics)
+    # Create optimization chart using the forecast card renderer
     main_plot_path = output_dir_path / f"{scenario_name}_optimization.svg"
-    create_stacked_visualization(output_sensors, str(main_plot_path), f"{scenario_name.title()} Optimization Results")
+    create_card_visualization(output_sensors, str(main_plot_path))
 
     shadow_plot_path = output_dir_path / f"{scenario_name}_shadow_prices.svg"
     create_shadow_price_visualization(output_sensors, str(shadow_plot_path), f"{scenario_name.title()} Shadow Prices")
@@ -557,3 +560,45 @@ def visualize_scenario_results(
     # Create network topology graph visualization
     graph_plot_path = output_dir_path / f"{scenario_name}_network_topology.svg"
     create_graph_visualization(network, str(graph_plot_path), f"{scenario_name.title()} Network Topology")
+
+
+def create_card_visualization(
+    output_sensors: Mapping[str, Mapping[str, Any]],
+    output_path: str,
+) -> None:
+    """Render the HAEO forecast card as SVG via the bundled card component.
+
+    Calls the Node.js export script which uses JSDOM to render the card
+    headlessly. Falls back to matplotlib if Node.js is not available.
+
+    Raises RuntimeError if rendering fails.
+    """
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    script = repo_root / "frontend" / "haeo-forecast-card" / "scripts" / "export-scenario-svg.mjs"
+
+    if not script.exists():
+        msg = f"Card export script not found: {script}"
+        raise RuntimeError(msg)
+
+    # Write outputs to a temp file for the node script
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        json.dump(output_sensors, f, default=str)
+        temp_path = f.name
+
+    try:
+        result = subprocess.run(  # noqa: S603
+            ["node", str(script), temp_path, output_path],  # noqa: S607
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=str(script.parent.parent),
+            check=False,
+        )
+        if result.returncode != 0:
+            msg = f"Card export failed (exit {result.returncode}): {result.stderr}"
+            raise RuntimeError(msg)
+    except FileNotFoundError as e:
+        msg = f"Node.js not found — required for card visualization: {e}"
+        raise RuntimeError(msg) from e
+    finally:
+        Path(temp_path).unlink(missing_ok=True)
