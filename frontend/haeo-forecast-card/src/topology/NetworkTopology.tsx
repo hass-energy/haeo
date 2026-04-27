@@ -1,4 +1,4 @@
-/** Network topology SVG component. */
+/** Network topology SVG component with VLAN coloring. */
 
 import type { JSX } from "preact";
 import { useEffect, useState } from "preact/hooks";
@@ -23,6 +23,37 @@ const SEGMENT_ICONS: Record<string, string> = {
   TagFilterSegment: "🏷",
   TagPricingSegment: "🏷",
 };
+
+/** Distinct colors for VLAN tags. Tag 0 (default) is neutral gray. */
+const VLAN_COLORS: string[] = [
+  "#888", // tag 0 — default/untagged
+  "#E91E63", // tag 1 — pink
+  "#2196F3", // tag 2 — blue
+  "#4CAF50", // tag 3 — green
+  "#FF9800", // tag 4 — orange
+  "#9C27B0", // tag 5 — purple
+  "#00BCD4", // tag 6 — cyan
+  "#CDDC39", // tag 7 — lime
+];
+
+function vlanColor(tag: number): string {
+  return VLAN_COLORS[tag % VLAN_COLORS.length] ?? "#888";
+}
+
+/**
+ * Offset a polyline perpendicular to each segment direction.
+ */
+function offsetPoints(points: Array<{ x: number; y: number }>, offset: number): Array<{ x: number; y: number }> {
+  return points.map((p, i) => {
+    const next = points[Math.min(i + 1, points.length - 1)]!;
+    const prev = points[Math.max(i - 1, 0)]!;
+    const dx = next.x - prev.x;
+    const dy = next.y - prev.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) return { ...p };
+    return { x: p.x + (dy / len) * offset, y: p.y - (dx / len) * offset };
+  });
+}
 
 interface TooltipInfo {
   x: number;
@@ -52,6 +83,20 @@ export function NetworkTopology(props: Props): JSX.Element {
   if (error != null) return <div style={{ color: "red" }}>Layout error: {error}</div>;
   if (layout == null) return <div>Computing layout…</div>;
 
+  // Build edge name → tags lookup
+  const edgeTags = new Map<string, number[]>();
+  for (const edge of topology.edges) {
+    if (edge.tags != null && edge.tags.length > 0) {
+      edgeTags.set(edge.name, edge.tags);
+    }
+  }
+
+  // Collect all active VLAN IDs for the legend
+  const activeVlans = new Set<number>();
+  for (const tags of edgeTags.values()) {
+    for (const t of tags) activeVlans.add(t);
+  }
+
   const w = props.width ?? layout.width;
   const h = props.height ?? layout.height;
   const hide = (): void => setTooltip(null);
@@ -63,14 +108,82 @@ export function NetworkTopology(props: Props): JSX.Element {
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
             <polygon points="0 0, 8 3, 0 6" fill="#888" />
           </marker>
+          <marker id="arrow-rev" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto">
+            <polygon points="8 0, 0 3, 8 6" fill="#888" />
+          </marker>
+          {/* Per-VLAN arrow markers */}
+          {[...activeVlans].map((tag) => (
+            <marker
+              key={`arrow-v${String(tag)}`}
+              id={`arrow-v${String(tag)}`}
+              markerWidth="8"
+              markerHeight="6"
+              refX="8"
+              refY="3"
+              orient="auto"
+            >
+              <polygon points="0 0, 8 3, 0 6" fill={vlanColor(tag)} />
+            </marker>
+          ))}
+          {[...activeVlans].map((tag) => (
+            <marker
+              key={`arrow-rev-v${String(tag)}`}
+              id={`arrow-rev-v${String(tag)}`}
+              markerWidth="8"
+              markerHeight="6"
+              refX="0"
+              refY="3"
+              orient="auto"
+            >
+              <polygon points="8 0, 0 3, 8 6" fill={vlanColor(tag)} />
+            </marker>
+          ))}
         </defs>
 
         {/* Groups */}
         {layout.groups.map((group) => renderGroup(group, setTooltip, hide))}
 
-        {/* External edges between groups */}
-        {layout.externalEdges.map((edge) => renderEdgePath(edge, "#666", true))}
+        {/* External edges — VLAN colored */}
+        {layout.externalEdges.map((edge) => {
+          const edgeName = edge.name.replace("ext:", "");
+          const tags = edgeTags.get(edgeName);
+          if (tags != null && tags.length > 0) {
+            return renderVlanEdge(edge, tags);
+          }
+          return renderEdgePath(edge, "#888", true);
+        })}
       </svg>
+
+      {/* VLAN Legend */}
+      {activeVlans.size > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "8px",
+            right: "8px",
+            background: "rgba(255,255,255,0.95)",
+            border: "1px solid #ddd",
+            borderRadius: "6px",
+            padding: "6px 10px",
+            fontSize: "11px",
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: "4px" }}>VLANs</div>
+          {[...activeVlans].sort().map((tag) => (
+            <div key={tag} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
+              <div
+                style={{
+                  width: "16px",
+                  height: "3px",
+                  background: vlanColor(tag),
+                  borderRadius: "1px",
+                }}
+              />
+              <span>{tag === 0 ? "Default" : `VLAN ${String(tag)}`}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Tooltip */}
       {tooltip != null && (
@@ -99,6 +212,38 @@ export function NetworkTopology(props: Props): JSX.Element {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Render an edge with multiple VLAN colors as parallel offset stripes.
+ */
+function renderVlanEdge(edge: LayoutEdge, tags: number[]): JSX.Element | null {
+  if (edge.points.length < 2) return null;
+  const count = tags.length;
+  const STRIPE_GAP = 2.5;
+
+  return (
+    <g key={edge.name}>
+      {tags.map((tag, idx) => {
+        const offset = count > 1 ? (idx - (count - 1) / 2) * STRIPE_GAP : 0;
+        const pts = offset === 0 ? edge.points : offsetPoints(edge.points, offset);
+        const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+        const color = vlanColor(tag);
+        const markerId = edge.reversed ? `arrow-rev-v${String(tag)}` : `arrow-v${String(tag)}`;
+        return (
+          <path
+            key={tag}
+            d={d}
+            fill="none"
+            stroke={color}
+            stroke-width="1.5"
+            marker-end={!edge.reversed ? `url(#${markerId})` : undefined}
+            marker-start={edge.reversed ? `url(#${markerId})` : undefined}
+          />
+        );
+      })}
+    </g>
   );
 }
 
@@ -161,7 +306,12 @@ function renderModelNode(
     <g
       key={node.id}
       onMouseEnter={(e: MouseEvent) =>
-        setTooltip({ x: e.clientX, y: e.clientY, title: node.id, lines: [`Type: ${node.type}`] })
+        setTooltip({
+          x: e.clientX,
+          y: e.clientY,
+          title: node.id,
+          lines: [`Type: ${node.type}`],
+        })
       }
       onMouseLeave={hide}
       style={{ cursor: "pointer" }}
@@ -242,7 +392,14 @@ function renderPill(
 
 function renderEdgePath(edge: LayoutEdge, color: string, arrow: boolean): JSX.Element | null {
   if (edge.points.length < 2) return null;
-  return <g key={edge.name}>{renderEdgePathRaw(edge.points, color, arrow)}</g>;
+  const d = edge.points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const markerEnd = arrow && !edge.reversed ? "url(#arrow)" : undefined;
+  const markerStart = arrow && edge.reversed ? "url(#arrow-rev)" : undefined;
+  return (
+    <g key={edge.name}>
+      <path d={d} fill="none" stroke={color} stroke-width="1.5" marker-end={markerEnd} marker-start={markerStart} />
+    </g>
+  );
 }
 
 function renderEdgePathRaw(points: Array<{ x: number; y: number }>, color: string, arrow: boolean): JSX.Element | null {
