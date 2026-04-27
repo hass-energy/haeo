@@ -6,7 +6,13 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
-import { JSDOM } from "jsdom";
+let JSDOM;
+try {
+  ({ JSDOM } = await import("jsdom"));
+} catch {
+  console.error("Missing jsdom — run: npm --prefix frontend/haeo-forecast-card ci");
+  process.exit(1);
+}
 
 const rootDir = resolve(import.meta.dirname, "..");
 const workspaceRoot = resolve(rootDir, "..", "..");

@@ -536,8 +536,8 @@ def visualize_scenario_results(
 ) -> None:
     """Create comprehensive visualizations for HAEO scenario test results.
 
-    Creates stacked area plots for optimization results, shadow price visualization,
-    and a network topology graph. Files are saved with the scenario name prefix.
+    Renders the forecast card as the main optimization chart, creates shadow
+    price visualization (matplotlib), and a network topology graph. Files are saved with the scenario name prefix.
 
     Args:
         output_sensors: Dict mapping entity_id to sensor state dict (from get_output_sensors
@@ -571,7 +571,10 @@ def create_card_visualization(
     Calls the Node.js export script which uses JSDOM to render the card
     headlessly. Falls back to matplotlib if Node.js is not available.
 
-    Raises RuntimeError if rendering fails.
+    Raises:
+        RuntimeError: If the export script is missing, Node.js is not
+            installed, or the card fails to render.
+
     """
     repo_root = Path(__file__).resolve().parent.parent.parent.parent
     script = repo_root / "frontend" / "haeo-forecast-card" / "scripts" / "export-scenario-svg.mjs"
@@ -581,13 +584,13 @@ def create_card_visualization(
         raise RuntimeError(msg)
 
     # Write outputs to a temp file for the node script
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
         json.dump(output_sensors, f, default=str)
         temp_path = f.name
 
     try:
-        result = subprocess.run(  # noqa: S603
-            ["node", str(script), temp_path, output_path],  # noqa: S607
+        result = subprocess.run(  # noqa: S603 — trusted repo-local script, no user input
+            ["node", str(script), temp_path, output_path],  # noqa: S607 — node is a well-known executable
             capture_output=True,
             text=True,
             timeout=30,
@@ -599,6 +602,9 @@ def create_card_visualization(
             raise RuntimeError(msg)
     except FileNotFoundError as e:
         msg = f"Node.js not found — required for card visualization: {e}"
+        raise RuntimeError(msg) from e
+    except subprocess.TimeoutExpired as e:
+        msg = f"Card export timed out after {e.timeout}s"
         raise RuntimeError(msg) from e
     finally:
         Path(temp_path).unlink(missing_ok=True)
