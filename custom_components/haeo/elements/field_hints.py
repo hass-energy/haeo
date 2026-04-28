@@ -6,7 +6,7 @@ based on OutputType, and a builder to instantiate them using declarative hints.
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Final
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
@@ -15,6 +15,11 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
 from custom_components.haeo.core.units import UnitOfMeasurement
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+
+# Home Assistant treats native_min/native_max of None as 0.0-100.0 on NumberEntity,
+# which blocked negative energy prices. Use explicit bounds (±1000) instead.
+PRICE_NATIVE_MIN_VALUE: Final[float] = -1000.0
+PRICE_NATIVE_MAX_VALUE: Final[float] = 1000.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,8 +72,8 @@ OUTPUT_TYPE_DEFAULTS: dict[OutputType, OutputTypeMetadata] = {
     OutputType.PRICE: OutputTypeMetadata(
         unit=None,
         device_class=None,
-        min_value=None,
-        max_value=None,
+        min_value=PRICE_NATIVE_MIN_VALUE,
+        max_value=PRICE_NATIVE_MAX_VALUE,
         step=0.001,
     ),
 }

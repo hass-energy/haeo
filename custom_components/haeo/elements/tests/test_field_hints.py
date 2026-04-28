@@ -1,10 +1,20 @@
-"""Tests for list input field generation from ListFieldHints."""
+"""Tests for elements.field_hints: list helpers and OutputType defaults."""
 
 from typing import Any
 
+from homeassistant.components.number.const import DEFAULT_MAX_VALUE, DEFAULT_MIN_VALUE
+
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
-from custom_components.haeo.elements.field_hints import build_list_input_fields
+from custom_components.haeo.core.schema.elements.grid import GridConfigSchema
+from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints, extract_field_hints
+from custom_components.haeo.core.schema.sections import CONF_PRICE_SOURCE_TARGET, SECTION_PRICING
+from custom_components.haeo.elements.field_hints import (
+    OUTPUT_TYPE_DEFAULTS,
+    PRICE_NATIVE_MAX_VALUE,
+    PRICE_NATIVE_MIN_VALUE,
+    build_input_fields,
+    build_list_input_fields,
+)
 
 
 def test_build_list_input_fields_generates_per_item_sections() -> None:
@@ -84,3 +94,28 @@ def test_build_list_input_fields_creates_entity_for_absent_fields() -> None:
     assert "enabled" in result["rules.0"]
     assert "price" in result["rules.0"]
     assert result["rules.0"]["enabled"].output_type == OutputType.STATUS
+
+
+def test_price_output_type_defaults_are_explicit_negative_compatible() -> None:
+    """PRICE fields must not rely on HA NumberEntityDescription None → min/max defaults.
+
+    Home Assistant maps native_min_value/native_max_value of None to 0.0 and 100.0,
+    which incorrectly forbids negative prices and caps above 100.
+    """
+    meta = OUTPUT_TYPE_DEFAULTS[OutputType.PRICE]
+    assert meta.min_value is not None
+    assert meta.max_value is not None
+    assert meta.min_value == PRICE_NATIVE_MIN_VALUE
+    assert meta.max_value == PRICE_NATIVE_MAX_VALUE
+    assert meta.min_value < 0
+    assert meta.min_value != DEFAULT_MIN_VALUE
+    assert meta.max_value != DEFAULT_MAX_VALUE
+
+
+def test_grid_pricing_fields_use_explicit_price_bounds() -> None:
+    """Built grid pricing inputs expose explicit native min/max on the description."""
+    hints = extract_field_hints(GridConfigSchema)
+    fields = build_input_fields("grid", hints)
+    desc = fields[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET].entity_description
+    assert desc.native_min_value == PRICE_NATIVE_MIN_VALUE
+    assert desc.native_max_value == PRICE_NATIVE_MAX_VALUE
