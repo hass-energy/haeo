@@ -306,6 +306,17 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       return nameA.localeCompare(nameB);
     });
 
+    // Compute internal edge spacing based on max VLAN count for this group's connections
+    let maxGroupTags = 0;
+    for (const edge of topology.edges) {
+      const sg = findGroup(topology, edge.source);
+      const tg = findGroup(topology, edge.target);
+      if (sg !== tg && (sg === groupName || tg === groupName)) {
+        maxGroupTags = Math.max(maxGroupTags, edge.tags?.length ?? 0);
+      }
+    }
+    const groupEdgeSpacing = String(Math.max(10, maxGroupTags * STRIPE_GAP + 4));
+
     elkChildren.push({
       id: `group:${groupName}`,
       labels: [{ text: groupName }],
@@ -318,8 +329,10 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
         "org.eclipse.elk.padding": `[top=${HDR + PAD},left=${PAD},bottom=${PAD},right=${PAD}]`,
         "org.eclipse.elk.nodeLabels.placement": "H_LEFT V_TOP INSIDE",
         "org.eclipse.elk.portConstraints": "FIXED_ORDER",
-        "org.eclipse.elk.spacing.nodeNode": "10",
+        "org.eclipse.elk.spacing.nodeNode": groupEdgeSpacing,
         "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "15",
+        "org.eclipse.elk.spacing.edgeEdge": groupEdgeSpacing,
+        "org.eclipse.elk.spacing.edgeNode": groupEdgeSpacing,
       },
     });
   }
