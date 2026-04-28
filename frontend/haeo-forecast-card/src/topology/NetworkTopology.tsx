@@ -113,6 +113,31 @@ function offsetPoints(points: Array<{ x: number; y: number }>, offset: number): 
   return result;
 }
 
+/** Extend a polyline's first and last points outward along their segments. */
+function extendEndpoints(points: Array<{ x: number; y: number }>, dist: number): Array<{ x: number; y: number }> {
+  if (points.length < 2) return points;
+  const result = points.map((p) => ({ ...p }));
+  // Extend start outward
+  const dx0 = result[0]!.x - result[1]!.x;
+  const dy0 = result[0]!.y - result[1]!.y;
+  const len0 = Math.sqrt(dx0 * dx0 + dy0 * dy0);
+  if (len0 > 0) {
+    result[0] = { x: result[0]!.x + (dx0 / len0) * dist, y: result[0]!.y + (dy0 / len0) * dist };
+  }
+  // Extend end outward
+  const last = result.length - 1;
+  const dx1 = result[last]!.x - result[last - 1]!.x;
+  const dy1 = result[last]!.y - result[last - 1]!.y;
+  const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+  if (len1 > 0) {
+    result[last] = { x: result[last]!.x + (dx1 / len1) * dist, y: result[last]!.y + (dy1 / len1) * dist };
+  }
+  return result;
+}
+
+/** Distance to extend VLAN lines into port circles (half of PORT_SZ in layout). */
+const PORT_EXTEND = 6;
+
 interface TooltipInfo {
   x: number;
   y: number;
@@ -331,17 +356,19 @@ export function NetworkTopology(props: Props): JSX.Element {
 
 /**
  * Render parallel VLAN-colored stripes for a set of points (no arrows).
+ * Extends endpoints so lines reach into port circles.
  */
 function renderVlanStripes(points: Array<{ x: number; y: number }>, tags: number[]): JSX.Element | null {
   if (points.length < 2) return null;
   const count = tags.length;
   const STRIPE_GAP = 2.5;
+  const extended = extendEndpoints(points, PORT_EXTEND);
 
   return (
     <>
       {tags.map((tag, idx) => {
         const offset = count > 1 ? (idx - (count - 1) / 2) * STRIPE_GAP : 0;
-        const pts = offset === 0 ? points : offsetPoints(points, offset);
+        const pts = offset === 0 ? extended : offsetPoints(extended, offset);
         const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
         return <path key={tag} d={d} fill="none" stroke={vlanColor(tag)} stroke-width="1.5" />;
       })}
@@ -351,17 +378,19 @@ function renderVlanStripes(points: Array<{ x: number; y: number }>, tags: number
 
 /**
  * Render an edge with multiple VLAN colors as parallel offset stripes.
+ * Extends endpoints so lines reach into port circles.
  */
 function renderVlanEdge(edge: LayoutEdge, tags: number[]): JSX.Element | null {
   if (edge.points.length < 2) return null;
   const count = tags.length;
   const STRIPE_GAP = 2.5;
+  const extended = extendEndpoints(edge.points, PORT_EXTEND);
 
   return (
     <g key={edge.name}>
       {tags.map((tag, idx) => {
         const offset = count > 1 ? (idx - (count - 1) / 2) * STRIPE_GAP : 0;
-        const pts = offset === 0 ? edge.points : offsetPoints(edge.points, offset);
+        const pts = offset === 0 ? extended : offsetPoints(extended, offset);
         const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
         const color = vlanColor(tag);
         const markerId = edge.reversed ? `arrow-rev-v${String(tag)}` : `arrow-v${String(tag)}`;
