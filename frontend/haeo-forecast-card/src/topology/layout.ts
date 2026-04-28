@@ -91,6 +91,7 @@ const NODE_H = 36;
 const PILL_CELL_W = 26;
 const PILL_H = 20;
 const PORT_SZ = 12;
+const STRIPE_GAP = 2.5;
 const PAD = 14;
 const HDR = 18;
 
@@ -188,6 +189,12 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
   const hub = findHub(topology);
   const reversed = orientEdgesFromHub(topology, hub);
 
+  // Build edge name → tag count lookup for port sizing
+  const edgeTagCount = new Map<string, number>();
+  for (const edge of topology.edges) {
+    edgeTagCount.set(edge.name, edge.tags?.length ?? 0);
+  }
+
   const elkChildren: ElkNode[] = [];
   const elkEdges: ElkExtendedEdge[] = [];
 
@@ -210,6 +217,8 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       const layoutTarget = isReversed ? sg : tg;
       const owner = connectionOwner(edge.name);
       const visible = edge.segments.filter((s) => s.type !== "PassthroughSegment");
+      const nTags = edgeTagCount.get(edge.name) ?? 0;
+      const portH = Math.max(PORT_SZ, nTags * STRIPE_GAP + 6);
 
       // Layout source group gets outgoing port (+ pill if owner)
       if (groupName === layoutSource) {
@@ -217,7 +226,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
         ports.push({
           id: outPortId,
           width: PORT_SZ,
-          height: PORT_SZ,
+          height: portH,
           layoutOptions: { "org.eclipse.elk.port.side": "EAST" },
         });
 
@@ -253,7 +262,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
         ports.push({
           id: inPortId,
           width: PORT_SZ,
-          height: PORT_SZ,
+          height: portH,
           layoutOptions: { "org.eclipse.elk.port.side": "WEST" },
         });
 
@@ -382,6 +391,10 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
     });
   }
 
+  // Compute edge spacing based on the widest multi-VLAN connection
+  const maxTags = Math.max(1, ...topology.edges.map((e) => e.tags?.length ?? 0));
+  const edgeSpacing = String(Math.max(12, maxTags * STRIPE_GAP + 4));
+
   const graph: ElkNode = await elk.layout({
     id: "root",
     children: elkChildren,
@@ -392,8 +405,8 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       "org.eclipse.elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
       "org.eclipse.elk.spacing.nodeNode": "25",
       "org.eclipse.elk.layered.spacing.nodeNodeBetweenLayers": "40",
-      "org.eclipse.elk.spacing.edgeEdge": "12",
-      "org.eclipse.elk.spacing.edgeNode": "12",
+      "org.eclipse.elk.spacing.edgeEdge": edgeSpacing,
+      "org.eclipse.elk.spacing.edgeNode": edgeSpacing,
       "org.eclipse.elk.randomSeed": "42",
     },
   });
