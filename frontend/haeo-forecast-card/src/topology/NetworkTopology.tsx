@@ -351,16 +351,15 @@ export function NetworkTopology(props: Props): JSX.Element {
 function renderVlanStripes(points: Array<{ x: number; y: number }>, tags: number[]): JSX.Element | null {
   if (points.length < 2) return null;
   const count = tags.length;
-  const STRIPE_GAP = 2.5;
-  const extended = extendEndpoints(points, PORT_EXTEND);
+  const STRIPE_W = 2.5;
 
   return (
     <>
       {tags.map((tag, idx) => {
-        const offset = count > 1 ? (idx - (count - 1) / 2) * STRIPE_GAP : 0;
-        const pts = offset === 0 ? extended : offsetPoints(extended, offset);
+        const offset = count > 1 ? (idx - (count - 1) / 2) * STRIPE_W : 0;
+        const pts = offset === 0 ? points : offsetPoints(points, offset);
         const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-        return <path key={tag} d={d} fill="none" stroke={vlanColor(tag)} stroke-width="1.5" />;
+        return <path key={tag} d={d} fill="none" stroke={vlanColor(tag)} stroke-width={STRIPE_W} />;
       })}
     </>
   );
@@ -373,16 +372,16 @@ function renderVlanStripes(points: Array<{ x: number; y: number }>, tags: number
 function renderVlanEdge(edge: LayoutEdge, tags: number[]): JSX.Element | null {
   if (edge.points.length < 2) return null;
   const count = tags.length;
-  const STRIPE_GAP = 2.5;
+  const STRIPE_W = 2.5;
   const extended = extendEndpoints(edge.points, PORT_EXTEND);
 
   return (
     <g key={edge.name}>
       {tags.map((tag, idx) => {
-        const offset = count > 1 ? (idx - (count - 1) / 2) * STRIPE_GAP : 0;
+        const offset = count > 1 ? (idx - (count - 1) / 2) * STRIPE_W : 0;
         const pts = offset === 0 ? extended : offsetPoints(extended, offset);
         const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-        return <path key={tag} d={d} fill="none" stroke={vlanColor(tag)} stroke-width="1.5" />;
+        return <path key={tag} d={d} fill="none" stroke={vlanColor(tag)} stroke-width={STRIPE_W} />;
       })}
       {renderCompositeArrow(edge.points, tags, edge.reversed, edge.name)}
     </g>
