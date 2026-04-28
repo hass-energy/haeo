@@ -138,6 +138,10 @@ function extendEndpoints(points: Array<{ x: number; y: number }>, dist: number):
 /** Distance to extend VLAN lines into port circles (half of PORT_SZ in layout). */
 const PORT_EXTEND = 6;
 
+/** Arrow head dimensions. */
+const ARROW_LEN = 10;
+const ARROW_HALF_W = 5;
+
 interface TooltipInfo {
   x: number;
   y: number;
@@ -195,33 +199,6 @@ export function NetworkTopology(props: Props): JSX.Element {
           <marker id="arrow-rev" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto">
             <polygon points="8 0, 0 3, 8 6" fill="#888" />
           </marker>
-          {/* Per-VLAN arrow markers */}
-          {[...activeVlans].map((tag) => (
-            <marker
-              key={`arrow-v${String(tag)}`}
-              id={`arrow-v${String(tag)}`}
-              markerWidth="8"
-              markerHeight="6"
-              refX="8"
-              refY="3"
-              orient="auto"
-            >
-              <polygon points="0 0, 8 3, 0 6" fill={vlanColor(tag)} />
-            </marker>
-          ))}
-          {[...activeVlans].map((tag) => (
-            <marker
-              key={`arrow-rev-v${String(tag)}`}
-              id={`arrow-rev-v${String(tag)}`}
-              markerWidth="8"
-              markerHeight="6"
-              refX="0"
-              refY="3"
-              orient="auto"
-            >
-              <polygon points="8 0, 0 3, 8 6" fill={vlanColor(tag)} />
-            </marker>
-          ))}
         </defs>
 
         {/* Groups */}
@@ -236,6 +213,19 @@ export function NetworkTopology(props: Props): JSX.Element {
           }
           return renderEdgePath(edge, "#888", true);
         })}
+
+        {/* Port circles — rendered after edges so they sit on top */}
+        {layout.groups.map((group) =>
+          group.ports.map((port) => (
+            <circle
+              key={port.id}
+              cx={group.x + port.x + port.width / 2}
+              cy={group.y + port.y + port.height / 2}
+              r={5}
+              fill="#888"
+            />
+          ))
+        )}
 
         {/* Policy pricing pills (positioned by ELK) */}
         {layout.policyPills.map((pill) => {
@@ -378,7 +368,7 @@ function renderVlanStripes(points: Array<{ x: number; y: number }>, tags: number
 
 /**
  * Render an edge with multiple VLAN colors as parallel offset stripes.
- * Extends endpoints so lines reach into port circles.
+ * Lines extend into port circles; a single composite arrow head shows direction.
  */
 function renderVlanEdge(edge: LayoutEdge, tags: number[]): JSX.Element | null {
   if (edge.points.length < 2) return null;
@@ -392,20 +382,81 @@ function renderVlanEdge(edge: LayoutEdge, tags: number[]): JSX.Element | null {
         const offset = count > 1 ? (idx - (count - 1) / 2) * STRIPE_GAP : 0;
         const pts = offset === 0 ? extended : offsetPoints(extended, offset);
         const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-        const color = vlanColor(tag);
-        const markerId = edge.reversed ? `arrow-rev-v${String(tag)}` : `arrow-v${String(tag)}`;
-        return (
-          <path
-            key={tag}
-            d={d}
-            fill="none"
-            stroke={color}
-            stroke-width="1.5"
-            marker-end={!edge.reversed ? `url(#${markerId})` : undefined}
-            marker-start={edge.reversed ? `url(#${markerId})` : undefined}
-          />
-        );
+        return <path key={tag} d={d} fill="none" stroke={vlanColor(tag)} stroke-width="1.5" />;
       })}
+      {renderCompositeArrow(edge.points, tags, edge.reversed, edge.name)}
+    </g>
+  );
+}
+
+/**
+ * Render a single arrow head with equal VLAN-colored bands.
+ * Uses a linearGradient with sharp stops perpendicular to the arrow direction.
+ */
+function renderCompositeArrow(
+  points: Array<{ x: number; y: number }>,
+  tags: number[],
+  reversed: boolean,
+  edgeName: string
+): JSX.Element | null {
+  if (points.length < 2) return null;
+
+  const tipIdx = reversed ? 0 : points.length - 1;
+  const prevIdx = reversed ? 1 : points.length - 2;
+  const tip = points[tipIdx]!;
+  const prev = points[prevIdx]!;
+
+  const dx = tip.x - prev.x;
+  const dy = tip.y - prev.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len === 0) return null;
+
+  const ux = dx / len;
+  const uy = dy / len;
+  const px = -uy;
+  const py = ux;
+
+  const baseX = tip.x - ux * ARROW_LEN;
+  const baseY = tip.y - uy * ARROW_LEN;
+  const left = { x: baseX + px * ARROW_HALF_W, y: baseY + py * ARROW_HALF_W };
+  const right = { x: baseX - px * ARROW_HALF_W, y: baseY - py * ARROW_HALF_W };
+
+  if (tags.length === 1) {
+    return (
+      <polygon
+        points={`${tip.x},${tip.y} ${left.x},${left.y} ${right.x},${right.y}`}
+        fill={vlanColor(tags[0]!)}
+      />
+    );
+  }
+
+  const gradId = `arrow-grad-${edgeName.replace(/[^a-zA-Z0-9]/g, "-")}`;
+  return (
+    <g>
+      <defs>
+        <linearGradient
+          id={gradId}
+          x1={left.x}
+          y1={left.y}
+          x2={right.x}
+          y2={right.y}
+          gradientUnits="userSpaceOnUse"
+        >
+          {tags.flatMap((tag, i) => {
+            const start = i / tags.length;
+            const end = (i + 1) / tags.length;
+            const color = vlanColor(tag);
+            return [
+              <stop key={`${String(tag)}-s`} offset={start} stop-color={color} />,
+              <stop key={`${String(tag)}-e`} offset={end} stop-color={color} />,
+            ];
+          })}
+        </linearGradient>
+      </defs>
+      <polygon
+        points={`${tip.x},${tip.y} ${left.x},${left.y} ${right.x},${right.y}`}
+        fill={`url(#${gradId})`}
+      />
     </g>
   );
 }
@@ -467,17 +518,6 @@ function renderGroup(
           ? renderPill(child, group, setTooltip, hide)
           : renderModelNode(child, group, s?.color ?? "#bbb", topology, setTooltip, hide)
       )}
-
-      {/* Ports */}
-      {group.ports.map((port) => (
-        <circle
-          key={port.id}
-          cx={group.x + port.x + port.width / 2}
-          cy={group.y + port.y + port.height / 2}
-          r={5}
-          fill="#888"
-        />
-      ))}
     </g>
   );
 }
