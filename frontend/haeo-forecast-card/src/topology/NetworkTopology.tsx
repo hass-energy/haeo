@@ -445,7 +445,7 @@ function renderGroup(
           key={port.id}
           cx={group.x + port.x + port.width / 2}
           cy={group.y + port.y + port.height / 2}
-          r={3}
+          r={5}
           fill="#888"
         />
       ))}

@@ -90,7 +90,7 @@ const NODE_W = 120;
 const NODE_H = 36;
 const PILL_CELL_W = 26;
 const PILL_H = 20;
-const PORT_SZ = 8;
+const PORT_SZ = 12;
 const PAD = 14;
 const HDR = 18;
 
