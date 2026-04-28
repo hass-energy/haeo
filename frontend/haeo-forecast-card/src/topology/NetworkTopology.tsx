@@ -389,11 +389,8 @@ function renderVlanEdge(edge: LayoutEdge, tags: number[]): JSX.Element | null {
 }
 
 /**
- * Render a single arrow head with equal VLAN-colored slices.
- * Each VLAN gets a geometric polygon slice so color boundaries are clean.
- */
-/**
  * Render a single solid arrow head at the edge endpoint.
+ * Tip is shifted forward to touch the port circle center.
  */
 function renderCompositeArrow(
   points: Array<{ x: number; y: number }>,
@@ -418,15 +415,23 @@ function renderCompositeArrow(
   const px = -uy;
   const py = ux;
 
-  const baseX = tip.x - ux * ARROW_LEN;
-  const baseY = tip.y - uy * ARROW_LEN;
+  // Shift tip forward so it reaches the port circle center
+  const tipX = tip.x + ux * PORT_EXTEND;
+  const tipY = tip.y + uy * PORT_EXTEND;
+
+  const baseX = tipX - ux * ARROW_LEN;
+  const baseY = tipY - uy * ARROW_LEN;
   const left = { x: baseX + px * ARROW_HALF_W, y: baseY + py * ARROW_HALF_W };
   const right = { x: baseX - px * ARROW_HALF_W, y: baseY - py * ARROW_HALF_W };
 
+  const pts = `${tipX},${tipY} ${left.x},${left.y} ${right.x},${right.y}`;
   return (
     <polygon
-      points={`${tip.x},${tip.y} ${left.x},${left.y} ${right.x},${right.y}`}
+      points={pts}
       fill="#888"
+      stroke="white"
+      stroke-width="1"
+      stroke-linejoin="round"
     />
   );
 }
