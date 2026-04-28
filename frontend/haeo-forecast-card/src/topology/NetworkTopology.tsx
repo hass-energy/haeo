@@ -351,15 +351,15 @@ export function NetworkTopology(props: Props): JSX.Element {
 function renderVlanStripes(points: Array<{ x: number; y: number }>, tags: number[]): JSX.Element | null {
   if (points.length < 2) return null;
   const count = tags.length;
-  const STRIPE_W = 2.5;
+  const STRIPE_GAP = 2.5;
 
   return (
     <>
       {tags.map((tag, idx) => {
-        const offset = count > 1 ? (idx - (count - 1) / 2) * STRIPE_W : 0;
+        const offset = count > 1 ? (idx - (count - 1) / 2) * STRIPE_GAP : 0;
         const pts = offset === 0 ? points : offsetPoints(points, offset);
         const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-        return <path key={tag} d={d} fill="none" stroke={vlanColor(tag)} stroke-width={STRIPE_W} />;
+        return <path key={tag} d={d} fill="none" stroke={vlanColor(tag)} stroke-width="1.5" />;
       })}
     </>
   );
@@ -372,16 +372,16 @@ function renderVlanStripes(points: Array<{ x: number; y: number }>, tags: number
 function renderVlanEdge(edge: LayoutEdge, tags: number[]): JSX.Element | null {
   if (edge.points.length < 2) return null;
   const count = tags.length;
-  const STRIPE_W = 2.5;
+  const STRIPE_GAP = 2.5;
   const extended = extendEndpoints(edge.points, PORT_EXTEND);
 
   return (
     <g key={edge.name}>
       {tags.map((tag, idx) => {
-        const offset = count > 1 ? (idx - (count - 1) / 2) * STRIPE_W : 0;
+        const offset = count > 1 ? (idx - (count - 1) / 2) * STRIPE_GAP : 0;
         const pts = offset === 0 ? extended : offsetPoints(extended, offset);
         const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-        return <path key={tag} d={d} fill="none" stroke={vlanColor(tag)} stroke-width={STRIPE_W} />;
+        return <path key={tag} d={d} fill="none" stroke={vlanColor(tag)} stroke-width="1.5" />;
       })}
       {renderCompositeArrow(edge.points, tags, edge.reversed, edge.name)}
     </g>
@@ -389,14 +389,14 @@ function renderVlanEdge(edge: LayoutEdge, tags: number[]): JSX.Element | null {
 }
 
 /**
- * Render a single arrow head with equal VLAN-colored bands.
- * Uses a linearGradient with sharp stops perpendicular to the arrow direction.
+ * Render a single arrow head with equal VLAN-colored slices.
+ * Each VLAN gets a geometric polygon slice so color boundaries are clean.
  */
 function renderCompositeArrow(
   points: Array<{ x: number; y: number }>,
   tags: number[],
   reversed: boolean,
-  edgeName: string
+  _edgeName: string
 ): JSX.Element | null {
   if (points.length < 2) return null;
 
@@ -429,39 +429,30 @@ function renderCompositeArrow(
     );
   }
 
-  // Gradient runs perpendicular to the arrow. When reversed, the arrow's
-  // perpendicular is flipped relative to the stripe offset direction, so
-  // swap the gradient endpoints to keep colors aligned with the stripes.
-  const gradFrom = reversed ? right : left;
-  const gradTo = reversed ? left : right;
+  // Slice the triangle into N bands perpendicular to the base.
+  // When reversed, flip the slice order to match stripe offset direction.
+  const n = tags.length;
+  const orderedTags = reversed ? [...tags].reverse() : tags;
 
-  const gradId = `arrow-grad-${edgeName.replace(/[^a-zA-Z0-9]/g, "-")}`;
   return (
     <g>
-      <defs>
-        <linearGradient
-          id={gradId}
-          x1={gradFrom.x}
-          y1={gradFrom.y}
-          x2={gradTo.x}
-          y2={gradTo.y}
-          gradientUnits="userSpaceOnUse"
-        >
-          {tags.flatMap((tag, i) => {
-            const start = i / tags.length;
-            const end = (i + 1) / tags.length;
-            const color = vlanColor(tag);
-            return [
-              <stop key={`${String(tag)}-s`} offset={start} stop-color={color} />,
-              <stop key={`${String(tag)}-e`} offset={end} stop-color={color} />,
-            ];
-          })}
-        </linearGradient>
-      </defs>
-      <polygon
-        points={`${tip.x},${tip.y} ${left.x},${left.y} ${right.x},${right.y}`}
-        fill={`url(#${gradId})`}
-      />
+      {orderedTags.map((tag, i) => {
+        const t0 = i / n;
+        const t1 = (i + 1) / n;
+        // Slice runs between two cuts across the triangle. Each cut at
+        // fraction t goes from the left→tip edge to the right→tip edge.
+        const l0 = { x: left.x + (tip.x - left.x) * t0, y: left.y + (tip.y - left.y) * t0 };
+        const l1 = { x: left.x + (tip.x - left.x) * t1, y: left.y + (tip.y - left.y) * t1 };
+        const r0 = { x: right.x + (tip.x - right.x) * t0, y: right.y + (tip.y - right.y) * t0 };
+        const r1 = { x: right.x + (tip.x - right.x) * t1, y: right.y + (tip.y - right.y) * t1 };
+        return (
+          <polygon
+            key={tag}
+            points={`${l0.x},${l0.y} ${r0.x},${r0.y} ${r1.x},${r1.y} ${l1.x},${l1.y}`}
+            fill={vlanColor(tag)}
+          />
+        );
+      })}
     </g>
   );
 }
