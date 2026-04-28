@@ -430,16 +430,22 @@ function renderCompositeArrow(
     );
   }
 
+  // Gradient runs perpendicular to the arrow. When reversed, the arrow's
+  // perpendicular is flipped relative to the stripe offset direction, so
+  // swap the gradient endpoints to keep colors aligned with the stripes.
+  const gradFrom = reversed ? right : left;
+  const gradTo = reversed ? left : right;
+
   const gradId = `arrow-grad-${edgeName.replace(/[^a-zA-Z0-9]/g, "-")}`;
   return (
     <g>
       <defs>
         <linearGradient
           id={gradId}
-          x1={left.x}
-          y1={left.y}
-          x2={right.x}
-          y2={right.y}
+          x1={gradFrom.x}
+          y1={gradFrom.y}
+          x2={gradTo.x}
+          y2={gradTo.y}
           gradientUnits="userSpaceOnUse"
         >
           {tags.flatMap((tag, i) => {
