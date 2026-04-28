@@ -191,7 +191,7 @@ async def test_scenarios(
             output_sensors,
             scenario_path.name,
             scenario_path / "visualizations",
-            coordinator.network,
+            coordinator.topology,
         )
 
         # Compare actual outputs with expected outputs using snapshot
