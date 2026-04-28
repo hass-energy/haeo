@@ -415,9 +415,9 @@ function renderCompositeArrow(
   const px = -uy;
   const py = ux;
 
-  // Shift tip forward so it reaches the port circle center
-  const tipX = tip.x + ux * PORT_EXTEND;
-  const tipY = tip.y + uy * PORT_EXTEND;
+  // Shift tip forward to overlap the port circle slightly
+  const tipX = tip.x + ux * (PORT_EXTEND / 2);
+  const tipY = tip.y + uy * (PORT_EXTEND / 2);
 
   const baseX = tipX - ux * ARROW_LEN;
   const baseY = tipY - uy * ARROW_LEN;
