@@ -54,13 +54,16 @@ def serialize_topology(
             edges.append(edge_data)
 
         elif isinstance(element, PolicyPricing):
-            policies.append({
+            policy_data: dict[str, Any] = {
                 "name": name,
                 "terms": [
                     {"connection": t["connection"], "tag": t["tag"]}
                     for t in element.terms
                 ],
-            })
+            }
+            if element.label:
+                policy_data["label"] = element.label
+            policies.append(policy_data)
 
         else:
             element_type = element_types[name]

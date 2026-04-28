@@ -18,6 +18,8 @@ export interface LayoutNode {
   height: number;
   type: string;
   isPill: boolean;
+  /** True if the pill's connection was reversed for layout — segments should be displayed in reverse. */
+  reversed: boolean;
   segments: TopologySegment[];
   children: LayoutNode[];
   ports: LayoutPort[];
@@ -61,7 +63,7 @@ export interface PolicyPillLayout {
   width: number;
   height: number;
   connectionName: string;
-  terms: Array<{ policyName: string; tag: number }>;
+  terms: Array<{ policyName: string; policyLabel: string; tag: number }>;
 }
 
 export interface LayoutResult {
@@ -314,7 +316,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
   }
 
   // Build lookup: connection name → policy terms placed on it
-  const policyTermsByConnection = new Map<string, Array<{ policyName: string; tag: number }>>();
+  const policyTermsByConnection = new Map<string, Array<{ policyName: string; policyLabel: string; tag: number }>>();
   for (const policy of topology.policies ?? []) {
     for (const term of policy.terms) {
       if (!policyTermsByConnection.has(term.connection)) {
@@ -322,6 +324,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       }
       policyTermsByConnection.get(term.connection)!.push({
         policyName: policy.name,
+        policyLabel: policy.label ?? policy.name,
         tag: term.tag,
       });
     }
@@ -402,7 +405,7 @@ function extractResult(
   graph: ElkNode,
   topology: TopologyData,
   reversed: Set<string>,
-  policyTermsByConnection: Map<string, Array<{ policyName: string; tag: number }>>
+  policyTermsByConnection: Map<string, Array<{ policyName: string; policyLabel: string; tag: number }>>
 ): LayoutResult {
   const groups: LayoutGroup[] = [];
 
@@ -418,6 +421,7 @@ function extractResult(
       const edgeName = isPill ? inner.id.slice(5) : "";
       const topoEdge = isPill ? topology.edges.find((e) => e.name === edgeName) : undefined;
       const segs = topoEdge?.segments.filter((s) => s.type !== "PassthroughSegment") ?? [];
+      const isReversed = isPill && reversed.has(edgeName);
 
       return {
         id: inner.id,
@@ -427,6 +431,7 @@ function extractResult(
         height: inner.height ?? NODE_H,
         type: isPill ? "pill" : gType,
         isPill,
+        reversed: isReversed,
         segments: segs,
         children: [],
         ports: [],

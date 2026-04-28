@@ -31,6 +31,8 @@ export interface PolicyPricingTerm {
 
 export interface PolicyPlacement {
   name: string;
+  /** Human-readable label (e.g. "Battery → Load"). */
+  label?: string;
   terms: PolicyPricingTerm[];
 }
 

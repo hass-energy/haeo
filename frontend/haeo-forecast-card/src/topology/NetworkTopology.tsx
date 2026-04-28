@@ -42,17 +42,75 @@ function vlanColor(tag: number): string {
 
 /**
  * Offset a polyline perpendicular to each segment direction.
+ *
+ * For each line segment, compute an independent perpendicular offset.
+ * At corners where two segments meet, find the intersection of the two
+ * offset lines (miter join) so parallel lines stay truly parallel through
+ * orthogonal bends.
  */
 function offsetPoints(points: Array<{ x: number; y: number }>, offset: number): Array<{ x: number; y: number }> {
-  return points.map((p, i) => {
-    const next = points[Math.min(i + 1, points.length - 1)]!;
-    const prev = points[Math.max(i - 1, 0)]!;
-    const dx = next.x - prev.x;
-    const dy = next.y - prev.y;
+  if (points.length < 2) return points.map((p) => ({ ...p }));
+
+  // Compute per-segment perpendicular normals
+  const normals: Array<{ nx: number; ny: number }> = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const dx = points[i + 1]!.x - points[i]!.x;
+    const dy = points[i + 1]!.y - points[i]!.y;
     const len = Math.sqrt(dx * dx + dy * dy);
-    if (len === 0) return { ...p };
-    return { x: p.x + (dy / len) * offset, y: p.y - (dx / len) * offset };
-  });
+    if (len === 0) {
+      normals.push({ nx: 0, ny: 0 });
+    } else {
+      normals.push({ nx: dy / len, ny: -dx / len });
+    }
+  }
+
+  const result: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i]!;
+    if (i === 0) {
+      // First point: offset along first segment's normal
+      const n = normals[0]!;
+      result.push({ x: p.x + n.nx * offset, y: p.y + n.ny * offset });
+    } else if (i === points.length - 1) {
+      // Last point: offset along last segment's normal
+      const n = normals[normals.length - 1]!;
+      result.push({ x: p.x + n.nx * offset, y: p.y + n.ny * offset });
+    } else {
+      // Interior point: intersect the offset lines of adjacent segments
+      const nA = normals[i - 1]!;
+      const nB = normals[i]!;
+
+      // Offset lines: pA + t * dA and pB + s * dB
+      // where pA/pB are offset points on each segment, dA/dB are segment directions
+      const pA = points[i - 1]!;
+      const pB = points[i + 1]!;
+      const dAx = p.x - pA.x;
+      const dAy = p.y - pA.y;
+      const dBx = pB.x - p.x;
+      const dBy = pB.y - p.y;
+
+      // Cross product of directions to check if segments are parallel
+      const cross = dAx * dBy - dAy * dBx;
+      if (Math.abs(cross) < 1e-6) {
+        // Parallel segments — just use the normal
+        result.push({ x: p.x + nA.nx * offset, y: p.y + nA.ny * offset });
+      } else {
+        // Find intersection of the two offset lines
+        const oAx = pA.x + nA.nx * offset;
+        const oAy = pA.y + nA.ny * offset;
+        const oBx = p.x + nB.nx * offset;
+        const oBy = p.y + nB.ny * offset;
+
+        // Line A: oA + t * dA = intersection
+        // Line B: oB + s * dB = intersection
+        // Solve: oAx + t*dAx = oBx + s*dBx
+        //        oAy + t*dAy = oBy + s*dBy
+        const t = ((oBx - oAx) * dBy - (oBy - oAy) * dBx) / cross;
+        result.push({ x: oAx + t * dAx, y: oAy + t * dAy });
+      }
+    }
+  }
+  return result;
 }
 
 interface TooltipInfo {
@@ -142,7 +200,7 @@ export function NetworkTopology(props: Props): JSX.Element {
         </defs>
 
         {/* Groups */}
-        {layout.groups.map((group) => renderGroup(group, topology, setTooltip, hide))}
+        {layout.groups.map((group) => renderGroup(group, topology, edgeTags, setTooltip, hide))}
 
         {/* External edges — VLAN colored */}
         {layout.externalEdges.map((edge) => {
@@ -182,7 +240,7 @@ export function NetworkTopology(props: Props): JSX.Element {
                       setTooltip({
                         x: e.clientX,
                         y: e.clientY,
-                        title: term.policyName,
+                        title: term.policyLabel,
                         lines: [`VLAN ${String(term.tag)}`, `Edge: ${pill.connectionName}`],
                       })
                     }
@@ -272,6 +330,26 @@ export function NetworkTopology(props: Props): JSX.Element {
 }
 
 /**
+ * Render parallel VLAN-colored stripes for a set of points (no arrows).
+ */
+function renderVlanStripes(points: Array<{ x: number; y: number }>, tags: number[]): JSX.Element | null {
+  if (points.length < 2) return null;
+  const count = tags.length;
+  const STRIPE_GAP = 2.5;
+
+  return (
+    <>
+      {tags.map((tag, idx) => {
+        const offset = count > 1 ? (idx - (count - 1) / 2) * STRIPE_GAP : 0;
+        const pts = offset === 0 ? points : offsetPoints(points, offset);
+        const d = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+        return <path key={tag} d={d} fill="none" stroke={vlanColor(tag)} stroke-width="1.5" />;
+      })}
+    </>
+  );
+}
+
+/**
  * Render an edge with multiple VLAN colors as parallel offset stripes.
  */
 function renderVlanEdge(edge: LayoutEdge, tags: number[]): JSX.Element | null {
@@ -311,6 +389,7 @@ function renderVlanEdge(edge: LayoutEdge, tags: number[]): JSX.Element | null {
 function renderGroup(
   group: LayoutGroup,
   topology: TopologyData,
+  edgeTags: Map<string, number[]>,
   setTooltip: (t: TooltipInfo) => void,
   hide: () => void
 ): JSX.Element {
@@ -333,12 +412,25 @@ function renderGroup(
         {s?.icon ?? "?"} {group.id.replace("group:", "")}
       </text>
 
-      {/* Internal edges (within group) */}
-      {group.internalEdges.map((edge) => (
-        <g key={edge.name} transform={`translate(${group.x},${group.y})`}>
-          {renderEdgePathRaw(edge.points, "#ccc", false)}
-        </g>
-      ))}
+      {/* Internal edges (within group) — VLAN colored when tagged */}
+      {group.internalEdges.map((edge) => {
+        // Extract connection name: int:{edgeName}:{suffix}
+        const match = /^int:(.+?):[^:]+$/.exec(edge.name);
+        const connName = match?.[1] ?? "";
+        const tags = edgeTags.get(connName);
+        if (tags != null && tags.length > 0) {
+          return (
+            <g key={edge.name} transform={`translate(${group.x},${group.y})`}>
+              {renderVlanStripes(edge.points, tags)}
+            </g>
+          );
+        }
+        return (
+          <g key={edge.name} transform={`translate(${group.x},${group.y})`}>
+            {renderEdgePathRaw(edge.points, "#ccc", false)}
+          </g>
+        );
+      })}
 
       {/* Child nodes */}
       {group.children.map((child) =>
@@ -440,7 +532,9 @@ function renderPill(
   const px = group.x + node.x;
   const py = group.y + node.y;
   const cellW = 28;
-  const segs = node.segments;
+  // Reverse segment order when the edge was flipped for layout so pills
+  // read in the visual flow direction (left-to-right).
+  const segs = node.reversed ? [...node.segments].reverse() : node.segments;
 
   return (
     <g key={node.id}>

@@ -263,6 +263,7 @@ class Network:
             power_terms=power_terms,
             terms=config["terms"],
         )
+        element.label = config.get("label", "")
         self.elements[name] = element
         return element
 
