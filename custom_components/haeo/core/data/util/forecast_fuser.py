@@ -32,9 +32,10 @@ def _build_extended_block(
     """
     block, cover_seconds = normalize_forecast_cycle(forecast_series, horizon_start)
 
-    # Repeat block as needed to cover the entire horizon
+    # Repeat block as needed to cover the entire horizon, starting one cycle early
+    # to provide interpolation context before horizon_start
     repeat_count = max(2, int(np.ceil((horizon_end - horizon_start) / cover_seconds)) + 1)
-    extended = [(timestamp + i * cover_seconds, value) for i in range(repeat_count) for (timestamp, value) in block]
+    extended = [(timestamp + i * cover_seconds, value) for i in range(-1, repeat_count) for (timestamp, value) in block]
     return np.array(extended, dtype=[("timestamp", np.float64), ("value", np.float64)])
 
 
