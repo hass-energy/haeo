@@ -37,11 +37,12 @@ def _build_extended_block(
     # Repeat block as needed to cover the entire horizon, starting one cycle early
     # to provide interpolation context before horizon_start
     repeat_count = max(2, int(np.ceil((horizon_end - horizon_start) / cover_seconds)) + 1)
-    arrays = [block_arr.copy() for _ in range(-1, repeat_count)]
-    for idx, i in enumerate(range(-1, repeat_count)):
-        arrays[idx]["timestamp"] += i * cover_seconds
-
-    return np.concatenate(arrays)
+    n = len(block_arr)
+    total_cycles = repeat_count + 1  # range(-1, repeat_count)
+    arr = np.tile(block_arr, total_cycles)
+    offsets = np.repeat(np.arange(-1, repeat_count, dtype=np.float64) * cover_seconds, n)
+    arr["timestamp"] += offsets
+    return arr
 
 
 def fuse_to_boundaries(
