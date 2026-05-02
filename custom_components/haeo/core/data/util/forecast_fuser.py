@@ -32,10 +32,17 @@ def _build_extended_block(
     """
     block, cover_seconds = normalize_forecast_cycle(forecast_series, horizon_start)
 
-    # Repeat block as needed to cover the entire horizon
+    block_arr = np.array(block, dtype=[("timestamp", np.float64), ("value", np.float64)])
+
+    # Repeat block as needed to cover the entire horizon, starting one cycle early
+    # to provide interpolation context before horizon_start
     repeat_count = max(2, int(np.ceil((horizon_end - horizon_start) / cover_seconds)) + 1)
-    extended = [(timestamp + i * cover_seconds, value) for i in range(repeat_count) for (timestamp, value) in block]
-    return np.array(extended, dtype=[("timestamp", np.float64), ("value", np.float64)])
+    n = len(block_arr)
+    total_cycles = repeat_count + 1  # range(-1, repeat_count)
+    arr = np.tile(block_arr, total_cycles)
+    offsets = np.repeat(np.arange(-1, repeat_count, dtype=np.float64) * cover_seconds, n)
+    arr["timestamp"] += offsets
+    return arr
 
 
 def fuse_to_boundaries(
