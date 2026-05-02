@@ -20,18 +20,23 @@ def normalize_forecast_cycle(forecast_series: ForecastSeries, current_time: floa
     start_time = forecast[0]["timestamp"]
 
     forecast_remainder = (end_time - start_time) % _SECONDS_PER_DAY
-    forecast_required = _SECONDS_PER_DAY - forecast_remainder
 
-    # This is the time that is earliest in the forecast at the same time of day as the end time
-    extra_start = start_time + forecast_remainder
-    extra_end = extra_start + forecast_required
-    extra_start_idx = np.searchsorted(forecast["timestamp"], extra_start, side="right")
-    extra_end_idx = np.searchsorted(forecast["timestamp"], extra_end, side="left")
+    # Only fill if the forecast doesn't already cover complete days
+    if forecast_remainder > 0:
+        forecast_required = _SECONDS_PER_DAY - forecast_remainder
 
-    # Wrap the extra part to the end to fill out the day
-    delta_t = end_time - extra_start
-    periodic_forecast = np.concatenate([forecast, forecast[extra_start_idx:extra_end_idx]])
-    periodic_forecast["timestamp"][len(forecast) :] += delta_t
+        # This is the time that is earliest in the forecast at the same time of day as the end time
+        extra_start = start_time + forecast_remainder
+        extra_end = extra_start + forecast_required
+        extra_start_idx = np.searchsorted(forecast["timestamp"], extra_start, side="right")
+        extra_end_idx = np.searchsorted(forecast["timestamp"], extra_end, side="left")
+
+        # Wrap the extra part to the end to fill out the day
+        delta_t = end_time - extra_start
+        periodic_forecast = np.concatenate([forecast, forecast[extra_start_idx:extra_end_idx]])
+        periodic_forecast["timestamp"][len(forecast) :] += delta_t
+    else:
+        periodic_forecast = forecast
 
     # Now shift the entire forecast so that it starts from current_time and wraps around every cover_seconds
     start_offset = cover_seconds + (cover_seconds - (current_time % cover_seconds))
