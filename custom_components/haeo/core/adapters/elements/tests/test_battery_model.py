@@ -55,6 +55,71 @@ class OutputsCase(TypedDict):
 
 CREATE_CASES: Sequence[CreateCase] = [
     {
+        "description": "Battery with initial SOC inside undercharge penalty zone",
+        "data": BatteryConfigData(
+            element_type=ElementType.BATTERY,
+            name="battery_soc_below_undercharge",
+            connection=as_connection_target("network"),
+            storage={
+                "capacity": np.array([10.0, 10.0]),
+                "initial_charge_percentage": 0.15,
+            },
+            limits={
+                "min_charge_percentage": np.array([0.0, 0.0]),
+                "max_charge_percentage": np.array([1.0, 1.0]),
+            },
+            power_limits={
+                "max_power_source_target": np.array([5.0]),
+                "max_power_target_source": np.array([5.0]),
+            },
+            pricing={"salvage_value": 0.0},
+            efficiency={
+                "efficiency_source_target": np.array([0.95]),
+                "efficiency_target_source": np.array([0.95]),
+            },
+            partitioning={},
+            undercharge={
+                "percentage": np.array([0.20, 0.20]),
+                "cost": np.array([0.05]),
+            },
+            overcharge={},
+        ),
+        "model": [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+                "name": "battery_soc_below_undercharge",
+                "capacity": [10.0, 10.0],
+                "initial_charge": 1.5,
+                "salvage_value": 0.0,
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "battery_soc_below_undercharge:discharge",
+                "source": "battery_soc_below_undercharge",
+                "target": "network",
+                "segments": {
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
+                    "soc_pricing": {
+                        "segment_type": "soc_pricing",
+                        "discharge_energy_threshold": [2.0],
+                        "discharge_energy_price": [0.05],
+                    },
+                },
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "battery_soc_below_undercharge:charge",
+                "source": "network",
+                "target": "battery_soc_below_undercharge",
+                "segments": {
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
+                    "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
+                },
+            },
+        ],
+    },
+    {
         "description": "Battery with SOC pricing thresholds",
         "data": BatteryConfigData(
             element_type=ElementType.BATTERY,
@@ -249,6 +314,94 @@ CREATE_CASES: Sequence[CreateCase] = [
 
 OUTPUTS_CASES: Sequence[OutputsCase] = [
     {
+        "description": "Battery outputs use min charge as SOC floor when undercharge exceeds min charge",
+        "name": "battery_undercharge_exceeds_min",
+        "data": BatteryConfigData(
+            element_type=ElementType.BATTERY,
+            name="battery_undercharge_exceeds_min",
+            connection=as_connection_target("network"),
+            storage={
+                "capacity": np.array([10.0, 10.0]),
+                "initial_charge_percentage": 0.15,
+            },
+            limits={
+                "min_charge_percentage": np.array([0.0, 0.0]),
+                "max_charge_percentage": np.array([1.0, 1.0]),
+            },
+            power_limits={
+                "max_power_source_target": np.array([5.0]),
+                "max_power_target_source": np.array([5.0]),
+            },
+            pricing={"salvage_value": 0.0},
+            efficiency={
+                "efficiency_source_target": np.array([0.95]),
+                "efficiency_target_source": np.array([0.95]),
+            },
+            partitioning={},
+            undercharge={
+                "percentage": np.array([0.20, 0.20]),
+                "cost": np.array([0.05]),
+            },
+            overcharge={},
+        ),
+        "model_outputs": {
+            "battery_undercharge_exceeds_min": {
+                battery_model.BATTERY_POWER_CHARGE: OutputData(
+                    type=OutputType.POWER, unit="kW", values=(0.0,), direction="-"
+                ),
+                battery_model.BATTERY_POWER_DISCHARGE: OutputData(
+                    type=OutputType.POWER, unit="kW", values=(0.0,), direction="+"
+                ),
+                battery_model.BATTERY_ENERGY_STORED: OutputData(
+                    type=OutputType.ENERGY, unit="kWh", values=(1.5, 1.5)
+                ),
+                battery_model.BATTERY_POWER_BALANCE: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
+                ),
+                battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
+                ),
+                battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
+                ),
+                battery_model.BATTERY_SOC_MAX: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
+                ),
+                battery_model.BATTERY_SOC_MIN: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
+                ),
+            },
+            "battery_undercharge_exceeds_min:discharge": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.0,), direction="+"
+                ),
+            },
+            "battery_undercharge_exceeds_min:charge": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.0,), direction="-"
+                ),
+            },
+        },
+        "outputs": {
+            BATTERY_DEVICE_BATTERY: {
+                BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.0,), direction="-"),
+                BATTERY_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.0,), direction="+"),
+                BATTERY_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(0.0,), direction=None),
+                BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(1.5, 1.5)),
+                BATTERY_STATE_OF_CHARGE: OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.15, 0.15)),
+                BATTERY_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                BATTERY_ENERGY_IN_FLOW: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True
+                ),
+                BATTERY_ENERGY_OUT_FLOW: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True
+                ),
+                BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
+                BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
+            },
+        },
+    },
+    {
         "description": "Battery normal range outputs",
         "name": "battery_no_balance",
         "data": BatteryConfigData(
@@ -433,3 +586,45 @@ def test_outputs_mapping(case: OutputsCase) -> None:
     entry = ELEMENT_TYPES[ElementType.BATTERY]
     result = entry.outputs(case["name"], case["model_outputs"], config=case["data"])
     assert result == case["outputs"]
+
+
+@pytest.mark.xfail(
+    reason=(
+        "The battery model's initial constraints require energy_in[0] >= 0, which prevents the "
+        "adapter from passing a negative initial_charge when the actual SOC falls below the "
+        "undercharge hard floor (undercharge_pct < min_pct configuration).  The battery model's "
+        "initial constraints need to be updated to distribute a negative initial_charge into "
+        "energy_out[0] rather than energy_in[0] to support this case."
+    ),
+    strict=True,
+)
+def test_initial_charge_preserved_when_soc_below_hard_floor() -> None:
+    """Adapter preserves actual SOC as a negative initial_charge when below the undercharge floor."""
+    data = BatteryConfigData(
+        element_type=ElementType.BATTERY,
+        name="battery_soc_below_hard_floor",
+        connection=as_connection_target("network"),
+        storage={
+            "capacity": np.array([10.0, 10.0]),
+            "initial_charge_percentage": 0.03,  # 3% — below the 5% undercharge hard floor
+        },
+        limits={
+            "min_charge_percentage": np.array([0.1, 0.1]),
+            "max_charge_percentage": np.array([0.9, 0.9]),
+        },
+        power_limits={
+            "max_power_source_target": np.array([5.0]),
+            "max_power_target_source": np.array([5.0]),
+        },
+        pricing={"salvage_value": 0.0},
+        efficiency={
+            "efficiency_source_target": np.array([0.95]),
+            "efficiency_target_source": np.array([0.95]),
+        },
+        partitioning={},
+        undercharge={"percentage": np.array([0.05, 0.05]), "cost": np.array([0.03])},
+        overcharge={"percentage": np.array([0.95, 0.95]), "cost": np.array([0.04])},
+    )
+    entry = ELEMENT_TYPES[ElementType.BATTERY]
+    result = normalize_for_compare(entry.model_elements(data))
+    assert result[0]["initial_charge"] == pytest.approx(-0.2)

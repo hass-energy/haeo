@@ -125,7 +125,15 @@ class BatteryAdapter:
         undercharge_percentage = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
         overcharge_percentage = overcharge.get(CONF_PARTITION_PERCENTAGE) if overcharge_cost is not None else None
 
-        lower_ratio = undercharge_percentage if undercharge_percentage is not None else min_charge_percentage
+        # When undercharge_percentage > min_charge_percentage (e.g. user sets undercharge=20%,
+        # leaves min at default 0%), use min_charge_percentage as the LP origin so that
+        # (a) initial SOC values below the undercharge boundary remain representable without
+        #     clamping, and (b) the soc_pricing threshold is positive and can activate.
+        lower_ratio = (
+            np.minimum(undercharge_percentage, min_charge_percentage)
+            if undercharge_percentage is not None
+            else min_charge_percentage
+        )
         upper_ratio = overcharge_percentage if overcharge_percentage is not None else max_charge_percentage
 
         lower_ratio_first = float(lower_ratio[0]) if isinstance(lower_ratio, np.ndarray) else float(lower_ratio)
@@ -151,9 +159,13 @@ class BatteryAdapter:
 
         soc_pricing_spec: SocPricingSegmentSpec | None = None
         if undercharge_percentage is not None and undercharge_cost is not None:
-            min_ratio_series = broadcast_to_sequence(min_charge_percentage, n_periods + 1)[1:]
             lower_ratio_series = broadcast_to_sequence(lower_ratio, n_periods + 1)[1:]
-            discharge_energy_threshold = (min_ratio_series - lower_ratio_series) * capacity[1:]
+            # Threshold = distance from LP origin to the soft preferred minimum.
+            # max() ensures this is positive regardless of which is larger.
+            preferred_min_series = broadcast_to_sequence(
+                np.maximum(undercharge_percentage, min_charge_percentage), n_periods + 1
+            )[1:]
+            discharge_energy_threshold = (preferred_min_series - lower_ratio_series) * capacity[1:]
             soc_pricing_spec = {
                 "segment_type": "soc_pricing",
                 "discharge_energy_threshold": discharge_energy_threshold,
@@ -275,7 +287,11 @@ def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigD
     undercharge = config.get(SECTION_UNDERCHARGE, {})
     undercharge_cost = undercharge.get(CONF_PARTITION_COST)
     undercharge_pct = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
-    unusable_ratio = undercharge_pct if undercharge_pct is not None else min_charge_percentage
+    unusable_ratio = (
+        np.minimum(undercharge_pct, min_charge_percentage)
+        if undercharge_pct is not None
+        else min_charge_percentage
+    )
 
     # Both energy values and capacity/ratios are now boundaries (n+1 values)
     inaccessible_energy = unusable_ratio * capacity
