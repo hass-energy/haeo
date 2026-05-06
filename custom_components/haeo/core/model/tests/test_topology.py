@@ -42,13 +42,15 @@ def test_connection_produces_edge() -> None:
     network = _make_network()
     network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "Bat", "capacity": 10.0, "initial_charge": 5.0})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "Hub", "is_sink": True, "is_source": True})
-    network.add({
-        "element_type": ELEMENT_TYPE_CONNECTION,
-        "name": "Bat:link",
-        "source": "Bat",
-        "target": "Hub",
-        "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 5.0}},
-    })
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "Bat:link",
+            "source": "Bat",
+            "target": "Hub",
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 5.0}},
+        }
+    )
 
     result = serialize_topology(
         network,
@@ -69,27 +71,33 @@ def test_connection_produces_edge() -> None:
 def test_connection_tags_excluded_when_only_zero() -> None:
     """Tags == {0} are excluded from output (default tag)."""
     network = _make_network()
-    network.add({
-        "element_type": ELEMENT_TYPE_NODE,
-        "name": "Source",
-        "is_sink": False,
-        "is_source": True,
-        "outbound_tags": {0},
-    })
-    network.add({
-        "element_type": ELEMENT_TYPE_NODE,
-        "name": "Sink",
-        "is_sink": True,
-        "is_source": False,
-        "inbound_tags": {0},
-    })
-    network.add({
-        "element_type": ELEMENT_TYPE_CONNECTION,
-        "name": "Source:link",
-        "source": "Source",
-        "target": "Sink",
-        "tags": {0},
-    })
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_NODE,
+            "name": "Source",
+            "is_sink": False,
+            "is_source": True,
+            "outbound_tags": {0},
+        }
+    )
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_NODE,
+            "name": "Sink",
+            "is_sink": True,
+            "is_source": False,
+            "inbound_tags": {0},
+        }
+    )
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "Source:link",
+            "source": "Source",
+            "target": "Sink",
+            "tags": {0},
+        }
+    )
 
     result = serialize_topology(
         network,
@@ -103,27 +111,33 @@ def test_connection_tags_excluded_when_only_zero() -> None:
 def test_connection_tags_included_when_nonzero() -> None:
     """Non-zero tags are included in edge output."""
     network = _make_network()
-    network.add({
-        "element_type": ELEMENT_TYPE_NODE,
-        "name": "Source",
-        "is_sink": False,
-        "is_source": True,
-        "outbound_tags": {1, 2},
-    })
-    network.add({
-        "element_type": ELEMENT_TYPE_NODE,
-        "name": "Sink",
-        "is_sink": True,
-        "is_source": False,
-        "inbound_tags": {1, 2},
-    })
-    network.add({
-        "element_type": ELEMENT_TYPE_CONNECTION,
-        "name": "Source:link",
-        "source": "Source",
-        "target": "Sink",
-        "tags": {1, 2},
-    })
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_NODE,
+            "name": "Source",
+            "is_sink": False,
+            "is_source": True,
+            "outbound_tags": {1, 2},
+        }
+    )
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_NODE,
+            "name": "Sink",
+            "is_sink": True,
+            "is_source": False,
+            "inbound_tags": {1, 2},
+        }
+    )
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "Source:link",
+            "source": "Source",
+            "target": "Sink",
+            "tags": {1, 2},
+        }
+    )
 
     result = serialize_topology(
         network,
@@ -137,14 +151,16 @@ def test_connection_tags_included_when_nonzero() -> None:
 def test_node_outbound_inbound_tags() -> None:
     """Nodes with VLAN tags include them in serialization."""
     network = _make_network()
-    network.add({
-        "element_type": ELEMENT_TYPE_NODE,
-        "name": "Solar",
-        "is_sink": False,
-        "is_source": True,
-        "outbound_tags": {1, 2},
-        "inbound_tags": {3},
-    })
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_NODE,
+            "name": "Solar",
+            "is_sink": False,
+            "is_source": True,
+            "outbound_tags": {1, 2},
+            "inbound_tags": {3},
+        }
+    )
 
     result = serialize_topology(network, element_types={"Solar": "solar"})
 
@@ -168,34 +184,42 @@ def test_node_without_tags_omits_fields() -> None:
 def test_policy_pricing_serialization() -> None:
     """PolicyPricing elements serialize into the policies list."""
     network = _make_network()
-    network.add({
-        "element_type": ELEMENT_TYPE_NODE,
-        "name": "Solar",
-        "is_sink": False,
-        "is_source": True,
-        "outbound_tags": {1},
-    })
-    network.add({
-        "element_type": ELEMENT_TYPE_NODE,
-        "name": "Load",
-        "is_sink": True,
-        "is_source": False,
-        "inbound_tags": {1},
-    })
-    network.add({
-        "element_type": ELEMENT_TYPE_CONNECTION,
-        "name": "Solar:export",
-        "source": "Solar",
-        "target": "Load",
-        "tags": {1},
-    })
-    network.add({
-        "element_type": ELEMENT_TYPE_POLICY_PRICING,
-        "name": "solar_self_consumption",
-        "label": "Solar → Load",
-        "price": 0.05,
-        "terms": [{"connection": "Solar:export", "tag": 1}],
-    })
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_NODE,
+            "name": "Solar",
+            "is_sink": False,
+            "is_source": True,
+            "outbound_tags": {1},
+        }
+    )
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_NODE,
+            "name": "Load",
+            "is_sink": True,
+            "is_source": False,
+            "inbound_tags": {1},
+        }
+    )
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "Solar:export",
+            "source": "Solar",
+            "target": "Load",
+            "tags": {1},
+        }
+    )
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_POLICY_PRICING,
+            "name": "solar_self_consumption",
+            "label": "Solar → Load",
+            "price": 0.05,
+            "terms": [{"connection": "Solar:export", "tag": 1}],
+        }
+    )
 
     result = serialize_topology(
         network,
@@ -216,12 +240,14 @@ def test_policy_pricing_without_label() -> None:
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "A", "is_sink": False, "is_source": True})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "B", "is_sink": True, "is_source": False})
     network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "A:link", "source": "A", "target": "B"})
-    network.add({
-        "element_type": ELEMENT_TYPE_POLICY_PRICING,
-        "name": "pricing_rule",
-        "price": 0.10,
-        "terms": [{"connection": "A:link", "tag": 0}],
-    })
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_POLICY_PRICING,
+            "name": "pricing_rule",
+            "price": 0.10,
+            "terms": [{"connection": "A:link", "tag": 0}],
+        }
+    )
 
     result = serialize_topology(network, element_types={"A": "solar", "B": "load"})
 
@@ -232,18 +258,22 @@ def test_policy_pricing_without_label() -> None:
 def test_groups_from_name_prefix() -> None:
     """Nodes with shared prefixes are grouped together."""
     network = _make_network()
-    network.add({
-        "element_type": ELEMENT_TYPE_NODE,
-        "name": "Battery:cell1",
-        "is_sink": True,
-        "is_source": True,
-    })
-    network.add({
-        "element_type": ELEMENT_TYPE_NODE,
-        "name": "Battery:cell2",
-        "is_sink": True,
-        "is_source": True,
-    })
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_NODE,
+            "name": "Battery:cell1",
+            "is_sink": True,
+            "is_source": True,
+        }
+    )
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_NODE,
+            "name": "Battery:cell2",
+            "is_sink": True,
+            "is_source": True,
+        }
+    )
 
     result = serialize_topology(
         network,

@@ -291,6 +291,9 @@ jobs:
       - name: Install card dependencies
         run: npm --prefix frontend/haeo-forecast-card ci
 
+      - name: Build topology renderer
+        run: npm --prefix frontend/haeo-forecast-card run build
+
       - name: Run scenario tests
         run: uv run pytest -m scenario -vv
   #endregion

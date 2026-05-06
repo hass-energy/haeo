@@ -84,6 +84,11 @@ def create_topology_visualization(
         msg = f"Topology export script not found: {script}"
         raise RuntimeError(msg)
 
+    bundle = repo_root / "frontend" / "haeo-forecast-card" / "dist" / "render-topology-svg.mjs"
+    if not bundle.exists():
+        msg = f"Topology bundle not found: {bundle} — run: npm --prefix frontend/haeo-forecast-card run build"
+        raise RuntimeError(msg)
+
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
         json.dump(topology, f)
         temp_path = f.name

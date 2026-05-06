@@ -22,8 +22,8 @@ async function main() {
   let renderTopologySvg;
   try {
     ({ renderTopologySvg } = await import(pathToFileURL(bundlePath).href));
-  } catch {
-    console.error(`Missing topology bundle — run: npm --prefix frontend/haeo-forecast-card run build`);
+  } catch (err) {
+    console.error(`Missing topology bundle — run: npm --prefix frontend/haeo-forecast-card run build\n${err}`);
     process.exit(1);
   }
 

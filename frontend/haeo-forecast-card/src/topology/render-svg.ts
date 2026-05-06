@@ -290,9 +290,7 @@ export async function renderTopologySvg(topology: TopologyData): Promise<string>
       legendParts.push(
         `<rect x="${leg.x + 8}" y="${leg.y + 22 + i * 16}" width="16" height="3" rx="1" fill="${vlanColor(tag)}"/>`
       );
-      legendParts.push(
-        `<text x="${leg.x + 30}" y="${leg.y + 26 + i * 16}" font-size="10" fill="#ccc">${label}</text>`
-      );
+      legendParts.push(`<text x="${leg.x + 30}" y="${leg.y + 26 + i * 16}" font-size="10" fill="#ccc">${label}</text>`);
     }
     parts.push(`<g>${legendParts.join("")}</g>`);
   }
