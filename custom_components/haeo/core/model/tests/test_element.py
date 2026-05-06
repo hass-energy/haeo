@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, Element, NetworkElement
+from custom_components.haeo.core.model.elements.battery import Battery
 from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.elements.node import Node
 
@@ -383,3 +384,45 @@ def test_blocked_tag_skips_connection_without_tag(solver: Highs) -> None:
     tag2_in = conn1.power_into_target_for_tag(2)
     solver.minimize(-tag2_in[0])
     assert solver.val(tag2_in[0]) == pytest.approx(0.0, abs=0.01)
+
+
+# ---------------------------------------------------------------------------
+# Shadow price output has exactly n_periods values when connections are registered
+# ---------------------------------------------------------------------------
+
+
+def test_element_power_balance_shadow_price_has_n_periods_values(solver: Highs) -> None:
+    """element_power_balance output must have exactly n_periods shadow-price values.
+
+    When connections are registered (tags={0} by default), the tagged code path
+    runs. For a Battery (both production and consumption), the decomposition
+    constraints are separated into _element_power_decomposition. The
+    element_power_balance output must therefore contain exactly n_periods duals,
+    not 3*n_periods.
+    """
+    n = 2
+    periods = np.array([1.0] * n)
+    battery = Battery(
+        name="bat",
+        periods=periods,
+        solver=solver,
+        capacity=np.array([10.0] * (n + 1)),
+        initial_charge=5.0,
+    )
+
+    conn = _make_mock_connection(solver, n, {0}, "c")
+    battery.register_connection(conn, "source")
+
+    battery.constraints()
+
+    # Fix discharge (tag-0 outflow from battery) so the LP has a unique optimum
+    solver.addConstrs(-conn.power_into_source_for_tag(0) == np.array([2.0, 1.0]))
+
+    solver.run()
+
+    outputs = battery.outputs()
+    balance_output = outputs[ELEMENT_POWER_BALANCE]
+    assert len(balance_output.values) == n, (
+        f"Expected {n} shadow-price values but got {len(balance_output.values)}. "
+        "The tagged path is returning decomposition duals mixed with balance duals."
+    )
