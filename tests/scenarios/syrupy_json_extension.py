@@ -243,10 +243,8 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
 
         Shadow prices (LP dual values) depend on the solver basis and can
         differ between platforms even when primal variables are identical.
-        State of charge depends on the battery charge/discharge schedule
-        which can have multiple equivalent-cost solutions (LP degeneracy).
         """
-        unstable_types = frozenset({OutputType.SHADOW_PRICE, OutputType.STATE_OF_CHARGE})
+        unstable_types = frozenset({OutputType.SHADOW_PRICE})
         keys: set[str] = set()
         for data in datasets:
             if isinstance(data, Mapping):
