@@ -359,10 +359,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         )
 
         # Build topology for frontend card
-        element_types = {
-            name: str(config[CONF_ELEMENT_TYPE])
-            for name, config in loaded_configs.items()
-        }
+        element_types = {name: str(config[CONF_ELEMENT_TYPE]) for name, config in loaded_configs.items()}
         self.topology = serialize_topology(self.network, element_types=element_types)
         await network_module.evaluate_network_connectivity(
             self.hass,

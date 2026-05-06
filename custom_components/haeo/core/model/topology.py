@@ -39,8 +39,7 @@ def serialize_topology(
     for name, element in sorted(network.elements.items()):
         if isinstance(element, Connection):
             segments: list[dict[str, str]] = [
-                {"id": seg_id, "type": type(segment).__name__}
-                for seg_id, segment in element.segments.items()
+                {"id": seg_id, "type": type(segment).__name__} for seg_id, segment in element.segments.items()
             ]
             edge_data: dict[str, Any] = {
                 "name": name,
@@ -56,10 +55,7 @@ def serialize_topology(
         elif isinstance(element, PolicyPricing):
             policy_data: dict[str, Any] = {
                 "name": name,
-                "terms": [
-                    {"connection": t["connection"], "tag": t["tag"]}
-                    for t in element.terms
-                ],
+                "terms": [{"connection": t["connection"], "tag": t["tag"]} for t in element.terms],
             }
             if element.label:
                 policy_data["label"] = element.label
