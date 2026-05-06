@@ -8,6 +8,7 @@
  */
 
 import ELK, { type ElkExtendedEdge, type ElkNode, type ElkPort } from "elkjs/lib/elk.bundled.js";
+import { STRIPE_GAP } from "./shared";
 import type { TopologyData, TopologySegment } from "./types";
 
 export interface LayoutNode {
@@ -91,7 +92,6 @@ const NODE_H = 36;
 const PILL_CELL_W = 26;
 const PILL_H = 20;
 const PORT_SZ = 12;
-const STRIPE_GAP = 2.5;
 const PAD = 14;
 const HDR = 18;
 

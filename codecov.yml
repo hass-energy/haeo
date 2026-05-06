@@ -8,6 +8,9 @@ coverage:
       default:
         target: 90%
 
+ignore:
+  - "frontend/haeo-forecast-card/src/topology/"
+
 flags:
   python:
     paths:
