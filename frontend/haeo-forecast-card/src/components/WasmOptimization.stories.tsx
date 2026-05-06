@@ -38,6 +38,14 @@ const scenarioInputDataModules = import.meta.glob<unknown[]>("../../../../tests/
   import: "default",
 });
 
+// Load solver shim source at build time
+const solverShimSource = import.meta.glob("../../../../wasm/solver_shim.py", { eager: true, query: "?raw", import: "default" });
+const SOLVER_PY = Object.values(solverShimSource)[0] as string;
+
+// Discover wheel filenames from wasm/dist/ at build time
+const wheelFiles = import.meta.glob("../../../../wasm/dist/*.whl", { eager: true, query: "?url", import: "default" });
+const WHEEL_URLS = Object.values(wheelFiles) as string[];
+
 function scenarioName(path: string): string | null {
   const m = /\/(scenario\d+)\//.exec(path);
   return m ? (m[1] ?? null) : null;
@@ -66,127 +74,6 @@ const meta: Meta<StoryArgs> = {
 export default meta;
 type Story = StoryObj<StoryArgs>;
 
-// Pyodide solver Python code
-const SOLVER_PY = `
-import json
-from datetime import datetime
-import numpy as np
-
-from custom_components.haeo.core.model.network import Network
-from custom_components.haeo.core.data.forecast_times import tiers_to_periods_seconds, generate_forecast_timestamps
-from custom_components.haeo.core.data.loader.config_loader import load_element_configs
-from custom_components.haeo.core.adapters.registry import collect_model_elements
-from custom_components.haeo.core.adapters.policy_compilation import compile_policies
-from custom_components.haeo.core.schema.elements.element_type import ElementType
-
-class _S:
-    def __init__(self, d):
-        self._d = d
-    @property
-    def entity_id(self): return self._d.get("entity_id", "")
-    @property
-    def state(self): return self._d.get("state", "")
-    @property
-    def attributes(self): return self._d.get("attributes", {})
-    def as_dict(self): return self._d
-
-class _SM:
-    def __init__(self, data):
-        self._s = {k: _S(v) for k, v in data.items()}
-    def get(self, eid): return self._s.get(eid)
-
-def solve_scenario(cfg_json, inp_json, env_json):
-    cfg = json.loads(cfg_json)
-    inp = {e["entity_id"]: e for e in json.loads(inp_json)}
-    env = json.loads(env_json)
-
-    frozen = datetime.fromisoformat(env["optimization_start_time"])
-    ps = tiers_to_periods_seconds(cfg, start_time=frozen)
-    ph = np.asarray(ps, dtype=float) / 3600
-    ft = generate_forecast_timestamps(ps, start_time=frozen.timestamp())
-
-    lc = load_element_configs(cfg["participants"], _SM(inp), ft)
-    net = Network(name="browser", periods=ph)
-    me = list(collect_model_elements(lc))
-
-    pr = []
-    for n, c in lc.items():
-        if c.get("element_type") == ElementType.POLICY:
-            from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
-            pr.extend(extract_policy_rules(c))
-
-    comp = compile_policies(me, pr)
-    for e in comp["elements"]:
-        net.add(e)
-
-    obj = net.optimize()
-
-    # Build output states matching HA sensor format for the card
-    from custom_components.haeo.core.model.elements import Battery, Connection, Node as NodeElement
-    from custom_components.haeo.core.model.output_data import OutputData
-
-    # Generate timestamps for forecast points
-    start_ts = frozen.timestamp() * 1000  # ms
-    times = [start_ts]
-    for s in ps:
-        times.append(times[-1] + s * 1000)
-
-    states = {}
-    for name, element in net.elements.items():
-        # Determine element type for the card
-        if isinstance(element, Battery):
-            etype = "battery"
-        elif isinstance(element, Connection):
-            etype = "connection"
-        else:
-            etype = lc.get(name, {}).get("element_type", "node") if name in lc else "node"
-
-        for oname in element._output_names:
-            method = getattr(element, oname, None)
-            if not callable(method):
-                continue
-            try:
-                val = method()
-                # OutputData has .values and .type; plain lists are internal
-                if not hasattr(val, "values") or not hasattr(val, "type"):
-                    continue
-                state = val.values
-                if state is None:
-                    continue
-
-                entity_id = f"sensor.{name.lower().replace(':', '_').replace(' ', '_')}_{oname}"
-                attrs = {
-                    "element_name": name.split(":")[0],
-                    "element_type": str(etype),
-                    "output_name": oname,
-                    "field_type": str(val.type),
-                    "source_role": "output",
-                }
-
-                if isinstance(state, (list, tuple, np.ndarray)):
-                    arr = np.asarray(state, dtype=float)
-                    forecast = []
-                    for i, v in enumerate(arr):
-                        if i < len(times):
-                            forecast.append({"time": datetime.fromtimestamp(times[i]/1000).isoformat(), "value": float(v)})
-                    attrs["forecast"] = forecast
-                    state_val = str(float(arr[0])) if len(arr) > 0 else "0"
-                else:
-                    state_val = str(state)
-
-                states[entity_id] = {
-                    "state": state_val,
-                    "attributes": attrs,
-                    "entity_id": entity_id,
-                }
-            except Exception as e:
-                pass
-
-    return json.dumps({"objective": obj, "elements": len(net.elements), "periods": len(ph), "states": states})
-
-print("HAEO WASM solver ready")
-`;
-
 function WasmDemo({ scenario }: StoryArgs): JSX.Element {
   const [status, setStatus] = useState<string>("Loading Pyodide...");
   const [error, setError] = useState<string | null>(null);
@@ -212,12 +99,18 @@ function WasmDemo({ scenario }: StoryArgs): JSX.Element {
 
         setStatus("Installing packages...");
         await pyodide.loadPackage("micropip");
+
+        // Install wheels discovered at build time
+        const wheelInstalls = WHEEL_URLS.map((url) => {
+          const isHaeoCore = url.includes("haeo_core");
+          return `await micropip.install("${url}"${isHaeoCore ? ", deps=False" : ""})`;
+        }).join("\n");
+
         await pyodide.runPythonAsync(`
 import micropip
 await micropip.install("numpy")
 await micropip.install("typing-extensions")
-await micropip.install("./highspy-1.14.0-cp312-cp312-pyodide_2024_0_wasm32.whl")
-await micropip.install("./haeo_core-0.4.0-py3-none-any.whl", deps=False)
+${wheelInstalls}
 `);
         await pyodide.runPythonAsync(SOLVER_PY);
         pyodideRef.current = pyodide;

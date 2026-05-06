@@ -2,20 +2,48 @@
 
 Run HAEO's optimization engine entirely in the browser using Pyodide (Python in WebAssembly).
 
+## Architecture
+
+```
+Browser
+├── Pyodide (Python 3.12 in WASM)
+│   ├── numpy (from Pyodide CDN)
+│   ├── highspy (WASM wheel)
+│   └── haeo-core (pure Python wheel)
+├── solver_shim.py (standalone solver entry point)
+└── Forecast Card (Preact, rendered in Storybook)
+```
+
+HAEO's `custom_components/haeo/core/` has zero Home Assistant imports — the entire optimization
+pipeline runs standalone. The `solver_shim.py` provides mock state classes and a `solve_scenario()`
+function that bridges JSON scenario data to the optimizer.
+
 ## Components
 
-- `highspy-1.14.0-cp312-cp312-pyodide_2024_0_wasm32.whl` — HiGHS LP solver compiled to WASM
-- `haeo_core-0.4.0-py3-none-any.whl` — HAEO core (pure Python, no HA deps)
-- `demo/index.html` — Interactive demo page
+| File | Purpose |
+|------|---------|
+| `solver_shim.py` | Standalone solver entry point (mock HA state, JSON in/out) |
+| `build.sh` | Builds the haeo-core pure-Python wheel into `dist/` |
+| `dist/` | Build output directory (gitignored) |
+
+## Building haeo-core wheel
+
+```bash
+./wasm/build.sh
+```
+
+This reads the version from `pyproject.toml`, packages `custom_components/haeo/core/` into a
+pure-Python wheel, and outputs it to `wasm/dist/`.
 
 ## Building highspy WASM wheel
 
 ### Prerequisites
+
 - Python 3.12+
 - Emscripten SDK 3.1.58
 - pyodide-build 0.29.3
 
-### Build Steps
+### Build steps
 
 ```bash
 # Install emsdk
@@ -39,7 +67,10 @@ export CMAKE_GENERATOR="Unix Makefiles"
 pyodide build --outdir ./dist
 ```
 
-### Key Build Flags
+Copy the resulting `highspy-*.whl` to `wasm/dist/`.
+
+### Key build flags
+
 | Flag | Purpose |
 |------|---------|
 | `ZLIB=OFF` | zlib unavailable in WASM |
@@ -48,7 +79,8 @@ pyodide build --outdir ./dist
 | `CMAKE_GENERATOR="Unix Makefiles"` | Required (Ninja triggers ARG_MAX on link) |
 | `add_subdirectory(app)` removed | CLI executable can't link in WASM |
 
-### Version Compatibility
+### Version compatibility
+
 | Component | Version |
 |-----------|---------|
 | Pyodide (npm) | 0.27.7 |
@@ -58,35 +90,23 @@ pyodide build --outdir ./dist
 | HiGHS | 1.14.0 |
 | pybind11 | 3.0.4 |
 
-## Building haeo-core wheel
+## Running via Storybook
+
+The Storybook story (`frontend/haeo-forecast-card/src/components/WasmOptimization.stories.tsx`)
+is the canonical way to run and test the WASM build. It:
+
+1. Loads Pyodide from CDN
+2. Installs wheels from `wasm/dist/` (served via Storybook's `staticDirs`)
+3. Executes `solver_shim.py` to define the solver function
+4. Runs scenarios interactively with the forecast card rendering results
 
 ```bash
-cd haeo
-pip install build
-# Build pure-Python wheel from core modules (no HA deps)
-python3 -m build --wheel wasm/haeo-core-pkg/
+# Build wheels first
+./wasm/build.sh
+
+# Run Storybook
+cd frontend/haeo-forecast-card
+npm run storybook
 ```
 
-## Running the Demo
-
-Serve the `demo/` directory with any HTTP server:
-```bash
-cd wasm/demo
-python3 -m http.server 8080
-```
-
-Open http://localhost:8080 — the demo loads Pyodide, installs the wheels, and runs scenarios interactively.
-
-## Architecture
-
-```
-Browser
-├── Pyodide (Python 3.12 in WASM)
-│   ├── numpy (from Pyodide CDN)
-│   ├── highspy (WASM wheel, 1.5MB)
-│   └── haeo-core (pure Python wheel, 134KB)
-├── Scenario JSON (fetched from GitHub)
-└── Forecast Card (Preact, rendered client-side)
-```
-
-HAEO's `custom_components/haeo/core/` has zero homeassistant imports — the entire optimization pipeline runs standalone.
+Navigate to **Live > WASMOptimization** to run scenarios interactively.

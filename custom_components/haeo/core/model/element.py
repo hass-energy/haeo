@@ -54,6 +54,11 @@ class Element[OutputNameT: str]:
         self._solver = solver
         self._output_names = output_names
 
+    @property
+    def output_names(self) -> frozenset[OutputNameT]:
+        """Valid output names for this element type."""
+        return self._output_names
+
     def __getitem__(self, key: str | int) -> Any:
         """Get a value by name or index.
 
