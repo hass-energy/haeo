@@ -121,38 +121,64 @@ def solve_scenario(cfg_json, inp_json, env_json):
 
     obj = net.optimize()
 
-    # Build output states matching HA sensor format
+    # Build output states matching HA sensor format for the card
+    from custom_components.haeo.core.model.elements import Battery, Connection, Node as NodeElement
+    from custom_components.haeo.core.model.output_data import OutputData
+
+    # Generate timestamps for forecast points
+    start_ts = frozen.timestamp() * 1000  # ms
+    times = [start_ts]
+    for s in ps:
+        times.append(times[-1] + s * 1000)
+
     states = {}
     for name, element in net.elements.items():
+        # Determine element type for the card
+        if isinstance(element, Battery):
+            etype = "battery"
+        elif isinstance(element, Connection):
+            etype = "connection"
+        else:
+            etype = lc.get(name, {}).get("element_type", "node") if name in lc else "node"
+
         for oname in element._output_names:
             method = getattr(element, oname, None)
             if not callable(method):
                 continue
             try:
                 val = method()
-                if not hasattr(val, "state"):
+                if not hasattr(val, "state") or not hasattr(val, "type"):
                     continue
                 state = val.state
-                entity_id = f"sensor.{name.lower().replace(':', '_')}_{oname}"
+                if state is None:
+                    continue
+
+                entity_id = f"sensor.{name.lower().replace(':', '_').replace(' ', '_')}_{oname}"
                 attrs = {
                     "element_name": name.split(":")[0],
-                    "element_type": "node",
+                    "element_type": str(etype),
                     "output_name": oname,
-                    "field_type": val.type if hasattr(val, "type") else "unknown",
+                    "field_type": str(val.type),
                     "source_role": "output",
                 }
+
                 if isinstance(state, (list, np.ndarray)):
-                    forecast = [{"value": float(v)} for v in state]
+                    arr = np.asarray(state, dtype=float)
+                    forecast = []
+                    for i, v in enumerate(arr):
+                        if i < len(times):
+                            forecast.append({"time": datetime.fromtimestamp(times[i]/1000).isoformat(), "value": float(v)})
                     attrs["forecast"] = forecast
-                    state_val = str(float(state[0])) if len(state) > 0 else "0"
+                    state_val = str(float(arr[0])) if len(arr) > 0 else "0"
                 else:
-                    state_val = str(state) if state is not None else "0"
+                    state_val = str(state)
+
                 states[entity_id] = {
                     "state": state_val,
                     "attributes": attrs,
                     "entity_id": entity_id,
                 }
-            except Exception:
+            except Exception as e:
                 pass
 
     return json.dumps({"objective": obj, "elements": len(net.elements), "periods": len(ph), "states": states})
