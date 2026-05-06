@@ -11,6 +11,7 @@ from collections import defaultdict
 from typing import Any
 
 from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.element import NetworkElement
 from custom_components.haeo.core.model.elements import Connection
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricing
 
@@ -70,12 +71,11 @@ def serialize_topology(
                 "type": element_type,
                 "group": group,
             }
-            outbound = getattr(element, "outbound_tags", None)
-            inbound = getattr(element, "inbound_tags", None)
-            if outbound is not None:
-                node_data["outbound_tags"] = sorted(outbound)
-            if inbound is not None:
-                node_data["inbound_tags"] = sorted(inbound)
+            if isinstance(element, NetworkElement):
+                if element.outbound_tags is not None:
+                    node_data["outbound_tags"] = sorted(element.outbound_tags)
+                if element.inbound_tags is not None:
+                    node_data["inbound_tags"] = sorted(element.inbound_tags)
             nodes.append(node_data)
 
     result: dict[str, Any] = {
