@@ -97,8 +97,19 @@ const HDR = 18;
 
 type Side = "EAST" | "WEST" | "NORTH" | "SOUTH";
 
-function findGroup(topology: TopologyData, nodeName: string): string {
-  return Object.entries(topology.groups).find(([, m]) => m.includes(nodeName))?.[0] ?? "";
+/** Build a reverse lookup from node name to group name. */
+function buildGroupLookup(topology: TopologyData): Map<string, string> {
+  const lookup = new Map<string, string>();
+  for (const [groupName, members] of Object.entries(topology.groups)) {
+    for (const member of members) {
+      lookup.set(member, groupName);
+    }
+  }
+  return lookup;
+}
+
+function findGroup(groupLookup: Map<string, string>, nodeName: string): string {
+  return groupLookup.get(nodeName) ?? "";
 }
 
 /**
@@ -112,11 +123,11 @@ function connectionOwner(edgeName: string): string {
 /**
  * Find the hub node — the one with the most unique peer group connections.
  */
-function findHub(topology: TopologyData): string {
+function findHub(topology: TopologyData, groupLookup: Map<string, string>): string {
   const peerCounts = new Map<string, Set<string>>();
   for (const edge of topology.edges) {
-    const sg = findGroup(topology, edge.source);
-    const tg = findGroup(topology, edge.target);
+    const sg = findGroup(groupLookup, edge.source);
+    const tg = findGroup(groupLookup, edge.target);
     if (sg === tg) continue;
     if (!peerCounts.has(sg)) peerCounts.set(sg, new Set());
     if (!peerCounts.has(tg)) peerCounts.set(tg, new Set());
@@ -141,11 +152,11 @@ function findHub(topology: TopologyData): string {
 /**
  * BFS from hub to orient ALL edges outward (hub → leaf direction).
  */
-function orientEdgesFromHub(topology: TopologyData, hub: string): Set<string> {
+function orientEdgesFromHub(topology: TopologyData, hub: string, groupLookup: Map<string, string>): Set<string> {
   const adj = new Map<string, Array<{ peer: string }>>();
   for (const edge of topology.edges) {
-    const sg = findGroup(topology, edge.source);
-    const tg = findGroup(topology, edge.target);
+    const sg = findGroup(groupLookup, edge.source);
+    const tg = findGroup(groupLookup, edge.target);
     if (sg === tg) continue;
     if (!adj.has(sg)) adj.set(sg, []);
     if (!adj.has(tg)) adj.set(tg, []);
@@ -171,8 +182,8 @@ function orientEdgesFromHub(topology: TopologyData, hub: string): Set<string> {
 
   const reversed = new Set<string>();
   for (const edge of topology.edges) {
-    const sg = findGroup(topology, edge.source);
-    const tg = findGroup(topology, edge.target);
+    const sg = findGroup(groupLookup, edge.source);
+    const tg = findGroup(groupLookup, edge.target);
     if (sg === tg) continue;
     const pairKey = [sg, tg].sort().join("--");
     const layoutSource = pairDirection.get(pairKey);
@@ -186,8 +197,9 @@ function orientEdgesFromHub(topology: TopologyData, hub: string): Set<string> {
 
 export async function computeLayout(topology: TopologyData): Promise<LayoutResult> {
   const elk = new ELK();
-  const hub = findHub(topology);
-  const reversed = orientEdgesFromHub(topology, hub);
+  const groupLookup = buildGroupLookup(topology);
+  const hub = findHub(topology, groupLookup);
+  const reversed = orientEdgesFromHub(topology, hub, groupLookup);
 
   // Build edge name → tag count lookup for port sizing
   const edgeTagCount = new Map<string, number>();
@@ -209,8 +221,8 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
       let totalEdgeWidth = 0;
       let edgeCount = 0;
       for (const edge of topology.edges) {
-        const sg = findGroup(topology, edge.source);
-        const tg = findGroup(topology, edge.target);
+        const sg = findGroup(groupLookup, edge.source);
+        const tg = findGroup(groupLookup, edge.target);
         if (sg === tg) continue;
         if (sg !== groupName && tg !== groupName) continue;
         edgeCount++;
@@ -222,8 +234,8 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
     }
 
     for (const edge of topology.edges) {
-      const sg = findGroup(topology, edge.source);
-      const tg = findGroup(topology, edge.target);
+      const sg = findGroup(groupLookup, edge.source);
+      const tg = findGroup(groupLookup, edge.target);
       if (sg === tg) continue;
 
       const isReversed = reversed.has(edge.name);
@@ -323,8 +335,8 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
     // Compute internal edge spacing based on max VLAN count for this group's connections
     let maxGroupTags = 0;
     for (const edge of topology.edges) {
-      const sg = findGroup(topology, edge.source);
-      const tg = findGroup(topology, edge.target);
+      const sg = findGroup(groupLookup, edge.source);
+      const tg = findGroup(groupLookup, edge.target);
       if (sg !== tg && (sg === groupName || tg === groupName)) {
         maxGroupTags = Math.max(maxGroupTags, edge.tags?.length ?? 0);
       }
@@ -368,8 +380,8 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
 
   // Route edges through ELK, inserting policy pill nodes where needed
   for (const edge of topology.edges) {
-    const sg = findGroup(topology, edge.source);
-    const tg = findGroup(topology, edge.target);
+    const sg = findGroup(groupLookup, edge.source);
+    const tg = findGroup(groupLookup, edge.target);
     if (sg === tg) continue;
 
     const policyTerms = policyTermsByConnection.get(edge.name);
