@@ -147,9 +147,10 @@ def solve_scenario(cfg_json, inp_json, env_json):
                 continue
             try:
                 val = method()
-                if not hasattr(val, "state") or not hasattr(val, "type"):
+                # OutputData has .values and .type; plain lists are internal
+                if not hasattr(val, "values") or not hasattr(val, "type"):
                     continue
-                state = val.state
+                state = val.values
                 if state is None:
                     continue
 
@@ -162,7 +163,7 @@ def solve_scenario(cfg_json, inp_json, env_json):
                     "source_role": "output",
                 }
 
-                if isinstance(state, (list, np.ndarray)):
+                if isinstance(state, (list, tuple, np.ndarray)):
                     arr = np.asarray(state, dtype=float)
                     forecast = []
                     for i, v in enumerate(arr):
