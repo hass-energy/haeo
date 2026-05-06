@@ -10,6 +10,7 @@ const config: StorybookConfig = {
   framework: "@storybook/preact-vite",
   stories: ["../src/**/*.stories.@(ts|tsx)"],
   addons: ["@storybook/addon-essentials"],
+  staticDirs: ["../../../wasm/demo"],
   viteFinal(config) {
     config.plugins ??= [];
     config.plugins.push({
