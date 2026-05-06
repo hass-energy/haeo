@@ -124,7 +124,7 @@ def solve_scenario(cfg_json, inp_json, env_json):
     # Build output states matching HA sensor format
     states = {}
     for name, element in net.elements.items():
-        for oname in element.output_names:
+        for oname in element._output_names:
             method = getattr(element, oname, None)
             if not callable(method):
                 continue
