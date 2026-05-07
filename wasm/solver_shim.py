@@ -92,16 +92,14 @@ def solve_scenario(cfg_json: str, inp_json: str, env_json: str) -> str:
     # Extract outputs through the adapter layer (same as coordinator)
     model_outputs = {name: element.outputs() for name, element in net.elements.items()}
 
-    # Build output states matching HA sensor format for the forecast card
-    start_ts = frozen.timestamp() * 1000  # ms
-    times = [start_ts]
-    for s in ps:
-        times.append(times[-1] + s * 1000)
+    # Convert forecast boundary timestamps to ISO strings for the card
+    forecast_times_iso = [datetime.fromtimestamp(t, tz=UTC).isoformat() for t in ft]
 
     states: dict[str, Any] = {}
+    errors: list[str] = []
     for element_name, element_config in lc.items():
-        element_type = element_config.get("element_type")
-        if element_type is None or element_type not in ELEMENT_TYPES:
+        element_type = element_config["element_type"]
+        if element_type not in ELEMENT_TYPES:
             continue
 
         adapter = ELEMENT_TYPES[element_type]
@@ -112,14 +110,13 @@ def solve_scenario(cfg_json: str, inp_json: str, env_json: str) -> str:
                 config=element_config,
                 periods=net.periods,
             )
-        except Exception:
+        except Exception as exc:
+            errors.append(f"{element_name} ({element_type}): {exc}")
             continue
 
         for device_name, device_outputs in adapter_outputs.items():
             for oname, val in device_outputs.items():
                 values = val.values
-                if values is None:
-                    continue
 
                 entity_id = (
                     f"sensor.{element_name.lower().replace(' ', '_')}_{device_name.lower().replace(' ', '_')}_{oname}"
@@ -139,19 +136,21 @@ def solve_scenario(cfg_json: str, inp_json: str, env_json: str) -> str:
                 if val.unit is not None:
                     attrs["unit_of_measurement"] = val.unit
 
+                if val.fixed:
+                    attrs["fixed"] = True
+
+                if val.priority is not None:
+                    attrs["priority"] = val.priority
+
                 if isinstance(values, (list, tuple)) and len(values) > 1:
                     arr = np.asarray(values, dtype=float)
-                    forecast = []
-                    for i, v in enumerate(arr):
-                        if i < len(times):
-                            forecast.append(
-                                {
-                                    "time": datetime.fromtimestamp(times[i] / 1000, tz=UTC).isoformat(),
-                                    "value": float(v),
-                                }
-                            )
+                    forecast = [
+                        {"time": forecast_times_iso[i], "value": float(v)}
+                        for i, v in enumerate(arr)
+                        if i < len(forecast_times_iso)
+                    ]
                     attrs["forecast"] = forecast
-                    state_val = str(float(arr[0])) if len(arr) > 0 else "0"
+                    state_val = str(float(arr[-1])) if val.state_last else str(float(arr[0]))
                 else:
                     state_val = str(values[0]) if values else "0"
 
@@ -161,11 +160,13 @@ def solve_scenario(cfg_json: str, inp_json: str, env_json: str) -> str:
                     "entity_id": entity_id,
                 }
 
-    return json.dumps(
-        {
-            "objective": obj,
-            "elements": len(net.elements),
-            "periods": len(ph),
-            "states": states,
-        }
-    )
+    result: dict[str, Any] = {
+        "objective": obj,
+        "elements": len(net.elements),
+        "periods": len(ph),
+        "states": states,
+    }
+    if errors:
+        result["errors"] = errors
+
+    return json.dumps(result)

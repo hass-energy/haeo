@@ -54,7 +54,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "haeo-core"
 version = "$VERSION"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = ["numpy", "highspy"]
 
 [tool.setuptools.packages.find]

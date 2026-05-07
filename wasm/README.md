@@ -20,11 +20,11 @@ function that bridges JSON scenario data to the optimizer.
 
 ## Components
 
-| File | Purpose |
-|------|---------|
+| File             | Purpose                                                    |
+| ---------------- | ---------------------------------------------------------- |
 | `solver_shim.py` | Standalone solver entry point (mock HA state, JSON in/out) |
-| `build.sh` | Builds the haeo-core pure-Python wheel into `dist/` |
-| `dist/` | Build output directory (gitignored) |
+| `build.sh`       | Builds the haeo-core pure-Python wheel into `dist/`        |
+| `dist/`          | Build output directory (gitignored)                        |
 
 ## Building haeo-core wheel
 
@@ -71,24 +71,24 @@ Copy the resulting `highspy-*.whl` to `wasm/dist/`.
 
 ### Key build flags
 
-| Flag | Purpose |
-|------|---------|
-| `ZLIB=OFF` | zlib unavailable in WASM |
-| `FAST_BUILD=ON` | Uses code path with `include(python-highs)` for pybind11 |
-| `PYTHON_BUILD_SETUP=ON` | Enables Python bindings build |
-| `CMAKE_GENERATOR="Unix Makefiles"` | Required (Ninja triggers ARG_MAX on link) |
-| `add_subdirectory(app)` removed | CLI executable can't link in WASM |
+| Flag                               | Purpose                                                  |
+| ---------------------------------- | -------------------------------------------------------- |
+| `ZLIB=OFF`                         | zlib unavailable in WASM                                 |
+| `FAST_BUILD=ON`                    | Uses code path with `include(python-highs)` for pybind11 |
+| `PYTHON_BUILD_SETUP=ON`            | Enables Python bindings build                            |
+| `CMAKE_GENERATOR="Unix Makefiles"` | Required (Ninja triggers ARG_MAX on link)                |
+| `add_subdirectory(app)` removed    | CLI executable can't link in WASM                        |
 
 ### Version compatibility
 
-| Component | Version |
-|-----------|---------|
-| Pyodide (npm) | 0.27.7 |
-| pyodide-build | 0.29.3 |
-| Emscripten | 3.1.58 |
-| Python | 3.12 |
-| HiGHS | 1.14.0 |
-| pybind11 | 3.0.4 |
+| Component     | Version |
+| ------------- | ------- |
+| Pyodide (npm) | 0.27.7  |
+| pyodide-build | 0.29.3  |
+| Emscripten    | 3.1.58  |
+| Python        | 3.12    |
+| HiGHS         | 1.14.0  |
+| pybind11      | 3.0.4   |
 
 ## Running via Storybook
 
