@@ -104,6 +104,11 @@ A sheddable load can also expose a **threshold price** (\$/kWh): the maximum amo
 The optimizer dispatches the load only while the marginal value of energy at its connection node is at or below the threshold; above that, the load sheds.
 The default threshold of \$0 leaves the LP unchanged from the original behaviour.
 
+The comparison is against the **shadow price (LP dual) of the node selected in the load's *Connection* field** — not the raw grid import tariff.
+When a battery or solar can supply that node more cheaply than the grid in a given interval, the dual tracks the cheaper source and the load can keep running even while the grid tariff is above the threshold.
+If you want the threshold to act directly on the grid tariff, connect the load to the grid element instead of to an intermediate switchboard.
+See [Load shedding via threshold price](../shedding.md) for the full derivation, plus the matching shadow-price sensor on each node device (e.g. `sensor.switchboard_node_power_balance_energy_price`).
+
 For example, a load with `forecast = 5 kW` and `threshold_price = $0.30/kWh` connected to a switchboard whose marginal energy price varies will be served while local energy is cheaper than \$0.30/kWh and will shed when it is more expensive.
 
 This is implemented as a `PricingSegment` on the load's connection with `price = -threshold_price`, so the LP minimisation gains a benefit equal to `threshold_price × p_load × Δt` for every period the load is served.

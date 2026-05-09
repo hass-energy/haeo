@@ -3,6 +3,28 @@
 Sheddable loads (curtailment enabled) can be configured with a **threshold price** in \$/kWh.
 The optimizer serves the load only while the marginal value of energy at its connection node is at or below the threshold; above that, the load sheds.
 
+## What "connection node" means
+
+The threshold is **not** compared against the grid import tariff directly.
+It is compared against the **shadow price (LP dual) of the node the load is connected to** — that is, the node selected in the load's *Connection* field.
+
+The shadow price at a node is the cheapest \$/kWh way the optimizer can supply one more kWh of demand at that point in the network, given **all** active constraints in that interval.
+When the load is connected to a Switchboard node, the relevant price is therefore the minimum of (subject to feasibility):
+
+- the grid import tariff,
+- the marginal cost of discharging a battery (its own dual),
+- the marginal cost of curtailing solar export (its own dual),
+- the marginal cost of curtailing another sheddable load on the same node, and so on.
+
+If solar or battery is available cheaper than the grid tariff, the switchboard's \$/kWh dual will track that cheaper source, not the tariff.
+This means a load can keep running even while grid prices are high, as long as something cheaper is delivering energy to its node.
+
+In short: the threshold acts on the **node** the load sees, after the LP has already worked out the cheapest local supply mix.
+If you want the threshold to act directly on the grid tariff, connect the load to the grid element rather than to an intermediate switchboard.
+
+The matching shadow-price sensor for the connection node is exposed by every node device — for example, a switchboard called *Switchboard* exposes `sensor.switchboard_node_power_balance_energy_price` in \$/kWh.
+Dashboard this sensor alongside the load's `threshold_price` sensor to see the comparison directly.
+
 ## How the threshold encodes a willingness to pay
 
 The threshold-price field is implemented as an extra `PricingSegment` on the load's connection.
@@ -23,8 +45,11 @@ Consider a sheddable load with `forecast = 5 kW` always, `curtailment = true`, a
 | 3      | 0.35        | 0.35                    | No      | 0 kW         |
 | 4      | 0.40        | 0.40                    | No      | 0 kW         |
 
-The shedding decision is exactly the comparison between the load's **threshold price** sensor and the switchboard's **\$/kWh** shadow-price sibling (see [Shadow prices — per-power vs per-energy](shadow-prices.md#per-power-vs-per-energy)).
+The shedding decision is exactly the comparison between the load's **threshold price** sensor and the switchboard's **node power balance \$/kWh** shadow-price sibling (see [Shadow prices — per-power vs per-energy](shadow-prices.md#per-power-vs-per-energy)).
 Both sensors are emitted in the same units (\$/kWh) so a Lovelace dashboard can plot them on the same axis.
+
+In this example the switchboard's dual exactly tracks the grid tariff because no cheaper source is available.
+In a real install with battery and solar, the dual would often dip below the grid tariff during the day, so a load with `threshold_price = $0.30/kWh` could keep running through a \$0.40/kWh grid hour if the battery was discharging at a marginal cost below \$0.30/kWh.
 
 ## When the threshold is ignored
 
