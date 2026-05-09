@@ -4,12 +4,16 @@ from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.core.adapters.elements.inverter import (
     INVERTER_DC_BUS_POWER_BALANCE,
+    INVERTER_DC_BUS_POWER_BALANCE_ENERGY_PRICE,
     INVERTER_DEVICE_INVERTER,
+    INVERTER_MAX_POWER_AC_TO_DC_ENERGY_PRICE,
     INVERTER_MAX_POWER_AC_TO_DC_PRICE,
+    INVERTER_MAX_POWER_DC_TO_AC_ENERGY_PRICE,
     INVERTER_MAX_POWER_DC_TO_AC_PRICE,
     INVERTER_POWER_AC_TO_DC,
     INVERTER_POWER_ACTIVE,
@@ -45,6 +49,7 @@ class OutputsCase(TypedDict):
     description: str
     name: str
     model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
+    periods: NDArray[np.floating[Any]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -159,9 +164,13 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 },
             },
         },
+        "periods": np.array([0.5]),
         "outputs": {
             INVERTER_DEVICE_INVERTER: {
                 INVERTER_DC_BUS_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                INVERTER_DC_BUS_POWER_BALANCE_ENERGY_PRICE: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
+                ),
                 INVERTER_POWER_DC_TO_AC: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
                 ),
@@ -174,6 +183,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 INVERTER_MAX_POWER_AC_TO_DC_PRICE: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)
+                ),
+                INVERTER_MAX_POWER_DC_TO_AC_ENERGY_PRICE: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)
+                ),
+                INVERTER_MAX_POWER_AC_TO_DC_ENERGY_PRICE: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.04,)
                 ),
             }
         },
@@ -193,5 +208,17 @@ def test_model_elements(case: CreateCase) -> None:
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES[ElementType.INVERTER]
-    result = entry.outputs(case["name"], case["model_outputs"])
-    assert result == case["outputs"]
+    result = entry.outputs(case["name"], case["model_outputs"], periods=case["periods"])
+
+    expected = case["outputs"]
+    assert result.keys() == expected.keys()
+    for device_name, device_outputs in expected.items():
+        assert result[device_name].keys() == device_outputs.keys()
+        for output_name, expected_output in device_outputs.items():
+            actual = result[device_name][output_name]
+            assert actual.type == expected_output.type
+            assert actual.unit == expected_output.unit
+            assert actual.direction == expected_output.direction
+            assert len(actual.values) == len(expected_output.values)
+            for a, e in zip(actual.values, expected_output.values, strict=True):
+                assert a == pytest.approx(e)

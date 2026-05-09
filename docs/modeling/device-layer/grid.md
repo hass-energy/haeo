@@ -57,8 +57,10 @@ The adapter transforms user configuration into connection segments:
 | `cost_net`               | \$      | Real-time | Net cost (when any price exists)   |
 | `power_max_import`       | kW      | Real-time | Max import power (when limited)    |
 | `power_max_export`       | kW      | Real-time | Max export power (when limited)    |
-| `power_max_import_price` | \\\$/kW | Real-time | Max import power shadow price      |
-| `power_max_export_price` | \\\$/kW | Real-time | Max export power shadow price      |
+| `power_max_import_price`        | \\\$/kW  | Real-time | Max import power shadow price (per kW)   |
+| `power_max_import_energy_price` | \\\$/kWh | Real-time | Max import power shadow price (per kWh)  |
+| `power_max_export_price`        | \\\$/kW  | Real-time | Max export power shadow price (per kW)   |
+| `power_max_export_energy_price` | \\\$/kWh | Real-time | Max export power shadow price (per kWh)  |
 
 The `power_max_*` sensors are only created when the corresponding limit is configured.
 The `cost_*` sensors are only created when the corresponding price is configured.

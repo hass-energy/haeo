@@ -4,7 +4,11 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+import numpy as np
+from numpy.typing import NDArray
+
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
+from custom_components.haeo.core.adapters.shadow_price_utils import shadow_price_per_energy
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -26,13 +30,15 @@ from custom_components.haeo.core.schema.sections import (
 type LoadOutputName = Literal[
     "load_power",
     "load_forecast_limit_price",
+    "load_forecast_limit_energy_price",
 ]
 
 LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
     (
         LOAD_POWER := "load_power",
-        # Shadow price
+        # Shadow prices
         LOAD_FORECAST_LIMIT_PRICE := "load_forecast_limit_price",
+        LOAD_FORECAST_LIMIT_ENERGY_PRICE := "load_forecast_limit_energy_price",
     )
 )
 
@@ -83,6 +89,7 @@ class LoadAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         *,
         config: LoadConfigData,
+        periods: NDArray[np.floating[Any]],
         **_kwargs: Any,
     ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
         """Map model outputs to load-specific output names."""
@@ -101,6 +108,8 @@ class LoadAdapter:
             and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
         ):
             load_outputs[LOAD_FORECAST_LIMIT_PRICE] = shadow
+            if (energy_shadow := shadow_price_per_energy(shadow, periods)) is not None:
+                load_outputs[LOAD_FORECAST_LIMIT_ENERGY_PRICE] = energy_shadow
 
         return {LOAD_DEVICE_LOAD: load_outputs}
 

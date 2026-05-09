@@ -4,7 +4,11 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+import numpy as np
+from numpy.typing import NDArray
+
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
+from custom_components.haeo.core.adapters.shadow_price_utils import shadow_price_per_energy
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -25,13 +29,15 @@ from custom_components.haeo.core.schema.sections import CONF_CONNECTION, CONF_FO
 type SolarOutputName = Literal[
     "solar_power",
     "solar_forecast_limit",
+    "solar_forecast_limit_energy_price",
 ]
 
 SOLAR_OUTPUT_NAMES: Final[frozenset[SolarOutputName]] = frozenset(
     (
         SOLAR_POWER := "solar_power",
-        # Shadow price
+        # Shadow prices
         SOLAR_FORECAST_LIMIT := "solar_forecast_limit",
+        SOLAR_FORECAST_LIMIT_ENERGY_PRICE := "solar_forecast_limit_energy_price",
     )
 )
 
@@ -81,6 +87,7 @@ class SolarAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         *,
         config: SolarConfigData,
+        periods: NDArray[np.floating[Any]],
         **_kwargs: Any,
     ) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
         """Map model outputs to solar-specific output names."""
@@ -99,6 +106,8 @@ class SolarAdapter:
             and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
         ):
             solar_outputs[SOLAR_FORECAST_LIMIT] = shadow
+            if (energy_shadow := shadow_price_per_energy(shadow, periods)) is not None:
+                solar_outputs[SOLAR_FORECAST_LIMIT_ENERGY_PRICE] = energy_shadow
 
         return {SOLAR_DEVICE_SOLAR: solar_outputs}
 

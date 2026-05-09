@@ -3,7 +3,11 @@
 from collections.abc import Mapping
 from typing import Any, Final, Literal
 
+import numpy as np
+from numpy.typing import NDArray
+
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
+from custom_components.haeo.core.adapters.shadow_price_utils import shadow_price_per_energy
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE
@@ -23,10 +27,17 @@ DEFAULT_IS_SOURCE: Final[bool] = False
 DEFAULT_IS_SINK: Final[bool] = False
 
 # Node output names
-type NodeOutputName = Literal["node_power_balance"]
+type NodeOutputName = Literal[
+    "node_power_balance",
+    "node_power_balance_energy_price",
+]
 
-NODE_POWER_BALANCE: Final[NodeOutputName] = "node_power_balance"
-NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
+NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset(
+    (
+        NODE_POWER_BALANCE := "node_power_balance",
+        NODE_POWER_BALANCE_ENERGY_PRICE := "node_power_balance_energy_price",
+    )
+)
 
 type NodeDeviceName = Literal[ElementType.NODE]
 
@@ -59,6 +70,8 @@ class NodeAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
+        *,
+        periods: NDArray[np.floating[Any]],
         **_kwargs: Any,
     ) -> Mapping[NodeDeviceName, Mapping[NodeOutputName, OutputData]]:
         """Convert model element outputs to node adapter outputs."""
@@ -67,7 +80,10 @@ class NodeAdapter:
         # Map Node power_balance to node_power_balance (only present for constrained nodes)
         node_outputs: dict[NodeOutputName, OutputData] = {}
         if ELEMENT_POWER_BALANCE in node_model:
-            node_outputs[NODE_POWER_BALANCE] = expect_output_data(node_model[ELEMENT_POWER_BALANCE])
+            shadow = expect_output_data(node_model[ELEMENT_POWER_BALANCE])
+            node_outputs[NODE_POWER_BALANCE] = shadow
+            if (energy_shadow := shadow_price_per_energy(shadow, periods)) is not None:
+                node_outputs[NODE_POWER_BALANCE_ENERGY_PRICE] = energy_shadow
 
         return {NODE_DEVICE_NODE: node_outputs}
 

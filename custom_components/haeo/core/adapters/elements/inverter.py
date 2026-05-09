@@ -4,7 +4,11 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+import numpy as np
+from numpy.typing import NDArray
+
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
+from custom_components.haeo.core.adapters.shadow_price_utils import shadow_price_per_energy
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -31,8 +35,11 @@ type InverterOutputName = Literal[
     "inverter_power_ac_to_dc",
     "inverter_power_active",
     "inverter_dc_bus_power_balance",
+    "inverter_dc_bus_power_balance_energy_price",
     "inverter_max_power_dc_to_ac_price",
     "inverter_max_power_ac_to_dc_price",
+    "inverter_max_power_dc_to_ac_energy_price",
+    "inverter_max_power_ac_to_dc_energy_price",
 ]
 
 INVERTER_OUTPUT_NAMES: Final[frozenset[InverterOutputName]] = frozenset(
@@ -41,9 +48,12 @@ INVERTER_OUTPUT_NAMES: Final[frozenset[InverterOutputName]] = frozenset(
         INVERTER_POWER_AC_TO_DC := "inverter_power_ac_to_dc",
         INVERTER_POWER_ACTIVE := "inverter_power_active",
         INVERTER_DC_BUS_POWER_BALANCE := "inverter_dc_bus_power_balance",
+        INVERTER_DC_BUS_POWER_BALANCE_ENERGY_PRICE := "inverter_dc_bus_power_balance_energy_price",
         # Shadow prices
         INVERTER_MAX_POWER_DC_TO_AC_PRICE := "inverter_max_power_dc_to_ac_price",
         INVERTER_MAX_POWER_AC_TO_DC_PRICE := "inverter_max_power_ac_to_dc_price",
+        INVERTER_MAX_POWER_DC_TO_AC_ENERGY_PRICE := "inverter_max_power_dc_to_ac_energy_price",
+        INVERTER_MAX_POWER_AC_TO_DC_ENERGY_PRICE := "inverter_max_power_ac_to_dc_energy_price",
     )
 )
 
@@ -110,6 +120,8 @@ class InverterAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
+        *,
+        periods: NDArray[np.floating[Any]],
         **_kwargs: Any,
     ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
         """Map model outputs to inverter-specific output names."""
@@ -142,20 +154,27 @@ class InverterAdapter:
         )
 
         # DC bus power balance shadow price
-        inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = expect_output_data(dc_bus[ELEMENT_POWER_BALANCE])
+        dc_bus_shadow = expect_output_data(dc_bus[ELEMENT_POWER_BALANCE])
+        inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = dc_bus_shadow
+        if (dc_bus_energy_shadow := shadow_price_per_energy(dc_bus_shadow, periods)) is not None:
+            inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE_ENERGY_PRICE] = dc_bus_energy_shadow
 
         # Shadow prices from power_limit segments on each connection
-        shadow_price_mappings: tuple[tuple[Mapping[ModelOutputName, ModelOutputValue], InverterOutputName], ...] = (
-            (forward_conn, INVERTER_MAX_POWER_DC_TO_AC_PRICE),
-            (reverse_conn, INVERTER_MAX_POWER_AC_TO_DC_PRICE),
+        shadow_price_mappings: tuple[
+            tuple[Mapping[ModelOutputName, ModelOutputValue], InverterOutputName, InverterOutputName], ...
+        ] = (
+            (forward_conn, INVERTER_MAX_POWER_DC_TO_AC_PRICE, INVERTER_MAX_POWER_DC_TO_AC_ENERGY_PRICE),
+            (reverse_conn, INVERTER_MAX_POWER_AC_TO_DC_PRICE, INVERTER_MAX_POWER_AC_TO_DC_ENERGY_PRICE),
         )
-        for conn, output_name in shadow_price_mappings:
+        for conn, output_name, energy_output_name in shadow_price_mappings:
             if (
                 isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
                 and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
                 and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
             ):
                 inverter_outputs[output_name] = shadow
+                if (energy_shadow := shadow_price_per_energy(shadow, periods)) is not None:
+                    inverter_outputs[energy_output_name] = energy_shadow
 
         return {INVERTER_DEVICE_INVERTER: inverter_outputs}
 

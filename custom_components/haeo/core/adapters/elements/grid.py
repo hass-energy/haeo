@@ -8,6 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
+from custom_components.haeo.core.adapters.shadow_price_utils import shadow_price_per_energy
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -38,6 +39,8 @@ type GridOutputName = Literal[
     "grid_cost_net",
     "grid_power_max_import_price",
     "grid_power_max_export_price",
+    "grid_power_max_import_energy_price",
+    "grid_power_max_export_energy_price",
 ]
 
 GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
@@ -52,6 +55,8 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
         # Shadow prices
         GRID_POWER_MAX_IMPORT_PRICE := "grid_power_max_import_price",
         GRID_POWER_MAX_EXPORT_PRICE := "grid_power_max_export_price",
+        GRID_POWER_MAX_IMPORT_ENERGY_PRICE := "grid_power_max_import_energy_price",
+        GRID_POWER_MAX_EXPORT_ENERGY_PRICE := "grid_power_max_export_energy_price",
     )
 )
 
@@ -176,17 +181,21 @@ class GridAdapter:
         )
 
         # Output the shadow prices from power_limit segments on each connection
-        shadow_price_mappings: tuple[tuple[Mapping[ModelOutputName, ModelOutputValue], GridOutputName], ...] = (
-            (export_conn, GRID_POWER_MAX_EXPORT_PRICE),
-            (import_conn, GRID_POWER_MAX_IMPORT_PRICE),
+        shadow_price_mappings: tuple[
+            tuple[Mapping[ModelOutputName, ModelOutputValue], GridOutputName, GridOutputName], ...
+        ] = (
+            (export_conn, GRID_POWER_MAX_EXPORT_PRICE, GRID_POWER_MAX_EXPORT_ENERGY_PRICE),
+            (import_conn, GRID_POWER_MAX_IMPORT_PRICE, GRID_POWER_MAX_IMPORT_ENERGY_PRICE),
         )
-        for conn, output_name in shadow_price_mappings:
+        for conn, output_name, energy_output_name in shadow_price_mappings:
             if (
                 isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
                 and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
                 and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
             ):
                 grid_outputs[output_name] = shadow
+                if (energy_shadow := shadow_price_per_energy(shadow, periods)) is not None:
+                    grid_outputs[energy_output_name] = energy_shadow
 
         return {GRID_DEVICE_GRID: grid_outputs}
 

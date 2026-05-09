@@ -50,6 +50,33 @@ HAEO exposes shadow prices for various constraint types:
 Individual elements document their specific shadow prices.
 The interpretation pattern remains consistent: the value shows the marginal benefit of relaxing that particular constraint.
 
+## Per-power vs per-energy
+
+Shadow prices on instantaneous power constraints come from a dual variable that is dimensionally \$/kW.
+That value answers "how much would the objective improve if I could exceed the power limit by 1 kW for the duration of this period?"
+For comparison with tariffs, which are normally quoted in \$/kWh, the same dual can be re-expressed in energy units by dividing by the period length:
+
+\$/kWh = (\$/kW) / Δt[hours]
+
+Because HAEO supports variable-width intervals, Δt is taken from `Element.periods` for that period.
+HAEO publishes both expressions so you do not have to perform the conversion in a Jinja template.
+
+For each power-constrained shadow price, two sensors are exposed:
+
+- The original `*_price` sensor in \$/kW
+- A sibling `*_energy_price` sensor in \$/kWh
+
+### Worked example
+
+For a 5-minute period (Δt = 1/12 h), a `$/kW` shadow price of `0.10` becomes a `$/kWh` value of `0.10 / (1/12) = 1.20`.
+Both sensors will be present and consistent with each other.
+
+## Diagnostic visibility
+
+Shadow-price sensors are tagged as `EntityCategory.DIAGNOSTIC`.
+They are diagnostic indicators of solver behaviour, not setpoints to act on directly, so they are hidden by default in the Home Assistant UI.
+Templates and dashboards that reference them by entity ID continue to work; users who want them on a default dashboard can unhide them per entity.
+
 ## Practical interpretation
 
 **Sign convention**: Positive shadow prices indicate that loosening the constraint would reduce total cost.

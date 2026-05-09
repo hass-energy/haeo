@@ -14,7 +14,9 @@ from custom_components.haeo.core.adapters.elements.grid import (
     GRID_POWER_ACTIVE,
     GRID_POWER_EXPORT,
     GRID_POWER_IMPORT,
+    GRID_POWER_MAX_EXPORT_ENERGY_PRICE,
     GRID_POWER_MAX_EXPORT_PRICE,
+    GRID_POWER_MAX_IMPORT_ENERGY_PRICE,
     GRID_POWER_MAX_IMPORT_PRICE,
     GRID_REVENUE_EXPORT,
 )
@@ -150,6 +152,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 GRID_POWER_MAX_EXPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
                 GRID_POWER_MAX_IMPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                GRID_POWER_MAX_EXPORT_ENERGY_PRICE: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)
+                ),
+                GRID_POWER_MAX_IMPORT_ENERGY_PRICE: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)
+                ),
             }
         },
     },
