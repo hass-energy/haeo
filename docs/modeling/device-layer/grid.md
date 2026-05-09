@@ -48,19 +48,19 @@ The adapter transforms user configuration into connection segments:
 
 ### Grid Device
 
-| Sensor                   | Unit    | Update    | Description                        |
-| ------------------------ | ------- | --------- | ---------------------------------- |
-| `power_import`           | kW      | Real-time | Import power                       |
-| `power_export`           | kW      | Real-time | Export power                       |
-| `cost_import`            | \$      | Real-time | Cost of imports (when priced)      |
-| `cost_export`            | \$      | Real-time | Revenue from exports (when priced) |
-| `cost_net`               | \$      | Real-time | Net cost (when any price exists)   |
-| `power_max_import`       | kW      | Real-time | Max import power (when limited)    |
-| `power_max_export`       | kW      | Real-time | Max export power (when limited)    |
-| `power_max_import_price`        | \\\$/kW  | Real-time | Max import power shadow price (per kW)   |
-| `power_max_import_energy_price` | \\\$/kWh | Real-time | Max import power shadow price (per kWh)  |
-| `power_max_export_price`        | \\\$/kW  | Real-time | Max export power shadow price (per kW)   |
-| `power_max_export_energy_price` | \\\$/kWh | Real-time | Max export power shadow price (per kWh)  |
+| Sensor                          | Unit     | Update    | Description                             |
+| ------------------------------- | -------- | --------- | --------------------------------------- |
+| `power_import`                  | kW       | Real-time | Import power                            |
+| `power_export`                  | kW       | Real-time | Export power                            |
+| `cost_import`                   | \$       | Real-time | Cost of imports (when priced)           |
+| `cost_export`                   | \$       | Real-time | Revenue from exports (when priced)      |
+| `cost_net`                      | \$       | Real-time | Net cost (when any price exists)        |
+| `power_max_import`              | kW       | Real-time | Max import power (when limited)         |
+| `power_max_export`              | kW       | Real-time | Max export power (when limited)         |
+| `power_max_import_price`        | \\\$/kW  | Real-time | Max import power shadow price (per kW)  |
+| `power_max_import_energy_price` | \\\$/kWh | Real-time | Max import power shadow price (per kWh) |
+| `power_max_export_price`        | \\\$/kW  | Real-time | Max export power shadow price (per kW)  |
+| `power_max_export_energy_price` | \\\$/kWh | Real-time | Max export power shadow price (per kWh) |
 
 The `power_max_*` sensors are only created when the corresponding limit is configured.
 The `cost_*` sensors are only created when the corresponding price is configured.

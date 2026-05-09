@@ -50,17 +50,17 @@ The adapter transforms user configuration into connection segments:
 
 ### Inverter Device
 
-| Sensor                     | Unit  | Update    | Description                              |
-| -------------------------- | ----- | --------- | ---------------------------------------- |
-| `power_dc_to_ac`           | kW    | Real-time | Power flowing from DC to AC (inverting)  |
-| `power_ac_to_dc`           | kW    | Real-time | Power flowing from AC to DC (rectifying) |
-| `power_active`             | kW    | Real-time | Net power (DC to AC - AC to DC)          |
-| `dc_bus_power_balance`              | \$/kW  | Real-time | DC bus power balance shadow price (per kW)   |
-| `dc_bus_power_balance_energy_price` | \$/kWh | Real-time | DC bus power balance shadow price (per kWh)  |
-| `max_power_dc_to_ac_price`          | \$/kW  | Real-time | Max DC to AC power shadow price (per kW)     |
-| `max_power_dc_to_ac_energy_price`   | \$/kWh | Real-time | Max DC to AC power shadow price (per kWh)    |
-| `max_power_ac_to_dc_price`          | \$/kW  | Real-time | Max AC to DC power shadow price (per kW)     |
-| `max_power_ac_to_dc_energy_price`   | \$/kWh | Real-time | Max AC to DC power shadow price (per kWh)    |
+| Sensor                              | Unit   | Update    | Description                                 |
+| ----------------------------------- | ------ | --------- | ------------------------------------------- |
+| `power_dc_to_ac`                    | kW     | Real-time | Power flowing from DC to AC (inverting)     |
+| `power_ac_to_dc`                    | kW     | Real-time | Power flowing from AC to DC (rectifying)    |
+| `power_active`                      | kW     | Real-time | Net power (DC to AC - AC to DC)             |
+| `dc_bus_power_balance`              | \$/kW  | Real-time | DC bus power balance shadow price (per kW)  |
+| `dc_bus_power_balance_energy_price` | \$/kWh | Real-time | DC bus power balance shadow price (per kWh) |
+| `max_power_dc_to_ac_price`          | \$/kW  | Real-time | Max DC to AC power shadow price (per kW)    |
+| `max_power_dc_to_ac_energy_price`   | \$/kWh | Real-time | Max DC to AC power shadow price (per kWh)   |
+| `max_power_ac_to_dc_price`          | \$/kW  | Real-time | Max AC to DC power shadow price (per kW)    |
+| `max_power_ac_to_dc_energy_price`   | \$/kWh | Real-time | Max AC to DC power shadow price (per kWh)   |
 
 The `max_power_*_price` sensors are only created when the corresponding limit is configured.
 
