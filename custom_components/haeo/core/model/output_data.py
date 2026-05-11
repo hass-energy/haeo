@@ -24,9 +24,19 @@ class OutputData:
         advanced: Whether the output is intended for advanced diagnostics only.
         state_last: If True, the sensor state uses the last value instead of the first.
             Use for cumulative values where the total is the meaningful current state.
+        state: Optional scalar that overrides the sensor state (taking precedence over
+            ``state_last`` / ``values[0]``). Use when the per-interval ``values``
+            sequence should drive the forecast attribute but a separately computed
+            scalar (e.g. a clipped 24h total or a running total) is the meaningful
+            state.
         priority: Connection time-preference priority. Lower values are preferred
             earlier by the secondary objective. None for non-connection outputs.
         fixed: Whether the output is constrained to equal its forecast (no curtailment).
+        display_precision: Suggested number of decimal places to display in the UI.
+            Surfaces as Home Assistant's ``suggested_display_precision`` on the
+            sensor entity. Use to override HAEO's smart-rounding default when a
+            sensor has a natural display scale (e.g. dollars to 2 dp). None
+            preserves the existing smart-rounding behaviour.
 
     """
 
@@ -36,8 +46,10 @@ class OutputData:
     direction: Literal["+", "-"] | None = None
     advanced: bool = False
     state_last: bool = False
+    state: Any | None = None
     priority: int | None = None
     fixed: bool = False
+    display_precision: int | None = None
 
     def __init__(
         self,
@@ -48,8 +60,10 @@ class OutputData:
         *,
         advanced: bool = False,
         state_last: bool = False,
+        state: Any | None = None,
         priority: int | None = None,
         fixed: bool = False,
+        display_precision: int | None = None,
     ) -> None:
         """Initialize OutputData.
 
@@ -60,8 +74,12 @@ class OutputData:
             direction: Power flow direction relative to the element.
             advanced: Whether the output is intended for advanced diagnostics only.
             state_last: If True, the sensor state uses the last value instead of the first.
+            state: Optional scalar that overrides the sensor state. When provided,
+                takes precedence over ``state_last`` so the forecast and state can
+                report different views of the same series.
             priority: The connection priority for this output, if applicable.
             fixed: Whether the output is constrained to equal its forecast (no curtailment).
+            display_precision: Optional suggested decimal places for the sensor UI.
 
         """
         self.type = type
@@ -69,8 +87,10 @@ class OutputData:
         self.direction = direction
         self.advanced = advanced
         self.state_last = state_last
+        self.state = state
         self.priority = priority
         self.fixed = fixed
+        self.display_precision = display_precision
 
         # Normalize to a tuple
         if isinstance(values, np.ndarray):

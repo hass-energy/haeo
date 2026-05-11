@@ -143,6 +143,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         self._attr_device_class = output.device_class
         self._attr_state_class = output.state_class
         self._attr_options = list(output.options) if output.options is not None else None
+        self._attr_suggested_display_precision = output.display_precision
 
     @staticmethod
     def _scale_percentage_state(unit: str | None, value: StateType) -> StateType:
