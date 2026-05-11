@@ -64,11 +64,11 @@ Keep examples realistic and representative of typical use cases.
 This element creates sensors organized by device.
 Each device groups related sensors for a specific aspect of the element's operation.
 
-| Sensor                         | Unit  | Description                            |
-| ------------------------------ | ----- | -------------------------------------- |
-| `sensor.{name}_sensor_one`     | kW    | Brief description (link to subsection) |
-| `sensor.{name}_sensor_two`     | kWh   | Brief description (link to subsection) |
-| `sensor.{name}_shadow_price_*` | \$/kW | Shadow price sensors                   |
+| Sensor                         | Unit   | Description                            |
+| ------------------------------ | ------ | -------------------------------------- |
+| `sensor.{name}_sensor_one`     | kW     | Brief description (link to subsection) |
+| `sensor.{name}_sensor_two`     | kWh    | Brief description (link to subsection) |
+| `sensor.{name}_shadow_price_*` | \$/kWh | Shadow price sensors                   |
 
 All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 

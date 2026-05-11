@@ -305,13 +305,13 @@ A Battery element creates a single device in Home Assistant:
 
 These sensors appear on the battery device:
 
-| Sensor                                                       | Unit  | Description                                  |
-| ------------------------------------------------------------ | ----- | -------------------------------------------- |
-| [`sensor.{name}_power_charge`](#charge-power)                | kW    | Charging power                               |
-| [`sensor.{name}_power_discharge`](#discharge-power)          | kW    | Discharging power                            |
-| [`sensor.{name}_energy_stored`](#energy-stored)              | kWh   | Current energy level                         |
-| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %     | State of charge percentage                   |
-| [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kW | Marginal value of power at battery terminals |
+| Sensor                                                       | Unit   | Description                                  |
+| ------------------------------------------------------------ | ------ | -------------------------------------------- |
+| [`sensor.{name}_power_charge`](#charge-power)                | kW     | Charging power                               |
+| [`sensor.{name}_power_discharge`](#discharge-power)          | kW     | Discharging power                            |
+| [`sensor.{name}_energy_stored`](#energy-stored)              | kWh    | Current energy level                         |
+| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %      | State of charge percentage                   |
+| [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kWh | Marginal value of power at battery terminals |
 
 ### Charge Power
 

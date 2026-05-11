@@ -63,7 +63,7 @@ class PowerLimitSegment(Segment):
     def power_limit(self) -> list[highs_linear_expression] | None:
         """Directional power limit constraint (energy-native).
 
-        Formulated as energy: power × Δt ≤ max_power × Δt.
+        Formulated as energy: power * dt <= max_power * dt.
         Shadow prices are $/kWh.
         """
         if self.max_power is None:

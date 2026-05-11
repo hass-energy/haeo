@@ -361,7 +361,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
 
     @constraint(output=True, unit="$/kWh")
     def element_power_balance(self) -> list[highs_linear_expression] | None:
-        """Per-tag energy balance: for each tag, (connection + produced - consumed) × Δt == 0.
+        """Per-tag energy balance: for each tag, (connection + produced - consumed) * dt == 0.
 
         Formulated in energy units (kWh) so that shadow prices are $/kWh,
         independent of period width. Power (kW) is multiplied by the period
