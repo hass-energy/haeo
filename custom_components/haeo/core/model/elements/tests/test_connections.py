@@ -149,6 +149,7 @@ def test_connection_power_properties(solver: Highs) -> None:
         solver=solver,
         source="source_element",
         target="target_element",
+        tags={1},
     )
     source = DummyElement("source_element", conn.periods, solver)
     target = DummyElement("target_element", conn.periods, solver)
@@ -186,6 +187,7 @@ def test_connection_getitem_integer_index(solver: Highs) -> None:
         solver=solver,
         source="a",
         target="b",
+        tags={1},
         segments={
             "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
             "pricing": {"segment_type": "pricing", "price": 0.10},
@@ -211,6 +213,7 @@ def test_connection_getitem_fallback(solver: Highs) -> None:
         solver=solver,
         source="a",
         target="b",
+        tags={1},
     )
     source = DummyElement("a", conn.periods, solver)
     target = DummyElement("b", conn.periods, solver)
@@ -228,6 +231,7 @@ def test_connection_multiple_cost_sources(solver: Highs) -> None:
         solver=solver,
         source="a",
         target="b",
+        tags={1},
         segments={
             "pricing1": {"segment_type": "pricing", "price": 0.10},
             "pricing2": {"segment_type": "pricing", "price": 0.20},

@@ -56,6 +56,7 @@ def _simple_network() -> Network:
             "name": "conn",
             "source": "source",
             "target": "target",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
             },
@@ -173,6 +174,7 @@ def test_element_updater_updates_tracked_params() -> None:
             name="conn",
             source="source",
             target="target",
+            tags={1},
             segments={
                 "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
             },
@@ -197,6 +199,7 @@ def test_element_updater_handles_none_efficiency() -> None:
             "name": "conn",
             "source": "source",
             "target": "target",
+            "tags": {1},
             "segments": {
                 "efficiency": {"segment_type": "efficiency", "efficiency": np.array([0.95, 0.95])},
                 "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},
@@ -211,6 +214,7 @@ def test_element_updater_handles_none_efficiency() -> None:
             name="conn",
             source="source",
             target="target",
+            tags={1},
             segments={
                 "efficiency": {"segment_type": "efficiency", "efficiency": np.array([0.95, 0.95])},
                 "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0, 10.0])},

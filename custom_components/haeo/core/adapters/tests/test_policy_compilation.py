@@ -15,7 +15,6 @@ from typing import Any, Literal, overload
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.adapters import policy_compilation
 from custom_components.haeo.core.adapters.policy_compilation import (
     CompilationResult,
     CompiledPolicyRule,
@@ -119,7 +118,7 @@ def _build_network(result: CompilationResult) -> Network:
 
 def test_identical_prices_separate_rules_get_separate_vlans() -> None:
     """Sources from separate rules get separate VLANs even with identical prices."""
-    elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
+    elements = [_node("grid", is_source=True), _node("solar", is_source=True), _node("load", is_sink=True), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
     policies = [
         _policy(["grid"], ["load"], 0.05),
         _policy(["solar"], ["load"], 0.05),
@@ -132,7 +131,7 @@ def test_identical_prices_separate_rules_get_separate_vlans() -> None:
 
 def test_same_rule_sources_share_vlan() -> None:
     """Sources listed in a single rule share a VLAN regardless of price."""
-    elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
+    elements = [_node("grid", is_source=True), _node("solar", is_source=True), _node("load", is_sink=True), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
     policies = [
         _policy(["grid", "solar"], ["load"], 0.05),
     ]
@@ -142,7 +141,7 @@ def test_same_rule_sources_share_vlan() -> None:
 
 def test_identical_groupings_different_prices_share_vlan() -> None:
     """Rules with the same source/destination grouping share a VLAN even with different prices."""
-    elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
+    elements = [_node("grid", is_source=True), _node("solar", is_source=True), _node("load", is_sink=True), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
     policies = [
         _policy(["grid", "solar"], ["load"], 0.05),
         _policy(["grid", "solar"], ["load"], 0.03),
@@ -315,7 +314,6 @@ def test_wildcard_excludes_source_only_from_destinations() -> None:
         _node("solar", is_source=True),
         _node("load", is_sink=True),
         _conn("grid_load", "grid", "load"),
-        _conn("grid_solar", "grid", "solar"),
     ]
     policies = [_policy(["grid"], ["*"], 0.05)]
     result = compile_policies(elements, policies)
@@ -336,8 +334,8 @@ def test_wildcard_excludes_source_only_from_destinations() -> None:
 def test_vlan_covers_reachable_subgraph() -> None:
     """VLAN covers the directed path from source to destination."""
     elements = [
-        _node("grid"),
-        _node("solar"),
+        _node("grid", is_source=True),
+        _node("solar", is_source=True),
         _junction("sw"),
         _node("load", is_sink=True),
         _conn("grid_sw", "grid", "sw"),
@@ -368,8 +366,8 @@ def test_vlan_covers_reachable_subgraph() -> None:
 def test_inbound_tags_set_on_destination() -> None:
     """Sink destination nodes get inbound tags including all active VLANs."""
     elements = [
-        _node("grid"),
-        _node("solar"),
+        _node("grid", is_source=True),
+        _node("solar", is_source=True),
         _node("load", is_sink=True),
         _conn("c1", "grid", "load"),
         _conn("c2", "solar", "load"),
@@ -772,14 +770,15 @@ def test_compile_policies_without_connections_returns_unchanged() -> None:
     assert result["pricing_rule_map"] == {}
 
 
-def test_compile_policies_junctions_only_still_compiles() -> None:
-    """Junctions-only networks still run through compilation with no pricing."""
+def test_compile_policies_junctions_only_excludes_connections() -> None:
+    """Junctions-only networks exclude unreachable connections from the result."""
     elements = [_junction("sw1"), _junction("sw2"), _conn("c1", "sw1", "sw2")]
     policies = [_policy(["*"], ["*"], 0.05)]
     result = compile_policies(elements, policies)
-    # No source or sink nodes, so no VLANs assigned and no pricing
+    # No source or sink nodes, so no VLANs assigned — unreachable connection is excluded
     assert result["pricing_rule_map"] == {}
     assert len(_pricing_configs(result)) == 0
+    assert len(_connections(result)) == 0
 
 
 def test_compile_policies_unknown_endpoints_still_compiles() -> None:
@@ -891,22 +890,15 @@ def test_zero_price_policy_applies_tags_with_zero_cost() -> None:
     assert all(p["price"] == 0.0 for p in pricing)
 
 
-def test_pricing_injection_skips_non_tagged_incident_connections(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_pricing_injection_skips_non_tagged_incident_connections() -> None:
     """Pricing element terms only reference connections on the min-cut, not untagged ones."""
     elements = [
-        _node("source"),
-        _node("dest"),
-        _node("other"),
+        _node("source", is_source=True),
+        _node("dest", is_sink=True),
+        _node("other", is_source=True),
         _conn("source_dest", "source", "dest"),
         _conn("other_dest", "other", "dest"),
     ]
-    monkeypatch.setattr(
-        policy_compilation,
-        "_find_reachable_connections",
-        lambda _source_nodes, _dest_nodes, _graph, **_kwargs: {"source_dest"},
-    )
     policies = [_policy(["source"], ["dest"], 0.07)]
     result = compile_policies(elements, policies)
 
@@ -1211,6 +1203,7 @@ def test_no_policy_no_extra_cost() -> None:
             "name": "conn",
             "source": "grid",
             "target": "load",
+            "tags": {1},
             "segments": {
                 "pricing": {"segment_type": "pricing", "price": np.array([0.20])},
                 "power_limit": {"segment_type": "power_limit", "max_power": np.array([5.0])},

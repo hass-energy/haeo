@@ -26,7 +26,7 @@ async def test_create_network_successful_loads_load_participant(hass: HomeAssist
     main_bus: NodeConfigData = {
         "element_type": ElementType.NODE,
         "name": "main_bus",
-        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        "role": {CONF_IS_SOURCE: True, CONF_IS_SINK: True},
     }
     baseload: LoadConfigData = {
         "element_type": ElementType.LOAD,
@@ -280,12 +280,12 @@ async def test_create_network_sorts_connections_after_elements(hass: HomeAssista
     node_a: NodeConfigData = {
         "element_type": ElementType.NODE,
         "name": "node_a",
-        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        "role": {CONF_IS_SOURCE: True, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         "element_type": ElementType.NODE,
         "name": "node_b",
-        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: True},
     }
     participants: dict[str, ElementConfigData] = {
         "line": line_cfg,

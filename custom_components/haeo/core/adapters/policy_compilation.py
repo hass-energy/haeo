@@ -199,11 +199,18 @@ def compile_policies(
 
     # --- Step 5: Connection tagging ---
     # Each connection carries only tags whose sources can reach it via
-    # directed paths. In a well-formed network every connection on a
-    # source-to-sink path receives at least one tag.
+    # directed paths. Connections unreachable from any source are excluded
+    # from the result — this happens naturally during incremental config
+    # flow when not all elements exist yet. Once all sources and sinks are
+    # configured, every connection on a source-to-sink path receives at
+    # least one tag.
+    tagged_connections: list[ConnectionElementConfig] = []
     for conn in connections:
         tags = {tag_id for tag_id, reachable in tag_connections.items() if conn["name"] in reachable}
+        if not tags:
+            continue
         conn["tags"] = tags
+        tagged_connections.append(conn)
 
     # --- Step 6: Node outbound tags ---
     # Every source in the tag map gets outbound_tags forcing its production
@@ -288,7 +295,7 @@ def compile_policies(
             pricing_rule_map[rule_idx] = rule_pricing_names
 
     return CompilationResult(
-        elements=[*non_connections, *connections, *pricing_elements],
+        elements=[*non_connections, *tagged_connections, *pricing_elements],
         pricing_rule_map=pricing_rule_map,
     )
 

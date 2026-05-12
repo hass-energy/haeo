@@ -50,12 +50,15 @@ def _round_sig(value: float) -> float:
     relative).  This makes the rounding deterministic without needing any
     midpoint-tie nudging.
 
+    For values >= 1000, ``decimal_places`` goes negative, which makes
+    ``round()`` round to tens, hundreds, etc. — true sig-fig behavior.
+
     Returns 0.0 for zero input.
     """
     if value == 0:
         return 0.0
     decimal_places = _TARGET_SIG_FIGS - math.floor(math.log10(abs(value))) - 1
-    return round(value, max(0, decimal_places)) + 0.0  # +0.0 normalizes -0.0
+    return round(value, decimal_places) + 0.0  # +0.0 normalizes -0.0
 
 
 def _entity_decimal_places(max_abs: float) -> int:
