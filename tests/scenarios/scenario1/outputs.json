@@ -2922,8 +2922,8 @@
         { "time": "2025-10-07T09:59:00.000000+0000", "value": 0.188 },
         { "time": "2025-10-07T10:59:00.000000+0000", "value": 0.147 },
         { "time": "2025-10-07T11:59:00.000000+0000", "value": 0.132 },
-        { "time": "2025-10-07T12:59:00.000000+0000", "value": 0.129 },
-        { "time": "2025-10-07T13:59:00.000000+0000", "value": 0.129 },
+        { "time": "2025-10-07T12:59:00.000000+0000", "value": 0.131 },
+        { "time": "2025-10-07T13:59:00.000000+0000", "value": 0.131 },
         { "time": "2025-10-07T14:59:00.000000+0000", "value": 0.129 },
         { "time": "2025-10-07T15:59:00.000000+0000", "value": 0.112 },
         { "time": "2025-10-07T16:59:00.000000+0000", "value": 0.112 },
@@ -3176,9 +3176,9 @@
         { "time": "2025-10-07T08:59:00.000000+0000", "value": 0.0 },
         { "time": "2025-10-07T09:59:00.000000+0000", "value": 0.041 },
         { "time": "2025-10-07T10:59:00.000000+0000", "value": 0.015 },
-        { "time": "2025-10-07T11:59:00.000000+0000", "value": 0.003 },
+        { "time": "2025-10-07T11:59:00.000000+0000", "value": 0.0 },
         { "time": "2025-10-07T12:59:00.000000+0000", "value": 0.0 },
-        { "time": "2025-10-07T13:59:00.000000+0000", "value": 0.0 },
+        { "time": "2025-10-07T13:59:00.000000+0000", "value": 0.003 },
         { "time": "2025-10-07T14:59:00.000000+0000", "value": 0.017 },
         { "time": "2025-10-07T15:59:00.000000+0000", "value": 0.0 },
         { "time": "2025-10-07T16:59:00.000000+0000", "value": 0.0 },
@@ -5540,6 +5540,7 @@
               { "id": "power_limit", "type": "PowerLimitSegment" }
             ],
             "source": "Inverter",
+            "tags": [1],
             "target": "Battery"
           },
           {
@@ -5549,9 +5550,10 @@
               { "id": "power_limit", "type": "PowerLimitSegment" }
             ],
             "source": "Battery",
+            "tags": [1],
             "target": "Inverter"
           },
-          { "name": "Constant Load:connection", "segments": [{ "id": "power_limit", "type": "PowerLimitSegment" }], "source": "Switchboard", "target": "Constant Load" },
+          { "name": "Constant Load:connection", "segments": [{ "id": "power_limit", "type": "PowerLimitSegment" }], "source": "Switchboard", "tags": [1], "target": "Constant Load" },
           {
             "name": "Grid:export",
             "segments": [
@@ -5559,6 +5561,7 @@
               { "id": "pricing", "type": "PricingSegment" }
             ],
             "source": "Switchboard",
+            "tags": [1],
             "target": "Grid"
           },
           {
@@ -5568,6 +5571,7 @@
               { "id": "pricing", "type": "PricingSegment" }
             ],
             "source": "Grid",
+            "tags": [1],
             "target": "Switchboard"
           },
           {
@@ -5577,6 +5581,7 @@
               { "id": "power_limit", "type": "PowerLimitSegment" }
             ],
             "source": "Switchboard",
+            "tags": [1],
             "target": "Inverter"
           },
           {
@@ -5586,17 +5591,18 @@
               { "id": "power_limit", "type": "PowerLimitSegment" }
             ],
             "source": "Inverter",
+            "tags": [1],
             "target": "Switchboard"
           },
-          { "name": "Solar:connection", "segments": [{ "id": "power_limit", "type": "PowerLimitSegment" }], "source": "Solar", "target": "Inverter" }
+          { "name": "Solar:connection", "segments": [{ "id": "power_limit", "type": "PowerLimitSegment" }], "source": "Solar", "tags": [1], "target": "Inverter" }
         ],
         "groups": { "Battery": ["Battery"], "Constant Load": ["Constant Load"], "Grid": ["Grid"], "Inverter": ["Inverter"], "Solar": ["Solar"], "Switchboard": ["Switchboard"] },
         "nodes": [
-          { "group": "Battery", "name": "Battery", "type": "battery" },
-          { "group": "Constant Load", "name": "Constant Load", "type": "load" },
-          { "group": "Grid", "name": "Grid", "type": "grid" },
+          { "group": "Battery", "inbound_tags": [1], "name": "Battery", "outbound_tags": [1], "type": "battery" },
+          { "group": "Constant Load", "inbound_tags": [1], "name": "Constant Load", "type": "load" },
+          { "group": "Grid", "inbound_tags": [1], "name": "Grid", "outbound_tags": [1], "type": "grid" },
           { "group": "Inverter", "name": "Inverter", "type": "inverter" },
-          { "group": "Solar", "name": "Solar", "type": "solar" },
+          { "group": "Solar", "name": "Solar", "outbound_tags": [1], "type": "solar" },
           { "group": "Switchboard", "name": "Switchboard", "type": "node" }
         ]
       }
