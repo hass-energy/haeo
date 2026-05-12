@@ -1,159 +1,176 @@
-"""Tests for calendar event parsing and trip window extraction."""
+"""Tests for calendar event loading and value extraction."""
 
-from datetime import UTC, datetime
-
-import pytest
+from datetime import datetime, timezone
 
 from custom_components.haeo.core.data.loader.calendar import (
-    TripEventData,
-    TripWindow,
-    extract_trip_windows,
+    CalendarEventData,
+    CalendarWindow,
+    extract_calendar_windows,
+    make_distance_extractor,
+    make_presence_extractor,
     parse_distance,
+    parse_number,
 )
 
-# --- parse_distance tests ---
+
+# --- parse_distance ---
 
 
-@pytest.mark.parametrize(
-    ("location", "expected"),
-    [
-        pytest.param("50 km", (50.0, "km"), id="km_with_space"),
-        pytest.param("50km", (50.0, "km"), id="km_no_space"),
-        pytest.param("30 mi", (30.0, "mi"), id="mi_with_space"),
-        pytest.param("30mi", (30.0, "mi"), id="mi_no_space"),
-        pytest.param("100.5 miles", (100.5, "mi"), id="miles_decimal"),
-        pytest.param("15.2 m", (15.2, "m"), id="meters"),
-        pytest.param("200 meters", (200.0, "m"), id="meters_long"),
-        pytest.param("10 kilometer", (10.0, "km"), id="kilometer_singular"),
-        pytest.param("10 kilometres", (10.0, "km"), id="kilometres_british"),
-        pytest.param("5 ft", (5.0, "ft"), id="feet"),
-        pytest.param("3 yd", (3.0, "yd"), id="yards"),
-        pytest.param("3 yards", (3.0, "yd"), id="yards_long"),
-        pytest.param("  50 km  ", (50.0, "km"), id="whitespace_padded"),
-    ],
-)
-def test_parse_distance_valid(location: str, expected: tuple[float, str]) -> None:
-    """Valid distance strings parse correctly."""
-    assert parse_distance(location) == expected
+def test_parse_distance_km():
+    assert parse_distance("50 km") == (50.0, "km")
 
 
-@pytest.mark.parametrize(
-    "location",
-    [
-        pytest.param("", id="empty"),
-        pytest.param("no number here", id="no_number"),
-        pytest.param("50", id="no_unit"),
-        pytest.param("50 fathoms", id="unknown_unit"),
-        pytest.param("km 50", id="unit_before_number"),
-        pytest.param("50 km extra", id="extra_text"),
-    ],
-)
-def test_parse_distance_invalid(location: str) -> None:
-    """Invalid distance strings return None."""
-    assert parse_distance(location) is None
+def test_parse_distance_miles():
+    assert parse_distance("30mi") == (30.0, "mi")
 
 
-# --- extract_trip_windows tests ---
+def test_parse_distance_decimal():
+    assert parse_distance("100.5 kilometers") == (100.5, "km")
+
+
+def test_parse_distance_metres():
+    assert parse_distance("15.2 m") == (15.2, "m")
+
+
+def test_parse_distance_feet():
+    assert parse_distance("500 feet") == (500.0, "ft")
+
+
+def test_parse_distance_yards():
+    assert parse_distance("100 yd") == (100.0, "yd")
+
+
+def test_parse_distance_unknown_unit():
+    assert parse_distance("50 furlongs") is None
+
+
+def test_parse_distance_no_number():
+    assert parse_distance("home") is None
+
+
+def test_parse_distance_empty():
+    assert parse_distance("") is None
+
+
+def test_parse_distance_whitespace():
+    assert parse_distance("  50  km  ") == (50.0, "km")
+
+
+def test_parse_distance_integer():
+    assert parse_distance("100km") == (100.0, "km")
+
+
+# --- parse_number ---
+
+
+def test_parse_number_integer():
+    assert parse_number("42") == 42.0
+
+
+def test_parse_number_decimal():
+    assert parse_number("3.14") == 3.14
+
+
+def test_parse_number_whitespace():
+    assert parse_number("  7.5  ") == 7.5
+
+
+def test_parse_number_invalid():
+    assert parse_number("abc") is None
+
+
+def test_parse_number_empty():
+    assert parse_number("") is None
+
+
+# --- extract_calendar_windows ---
 
 
 def _dt(hour: int, minute: int = 0) -> datetime:
-    """Create a UTC datetime on a fixed date for testing."""
-    return datetime(2024, 1, 15, hour, minute, tzinfo=UTC)
+    return datetime(2025, 1, 1, hour, minute, tzinfo=timezone.utc)
 
 
-def test_extract_trip_windows_basic() -> None:
-    """Trip window extracted with correct energy calculation."""
+def _event(start_h: int, end_h: int, location: str | None = None) -> CalendarEventData:
+    return CalendarEventData(start=_dt(start_h), end=_dt(end_h), location=location)
+
+
+def test_extract_with_presence_extractor():
+    events = [_event(9, 10), _event(14, 16)]
+    windows = extract_calendar_windows(events, make_presence_extractor())
+    assert len(windows) == 2
+    assert windows[0].value == 1.0
+    assert windows[1].value == 1.0
+
+
+def test_extract_with_distance_extractor():
     events = [
-        TripEventData(start=_dt(8), end=_dt(10), location="50 km"),
+        CalendarEventData(start=_dt(9), end=_dt(10), location="50 km"),
+        CalendarEventData(start=_dt(14), end=_dt(16), location="30 km"),
     ]
-    result = extract_trip_windows(events, energy_per_distance=0.2, distance_unit="km", ha_default_distance_unit="km")
-    assert len(result) == 1
-    assert result[0] == TripWindow(start=_dt(8), end=_dt(10), distance=50.0, energy_kwh=10.0)
+    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
+    windows = extract_calendar_windows(events, extractor)
+    assert len(windows) == 2
+    assert windows[0].value == 10.0  # 50 * 0.2
+    assert windows[1].value == 6.0  # 30 * 0.2
 
 
-def test_extract_trip_windows_no_location() -> None:
-    """Missing location results in zero-distance trip."""
-    events = [
-        TripEventData(start=_dt(8), end=_dt(10), location=None),
-    ]
-    result = extract_trip_windows(events, energy_per_distance=0.2, distance_unit="km", ha_default_distance_unit="km")
-    assert len(result) == 1
-    assert result[0].distance == 0.0
-    assert result[0].energy_kwh == 0.0
+def test_extract_skips_no_location():
+    events = [CalendarEventData(start=_dt(9), end=_dt(10), location=None)]
+    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
+    windows = extract_calendar_windows(events, extractor)
+    assert len(windows) == 0
 
 
-def test_extract_trip_windows_unparseable_location() -> None:
-    """Invalid location string results in zero-distance trip."""
-    events = [
-        TripEventData(start=_dt(8), end=_dt(10), location="office"),
-    ]
-    result = extract_trip_windows(events, energy_per_distance=0.2, distance_unit="km", ha_default_distance_unit="km")
-    assert len(result) == 1
-    assert result[0].distance == 0.0
-    assert result[0].energy_kwh == 0.0
+def test_extract_skips_unparseable_location():
+    events = [CalendarEventData(start=_dt(9), end=_dt(10), location="home")]
+    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
+    windows = extract_calendar_windows(events, extractor)
+    assert len(windows) == 0
 
 
-def test_extract_trip_windows_end_before_start_skipped() -> None:
-    """Events where end <= start are filtered out."""
-    events = [
-        TripEventData(start=_dt(10), end=_dt(8), location="50 km"),
-        TripEventData(start=_dt(10), end=_dt(10), location="50 km"),
-    ]
-    result = extract_trip_windows(events, energy_per_distance=0.2, distance_unit="km", ha_default_distance_unit="km")
-    assert result == []
+def test_extract_end_before_start_skipped():
+    events = [_event(10, 9)]
+    windows = extract_calendar_windows(events, make_presence_extractor())
+    assert len(windows) == 0
 
 
-def test_extract_trip_windows_sorted_by_start() -> None:
-    """Results are sorted by start time regardless of input order."""
-    events = [
-        TripEventData(start=_dt(14), end=_dt(16), location="30 km"),
-        TripEventData(start=_dt(8), end=_dt(10), location="50 km"),
-    ]
-    result = extract_trip_windows(events, energy_per_distance=0.2, distance_unit="km", ha_default_distance_unit="km")
-    assert len(result) == 2
-    assert result[0].start == _dt(8)
-    assert result[1].start == _dt(14)
+def test_extract_sorted_by_start():
+    events = [_event(14, 16), _event(9, 10)]
+    windows = extract_calendar_windows(events, make_presence_extractor())
+    assert windows[0].start == _dt(9)
+    assert windows[1].start == _dt(14)
 
 
-def test_extract_trip_windows_unit_conversion() -> None:
-    """Distance is converted to the energy_per_distance unit when different."""
-    events = [
-        TripEventData(start=_dt(8), end=_dt(10), location="30 mi"),
-    ]
+def test_extract_unit_conversion():
+    events = [CalendarEventData(start=_dt(9), end=_dt(10), location="10 mi")]
 
-    def mock_convert(value: float, from_unit: str, to_unit: str) -> float:
-        assert from_unit == "mi"
-        assert to_unit == "km"
-        return value * 1.60934
+    def convert(value: float, from_unit: str, to_unit: str) -> float:
+        if from_unit == "mi" and to_unit == "km":
+            return value * 1.60934
+        return value
 
-    result = extract_trip_windows(
-        events,
-        energy_per_distance=0.2,
-        distance_unit="km",
-        ha_default_distance_unit="km",
-        convert_distance=mock_convert,
+    extractor = make_distance_extractor(
+        energy_per_distance=0.2, target_unit="km", convert_distance=convert,
     )
-    assert len(result) == 1
-    assert result[0].distance == pytest.approx(48.2802, rel=1e-3)
-    assert result[0].energy_kwh == pytest.approx(9.6560, rel=1e-3)
+    windows = extract_calendar_windows(events, extractor)
+    assert len(windows) == 1
+    assert abs(windows[0].value - 10 * 1.60934 * 0.2) < 0.001
 
 
-def test_extract_trip_windows_same_unit_no_conversion() -> None:
-    """No unit conversion occurs when event unit matches energy_per_distance unit."""
+def test_extract_custom_value_fn():
+    """Test with a completely custom extraction function."""
     events = [
-        TripEventData(start=_dt(8), end=_dt(10), location="50 km"),
+        CalendarEventData(start=_dt(9), end=_dt(10), summary="Meeting"),
+        CalendarEventData(start=_dt(14), end=_dt(16), summary="3.5 kW"),
     ]
 
-    def should_not_be_called(value: float, from_unit: str, to_unit: str) -> float:
-        msg = "Conversion should not be called"
-        raise AssertionError(msg)
+    def extract_power(event: CalendarEventData) -> float | None:
+        if event.summary is None:
+            return None
+        result = parse_number(event.summary.replace(" kW", ""))
+        return result
 
-    result = extract_trip_windows(
-        events,
-        energy_per_distance=0.2,
-        distance_unit="km",
-        ha_default_distance_unit="km",
-        convert_distance=should_not_be_called,
-    )
-    assert len(result) == 1
-    assert result[0].distance == 50.0
+    windows = extract_calendar_windows(events, extract_power)
+    assert len(windows) == 1
+    assert windows[0].value == 3.5
+    assert windows[0].start == _dt(14)

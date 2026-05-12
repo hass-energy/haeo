@@ -1,171 +1,157 @@
-"""Tests for calendar fuser - converting trip windows to boundary-aligned arrays."""
+"""Tests for calendar window fusion to horizon boundaries."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timedelta, timezone
 
-import pytest
-
-from custom_components.haeo.core.data.loader.calendar import TripWindow
-from custom_components.haeo.core.data.util.calendar_fuser import compute_mid_trip_energy, fuse_trips_to_boundaries
+from custom_components.haeo.core.data.loader.calendar import CalendarWindow
+from custom_components.haeo.core.data.util.calendar_fuser import (
+    fill_none,
+    fuse_windows_to_boundaries,
+)
 
 
 def _dt(hour: int, minute: int = 0) -> datetime:
-    """Create a UTC datetime on a fixed date for testing."""
-    return datetime(2024, 1, 15, hour, minute, tzinfo=UTC)
+    return datetime(2025, 1, 1, hour, minute, tzinfo=timezone.utc)
 
 
-# --- fuse_trips_to_boundaries tests ---
+def _boundaries(*hours: int) -> list[datetime]:
+    return [_dt(h) for h in hours]
 
 
-def test_fuse_no_trips() -> None:
-    """No trips means all connected, zero capacity."""
-    boundaries = [_dt(0), _dt(1), _dt(2), _dt(3)]
-    connected, capacity = fuse_trips_to_boundaries([], boundaries)
-    assert connected == [1.0, 1.0, 1.0, 1.0]
-    assert capacity == [0.0, 0.0, 0.0, 0.0]
+def _window(start_h: int, end_h: int, value: float = 1.0) -> CalendarWindow:
+    return CalendarWindow(start=_dt(start_h), end=_dt(end_h), value=value)
 
 
-def test_fuse_empty_boundaries() -> None:
-    """Empty horizon returns empty arrays."""
-    connected, capacity = fuse_trips_to_boundaries([], [])
-    assert connected == []
-    assert capacity == []
+# --- fuse_windows_to_boundaries ---
 
 
-def test_fuse_single_trip_aligned() -> None:
-    """Trip aligned exactly to boundary times."""
-    boundaries = [_dt(0), _dt(1), _dt(2), _dt(3), _dt(4)]
-    trips = [TripWindow(start=_dt(1), end=_dt(3), distance=50.0, energy_kwh=10.0)]
-
-    connected, capacity = fuse_trips_to_boundaries(trips, boundaries)
-
-    # Trip from hour 1 to hour 3: boundaries 1,2 are disconnected
-    assert connected == [1.0, 0.0, 0.0, 1.0, 1.0]
-    assert capacity == [0.0, 10.0, 10.0, 0.0, 0.0]
+def test_fuse_no_windows():
+    result = fuse_windows_to_boundaries([], _boundaries(8, 9, 10, 11))
+    assert result == [None, None, None, None]
 
 
-def test_fuse_single_trip_mid_period() -> None:
-    """Trip starting mid-period floors to period start."""
-    boundaries = [_dt(0), _dt(1), _dt(2), _dt(3)]
-    # Trip starts at 0:30, end at 1:30
-    # Start floors to boundary 0 (period 0-1)
-    # End ceils to boundary 2 (period 1-2)
-    trips = [TripWindow(start=_dt(0, 30), end=_dt(1, 30), distance=30.0, energy_kwh=6.0)]
-
-    connected, capacity = fuse_trips_to_boundaries(trips, boundaries)
-
-    assert connected == [0.0, 0.0, 1.0, 1.0]
-    assert capacity == [6.0, 6.0, 0.0, 0.0]
+def test_fuse_empty_boundaries():
+    result = fuse_windows_to_boundaries([_window(8, 10)], [])
+    assert result == []
 
 
-def test_fuse_multiple_trips() -> None:
-    """Multiple non-overlapping trips."""
-    boundaries = [_dt(0), _dt(1), _dt(2), _dt(3), _dt(4), _dt(5), _dt(6)]
-    trips = [
-        TripWindow(start=_dt(1), end=_dt(2), distance=20.0, energy_kwh=4.0),
-        TripWindow(start=_dt(4), end=_dt(5), distance=30.0, energy_kwh=6.0),
+def test_fuse_single_window_aligned():
+    """Window exactly covers one period."""
+    result = fuse_windows_to_boundaries(
+        [_window(9, 10, value=5.0)],
+        _boundaries(8, 9, 10, 11),
+    )
+    assert result == [None, 5.0, None, None]
+
+
+def test_fuse_single_window_mid_period():
+    """Window starts/ends mid-period — snaps to period boundaries."""
+    result = fuse_windows_to_boundaries(
+        [CalendarWindow(start=_dt(9, 15), end=_dt(9, 45), value=3.0)],
+        _boundaries(8, 9, 10, 11),
+    )
+    # 9:15 floors to boundary[1] (9:00), 9:45 ceils to boundary[2] (10:00)
+    assert result == [None, 3.0, None, None]
+
+
+def test_fuse_spanning_multiple_periods():
+    result = fuse_windows_to_boundaries(
+        [_window(9, 11, value=7.0)],
+        _boundaries(8, 9, 10, 11, 12),
+    )
+    assert result == [None, 7.0, 7.0, None, None]
+
+
+def test_fuse_multiple_windows():
+    result = fuse_windows_to_boundaries(
+        [_window(8, 9, value=1.0), _window(10, 11, value=2.0)],
+        _boundaries(8, 9, 10, 11),
+    )
+    assert result == [1.0, None, 2.0, None]
+
+
+def test_fuse_window_outside_horizon():
+    result = fuse_windows_to_boundaries(
+        [_window(5, 6, value=1.0)],
+        _boundaries(8, 9, 10),
+    )
+    assert result == [None, None, None]
+
+
+def test_fuse_window_partially_overlaps_start():
+    result = fuse_windows_to_boundaries(
+        [_window(7, 9, value=4.0)],
+        _boundaries(8, 9, 10),
+    )
+    # Window starts before horizon (floors to 0), ends at boundary[1]
+    assert result == [4.0, None, None]
+
+
+def test_fuse_window_partially_overlaps_end():
+    result = fuse_windows_to_boundaries(
+        [_window(9, 12, value=4.0)],
+        _boundaries(8, 9, 10),
+    )
+    assert result == [None, 4.0, 4.0]
+
+
+def test_fuse_overlapping_windows_last_wins():
+    result = fuse_windows_to_boundaries(
+        [_window(9, 11, value=1.0), _window(10, 12, value=2.0)],
+        _boundaries(8, 9, 10, 11, 12),
+    )
+    # Period 10-11 overlapped by both; second window (value=2.0) wins
+    assert result == [None, 1.0, 2.0, 2.0, None]
+
+
+# --- fill_none ---
+
+
+def test_fill_none_with_zero():
+    assert fill_none([1.0, None, 2.0, None], 0.0) == [1.0, 0.0, 2.0, 0.0]
+
+
+def test_fill_none_with_one():
+    """Connected-flag pattern: None = connected = 1.0"""
+    assert fill_none([None, 0.5, None], 1.0) == [1.0, 0.5, 1.0]
+
+
+def test_fill_none_empty():
+    assert fill_none([], 0.0) == []
+
+
+def test_fill_none_all_none():
+    assert fill_none([None, None, None], 42.0) == [42.0, 42.0, 42.0]
+
+
+def test_fill_none_no_none():
+    assert fill_none([1.0, 2.0, 3.0], 0.0) == [1.0, 2.0, 3.0]
+
+
+# --- Integration: windows → boundaries → filled ---
+
+
+def test_integration_ev_availability():
+    """Simulate EV disconnected during a trip, connected otherwise."""
+    windows = [_window(9, 11, value=0.0)]  # away = 0.0
+    boundaries = _boundaries(6, 7, 8, 9, 10, 11, 12, 13)
+
+    raw = fuse_windows_to_boundaries(windows, boundaries)
+    assert raw == [None, None, None, 0.0, 0.0, None, None, None]
+
+    filled = fill_none(raw, 1.0)  # connected = 1.0
+    assert filled == [1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+
+
+def test_integration_energy_demand():
+    """Simulate energy demand during trip windows."""
+    windows = [
+        _window(9, 10, value=5.0),  # 5 kWh trip
+        _window(14, 16, value=12.0),  # 12 kWh trip
     ]
+    boundaries = _boundaries(8, 9, 10, 11, 12, 13, 14, 15, 16, 17)
 
-    connected, capacity = fuse_trips_to_boundaries(trips, boundaries)
+    raw = fuse_windows_to_boundaries(windows, boundaries)
+    assert raw == [None, 5.0, None, None, None, None, 12.0, 12.0, None, None]
 
-    assert connected == [1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0]
-    assert capacity == [0.0, 4.0, 0.0, 0.0, 6.0, 0.0, 0.0]
-
-
-def test_fuse_trip_outside_horizon() -> None:
-    """Trip entirely outside the horizon is ignored."""
-    boundaries = [_dt(2), _dt(3), _dt(4)]
-    trips = [TripWindow(start=_dt(0), end=_dt(1), distance=50.0, energy_kwh=10.0)]
-
-    connected, capacity = fuse_trips_to_boundaries(trips, boundaries)
-
-    assert connected == [1.0, 1.0, 1.0]
-    assert capacity == [0.0, 0.0, 0.0]
-
-
-def test_fuse_trip_partially_overlaps_horizon_start() -> None:
-    """Trip that starts before the horizon but ends within it."""
-    boundaries = [_dt(2), _dt(3), _dt(4), _dt(5)]
-    trips = [TripWindow(start=_dt(1), end=_dt(3), distance=50.0, energy_kwh=10.0)]
-
-    connected, capacity = fuse_trips_to_boundaries(trips, boundaries)
-
-    # Trip ends at hour 3 = boundary index 1, start clamped to 0
-    # Range [0, 1) so only boundary 0 is disconnected
-    assert connected == [0.0, 1.0, 1.0, 1.0]
-    assert capacity == [10.0, 0.0, 0.0, 0.0]
-
-
-# --- compute_mid_trip_energy tests ---
-
-
-def test_mid_trip_no_progress() -> None:
-    """No odometer update means full energy remaining (conservative)."""
-    remaining, initial_pct = compute_mid_trip_energy(
-        current_odometer=1000.0,
-        disconnect_odometer=1000.0,
-        energy_per_distance=0.2,
-        total_trip_energy=10.0,
-    )
-    assert remaining == 10.0
-    assert initial_pct == 0.0
-
-
-def test_mid_trip_partial_progress() -> None:
-    """Odometer shows partial progress, energy partially consumed."""
-    remaining, initial_pct = compute_mid_trip_energy(
-        current_odometer=1025.0,
-        disconnect_odometer=1000.0,
-        energy_per_distance=0.2,
-        total_trip_energy=10.0,
-    )
-    # 25 km * 0.2 kWh/km = 5.0 kWh consumed
-    assert remaining == pytest.approx(5.0)
-    assert initial_pct == pytest.approx(50.0)
-
-
-def test_mid_trip_complete() -> None:
-    """Odometer shows trip distance met or exceeded."""
-    remaining, initial_pct = compute_mid_trip_energy(
-        current_odometer=1050.0,
-        disconnect_odometer=1000.0,
-        energy_per_distance=0.2,
-        total_trip_energy=10.0,
-    )
-    assert remaining == 0.0
-    assert initial_pct == 100.0
-
-
-def test_mid_trip_exceeds_total() -> None:
-    """Odometer shows more distance than expected - capped at 100%."""
-    remaining, initial_pct = compute_mid_trip_energy(
-        current_odometer=1100.0,
-        disconnect_odometer=1000.0,
-        energy_per_distance=0.2,
-        total_trip_energy=10.0,
-    )
-    assert remaining == 0.0
-    assert initial_pct == 100.0
-
-
-def test_mid_trip_zero_total_energy() -> None:
-    """Zero trip energy means already complete (100%)."""
-    remaining, initial_pct = compute_mid_trip_energy(
-        current_odometer=1000.0,
-        disconnect_odometer=1000.0,
-        energy_per_distance=0.2,
-        total_trip_energy=0.0,
-    )
-    assert remaining == 0.0
-    assert initial_pct == 100.0
-
-
-def test_mid_trip_negative_odometer_delta() -> None:
-    """Negative odometer delta treated as zero progress."""
-    remaining, initial_pct = compute_mid_trip_energy(
-        current_odometer=990.0,
-        disconnect_odometer=1000.0,
-        energy_per_distance=0.2,
-        total_trip_energy=10.0,
-    )
-    assert remaining == 10.0
-    assert initial_pct == 0.0
+    filled = fill_none(raw, 0.0)
+    assert filled == [0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 12.0, 12.0, 0.0, 0.0]

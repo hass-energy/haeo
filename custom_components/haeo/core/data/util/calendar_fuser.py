@@ -1,4 +1,9 @@
-"""Fuse calendar trip windows into horizon-aligned time-series arrays."""
+"""Fuse calendar windows into horizon-aligned time-series arrays.
+
+Takes a list of CalendarWindow objects and a sequence of horizon boundary
+timestamps, and produces a boundary-aligned array of values. Boundaries
+outside any window get None — the caller decides the fill strategy.
+"""
 
 from __future__ import annotations
 
@@ -6,106 +11,75 @@ import bisect
 from collections.abc import Sequence
 from datetime import datetime
 
-from custom_components.haeo.core.data.loader.calendar import TripWindow
+from custom_components.haeo.core.data.loader.calendar import CalendarWindow
 
 
-def fuse_trips_to_boundaries(
-    trips: list[TripWindow],
+def fuse_windows_to_boundaries(
+    windows: list[CalendarWindow],
     horizon_times: Sequence[datetime],
-) -> tuple[list[float], list[float]]:
-    """Convert trip windows into boundary-aligned time-series arrays.
+) -> list[float | None]:
+    """Convert calendar windows into a boundary-aligned value array.
 
-    Produces two arrays aligned to the optimization horizon boundaries:
-    - connected_flag: 1.0 when the vehicle is at home, 0.0 when away
-    - trip_capacity: trip battery capacity (kWh) at each boundary
+    For each boundary point, returns the value of the window that contains it,
+    or None if the boundary is outside all windows.
 
     Aliasing rules:
-    - Trip start snaps to the start of the containing period (floor)
-    - Trip end snaps to the end of the containing period (ceiling)
-    - This ensures no overlap between charging and driving in a single period
+    - Window start snaps to the start of the containing period (floor)
+    - Window end snaps to the end of the containing period (ceiling)
+    - This ensures clean period boundaries with no partial overlaps
+
+    When multiple windows overlap at a boundary, the last window's value wins.
 
     Args:
-        trips: Sorted list of trip windows (non-overlapping).
+        windows: Sorted list of calendar windows (may overlap).
         horizon_times: n+1 boundary timestamps defining n periods.
 
     Returns:
-        Tuple of (connected_flag, trip_capacity), each with n+1 values.
+        List of n+1 values (float or None), one per boundary.
 
     """
     n_boundaries = len(horizon_times)
     if n_boundaries == 0:
-        return ([], [])
+        return []
 
-    connected = [1.0] * n_boundaries
-    capacity = [0.0] * n_boundaries
+    values: list[float | None] = [None] * n_boundaries
 
-    for trip in trips:
-        # Find the period boundaries that the trip spans
-        # Trip start floors to the start of its containing period
-        start_idx = _floor_boundary_index(trip.start, horizon_times)
-        # Trip end ceils to the end of its containing period
-        end_idx = _ceil_boundary_index(trip.end, horizon_times)
+    for window in windows:
+        start_idx = _floor_boundary_index(window.start, horizon_times)
+        end_idx = _ceil_boundary_index(window.end, horizon_times)
 
         if start_idx >= n_boundaries or end_idx <= 0:
             continue
 
-        # Clamp to horizon range
         start_idx = max(start_idx, 0)
         end_idx = min(end_idx, n_boundaries)
 
-        # Set disconnected and trip capacity for boundaries in the trip range
         for i in range(start_idx, end_idx):
-            connected[i] = 0.0
-            capacity[i] = trip.energy_kwh
+            values[i] = window.value
 
-    return (connected, capacity)
+    return values
 
 
-def compute_mid_trip_energy(
-    current_odometer: float,
-    disconnect_odometer: float,
-    energy_per_distance: float,
-    total_trip_energy: float,
-) -> tuple[float, float]:
-    """Compute remaining trip energy and initial charge for mid-trip tracking.
+def fill_none(
+    values: list[float | None],
+    default: float,
+) -> list[float]:
+    """Replace None values with a default.
 
-    Uses the odometer delta to estimate energy consumed so far.
-    If no odometer update is available (delta=0), conservatively assumes
-    no progress has been made — full trip energy is still required.
-
-    Args:
-        current_odometer: Current odometer reading.
-        disconnect_odometer: Odometer reading when vehicle was disconnected.
-        energy_per_distance: Energy consumption per unit distance (kWh/unit).
-        total_trip_energy: Total expected energy for the full trip (kWh).
-
-    Returns:
-        Tuple of (remaining_capacity_kwh, initial_charge_percentage)
-        where initial_charge_percentage is 0-100.
-
+    Common fill strategies:
+    - fill_none(values, 0.0)  — zero outside events (e.g. energy demand)
+    - fill_none(values, 1.0)  — one outside events (e.g. connected flag)
     """
-    distance_traveled = max(0.0, current_odometer - disconnect_odometer)
-    energy_consumed = distance_traveled * energy_per_distance
-    remaining = max(0.0, total_trip_energy - energy_consumed)
-
-    initial_charge_pct = min(100.0, (energy_consumed / total_trip_energy) * 100.0) if total_trip_energy > 0.0 else 100.0
-
-    return (remaining, initial_charge_pct)
+    return [default if v is None else v for v in values]
 
 
 def _floor_boundary_index(dt: datetime, boundaries: Sequence[datetime]) -> int:
-    """Find the boundary index at or before dt (floor to period start).
-
-    Returns the index of the last boundary that is <= dt.
-    """
+    """Find the boundary index at or before dt (floor to period start)."""
     idx = bisect.bisect_right(boundaries, dt) - 1
     return max(idx, 0)
 
 
 def _ceil_boundary_index(dt: datetime, boundaries: Sequence[datetime]) -> int:
-    """Find the boundary index at or after dt (ceil to period end).
-
-    Returns the index of the first boundary that is >= dt.
-    """
+    """Find the boundary index at or after dt (ceil to period end)."""
     idx = bisect.bisect_left(boundaries, dt)
     return min(idx, len(boundaries))
