@@ -254,12 +254,13 @@ def _build_hub_entry(entry_id: str = "hub_entry") -> MockConfigEntry:
     )
 
 
-async def test_rounding_is_per_entity_not_per_unit(hass: HomeAssistant) -> None:
-    """Small-magnitude entities keep precision regardless of larger-magnitude siblings.
+async def test_rounding_two_pass_per_value_then_per_entity(hass: HomeAssistant) -> None:
+    """Values are first stabilized per-value, then capped to the entity's scale.
 
-    Regression: the previous unit-level bucketing rounded all entities in a unit
-    to the coarsest entity's precision, which obliterated Amber sub-dollar prices
-    (unit=None) whenever a $10/kWh policy entity (also unit=None) was present.
+    Pass 1 rounds each value to 3 sig figs independently, stabilizing midpoint
+    ties and boundary values.  Pass 2 re-rounds all values to the decimal places
+    derived from the entity's (now stable) maximum, suppressing noise in small
+    values while keeping the entity's precision uniform.
     """
     entry = _build_hub_entry()
     entry.add_to_hass(hass)
@@ -301,11 +302,11 @@ async def test_rounding_is_per_entity_not_per_unit(hass: HomeAssistant) -> None:
 
     output_sensors = get_output_sensors(hass, entry)
 
-    # Policy entity (max=10) gets 1 decimal place - 3 sigfigs of 10.0.
+    # Policy entity: 10.0 -> pass 1: 10.0, pass 2 (dp=1): 10.0
     assert output_sensors[policy_entry.entity_id]["state"] == "10.0"
 
-    # Amber entity (max=0.1472) should keep its sub-0.1 precision.
-    # Per-entity rounding: magnitude(0.1472)=-1 so decimals=3.
+    # Amber entity: max after pass 1 is 0.147 (magnitude=-1, dp=3).
+    # Pass 2 re-rounds all values to 3 dp.
     amber_data = output_sensors[amber_entry.entity_id]
     assert amber_data["state"] == "0.08"
     attributes = amber_data["attributes"]
@@ -344,7 +345,7 @@ async def test_rounding_handles_mixed_magnitudes_same_unit(hass: HomeAssistant) 
 
     output_sensors = get_output_sensors(hass, entry)
 
-    # max=55 -> magnitude=1 -> decimals=1
+    # max=55 -> pass 1: 55.4, pass 2 (magnitude=1, dp=1): 55.4
     assert output_sensors[big.entity_id]["state"] == "55.4"
-    # max=0.004321 -> magnitude=-3 -> decimals=5
+    # max=0.004321 -> pass 1: 0.00432, pass 2 (magnitude=-3, dp=5): 0.00432
     assert output_sensors[small.entity_id]["state"] == "0.00432"

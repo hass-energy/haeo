@@ -122,8 +122,9 @@ async def test_create_network_applies_policy_rules_to_connections(hass: HomeAssi
     line = network.elements["line"]
     assert isinstance(line, Connection)
     tags = line.connection_tags()
-    assert 0 in tags
-    assert max(tags) >= 1
+    # node_a is the only source and is policied (VLAN 1), so the connection
+    # only carries the VLAN tag — no unpolicied source can reach it.
+    assert tags == {1}
 
     # Policy pricing is handled by PolicyPricing elements via element updaters
     assert "policies" in element_updaters
