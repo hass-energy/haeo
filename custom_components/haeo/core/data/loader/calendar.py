@@ -11,11 +11,17 @@ gaps (e.g. 0.0 for availability, hold-last for a schedule, etc.).
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 import re
-from typing import Final
+from typing import TYPE_CHECKING, Any, Final
+
+from custom_components.haeo.core.schema.calendar_value import CalendarEventDict
+
+if TYPE_CHECKING:
+    from custom_components.haeo.core.schema.calendar_value import CalendarValue
+    from custom_components.haeo.core.state import StateMachine
 
 
 @dataclass(frozen=True)
@@ -176,3 +182,93 @@ def make_presence_extractor(present_value: float = 1.0) -> EventValueFn:
         return present_value
 
     return _extract
+
+
+def load_calendar_events(
+    value: CalendarValue,
+    sm: StateMachine,
+) -> list[CalendarEventData]:
+    """Load calendar events from a CalendarValue schema field.
+
+    Two paths based on type discrimination:
+    - If ``value["events"]`` is populated (diagnostic replay), parse directly
+    - Otherwise, load from the StateMachine (live HA entity)
+
+    The live path reads events from the entity's ``haeo_events`` attribute,
+    which must be injected by the HA-level calendar service caller before
+    the core loader sees it.
+
+    Args:
+        value: Calendar schema value with entity_id and optional captured events.
+        sm: State machine for entity state lookup.
+
+    Returns:
+        List of CalendarEventData objects.
+
+    """
+    # Path 1: Events already captured (diagnostic replay / scenario test)
+    if value.get("events") is not None:
+        return _parse_event_dicts(value["events"])
+
+    # Path 2: Load from entity state
+    entity_id = value["value"]
+    state = sm.get(entity_id)
+    if state is None:
+        return []
+
+    # Events are expected in the haeo_events attribute, injected by the
+    # HA-level adapter before the core loader runs.
+    raw_events = state.attributes.get("haeo_events")
+    if not isinstance(raw_events, list):
+        return []
+
+    return _parse_event_dicts(raw_events)
+
+
+def capture_calendar_events(
+    events: list[CalendarEventData],
+) -> list[CalendarEventDict]:
+    """Serialize calendar events for diagnostics capture.
+
+    Produces the format stored in CalendarValue.events and in
+    entity state attributes for diagnostic replay.
+    """
+    return [
+        CalendarEventDict(
+            start=event.start.isoformat(),
+            end=event.end.isoformat(),
+            summary=event.summary,
+            location=event.location,
+            description=event.description,
+        )
+        for event in events
+    ]
+
+
+def _parse_event_dicts(
+    raw_events: Sequence[Any],
+) -> list[CalendarEventData]:
+    """Parse a list of event dicts into CalendarEventData objects."""
+    events: list[CalendarEventData] = []
+    for raw in raw_events:
+        if not isinstance(raw, Mapping):
+            continue
+        start_str = raw.get("start")
+        end_str = raw.get("end")
+        if not isinstance(start_str, str) or not isinstance(end_str, str):
+            continue
+        try:
+            start = datetime.fromisoformat(start_str)
+            end = datetime.fromisoformat(end_str)
+        except (ValueError, TypeError):
+            continue
+        events.append(
+            CalendarEventData(
+                start=start,
+                end=end,
+                summary=raw.get("summary"),
+                location=raw.get("location"),
+                description=raw.get("description"),
+            )
+        )
+    return events
