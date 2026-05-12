@@ -12,6 +12,33 @@ from custom_components.haeo.core.data.loader.calendar import (
     parse_distance,
     parse_number,
 )
+from custom_components.haeo.core.schema.calendar_value import CalendarValue, as_calendar_value, is_calendar_value
+
+# --- calendar_value schema ---
+
+
+def test_as_calendar_value() -> None:
+    """Create a calendar value from entity ID."""
+    val = as_calendar_value("calendar.ev_trips")
+    assert val["type"] == "calendar"
+    assert val["value"] == "calendar.ev_trips"
+    assert val["events"] is None
+
+
+def test_is_calendar_value_valid() -> None:
+    """Detect valid calendar values."""
+    assert is_calendar_value({"type": "calendar", "value": "calendar.ev"})
+    assert is_calendar_value({"type": "calendar", "value": "calendar.ev", "events": None})
+
+
+def test_is_calendar_value_invalid() -> None:
+    """Reject non-calendar values."""
+    assert not is_calendar_value({"type": "entity", "value": ["sensor.x"]})
+    assert not is_calendar_value({"type": "calendar"})  # missing value
+    assert not is_calendar_value({"type": "calendar", "value": 42})  # value not string
+    assert not is_calendar_value("not a dict")
+    assert not is_calendar_value(None)
+
 
 # --- parse_distance ---
 
@@ -182,6 +209,14 @@ def test_extract_unit_conversion() -> None:
     assert abs(windows[0].value - 10 * 1.60934 * 0.2) < 0.001
 
 
+def test_extract_distance_mixed_units_no_converter() -> None:
+    """Skip events with mismatched units when no converter provided."""
+    events = [CalendarEventData(start=_dt(9), end=_dt(10), location="10 mi")]
+    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
+    windows = extract_calendar_windows(events, extractor)
+    assert len(windows) == 0  # skipped because mi != km and no converter
+
+
 def test_extract_custom_value_fn() -> None:
     """Test with a completely custom extraction function."""
     events = [
@@ -205,7 +240,7 @@ def test_extract_custom_value_fn() -> None:
 
 def test_load_from_captured_events() -> None:
     """Load events from pre-captured diagnostics data."""
-    value = {
+    value: CalendarValue = {
         "type": "calendar",
         "value": "calendar.ev_trips",
         "events": [
@@ -261,14 +296,14 @@ def test_load_from_entity_state() -> None:
 
 def test_load_missing_entity() -> None:
     """Return empty list when entity not found."""
-    value = {"type": "calendar", "value": "calendar.missing", "events": None}
+    value: CalendarValue = {"type": "calendar", "value": "calendar.missing", "events": None}
     events = load_calendar_events(value, _NullSM())
     assert events == []
 
 
 def test_load_no_haeo_events_attr() -> None:
     """Return empty list when entity has no haeo_events attribute."""
-    value = {"type": "calendar", "value": "calendar.plain", "events": None}
+    value: CalendarValue = {"type": "calendar", "value": "calendar.plain", "events": None}
     sm = _MockSM({"calendar.plain": _MockState(attributes={"friendly_name": "My Cal"})})
     events = load_calendar_events(value, sm)
     assert events == []
@@ -289,12 +324,48 @@ def test_capture_roundtrip() -> None:
     assert captured[0]["summary"] == "Work"
 
     # Reload from captured data
-    value = {"type": "calendar", "value": "calendar.ev", "events": captured}
+    value: CalendarValue = {"type": "calendar", "value": "calendar.ev", "events": captured}
     reloaded = load_calendar_events(value, _NullSM())
     assert len(reloaded) == 2
     assert reloaded[0].summary == "Work"
     assert reloaded[0].location == "50 km"
     assert reloaded[1].start.hour == 17
+
+
+def test_load_skips_invalid_event_dicts() -> None:
+    """Skip events with invalid or missing start/end fields."""
+    value: CalendarValue = {
+        "type": "calendar",
+        "value": "calendar.ev",
+        "events": [
+            {
+                "start": "not-a-date",
+                "end": "2025-01-01T10:00:00+00:00",
+                "summary": None,
+                "location": None,
+                "description": None,
+            },
+            {
+                "start": "2025-01-01T09:00:00+00:00",
+                "end": "also-bad",
+                "summary": None,
+                "location": None,
+                "description": None,
+            },
+            {"summary": "no dates", "location": None, "description": None},
+            42,  # type: ignore[list-item]  # not a mapping
+            {
+                "start": "2025-01-01T09:00:00+00:00",
+                "end": "2025-01-01T10:00:00+00:00",
+                "summary": "Valid",
+                "location": None,
+                "description": None,
+            },
+        ],
+    }
+    events = load_calendar_events(value, _NullSM())
+    assert len(events) == 1
+    assert events[0].summary == "Valid"
 
 
 # --- Test helpers ---

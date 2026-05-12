@@ -165,7 +165,9 @@ def make_distance_extractor(
         if parsed is None:
             return None
         raw_distance, raw_unit = parsed
-        if raw_unit != target_unit and convert_distance is not None:
+        if raw_unit != target_unit:
+            if convert_distance is None:
+                return None  # can't convert, skip event
             raw_distance = convert_distance(raw_distance, raw_unit, target_unit)
         return raw_distance * energy_per_distance
 
@@ -207,8 +209,9 @@ def load_calendar_events(
 
     """
     # Path 1: Events already captured (diagnostic replay / scenario test)
-    if value.get("events") is not None:
-        return _parse_event_dicts(value["events"])
+    captured = value.get("events")
+    if captured is not None:
+        return _parse_event_dicts(captured)
 
     # Path 2: Load from entity state
     entity_id = value["value"]

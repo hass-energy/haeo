@@ -40,7 +40,9 @@ def is_calendar_value(value: Any) -> TypeGuard[CalendarValue]:
     """Return True if value is a calendar schema value."""
     if not isinstance(value, Mapping):
         return False
-    return value.get("type") == VALUE_TYPE_CALENDAR
+    if value.get("type") != VALUE_TYPE_CALENDAR:
+        return False
+    return isinstance(value.get("value"), str)
 
 
 __all__ = [
