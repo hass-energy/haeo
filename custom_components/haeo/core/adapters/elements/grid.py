@@ -8,7 +8,6 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
-from custom_components.haeo.core.adapters.shadow_price_utils import shadow_price_per_energy
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -176,7 +175,8 @@ class GridAdapter:
             type=OutputType.COST, unit="$", values=net_cumsum, direction=None, state_last=True
         )
 
-        # Output the shadow prices from power_limit segments on each connection
+        # Shadow prices from power_limit segments on each connection are
+        # already $/kWh (LP layer formulates power_limit in energy units).
         shadow_price_mappings: tuple[tuple[Mapping[ModelOutputName, ModelOutputValue], GridOutputName], ...] = (
             (export_conn, GRID_POWER_MAX_EXPORT_SHADOW_ENERGY_PRICE),
             (import_conn, GRID_POWER_MAX_IMPORT_SHADOW_ENERGY_PRICE),
@@ -186,9 +186,8 @@ class GridAdapter:
                 isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
                 and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
                 and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
-                and (energy_shadow := shadow_price_per_energy(shadow, periods)) is not None
             ):
-                grid_outputs[energy_output_name] = energy_shadow
+                grid_outputs[energy_output_name] = shadow
 
         return {GRID_DEVICE_GRID: grid_outputs}
 

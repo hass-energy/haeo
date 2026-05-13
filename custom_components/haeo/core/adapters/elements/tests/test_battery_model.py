@@ -289,7 +289,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(4.0, 4.0)),
                 battery_model.BATTERY_POWER_BALANCE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.1,)
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.1,)
                 ),
                 battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
@@ -379,7 +379,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(3.5, 3.5)),
                 battery_model.BATTERY_POWER_BALANCE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.1,)
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.1,)
                 ),
                 battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)

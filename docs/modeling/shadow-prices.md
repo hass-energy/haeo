@@ -40,28 +40,29 @@ This is physically impossible, of course, but the shadow price makes the optimiz
 
 This pattern—zero when slack, non-zero when binding—applies to all shadow prices and makes them useful for identifying system bottlenecks.
 
-## Categories of shadow prices
+## Energy-native constraint formulation
 
 All HAEO shadow-price sensors are emitted in **\$/kWh** so they sit on the same axis as tariffs and other energy-priced quantities.
-Internally the LP layer computes the raw duals in their native units (\$/kW for power-limit constraints, \$/kWh for energy-coupled constraints); the adapter publication layer converts \$/kW duals to \$/kWh by dividing by the period length before exposing them to Home Assistant.
+Rather than computing power-based duals and converting them after the fact, the LP layer expresses power-balance and power-limit constraints in energy units directly.
+Each instantaneous power expression is multiplied by the period width `dt` before the constraint is added to the solver, so the corresponding dual variable is dimensionally \$/kWh from the moment HiGHS returns it.
+
+For a period of width `dt[hours]`, the constraints take the form:
+
+- Power balance: `(connections + production - consumption) * dt == 0`
+- Power limits: `power * dt <= max_power * dt` (and symmetrically for the lower bound)
+
+The primal solution is unchanged because `dt > 0` scales both sides of every constraint equally.
+The dual variables, however, are now natively in \$/kWh and need no post-processing in the adapter layer.
+
+Because HAEO supports variable-width intervals, `dt` is taken from `Element.periods` for each period.
 Individual elements document their specific shadow prices, but the interpretation is uniform: the value shows the marginal benefit of relaxing that constraint, per kWh of slack.
-
-## How \$/kW duals are converted
-
-Shadow prices on instantaneous power constraints come from a dual variable that is dimensionally \$/kW.
-That value answers "how much would the objective improve if I could exceed the power limit by 1 kW for the duration of this period?"
-For comparison with tariffs, which are normally quoted in \$/kWh, the dual is re-expressed in energy units by dividing by the period length:
-
-\$/kWh = (\$/kW) / Δt[hours]
-
-Because HAEO supports variable-width intervals, Δt is taken from `Element.periods` for that period.
-The user only sees the \$/kWh form; the conversion is performed once per period in the adapter layer.
 
 All published sensors use the suffix `_shadow_energy_price` and emit \$/kWh.
 
 ### Worked example
 
-For a 5-minute period (Δt = 1/12 h), a raw \$/kW dual of `0.10` becomes a `$/kWh` published value of `0.10 / (1/12) = 1.20`.
+For a 5-minute period (`dt = 1/12 h`), an LP-layer dual of `1.20` on the power-balance constraint reads directly as `\$1.20/kWh` at the corresponding node and time.
+The equivalent power-unit dual would have been `1.20 * (1/12) = 0.10` \$/kW for that period, but HAEO no longer surfaces this intermediate form.
 
 ## Diagnostic visibility
 

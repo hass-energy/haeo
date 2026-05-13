@@ -57,7 +57,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "node_main",
         "model_outputs": {
             "node_main": {
-                ELEMENT_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.10,)),
+                ELEMENT_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(1.20,)),
             }
         },
         "periods": np.array([1.0 / 12.0]),

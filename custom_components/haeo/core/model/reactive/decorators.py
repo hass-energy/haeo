@@ -98,13 +98,13 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
 
     """
 
-    def __init__(self, fn: Callable[..., R], *, output: bool = False, unit: str = "$/kW") -> None:
+    def __init__(self, fn: Callable[..., R], *, output: bool = False, unit: str = "$/kWh") -> None:
         """Initialize constraint decorator.
 
         Args:
             fn: The constraint function
             output: If True, expose as shadow price output (default False)
-            unit: Unit for shadow price output (default "$/kW")
+            unit: Unit for shadow price output (default "$/kWh")
 
         """
         super().__init__(fn)
@@ -334,11 +334,11 @@ def constraint[R](fn: Callable[..., R], /) -> ReactiveConstraint[R]: ...
 
 
 @overload
-def constraint(*, output: bool = False, unit: str = "$/kW") -> Callable[[Callable[..., R]], ReactiveConstraint[R]]: ...
+def constraint(*, output: bool = False, unit: str = "$/kWh") -> Callable[[Callable[..., R]], ReactiveConstraint[R]]: ...
 
 
 def constraint[R](
-    fn: Callable[..., R] | None = None, /, *, output: bool = False, unit: str = "$/kW"
+    fn: Callable[..., R] | None = None, /, *, output: bool = False, unit: str = "$/kWh"
 ) -> ReactiveConstraint[R] | Callable[[Callable[..., R]], ReactiveConstraint[R]]:
     """Decorate constraint methods with automatic caching and dependency tracking.
 
@@ -349,7 +349,7 @@ def constraint[R](
     Args:
         fn: The function to decorate (when used without arguments)
         output: If True, expose as shadow price output (default False)
-        unit: Unit for shadow price output (default "$/kW")
+        unit: Unit for shadow price output (default "$/kWh")
 
     Returns:
         Decorated function or decorator factory

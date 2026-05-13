@@ -4,11 +4,7 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
-import numpy as np
-from numpy.typing import NDArray
-
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
-from custom_components.haeo.core.adapters.shadow_price_utils import shadow_price_per_energy
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -114,8 +110,6 @@ class InverterAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
-        *,
-        periods: NDArray[np.floating[Any]],
         **_kwargs: Any,
     ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
         """Map model outputs to inverter-specific output names."""
@@ -147,12 +141,14 @@ class InverterAdapter:
             type=OutputType.POWER_FLOW,
         )
 
-        # DC bus power balance: per-energy ($/kWh) shadow only
-        dc_bus_shadow = expect_output_data(dc_bus[ELEMENT_POWER_BALANCE])
-        if (dc_bus_energy_shadow := shadow_price_per_energy(dc_bus_shadow, periods)) is not None:
-            inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE_SHADOW_ENERGY_PRICE] = dc_bus_energy_shadow
+        # DC bus power balance and connection power-limit constraints are
+        # formulated in energy units (kWh) at the LP layer, so their shadow
+        # prices are already $/kWh and can be published directly.
+        if ELEMENT_POWER_BALANCE in dc_bus:
+            inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE_SHADOW_ENERGY_PRICE] = expect_output_data(
+                dc_bus[ELEMENT_POWER_BALANCE]
+            )
 
-        # Per-energy ($/kWh) shadow prices on each connection's power-limit constraint
         shadow_price_mappings: tuple[tuple[Mapping[ModelOutputName, ModelOutputValue], InverterOutputName], ...] = (
             (forward_conn, INVERTER_MAX_POWER_DC_TO_AC_SHADOW_ENERGY_PRICE),
             (reverse_conn, INVERTER_MAX_POWER_AC_TO_DC_SHADOW_ENERGY_PRICE),
@@ -162,9 +158,8 @@ class InverterAdapter:
                 isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
                 and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
                 and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
-                and (energy_shadow := shadow_price_per_energy(shadow, periods)) is not None
             ):
-                inverter_outputs[energy_output_name] = energy_shadow
+                inverter_outputs[energy_output_name] = shadow
 
         return {INVERTER_DEVICE_INVERTER: inverter_outputs}
 

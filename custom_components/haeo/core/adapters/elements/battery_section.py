@@ -4,11 +4,7 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
-import numpy as np
-from numpy.typing import NDArray
-
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
-from custom_components.haeo.core.adapters.shadow_price_utils import shadow_price_per_energy
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as model_battery
@@ -85,8 +81,6 @@ class BatterySectionAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
-        *,
-        periods: NDArray[np.floating[Any]],
         **_kwargs: Any,
     ) -> Mapping[BatterySectionDeviceName, Mapping[BatterySectionOutputName, OutputData]]:
         """Map model outputs to battery section output names."""
@@ -115,11 +109,10 @@ class BatterySectionAdapter:
         # Energy stored
         section_outputs[BATTERY_SECTION_ENERGY_STORED] = battery_data[model_battery.BATTERY_ENERGY_STORED]
 
-        # Shadow prices
-        if (power_balance_shadow := battery_data.get(model_battery.BATTERY_POWER_BALANCE)) is not None and (
-            energy_shadow := shadow_price_per_energy(power_balance_shadow, periods)
-        ) is not None:
-            section_outputs[BATTERY_SECTION_POWER_BALANCE_SHADOW_ENERGY_PRICE] = energy_shadow
+        # BATTERY_POWER_BALANCE is formulated in energy units (kWh) at the LP
+        # layer, so its shadow price is already $/kWh.
+        if (power_balance_shadow := battery_data.get(model_battery.BATTERY_POWER_BALANCE)) is not None:
+            section_outputs[BATTERY_SECTION_POWER_BALANCE_SHADOW_ENERGY_PRICE] = power_balance_shadow
         if model_battery.BATTERY_ENERGY_IN_FLOW in battery_data:
             section_outputs[BATTERY_SECTION_ENERGY_IN_FLOW] = battery_data[model_battery.BATTERY_ENERGY_IN_FLOW]
         if model_battery.BATTERY_ENERGY_OUT_FLOW in battery_data:

@@ -7,7 +7,6 @@ from typing import Any, Final, Literal
 import numpy as np
 
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
-from custom_components.haeo.core.adapters.shadow_price_utils import shadow_price_per_energy
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as model_battery
@@ -217,8 +216,6 @@ class BatteryAdapter:
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         config: BatteryConfigData,
-        *,
-        periods: np.ndarray,
         **_kwargs: Any,
     ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
         """Map model outputs to battery-specific output names."""
@@ -250,10 +247,10 @@ class BatteryAdapter:
             type=OutputType.POWER,
         )
 
-        if (power_balance_shadow := battery_outputs.get(model_battery.BATTERY_POWER_BALANCE)) is not None and (
-            energy_shadow := shadow_price_per_energy(power_balance_shadow, periods)
-        ) is not None:
-            aggregate_outputs[BATTERY_POWER_BALANCE_SHADOW_ENERGY_PRICE] = energy_shadow
+        # BATTERY_POWER_BALANCE reuses element_power_balance, which is formulated
+        # in energy units (kWh) at the LP layer, so its shadow price is $/kWh.
+        if (power_balance_shadow := battery_outputs.get(model_battery.BATTERY_POWER_BALANCE)) is not None:
+            aggregate_outputs[BATTERY_POWER_BALANCE_SHADOW_ENERGY_PRICE] = expect_output_data(power_balance_shadow)
         aggregate_outputs[BATTERY_ENERGY_IN_FLOW] = replace(
             battery_outputs[model_battery.BATTERY_ENERGY_IN_FLOW], advanced=True
         )

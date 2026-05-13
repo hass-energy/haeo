@@ -118,7 +118,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)),
                     }
                 },
             },
@@ -128,7 +128,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
                     }
                 },
             },

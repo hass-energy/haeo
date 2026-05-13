@@ -3,11 +3,7 @@
 from collections.abc import Mapping
 from typing import Any, Final, Literal
 
-import numpy as np
-from numpy.typing import NDArray
-
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
-from custom_components.haeo.core.adapters.shadow_price_utils import shadow_price_per_energy
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE
@@ -64,19 +60,16 @@ class NodeAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
-        *,
-        periods: NDArray[np.floating[Any]],
         **_kwargs: Any,
     ) -> Mapping[NodeDeviceName, Mapping[NodeOutputName, OutputData]]:
         """Convert model element outputs to node adapter outputs."""
         node_model = model_outputs[name]
 
-        # Map Node power_balance to a per-energy ($/kWh) shadow (only present for constrained nodes)
+        # power_balance is formulated in energy units (kWh) at the LP layer,
+        # so its shadow price is already $/kWh and can be published directly.
         node_outputs: dict[NodeOutputName, OutputData] = {}
         if ELEMENT_POWER_BALANCE in node_model:
-            shadow = expect_output_data(node_model[ELEMENT_POWER_BALANCE])
-            if (energy_shadow := shadow_price_per_energy(shadow, periods)) is not None:
-                node_outputs[NODE_POWER_BALANCE_SHADOW_ENERGY_PRICE] = energy_shadow
+            node_outputs[NODE_POWER_BALANCE_SHADOW_ENERGY_PRICE] = expect_output_data(node_model[ELEMENT_POWER_BALANCE])
 
         return {NODE_DEVICE_NODE: node_outputs}
 

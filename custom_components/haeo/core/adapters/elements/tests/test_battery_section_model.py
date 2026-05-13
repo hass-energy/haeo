@@ -84,7 +84,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(5.0, 5.5)),
                 battery_model.BATTERY_POWER_BALANCE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)
                 ),
                 battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.003,)
