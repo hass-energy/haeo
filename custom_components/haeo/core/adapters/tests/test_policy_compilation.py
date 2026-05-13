@@ -41,7 +41,9 @@ def _junction(name: str) -> ModelElementConfig:
 
 
 def _conn(name: str, source: str, target: str, segments: dict[str, Any] | None = None) -> ModelElementConfig:
-    c = ConnectionElementConfig(element_type=MODEL_ELEMENT_TYPE_CONNECTION, name=name, source=source, target=target)
+    c = ConnectionElementConfig(
+        element_type=MODEL_ELEMENT_TYPE_CONNECTION, name=name, source=source, target=target, tags={1}
+    )
     if segments:
         c["segments"] = segments
     return c
@@ -118,7 +120,13 @@ def _build_network(result: CompilationResult) -> Network:
 
 def test_identical_prices_separate_rules_get_separate_vlans() -> None:
     """Sources from separate rules get separate VLANs even with identical prices."""
-    elements = [_node("grid", is_source=True), _node("solar", is_source=True), _node("load", is_sink=True), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
+    elements = [
+        _node("grid", is_source=True),
+        _node("solar", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+        _conn("c2", "solar", "load"),
+    ]
     policies = [
         _policy(["grid"], ["load"], 0.05),
         _policy(["solar"], ["load"], 0.05),
@@ -131,7 +139,13 @@ def test_identical_prices_separate_rules_get_separate_vlans() -> None:
 
 def test_same_rule_sources_share_vlan() -> None:
     """Sources listed in a single rule share a VLAN regardless of price."""
-    elements = [_node("grid", is_source=True), _node("solar", is_source=True), _node("load", is_sink=True), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
+    elements = [
+        _node("grid", is_source=True),
+        _node("solar", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+        _conn("c2", "solar", "load"),
+    ]
     policies = [
         _policy(["grid", "solar"], ["load"], 0.05),
     ]
@@ -141,7 +155,13 @@ def test_same_rule_sources_share_vlan() -> None:
 
 def test_identical_groupings_different_prices_share_vlan() -> None:
     """Rules with the same source/destination grouping share a VLAN even with different prices."""
-    elements = [_node("grid", is_source=True), _node("solar", is_source=True), _node("load", is_sink=True), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
+    elements = [
+        _node("grid", is_source=True),
+        _node("solar", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+        _conn("c2", "solar", "load"),
+    ]
     policies = [
         _policy(["grid", "solar"], ["load"], 0.05),
         _policy(["grid", "solar"], ["load"], 0.03),

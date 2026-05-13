@@ -518,6 +518,7 @@ def test_network_add_connection_updates_prices() -> None:
             name="conn",
             source="source",
             target="sink",
+            tags={1},
             segments={
                 "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
                 "pricing": {"segment_type": "pricing", "price": -0.10},

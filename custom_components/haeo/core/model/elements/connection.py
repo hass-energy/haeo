@@ -49,7 +49,7 @@ class ConnectionElementConfig(TypedDict):
     is_external: NotRequired[bool]
     is_time_sensitive: NotRequired[bool]
     segments: NotRequired[dict[str, SegmentSpec]]
-    tags: set[int]
+    tags: NotRequired[set[int]]
 
 
 class Connection[TOutputName: str](Element[TOutputName]):

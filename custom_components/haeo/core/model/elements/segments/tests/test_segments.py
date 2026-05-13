@@ -178,7 +178,9 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
     if segments is None:
         conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt", tags={1})
     else:
-        conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt", tags={1}, segments=segments)
+        conn = Connection(
+            name="conn", periods=periods, solver=h, source="src", target="tgt", tags={1}, segments=segments
+        )
     source = DummyElement("src", periods, h)
     target = DummyElement("tgt", periods, h)
     conn.set_endpoints(source, target)

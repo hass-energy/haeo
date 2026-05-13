@@ -52,6 +52,7 @@ class EndpointsConfig(TypedDict):
 
     source: ConnectionTarget
     target: ConnectionTarget
+    tags: NotRequired[set[int]]
 
 
 class EndpointsData(TypedDict):
@@ -59,6 +60,7 @@ class EndpointsData(TypedDict):
 
     source: ConnectionTarget
     target: ConnectionTarget
+    tags: NotRequired[set[int]]
 
 
 class SegmentOrderConfig(TypedDict, total=False):

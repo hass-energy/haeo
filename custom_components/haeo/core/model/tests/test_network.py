@@ -156,7 +156,9 @@ def test_connect_source_is_connection() -> None:
     # Add entities and a connection
     network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid1", "is_sink": False, "is_source": True})
-    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1", "tags": {1}})
+    network.add(
+        {"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1", "tags": {1}}
+    )
 
     # Try to create another connection using the connection as source
     with pytest.raises(ValueError, match="Source element 'conn1' is not a network participant"):
@@ -180,7 +182,9 @@ def test_connect_target_is_connection() -> None:
     # Add entities and a connection
     network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid1", "is_sink": False, "is_source": True})
-    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1", "tags": {1}})
+    network.add(
+        {"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1", "tags": {1}}
+    )
 
     # Try to create another connection using the connection as target
     with pytest.raises(ValueError, match="Target element 'conn1' is not a network participant"):
