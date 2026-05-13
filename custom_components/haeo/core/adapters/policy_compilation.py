@@ -270,7 +270,7 @@ def compile_policies(
         for source_vlan, vlan_sources in sorted(sources_by_vlan.items()):
             vlan_edges = [
                 (conn["source"], conn["target"], conn["name"])
-                for conn in connections
+                for conn in tagged_connections
                 if source_vlan in conn.get("tags", set())
             ]
             cut = _min_cut_edges(vlan_sources, set(destinations), vlan_edges)

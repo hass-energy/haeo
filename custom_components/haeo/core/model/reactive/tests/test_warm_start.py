@@ -534,7 +534,6 @@ def test_network_add_connection_updates_prices() -> None:
             SECTION_ENDPOINTS: {
                 "source": as_connection_target("source"),
                 "target": as_connection_target("sink"),
-                "tags": {1},
             },
             SECTION_POWER_LIMITS: {"max_power_source_target": 5.0},
             SECTION_PRICING: {"price_source_target": -0.20},
