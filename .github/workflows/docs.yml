@@ -66,6 +66,9 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    # Only deploy from the canonical repo. Forks still run the build job above
+    # to catch documentation breakage, but they don't have Pages enabled.
+    if: github.repository == 'hass-energy/haeo'
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
