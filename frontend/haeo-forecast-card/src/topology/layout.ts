@@ -215,21 +215,21 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
     const internalEdges: ElkExtendedEdge[] = [];
     const ports: ElkPort[] = [];
 
+    // Compute node height once per group based on cross-group edge VLAN stripes.
+    let totalEdgeWidth = 0;
+    let edgeCount = 0;
+    for (const edge of topology.edges) {
+      const sg = findGroup(groupLookup, edge.source);
+      const tg = findGroup(groupLookup, edge.target);
+      if (sg === tg) continue;
+      if (sg !== groupName && tg !== groupName) continue;
+      edgeCount++;
+      const nTags = edge.tags?.length ?? 0;
+      totalEdgeWidth += Math.max(1, nTags) * STRIPE_GAP;
+    }
+    const minH = totalEdgeWidth + edgeCount * 4 + 8;
+
     for (const name of members) {
-      // Compute node height based on how many VLAN-carrying edges connect through it.
-      // Each connection needs enough vertical space for its parallel stripes.
-      let totalEdgeWidth = 0;
-      let edgeCount = 0;
-      for (const edge of topology.edges) {
-        const sg = findGroup(groupLookup, edge.source);
-        const tg = findGroup(groupLookup, edge.target);
-        if (sg === tg) continue;
-        if (sg !== groupName && tg !== groupName) continue;
-        edgeCount++;
-        const nTags = edge.tags?.length ?? 0;
-        totalEdgeWidth += Math.max(1, nTags) * STRIPE_GAP;
-      }
-      const minH = totalEdgeWidth + edgeCount * 4 + 8;
       children.push({ id: name, width: NODE_W, height: Math.max(NODE_H, minH) });
     }
 

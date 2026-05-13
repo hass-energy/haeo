@@ -21,7 +21,7 @@ import {
   offsetPoints,
   vlanColor,
 } from "./shared";
-import type { TopologyData, TopologySegment } from "./types";
+import type { TopologyData, TopologyNode, TopologySegment } from "./types";
 
 interface TooltipInfo {
   x: number;
@@ -50,6 +50,9 @@ export function NetworkTopology(props: Props): JSX.Element {
 
   if (error != null) return <div style={{ color: "red" }}>Layout error: {error}</div>;
   if (layout == null) return <div>Computing layout…</div>;
+
+  // Build node name → TopologyNode lookup
+  const nodeMap = new Map(topology.nodes.map((n) => [n.name, n]));
 
   // Build edge name → tags lookup
   const edgeTags = new Map<string, number[]>();
@@ -336,7 +339,7 @@ function renderGroup(
       {group.children.map((child) =>
         child.isPill
           ? renderPill(child, group, setTooltip, hide)
-          : renderModelNode(child, group, s?.color ?? "#bbb", topology, setTooltip, hide)
+          : renderModelNode(child, group, s?.color ?? "#bbb", nodeMap, setTooltip, hide)
       )}
     </g>
   );
@@ -346,11 +349,11 @@ function renderModelNode(
   node: LayoutNode,
   group: LayoutGroup,
   color: string,
-  topology: TopologyData,
+  nodeMap: Map<string, TopologyNode>,
   setTooltip: (t: TooltipInfo) => void,
   hide: () => void
 ): JSX.Element {
-  const topoNode = topology.nodes.find((n) => n.name === node.id);
+  const topoNode = nodeMap.get(node.id);
   const outTags = topoNode?.outbound_tags ?? [];
   const inTags = topoNode?.inbound_tags ?? [];
   const hasVlans = outTags.length > 0 || inTags.length > 0;

@@ -51,7 +51,7 @@ def create_card_visualization(
             check=False,
         )
         if result.returncode != 0:
-            msg = f"Card export failed (exit {result.returncode}): {result.stderr}"
+            msg = f"Card export failed (exit {result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
             raise RuntimeError(msg)
     except FileNotFoundError as e:
         msg = f"Node.js not found — required for card visualization: {e}"
@@ -103,7 +103,9 @@ def create_topology_visualization(
             check=False,
         )
         if result.returncode != 0:
-            msg = f"Topology export failed (exit {result.returncode}): {result.stderr}"
+            msg = (
+                f"Topology export failed (exit {result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
+            )
             raise RuntimeError(msg)
     except FileNotFoundError as e:
         msg = f"Node.js not found — required for topology visualization: {e}"

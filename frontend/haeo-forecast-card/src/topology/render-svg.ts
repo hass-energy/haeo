@@ -27,7 +27,7 @@ import {
   offsetPoints,
   vlanColor,
 } from "./shared";
-import type { TopologyData, TopologySegment } from "./types";
+import type { TopologyData, TopologyNode, TopologySegment } from "./types";
 
 // ---------------------------------------------------------------------------
 // SVG string helpers
@@ -93,8 +93,8 @@ function svgCompositeArrow(points: Point[], reversed: boolean): string {
 // Node / pill / group renderers
 // ---------------------------------------------------------------------------
 
-function svgModelNode(node: LayoutNode, group: LayoutGroup, color: string, topology: TopologyData): string {
-  const topoNode = topology.nodes.find((n) => n.name === node.id);
+function svgModelNode(node: LayoutNode, group: LayoutGroup, color: string, nodeMap: Map<string, TopologyNode>): string {
+  const topoNode = nodeMap.get(node.id);
   const outTags = topoNode?.outbound_tags ?? [];
   const inTags = topoNode?.inbound_tags ?? [];
   const hasVlans = outTags.length > 0 || inTags.length > 0;
@@ -149,7 +149,7 @@ function svgPill(node: LayoutNode, group: LayoutGroup): string {
   return `<g>${parts.join("")}</g>`;
 }
 
-function svgGroup(group: LayoutGroup, topology: TopologyData, edgeTags: Map<string, number[]>): string {
+function svgGroup(group: LayoutGroup, nodeMap: Map<string, TopologyNode>, edgeTags: Map<string, number[]>): string {
   const s = NODE_STYLES[group.type] ?? NODE_STYLES["unknown"]!;
   const color = s.color;
   const icon = s.icon;
@@ -180,7 +180,7 @@ function svgGroup(group: LayoutGroup, topology: TopologyData, edgeTags: Map<stri
     if (child.isPill) {
       parts.push(svgPill(child, group));
     } else {
-      parts.push(svgModelNode(child, group, color, topology));
+      parts.push(svgModelNode(child, group, color, nodeMap));
     }
   }
 
@@ -215,6 +215,9 @@ function svgPolicyPill(pill: LayoutResult["policyPills"][number]): string {
 export async function renderTopologySvg(topology: TopologyData): Promise<string> {
   const layout = await computeLayout(topology);
 
+  // Build node name → TopologyNode lookup
+  const nodeMap = new Map(topology.nodes.map((n) => [n.name, n]));
+
   // Build edge name → tags lookup
   const edgeTags = new Map<string, number[]>();
   for (const edge of topology.edges) {
@@ -246,7 +249,7 @@ export async function renderTopologySvg(topology: TopologyData): Promise<string>
 
   // Groups
   for (const group of layout.groups) {
-    parts.push(svgGroup(group, topology, edgeTags));
+    parts.push(svgGroup(group, nodeMap, edgeTags));
   }
 
   // External edges
