@@ -51,6 +51,7 @@ def test_battery_update_capacity_modifies_soc_constraints() -> None:
             "name": "battery_grid",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
@@ -103,6 +104,7 @@ def test_battery_update_initial_charge_modifies_constraint() -> None:
             "name": "battery_grid",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 10.0},
                 "pricing": {"segment_type": "pricing", "price": -0.10},
@@ -150,6 +152,7 @@ def test_battery_update_with_sequence_capacity() -> None:
             "name": "conn",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {"pricing": {"segment_type": "pricing", "price": 0.01}},
         }
     )
@@ -180,6 +183,7 @@ def test_connection_update_max_power_source_target() -> None:
             "name": "conn",
             "source": "source",
             "target": "sink",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
@@ -221,6 +225,7 @@ def test_connection_update_price_source_target() -> None:
             "name": "conn",
             "source": "source",
             "target": "sink",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
@@ -262,6 +267,7 @@ def test_connection_update_max_power_target_source() -> None:
             "name": "conn",
             "source": "source",
             "target": "sink",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
                 "pricing": {"segment_type": "pricing", "price": 0.01},
@@ -300,6 +306,7 @@ def test_connection_update_price_target_source() -> None:
             "name": "conn",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
@@ -346,6 +353,7 @@ def test_connection_update_with_sequence_values() -> None:
             "name": "conn",
             "source": "source",
             "target": "sink",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
@@ -390,6 +398,7 @@ def test_warm_start_produces_same_result() -> None:
             "name": "conn:discharge",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
                 "pricing": {"segment_type": "pricing", "price": -0.10},
@@ -402,6 +411,7 @@ def test_warm_start_produces_same_result() -> None:
             "name": "conn:charge",
             "source": "grid",
             "target": "battery",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
                 "pricing": {"segment_type": "pricing", "price": 0.15},
@@ -427,6 +437,7 @@ def test_warm_start_produces_same_result() -> None:
             "name": "conn:discharge",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 2.0},
                 "pricing": {"segment_type": "pricing", "price": -0.05},
@@ -439,6 +450,7 @@ def test_warm_start_produces_same_result() -> None:
             "name": "conn:charge",
             "source": "grid",
             "target": "battery",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 2.0},
                 "pricing": {"segment_type": "pricing", "price": 0.08},
@@ -490,6 +502,7 @@ def test_network_add_connection_updates_prices() -> None:
             "name": "conn",
             "source": "source",
             "target": "sink",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
                 "pricing": {"segment_type": "pricing", "price": -0.10},
@@ -505,6 +518,7 @@ def test_network_add_connection_updates_prices() -> None:
             name="conn",
             source="source",
             target="sink",
+            tags={1},
             segments={
                 "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
                 "pricing": {"segment_type": "pricing", "price": -0.10},
@@ -555,6 +569,7 @@ def test_solver_structure_unchanged_after_update() -> None:
             "name": "conn",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",

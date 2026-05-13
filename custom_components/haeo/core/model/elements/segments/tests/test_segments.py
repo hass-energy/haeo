@@ -176,9 +176,11 @@ def _solve_connection_scenario(case: ConnectionScenario) -> dict[str, ExpectedVa
     periods = np.asarray(case["periods"], dtype=np.float64)
     segments = case["segments"]
     if segments is None:
-        conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt")
+        conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt", tags={1})
     else:
-        conn = Connection(name="conn", periods=periods, solver=h, source="src", target="tgt", segments=segments)
+        conn = Connection(
+            name="conn", periods=periods, solver=h, source="src", target="tgt", tags={1}, segments=segments
+        )
     source = DummyElement("src", periods, h)
     target = DummyElement("tgt", periods, h)
     conn.set_endpoints(source, target)

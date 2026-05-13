@@ -15,7 +15,6 @@ from typing import Any, Literal, overload
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.adapters import policy_compilation
 from custom_components.haeo.core.adapters.policy_compilation import (
     CompilationResult,
     CompiledPolicyRule,
@@ -42,7 +41,9 @@ def _junction(name: str) -> ModelElementConfig:
 
 
 def _conn(name: str, source: str, target: str, segments: dict[str, Any] | None = None) -> ModelElementConfig:
-    c = ConnectionElementConfig(element_type=MODEL_ELEMENT_TYPE_CONNECTION, name=name, source=source, target=target)
+    c = ConnectionElementConfig(
+        element_type=MODEL_ELEMENT_TYPE_CONNECTION, name=name, source=source, target=target, tags={1}
+    )
     if segments:
         c["segments"] = segments
     return c
@@ -119,7 +120,13 @@ def _build_network(result: CompilationResult) -> Network:
 
 def test_identical_prices_separate_rules_get_separate_vlans() -> None:
     """Sources from separate rules get separate VLANs even with identical prices."""
-    elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
+    elements = [
+        _node("grid", is_source=True),
+        _node("solar", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+        _conn("c2", "solar", "load"),
+    ]
     policies = [
         _policy(["grid"], ["load"], 0.05),
         _policy(["solar"], ["load"], 0.05),
@@ -127,14 +134,18 @@ def test_identical_prices_separate_rules_get_separate_vlans() -> None:
     result = compile_policies(elements, policies)
     grid_tag = _outbound_tag(result, "grid")
     solar_tag = _outbound_tag(result, "solar")
-    assert grid_tag != 0
-    assert solar_tag != 0
     assert grid_tag != solar_tag
 
 
 def test_same_rule_sources_share_vlan() -> None:
     """Sources listed in a single rule share a VLAN regardless of price."""
-    elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
+    elements = [
+        _node("grid", is_source=True),
+        _node("solar", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+        _conn("c2", "solar", "load"),
+    ]
     policies = [
         _policy(["grid", "solar"], ["load"], 0.05),
     ]
@@ -144,14 +155,20 @@ def test_same_rule_sources_share_vlan() -> None:
 
 def test_identical_groupings_different_prices_share_vlan() -> None:
     """Rules with the same source/destination grouping share a VLAN even with different prices."""
-    elements = [_node("grid"), _node("solar"), _node("load"), _conn("c1", "grid", "load"), _conn("c2", "solar", "load")]
+    elements = [
+        _node("grid", is_source=True),
+        _node("solar", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+        _conn("c2", "solar", "load"),
+    ]
     policies = [
         _policy(["grid", "solar"], ["load"], 0.05),
         _policy(["grid", "solar"], ["load"], 0.03),
     ]
     result = compile_policies(elements, policies)
     assert _outbound_tag(result, "grid") == _outbound_tag(result, "solar")
-    assert _outbound_tag(result, "grid") != 0
+    assert _outbound_tag(result, "grid") >= 1
 
 
 def test_wildcard_all_same_merges() -> None:
@@ -167,9 +184,9 @@ def test_wildcard_all_same_merges() -> None:
     ]
     policies = [_policy(["*"], ["d"], 0.05)]
     result = compile_policies(elements, policies)
-    assert _outbound_tag(result, "a") != 0
-    assert _outbound_tag(result, "b") != 0
-    assert _outbound_tag(result, "c") != 0
+    assert _outbound_tag(result, "a") >= 1
+    assert _outbound_tag(result, "b") >= 1
+    assert _outbound_tag(result, "c") >= 1
 
 
 def test_disabled_rule_still_creates_vlans() -> None:
@@ -177,7 +194,7 @@ def test_disabled_rule_still_creates_vlans() -> None:
     elements = [_node("grid", is_source=True), _node("load", is_sink=True), _conn("c1", "grid", "load")]
     policies = [_policy(["grid"], ["load"], 0.05, enabled=False)]
     result = compile_policies(elements, policies)
-    assert _outbound_tag(result, "grid") != 0
+    assert _outbound_tag(result, "grid") >= 1
     assert len(_pricing_configs(result)) == 1
 
 
@@ -257,12 +274,22 @@ def test_disabled_and_enabled_rules_coexist() -> None:
     assert prices[1] == 0.05
 
 
-def test_no_policies_no_vlans() -> None:
-    """Without policies, elements pass through unchanged."""
-    elements = [_node("grid"), _conn("c1", "grid", "load")]
+def test_no_policies_assigns_single_vlan() -> None:
+    """Without policies, all sources share a single VLAN and no pricing is created."""
+    elements = [
+        _node("grid", is_source=True),
+        _node("load", is_sink=True),
+        _conn("c1", "grid", "load"),
+    ]
     result = compile_policies(elements, [])
-    assert result["elements"] is elements
     assert result["pricing_rule_map"] == {}
+    assert len(_pricing_configs(result)) == 0
+    # Grid still gets a VLAN (outbound_tags set)
+    grid = _find(result, "grid", element_type=MODEL_ELEMENT_TYPE_NODE)
+    assert grid.get("outbound_tags") is not None
+    # Connection gets tagged
+    conn = _find(result, "c1", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
+    assert conn.get("tags")
 
 
 def test_node_without_policy_gets_outbound_tags() -> None:
@@ -291,7 +318,7 @@ def test_wildcard_excludes_sink_only_from_sources() -> None:
     policies = [_policy(["*"], ["load"], 0.05)]
     result = compile_policies(elements, policies)
     # Solar is a source — gets a VLAN
-    assert _outbound_tag(result, "solar") != 0
+    assert _outbound_tag(result, "solar") >= 1
     # Load is sink-only — not expanded as source, no outbound tag
     load = _find(result, "load", element_type=MODEL_ELEMENT_TYPE_NODE)
     assert load.get("outbound_tags") is None
@@ -307,7 +334,6 @@ def test_wildcard_excludes_source_only_from_destinations() -> None:
         _node("solar", is_source=True),
         _node("load", is_sink=True),
         _conn("grid_load", "grid", "load"),
-        _conn("grid_solar", "grid", "solar"),
     ]
     policies = [_policy(["grid"], ["*"], 0.05)]
     result = compile_policies(elements, policies)
@@ -328,8 +354,8 @@ def test_wildcard_excludes_source_only_from_destinations() -> None:
 def test_vlan_covers_reachable_subgraph() -> None:
     """VLAN covers the directed path from source to destination."""
     elements = [
-        _node("grid"),
-        _node("solar"),
+        _node("grid", is_source=True),
+        _node("solar", is_source=True),
         _junction("sw"),
         _node("load", is_sink=True),
         _conn("grid_sw", "grid", "sw"),
@@ -360,8 +386,8 @@ def test_vlan_covers_reachable_subgraph() -> None:
 def test_inbound_tags_set_on_destination() -> None:
     """Sink destination nodes get inbound tags including all active VLANs."""
     elements = [
-        _node("grid"),
-        _node("solar"),
+        _node("grid", is_source=True),
+        _node("solar", is_source=True),
         _node("load", is_sink=True),
         _conn("c1", "grid", "load"),
         _conn("c2", "solar", "load"),
@@ -379,7 +405,6 @@ def test_inbound_tags_set_on_destination() -> None:
     assert _it is not None
     assert grid_vlan in _it
     assert solar_vlan in _it
-    assert 0 in _it  # default tag for unpolicied sources
 
 
 def test_routing_nodes_get_inbound_tags() -> None:
@@ -765,18 +790,19 @@ def test_compile_policies_without_connections_returns_unchanged() -> None:
     assert result["pricing_rule_map"] == {}
 
 
-def test_compile_policies_junctions_only_returns_unchanged() -> None:
-    """Wildcards that resolve to no source/sink nodes produce no flows."""
+def test_compile_policies_junctions_only_excludes_connections() -> None:
+    """Junctions-only networks exclude unreachable connections from the result."""
     elements = [_junction("sw1"), _junction("sw2"), _conn("c1", "sw1", "sw2")]
     policies = [_policy(["*"], ["*"], 0.05)]
     result = compile_policies(elements, policies)
-    # No source or sink nodes, so wildcard expansion yields no flows — elements unchanged
-    assert result["elements"] is elements
+    # No source or sink nodes, so no VLANs assigned — unreachable connection is excluded
     assert result["pricing_rule_map"] == {}
+    assert len(_pricing_configs(result)) == 0
+    assert len(_connections(result)) == 0
 
 
-def test_compile_policies_resolves_to_no_flows() -> None:
-    """Unknown endpoint names resolve to no flows and no VLANs."""
+def test_compile_policies_unknown_endpoints_still_compiles() -> None:
+    """Unknown endpoint names produce no pricing but compilation still tags sources."""
     elements = [
         _node("grid", is_source=True),
         _node("load", is_sink=True),
@@ -784,13 +810,14 @@ def test_compile_policies_resolves_to_no_flows() -> None:
     ]
     policies = [_policy(["nosuch"], ["alsomissing"], 0.05)]
     result = compile_policies(elements, policies)
-    # No valid flows from unknown endpoints — elements pass through unchanged
-    assert result["elements"] is elements
+    # Unknown endpoints create no pricing, but grid still gets its VLAN
     assert result["pricing_rule_map"] == {}
+    grid = _find(result, "grid", element_type=MODEL_ELEMENT_TYPE_NODE)
+    assert grid.get("outbound_tags") is not None
 
 
-def test_compile_policies_non_list_endpoints_resolve_to_no_flows() -> None:
-    """Non-list sources/destinations are ignored and produce no VLANs."""
+def test_compile_policies_non_list_endpoints_still_compiles() -> None:
+    """Non-list sources/destinations are ignored but compilation still tags sources."""
     elements = [
         _node("grid", is_source=True),
         _node("load", is_sink=True),
@@ -800,9 +827,10 @@ def test_compile_policies_non_list_endpoints_resolve_to_no_flows() -> None:
         {"sources": "grid", "destinations": ("load",), "price": 0.05},  # type: ignore[typeddict-item]
     ]
     result = compile_policies(elements, policies)
-    # Non-list endpoints are not resolved — no flows, elements unchanged
-    assert result["elements"] is elements
+    # Non-list endpoints create no pricing, but grid still gets its VLAN
     assert result["pricing_rule_map"] == {}
+    grid = _find(result, "grid", element_type=MODEL_ELEMENT_TYPE_NODE)
+    assert grid.get("outbound_tags") is not None
 
 
 def test_wildcard_destination_tags_each_sources_paths() -> None:
@@ -882,22 +910,15 @@ def test_zero_price_policy_applies_tags_with_zero_cost() -> None:
     assert all(p["price"] == 0.0 for p in pricing)
 
 
-def test_pricing_injection_skips_non_tagged_incident_connections(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_pricing_injection_skips_non_tagged_incident_connections() -> None:
     """Pricing element terms only reference connections on the min-cut, not untagged ones."""
     elements = [
-        _node("source"),
-        _node("dest"),
-        _node("other"),
+        _node("source", is_source=True),
+        _node("dest", is_sink=True),
+        _node("other", is_source=True),
         _conn("source_dest", "source", "dest"),
         _conn("other_dest", "other", "dest"),
     ]
-    monkeypatch.setattr(
-        policy_compilation,
-        "_find_reachable_connections",
-        lambda _source_nodes, _dest_nodes, _graph, **_kwargs: {"source_dest"},
-    )
     policies = [_policy(["source"], ["dest"], 0.07)]
     result = compile_policies(elements, policies)
 
@@ -929,7 +950,6 @@ def test_identical_numpy_prices_separate_rules_get_separate_vlans() -> None:
     grid_tag = _outbound_tag(result, "grid")
     solar_tag = _outbound_tag(result, "solar")
     assert grid_tag != solar_tag
-    assert grid_tag != 0
     # Each rule creates its own pricing element
     assert len(_pricing_configs(result)) == 2
 
@@ -1041,8 +1061,8 @@ def test_compile_policies_excludes_battery_self_loop_vlan() -> None:
     ]
     result = compile_policies(elements, policies)
     conns = {c["name"]: c for c in _connections(result)}
-    battery_tag = next(iter((conns["battery_discharge"].get("tags") or set()) - {0}))
-    charge_tags = conns["battery_charge"].get("tags") or set()
+    battery_tag = next(iter(conns["battery_discharge"].get("tags", set())))
+    charge_tags = conns["battery_charge"].get("tags", set())
     assert battery_tag not in charge_tags, "Battery's own VLAN must not tag its own charge edge."
 
 
@@ -1070,8 +1090,8 @@ def test_compile_policies_absorbs_solar_tag_at_battery_sink() -> None:
     ]
     result = compile_policies(elements, policies)
     conns = {c["name"]: c for c in _connections(result)}
-    solar_tag = next(iter((conns["solar_inv"].get("tags") or set()) - {0}))
-    discharge_tags = conns["battery_discharge"].get("tags") or set()
+    solar_tag = next(iter(conns["solar_inv"].get("tags", set())))
+    discharge_tags = conns["battery_discharge"].get("tags", set())
     assert solar_tag not in discharge_tags, "Solar VLAN must not reach battery discharge"
 
 
@@ -1203,6 +1223,7 @@ def test_no_policy_no_extra_cost() -> None:
             "name": "conn",
             "source": "grid",
             "target": "load",
+            "tags": {1},
             "segments": {
                 "pricing": {"segment_type": "pricing", "price": np.array([0.20])},
                 "power_limit": {"segment_type": "power_limit", "max_power": np.array([5.0])},
@@ -1213,3 +1234,193 @@ def test_no_policy_no_extra_cost() -> None:
     h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
     assert cost == pytest.approx(1.00)
+
+
+# --- Always-compile behavior ---
+
+
+def test_disjoint_unpolicied_sources_share_vlan() -> None:
+    """Two unpolicied sources with disjoint reachability share a VLAN.
+
+    gen_a → junction ← gen_b, junction → load.
+    gen_a and gen_b can't reach each other but both reach the load.
+    They have the same empty policy signature, so they share a VLAN.
+    A policy on an unrelated source (grid) ensures the pipeline runs
+    the same way it would in a real network with policies.
+    """
+    elements = [
+        _node("gen_a", is_source=True),
+        _node("gen_b", is_source=True),
+        _node("grid", is_source=True, is_sink=True),
+        _junction("junction"),
+        _node("load", is_sink=True),
+        _conn("gen_a_junc", "gen_a", "junction"),
+        _conn("gen_b_junc", "gen_b", "junction"),
+        _conn("junc_load", "junction", "load"),
+        _conn("grid_load", "grid", "load"),
+    ]
+    policies = [_policy(["grid"], ["load"], 0.10)]
+    result = compile_policies(elements, policies)
+
+    gen_a_tag = _outbound_tag(result, "gen_a")
+    gen_b_tag = _outbound_tag(result, "gen_b")
+    grid_tag = _outbound_tag(result, "grid")
+
+    # Both unpolicied generators share the same VLAN
+    assert gen_a_tag == gen_b_tag
+    # But differ from the policied source
+    assert gen_a_tag != grid_tag
+
+    # The shared unpolicied VLAN reaches the load via the junction
+    junc_load = _find(result, "junc_load", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
+    junc_load_tags = junc_load.get("tags", set())
+    assert gen_a_tag in junc_load_tags
+
+    # Grid reaches load directly, not through the junction
+    grid_load = _find(result, "grid_load", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
+    assert grid_tag in grid_load.get("tags", set())
+
+    # gen_a's connection only carries the shared unpolicied VLAN, not grid's
+    gen_a_conn = _find(result, "gen_a_junc", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
+    assert gen_a_conn.get("tags") == {gen_a_tag}
+
+    # No pricing for the unpolicied VLAN
+    pricing = _pricing_configs(result)
+    pricing_tags = {t["tag"] for p in pricing for t in p["terms"]}
+    assert gen_a_tag not in pricing_tags
+
+
+def test_no_policies_still_compiles_tags() -> None:
+    """Without any policies, compilation still assigns VLANs and tags connections.
+
+    This ensures that adding a policy to an unrelated element later does not
+    change how existing elements behave — the VLAN structure is always present.
+    """
+    elements = [
+        _node("solar", is_source=True),
+        _node("battery", is_source=True, is_sink=True),
+        _junction("inv"),
+        _node("load", is_sink=True),
+        _conn("solar_inv", "solar", "inv"),
+        _conn("battery_charge", "inv", "battery"),
+        _conn("battery_discharge", "battery", "inv"),
+        _conn("inv_load", "inv", "load"),
+    ]
+    result = compile_policies(elements, [])
+
+    # All sources get outbound_tags
+    solar = _find(result, "solar", element_type=MODEL_ELEMENT_TYPE_NODE)
+    assert solar.get("outbound_tags") is not None
+    battery = _find(result, "battery", element_type=MODEL_ELEMENT_TYPE_NODE)
+    assert battery.get("outbound_tags") is not None
+
+    # All sinks get inbound_tags
+    load = _find(result, "load", element_type=MODEL_ELEMENT_TYPE_NODE)
+    assert load.get("inbound_tags") is not None
+    assert battery.get("inbound_tags") is not None
+
+    # All connections on source-to-sink paths get tags
+    for conn_name in ("solar_inv", "battery_discharge", "inv_load"):
+        conn = _find(result, conn_name, element_type=MODEL_ELEMENT_TYPE_CONNECTION)
+        assert conn.get("tags"), f"{conn_name} should have tags"
+
+    # No pricing elements
+    assert len(_pricing_configs(result)) == 0
+
+
+def test_unpolicied_shared_vlan_reaches_charge_edge() -> None:
+    """Per-source reachability allows other sources to reach a battery's charge edge.
+
+    When Solar and Battery share a VLAN (both unpolicied), the shared VLAN
+    IS on Battery:charge because Solar's reachability includes it — Solar
+    power can charge the battery. Battery's own reachability excludes its
+    charge edge (self-loop prevention), but the union includes it from Solar.
+    The LP solver won't exploit the theoretical self-loop because the
+    unpolicied VLAN has no pricing incentive.
+    """
+    elements = [
+        _node("solar", is_source=True),
+        _node("battery", is_source=True, is_sink=True),
+        _junction("inv"),
+        _node("load", is_sink=True),
+        _conn("solar_inv", "solar", "inv"),
+        _conn("battery_charge", "inv", "battery"),
+        _conn("battery_discharge", "battery", "inv"),
+        _conn("inv_load", "inv", "load"),
+    ]
+    result = compile_policies(elements, [])
+
+    battery_tag = _outbound_tag(result, "battery")
+    solar_tag = _outbound_tag(result, "solar")
+    assert battery_tag == solar_tag, "Both unpolicied sources share the same VLAN"
+
+    charge = _find(result, "battery_charge", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
+    charge_tags = charge.get("tags", set())
+    assert battery_tag in charge_tags, "Shared VLAN reaches charge edge via Solar's reachability"
+
+
+def test_policied_battery_excluded_from_own_charge_edge() -> None:
+    """Self-loop exclusion prevents a policied battery's VLAN from reaching its charge edge.
+
+    When battery has its own unique VLAN (via a policy), the charge edge
+    must NOT carry that VLAN. This prevents the zero-cost self-loop:
+    Battery:discharge → inv → Battery:charge → Battery.
+    """
+    elements = [
+        _node("solar", is_source=True),
+        _node("battery", is_source=True, is_sink=True),
+        _junction("inv"),
+        _node("load", is_sink=True),
+        _conn("solar_inv", "solar", "inv"),
+        _conn("battery_charge", "inv", "battery"),
+        _conn("battery_discharge", "battery", "inv"),
+        _conn("inv_load", "inv", "load"),
+    ]
+    result = compile_policies(elements, [_policy(["battery"], ["load"], 0.01)])
+
+    battery_tag = _outbound_tag(result, "battery")
+    solar_tag = _outbound_tag(result, "solar")
+    assert battery_tag != solar_tag, "Policied battery gets its own VLAN"
+
+    charge = _find(result, "battery_charge", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
+    charge_tags = charge.get("tags", set())
+    assert battery_tag not in charge_tags, "Battery's unique VLAN must not appear on its charge edge"
+    assert solar_tag in charge_tags, "Solar's VLAN can still reach battery via the charge edge"
+
+
+def test_adding_unrelated_policy_preserves_existing_tags() -> None:
+    """Adding a policy to one source does not change VLANs of unrelated sources.
+
+    Solar and battery are unpolicied. Adding a policy on grid should not
+    change solar's or battery's tag assignments (they keep their shared
+    unpolicied VLAN).
+    """
+    elements = [
+        _node("solar", is_source=True),
+        _node("battery", is_source=True, is_sink=True),
+        _node("grid", is_source=True, is_sink=True),
+        _junction("sw"),
+        _node("load", is_sink=True),
+        _conn("solar_sw", "solar", "sw"),
+        _conn("battery_discharge", "battery", "sw"),
+        _conn("battery_charge", "sw", "battery"),
+        _conn("grid_sw", "grid", "sw"),
+        _conn("sw_load", "sw", "load"),
+    ]
+
+    # Compile without policies
+    result_no_policy = compile_policies(elements, [])
+    solar_tag_before = _outbound_tag(result_no_policy, "solar")
+    battery_tag_before = _outbound_tag(result_no_policy, "battery")
+    assert solar_tag_before == battery_tag_before  # all unpolicied → same VLAN
+
+    # Compile with a policy on grid only
+    result_with_policy = compile_policies(elements, [_policy(["grid"], ["load"], 0.10)])
+    solar_tag_after = _outbound_tag(result_with_policy, "solar")
+    battery_tag_after = _outbound_tag(result_with_policy, "battery")
+    grid_tag = _outbound_tag(result_with_policy, "grid")
+
+    # Solar and battery still share a VLAN (both unpolicied)
+    assert solar_tag_after == battery_tag_after
+    # Grid gets its own VLAN
+    assert grid_tag != solar_tag_after

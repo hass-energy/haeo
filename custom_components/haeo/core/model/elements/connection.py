@@ -72,9 +72,10 @@ class Connection[TOutputName: str](Element[TOutputName]):
         is_time_sensitive: bool = False,
         segments: dict[str, SegmentSpec] | None = None,
         output_names: frozenset[TOutputName] | None = None,
-        tags: set[int] | None = None,
+        tags: set[int],
     ) -> None:
         """Initialize a unidirectional connection."""
+
         actual_output_names: frozenset[Any] = output_names if output_names is not None else CONNECTION_OUTPUT_NAMES
         super().__init__(
             name=name,
@@ -93,9 +94,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
 
-        # Per-tag power flows (set during initialization)
-        # Default to a single tag (0) when no tags specified — always-tagged paradigm
-        self._tags: set[int] = set(tags) if tags else {0}
+        self._tags: set[int] = set(tags)
         self._power_in: dict[int, HighspyArray] = {}
         self._power_out: dict[int, HighspyArray] = {}
 

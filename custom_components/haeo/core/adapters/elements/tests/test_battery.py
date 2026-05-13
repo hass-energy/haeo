@@ -495,6 +495,7 @@ def test_discharge_respects_power_limit_with_efficiency() -> None:
             "name": "battery_grid:discharge",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": np.array([max_discharge_kw])},
                 "efficiency": {"segment_type": "efficiency", "efficiency": np.array([efficiency])},
@@ -509,6 +510,7 @@ def test_discharge_respects_power_limit_with_efficiency() -> None:
             "name": "battery_grid:charge",
             "source": "grid",
             "target": "battery",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": np.array([5.0])},
                 "efficiency": {"segment_type": "efficiency", "efficiency": np.array([efficiency])},
@@ -563,6 +565,7 @@ def test_charge_respects_power_limit_with_efficiency() -> None:
             "name": "battery_grid:discharge",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": np.array([5.0])},
                 "efficiency": {"segment_type": "efficiency", "efficiency": np.array([efficiency])},
@@ -577,6 +580,7 @@ def test_charge_respects_power_limit_with_efficiency() -> None:
             "name": "battery_grid:charge",
             "source": "grid",
             "target": "battery",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": np.array([max_charge_kw])},
                 "efficiency": {"segment_type": "efficiency", "efficiency": np.array([efficiency])},

@@ -130,7 +130,9 @@ def _build_element_updater(
     element_bindings: list[tuple[str, list[tuple[tuple[str, ...], Callable[[object], None]]]]] = []
     for model_config in initial_model_configs:
         element_name = model_config["name"]
-        element = network.elements[element_name]
+        element = network.elements.get(element_name)
+        if element is None:
+            continue
         setters = _discover_setters(element, model_config)
         if setters:
             element_bindings.append((element_name, setters))
