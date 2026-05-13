@@ -20,7 +20,7 @@ export interface TopologyEdge {
   source: string;
   target: string;
   segments: TopologySegment[];
-  /** VLAN IDs carried by this connection (omitted when only default tag 0). */
+  /** VLAN IDs carried by this connection (omitted when untagged / only tag 0). */
   tags?: number[];
 }
 

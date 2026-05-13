@@ -63,7 +63,7 @@ def serialize_topology(
             policies.append(policy_data)
 
         else:
-            element_type = element_types[name]
+            element_type = element_types.get(name, "unknown")
             group = name.split(":")[0]
             groups[group].append(name)
             node_data: dict[str, Any] = {

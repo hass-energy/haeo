@@ -48,6 +48,7 @@ def test_connection_produces_edge() -> None:
             "name": "Bat:link",
             "source": "Bat",
             "target": "Hub",
+            "tags": {0},
             "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 5.0}},
         }
     )
@@ -239,7 +240,7 @@ def test_policy_pricing_without_label() -> None:
     network = _make_network()
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "A", "is_sink": False, "is_source": True})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "B", "is_sink": True, "is_source": False})
-    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "A:link", "source": "A", "target": "B"})
+    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "A:link", "source": "A", "target": "B", "tags": {0}})
     network.add(
         {
             "element_type": ELEMENT_TYPE_POLICY_PRICING,

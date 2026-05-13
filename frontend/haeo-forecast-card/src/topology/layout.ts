@@ -248,6 +248,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
 
       // Layout source group gets outgoing port (+ pill if owner)
       if (groupName === layoutSource) {
+        const sourceNode = isReversed ? edge.target : edge.source;
         const outPortId = `port:${edge.name}:layout-out`;
         ports.push({
           id: outPortId,
@@ -265,7 +266,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
           });
           internalEdges.push({
             id: `int:${edge.name}:a`,
-            sources: [members[0] ?? ""],
+            sources: [sourceNode],
             targets: [pillId],
           });
           internalEdges.push({
@@ -276,7 +277,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
         } else {
           internalEdges.push({
             id: `int:${edge.name}:out`,
-            sources: [members[0] ?? ""],
+            sources: [sourceNode],
             targets: [outPortId],
           });
         }
@@ -284,6 +285,7 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
 
       // Layout target group gets incoming port (+ pill if owner)
       if (groupName === layoutTarget) {
+        const targetNode = isReversed ? edge.source : edge.target;
         const inPortId = `port:${edge.name}:layout-in`;
         ports.push({
           id: inPortId,
@@ -307,13 +309,13 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
           internalEdges.push({
             id: `int:${edge.name}:pill`,
             sources: [pillId],
-            targets: [members[0] ?? ""],
+            targets: [targetNode],
           });
         } else {
           internalEdges.push({
             id: `int:${edge.name}:in`,
             sources: [inPortId],
-            targets: [members[0] ?? ""],
+            targets: [targetNode],
           });
         }
       }
