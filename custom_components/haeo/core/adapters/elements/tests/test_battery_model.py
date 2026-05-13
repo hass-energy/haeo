@@ -12,7 +12,7 @@ from custom_components.haeo.core.adapters.elements.battery import (
     BATTERY_ENERGY_OUT_FLOW,
     BATTERY_ENERGY_STORED,
     BATTERY_POWER_ACTIVE,
-    BATTERY_POWER_BALANCE_SHADOW_ENERGY_PRICE,
+    BATTERY_POWER_BALANCE,
     BATTERY_POWER_CHARGE,
     BATTERY_POWER_DISCHARGE,
     BATTERY_SOC_MAX,
@@ -50,7 +50,6 @@ class OutputsCase(TypedDict):
     name: str
     data: BatteryConfigData
     model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
-    periods: np.ndarray
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -311,7 +310,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
             },
         },
-        "periods": np.array([1.0]),
         "outputs": {
             BATTERY_DEVICE_BATTERY: {
                 BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"),
@@ -319,9 +317,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 BATTERY_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(-0.5,), direction=None),
                 BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(4.0, 4.0)),
                 BATTERY_STATE_OF_CHARGE: OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.4, 0.4)),
-                BATTERY_POWER_BALANCE_SHADOW_ENERGY_PRICE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.1,)
-                ),
+                BATTERY_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.1,)),
                 BATTERY_ENERGY_IN_FLOW: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True
                 ),
@@ -401,7 +397,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
             },
         },
-        "periods": np.array([1.0]),
         "outputs": {
             BATTERY_DEVICE_BATTERY: {
                 BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-"),
@@ -409,9 +404,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 BATTERY_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(-0.5,), direction=None),
                 BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(4.0, 4.0)),
                 BATTERY_STATE_OF_CHARGE: OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.4, 0.4)),
-                BATTERY_POWER_BALANCE_SHADOW_ENERGY_PRICE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.1,)
-                ),
+                BATTERY_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.1,)),
                 BATTERY_ENERGY_IN_FLOW: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True
                 ),
@@ -438,10 +431,5 @@ def test_model_elements(case: CreateCase) -> None:
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES[ElementType.BATTERY]
-    result = entry.outputs(
-        case["name"],
-        case["model_outputs"],
-        config=case["data"],
-        periods=case["periods"],
-    )
+    result = entry.outputs(case["name"], case["model_outputs"], config=case["data"])
     assert result == case["outputs"]

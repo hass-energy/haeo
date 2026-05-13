@@ -77,17 +77,17 @@ After creating the Battery Section element, you must create Connection elements 
 
 A Battery Section element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                                              | Unit   | Description                                 |
-| ----------------------------------------------------------------------------------- | ------ | ------------------------------------------- |
-| [`sensor.{name}_battery_section_power_charge`](#power-charge)                       | kW     | Power being charged into the battery        |
-| [`sensor.{name}_battery_section_power_discharge`](#power-discharge)                 | kW     | Power being discharged from the battery     |
-| [`sensor.{name}_battery_section_power_active`](#power-active)                       | kW     | Net active power (discharge - charge)       |
-| [`sensor.{name}_battery_section_energy_stored`](#energy-stored)                     | kWh    | Current energy stored in the battery        |
-| [`sensor.{name}_battery_section_power_balance_shadow_energy_price`](#power-balance) | \$/kWh | Shadow price of power at battery terminals  |
-| [`sensor.{name}_battery_section_energy_in_flow`](#energy-in-flow)                   | \$/kWh | Shadow price of charging constraint         |
-| [`sensor.{name}_battery_section_energy_out_flow`](#energy-out-flow)                 | \$/kWh | Shadow price of discharging constraint      |
-| [`sensor.{name}_battery_section_soc_max`](#soc-max)                                 | \$/kWh | Shadow price of maximum capacity constraint |
-| [`sensor.{name}_battery_section_soc_min`](#soc-min)                                 | \$/kWh | Shadow price of minimum capacity constraint |
+| Sensor                                                              | Unit   | Description                                 |
+| ------------------------------------------------------------------- | ------ | ------------------------------------------- |
+| [`sensor.{name}_battery_section_power_charge`](#power-charge)       | kW     | Power being charged into the battery        |
+| [`sensor.{name}_battery_section_power_discharge`](#power-discharge) | kW     | Power being discharged from the battery     |
+| [`sensor.{name}_battery_section_power_active`](#power-active)       | kW     | Net active power (discharge - charge)       |
+| [`sensor.{name}_battery_section_energy_stored`](#energy-stored)     | kWh    | Current energy stored in the battery        |
+| [`sensor.{name}_battery_section_power_balance`](#power-balance)     | \$/kWh | Shadow price of power at battery terminals  |
+| [`sensor.{name}_battery_section_energy_in_flow`](#energy-in-flow)   | \$/kWh | Shadow price of charging constraint         |
+| [`sensor.{name}_battery_section_energy_out_flow`](#energy-out-flow) | \$/kWh | Shadow price of discharging constraint      |
+| [`sensor.{name}_battery_section_soc_max`](#soc-max)                 | \$/kWh | Shadow price of maximum capacity constraint |
+| [`sensor.{name}_battery_section_soc_min`](#soc-min)                 | \$/kWh | Shadow price of minimum capacity constraint |
 
 ### Power Charge
 

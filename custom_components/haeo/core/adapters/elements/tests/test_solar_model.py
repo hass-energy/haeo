@@ -4,14 +4,9 @@ from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
 import numpy as np
-from numpy.typing import NDArray
 import pytest
 
-from custom_components.haeo.core.adapters.elements.solar import (
-    SOLAR_DEVICE_SOLAR,
-    SOLAR_FORECAST_LIMIT_SHADOW_ENERGY_PRICE,
-    SOLAR_POWER,
-)
+from custom_components.haeo.core.adapters.elements.solar import SOLAR_DEVICE_SOLAR, SOLAR_FORECAST_LIMIT, SOLAR_POWER
 from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
@@ -42,7 +37,6 @@ class OutputsCase(TypedDict):
     name: str
     config: SolarConfigData
     model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
-    periods: NDArray[np.floating[Any]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -101,18 +95,15 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.04,))
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,))
                     }
                 },
             }
         },
-        "periods": np.array([0.5]),
         "outputs": {
             SOLAR_DEVICE_SOLAR: {
                 SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="+"),
-                SOLAR_FORECAST_LIMIT_SHADOW_ENERGY_PRICE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.04,)
-                ),
+                SOLAR_FORECAST_LIMIT: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)),
             }
         },
     },
@@ -138,13 +129,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 },
             }
         },
-        "periods": np.array([1.0]),
         "outputs": {
             SOLAR_DEVICE_SOLAR: {
                 SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.5,), direction="+"),
-                SOLAR_FORECAST_LIMIT_SHADOW_ENERGY_PRICE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
-                ),
+                SOLAR_FORECAST_LIMIT: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             }
         },
     },
@@ -163,5 +151,5 @@ def test_model_elements(case: CreateCase) -> None:
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES[ElementType.SOLAR]
-    result = entry.outputs(case["name"], case["model_outputs"], config=case["config"], periods=case["periods"])
+    result = entry.outputs(case["name"], case["model_outputs"], config=case["config"])
     assert result == case["outputs"]

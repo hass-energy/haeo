@@ -365,7 +365,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
 
         Formulated in energy units (kWh) so that shadow prices are $/kWh,
         independent of period width. Power (kW) is multiplied by the period
-        duration dt (h) to give energy (kWh) for each balance constraint.
+        duration (h) to give energy (kWh) for each balance constraint.
 
         Production is decomposed across ``outbound_tags`` via per-tag variables.
         Consumption is decomposed across ``inbound_tags`` via per-tag variables.

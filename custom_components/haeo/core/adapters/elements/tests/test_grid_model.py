@@ -14,8 +14,8 @@ from custom_components.haeo.core.adapters.elements.grid import (
     GRID_POWER_ACTIVE,
     GRID_POWER_EXPORT,
     GRID_POWER_IMPORT,
-    GRID_POWER_MAX_EXPORT_SHADOW_ENERGY_PRICE,
-    GRID_POWER_MAX_IMPORT_SHADOW_ENERGY_PRICE,
+    GRID_POWER_MAX_EXPORT_PRICE,
+    GRID_POWER_MAX_IMPORT_PRICE,
     GRID_REVENUE_EXPORT,
 )
 from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
@@ -148,12 +148,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 GRID_COST_NET: OutputData(
                     type=OutputType.COST, unit="$", values=(0.40,), direction=None, state_last=True
                 ),
-                GRID_POWER_MAX_EXPORT_SHADOW_ENERGY_PRICE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)
-                ),
-                GRID_POWER_MAX_IMPORT_SHADOW_ENERGY_PRICE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)
-                ),
+                GRID_POWER_MAX_EXPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
+                GRID_POWER_MAX_IMPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)),
             }
         },
     },

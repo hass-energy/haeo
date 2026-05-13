@@ -50,16 +50,16 @@ The adapter transforms user configuration into connection segments:
 
 ### Inverter Device
 
-| Sensor                                     | Unit   | Update    | Description                              |
-| ------------------------------------------ | ------ | --------- | ---------------------------------------- |
-| `power_dc_to_ac`                           | kW     | Real-time | Power flowing from DC to AC (inverting)  |
-| `power_ac_to_dc`                           | kW     | Real-time | Power flowing from AC to DC (rectifying) |
-| `power_active`                             | kW     | Real-time | Net power (DC to AC - AC to DC)          |
-| `dc_bus_power_balance_shadow_energy_price` | \$/kWh | Real-time | DC bus power balance shadow price        |
-| `max_power_dc_to_ac_shadow_energy_price`   | \$/kWh | Real-time | Max DC to AC power shadow price          |
-| `max_power_ac_to_dc_shadow_energy_price`   | \$/kWh | Real-time | Max AC to DC power shadow price          |
+| Sensor                     | Unit   | Update    | Description                              |
+| -------------------------- | ------ | --------- | ---------------------------------------- |
+| `power_dc_to_ac`           | kW     | Real-time | Power flowing from DC to AC (inverting)  |
+| `power_ac_to_dc`           | kW     | Real-time | Power flowing from AC to DC (rectifying) |
+| `power_active`             | kW     | Real-time | Net power (DC to AC - AC to DC)          |
+| `dc_bus_power_balance`     | \$/kWh | Real-time | DC bus power balance shadow price        |
+| `max_power_dc_to_ac_price` | \$/kWh | Real-time | Max DC to AC power shadow price          |
+| `max_power_ac_to_dc_price` | \$/kWh | Real-time | Max AC to DC power shadow price          |
 
-The `max_power_*_shadow_energy_price` sensors are only created when the corresponding limit is configured.
+The `max_power_*_price` sensors are only created when the corresponding limit is configured.
 
 See [Inverter Configuration](../../user-guide/elements/inverter.md) for detailed sensor and configuration documentation.
 

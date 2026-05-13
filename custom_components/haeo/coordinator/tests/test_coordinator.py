@@ -40,7 +40,7 @@ from custom_components.haeo.coordinator import (
 )
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
 from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
-from custom_components.haeo.core.adapters.elements.grid import GRID_COST_NET, GRID_POWER_MAX_IMPORT_SHADOW_ENERGY_PRICE
+from custom_components.haeo.core.adapters.elements.grid import GRID_COST_NET, GRID_POWER_MAX_IMPORT_PRICE
 from custom_components.haeo.core.adapters.elements.solar import SOLAR_POWER
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import (
@@ -744,7 +744,7 @@ def test_localize_currency_handles_none() -> None:
 def test_build_coordinator_output_localizes_shadow_price_currency() -> None:
     """Shadow price units should use the detected currency symbol instead of $."""
     output = _build_coordinator_output(
-        GRID_POWER_MAX_IMPORT_SHADOW_ENERGY_PRICE,
+        GRID_POWER_MAX_IMPORT_PRICE,
         OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.05,)),
         forecast_times=None,
         currency_sym="£",
@@ -755,7 +755,7 @@ def test_build_coordinator_output_localizes_shadow_price_currency() -> None:
 def test_build_coordinator_output_shadow_price_is_diagnostic() -> None:
     """Shadow price outputs should be classified as DIAGNOSTIC entities."""
     output = _build_coordinator_output(
-        GRID_POWER_MAX_IMPORT_SHADOW_ENERGY_PRICE,
+        GRID_POWER_MAX_IMPORT_PRICE,
         OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.05,)),
         forecast_times=None,
         currency_sym="$",

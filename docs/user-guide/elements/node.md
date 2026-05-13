@@ -178,9 +178,9 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Node element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                              | Unit   | Description                     |
-| ------------------------------------------------------------------- | ------ | ------------------------------- |
-| [`sensor.{name}_power_balance_shadow_energy_price`](#power-balance) | \$/kWh | Local energy price at this node |
+| Sensor                                          | Unit   | Description                     |
+| ----------------------------------------------- | ------ | ------------------------------- |
+| [`sensor.{name}_power_balance`](#power-balance) | \$/kWh | Local energy price at this node |
 
 ### Power Balance
 

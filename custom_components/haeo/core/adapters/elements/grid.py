@@ -36,8 +36,8 @@ type GridOutputName = Literal[
     "grid_cost_import",
     "grid_revenue_export",
     "grid_cost_net",
-    "grid_power_max_import_shadow_energy_price",
-    "grid_power_max_export_shadow_energy_price",
+    "grid_power_max_import_price",
+    "grid_power_max_export_price",
 ]
 
 GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
@@ -49,9 +49,9 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
         GRID_COST_IMPORT := "grid_cost_import",
         GRID_REVENUE_EXPORT := "grid_revenue_export",
         GRID_COST_NET := "grid_cost_net",
-        # Per-energy ($/kWh) shadow prices on the import/export power limits
-        GRID_POWER_MAX_IMPORT_SHADOW_ENERGY_PRICE := "grid_power_max_import_shadow_energy_price",
-        GRID_POWER_MAX_EXPORT_SHADOW_ENERGY_PRICE := "grid_power_max_export_shadow_energy_price",
+        # Shadow prices
+        GRID_POWER_MAX_IMPORT_PRICE := "grid_power_max_import_price",
+        GRID_POWER_MAX_EXPORT_PRICE := "grid_power_max_export_price",
     )
 )
 
@@ -175,19 +175,18 @@ class GridAdapter:
             type=OutputType.COST, unit="$", values=net_cumsum, direction=None, state_last=True
         )
 
-        # Shadow prices from power_limit segments on each connection are
-        # already $/kWh (LP layer formulates power_limit in energy units).
+        # Output the shadow prices from power_limit segments on each connection
         shadow_price_mappings: tuple[tuple[Mapping[ModelOutputName, ModelOutputValue], GridOutputName], ...] = (
-            (export_conn, GRID_POWER_MAX_EXPORT_SHADOW_ENERGY_PRICE),
-            (import_conn, GRID_POWER_MAX_IMPORT_SHADOW_ENERGY_PRICE),
+            (export_conn, GRID_POWER_MAX_EXPORT_PRICE),
+            (import_conn, GRID_POWER_MAX_IMPORT_PRICE),
         )
-        for conn, energy_output_name in shadow_price_mappings:
+        for conn, output_name in shadow_price_mappings:
             if (
                 isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
                 and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
                 and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
             ):
-                grid_outputs[energy_output_name] = shadow
+                grid_outputs[output_name] = shadow
 
         return {GRID_DEVICE_GRID: grid_outputs}
 

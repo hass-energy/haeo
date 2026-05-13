@@ -3,11 +3,9 @@
 from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
-import numpy as np
-from numpy.typing import NDArray
 import pytest
 
-from custom_components.haeo.core.adapters.elements.node import NODE_DEVICE_NODE, NODE_POWER_BALANCE_SHADOW_ENERGY_PRICE
+from custom_components.haeo.core.adapters.elements.node import NODE_DEVICE_NODE, NODE_POWER_BALANCE
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -32,7 +30,6 @@ class OutputsCase(TypedDict):
     description: str
     name: str
     model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
-    periods: NDArray[np.floating[Any]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -57,15 +54,12 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "name": "node_main",
         "model_outputs": {
             "node_main": {
-                ELEMENT_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(1.20,)),
+                ELEMENT_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             }
         },
-        "periods": np.array([1.0 / 12.0]),
         "outputs": {
             NODE_DEVICE_NODE: {
-                NODE_POWER_BALANCE_SHADOW_ENERGY_PRICE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(1.20,)
-                ),
+                NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             }
         },
     },
@@ -73,7 +67,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "description": "Unconstrained node without power balance",
         "name": "node_main",
         "model_outputs": {"node_main": {}},
-        "periods": np.array([1.0]),
         "outputs": {NODE_DEVICE_NODE: {}},
     },
 ]
@@ -91,16 +84,5 @@ def test_model_elements(case: CreateCase) -> None:
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES[ElementType.NODE]
-    result = entry.outputs(case["name"], case["model_outputs"], periods=case["periods"])
-
-    expected = case["outputs"]
-    assert result.keys() == expected.keys()
-    for device_name, device_outputs in expected.items():
-        assert result[device_name].keys() == device_outputs.keys()
-        for output_name, expected_output in device_outputs.items():
-            actual = result[device_name][output_name]
-            assert actual.type == expected_output.type
-            assert actual.unit == expected_output.unit
-            assert len(actual.values) == len(expected_output.values)
-            for a, e in zip(actual.values, expected_output.values, strict=True):
-                assert a == pytest.approx(e)
+    result = entry.outputs(case["name"], case["model_outputs"])
+    assert result == case["outputs"]

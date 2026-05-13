@@ -225,10 +225,10 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Load element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                                      | Unit   | Description                                     |
-| --------------------------------------------------------------------------- | ------ | ----------------------------------------------- |
-| [`sensor.{name}_power`](#power)                                             | kW     | Power consumed by load                          |
-| [`sensor.{name}_forecast_limit_shadow_energy_price`](#forecast-limit-price) | \$/kWh | Shadow price of the load power limit constraint |
+| Sensor                                                        | Unit   | Description                                     |
+| ------------------------------------------------------------- | ------ | ----------------------------------------------- |
+| [`sensor.{name}_power`](#power)                               | kW     | Power consumed by load                          |
+| [`sensor.{name}_forecast_limit_price`](#forecast-limit-price) | \$/kWh | Shadow price of the load power limit constraint |
 
 ### Power
 

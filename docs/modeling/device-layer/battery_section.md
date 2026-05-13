@@ -39,17 +39,17 @@ The adapter passes user configuration directly to the Battery model element:
 
 ### Battery Section Device
 
-| Sensor                              | Unit   | Update    | Description                            |
-| ----------------------------------- | ------ | --------- | -------------------------------------- |
-| `power_charge`                      | kW     | Real-time | Power being charged into battery       |
-| `power_discharge`                   | kW     | Real-time | Power being discharged from battery    |
-| `power_active`                      | kW     | Real-time | Net active power (discharge - charge)  |
-| `energy_stored`                     | kWh    | Real-time | Current energy stored in battery       |
-| `power_balance_shadow_energy_price` | \$/kWh | Real-time | Shadow price of power at terminals     |
-| `energy_in_flow`                    | \$/kWh | Real-time | Shadow price of charging constraint    |
-| `energy_out_flow`                   | \$/kWh | Real-time | Shadow price of discharging constraint |
-| `soc_max`                           | \$/kWh | Real-time | Shadow price of maximum capacity       |
-| `soc_min`                           | \$/kWh | Real-time | Shadow price of minimum capacity       |
+| Sensor            | Unit   | Update    | Description                            |
+| ----------------- | ------ | --------- | -------------------------------------- |
+| `power_charge`    | kW     | Real-time | Power being charged into battery       |
+| `power_discharge` | kW     | Real-time | Power being discharged from battery    |
+| `power_active`    | kW     | Real-time | Net active power (discharge - charge)  |
+| `energy_stored`   | kWh    | Real-time | Current energy stored in battery       |
+| `power_balance`   | \$/kWh | Real-time | Shadow price of power at terminals     |
+| `energy_in_flow`  | \$/kWh | Real-time | Shadow price of charging constraint    |
+| `energy_out_flow` | \$/kWh | Real-time | Shadow price of discharging constraint |
+| `soc_max`         | \$/kWh | Real-time | Shadow price of maximum capacity       |
+| `soc_min`         | \$/kWh | Real-time | Shadow price of minimum capacity       |
 
 See [Battery Section Configuration](../../user-guide/elements/battery_section.md#sensors-created) for detailed sensor documentation.
 

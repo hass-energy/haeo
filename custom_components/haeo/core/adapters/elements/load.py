@@ -25,14 +25,14 @@ from custom_components.haeo.core.schema.sections import (
 # Load output names
 type LoadOutputName = Literal[
     "load_power",
-    "load_forecast_limit_shadow_energy_price",
+    "load_forecast_limit_price",
 ]
 
 LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
     (
         LOAD_POWER := "load_power",
-        # Per-energy shadow price ($/kWh) on the forecast-limit constraint
-        LOAD_FORECAST_LIMIT_SHADOW_ENERGY_PRICE := "load_forecast_limit_shadow_energy_price",
+        # Shadow price
+        LOAD_FORECAST_LIMIT_PRICE := "load_forecast_limit_price",
     )
 )
 
@@ -94,14 +94,13 @@ class LoadAdapter:
             LOAD_POWER: replace(power, type=OutputType.POWER, direction="-", fixed=fixed),
         }
 
-        # power_limit is formulated in energy units (kWh) at the LP layer,
-        # so its shadow price is already $/kWh and can be published directly.
+        # Shadow price from power_limit segment (if present)
         if (
             isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
             and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
             and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
         ):
-            load_outputs[LOAD_FORECAST_LIMIT_SHADOW_ENERGY_PRICE] = shadow
+            load_outputs[LOAD_FORECAST_LIMIT_PRICE] = shadow
 
         return {LOAD_DEVICE_LOAD: load_outputs}
 

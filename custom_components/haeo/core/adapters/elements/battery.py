@@ -56,7 +56,7 @@ type BatteryOutputName = Literal[
     "battery_power_active",
     "battery_energy_stored",
     "battery_state_of_charge",
-    "battery_power_balance_shadow_energy_price",
+    "battery_power_balance",
     "battery_energy_in_flow",
     "battery_energy_out_flow",
     "battery_soc_max",
@@ -70,8 +70,7 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
         BATTERY_POWER_ACTIVE := "battery_power_active",
         BATTERY_ENERGY_STORED := "battery_energy_stored",
         BATTERY_STATE_OF_CHARGE := "battery_state_of_charge",
-        # Per-energy ($/kWh) shadow price on the power-balance constraint
-        BATTERY_POWER_BALANCE_SHADOW_ENERGY_PRICE := "battery_power_balance_shadow_energy_price",
+        BATTERY_POWER_BALANCE := "battery_power_balance",
         BATTERY_ENERGY_IN_FLOW := "battery_energy_in_flow",
         BATTERY_ENERGY_OUT_FLOW := "battery_energy_out_flow",
         BATTERY_SOC_MAX := "battery_soc_max",
@@ -247,10 +246,7 @@ class BatteryAdapter:
             type=OutputType.POWER,
         )
 
-        # BATTERY_POWER_BALANCE reuses element_power_balance, which is formulated
-        # in energy units (kWh) at the LP layer, so its shadow price is $/kWh.
-        if (power_balance_shadow := battery_outputs.get(model_battery.BATTERY_POWER_BALANCE)) is not None:
-            aggregate_outputs[BATTERY_POWER_BALANCE_SHADOW_ENERGY_PRICE] = expect_output_data(power_balance_shadow)
+        aggregate_outputs[BATTERY_POWER_BALANCE] = battery_outputs[model_battery.BATTERY_POWER_BALANCE]
         aggregate_outputs[BATTERY_ENERGY_IN_FLOW] = replace(
             battery_outputs[model_battery.BATTERY_ENERGY_IN_FLOW], advanced=True
         )

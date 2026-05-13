@@ -23,11 +23,10 @@ DEFAULT_IS_SOURCE: Final[bool] = False
 DEFAULT_IS_SINK: Final[bool] = False
 
 # Node output names
-type NodeOutputName = Literal["node_power_balance_shadow_energy_price"]
+type NodeOutputName = Literal["node_power_balance"]
 
-NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset(
-    (NODE_POWER_BALANCE_SHADOW_ENERGY_PRICE := "node_power_balance_shadow_energy_price",)
-)
+NODE_POWER_BALANCE: Final[NodeOutputName] = "node_power_balance"
+NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
 
 type NodeDeviceName = Literal[ElementType.NODE]
 
@@ -65,11 +64,10 @@ class NodeAdapter:
         """Convert model element outputs to node adapter outputs."""
         node_model = model_outputs[name]
 
-        # power_balance is formulated in energy units (kWh) at the LP layer,
-        # so its shadow price is already $/kWh and can be published directly.
+        # Map Node power_balance to node_power_balance (only present for constrained nodes)
         node_outputs: dict[NodeOutputName, OutputData] = {}
         if ELEMENT_POWER_BALANCE in node_model:
-            node_outputs[NODE_POWER_BALANCE_SHADOW_ENERGY_PRICE] = expect_output_data(node_model[ELEMENT_POWER_BALANCE])
+            node_outputs[NODE_POWER_BALANCE] = expect_output_data(node_model[ELEMENT_POWER_BALANCE])
 
         return {NODE_DEVICE_NODE: node_outputs}
 

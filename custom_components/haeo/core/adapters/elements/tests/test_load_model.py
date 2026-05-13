@@ -4,14 +4,9 @@ from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
 import numpy as np
-from numpy.typing import NDArray
 import pytest
 
-from custom_components.haeo.core.adapters.elements.load import (
-    LOAD_DEVICE_LOAD,
-    LOAD_FORECAST_LIMIT_SHADOW_ENERGY_PRICE,
-    LOAD_POWER,
-)
+from custom_components.haeo.core.adapters.elements.load import LOAD_DEVICE_LOAD, LOAD_FORECAST_LIMIT_PRICE, LOAD_POWER
 from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
@@ -42,7 +37,6 @@ class OutputsCase(TypedDict):
     name: str
     config: LoadConfigData
     model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
-    periods: NDArray[np.floating[Any]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -119,18 +113,15 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.04,))
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,))
                     }
                 },
             }
         },
-        "periods": np.array([0.25]),
         "outputs": {
             LOAD_DEVICE_LOAD: {
                 LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-", fixed=True),
-                LOAD_FORECAST_LIMIT_SHADOW_ENERGY_PRICE: OutputData(
-                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.04,)
-                ),
+                LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
             }
         },
     },
@@ -149,5 +140,5 @@ def test_model_elements(case: CreateCase) -> None:
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES[ElementType.LOAD]
-    result = entry.outputs(case["name"], case["model_outputs"], config=case["config"], periods=case["periods"])
+    result = entry.outputs(case["name"], case["model_outputs"], config=case["config"])
     assert result == case["outputs"]

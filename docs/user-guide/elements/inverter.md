@@ -117,14 +117,14 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 An Inverter element creates 1 device in Home Assistant with the following sensors.
 Not all sensors are created for every inverter - only those relevant to the configuration.
 
-| Sensor                                                                            | Unit   | Description                              |
-| --------------------------------------------------------------------------------- | ------ | ---------------------------------------- |
-| [`sensor.{name}_power_dc_to_ac`](#dc-to-ac-power)                                 | kW     | Power flowing from DC to AC (inverting)  |
-| [`sensor.{name}_power_ac_to_dc`](#ac-to-dc-power)                                 | kW     | Power flowing from AC to DC (rectifying) |
-| [`sensor.{name}_power_active`](#active-power)                                     | kW     | Net power (DC to AC - AC to DC)          |
-| [`sensor.{name}_dc_bus_power_balance_shadow_energy_price`](#dc-bus-power-balance) | \$/kWh | DC bus power balance shadow price        |
-| [`sensor.{name}_max_power_dc_to_ac_shadow_energy_price`](#shadow-prices)          | \$/kWh | Maximum DC to AC power shadow price      |
-| [`sensor.{name}_max_power_ac_to_dc_shadow_energy_price`](#shadow-prices)          | \$/kWh | Maximum AC to DC power shadow price      |
+| Sensor                                                        | Unit   | Description                              |
+| ------------------------------------------------------------- | ------ | ---------------------------------------- |
+| [`sensor.{name}_power_dc_to_ac`](#dc-to-ac-power)             | kW     | Power flowing from DC to AC (inverting)  |
+| [`sensor.{name}_power_ac_to_dc`](#ac-to-dc-power)             | kW     | Power flowing from AC to DC (rectifying) |
+| [`sensor.{name}_power_active`](#active-power)                 | kW     | Net power (DC to AC - AC to DC)          |
+| [`sensor.{name}_dc_bus_power_balance`](#dc-bus-power-balance) | \$/kWh | DC bus power balance shadow price        |
+| [`sensor.{name}_max_power_dc_to_ac_price`](#shadow-prices)    | \$/kWh | Maximum DC to AC power shadow price      |
+| [`sensor.{name}_max_power_ac_to_dc_price`](#shadow-prices)    | \$/kWh | Maximum AC to DC power shadow price      |
 
 ### DC to AC Power
 
