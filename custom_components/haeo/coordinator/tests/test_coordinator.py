@@ -8,7 +8,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-from homeassistant.const import STATE_OFF, STATE_ON, UnitOfEnergy
+from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory, UnitOfEnergy
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.event import EventStateChangedData
 from homeassistant.helpers.update_coordinator import UpdateFailed
@@ -750,6 +750,28 @@ def test_build_coordinator_output_localizes_shadow_price_currency() -> None:
         currency_sym="£",
     )
     assert output.unit == "£/kWh"
+
+
+def test_build_coordinator_output_shadow_price_is_diagnostic() -> None:
+    """Shadow price outputs should be classified as DIAGNOSTIC entities."""
+    output = _build_coordinator_output(
+        GRID_POWER_MAX_IMPORT_PRICE,
+        OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.05,)),
+        forecast_times=None,
+        currency_sym="$",
+    )
+    assert output.entity_category == EntityCategory.DIAGNOSTIC
+
+
+def test_build_coordinator_output_power_not_diagnostic() -> None:
+    """Non-shadow-price outputs should not be DIAGNOSTIC unless they are optimization_duration."""
+    output = _build_coordinator_output(
+        SOLAR_POWER,
+        OutputData(type=OutputType.POWER, unit="kW", values=(1.0,)),
+        forecast_times=None,
+        currency_sym="$",
+    )
+    assert output.entity_category is None
 
 
 def test_build_coordinator_output_localizes_cost_currency() -> None:
