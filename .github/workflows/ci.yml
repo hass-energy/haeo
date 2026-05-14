@@ -230,7 +230,6 @@ jobs:
         with:
           files: frontend/haeo-forecast-card/coverage/lcov.info
           flags: frontend
-          token: ${{ secrets.CODECOV_TOKEN }}
   #endregion
   #region Tests
   # =============================================================================
@@ -260,7 +259,6 @@ jobs:
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           report_type: test_results
-          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload coverage to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
@@ -268,7 +266,6 @@ jobs:
         with:
           flags: python
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
 
   scenario:
     name: Scenario tests
