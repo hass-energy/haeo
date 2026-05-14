@@ -27,7 +27,19 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
+from custom_components.haeo.flows.surfaced_policy import (
+    LOAD_SURFACED_RULES,
+    build_surfaced_price_defaults,
+    build_surfaced_price_schema_entries,
+    build_surfaced_price_selector,
+    save_surfaced_rules_from_input,
+)
 from custom_components.haeo.sections import build_common_fields, forecast_section
+
+# Surfaced policy field names (not stored in load config)
+SURFACED_POLICY_FIELDS: frozenset[str] = frozenset(
+    spec.field_name for spec in LOAD_SURFACED_RULES
+)
 
 
 class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -105,6 +117,8 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for inputs."""
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
+        price_selector = build_surfaced_price_selector()
+        surfaced_entries = build_surfaced_price_schema_entries(LOAD_SURFACED_RULES, price_selector)
         return build_sectioned_choose_schema(
             self._get_sections(),
             input_fields,
@@ -116,6 +130,9 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 participants=participants,
                 current_connection=current_connection,
             ),
+            extra_field_entries={
+                SECTION_CURTAILMENT: surfaced_entries,
+            },
         )
 
     def _build_defaults(
@@ -133,6 +150,9 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             if subentry_data
             else None
         )
+        hub_entry = self._get_entry()
+        element_name = subentry_data.get(CONF_NAME) if subentry_data else None
+        surfaced_defaults = build_surfaced_price_defaults(hub_entry, element_name, LOAD_SURFACED_RULES)
         return {
             CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
             CONF_CONNECTION: connection_default,
@@ -140,6 +160,9 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 self._get_sections(),
                 input_fields,
                 current_data=subentry_data,
+                base_defaults={
+                    SECTION_CURTAILMENT: surfaced_defaults,
+                },
             ),
         }
 
@@ -160,6 +183,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 input_fields,
                 field_schema,
                 self._get_sections(),
+                exclude_fields=tuple(SURFACED_POLICY_FIELDS),
             )
         )
         return errors if errors else None
@@ -171,6 +195,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             user_input,
             input_fields,
             self._get_sections(),
+            exclude_fields=tuple(SURFACED_POLICY_FIELDS),
         )
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
@@ -180,8 +205,17 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
     def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
-        """Finalize the flow by creating or updating the entry."""
+        """Finalize the flow by creating or updating the entry and saving surfaced rules."""
         name = str(user_input[CONF_NAME])
+
+        # Save surfaced policy rules from the curtailment section input
+        curtailment_input = user_input.get(SECTION_CURTAILMENT, {})
+        hub_entry = self._get_entry()
+        translations = {"consumption_cost": f"{name} consumption cost"}
+        save_surfaced_rules_from_input(
+            self.hass, hub_entry, name, curtailment_input, LOAD_SURFACED_RULES, translations
+        )
+
         subentry = self._get_subentry()
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)

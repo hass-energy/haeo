@@ -24,6 +24,7 @@ from custom_components.haeo.core.schema.elements.battery import (
     SECTION_LIMITS,
     SECTION_OVERCHARGE,
     SECTION_PARTITIONING,
+    SECTION_PRICING,
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
 )
@@ -44,6 +45,13 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
+from custom_components.haeo.flows.surfaced_policy import (
+    BATTERY_SURFACED_RULES,
+    build_surfaced_price_defaults,
+    build_surfaced_price_schema_entries,
+    build_surfaced_price_selector,
+    save_surfaced_rules_from_input,
+)
 from custom_components.haeo.sections import (
     build_common_fields,
     efficiency_section,
@@ -62,6 +70,11 @@ PARTITION_SECTION_DEFINITIONS = (
         fields=(CONF_PARTITION_PERCENTAGE, CONF_PARTITION_COST),
         collapsed=False,
     ),
+)
+
+# Surfaced policy field names (not stored in battery config)
+SURFACED_POLICY_FIELDS: frozenset[str] = frozenset(
+    spec.field_name for spec in BATTERY_SURFACED_RULES
 )
 
 
@@ -183,6 +196,8 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for main inputs."""
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
+        price_selector = build_surfaced_price_selector()
+        surfaced_entries = build_surfaced_price_schema_entries(BATTERY_SURFACED_RULES, price_selector)
         return build_sectioned_choose_schema(
             self._get_sections(),
             input_fields,
@@ -201,6 +216,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                         BooleanSelector(BooleanSelectorConfig()),
                     )
                 },
+                SECTION_PRICING: surfaced_entries,
             },
         )
 
@@ -245,6 +261,11 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 ):
                     has_partitions = True
                     break
+
+        hub_entry = self._get_entry()
+        element_name = subentry_data.get(CONF_NAME) if subentry_data else None
+        surfaced_defaults = build_surfaced_price_defaults(hub_entry, element_name, BATTERY_SURFACED_RULES)
+
         section_defaults = build_sectioned_choose_defaults(
             self._get_sections(),
             input_fields,
@@ -253,6 +274,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 SECTION_PARTITIONING: {
                     CONF_CONFIGURE_PARTITIONS: has_partitions,
                 },
+                SECTION_PRICING: surfaced_defaults,
             },
         )
         return {
@@ -290,7 +312,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 input_fields,
                 field_schema,
                 self._get_sections(),
-                exclude_fields=tuple(PARTITION_FIELD_NAMES),
+                exclude_fields=(*PARTITION_FIELD_NAMES, *SURFACED_POLICY_FIELDS),
             )
         )
         return errors if errors else None
@@ -318,6 +340,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             main_input,
             input_fields,
             sections,
+            exclude_fields=tuple(SURFACED_POLICY_FIELDS),
         )
 
         if partition_input:
@@ -339,9 +362,25 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
     def _finalize(self, config: dict[str, Any]) -> SubentryFlowResult:
-        """Finalize the flow by creating or updating the entry."""
+        """Finalize the flow by creating or updating the entry and saving surfaced rules."""
         name = str(self._step1_data[CONF_NAME])
+
+        # Save surfaced policy rules from the pricing section input
+        pricing_input = self._step1_data.get(SECTION_PRICING, {})
+        hub_entry = self._get_entry()
+        translations = self._surfaced_rule_translations(name)
+        save_surfaced_rules_from_input(
+            self.hass, hub_entry, name, pricing_input, BATTERY_SURFACED_RULES, translations
+        )
+
         subentry = self._get_subentry()
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
         return self.async_create_entry(title=name, data=config)
+
+    def _surfaced_rule_translations(self, element_name: str) -> dict[str, str]:
+        """Build translated rule names for surfaced policy rules."""
+        return {
+            "charge_cost": f"{element_name} charge cost",
+            "discharge_cost": f"{element_name} discharge cost",
+        }

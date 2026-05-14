@@ -99,8 +99,10 @@
           "description": "Configure battery parameters for energy optimization",
           "data": {
             "capacity": "Capacity",
+            "charge_cost": "Charge cost",
             "configure_partitions": "Configure battery partitions",
             "connection": "Connection",
+            "discharge_cost": "Discharge cost",
             "efficiency_source_target": "Discharge efficiency",
             "efficiency_target_source": "Charge efficiency",
             "initial_charge_percentage": "State of Charge",
@@ -109,8 +111,6 @@
             "max_power_target_source": "Max charge power",
             "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name",
-            "price_source_target": "Discharge price",
-            "price_target_source": "Charge price",
             "salvage_value": "Salvage value"
           },
           "sections": {
@@ -139,8 +139,8 @@
             },
             "pricing": {
               "data": {
-                "price_source_target": "Discharge price",
-                "price_target_source": "Charge price",
+                "charge_cost": "Charge cost",
+                "discharge_cost": "Discharge cost",
                 "salvage_value": "Salvage value"
               },
               "name": "Pricing"
@@ -331,16 +331,15 @@
           "description": "Configure a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
           "data": {
             "connection": "Connection",
+            "consumption_cost": "Consumption cost",
             "curtailment": "Allow shedding",
             "forecast": "Forecast",
-            "name": "Load Name",
-            "price_target_source": "Consumption value"
+            "name": "Load Name"
           },
           "sections": {
             "common": { "data": { "connection": "Connection", "name": "Load Name" }, "name": "Common settings" },
-            "curtailment": { "data": { "curtailment": "Allow shedding" }, "name": "Shedding" },
-            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" },
-            "pricing": { "data": { "price_target_source": "Consumption value" }, "name": "Value" }
+            "curtailment": { "data": { "consumption_cost": "Consumption cost", "curtailment": "Allow shedding" }, "name": "Shedding" },
+            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" }
           }
         }
       },
@@ -418,7 +417,8 @@
       "error": {
         "missing_name": "Policy name is required",
         "name_exists": "A policy with this name already exists",
-        "source_target_same": "Source and target cannot be the same element"
+        "source_target_same": "Source and target cannot be the same element",
+        "surfaced_policy_conflict": "This pricing pattern is managed by the element's own configuration"
       },
       "abort": { "no_rules": "No policy rules configured", "reconfigure_successful": "Policies updated successfully" }
     },

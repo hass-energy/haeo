@@ -54,6 +54,7 @@ from custom_components.haeo.flows.field_schema import (
     NormalizingChooseSelector,
     build_choose_selector,
 )
+from custom_components.haeo.flows.surfaced_policy import is_surfaced_pattern
 
 CONF_ACTION: str = "action"
 CONF_RULE: str = "rule"
@@ -354,6 +355,13 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         target = user_input.get(CONF_TARGET) or []
         if source and target and source == target:
             errors["base"] = "source_target_same"
+            return False
+
+        # Block rules that conflict with element-surfaced pricing patterns
+        source_list = source if isinstance(source, list) and source else None
+        target_list = target if isinstance(target, list) and target else None
+        if (source_list or target_list) and is_surfaced_pattern(self._get_entry(), source_list, target_list):
+            errors["base"] = "surfaced_policy_conflict"
             return False
 
         price = user_input.get(CONF_PRICE)

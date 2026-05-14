@@ -243,8 +243,54 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
             coordinator.signal_optimization_stale()
         return
 
+    # Clean up surfaced policy rules for deleted elements
+    _cleanup_surfaced_policy_rules(hass, entry)
+
     _LOGGER.info("HAEO configuration changed, reloading integration")
     hass.config_entries.async_schedule_reload(entry.entry_id)
+
+
+def _cleanup_surfaced_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove surfaced policy rules for elements that no longer exist.
+
+    When an element subentry is deleted, its associated surfaced policy
+    rules become stale. This checks current element names against policy
+    rules and removes orphaned surfaced rules.
+    """
+    from custom_components.haeo.flows.surfaced_policy import (  # noqa: PLC0415
+        find_policy_subentry,
+        get_policy_rules,
+        remove_element_surfaced_rules,
+    )
+
+    policy_subentry = find_policy_subentry(entry)
+    if policy_subentry is None:
+        return
+
+    # Collect all current element names
+    current_element_names = {
+        subentry.title
+        for subentry in entry.subentries.values()
+        if subentry.subentry_id != policy_subentry.subentry_id
+    }
+
+    # Find element names referenced in surfaced rules that no longer exist
+    rules = get_policy_rules(entry)
+    for rule in rules:
+        source = rule.get("source")
+        target = rule.get("target")
+
+        # Check * → element patterns
+        if not source and target and len(target) == 1:
+            element_name = target[0]
+            if element_name not in current_element_names:
+                remove_element_surfaced_rules(hass, entry, element_name)
+
+        # Check element → * patterns
+        elif source and len(source) == 1 and not target:
+            element_name = source[0]
+            if element_name not in current_element_names:
+                remove_element_surfaced_rules(hass, entry, element_name)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
