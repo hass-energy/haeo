@@ -38,6 +38,10 @@ type GridOutputName = Literal[
     "grid_cost_net",
     "grid_power_max_import_price",
     "grid_power_max_export_price",
+    "grid_forced_import_cost",
+    "grid_forced_export_cost",
+    "grid_import_headroom",
+    "grid_export_headroom",
 ]
 
 GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
