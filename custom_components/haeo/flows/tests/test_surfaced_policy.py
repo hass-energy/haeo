@@ -797,6 +797,7 @@ def test_cleanup_removes_orphaned_surfaced_rules(
             {"name": "charge", "target": ["Battery1"], "price": as_constant_value(0.1)},
             {"name": "discharge", "source": ["Battery1"], "price": as_constant_value(0.2)},
             {"name": "load charge", "target": ["DeletedLoad"], "price": as_constant_value(0.3)},
+            {"name": "deleted discharge", "source": ["DeletedBattery"], "price": as_constant_value(0.4)},
         ],
     )
 

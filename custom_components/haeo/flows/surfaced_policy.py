@@ -21,7 +21,7 @@ from homeassistant.core import HomeAssistant
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value, is_constant_value
+from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_PRICE,
@@ -292,9 +292,7 @@ def price_to_form_value(price: EntityValue | ConstantValue | None) -> Any:
         return None
     if is_entity_value(price):
         return price["value"]
-    if is_constant_value(price):
-        return price["value"]
-    return None
+    return price["value"]
 
 
 def form_value_to_price(value: Any) -> EntityValue | ConstantValue | None:
@@ -313,7 +311,7 @@ def form_value_to_price(value: Any) -> EntityValue | ConstantValue | None:
         return as_entity_value(value)
     if isinstance(value, (int, float)):
         return as_constant_value(float(value))
-    return None
+    return None  # pragma: no cover
 
 
 # --- Higher-level helpers for element config flows ---
