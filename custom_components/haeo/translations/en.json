@@ -338,7 +338,10 @@
           },
           "sections": {
             "common": { "data": { "connection": "Connection", "name": "Load Name" }, "name": "Common settings" },
-            "curtailment": { "data": { "consumption_cost": "Consumption cost", "curtailment": "Allow shedding" }, "name": "Shedding" },
+            "curtailment": {
+              "data": { "consumption_cost": "Consumption cost", "curtailment": "Allow shedding" },
+              "name": "Shedding"
+            },
             "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" }
           }
         }

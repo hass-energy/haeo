@@ -199,11 +199,7 @@ def remove_element_surfaced_rules(
     rules = get_policy_rules(hub_entry)
     original_count = len(rules)
 
-    rules = [
-        rule
-        for rule in rules
-        if not _is_surfaced_rule_for_element(rule, element_name)
-    ]
+    rules = [rule for rule in rules if not _is_surfaced_rule_for_element(rule, element_name)]
 
     if len(rules) != original_count:
         _save_policy_rules(hass, hub_entry, rules)
@@ -364,10 +360,7 @@ def build_surfaced_price_schema_entries(
     Returns a dict of field_name → (vol.Optional marker, selector) suitable
     for injecting into a section's extra_field_entries.
     """
-    return {
-        spec.field_name: (vol.Optional(spec.field_name), price_selector)
-        for spec in specs
-    }
+    return {spec.field_name: (vol.Optional(spec.field_name), price_selector) for spec in specs}
 
 
 def build_surfaced_price_selector() -> Any:

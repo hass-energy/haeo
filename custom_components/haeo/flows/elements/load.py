@@ -37,9 +37,7 @@ from custom_components.haeo.flows.surfaced_policy import (
 from custom_components.haeo.sections import build_common_fields, forecast_section
 
 # Surfaced policy field names (not stored in load config)
-SURFACED_POLICY_FIELDS: frozenset[str] = frozenset(
-    spec.field_name for spec in LOAD_SURFACED_RULES
-)
+SURFACED_POLICY_FIELDS: frozenset[str] = frozenset(spec.field_name for spec in LOAD_SURFACED_RULES)
 
 
 class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -212,9 +210,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         curtailment_input = user_input.get(SECTION_CURTAILMENT, {})
         hub_entry = self._get_entry()
         translations = {"consumption_cost": f"{name} consumption cost"}
-        save_surfaced_rules_from_input(
-            self.hass, hub_entry, name, curtailment_input, LOAD_SURFACED_RULES, translations
-        )
+        save_surfaced_rules_from_input(self.hass, hub_entry, name, curtailment_input, LOAD_SURFACED_RULES, translations)
 
         subentry = self._get_subentry()
         if subentry is not None:

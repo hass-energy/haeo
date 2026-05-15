@@ -269,9 +269,7 @@ def _cleanup_surfaced_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> N
 
     # Collect all current element names
     current_element_names = {
-        subentry.title
-        for subentry in entry.subentries.values()
-        if subentry.subentry_id != policy_subentry.subentry_id
+        subentry.title for subentry in entry.subentries.values() if subentry.subentry_id != policy_subentry.subentry_id
     }
 
     # Find element names referenced in surfaced rules that no longer exist

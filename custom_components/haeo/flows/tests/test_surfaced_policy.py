@@ -77,11 +77,13 @@ def _add_policy_subentry(
     rules: list[dict[str, Any]],
 ) -> ConfigSubentry:
     """Add a policy subentry with the given rules."""
-    data = MappingProxyType({
-        CONF_ELEMENT_TYPE: str(POLICY_ELEMENT_TYPE),
-        CONF_NAME: POLICIES_TITLE,
-        CONF_RULES: rules,
-    })
+    data = MappingProxyType(
+        {
+            CONF_ELEMENT_TYPE: str(POLICY_ELEMENT_TYPE),
+            CONF_NAME: POLICIES_TITLE,
+            CONF_RULES: rules,
+        }
+    )
     subentry = ConfigSubentry(
         data=data,
         subentry_type=str(POLICY_ELEMENT_TYPE),
@@ -250,9 +252,13 @@ def test_save_updates_existing_rule(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Updates an existing rule in place."""
-    _add_policy_subentry(hass, hub_entry, [
-        {"name": "old name", "target": ["Battery"], "price": as_constant_value(0.0)},
-    ])
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "old name", "target": ["Battery"], "price": as_constant_value(0.0)},
+        ],
+    )
     save_surfaced_rule(
         hass,
         hub_entry,
@@ -272,9 +278,13 @@ def test_save_appends_new_rule(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Appends a new rule alongside existing rules."""
-    _add_policy_subentry(hass, hub_entry, [
-        {"name": "existing", "source": ["Other"], "price": as_constant_value(0.1)},
-    ])
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "existing", "source": ["Other"], "price": as_constant_value(0.1)},
+        ],
+    )
     save_surfaced_rule(
         hass,
         hub_entry,
@@ -292,10 +302,14 @@ def test_save_with_none_price_deletes_rule(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Passing price=None deletes the matching rule."""
-    _add_policy_subentry(hass, hub_entry, [
-        {"name": "to delete", "target": ["Battery"], "price": as_constant_value(0.1)},
-        {"name": "keep", "source": ["X"], "price": as_constant_value(0.2)},
-    ])
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "to delete", "target": ["Battery"], "price": as_constant_value(0.1)},
+            {"name": "keep", "source": ["X"], "price": as_constant_value(0.2)},
+        ],
+    )
     save_surfaced_rule(
         hass,
         hub_entry,
@@ -314,9 +328,13 @@ def test_save_with_none_price_no_match_is_noop(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Passing price=None when no matching rule exists does nothing."""
-    _add_policy_subentry(hass, hub_entry, [
-        {"name": "keep", "source": ["X"], "price": as_constant_value(0.2)},
-    ])
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "keep", "source": ["X"], "price": as_constant_value(0.2)},
+        ],
+    )
     save_surfaced_rule(
         hass,
         hub_entry,
@@ -337,11 +355,15 @@ def test_remove_element_rules_removes_matching_patterns(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Removes all surfaced rules for an element."""
-    _add_policy_subentry(hass, hub_entry, [
-        {"name": "charge", "target": ["Battery"], "price": as_constant_value(0.1)},
-        {"name": "discharge", "source": ["Battery"], "price": as_constant_value(0.2)},
-        {"name": "unrelated", "source": ["Grid"], "target": ["Load"], "price": as_constant_value(0.3)},
-    ])
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "charge", "target": ["Battery"], "price": as_constant_value(0.1)},
+            {"name": "discharge", "source": ["Battery"], "price": as_constant_value(0.2)},
+            {"name": "unrelated", "source": ["Grid"], "target": ["Load"], "price": as_constant_value(0.3)},
+        ],
+    )
     remove_element_surfaced_rules(hass, hub_entry, "Battery")
     rules = _get_rules(hub_entry)
     assert len(rules) == 1
@@ -431,10 +453,14 @@ def test_defaults_for_existing_element_with_rules(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Existing elements read current prices from policy rules."""
-    _add_policy_subentry(hass, hub_entry, [
-        {"name": "charge", "target": ["Battery"], "price": as_constant_value(0.5)},
-        {"name": "discharge", "source": ["Battery"], "price": as_entity_value(["sensor.cost"])},
-    ])
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "charge", "target": ["Battery"], "price": as_constant_value(0.5)},
+            {"name": "discharge", "source": ["Battery"], "price": as_entity_value(["sensor.cost"])},
+        ],
+    )
     defaults = build_surfaced_price_defaults(hub_entry, "Battery", BATTERY_SURFACED_RULES)
     assert defaults[CONF_CHARGE_COST] == 0.5
     assert defaults[CONF_DISCHARGE_COST] == ["sensor.cost"]
@@ -454,11 +480,7 @@ def test_defaults_for_existing_element_without_rules(
 
 def _wrap_battery_input(user_input: dict[str, Any]) -> dict[str, Any]:
     """Wrap battery user input into sectioned form data."""
-    common = {
-        key: user_input[key]
-        for key in (CONF_NAME, CONF_CONNECTION)
-        if key in user_input
-    }
+    common = {key: user_input[key] for key in (CONF_NAME, CONF_CONNECTION) if key in user_input}
     pricing: dict[str, Any] = {}
     for key in (CONF_SALVAGE_VALUE, CONF_CHARGE_COST, CONF_DISCHARGE_COST):
         if key in user_input:
@@ -468,9 +490,7 @@ def _wrap_battery_input(user_input: dict[str, Any]) -> dict[str, Any]:
     return {
         **common,
         SECTION_STORAGE: {
-            key: user_input[key]
-            for key in (CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE)
-            if key in user_input
+            key: user_input[key] for key in (CONF_CAPACITY, CONF_INITIAL_CHARGE_PERCENTAGE) if key in user_input
         },
         SECTION_LIMITS: {
             key: user_input[key]
@@ -635,17 +655,17 @@ async def test_load_flow_creates_consumption_cost_rule(
     """Load flow creates consumption cost rule in policy subentry."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, LOAD_ELEMENT_TYPE)
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Load", "data": {}}
-    )
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Load", "data": {}})
 
-    user_input = _wrap_load_input({
-        CONF_NAME: "Test Load",
-        CONF_CONNECTION: "main_bus",
-        CONF_FORECAST: ["sensor.load_forecast"],
-        CONF_CURTAILMENT: False,
-        CONF_CONSUMPTION_COST: 0.15,
-    })
+    user_input = _wrap_load_input(
+        {
+            CONF_NAME: "Test Load",
+            CONF_CONNECTION: "main_bus",
+            CONF_FORECAST: ["sensor.load_forecast"],
+            CONF_CURTAILMENT: False,
+            CONF_CONSUMPTION_COST: 0.15,
+        }
+    )
     result = await flow.async_step_user(user_input=user_input)
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
@@ -663,17 +683,17 @@ async def test_load_flow_none_cost_skips_rule(
     """Load flow with None consumption cost doesn't create a rule."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, LOAD_ELEMENT_TYPE)
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Load", "data": {}}
-    )
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Load", "data": {}})
 
-    user_input = _wrap_load_input({
-        CONF_NAME: "Test Load",
-        CONF_CONNECTION: "main_bus",
-        CONF_FORECAST: ["sensor.load_forecast"],
-        CONF_CURTAILMENT: False,
-        CONF_CONSUMPTION_COST: None,
-    })
+    user_input = _wrap_load_input(
+        {
+            CONF_NAME: "Test Load",
+            CONF_CONNECTION: "main_bus",
+            CONF_FORECAST: ["sensor.load_forecast"],
+            CONF_CURTAILMENT: False,
+            CONF_CONSUMPTION_COST: None,
+        }
+    )
     result = await flow.async_step_user(user_input=user_input)
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
@@ -687,17 +707,17 @@ async def test_load_flow_excludes_surfaced_fields_from_config(
     """Surfaced price fields are not stored in load subentry config."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, LOAD_ELEMENT_TYPE)
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Load", "data": {}}
-    )
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Load", "data": {}})
 
-    user_input = _wrap_load_input({
-        CONF_NAME: "Test Load",
-        CONF_CONNECTION: "main_bus",
-        CONF_FORECAST: ["sensor.load_forecast"],
-        CONF_CURTAILMENT: False,
-        CONF_CONSUMPTION_COST: 0.15,
-    })
+    user_input = _wrap_load_input(
+        {
+            CONF_NAME: "Test Load",
+            CONF_CONNECTION: "main_bus",
+            CONF_FORECAST: ["sensor.load_forecast"],
+            CONF_CURTAILMENT: False,
+            CONF_CONSUMPTION_COST: 0.15,
+        }
+    )
     await flow.async_step_user(user_input=user_input)
 
     created_data = flow.async_create_entry.call_args.kwargs["data"]
@@ -742,9 +762,7 @@ async def test_policy_flow_allows_non_surfaced_pattern(
     add_participant(hass, hub_entry, "MyBattery", str(BATTERY_ELEMENT_TYPE))
 
     flow = create_flow(hass, hub_entry, POLICY_ELEMENT_TYPE)
-    flow.async_create_entry = Mock(
-        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Policies", "data": {}}
-    )
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Policies", "data": {}})
 
     # A → B pattern is fine (not surfaced)
     result = await flow.async_step_user(
@@ -772,11 +790,15 @@ def test_cleanup_removes_orphaned_surfaced_rules(
 
     # Add a battery and its surfaced rules
     add_participant(hass, hub_entry, "Battery1", str(BATTERY_ELEMENT_TYPE))
-    _add_policy_subentry(hass, hub_entry, [
-        {"name": "charge", "target": ["Battery1"], "price": as_constant_value(0.1)},
-        {"name": "discharge", "source": ["Battery1"], "price": as_constant_value(0.2)},
-        {"name": "load charge", "target": ["DeletedLoad"], "price": as_constant_value(0.3)},
-    ])
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "charge", "target": ["Battery1"], "price": as_constant_value(0.1)},
+            {"name": "discharge", "source": ["Battery1"], "price": as_constant_value(0.2)},
+            {"name": "load charge", "target": ["DeletedLoad"], "price": as_constant_value(0.3)},
+        ],
+    )
 
     # Run cleanup: Battery1 still exists, DeletedLoad doesn't
     _cleanup_surfaced_policy_rules(hass, hub_entry)

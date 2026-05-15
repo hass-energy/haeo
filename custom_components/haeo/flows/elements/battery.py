@@ -73,9 +73,7 @@ PARTITION_SECTION_DEFINITIONS = (
 )
 
 # Surfaced policy field names (not stored in battery config)
-SURFACED_POLICY_FIELDS: frozenset[str] = frozenset(
-    spec.field_name for spec in BATTERY_SURFACED_RULES
-)
+SURFACED_POLICY_FIELDS: frozenset[str] = frozenset(spec.field_name for spec in BATTERY_SURFACED_RULES)
 
 
 class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -369,9 +367,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         pricing_input = self._step1_data.get(SECTION_PRICING, {})
         hub_entry = self._get_entry()
         translations = self._surfaced_rule_translations(name)
-        save_surfaced_rules_from_input(
-            self.hass, hub_entry, name, pricing_input, BATTERY_SURFACED_RULES, translations
-        )
+        save_surfaced_rules_from_input(self.hass, hub_entry, name, pricing_input, BATTERY_SURFACED_RULES, translations)
 
         subentry = self._get_subentry()
         if subentry is not None:
