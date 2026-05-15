@@ -311,10 +311,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         Uses column ranging from the solver to determine how much more
         power could flow before a basis change (price step).
         """
-        try:
-            _status, rng = self._solver.getRanging()
-        except Exception:
-            return None
+        _status, rng = self._solver.getRanging()
         sol = self._solver.getSolution()
         n = self.n_periods
         agg = [0.0] * n
