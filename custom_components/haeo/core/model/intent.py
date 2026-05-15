@@ -1,4 +1,4 @@
-"""Connection control recommendations from LP ranging.
+"""Connection control intent from LP ranging.
 
 Uses HiGHS column ranging on connection power_in variables to derive
 hardware control signals: whether a device should be unlimited or
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from highspy import Highs
 
 
-class RecommendationType(StrEnum):
+class IntentType(StrEnum):
     """Type of control recommendation."""
 
     UNLIMIT = "unlimit"
@@ -39,10 +39,10 @@ class RecommendationType(StrEnum):
 
 
 @dataclass(frozen=True)
-class ControlRecommendation:
+class ConnectionIntent:
     """Per-period control recommendation for a connection variable."""
 
-    type: RecommendationType
+    type: IntentType
     """Whether to unlimit, set a limit, or unknown."""
 
     optimal: float
@@ -64,14 +64,15 @@ class ControlRecommendation:
     """The forecast/physical upper bound (kW)."""
 
 
-def compute_recommendations(
+def compute_intent(
     solver: Highs,
     variables: Sequence[object],
     forecast_max: Sequence[float],
     periods: Sequence[float],
     *,
+    constraint_shadow: Sequence[float] | None = None,
     tolerance: float = 0.01,
-) -> list[ControlRecommendation]:
+) -> list[ConnectionIntent]:
     """Compute per-period control recommendations from LP ranging.
 
     Args:
@@ -79,6 +80,8 @@ def compute_recommendations(
         variables: Per-period power_in variables (must have .index).
         forecast_max: Per-period forecast upper bound (kW).
         periods: Per-period duration (hours).
+        constraint_shadow: Per-period shadow price on the power_limit constraint.
+            Used for zero-forecast disambiguation: negative = solar would help.
         tolerance: Numerical tolerance for comparisons.
 
     Returns:
@@ -88,7 +91,7 @@ def compute_recommendations(
     sol = solver.getSolution()
     _status, rng = solver.getRanging()
 
-    recommendations: list[ControlRecommendation] = []
+    intents: list[ConnectionIntent] = []
     for t, var in enumerate(variables):
         idx = var.index  # type: ignore[union-attr]
         val = sol.col_value[idx]
@@ -105,20 +108,28 @@ def compute_recommendations(
         band_max = max(0.0, bup)
 
         if ub < tolerance:
-            # Zero forecast — model has no information
-            rec_type = RecommendationType.UNKNOWN
-            limit = None
+            # Zero forecast — use constraint shadow price to disambiguate
+            shadow = constraint_shadow[t] if constraint_shadow is not None else 0.0
+            if shadow < -tolerance:
+                # Negative shadow: the limit IS the bottleneck.
+                # If solar appeared, it would reduce cost → UNLIMIT
+                rec_type = IntentType.UNLIMIT
+                limit = None
+            else:
+                # Zero/positive shadow: solar not wanted → SET 0
+                rec_type = IntentType.SET
+                limit = 0.0
         elif bup >= ub - tolerance and rc_kwh <= tolerance:
             # Range reaches forecast max AND gradient is non-positive
-            rec_type = RecommendationType.UNLIMIT
+            rec_type = IntentType.UNLIMIT
             limit = None
         else:
             # Need to actively limit
-            rec_type = RecommendationType.SET
+            rec_type = IntentType.SET
             limit = band_max
 
-        recommendations.append(
-            ControlRecommendation(
+        intents.append(
+            ConnectionIntent(
                 type=rec_type,
                 optimal=val,
                 limit=limit,
@@ -129,4 +140,4 @@ def compute_recommendations(
             )
         )
 
-    return recommendations
+    return intents

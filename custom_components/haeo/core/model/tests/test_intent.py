@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
+from custom_components.haeo.core.model.intent import IntentType, compute_intent
 from custom_components.haeo.core.model.network import Network
-from custom_components.haeo.core.model.recommendations import RecommendationType, compute_recommendations
 
 
 def _build_network(
@@ -101,7 +101,7 @@ def _build_network(
 
 
 def _get_solar_recs(net: Network) -> list:
-    """Get solar recommendations after solving."""
+    """Get solar intents after solving."""
     net.optimize()
     conn = net.elements["Solar:conn"]
     tag = sorted(conn._power_in.keys())[0]
@@ -109,11 +109,17 @@ def _get_solar_recs(net: Network) -> list:
     seg = conn.segments["power_limit"]
     max_power = seg.max_power
     forecast = [max_power[t] if hasattr(max_power, "__getitem__") else float(max_power) for t in range(len(arr))]
-    return compute_recommendations(
+    # Get power_limit constraint shadow prices for zero-forecast disambiguation
+    from custom_components.haeo.core.model.output_data import OutputData  # noqa: PLC0415
+
+    pl_output = seg.outputs().get("power_limit")
+    shadow = [float(v) for v in pl_output.values] if isinstance(pl_output, OutputData) else None
+    return compute_intent(
         net._solver,
         list(arr),
         forecast,
         list(net.periods),
+        constraint_shadow=shadow,
     )
 
 
@@ -134,7 +140,7 @@ def test_solar_unlimit_when_export_costs_money() -> None:
         export_price_segment=[0.03],
     )
     recs = _get_solar_recs(net)
-    assert recs[0].type == RecommendationType.UNLIMIT
+    assert recs[0].type == IntentType.UNLIMIT
     assert recs[0].band_max == pytest.approx(6.0, abs=0.1)
 
 
@@ -154,7 +160,7 @@ def test_solar_set_when_grid_pays_to_absorb() -> None:
         export_price_segment=[0.02],
     )
     recs = _get_solar_recs(net)
-    assert recs[0].type == RecommendationType.SET
+    assert recs[0].type == IntentType.SET
     assert recs[0].limit is not None
     assert recs[0].limit == pytest.approx(2.0, abs=0.1)  # capped at load
     assert recs[0].reduced_cost > 0  # going up costs money
@@ -164,8 +170,8 @@ def test_solar_set_when_grid_pays_to_absorb() -> None:
 # Expected: UNKNOWN (model has no information)
 
 
-def test_solar_unknown_when_forecast_zero() -> None:
-    """Zero solar forecast — model can't recommend, should be UNKNOWN."""
+def test_solar_unlimit_when_forecast_zero_normal_prices() -> None:
+    """Zero solar forecast, normal prices — UNLIMIT (constraint shadow negative)."""
     net = _build_network(
         solar_max=[0.0],
         load=[2.0],
@@ -173,13 +179,12 @@ def test_solar_unknown_when_forecast_zero() -> None:
         export_price_segment=[-0.05],
     )
     recs = _get_solar_recs(net)
-    assert recs[0].type == RecommendationType.UNKNOWN
-    assert recs[0].limit is None
+    assert recs[0].type == IntentType.UNLIMIT
     assert recs[0].forecast_max == 0.0
 
 
-def test_solar_unknown_when_forecast_zero_negative_import() -> None:
-    """Zero solar, grid pays to absorb — still UNKNOWN (no forecast data)."""
+def test_solar_set_zero_when_forecast_zero_negative_import() -> None:
+    """Zero solar, grid pays to absorb — SET 0 (constraint shadow zero)."""
     net = _build_network(
         solar_max=[0.0],
         load=[2.0],
@@ -187,7 +192,8 @@ def test_solar_unknown_when_forecast_zero_negative_import() -> None:
         export_price_segment=[0.02],
     )
     recs = _get_solar_recs(net)
-    assert recs[0].type == RecommendationType.UNKNOWN
+    assert recs[0].type == IntentType.SET
+    assert recs[0].limit == 0.0
 
 
 # --- At forecast max, normal operation ---
@@ -203,7 +209,7 @@ def test_solar_unlimit_at_forecast_max() -> None:
         export_price_segment=[-0.05],
     )
     recs = _get_solar_recs(net)
-    assert recs[0].type == RecommendationType.UNLIMIT
+    assert recs[0].type == IntentType.UNLIMIT
     assert recs[0].optimal == pytest.approx(3.0, abs=0.1)
 
 
@@ -222,7 +228,7 @@ def test_solar_unlimit_with_battery_absorbing() -> None:
     )
     recs = _get_solar_recs(net)
     # With positive export FiT and battery, solar should be unlimited
-    assert recs[0].type == RecommendationType.UNLIMIT
+    assert recs[0].type == IntentType.UNLIMIT
     assert recs[0].band_max == pytest.approx(6.0, abs=0.1)
 
 
@@ -239,7 +245,7 @@ def test_solar_unlimit_when_export_profitable() -> None:
         export_price_segment=[-0.10],
     )
     recs = _get_solar_recs(net)
-    assert recs[0].type == RecommendationType.UNLIMIT
+    assert recs[0].type == IntentType.UNLIMIT
 
 
 # --- Band interpretation ---
@@ -285,7 +291,7 @@ def _get_conn_recs(net: Network, conn_name: str) -> list:
     seg = conn.segments["power_limit"]
     mp = seg.max_power
     forecast = [mp[t] if hasattr(mp, "__getitem__") else float(mp) for t in range(len(arr))]
-    return compute_recommendations(net._solver, list(arr), forecast, list(net.periods))
+    return compute_intent(net._solver, list(arr), forecast, list(net.periods))
 
 
 def test_grid_import_set_when_costly() -> None:
@@ -300,7 +306,7 @@ def test_grid_import_set_when_costly() -> None:
         export_price_segment=[-0.05],
     )
     recs = _get_conn_recs(net, "Grid:import")
-    assert recs[0].type == RecommendationType.SET
+    assert recs[0].type == IntentType.SET
     assert recs[0].reduced_cost > 0
 
 
@@ -317,4 +323,4 @@ def test_grid_export_set_when_at_limit() -> None:
     # Export should be at its 10kW limit
     if recs[0].optimal >= 9.9:
         # Limit is binding — could be SET or UNLIMIT depending on RC
-        assert recs[0].type in (RecommendationType.SET, RecommendationType.UNLIMIT)
+        assert recs[0].type in (IntentType.SET, IntentType.UNLIMIT)
