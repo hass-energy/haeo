@@ -185,13 +185,10 @@ def is_surfaced_pattern(
     Used by the standalone policy flow to prevent creating rules that
     conflict with element-surfaced patterns.
     """
-    # A surfaced pattern has one wildcard side and one single-element side
     if source and not target and len(source) == 1:
-        # element → * pattern: check if source element can have discharge cost
         return _element_has_surfaced_pricing(hub_entry, source[0])
 
     if not source and target and len(target) == 1:
-        # * → element pattern: check if target element can have charge/consumption cost
         return _element_has_surfaced_pricing(hub_entry, target[0])
 
     return False

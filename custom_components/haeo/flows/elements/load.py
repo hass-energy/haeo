@@ -45,7 +45,9 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Return sections for the configuration step."""
         return (
             forecast_section((CONF_FORECAST,), collapsed=False),
-            SectionDefinition(key=SECTION_CURTAILMENT, fields=(CONF_CURTAILMENT,), collapsed=True),
+            SectionDefinition(
+                key=SECTION_CURTAILMENT, fields=(CONF_CURTAILMENT, CONF_CONSUMPTION_COST), collapsed=True
+            ),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
