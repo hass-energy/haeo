@@ -12,7 +12,7 @@ class EntityValue(TypedDict):
     """Schema value representing entity-based inputs."""
 
     type: Literal["entity"]
-    value: list[str]
+    value: Sequence[str]
 
 
 def as_entity_value(value: list[str]) -> EntityValue:

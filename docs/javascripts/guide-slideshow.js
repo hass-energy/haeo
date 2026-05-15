@@ -54,18 +54,21 @@ function initSlideshow(slideshow) {
   slidesContainer.style.aspectRatio = `${w} / ${h}`;
 
   /**
-   * Preload all slide images for a given theme mode.
-   * Uses Image objects to warm the browser cache so navigation is instant.
+   * Preload the next slide image for a given theme mode.
+   * Uses an Image object to warm the browser cache so the next
+   * navigation is instant without eagerly fetching all slides.
+   * @param {number} index - Current slide index
    * @param {string} mode - "light" or "dark"
    */
-  function preloadAll(mode) {
-    slides.forEach((slide) => {
-      const src = getSlideSrc(slide, mode);
+  function preloadNext(index, mode) {
+    const next = index + 1;
+    if (next < total) {
+      const src = getSlideSrc(slides[next], mode);
       if (src) {
         const img = new Image();
         img.src = src;
       }
-    });
+    }
   }
 
   function show(index) {
@@ -109,6 +112,9 @@ function initSlideshow(slideshow) {
         targetImg.onerror = done;
       }
     }
+
+    // Preload the next slide so forward navigation is instant
+    preloadNext(current, getThemeMode());
   }
 
   // Navigation
@@ -127,13 +133,11 @@ function initSlideshow(slideshow) {
     }
   });
 
-  // Show first slide and preload all images for the current theme
-  preloadAll(getThemeMode());
+  // Show first slide
   show(0);
 
   // Register with shared theme observer for light/dark switching
   activeSlideshows.push(() => {
-    preloadAll(getThemeMode());
     show(current);
   });
 }

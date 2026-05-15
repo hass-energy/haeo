@@ -313,10 +313,12 @@ class HAPage:
         """
         ctx = ScreenshotContext.current()
 
-        # Find the ha-service-action-selector and locate the datetime section
-        # The Time checkbox enables the optional datetime field
-        checkbox = self.page.locator("ha-checkbox").first
-        checkbox.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        # Find the checkbox associated with this label. HA renders optional service
+        # fields with a ha-checkbox next to the label text inside a container element.
+        # Scope by label to avoid clicking the wrong checkbox when multiple exist.
+        field_container = self.page.locator(f"ha-checkbox:near(:text('{label}'))").first
+        field_container.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        checkbox = field_container
 
         if ctx:
             with ctx.scope(f"fill_datetime_{label}"):

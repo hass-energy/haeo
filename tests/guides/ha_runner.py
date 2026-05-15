@@ -147,6 +147,7 @@ class LiveHomeAssistant:
 
     def wait_for_recorder(self, timeout: float = 30) -> None:
         """Flush pending state changes to the recorder database."""
+        # Test helper only available inside pytest-homeassistant-custom-component
         from pytest_homeassistant_custom_component.components.recorder.common import (  # noqa: PLC0415
             async_wait_recording_done,
         )
@@ -384,6 +385,7 @@ async def _setup_home_assistant_async(
     assert await async_setup_component(hass, "config", {})
 
     # Recorder requires pre-initialization before component setup
+    # Deferred to avoid import before HA bootstrap
     from homeassistant.helpers.recorder import async_initialize_recorder  # noqa: PLC0415
 
     async_initialize_recorder(hass)
