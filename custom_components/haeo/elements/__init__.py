@@ -331,7 +331,10 @@ def _conforms_to_typed_dict(
             )
 
         # Get the origin type for generic types (e.g., list[str] -> list)
+        # HA's deep-freeze converts list→tuple, so accept tuple where list is expected
         check_type = origin if origin is not None else expected_type
+        if check_type is list:
+            return isinstance(value_item, (list, tuple))
         return isinstance(value_item, check_type)
 
     for key in required_keys:

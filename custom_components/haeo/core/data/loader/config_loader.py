@@ -69,13 +69,13 @@ def load_element_config(
     field_hints = extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
 
     loaded: dict[str, Any] = {
-        key: dict(value) if isinstance(value, dict) else value for key, value in element_config.items()
+        key: dict(value) if isinstance(value, Mapping) else value for key, value in element_config.items()
     }
     loaded[CONF_NAME] = element_name
 
     for section_name, section_fields in field_hints.items():
         section_config = element_config.get(section_name)
-        if not isinstance(section_config, dict):
+        if not isinstance(section_config, Mapping):
             continue
 
         for field_name, hint in section_fields.items():
@@ -195,7 +195,7 @@ def _resolve_numeric(
 
 
 def _resolve_entities(
-    entity_ids: list[str],
+    entity_ids: Sequence[str],
     hint: FieldHint,
     sm: StateMachine,
     forecast_times: Sequence[float],

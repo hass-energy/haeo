@@ -21,13 +21,17 @@ def as_entity_value(value: list[str]) -> EntityValue:
 
 
 def is_entity_value(value: Any) -> TypeGuard[EntityValue]:
-    """Return True if value is an entity schema value."""
+    """Return True if value is an entity schema value.
+
+    Accepts both list and tuple for the value field because HA's
+    config entry deep-freeze converts lists to tuples.
+    """
     if not isinstance(value, Mapping):
         return False
     if value.get("type") != VALUE_TYPE_ENTITY:
         return False
     entity_list = value.get("value")
-    return isinstance(entity_list, list) and all(isinstance(item, str) for item in entity_list)
+    return isinstance(entity_list, (list, tuple)) and all(isinstance(item, str) for item in entity_list)
 
 
 __all__ = [

@@ -32,7 +32,7 @@ from homeassistant import loader
 from homeassistant.auth import auth_manager_from_config
 from homeassistant.auth.models import Credentials
 from homeassistant.config_entries import ConfigEntries
-from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import category_registry as cr
@@ -144,6 +144,15 @@ class LiveHomeAssistant:
         """
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         return future.result(timeout=timeout)
+
+    def wait_for_recorder(self, timeout: float = 30) -> None:
+        """Flush pending state changes to the recorder database."""
+        from pytest_homeassistant_custom_component.components.recorder.common import (  # noqa: PLC0415
+            async_wait_recording_done,
+        )
+
+        future = asyncio.run_coroutine_threadsafe(async_wait_recording_done(self.hass), self.loop)
+        future.result(timeout=timeout)
 
     def inject_auth(self, context: BrowserContext, *, dark_mode: bool = False) -> None:
         """Inject authentication into a Playwright browser context.
@@ -373,11 +382,21 @@ async def _setup_home_assistant_async(
 
     assert await async_setup_component(hass, "frontend", {})
     assert await async_setup_component(hass, "config", {})
+
+    # Recorder requires pre-initialization before component setup
+    from homeassistant.helpers.recorder import async_initialize_recorder  # noqa: PLC0415
+
+    async_initialize_recorder(hass)
+    assert await async_setup_component(hass, "recorder", {"recorder": {"commit_interval": 1}})
+
     assert await async_setup_component(hass, "calendar", {})
     assert await async_setup_component(hass, "local_calendar", {})
 
-    # Mark as running
+    # Mark as running and fire the started event so components waiting via
+    # async_at_started (e.g. recorder) can proceed with their background work.
     hass.set_state(CoreState.running)
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
+    await hass.async_block_till_done()
 
     # Start the HTTP server explicitly. The http component also registers
     # a when_setup callback that tries to start the server when frontend
