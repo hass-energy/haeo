@@ -23,7 +23,7 @@ Sub-element Naming Convention:
         - "home_battery:connection" (implicit connection to network)
 """
 
-from collections.abc import Mapping, MutableSequence
+from collections.abc import Mapping, MutableSequence, Sequence
 import logging
 import types
 from typing import (
@@ -331,10 +331,10 @@ def _conforms_to_typed_dict(
             )
 
         # Get the origin type for generic types (e.g., list[str] -> list)
-        # HA's deep-freeze converts list→tuple, so accept tuple where list is expected
+        # HA's deep-freeze converts list→tuple, so accept any sequence where list is expected
         check_type = origin if origin is not None else expected_type
         if check_type is list:
-            return isinstance(value_item, (list, tuple))
+            return isinstance(value_item, Sequence) and not isinstance(value_item, str)
         return isinstance(value_item, check_type)
 
     for key in required_keys:
@@ -495,7 +495,7 @@ def get_list_input_fields(element_config: Mapping[str, Any]) -> InputFieldGroups
     result: dict[str, dict[str, InputFieldInfo[Any]]] = {}
     for list_key, hints in list_hints.items():
         items = element_config.get(list_key)
-        if not isinstance(items, (list, tuple)):
+        if not isinstance(items, Sequence) or isinstance(items, str):
             continue
         result.update(
             build_list_input_fields(str(element_type), list_key, hints, items),
@@ -559,7 +559,7 @@ def get_nested_config_value_by_path(config: Mapping[str, Any], field_path: Input
             if key not in current:
                 return None
             current = current[key]
-        elif isinstance(current, (list, tuple)):
+        elif isinstance(current, Sequence) and not isinstance(current, str):
             try:
                 current = current[int(key)]
             except (ValueError, IndexError):
@@ -590,11 +590,11 @@ def set_nested_config_value_by_path(config: dict[str, Any], field_path: InputFie
     for key in field_path[:-1]:
         if isinstance(current, dict):
             next_value = current.get(key)
-            if isinstance(next_value, (dict, list, tuple)):
+            if isinstance(next_value, (dict, Sequence)) and not isinstance(next_value, str):
                 current = next_value
             else:
                 return False
-        elif isinstance(current, (list, tuple)):
+        elif isinstance(current, Sequence) and not isinstance(current, str):
             try:
                 current = current[int(key)]
             except (ValueError, IndexError):
