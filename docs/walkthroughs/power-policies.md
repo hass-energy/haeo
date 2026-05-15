@@ -17,7 +17,7 @@ This lets you model real-world scenarios like:
 ## Prerequisites
 
 This guide builds on the [Sigenergy System walkthrough](sigenergy-system.md).
-The setup block below replays that configuration automatically.
+Complete that walkthrough first — the steps here assume your system is already configured.
 
 ```guide-setup
 run_guide("sigenergy-system")

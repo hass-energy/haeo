@@ -17,7 +17,7 @@ Historic snapshots let you go back to the exact moment something unexpected happ
 ## Prerequisites
 
 This guide builds on the [Sigenergy System walkthrough](sigenergy-system.md).
-The setup block below replays that configuration automatically.
+Complete that walkthrough first — the steps here assume your system is already configured.
 
 ```guide-setup
 run_guide("sigenergy-system")
