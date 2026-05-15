@@ -11,6 +11,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
+from custom_components.haeo import _cleanup_surfaced_policy_rules
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import node
@@ -786,7 +787,6 @@ def test_cleanup_removes_orphaned_surfaced_rules(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Cleanup removes surfaced rules for elements that no longer exist."""
-    from custom_components.haeo import _cleanup_surfaced_policy_rules  # noqa: PLC0415
 
     # Add a battery and its surfaced rules
     add_participant(hass, hub_entry, "Battery1", str(BATTERY_ELEMENT_TYPE))
@@ -817,7 +817,6 @@ def test_cleanup_noop_when_no_policy(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Cleanup does nothing when no policy subentry exists."""
-    from custom_components.haeo import _cleanup_surfaced_policy_rules  # noqa: PLC0415
 
     _cleanup_surfaced_policy_rules(hass, hub_entry)
     assert find_policy_subentry(hub_entry) is None

@@ -30,6 +30,11 @@ from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
+from custom_components.haeo.flows.surfaced_policy import (
+    find_policy_subentry,
+    get_policy_rules,
+    remove_element_surfaced_rules,
+)
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.services import async_setup_services
 
@@ -257,12 +262,6 @@ def _cleanup_surfaced_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> N
     rules become stale. This checks current element names against policy
     rules and removes orphaned surfaced rules.
     """
-    from custom_components.haeo.flows.surfaced_policy import (  # noqa: PLC0415
-        find_policy_subentry,
-        get_policy_rules,
-        remove_element_surfaced_rules,
-    )
-
     policy_subentry = find_policy_subentry(entry)
     if policy_subentry is None:
         return

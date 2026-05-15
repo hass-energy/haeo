@@ -30,7 +30,10 @@ from custom_components.haeo.core.schema.elements.policy import (
     CONF_TARGET,
     PolicyRuleConfig,
 )
+from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value, is_entity_value
+from custom_components.haeo.elements import get_list_input_fields
+from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY, CHOICE_NONE, build_choose_selector
 
 POLICIES_TITLE = "Policies"
 
@@ -367,25 +370,13 @@ def build_surfaced_price_selector() -> Any:
     Uses the same price field metadata as the policy flow to ensure
     consistent entity filtering and number constraints.
     """
-    # Deferred imports to avoid circular imports at module level
-    from custom_components.haeo.core.schema.elements.policy import CONF_PRICE as POLICY_CONF_PRICE  # noqa: PLC0415
-    from custom_components.haeo.core.schema.elements.policy import CONF_RULES as POLICY_CONF_RULES  # noqa: PLC0415
-    from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE  # noqa: PLC0415
-    from custom_components.haeo.elements import get_list_input_fields  # noqa: PLC0415
-    from custom_components.haeo.flows.field_schema import (  # noqa: PLC0415
-        CHOICE_CONSTANT,
-        CHOICE_ENTITY,
-        CHOICE_NONE,
-        build_choose_selector,
-    )
-
     dummy_config: dict[str, Any] = {
         CONF_ELEMENT_TYPE: str(POLICY_ELEMENT_TYPE),
-        POLICY_CONF_RULES: [{"name": "_", POLICY_CONF_PRICE: {"type": "constant", "value": 0}}],
+        CONF_RULES: [{"name": "_", CONF_PRICE: {"type": "constant", "value": 0}}],
     }
     list_fields = get_list_input_fields(dummy_config)
     section = next(iter(list_fields.values()))
-    field_info = section[POLICY_CONF_PRICE]
+    field_info = section[CONF_PRICE]
     return build_choose_selector(
         field_info,
         allowed_choices={CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE},
