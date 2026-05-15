@@ -172,10 +172,10 @@ A Grid element creates 1 device in Home Assistant with the following sensors.
 | [`sensor.{name}_power_max_export`](#max-export-power)                    | kW     | Maximum export power (when limited)         |
 | [`sensor.{name}_power_max_import_price`](#max-import-power-shadow-price) | \$/kWh | Value of additional import capacity         |
 | [`sensor.{name}_power_max_export_price`](#max-export-power-shadow-price) | \$/kWh | Value of additional export capacity         |
-| [`sensor.{name}_forced_import_cost`](#forced-import-cost)                 | \$/kWh | Cost to force additional import (advanced)  |
-| [`sensor.{name}_forced_export_cost`](#forced-export-cost)                 | \$/kWh | Cost to force additional export (advanced)  |
-| [`sensor.{name}_import_headroom`](#import-headroom)                       | kWh    | Available import capacity at current price  |
-| [`sensor.{name}_export_headroom`](#export-headroom)                       | kWh    | Available export capacity at current price  |
+| [`sensor.{name}_forced_import_cost`](#forced-import-cost)                | \$/kWh | Cost to force additional import (advanced)  |
+| [`sensor.{name}_forced_export_cost`](#forced-export-cost)                | \$/kWh | Cost to force additional export (advanced)  |
+| [`sensor.{name}_import_headroom`](#import-headroom)                      | kWh    | Available import capacity at current price  |
+| [`sensor.{name}_export_headroom`](#export-headroom)                      | kWh    | Available export capacity at current price  |
 
 The `power_max_*` sensors are only created when the corresponding limit is configured.
 The `cost_*` sensors are only created when the corresponding price is configured.

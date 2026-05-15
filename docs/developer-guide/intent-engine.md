@@ -15,15 +15,15 @@ But the hardware needs a **control signal** — not just a target value, but whe
 
 HiGHS column ranging provides two pieces of information per variable:
 
-- **Reduced cost**: the marginal cost of changing the variable by one unit ($/kWh).
+- **Reduced cost**: the marginal cost of changing the variable by one unit (\$/kWh).
 - **Bound range** `[bdn, bup]`: how far the variable can move before the reduced cost changes.
 
 The intent engine combines these with the forecast upper bound to produce one of two actionable signals:
 
-| Intent | Meaning | Hardware action |
-|--------|---------|-----------------|
-| **UNLIMIT** | Any output up to physical max is acceptable | Remove limits, let device self-regulate |
-| **SET** | Must actively limit to the recommended value | Set hardware limit to `bup` |
+| Intent      | Meaning                                      | Hardware action                         |
+| ----------- | -------------------------------------------- | --------------------------------------- |
+| **UNLIMIT** | Any output up to physical max is acceptable  | Remove limits, let device self-regulate |
+| **SET**     | Must actively limit to the recommended value | Set hardware limit to `bup`             |
 
 ## Decision rule
 
@@ -67,7 +67,7 @@ The reduced cost sign indicates the preferred direction within the band:
 
 ### Solar with negative feed-in tariff
 
-Solar forecast is 6 kW, load is 2 kW, export costs $0.03/kWh.
+Solar forecast is 6 kW, load is 2 kW, export costs \$0.03/kWh.
 
 The optimizer produces 2 kW (self-consumption), but the column range extends to 6 kW.
 Intent: **UNLIMIT** — the inverter can load-follow freely.
@@ -75,7 +75,7 @@ If load increases, solar covers it without re-optimization.
 
 ### Solar during grid oversupply
 
-Solar forecast is 6 kW, load is 2 kW, grid pays $0.05/kWh to absorb.
+Solar forecast is 6 kW, load is 2 kW, grid pays \$0.05/kWh to absorb.
 
 The optimizer produces 0 kW, column range is `[0, 2]`.
 Intent: **SET 2 kW** — must actively curtail solar above load level.

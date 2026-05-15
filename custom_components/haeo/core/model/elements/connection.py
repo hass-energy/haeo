@@ -289,15 +289,19 @@ class Connection[TOutputName: str](Element[TOutputName]):
         sol = self._solver.getSolution()
         n = self.n_periods
         agg = [0.0] * n
-        for _tag, arr in self._power_in.items():
+        for arr in self._power_in.values():
             for t in range(n):
                 rc = float(sol.col_dual[arr[t].index])
                 cost_kwh = rc / float(self.periods[t]) if self.periods[t] > 0 else 0.0
                 agg[t] = max(agg[t], cost_kwh)
-        if all(abs(v) < 1e-10 for v in agg):
+        if all(abs(v) < 1e-10 for v in agg):  # noqa: PLR2004
             return None
         return OutputData(
-            type=OutputType.PRICE, unit="$/kWh", values=tuple(agg), direction=None, advanced=True,
+            type=OutputType.PRICE,
+            unit="$/kWh",
+            values=tuple(agg),
+            direction=None,
+            advanced=True,
         )
 
     @output(name=CONNECTION_CAPACITY)
@@ -314,14 +318,18 @@ class Connection[TOutputName: str](Element[TOutputName]):
         sol = self._solver.getSolution()
         n = self.n_periods
         agg = [0.0] * n
-        for _tag, arr in self._power_in.items():
+        for arr in self._power_in.values():
             for t in range(n):
                 current = sol.col_value[arr[t].index]
                 upper = rng.col_bound_up.value_[arr[t].index]
                 cap_kwh = max(0.0, (upper - current)) * float(self.periods[t])
                 agg[t] += cap_kwh
         return OutputData(
-            type=OutputType.ENERGY, unit="kWh", values=tuple(agg), direction=None, advanced=True,
+            type=OutputType.ENERGY,
+            unit="kWh",
+            values=tuple(agg),
+            direction=None,
+            advanced=True,
         )
 
     def __getitem__(self, key: str | int) -> Any:

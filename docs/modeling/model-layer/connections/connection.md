@@ -116,7 +116,7 @@ Connection exposes power flow, segment outputs, and sensitivity analysis:
 
 - `connection_power` — power flow through this connection
 - `segments` — nested map of segment names to constraint shadow outputs
-- `connection_marginal_cost` — reduced cost of increasing flow ($/kWh), from HiGHS column duals
+- `connection_marginal_cost` — reduced cost of increasing flow (\$/kWh), from HiGHS column duals
 - `connection_capacity` — available headroom before marginal cost changes (kWh), from HiGHS column ranging
 
 The `segments` output groups segment outputs using the segment names provided in the configuration.

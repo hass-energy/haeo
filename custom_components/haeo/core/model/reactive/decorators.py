@@ -153,7 +153,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
                 dn_vals.append(float(row_val - rng.row_bound_dn.value_[idx]))
             range_up = tuple(up_vals)
             range_dn = tuple(dn_vals)
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: S110
             pass  # ranging not available (e.g. solver doesn't support it)
 
         return OutputData(

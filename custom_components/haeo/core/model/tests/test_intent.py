@@ -1,10 +1,16 @@
 """Tests for connection control recommendations."""
 
+from typing import Any, cast
+
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.model.intent import IntentType, compute_intent
+from custom_components.haeo.core.model import ModelElementConfig
+from custom_components.haeo.core.model.elements.connection import Connection, ConnectionOutputName
+from custom_components.haeo.core.model.elements.segments import PowerLimitSegment
+from custom_components.haeo.core.model.intent import ConnectionIntent, IntentType, compute_intent
 from custom_components.haeo.core.model.network import Network
+from custom_components.haeo.core.model.output_data import OutputData
 
 
 def _build_network(
@@ -19,11 +25,12 @@ def _build_network(
     n = len(solar_max)
     periods = np.array([0.5] * n)
     net = Network(name="test", periods=periods)
-    net.add({"element_type": "node", "name": "Grid", "is_source": True, "is_sink": True})
-    net.add({"element_type": "node", "name": "SW", "is_source": False, "is_sink": False})
-    net.add({"element_type": "node", "name": "Load", "is_source": False, "is_sink": True})
-    net.add({"element_type": "node", "name": "Solar", "is_source": True, "is_sink": False})
-    net.add(
+
+    elements: list[dict[str, Any]] = [
+        {"element_type": "node", "name": "Grid", "is_source": True, "is_sink": True},
+        {"element_type": "node", "name": "SW", "is_source": False, "is_sink": False},
+        {"element_type": "node", "name": "Load", "is_source": False, "is_sink": True},
+        {"element_type": "node", "name": "Solar", "is_source": True, "is_sink": False},
         {
             "element_type": "connection",
             "name": "Grid:import",
@@ -34,9 +41,7 @@ def _build_network(
                 "pricing": {"segment_type": "pricing", "price": import_price},
                 "power_limit": {"segment_type": "power_limit", "max_power": 10.0},
             },
-        }
-    )
-    net.add(
+        },
         {
             "element_type": "connection",
             "name": "Grid:export",
@@ -47,9 +52,7 @@ def _build_network(
                 "pricing": {"segment_type": "pricing", "price": export_price_segment},
                 "power_limit": {"segment_type": "power_limit", "max_power": 10.0},
             },
-        }
-    )
-    net.add(
+        },
         {
             "element_type": "connection",
             "name": "Solar:conn",
@@ -57,9 +60,7 @@ def _build_network(
             "target": "SW",
             "tags": {1},
             "segments": {"power_limit": {"segment_type": "power_limit", "max_power": solar_max}},
-        }
-    )
-    net.add(
+        },
         {
             "element_type": "connection",
             "name": "Load:conn",
@@ -67,11 +68,11 @@ def _build_network(
             "target": "Load",
             "tags": {1},
             "segments": {"power_limit": {"segment_type": "power_limit", "max_power": load, "fixed": True}},
-        }
-    )
+        },
+    ]
     if battery:
-        net.add({"element_type": "battery", "name": "Bat", "capacity": 5.0, "initial_charge": 2.0})
-        net.add(
+        elements += [
+            {"element_type": "battery", "name": "Bat", "capacity": 5.0, "initial_charge": 2.0},
             {
                 "element_type": "connection",
                 "name": "Bat:charge",
@@ -82,9 +83,7 @@ def _build_network(
                     "efficiency": {"segment_type": "efficiency", "efficiency": 0.95},
                     "power_limit": {"segment_type": "power_limit", "max_power": 3.0},
                 },
-            }
-        )
-        net.add(
+            },
             {
                 "element_type": "connection",
                 "name": "Bat:discharge",
@@ -95,23 +94,34 @@ def _build_network(
                     "efficiency": {"segment_type": "efficiency", "efficiency": 0.95},
                     "power_limit": {"segment_type": "power_limit", "max_power": 3.0},
                 },
-            }
-        )
+            },
+        ]
+
+    for elem in sorted(elements, key=lambda e: e.get("element_type") == "connection"):
+        net.add(cast("ModelElementConfig", elem))
+
     return net
 
 
-def _get_solar_recs(net: Network) -> list:
+def _get_connection(net: Network, name: str) -> Connection[ConnectionOutputName]:
+    """Get a typed Connection from the network."""
+    conn = net.elements[name]
+    assert isinstance(conn, Connection)
+    return conn
+
+
+def _get_solar_recs(net: Network) -> list[ConnectionIntent]:
     """Get solar intents after solving."""
     net.optimize()
-    conn = net.elements["Solar:conn"]
+    conn = _get_connection(net, "Solar:conn")
     tag = sorted(conn._power_in.keys())[0]
     arr = conn._power_in[tag]
     seg = conn.segments["power_limit"]
+    assert isinstance(seg, PowerLimitSegment)
     max_power = seg.max_power
-    forecast = [max_power[t] if hasattr(max_power, "__getitem__") else float(max_power) for t in range(len(arr))]
+    assert max_power is not None
+    forecast = [float(max_power[t]) for t in range(len(arr))]
     # Get power_limit constraint shadow prices for zero-forecast disambiguation
-    from custom_components.haeo.core.model.output_data import OutputData  # noqa: PLC0415
-
     pl_output = seg.outputs().get("power_limit")
     shadow = [float(v) for v in pl_output.values] if isinstance(pl_output, OutputData) else None
     return compute_intent(
@@ -282,15 +292,17 @@ def test_reduced_cost_direction() -> None:
 # --- Grid connection recommendations ---
 
 
-def _get_conn_recs(net: Network, conn_name: str) -> list:
+def _get_conn_recs(net: Network, conn_name: str) -> list[ConnectionIntent]:
     """Get connection recommendations after solving."""
     net.optimize()
-    conn = net.elements[conn_name]
+    conn = _get_connection(net, conn_name)
     tag = sorted(conn._power_in.keys())[0]
     arr = conn._power_in[tag]
     seg = conn.segments["power_limit"]
+    assert isinstance(seg, PowerLimitSegment)
     mp = seg.max_power
-    forecast = [mp[t] if hasattr(mp, "__getitem__") else float(mp) for t in range(len(arr))]
+    assert mp is not None
+    forecast = [float(mp[t]) for t in range(len(arr))]
     return compute_intent(net._solver, list(arr), forecast, list(net.periods))
 
 
