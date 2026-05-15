@@ -256,8 +256,9 @@ def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Remove deleted element references from policy rules.
 
     When an element subentry is deleted, policy rules may still reference
-    it by name. This strips deleted names from source/target lists and
-    removes rules where either side had elements but became empty.
+    it by name. This strips deleted names from source/target lists,
+    removes rules where either side had elements but became empty, and
+    deduplicates rules that end up with the same source/target pattern.
     """
     from custom_components.haeo.flows.surfaced_policy import _save_policy_rules  # noqa: PLC0415
 
@@ -271,6 +272,7 @@ def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     rules = get_policy_rules(entry)
     cleaned: list[PolicyRuleConfig] = []
+    seen_patterns: set[tuple[tuple[str, ...] | None, tuple[str, ...] | None]] = set()
     changed = False
 
     for rule in rules:
@@ -301,6 +303,17 @@ def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
                 new_rule["target"] = new_target
             else:
                 new_rule.pop("target", None)
+
+        # Deduplicate rules with the same source/target pattern
+        pattern = (
+            tuple(sorted(new_source)) if new_source else None,
+            tuple(sorted(new_target)) if new_target else None,
+        )
+        if pattern in seen_patterns:
+            changed = True
+            continue
+        seen_patterns.add(pattern)
+
         cleaned.append(new_rule)
 
     if changed:

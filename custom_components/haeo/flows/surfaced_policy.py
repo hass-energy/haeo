@@ -16,6 +16,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
+import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value
@@ -29,6 +30,13 @@ from custom_components.haeo.core.schema.elements.policy import (
 )
 from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value, is_entity_value
 from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
+from custom_components.haeo.flows.field_schema import (
+    CHOICE_CONSTANT,
+    CHOICE_ENTITY,
+    CHOICE_NONE,
+    build_choose_selector,
+    get_choose_default,
+)
 
 POLICIES_TITLE = "Policies"
 
@@ -184,9 +192,9 @@ def form_value_to_price(value: Any) -> EntityValue | ConstantValue | None:
     Handles the output from NormalizingChooseSelector:
     - list[str] → EntityValue
     - float/int → ConstantValue
-    - None/empty → None (delete rule)
+    - None/empty string → None (delete rule)
     """
-    if value is None:
+    if value is None or value == "":
         return None
     if isinstance(value, list):
         if not value:
@@ -220,9 +228,9 @@ def build_surfaced_defaults(
 
     For new elements, uses the FieldHint defaults via get_choose_default.
     For existing elements, reads the current price from the policy subentry.
+    If an existing element has no matching rule, no default is set so the
+    form shows "none" (the rule was unlinked or never created).
     """
-    from custom_components.haeo.flows.field_schema import get_choose_default  # noqa: PLC0415
-
     defaults: dict[str, Any] = {}
     for field_name, hint in surfaced_hints.items():
         field_info = surfaced_fields.get(field_name)
@@ -234,7 +242,7 @@ def build_surfaced_defaults(
             price = get_surfaced_rule_price(hub_entry, source=source, target=target)
             if price is not None:
                 defaults[field_name] = price_to_form_value(price)
-                continue
+            continue
 
         default = get_choose_default(field_info, None)
         if default is not None:
@@ -250,15 +258,6 @@ def build_surfaced_schema_entries(
     Uses the standard build_choose_selector to create selectors from the
     InputFieldInfo objects.
     """
-    import voluptuous as vol  # noqa: PLC0415
-
-    from custom_components.haeo.flows.field_schema import (  # noqa: PLC0415
-        CHOICE_CONSTANT,
-        CHOICE_ENTITY,
-        CHOICE_NONE,
-        build_choose_selector,
-    )
-
     return {
         field_info.field_name: (
             vol.Optional(field_info.field_name),

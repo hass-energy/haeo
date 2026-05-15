@@ -212,6 +212,7 @@ def test_price_to_form_value(price: Any, expected_form_value: Any) -> None:
     ("form_value", "expected_price"),
     [
         pytest.param(None, None, id="none"),
+        pytest.param("", None, id="empty_string"),
         pytest.param([], None, id="empty_list"),
         pytest.param(0.5, as_constant_value(0.5), id="float"),
         pytest.param(1, as_constant_value(1.0), id="int"),
@@ -383,12 +384,12 @@ def test_defaults_for_existing_element_with_rules(
 def test_defaults_for_existing_element_without_rules(
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Existing elements without matching rules get spec defaults."""
+    """Existing elements without matching rules default to none."""
     defaults = build_surfaced_defaults(
         hub_entry, "Battery", BATTERY_SURFACED_PRICE_HINTS, get_surfaced_input_fields(BATTERY_ELEMENT_TYPE)
     )
-    assert defaults[CONF_CHARGE_COST] == -0.001
-    assert defaults[CONF_DISCHARGE_COST] == 0.0
+    assert CONF_CHARGE_COST not in defaults
+    assert CONF_DISCHARGE_COST not in defaults
 
 
 # --- Battery flow integration tests ---
@@ -780,3 +781,26 @@ def test_cleanup_noop_when_no_policy(
     """Cleanup does nothing when no policy subentry exists."""
     _cleanup_policy_rules(hass, hub_entry)
     assert find_policy_subentry(hub_entry) is None
+
+
+def test_cleanup_deduplicates_rules_after_stripping(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Cleanup removes duplicate rules that arise from stripping deleted elements."""
+    add_participant(hass, hub_entry, "A", str(BATTERY_ELEMENT_TYPE))
+    add_participant(hass, hub_entry, "C", str(LOAD_ELEMENT_TYPE))
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "first", "source": ["A"], "target": ["C"], "price": as_constant_value(0.1)},
+            {"name": "second", "source": ["A", "B"], "target": ["C"], "price": as_constant_value(0.2)},
+        ],
+    )
+
+    _cleanup_policy_rules(hass, hub_entry)
+
+    rules = _get_rules(hub_entry)
+    assert len(rules) == 1
+    assert rules[0]["name"] == "first"
