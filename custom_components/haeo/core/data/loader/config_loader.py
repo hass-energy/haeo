@@ -157,7 +157,7 @@ def _resolve_field(
         return value
 
     if is_constant_value(value):
-        unwrapped: float | bool | list[str] = value["value"]
+        unwrapped: float | bool | Sequence[str] = value["value"]
     elif is_entity_value(value):
         unwrapped = value["value"]
     else:
