@@ -4,7 +4,7 @@ from typing import Annotated, Final, Literal
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
+from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints, SurfacedPriceHint
 from custom_components.haeo.core.schema.sections import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
@@ -21,6 +21,20 @@ from custom_components.haeo.core.schema.sections import (
 ELEMENT_TYPE = ElementType.LOAD
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT})
+
+CONF_CONSUMPTION_COST: Final = "consumption_cost"
+
+SURFACED_PRICE_HINTS: Final[dict[str, SurfacedPriceHint]] = {
+    CONF_CONSUMPTION_COST: SurfacedPriceHint(
+        hint=FieldHint(
+            output_type=OutputType.PRICE,
+            time_series=True,
+            default_mode="value",
+            default_value=0.0,
+        ),
+        source_is_wildcard=True,
+    ),
+}
 
 
 class LoadConfigSchema(ConnectedCommonConfig):

@@ -8,14 +8,14 @@ import voluptuous as vol
 from custom_components.haeo.const import URL_HAFO
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
-from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements.load import CONF_CONSUMPTION_COST, ELEMENT_TYPE, SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
     CONF_FORECAST,
     SECTION_CURTAILMENT,
 )
-from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
+from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields, get_surfaced_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
@@ -28,16 +28,14 @@ from custom_components.haeo.flows.field_schema import (
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.flows.surfaced_policy import (
-    LOAD_SURFACED_RULES,
-    build_surfaced_price_defaults,
-    build_surfaced_price_schema_entries,
-    build_surfaced_price_selector,
+    build_surfaced_defaults,
+    build_surfaced_schema_entries,
     save_surfaced_rules_from_input,
 )
 from custom_components.haeo.sections import build_common_fields, forecast_section
 
 # Surfaced policy field names (not stored in load config)
-SURFACED_POLICY_FIELDS: frozenset[str] = frozenset(spec.field_name for spec in LOAD_SURFACED_RULES)
+SURFACED_POLICY_FIELDS: frozenset[str] = frozenset({CONF_CONSUMPTION_COST})
 
 
 class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -115,8 +113,8 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for inputs."""
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
-        price_selector = build_surfaced_price_selector()
-        surfaced_entries = build_surfaced_price_schema_entries(LOAD_SURFACED_RULES, price_selector)
+        surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
+        surfaced_entries = build_surfaced_schema_entries(surfaced_fields)
         return build_sectioned_choose_schema(
             self._get_sections(),
             input_fields,
@@ -150,7 +148,8 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
         hub_entry = self._get_entry()
         element_name = subentry_data.get(CONF_NAME) if subentry_data else None
-        surfaced_defaults = build_surfaced_price_defaults(hub_entry, element_name, LOAD_SURFACED_RULES)
+        surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
+        surfaced_defaults = build_surfaced_defaults(hub_entry, element_name, SURFACED_PRICE_HINTS, surfaced_fields)
         return {
             CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
             CONF_CONNECTION: connection_default,
@@ -210,7 +209,9 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         curtailment_input = user_input.get(SECTION_CURTAILMENT, {})
         hub_entry = self._get_entry()
         translations = {"consumption_cost": f"{name} consumption cost"}
-        save_surfaced_rules_from_input(self.hass, hub_entry, name, curtailment_input, LOAD_SURFACED_RULES, translations)
+        save_surfaced_rules_from_input(
+            self.hass, hub_entry, name, curtailment_input, SURFACED_PRICE_HINTS, translations
+        )
 
         subentry = self._get_subentry()
         if subentry is not None:

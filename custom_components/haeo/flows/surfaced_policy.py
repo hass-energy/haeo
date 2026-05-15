@@ -2,23 +2,20 @@
 
 Elements like battery and load surface policy pricing fields in their own
 config flows. The underlying data lives in the single policy subentry as
-rules. This module provides utilities to read, create, update, and delete
-those rules from element flows.
+rules. This module provides generic utilities to read, create, update, and
+delete those rules from element flows.
 
 Surfaced rules follow a pattern where one side is always a wildcard:
-- Battery charge cost: * → {battery_name}
-- Battery discharge cost: {battery_name} → *
-- Load consumption cost: * → {load_name}
+- source_is_wildcard=True:  ``* → {element_name}``
+- source_is_wildcard=False: ``{element_name} → *``
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
-import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value
@@ -30,58 +27,11 @@ from custom_components.haeo.core.schema.elements.policy import (
     CONF_TARGET,
     PolicyRuleConfig,
 )
-from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value, is_entity_value
-from custom_components.haeo.elements import get_list_input_fields
-from custom_components.haeo.flows.field_schema import CHOICE_CONSTANT, CHOICE_ENTITY, CHOICE_NONE, build_choose_selector
+from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
+from custom_components.haeo.elements import has_surfaced_pricing
 
 POLICIES_TITLE = "Policies"
-
-# Config key for surfaced charge cost on battery
-CONF_CHARGE_COST = "charge_cost"
-
-# Config key for surfaced discharge cost on battery
-CONF_DISCHARGE_COST = "discharge_cost"
-
-# Config key for surfaced consumption cost on load
-CONF_CONSUMPTION_COST = "consumption_cost"
-
-
-@dataclass(frozen=True, slots=True)
-class SurfacedRuleSpec:
-    """Specification for a surfaced policy rule field on an element."""
-
-    field_name: str
-    source_is_wildcard: bool
-    default_value: float
-    rule_name_key: str
-
-
-# Battery surfaced rule specifications
-BATTERY_SURFACED_RULES: tuple[SurfacedRuleSpec, ...] = (
-    SurfacedRuleSpec(
-        field_name=CONF_CHARGE_COST,
-        source_is_wildcard=True,
-        default_value=-0.001,
-        rule_name_key="charge_cost",
-    ),
-    SurfacedRuleSpec(
-        field_name=CONF_DISCHARGE_COST,
-        source_is_wildcard=False,
-        default_value=0.0,
-        rule_name_key="discharge_cost",
-    ),
-)
-
-# Load surfaced rule specifications
-LOAD_SURFACED_RULES: tuple[SurfacedRuleSpec, ...] = (
-    SurfacedRuleSpec(
-        field_name=CONF_CONSUMPTION_COST,
-        source_is_wildcard=True,
-        default_value=0.0,
-        rule_name_key="consumption_cost",
-    ),
-)
 
 
 def find_policy_subentry(hub_entry: ConfigEntry) -> ConfigSubentry | None:
@@ -253,7 +203,7 @@ def _element_has_surfaced_pricing(hub_entry: ConfigEntry, element_name: str) -> 
         if subentry.title != element_name:
             continue
         element_type = subentry.data.get(CONF_ELEMENT_TYPE)
-        return element_type in (str(ElementType.BATTERY), str(ElementType.LOAD))
+        return isinstance(element_type, str) and has_surfaced_pricing(element_type)
     return False
 
 
@@ -317,72 +267,80 @@ def form_value_to_price(value: Any) -> EntityValue | ConstantValue | None:
     return None  # pragma: no cover
 
 
-# --- Higher-level helpers for element config flows ---
+# --- Flow helpers ---
 
 
 def _resolve_endpoints(
-    spec: SurfacedRuleSpec,
+    hint: SurfacedPriceHint,
     element_name: str,
 ) -> tuple[list[str] | None, list[str] | None]:
-    """Resolve source and target for a surfaced rule spec."""
-    if spec.source_is_wildcard:
+    """Resolve source and target for a surfaced price hint."""
+    if hint.source_is_wildcard:
         return None, [element_name]
     return [element_name], None
 
 
-def build_surfaced_price_defaults(
+def build_surfaced_defaults(
     hub_entry: ConfigEntry,
     element_name: str | None,
-    specs: tuple[SurfacedRuleSpec, ...],
+    surfaced_hints: dict[str, SurfacedPriceHint],
+    surfaced_fields: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Build default values for surfaced price fields.
+    """Build default values for surfaced pricing fields.
 
-    For new elements, returns the spec's default_value.
+    For new elements, uses the FieldHint defaults via get_choose_default.
     For existing elements, reads the current price from the policy subentry.
     """
+    from custom_components.haeo.flows.field_schema import get_choose_default  # noqa: PLC0415
+
     defaults: dict[str, Any] = {}
-    for spec in specs:
-        if element_name is None:
-            # New element: use default
-            defaults[spec.field_name] = spec.default_value
-        else:
-            source, target = _resolve_endpoints(spec, element_name)
+    for field_name, hint in surfaced_hints.items():
+        field_info = surfaced_fields.get(field_name)
+        if field_info is None:
+            continue
+
+        if element_name is not None:
+            source, target = _resolve_endpoints(hint, element_name)
             price = get_surfaced_rule_price(hub_entry, source=source, target=target)
-            defaults[spec.field_name] = price_to_form_value(price) if price is not None else spec.default_value
+            if price is not None:
+                defaults[field_name] = price_to_form_value(price)
+                continue
+
+        default = get_choose_default(field_info, None)
+        if default is not None:
+            defaults[field_name] = default
     return defaults
 
 
-def build_surfaced_price_schema_entries(
-    specs: tuple[SurfacedRuleSpec, ...],
-    price_selector: Any,
-) -> dict[str, tuple[vol.Marker, Any]]:
-    """Build vol.Schema entries for surfaced price fields.
+def build_surfaced_schema_entries(
+    surfaced_fields: Mapping[str, Any],
+) -> dict[str, tuple[Any, Any]]:
+    """Build vol.Schema entries for surfaced pricing fields.
 
-    Returns a dict of field_name → (vol.Optional marker, selector) suitable
-    for injecting into a section's extra_field_entries.
+    Uses the standard build_choose_selector to create selectors from the
+    InputFieldInfo objects.
     """
-    return {spec.field_name: (vol.Optional(spec.field_name), price_selector) for spec in specs}
+    import voluptuous as vol  # noqa: PLC0415
 
-
-def build_surfaced_price_selector() -> Any:
-    """Build a NormalizingChooseSelector for surfaced price fields.
-
-    Uses the same price field metadata as the policy flow to ensure
-    consistent entity filtering and number constraints.
-    """
-    dummy_config: dict[str, Any] = {
-        CONF_ELEMENT_TYPE: str(POLICY_ELEMENT_TYPE),
-        CONF_RULES: [{"name": "_", CONF_PRICE: {"type": "constant", "value": 0}}],
-    }
-    list_fields = get_list_input_fields(dummy_config)
-    section = next(iter(list_fields.values()))
-    field_info = section[CONF_PRICE]
-    return build_choose_selector(
-        field_info,
-        allowed_choices={CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE},
-        multiple=True,
-        preferred_choice=CHOICE_CONSTANT,
+    from custom_components.haeo.flows.field_schema import (  # noqa: PLC0415
+        CHOICE_CONSTANT,
+        CHOICE_ENTITY,
+        CHOICE_NONE,
+        build_choose_selector,
     )
+
+    return {
+        field_info.field_name: (
+            vol.Optional(field_info.field_name),
+            build_choose_selector(
+                field_info,
+                allowed_choices={CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE},
+                multiple=True,
+                preferred_choice=CHOICE_CONSTANT,
+            ),
+        )
+        for field_info in surfaced_fields.values()
+    }
 
 
 def save_surfaced_rules_from_input(
@@ -390,7 +348,7 @@ def save_surfaced_rules_from_input(
     hub_entry: ConfigEntry,
     element_name: str,
     user_input: Mapping[str, Any],
-    specs: tuple[SurfacedRuleSpec, ...],
+    surfaced_hints: dict[str, SurfacedPriceHint],
     translations: Mapping[str, str],
 ) -> None:
     """Save surfaced policy rules from element config flow input.
@@ -398,11 +356,11 @@ def save_surfaced_rules_from_input(
     Reads the surfaced price field values from user_input and creates,
     updates, or deletes the corresponding policy rules.
     """
-    for spec in specs:
-        raw_value = user_input.get(spec.field_name)
+    for field_name, hint in surfaced_hints.items():
+        raw_value = user_input.get(field_name)
         price = form_value_to_price(raw_value)
-        source, target = _resolve_endpoints(spec, element_name)
-        rule_name = translations.get(spec.rule_name_key, f"{element_name} {spec.field_name}")
+        source, target = _resolve_endpoints(hint, element_name)
+        rule_name = translations.get(field_name, f"{element_name} {field_name}")
         save_surfaced_rule(
             hass,
             hub_entry,

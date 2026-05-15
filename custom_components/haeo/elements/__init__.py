@@ -107,6 +107,7 @@ from custom_components.haeo.core.schema.elements import (
     ElementType,
 )
 from custom_components.haeo.core.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.battery import SURFACED_PRICE_HINTS as BATTERY_SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
 from custom_components.haeo.core.schema.elements.battery_section import (
     OPTIONAL_INPUT_FIELDS as BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
@@ -121,13 +122,18 @@ from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
 from custom_components.haeo.core.schema.elements.load import OPTIONAL_INPUT_FIELDS as LOAD_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.load import SURFACED_PRICE_HINTS as LOAD_SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.elements.load import LoadConfigData
 from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.node import NodeConfigData
 from custom_components.haeo.core.schema.elements.policy import PolicyConfigData
 from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData
-from custom_components.haeo.core.schema.field_hints import extract_field_hints, extract_list_field_hints
+from custom_components.haeo.core.schema.field_hints import (
+    SurfacedPriceHint,
+    extract_field_hints,
+    extract_list_field_hints,
+)
 from custom_components.haeo.elements.field_hints import build_input_fields, build_list_input_fields
 
 from .field_schema import FieldSchemaInfo
@@ -232,6 +238,11 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.LOAD: LOAD_OPTIONAL_INPUT_FIELDS,
     ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
     ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
+}
+
+SURFACED_PRICE_HINTS_BY_TYPE: Final[dict[str, dict[str, SurfacedPriceHint]]] = {
+    str(ElementType.BATTERY): BATTERY_SURFACED_PRICE_HINTS,
+    str(ElementType.LOAD): LOAD_SURFACED_PRICE_HINTS,
 }
 
 
@@ -501,6 +512,32 @@ def get_list_input_fields(element_config: Mapping[str, Any]) -> InputFieldGroups
     return result
 
 
+def get_surfaced_input_fields(element_type: str | ElementType) -> dict[str, InputFieldInfo[Any]]:
+    """Return InputFieldInfo objects for surfaced pricing fields.
+
+    These fields appear on the element's config flow but are stored as
+    policy rules. The InputFieldInfo objects drive selector construction
+    and form defaults through the standard field system.
+    """
+    hints = SURFACED_PRICE_HINTS_BY_TYPE.get(str(element_type), {})
+    if not hints:
+        return {}
+    section_fields = build_input_fields(
+        str(element_type), {"_surfaced": {name: hint.hint for name, hint in hints.items()}}
+    )
+    return section_fields.get("_surfaced", {})
+
+
+def get_surfaced_price_hints(element_type: str | ElementType) -> dict[str, SurfacedPriceHint]:
+    """Return SurfacedPriceHint definitions for an element type."""
+    return SURFACED_PRICE_HINTS_BY_TYPE.get(str(element_type), {})
+
+
+def has_surfaced_pricing(element_type: str) -> bool:
+    """Check if an element type has surfaced pricing fields."""
+    return element_type in SURFACED_PRICE_HINTS_BY_TYPE
+
+
 def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, InputFieldInfo[Any]]]:
     """Return (field_path, InputFieldInfo) pairs from nested input fields.
 
@@ -615,6 +652,7 @@ __all__ = [
     "ELEMENT_DEVICE_NAMES",
     "ELEMENT_DEVICE_NAMES_BY_TYPE",
     "ELEMENT_OPTIONAL_INPUT_FIELDS",
+    "SURFACED_PRICE_HINTS_BY_TYPE",
     "ElementDeviceName",
     "ElementOutputName",
     "FieldSchemaInfo",
@@ -631,6 +669,9 @@ __all__ = [
     "get_list_input_fields",
     "get_nested_config_value",
     "get_nested_config_value_by_path",
+    "get_surfaced_input_fields",
+    "get_surfaced_price_hints",
+    "has_surfaced_pricing",
     "is_element_config_data",
     "is_element_config_schema",
     "iter_input_field_paths",

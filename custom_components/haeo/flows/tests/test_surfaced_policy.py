@@ -17,7 +17,9 @@ from custom_components.haeo.core.schema import as_constant_value, as_entity_valu
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
+    CONF_CHARGE_COST,
     CONF_CONFIGURE_PARTITIONS,
+    CONF_DISCHARGE_COST,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -33,7 +35,9 @@ from custom_components.haeo.core.schema.elements.battery import (
     SECTION_STORAGE,
 )
 from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements.battery import SURFACED_PRICE_HINTS as BATTERY_SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.elements.load import (
+    CONF_CONSUMPTION_COST,
     CONF_CURTAILMENT,
     CONF_FORECAST,
     SECTION_CURTAILMENT,
@@ -51,14 +55,11 @@ from custom_components.haeo.core.schema.elements.policy import (
 )
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
+from custom_components.haeo.elements import get_surfaced_input_fields
 from custom_components.haeo.flows.conftest import create_flow
 from custom_components.haeo.flows.surfaced_policy import (
-    BATTERY_SURFACED_RULES,
-    CONF_CHARGE_COST,
-    CONF_CONSUMPTION_COST,
-    CONF_DISCHARGE_COST,
     POLICIES_TITLE,
-    build_surfaced_price_defaults,
+    build_surfaced_defaults,
     find_policy_subentry,
     find_surfaced_rule,
     form_value_to_price,
@@ -437,14 +438,15 @@ def test_is_surfaced_pattern_unknown_element(
     assert is_surfaced_pattern(hub_entry, source=None, target=["Nonexistent"]) is False
 
 
-# --- build_surfaced_price_defaults tests ---
+# --- build_surfaced_defaults tests ---
 
 
 def test_defaults_for_new_element(
     hub_entry: MockConfigEntry,
 ) -> None:
     """New elements get spec default values."""
-    defaults = build_surfaced_price_defaults(hub_entry, None, BATTERY_SURFACED_RULES)
+    surfaced_fields = get_surfaced_input_fields(BATTERY_ELEMENT_TYPE)
+    defaults = build_surfaced_defaults(hub_entry, None, BATTERY_SURFACED_PRICE_HINTS, surfaced_fields)
     assert defaults[CONF_CHARGE_COST] == -0.001
     assert defaults[CONF_DISCHARGE_COST] == 0.0
 
@@ -462,7 +464,9 @@ def test_defaults_for_existing_element_with_rules(
             {"name": "discharge", "source": ["Battery"], "price": as_entity_value(["sensor.cost"])},
         ],
     )
-    defaults = build_surfaced_price_defaults(hub_entry, "Battery", BATTERY_SURFACED_RULES)
+    defaults = build_surfaced_defaults(
+        hub_entry, "Battery", BATTERY_SURFACED_PRICE_HINTS, get_surfaced_input_fields(BATTERY_ELEMENT_TYPE)
+    )
     assert defaults[CONF_CHARGE_COST] == 0.5
     assert defaults[CONF_DISCHARGE_COST] == ["sensor.cost"]
 
@@ -471,7 +475,9 @@ def test_defaults_for_existing_element_without_rules(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Existing elements without matching rules get spec defaults."""
-    defaults = build_surfaced_price_defaults(hub_entry, "Battery", BATTERY_SURFACED_RULES)
+    defaults = build_surfaced_defaults(
+        hub_entry, "Battery", BATTERY_SURFACED_PRICE_HINTS, get_surfaced_input_fields(BATTERY_ELEMENT_TYPE)
+    )
     assert defaults[CONF_CHARGE_COST] == -0.001
     assert defaults[CONF_DISCHARGE_COST] == 0.0
 

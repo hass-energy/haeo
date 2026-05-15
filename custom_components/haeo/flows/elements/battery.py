@@ -10,7 +10,9 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
+    CONF_CHARGE_COST,
     CONF_CONFIGURE_PARTITIONS,
+    CONF_DISCHARGE_COST,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -27,13 +29,14 @@ from custom_components.haeo.core.schema.elements.battery import (
     SECTION_PRICING,
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
+    SURFACED_PRICE_HINTS,
 )
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
 )
-from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
+from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields, get_surfaced_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
@@ -46,10 +49,8 @@ from custom_components.haeo.flows.field_schema import (
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.flows.surfaced_policy import (
-    BATTERY_SURFACED_RULES,
-    build_surfaced_price_defaults,
-    build_surfaced_price_schema_entries,
-    build_surfaced_price_selector,
+    build_surfaced_defaults,
+    build_surfaced_schema_entries,
     save_surfaced_rules_from_input,
 )
 from custom_components.haeo.sections import (
@@ -73,7 +74,7 @@ PARTITION_SECTION_DEFINITIONS = (
 )
 
 # Surfaced policy field names (not stored in battery config)
-SURFACED_POLICY_FIELDS: frozenset[str] = frozenset(spec.field_name for spec in BATTERY_SURFACED_RULES)
+SURFACED_POLICY_FIELDS: frozenset[str] = frozenset({CONF_CHARGE_COST, CONF_DISCHARGE_COST})
 
 
 class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -194,8 +195,8 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for main inputs."""
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
-        price_selector = build_surfaced_price_selector()
-        surfaced_entries = build_surfaced_price_schema_entries(BATTERY_SURFACED_RULES, price_selector)
+        surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
+        surfaced_entries = build_surfaced_schema_entries(surfaced_fields)
         return build_sectioned_choose_schema(
             self._get_sections(),
             input_fields,
@@ -262,7 +263,8 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         hub_entry = self._get_entry()
         element_name = subentry_data.get(CONF_NAME) if subentry_data else None
-        surfaced_defaults = build_surfaced_price_defaults(hub_entry, element_name, BATTERY_SURFACED_RULES)
+        surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
+        surfaced_defaults = build_surfaced_defaults(hub_entry, element_name, SURFACED_PRICE_HINTS, surfaced_fields)
 
         section_defaults = build_sectioned_choose_defaults(
             self._get_sections(),
@@ -367,7 +369,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         pricing_input = self._step1_data.get(SECTION_PRICING, {})
         hub_entry = self._get_entry()
         translations = self._surfaced_rule_translations(name)
-        save_surfaced_rules_from_input(self.hass, hub_entry, name, pricing_input, BATTERY_SURFACED_RULES, translations)
+        save_surfaced_rules_from_input(self.hass, hub_entry, name, pricing_input, SURFACED_PRICE_HINTS, translations)
 
         subentry = self._get_subentry()
         if subentry is not None:
