@@ -257,7 +257,7 @@ def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     When an element subentry is deleted, policy rules may still reference
     it by name. This strips deleted names from source/target lists and
-    removes rules that become empty (no source and no target).
+    removes rules where either side had elements but became empty.
     """
     from custom_components.haeo.flows.surfaced_policy import _save_policy_rules  # noqa: PLC0415
 
@@ -283,8 +283,10 @@ def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
         if new_source != source or new_target != target:
             changed = True
 
-        # Drop rules where both endpoints are empty/wildcard
-        if not new_source and not new_target:
+        # Drop rules where a named side lost all its elements
+        source_emptied = source and not new_source
+        target_emptied = target and not new_target
+        if source_emptied or target_emptied:
             changed = True
             continue
 

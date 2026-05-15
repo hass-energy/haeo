@@ -418,10 +418,10 @@
         }
       },
       "error": {
+        "duplicate_rule": "A rule with this source and target already exists",
         "missing_name": "Policy name is required",
         "name_exists": "A policy with this name already exists",
-        "source_target_same": "Source and target cannot be the same element",
-        "surfaced_policy_conflict": "This pricing pattern is managed by the element's own configuration"
+        "source_target_same": "Source and target cannot be the same element"
       },
       "abort": { "no_rules": "No policy rules configured", "reconfigure_successful": "Policies updated successfully" }
     },

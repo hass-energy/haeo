@@ -64,9 +64,7 @@ from custom_components.haeo.flows.surfaced_policy import (
     find_surfaced_rule,
     form_value_to_price,
     get_policy_rules,
-    is_surfaced_pattern,
     price_to_form_value,
-    remove_element_surfaced_rules,
     save_surfaced_rule,
 )
 
@@ -347,95 +345,6 @@ def test_save_with_none_price_no_match_is_noop(
     )
     rules = _get_rules(hub_entry)
     assert len(rules) == 1
-
-
-# --- remove_element_surfaced_rules tests ---
-
-
-def test_remove_element_rules_removes_matching_patterns(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Removes all surfaced rules for an element."""
-    _add_policy_subentry(
-        hass,
-        hub_entry,
-        [
-            {"name": "charge", "target": ["Battery"], "price": as_constant_value(0.1)},
-            {"name": "discharge", "source": ["Battery"], "price": as_constant_value(0.2)},
-            {"name": "unrelated", "source": ["Grid"], "target": ["Load"], "price": as_constant_value(0.3)},
-        ],
-    )
-    remove_element_surfaced_rules(hass, hub_entry, "Battery")
-    rules = _get_rules(hub_entry)
-    assert len(rules) == 1
-    assert rules[0]["name"] == "unrelated"
-
-
-def test_remove_element_rules_noop_when_no_policy(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Does nothing when no policy subentry exists."""
-    remove_element_surfaced_rules(hass, hub_entry, "Battery")
-    assert find_policy_subentry(hub_entry) is None
-
-
-# --- is_surfaced_pattern tests ---
-
-
-def test_is_surfaced_pattern_battery(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Recognizes patterns matching battery elements."""
-    add_participant(hass, hub_entry, "MyBattery", str(BATTERY_ELEMENT_TYPE))
-
-    # * → MyBattery (charge cost pattern)
-    assert is_surfaced_pattern(hub_entry, source=None, target=["MyBattery"]) is True
-    # MyBattery → * (discharge cost pattern)
-    assert is_surfaced_pattern(hub_entry, source=["MyBattery"], target=None) is True
-
-
-def test_is_surfaced_pattern_load(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Recognizes patterns matching load elements."""
-    add_participant(hass, hub_entry, "MyLoad", str(LOAD_ELEMENT_TYPE))
-
-    # * → MyLoad (consumption cost pattern)
-    assert is_surfaced_pattern(hub_entry, source=None, target=["MyLoad"]) is True
-    # MyLoad → * also matches (load has surfaced pricing)
-    assert is_surfaced_pattern(hub_entry, source=["MyLoad"], target=None) is True
-
-
-def test_is_surfaced_pattern_node_not_surfaced(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Node elements don't have surfaced pricing."""
-    add_participant(hass, hub_entry, "MyNode", node.ELEMENT_TYPE)
-
-    assert is_surfaced_pattern(hub_entry, source=None, target=["MyNode"]) is False
-    assert is_surfaced_pattern(hub_entry, source=["MyNode"], target=None) is False
-
-
-def test_is_surfaced_pattern_both_sides_set(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Rules with both source and target are never surfaced patterns."""
-    add_participant(hass, hub_entry, "MyBattery", str(BATTERY_ELEMENT_TYPE))
-
-    assert is_surfaced_pattern(hub_entry, source=["MyBattery"], target=["Other"]) is False
-
-
-def test_is_surfaced_pattern_unknown_element(
-    hub_entry: MockConfigEntry,
-) -> None:
-    """Non-existent element names are not surfaced patterns."""
-    assert is_surfaced_pattern(hub_entry, source=None, target=["Nonexistent"]) is False
 
 
 # --- build_surfaced_defaults tests ---
@@ -732,46 +641,52 @@ async def test_load_flow_excludes_surfaced_fields_from_config(
     assert CONF_CONSUMPTION_COST not in curtailment
 
 
-# --- Policy flow conflict prevention tests ---
+# --- Policy flow duplicate prevention tests ---
 
 
-async def test_policy_flow_blocks_surfaced_pattern(
+async def test_policy_flow_blocks_duplicate_rule(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Policy flow prevents creating rules that match element surfaced patterns."""
+    """Policy flow prevents creating rules with the same source/target as an existing rule."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     add_participant(hass, hub_entry, "MyBattery", str(BATTERY_ELEMENT_TYPE))
 
+    # Add an existing rule with * → MyBattery
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [{"name": "existing", "target": ["MyBattery"], "price": as_constant_value(0.1)}],
+    )
+
     flow = create_flow(hass, hub_entry, POLICY_ELEMENT_TYPE)
 
-    # Try to create a rule with * → MyBattery pattern (conflicts with battery charge cost)
+    # Try to create a rule with the same pattern
     result = await flow.async_step_user(
         user_input={
-            CONF_RULE_NAME: "conflicting",
+            CONF_RULE_NAME: "duplicate",
             CONF_ENABLED: True,
             CONF_SOURCE: [],
             CONF_TARGET: ["MyBattery"],
-            CONF_PRICE: 0.1,
+            CONF_PRICE: 0.2,
         }
     )
     assert result.get("type") == FlowResultType.FORM
     errors = result.get("errors", {})
-    assert errors.get("base") == "surfaced_policy_conflict"
+    assert errors.get("base") == "duplicate_rule"
 
 
-async def test_policy_flow_allows_non_surfaced_pattern(
+async def test_policy_flow_allows_unique_pattern(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Policy flow allows rules that don't match surfaced patterns."""
+    """Policy flow allows rules with a unique source/target pattern."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     add_participant(hass, hub_entry, "MyBattery", str(BATTERY_ELEMENT_TYPE))
 
     flow = create_flow(hass, hub_entry, POLICY_ELEMENT_TYPE)
     flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Policies", "data": {}})
 
-    # A → B pattern is fine (not surfaced)
     result = await flow.async_step_user(
         user_input={
             CONF_RULE_NAME: "normal rule",
@@ -781,7 +696,6 @@ async def test_policy_flow_allows_non_surfaced_pattern(
             CONF_PRICE: 0.1,
         }
     )
-    # Should create entry successfully (not a form with errors)
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
 
@@ -837,16 +751,19 @@ def test_cleanup_strips_deleted_from_multi_element_rules(
     assert rules[0]["target"] == ["C"]
 
 
-def test_cleanup_removes_rule_when_both_sides_empty(
+def test_cleanup_removes_rule_when_either_side_empty(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Cleanup removes rules where both source and target become empty."""
+    """Cleanup removes rules where source or target had elements but became empty."""
+    add_participant(hass, hub_entry, "Alive", str(BATTERY_ELEMENT_TYPE))
     _add_policy_subentry(
         hass,
         hub_entry,
         [
-            {"name": "orphan", "source": ["Gone1"], "target": ["Gone2"], "price": as_constant_value(0.1)},
+            {"name": "source gone", "source": ["Gone"], "target": ["Alive"], "price": as_constant_value(0.1)},
+            {"name": "target gone", "source": ["Alive"], "target": ["Gone"], "price": as_constant_value(0.2)},
+            {"name": "both gone", "source": ["Gone1"], "target": ["Gone2"], "price": as_constant_value(0.3)},
         ],
     )
 

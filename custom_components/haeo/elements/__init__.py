@@ -533,11 +533,6 @@ def get_surfaced_price_hints(element_type: str | ElementType) -> dict[str, Surfa
     return SURFACED_PRICE_HINTS_BY_TYPE.get(str(element_type), {})
 
 
-def has_surfaced_pricing(element_type: str) -> bool:
-    """Check if an element type has surfaced pricing fields."""
-    return element_type in SURFACED_PRICE_HINTS_BY_TYPE
-
-
 def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, InputFieldInfo[Any]]]:
     """Return (field_path, InputFieldInfo) pairs from nested input fields.
 
@@ -671,7 +666,6 @@ __all__ = [
     "get_nested_config_value_by_path",
     "get_surfaced_input_fields",
     "get_surfaced_price_hints",
-    "has_surfaced_pricing",
     "is_element_config_data",
     "is_element_config_schema",
     "iter_input_field_paths",

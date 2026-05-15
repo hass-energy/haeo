@@ -29,7 +29,6 @@ from custom_components.haeo.core.schema.elements.policy import (
 )
 from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value, is_entity_value
 from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
-from custom_components.haeo.elements import has_surfaced_pricing
 
 POLICIES_TITLE = "Policies"
 
@@ -136,72 +135,6 @@ def save_surfaced_rule(
         rules.append(rule)
 
     _save_policy_rules(hass, hub_entry, rules)
-
-
-def remove_element_surfaced_rules(
-    hass: HomeAssistant,
-    hub_entry: ConfigEntry,
-    element_name: str,
-) -> None:
-    """Remove all surfaced policy rules associated with an element.
-
-    Removes rules where the element appears as the sole member of
-    source or target (the surfaced pattern). Called when an element
-    subentry is deleted.
-    """
-    rules = get_policy_rules(hub_entry)
-    original_count = len(rules)
-
-    rules = [rule for rule in rules if not _is_surfaced_rule_for_element(rule, element_name)]
-
-    if len(rules) != original_count:
-        _save_policy_rules(hass, hub_entry, rules)
-
-
-def _is_surfaced_rule_for_element(rule: PolicyRuleConfig, element_name: str) -> bool:
-    """Check if a rule is a surfaced rule for the given element.
-
-    A surfaced rule has one side as wildcard and the other as a
-    single-element list containing the element name.
-    """
-    source = rule.get(CONF_SOURCE)
-    target = rule.get(CONF_TARGET)
-
-    # * → element_name pattern
-    if not source and target == [element_name]:
-        return True
-
-    # element_name → * pattern
-    return bool(source == [element_name] and not target)
-
-
-def is_surfaced_pattern(
-    hub_entry: ConfigEntry,
-    source: list[str] | None,
-    target: list[str] | None,
-) -> bool:
-    """Check if a source/target combination matches any element's surfaced pattern.
-
-    Used by the standalone policy flow to prevent creating rules that
-    conflict with element-surfaced patterns.
-    """
-    if source and not target and len(source) == 1:
-        return _element_has_surfaced_pricing(hub_entry, source[0])
-
-    if not source and target and len(target) == 1:
-        return _element_has_surfaced_pricing(hub_entry, target[0])
-
-    return False
-
-
-def _element_has_surfaced_pricing(hub_entry: ConfigEntry, element_name: str) -> bool:
-    """Check if an element with the given name has surfaced pricing fields."""
-    for subentry in hub_entry.subentries.values():
-        if subentry.title != element_name:
-            continue
-        element_type = subentry.data.get(CONF_ELEMENT_TYPE)
-        return isinstance(element_type, str) and has_surfaced_pricing(element_type)
-    return False
 
 
 def _save_policy_rules(
