@@ -37,6 +37,8 @@ class OutputData:
             sensor entity. Use to override HAEO's smart-rounding default when a
             sensor has a natural display scale (e.g. dollars to 2 dp). None
             preserves the existing smart-rounding behaviour.
+        range_up: Upper capacity range (how much RHS can increase at same shadow price).
+        range_dn: Lower capacity range (how much RHS can decrease at same shadow price).
 
     """
 
@@ -50,6 +52,8 @@ class OutputData:
     priority: int | None = None
     fixed: bool = False
     display_precision: int | None = None
+    range_up: Sequence[Any] | None = None
+    range_dn: Sequence[Any] | None = None
 
     def __init__(
         self,
@@ -64,6 +68,8 @@ class OutputData:
         priority: int | None = None,
         fixed: bool = False,
         display_precision: int | None = None,
+        range_up: Sequence[Any] | None = None,
+        range_dn: Sequence[Any] | None = None,
     ) -> None:
         """Initialize OutputData.
 
@@ -80,6 +86,8 @@ class OutputData:
             priority: The connection priority for this output, if applicable.
             fixed: Whether the output is constrained to equal its forecast (no curtailment).
             display_precision: Optional suggested decimal places for the sensor UI.
+            range_up: Upper capacity range (how much RHS can increase at same shadow price).
+            range_dn: Lower capacity range (how much RHS can decrease at same shadow price).
 
         """
         self.type = type
@@ -91,6 +99,8 @@ class OutputData:
         self.priority = priority
         self.fixed = fixed
         self.display_precision = display_precision
+        self.range_up = range_up
+        self.range_dn = range_dn
 
         # Normalize to a tuple
         if isinstance(values, np.ndarray):
