@@ -39,6 +39,7 @@ from tests.guides.primitives import (
     login,
     pause_screenshots,
     reconfigure_policies,
+    save_diagnostics,
     screenshot_context,
     validate_policies,
     verify_setup,
@@ -50,7 +51,8 @@ _LOGGER = logging.getLogger(__name__)
 # Project root for resolving relative paths
 PROJECT_ROOT = Path(__file__).parent.parent
 DOCS_DIR = PROJECT_ROOT / "docs"
-INPUTS_FILE = PROJECT_ROOT / "tests" / "scenarios" / "scenario1" / "inputs.json"
+SCENARIO_DIR = PROJECT_ROOT / "tests" / "scenarios" / "scenario1"
+INPUTS_FILE = SCENARIO_DIR / "inputs.json"
 
 # Regex to extract ```guide and ```guide-setup blocks from markdown
 _GUIDE_BLOCK_RE = re.compile(
@@ -225,6 +227,8 @@ def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, obj
         "reconfigure_policies": reconfigure_policies,
         "validate_policies": validate_policies,
         "verify_setup": verify_setup,
+        # Developer Tools primitives
+        "save_diagnostics": save_diagnostics,
         # Guide chaining
         "run_guide": lambda guide_name: _run_guide_silently(page, hass, guide_name),
     }

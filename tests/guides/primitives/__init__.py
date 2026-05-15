@@ -18,6 +18,7 @@ Example usage:
 """
 
 from tests.guides.primitives.capture import ScreenshotContext, guide_step, pause_screenshots, screenshot_context
+from tests.guides.primitives.developer_tools import save_diagnostics
 from tests.guides.primitives.ha_page import HAPage
 from tests.guides.primitives.haeo import (
     ConstantInput,
@@ -57,6 +58,7 @@ __all__ = [
     "login",
     "pause_screenshots",
     "reconfigure_policies",
+    "save_diagnostics",
     "screenshot_context",
     "validate_policies",
     "verify_setup",

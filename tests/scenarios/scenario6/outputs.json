@@ -3326,7 +3326,7 @@
         { "time": "2026-04-22T02:58:00.000000+1000", "value": -0.091 },
         { "time": "2026-04-22T03:58:00.000000+1000", "value": -0.091 },
         { "time": "2026-04-22T04:58:00.000000+1000", "value": -0.091 },
-        { "time": "2026-04-22T05:58:00.000000+1000", "value": -0.09 },
+        { "time": "2026-04-22T05:58:00.000000+1000", "value": -0.091 },
         { "time": "2026-04-22T06:58:00.000000+1000", "value": -0.048 },
         { "time": "2026-04-22T07:58:00.000000+1000", "value": -0.009 },
         { "time": "2026-04-22T08:58:00.000000+1000", "value": 0.0 },
@@ -3580,8 +3580,8 @@
         { "time": "2026-04-22T01:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T02:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-22T03:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-22T04:58:00.000000+1000", "value": 0.0007 },
-        { "time": "2026-04-22T05:58:00.000000+1000", "value": 0.0422 },
+        { "time": "2026-04-22T04:58:00.000000+1000", "value": 0.0 },
+        { "time": "2026-04-22T05:58:00.000000+1000", "value": 0.0429 },
         { "time": "2026-04-22T06:58:00.000000+1000", "value": 0.039 },
         { "time": "2026-04-22T07:58:00.000000+1000", "value": 0.0087 },
         { "time": "2026-04-22T08:58:00.000000+1000", "value": 0.0 },
@@ -4034,7 +4034,7 @@
         { "time": "2026-04-20T05:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T06:28:00.000000+1000", "value": 0.1 },
         { "time": "2026-04-20T06:58:00.000000+1000", "value": 0.0 },
-        { "time": "2026-04-20T07:28:00.000000+1000", "value": 0.0 },
+        { "time": "2026-04-20T07:28:00.000000+1000", "value": 0.2 },
         { "time": "2026-04-20T07:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T08:28:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-20T08:58:00.000000+1000", "value": 0.0 },
@@ -4083,7 +4083,7 @@
         { "time": "2026-04-21T14:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T15:58:00.000000+1000", "value": 6.3 },
         { "time": "2026-04-21T16:58:00.000000+1000", "value": 0.1 },
-        { "time": "2026-04-21T17:58:00.000000+1000", "value": 12.9 },
+        { "time": "2026-04-21T17:58:00.000000+1000", "value": 0.0 },
         { "time": "2026-04-21T18:58:00.000000+1000", "value": 5.9 },
         { "time": "2026-04-21T19:58:00.000000+1000", "value": 5.9 },
         { "time": "2026-04-21T20:58:00.000000+1000", "value": 5.9 },
@@ -6431,7 +6431,98 @@
   "sensor.optimizer_status": {
     "entity_id": "sensor.optimizer_status",
     "state": "success",
-    "attributes": { "advanced": false, "device_class": "enum", "element_name": "System", "element_type": "network", "field_type": "status", "friendly_name": "Optimizer Status", "last_run": "2026-04-19T11:58:43.155722+00:00", "options": ["failed", "pending", "success"], "output_name": "network_optimization_status", "source_role": "output" }
+    "attributes": {
+      "advanced": false,
+      "device_class": "enum",
+      "element_name": "System",
+      "element_type": "network",
+      "field_type": "status",
+      "friendly_name": "Optimizer Status",
+      "last_run": "2026-04-19T11:58:43.155722+00:00",
+      "options": ["failed", "pending", "success"],
+      "output_name": "network_optimization_status",
+      "source_role": "output",
+      "topology": {
+        "edges": [
+          {
+            "name": "Battery:charge",
+            "segments": [
+              { "id": "efficiency", "type": "EfficiencySegment" },
+              { "id": "power_limit", "type": "PowerLimitSegment" }
+            ],
+            "source": "Inverter",
+            "tags": [2, 3],
+            "target": "Battery"
+          },
+          {
+            "name": "Battery:discharge",
+            "segments": [
+              { "id": "efficiency", "type": "EfficiencySegment" },
+              { "id": "power_limit", "type": "PowerLimitSegment" }
+            ],
+            "source": "Battery",
+            "tags": [1],
+            "target": "Inverter"
+          },
+          {
+            "name": "Grid:export",
+            "segments": [
+              { "id": "power_limit", "type": "PowerLimitSegment" },
+              { "id": "pricing", "type": "PricingSegment" }
+            ],
+            "source": "Switchboard",
+            "tags": [1, 3],
+            "target": "Grid"
+          },
+          {
+            "name": "Grid:import",
+            "segments": [
+              { "id": "power_limit", "type": "PowerLimitSegment" },
+              { "id": "pricing", "type": "PricingSegment" }
+            ],
+            "source": "Grid",
+            "tags": [2],
+            "target": "Switchboard"
+          },
+          {
+            "name": "Inverter:ac_to_dc",
+            "segments": [
+              { "id": "efficiency", "type": "EfficiencySegment" },
+              { "id": "power_limit", "type": "PowerLimitSegment" }
+            ],
+            "source": "Switchboard",
+            "tags": [1, 2, 3],
+            "target": "Inverter"
+          },
+          {
+            "name": "Inverter:dc_to_ac",
+            "segments": [
+              { "id": "efficiency", "type": "EfficiencySegment" },
+              { "id": "power_limit", "type": "PowerLimitSegment" }
+            ],
+            "source": "Inverter",
+            "tags": [1, 2, 3],
+            "target": "Switchboard"
+          },
+          { "name": "Load:connection", "segments": [{ "id": "power_limit", "type": "PowerLimitSegment" }], "source": "Switchboard", "tags": [1, 2, 3], "target": "Load" },
+          { "name": "Solar:connection", "segments": [{ "id": "power_limit", "type": "PowerLimitSegment" }], "source": "Solar", "tags": [3], "target": "Inverter" }
+        ],
+        "groups": { "Battery": ["Battery"], "Grid": ["Grid"], "Inverter": ["Inverter"], "Load": ["Load"], "Solar": ["Solar"], "Switchboard": ["Switchboard"] },
+        "nodes": [
+          { "group": "Battery", "inbound_tags": [1, 2, 3], "name": "Battery", "outbound_tags": [1], "type": "battery" },
+          { "group": "Grid", "inbound_tags": [1, 2, 3], "name": "Grid", "outbound_tags": [2], "type": "grid" },
+          { "group": "Inverter", "name": "Inverter", "type": "inverter" },
+          { "group": "Load", "inbound_tags": [1, 2, 3], "name": "Load", "type": "load" },
+          { "group": "Solar", "name": "Solar", "outbound_tags": [3], "type": "solar" },
+          { "group": "Switchboard", "name": "Switchboard", "type": "node" }
+        ],
+        "policies": [
+          { "label": "Battery \u2192 *", "name": "policy_pricing_r0_v1", "terms": [{ "connection": "Inverter:dc_to_ac", "tag": 1 }] },
+          { "label": "Battery \u2192 Grid", "name": "policy_pricing_r1_v1", "terms": [{ "connection": "Grid:export", "tag": 1 }] },
+          { "label": "Solar \u2192 Grid", "name": "policy_pricing_r2_v3", "terms": [{ "connection": "Grid:export", "tag": 3 }] }
+        ]
+      }
+    }
   },
   "sensor.solar_forecast_limit_shadow_price": {
     "entity_id": "sensor.solar_forecast_limit_shadow_price",

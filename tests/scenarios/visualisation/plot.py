@@ -10,10 +10,6 @@ import subprocess
 import tempfile
 from typing import Any
 
-from custom_components.haeo.core.model import Network
-
-from .graph import create_graph_visualization
-
 _LOGGER = logging.getLogger(__name__)
 
 CARD_WIDTH = 1920
@@ -55,7 +51,7 @@ def create_card_visualization(
             check=False,
         )
         if result.returncode != 0:
-            msg = f"Card export failed (exit {result.returncode}): {result.stderr}"
+            msg = f"Card export failed (exit {result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
             raise RuntimeError(msg)
     except FileNotFoundError as e:
         msg = f"Node.js not found — required for card visualization: {e}"
@@ -67,11 +63,65 @@ def create_card_visualization(
         Path(temp_path).unlink(missing_ok=True)
 
 
+def create_topology_visualization(
+    topology: dict[str, Any],
+    output_path: str,
+) -> None:
+    """Render the network topology as SVG via the TypeScript renderer.
+
+    Calls the Node.js export script which uses ELK.js for layout and
+    produces a static SVG.
+
+    Raises:
+        RuntimeError: If the export script is missing, Node.js is not
+            installed, or the renderer fails.
+
+    """
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    script = repo_root / "frontend" / "haeo-forecast-card" / "scripts" / "export-topology-svg.mjs"
+
+    if not script.exists():
+        msg = f"Topology export script not found: {script}"
+        raise RuntimeError(msg)
+
+    bundle = repo_root / "frontend" / "haeo-forecast-card" / "dist" / "render-topology-svg.mjs"
+    if not bundle.exists():
+        msg = f"Topology bundle not found: {bundle} — run: npm --prefix frontend/haeo-forecast-card run build"
+        raise RuntimeError(msg)
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        json.dump(topology, f)
+        temp_path = f.name
+
+    try:
+        result = subprocess.run(  # noqa: S603 — trusted repo-local script, no user input
+            ["node", str(script), temp_path, output_path],  # noqa: S607 — node is a well-known executable
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=str(script.parent.parent),
+            check=False,
+        )
+        if result.returncode != 0:
+            msg = (
+                f"Topology export failed (exit {result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
+            )
+            raise RuntimeError(msg)
+    except FileNotFoundError as e:
+        msg = f"Node.js not found — required for topology visualization: {e}"
+        raise RuntimeError(msg) from e
+    except subprocess.TimeoutExpired as e:
+        msg = f"Topology export timed out after {e.timeout}s"
+        raise RuntimeError(msg) from e
+    finally:
+        Path(temp_path).unlink(missing_ok=True)
+
+
 def visualize_scenario_results(
     output_sensors: Mapping[str, Mapping[str, Any]],
     scenario_name: str,
     output_dir: Path,
-    network: Network,
+    topology: dict[str, Any],
 ) -> None:
     """Create visualizations for HAEO scenario test results.
 
@@ -82,7 +132,7 @@ def visualize_scenario_results(
         output_sensors: Dict mapping entity_id to sensor state dict.
         scenario_name: Name identifier for the scenario (used in filenames).
         output_dir: Directory path where visualization files will be saved.
-        network: Network object for graph visualization.
+        topology: Serialized topology dict for graph visualization.
 
     """
     output_dir_path = Path(output_dir)
@@ -92,4 +142,4 @@ def visualize_scenario_results(
     create_card_visualization(output_sensors, str(main_plot_path))
 
     graph_plot_path = output_dir_path / f"{scenario_name}_network_topology.svg"
-    create_graph_visualization(network, str(graph_plot_path), f"{scenario_name.title()} Network Topology")
+    create_topology_visualization(topology, str(graph_plot_path))
