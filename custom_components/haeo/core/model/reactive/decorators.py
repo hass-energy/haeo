@@ -134,16 +134,17 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             return None
 
         # Extract shadow prices from the constraint using the solver
+        solver: Highs = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
         cons = state["constraint"]
         arr = np.asarray(cons, dtype=object)
-        values = tuple(obj._solver.constrDuals(arr).flat)  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
+        values = tuple(solver.constrDuals(arr).flat)
 
         # Extract ranging (capacity at current shadow price)
-        _status, rng = obj._solver.getRanging()  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+        _status, rng = solver.getRanging()
         range_up: tuple[float, ...] | None = None
         range_dn: tuple[float, ...] | None = None
         if rng.valid:
-            sol = obj._solver.getSolution()  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+            sol = solver.getSolution()
             up_vals: list[float] = []
             dn_vals: list[float] = []
             for c_obj in arr.flat:
