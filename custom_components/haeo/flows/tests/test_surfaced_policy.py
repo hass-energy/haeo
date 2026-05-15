@@ -747,8 +747,8 @@ def test_cleanup_strips_deleted_from_multi_element_rules(
 
     rules = _get_rules(hub_entry)
     assert len(rules) == 1
-    assert rules[0]["source"] == ["A"]
-    assert rules[0]["target"] == ["C"]
+    assert rules[0].get("source") == ["A"]
+    assert rules[0].get("target") == ["C"]
 
 
 def test_cleanup_removes_rule_when_either_side_empty(
