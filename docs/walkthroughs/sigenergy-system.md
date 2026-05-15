@@ -225,7 +225,7 @@ In the HAEO integration page, you should see:
 **Solar**:
 
 - `sensor.solar_power` - Optimal generation (kW)
-- `sensor.solar_forecast_limit` - Value of additional generation capacity (\$/kW)
+- `sensor.solar_forecast_limit` - Value of additional generation capacity (\$/kWh)
 
 **Grid**:
 

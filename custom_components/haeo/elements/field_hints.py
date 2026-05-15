@@ -89,7 +89,7 @@ def build_input_fields(
     for section_name, fields in field_hints.items():
         result[section_name] = {}
         for field_name, hint in fields.items():
-            translation_key = f"{element_type}_{field_name}"
+            translation_key = _build_translation_key(element_type, field_name, hint.device_type)
             result[section_name][field_name] = _build_field_info(field_name, hint, translation_key)
 
     return result
@@ -125,7 +125,7 @@ def build_list_input_fields(
             continue
         section: dict[str, InputFieldInfo[Any]] = {}
         for field_name, hint in list_hints.fields.items():
-            translation_key = f"{element_type}_{field_name}"
+            translation_key = _build_translation_key(element_type, field_name, hint.device_type)
             section[field_name] = _build_field_info(field_name, hint, translation_key)
 
         if section:
@@ -133,6 +133,22 @@ def build_list_input_fields(
             result[section_key] = section
 
     return result
+
+
+def _build_translation_key(element_type: str, field_name: str, device_type: str | None) -> str:
+    """Build a translation key, including ``device_type`` when present.
+
+    Fields that appear in multiple sections of the same element (for example,
+    ``cost`` and ``percentage`` under both the ``undercharge`` and ``overcharge``
+    partitions of a battery) would otherwise collide on a single translation key
+    such as ``battery_cost``. Including the schema-declared ``device_type`` keeps
+    each partition's translation key distinct, so users see unambiguous names
+    like "Undercharge Cost" and "Overcharge Cost" instead of two identical
+    "Cost" entries on the device card.
+    """
+    if device_type:
+        return f"{element_type}_{device_type}_{field_name}"
+    return f"{element_type}_{field_name}"
 
 
 def _build_field_info(

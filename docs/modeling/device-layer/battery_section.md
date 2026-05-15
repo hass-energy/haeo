@@ -45,7 +45,7 @@ The adapter passes user configuration directly to the Battery model element:
 | `power_discharge` | kW     | Real-time | Power being discharged from battery    |
 | `power_active`    | kW     | Real-time | Net active power (discharge - charge)  |
 | `energy_stored`   | kWh    | Real-time | Current energy stored in battery       |
-| `power_balance`   | \$/kW  | Real-time | Shadow price of power at terminals     |
+| `power_balance`   | \$/kWh | Real-time | Shadow price of power at terminals     |
 | `energy_in_flow`  | \$/kWh | Real-time | Shadow price of charging constraint    |
 | `energy_out_flow` | \$/kWh | Real-time | Shadow price of discharging constraint |
 | `soc_max`         | \$/kWh | Real-time | Shadow price of maximum capacity       |

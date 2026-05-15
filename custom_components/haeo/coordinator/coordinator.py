@@ -215,7 +215,11 @@ def _build_coordinator_output(
         state=state,
         forecast=forecast,
         direction=output_data.direction,
-        entity_category=(EntityCategory.DIAGNOSTIC if output_name == OUTPUT_NAME_OPTIMIZATION_DURATION else None),
+        entity_category=(
+            EntityCategory.DIAGNOSTIC
+            if output_name == OUTPUT_NAME_OPTIMIZATION_DURATION or output_data.type == OutputType.SHADOW_PRICE
+            else None
+        ),
         device_class=DEVICE_CLASS_MAP.get(output_data.type),
         state_class=STATE_CLASS_MAP.get(output_data.type),
         options=(STATUS_OPTIONS if output_data.type == OutputType.STATUS else None),
