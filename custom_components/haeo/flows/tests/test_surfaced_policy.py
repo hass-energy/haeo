@@ -11,7 +11,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
-from custom_components.haeo import _cleanup_surfaced_policy_rules
+from custom_components.haeo import _cleanup_policy_rules
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import node
@@ -788,13 +788,11 @@ async def test_policy_flow_allows_non_surfaced_pattern(
 # --- Cleanup tests ---
 
 
-def test_cleanup_removes_orphaned_surfaced_rules(
+def test_cleanup_removes_orphaned_rules(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Cleanup removes surfaced rules for elements that no longer exist."""
-
-    # Add a battery and its surfaced rules
+    """Cleanup removes rules for elements that no longer exist."""
     add_participant(hass, hub_entry, "Battery1", str(BATTERY_ELEMENT_TYPE))
     _add_policy_subentry(
         hass,
@@ -807,15 +805,55 @@ def test_cleanup_removes_orphaned_surfaced_rules(
         ],
     )
 
-    # Run cleanup: Battery1 still exists, DeletedLoad doesn't
-    _cleanup_surfaced_policy_rules(hass, hub_entry)
+    _cleanup_policy_rules(hass, hub_entry)
 
     rules = _get_rules(hub_entry)
     assert len(rules) == 2
     names = {r["name"] for r in rules}
     assert "charge" in names
     assert "discharge" in names
-    assert "load charge" not in names
+
+
+def test_cleanup_strips_deleted_from_multi_element_rules(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Cleanup strips deleted names from multi-element source/target lists."""
+    add_participant(hass, hub_entry, "A", str(BATTERY_ELEMENT_TYPE))
+    add_participant(hass, hub_entry, "C", str(LOAD_ELEMENT_TYPE))
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "multi", "source": ["A", "B"], "target": ["C"], "price": as_constant_value(0.5)},
+        ],
+    )
+
+    _cleanup_policy_rules(hass, hub_entry)
+
+    rules = _get_rules(hub_entry)
+    assert len(rules) == 1
+    assert rules[0]["source"] == ["A"]
+    assert rules[0]["target"] == ["C"]
+
+
+def test_cleanup_removes_rule_when_both_sides_empty(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Cleanup removes rules where both source and target become empty."""
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "orphan", "source": ["Gone1"], "target": ["Gone2"], "price": as_constant_value(0.1)},
+        ],
+    )
+
+    _cleanup_policy_rules(hass, hub_entry)
+
+    rules = _get_rules(hub_entry)
+    assert len(rules) == 0
 
 
 def test_cleanup_noop_when_no_policy(
@@ -823,6 +861,5 @@ def test_cleanup_noop_when_no_policy(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Cleanup does nothing when no policy subentry exists."""
-
-    _cleanup_surfaced_policy_rules(hass, hub_entry)
+    _cleanup_policy_rules(hass, hub_entry)
     assert find_policy_subentry(hub_entry) is None
