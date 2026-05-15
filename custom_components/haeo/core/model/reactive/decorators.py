@@ -137,10 +137,31 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         cons = state["constraint"]
         arr = np.asarray(cons, dtype=object)
         values = tuple(obj._solver.constrDuals(arr).flat)  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
+
+        # Extract ranging if available (capacity at current shadow price)
+        range_up: tuple[float, ...] | None = None
+        range_dn: tuple[float, ...] | None = None
+        try:
+            _status, rng = obj._solver.getRanging()  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+            sol = obj._solver.getSolution()  # noqa: SLF001  # pyright: ignore[reportPrivateUsage]
+            up_vals: list[float] = []
+            dn_vals: list[float] = []
+            for c_obj in arr.flat:
+                idx = c_obj.index
+                row_val = sol.row_value[idx]
+                up_vals.append(float(rng.row_bound_up.value_[idx] - row_val))
+                dn_vals.append(float(row_val - rng.row_bound_dn.value_[idx]))
+            range_up = tuple(up_vals)
+            range_dn = tuple(dn_vals)
+        except Exception:  # noqa: BLE001
+            pass  # ranging not available (e.g. solver doesn't support it)
+
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit=self.unit,
             values=values,
+            range_up=range_up,
+            range_dn=range_dn,
         )
 
     def _call(self, obj: "ReactiveHost") -> R:
