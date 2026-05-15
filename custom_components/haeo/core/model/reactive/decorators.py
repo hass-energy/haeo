@@ -4,7 +4,7 @@ from collections.abc import Callable
 from functools import partial
 from typing import TypeVar, overload
 
-from highspy import Highs
+from highspy import Highs, HighsRanging, HighsSolution
 from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 
@@ -12,6 +12,30 @@ from custom_components.haeo.core.model.output_data import ModelOutputValue, Outp
 
 from .protocols import ReactiveHost
 from .tracked_param import ensure_decorator_state, tracking_context
+
+
+def _get_ranging(solver: Highs) -> tuple[HighsRanging, HighsSolution]:
+    """Get ranging and solution data, caching on the solver instance.
+
+    getRanging() is expensive (full basis factorization) and the result is
+    identical for all constraints in the same model.  Cache it on the solver
+    so that multiple get_output() calls after one solve share a single
+    computation.  Call clear_ranging_cache() after each solve to invalidate.
+    """
+    cached: tuple[HighsRanging, HighsSolution] | None = getattr(solver, "_haeo_ranging_cache", None)
+    if cached is not None:
+        return cached
+
+    _status, rng = solver.getRanging()
+    sol = solver.getSolution()
+    result = (rng, sol)
+    solver._haeo_ranging_cache = result  # type: ignore[attr-defined]  # noqa: SLF001 (intentional cache attribute)
+    return result
+
+
+def clear_ranging_cache(solver: Highs) -> None:
+    """Clear the cached ranging data after a solve cycle."""
+    solver._haeo_ranging_cache = None  # type: ignore[attr-defined]  # noqa: SLF001 (intentional cache attribute)
 
 # Type variable for generic return types
 R = TypeVar("R")
@@ -140,11 +164,10 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         values = tuple(solver.constrDuals(arr).flat)
 
         # Extract ranging (capacity at current shadow price)
-        _status, rng = solver.getRanging()
+        rng, sol = _get_ranging(solver)
         range_up: tuple[float, ...] | None = None
         range_dn: tuple[float, ...] | None = None
         if rng.valid:
-            sol = solver.getSolution()
             up_vals: list[float] = []
             dn_vals: list[float] = []
             for c_obj in arr.flat:
