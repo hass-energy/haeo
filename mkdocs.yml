@@ -217,6 +217,7 @@ nav:
       - Units & Stability: developer-guide/units.md
       - Energy Models: developer-guide/energy-models.md
       - Coordinator: developer-guide/coordinator.md
+      - Intent engine: developer-guide/intent-engine.md
       - Data Loading: developer-guide/data-loading.md
       - Config Flow: developer-guide/config-flow.md
       - Testing: developer-guide/testing.md
