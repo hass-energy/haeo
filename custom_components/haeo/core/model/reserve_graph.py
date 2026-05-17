@@ -196,7 +196,7 @@ def build_reserve_config_from_network(
     from custom_components.haeo.core.model.reserve import ReserveConfig
 
     island = discover_island(network, exclude_elements=exclude_elements)
-    n = len(network._periods)
+    n = len(network.periods)
 
     # Extract load power for each island load
     # Load power = sum of all incoming connection power (fixed connections)
@@ -249,7 +249,7 @@ def build_reserve_config_from_network(
         battery_stored_energy=battery_stored,
         battery_efficiency=island.battery_avg_efficiency,
         battery_discharge_limit=battery_discharge_limit,
-        periods=network._periods,
+        periods=network.periods,
     )
 
     return island, config
