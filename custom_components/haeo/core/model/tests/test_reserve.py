@@ -322,3 +322,121 @@ def test_reserve_multiple_batteries() -> None:
     assert reserve_0 == pytest.approx(8.0, abs=0.5)
     # Combined SOC should cover reserve (with efficiency)
     assert (soc_a_end + soc_b_end) * 0.95 >= reserve_0 - 0.5
+
+
+def test_reserve_via_soc_pricing_threshold() -> None:
+    """Reserve integrates with soc_pricing as LP variable threshold.
+
+    The soc_pricing segment uses the reserve requirement variable as
+    its discharge_energy_threshold. The penalty cost drives the battery
+    to maintain SOC above the dynamic reserve level.
+    """
+
+    periods_arr = np.array([0.5] * 6)
+    load_val = [3.0] * 6
+    solar_val = [0, 0, 0, 5, 5, 5]
+
+    net = Network(name="test", periods=periods_arr)
+    net.add({"element_type": "node", "name": "Grid", "is_source": True, "is_sink": True})
+    net.add({"element_type": "node", "name": "SW", "is_source": False, "is_sink": False})
+    net.add({"element_type": "node", "name": "Load", "is_source": False, "is_sink": True})
+    net.add({"element_type": "node", "name": "Solar", "is_source": True, "is_sink": False})
+    net.add({"element_type": "battery", "name": "Bat", "capacity": 10.0, "initial_charge": 5.0})
+
+    net.add(
+        {
+            "element_type": "connection",
+            "name": "Grid:import",
+            "source": "Grid",
+            "target": "SW",
+            "tags": {1},
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": [0.30] * 6},
+                "power_limit": {"segment_type": "power_limit", "max_power": 10.0},
+            },
+        }
+    )
+    net.add(
+        {
+            "element_type": "connection",
+            "name": "Grid:export",
+            "source": "SW",
+            "target": "Grid",
+            "tags": {1},
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": [-0.05] * 6},
+                "power_limit": {"segment_type": "power_limit", "max_power": 10.0},
+            },
+        }
+    )
+    net.add(
+        {
+            "element_type": "connection",
+            "name": "Solar:conn",
+            "source": "Solar",
+            "target": "SW",
+            "tags": {1},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": solar_val}},
+        }
+    )
+    net.add(
+        {
+            "element_type": "connection",
+            "name": "Load:conn",
+            "source": "SW",
+            "target": "Load",
+            "tags": {1},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": load_val, "fixed": True}},
+        }
+    )
+
+    # Create reserve variables
+    bat = net.elements["Bat"]
+    reserve_config = ReserveConfig(
+        island_load_power={"Load": np.array(load_val, dtype=float)},
+        island_gen_power={"Solar": np.array(solar_val, dtype=float)},
+        battery_stored_energy={"Bat": bat.stored_energy},
+        battery_efficiency={"Bat": 0.95},
+        battery_discharge_limit={"Bat": np.full(6, 5.0)},
+        periods=periods_arr,
+    )
+    reserve_result = add_reserve_constraints(net._solver, reserve_config)
+
+    # Battery connections with soc_pricing using LP variable threshold
+    net.add(
+        {
+            "element_type": "connection",
+            "name": "Bat:charge",
+            "source": "SW",
+            "target": "Bat",
+            "tags": {1},
+            "segments": {"efficiency": {"segment_type": "efficiency", "efficiency": 0.95}},
+        }
+    )
+    net.add(
+        {
+            "element_type": "connection",
+            "name": "Bat:discharge",
+            "source": "Bat",
+            "target": "SW",
+            "tags": {1},
+            "segments": {
+                "efficiency": {"segment_type": "efficiency", "efficiency": 0.95},
+                "soc_pricing": {
+                    "segment_type": "soc_pricing",
+                    "discharge_energy_threshold": reserve_result.reserve_requirement,
+                    "discharge_energy_price": 1.0,
+                },
+            },
+        }
+    )
+
+    net.optimize()
+    sol = net._solver.getSolution()
+
+    soc = [float(v) for v in bat.outputs()["battery_energy_stored"].values]
+    for t in range(6):
+        reserve_val = sol.col_value[reserve_result.reserve_requirement[t].index]
+        soc_val = soc[t + 1]
+        # Battery SOC should meet reserve at every period
+        assert soc_val >= reserve_val - 0.5, f"t={t}: SOC {soc_val:.1f} < reserve {reserve_val:.1f}"

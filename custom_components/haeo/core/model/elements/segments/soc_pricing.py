@@ -19,8 +19,8 @@ class SocPricingSegmentSpec(TypedDict):
     """Specification for creating a SocPricingSegment."""
 
     segment_type: Literal["soc_pricing"]
-    discharge_energy_threshold: NotRequired[NDArray[np.floating[Any]] | float | None]
-    charge_capacity_threshold: NotRequired[NDArray[np.floating[Any]] | float | None]
+    discharge_energy_threshold: NotRequired[NDArray[np.floating[Any]] | float | HighspyArray | None]
+    charge_capacity_threshold: NotRequired[NDArray[np.floating[Any]] | float | HighspyArray | None]
     discharge_energy_price: NotRequired[NDArray[np.floating[Any]] | float | None]
     charge_capacity_price: NotRequired[NDArray[np.floating[Any]] | float | None]
 
@@ -52,8 +52,19 @@ class SocPricingSegment(Segment):
         )
         self._battery = self._get_battery()
 
-        self._discharge_energy_threshold = broadcast_to_sequence(spec.get("discharge_energy_threshold"), n_periods)
-        self._charge_capacity_threshold = broadcast_to_sequence(spec.get("charge_capacity_threshold"), n_periods)
+        # Thresholds can be constants (broadcast to array) or LP variables (pass through)
+        raw_discharge_thresh = spec.get("discharge_energy_threshold")
+        raw_charge_thresh = spec.get("charge_capacity_threshold")
+        self._discharge_energy_threshold = (
+            raw_discharge_thresh
+            if isinstance(raw_discharge_thresh, HighspyArray)
+            else broadcast_to_sequence(raw_discharge_thresh, n_periods)
+        )
+        self._charge_capacity_threshold = (
+            raw_charge_thresh
+            if isinstance(raw_charge_thresh, HighspyArray)
+            else broadcast_to_sequence(raw_charge_thresh, n_periods)
+        )
         self._discharge_energy_price = broadcast_to_sequence(spec.get("discharge_energy_price"), n_periods)
         self._charge_capacity_price = broadcast_to_sequence(spec.get("charge_capacity_price"), n_periods)
 
