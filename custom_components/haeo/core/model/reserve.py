@@ -72,6 +72,7 @@ def add_reserve_constraints(
     config: ReserveConfig,
     *,
     name_prefix: str = "reserve",
+    window_periods: int | None = None,
 ) -> ReserveResult:
     """Add reserve power constraints to the LP.
 
@@ -85,6 +86,8 @@ def add_reserve_constraints(
         solver: HiGHS solver instance.
         config: Reserve configuration with island elements and batteries.
         name_prefix: Prefix for variable/constraint names.
+        window_periods: If set, reserve at period t covers only the next
+            W periods (sliding window). If None, covers the full horizon.
 
     Returns:
         ReserveResult with the LP variables for post-solve extraction.
@@ -114,7 +117,10 @@ def add_reserve_constraints(
         running = running + net_demand[t]
         cum.append(running)
 
-    # Step 3: Running max chain — max_cum[t] tracks the maximum of cum[0..t]
+    # Step 3: Running max and reserve requirement
+    # Two modes: full-horizon or sliding window
+    w = window_periods if window_periods is not None else n
+
     max_cum = solver.addVariables(
         n,
         lb=-1e20,
@@ -122,19 +128,6 @@ def add_reserve_constraints(
         out_array=True,
     )
 
-    # max_cum[0] ≥ cum[0]
-    solver.addConstr(max_cum[0] >= cum[0])
-
-    for t in range(1, n):
-        # max_cum[t] ≥ cum[t]
-        solver.addConstr(max_cum[t] >= cum[t])
-        # max_cum[t] ≥ max_cum[t-1] (monotonically non-decreasing)
-        solver.addConstr(max_cum[t] >= max_cum[t - 1])
-
-    # Step 4: Reserve requirement at each period
-    # Reserve at t = final peak deficit minus cumulative demand before t
-    # This is the remaining worst-case deficit from time t onwards.
-    # At t=0, it's the full max deficit. At t=N-1, it's max_cum[N-1] - cum[N-1] ≥ 0.
     reserve = solver.addVariables(
         n,
         lb=0,
@@ -142,14 +135,27 @@ def add_reserve_constraints(
         out_array=True,
     )
 
-    # Use max_cum at the END of the horizon for full-horizon reserve
-    final_max = max_cum[n - 1]
+    if w >= n:
+        # Full-horizon mode: running max chain O(n)
+        solver.addConstr(max_cum[0] >= cum[0])
+        for t in range(1, n):
+            solver.addConstr(max_cum[t] >= cum[t])
+            solver.addConstr(max_cum[t] >= max_cum[t - 1])
 
-    for t in range(n):
-        # Reserve equals final peak minus demand already served
-        # cum_before[t] = cumulative net demand BEFORE period t starts
-        cum_before = cum[t - 1] if t > 0 else 0.0
-        solver.addConstr(reserve[t] >= final_max - cum_before)
+        final_max = max_cum[n - 1]
+        for t in range(n):
+            cum_before = cum[t - 1] if t > 0 else 0.0
+            solver.addConstr(reserve[t] >= final_max - cum_before)
+    else:
+        # Sliding window mode: reserve[t] covers periods [t, t+W-1]
+        # The windowed max tracks the peak cumulative demand within the window.
+        # O(n*W) constraints total, fine for typical horizons (48-96 periods).
+        for t in range(n):
+            end = min(t + w, n)
+            cum_before = cum[t - 1] if t > 0 else 0.0
+            for s in range(t, end):
+                solver.addConstr(max_cum[t] >= cum[s])
+            solver.addConstr(reserve[t] >= max_cum[t] - cum_before)
 
     # Step 5: Battery group SOC floor
     # Σ_batteries stored_energy[t] x η ≥ reserve[t]

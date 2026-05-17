@@ -440,3 +440,70 @@ def test_reserve_via_soc_pricing_threshold() -> None:
         soc_val = soc[t + 1]
         # Battery SOC should meet reserve at every period
         assert soc_val >= reserve_val - 0.5, f"t={t}: SOC {soc_val:.1f} < reserve {reserve_val:.1f}"
+
+
+def test_reserve_windowed() -> None:
+    """Windowed reserve: only covers the next W periods, not full horizon."""
+    n = 8
+    periods_arr = np.array([0.5] * n)
+
+    h = Highs()
+    h.silent()
+
+    stored = h.addVariables(n + 1, lb=0, ub=20, name_prefix="stored_", out_array=True)
+    charge = h.addVariables(n, lb=0, ub=5, name_prefix="charge_", out_array=True)
+
+    h.addConstr(stored[0] == 5.0)
+    for t in range(n):
+        h.addConstr(stored[t + 1] == stored[t] + charge[t] * 0.5)
+
+    cost_expr = Highs.qsum(charge * 0.30 * periods_arr)
+    h.minimize(cost_expr)
+
+    # Flat 2kW load, no solar, window of 4 periods
+    config = ReserveConfig(
+        island_load_power={"load": np.array([2.0] * n)},
+        island_gen_power={},
+        battery_stored_energy={"bat": stored},
+        battery_efficiency={"bat": 1.0},
+        battery_discharge_limit={"bat": np.full(n, 5.0)},
+        periods=periods_arr,
+    )
+
+    # Full horizon: reserve at t=0 = 2kW x 0.5h x 8 = 8 kWh
+    result_full = add_reserve_constraints(h, config, name_prefix="full")
+    h.run()
+    sol = h.getSolution()
+    reserve_full_0 = sol.col_value[result_full.reserve_requirement[0].index]
+
+    # Windowed (W=4): reserve at t=0 = 2kW x 0.5h x 4 = 4 kWh
+    h2 = Highs()
+    h2.silent()
+
+    stored2 = h2.addVariables(n + 1, lb=0, ub=20, name_prefix="stored_", out_array=True)
+    charge2 = h2.addVariables(n, lb=0, ub=5, name_prefix="charge_", out_array=True)
+    h2.addConstr(stored2[0] == 5.0)
+    for t in range(n):
+        h2.addConstr(stored2[t + 1] == stored2[t] + charge2[t] * 0.5)
+
+    cost2 = Highs.qsum(charge2 * 0.30 * periods_arr)
+    h2.minimize(cost2)
+
+    config2 = ReserveConfig(
+        island_load_power={"load": np.array([2.0] * n)},
+        island_gen_power={},
+        battery_stored_energy={"bat": stored2},
+        battery_efficiency={"bat": 1.0},
+        battery_discharge_limit={"bat": np.full(n, 5.0)},
+        periods=periods_arr,
+    )
+    result_win = add_reserve_constraints(h2, config2, name_prefix="win", window_periods=4)
+    h2.run()
+    sol2 = h2.getSolution()
+    reserve_win_0 = sol2.col_value[result_win.reserve_requirement[0].index]
+
+    # Full horizon reserve should be larger
+    assert reserve_full_0 == pytest.approx(8.0, abs=0.5)
+    # Windowed reserve should be ~4 kWh (only 4 periods)
+    assert reserve_win_0 == pytest.approx(4.0, abs=0.5)
+    assert reserve_win_0 < reserve_full_0
