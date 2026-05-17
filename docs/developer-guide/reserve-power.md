@@ -111,5 +111,26 @@ Creates one "max" per window rather than one for the full horizon.
 
 ## File locations
 
-- `custom_components/haeo/core/model/reserve.py` — reserve formulation
-- `custom_components/haeo/core/model/tests/test_reserve.py` — 6 test scenarios
+- `custom_components/haeo/core/model/reserve.py` -- reserve formulation (running max chain + windowed)
+- `custom_components/haeo/core/model/reserve_graph.py` -- island discovery + path efficiencies
+- `custom_components/haeo/core/model/elements/segments/soc_pricing.py` -- updated to accept LP variable thresholds
+- `custom_components/haeo/core/model/tests/test_reserve.py` -- 10 tests (formulation + integration)
+- `custom_components/haeo/core/model/tests/test_reserve_graph.py` -- 6 tests (graph walk)
+
+## Status (experiment/reserve-power branch)
+
+### Complete
+- [x] Core formulation: running max chain, O(n) for full horizon
+- [x] Sliding window mode: O(n*W) for W-period windows
+- [x] soc_pricing accepts LP variable thresholds (backwards-compatible)
+- [x] Graph walk: auto-discovers island (batteries, loads, generators)
+- [x] Path efficiency: BFS with efficiency product tracking
+- [x] Multi-battery pooling: LP allocates reserve across batteries
+- [x] Full Network integration test
+- [x] 16 tests passing, lint clean
+
+### TODO
+- [ ] Adapter integration: wire into battery adapter's undercharge section
+- [ ] Configuration UI: user selects island elements + window duration
+- [ ] Post-solve display: per-battery reserve allocation for charting
+- [ ] Sensor entities: expose reserve[t] as HA sensor
