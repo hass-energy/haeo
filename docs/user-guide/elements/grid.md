@@ -172,6 +172,10 @@ A Grid element creates 1 device in Home Assistant with the following sensors.
 | [`sensor.{name}_power_max_export`](#max-export-power)                    | kW     | Maximum export power (when limited)         |
 | [`sensor.{name}_power_max_import_price`](#max-import-power-shadow-price) | \$/kWh | Value of additional import capacity         |
 | [`sensor.{name}_power_max_export_price`](#max-export-power-shadow-price) | \$/kWh | Value of additional export capacity         |
+| [`sensor.{name}_forced_import_cost`](#forced-import-cost)                | \$/kWh | Cost to force additional import (advanced)  |
+| [`sensor.{name}_forced_export_cost`](#forced-export-cost)                | \$/kWh | Cost to force additional export (advanced)  |
+| [`sensor.{name}_import_headroom`](#import-headroom)                      | kWh    | Available import capacity at current price  |
+| [`sensor.{name}_export_headroom`](#export-headroom)                      | kWh    | Available export capacity at current price  |
 
 The `power_max_*` sensors are only created when the corresponding limit is configured.
 The `cost_*` sensors are only created when the corresponding price is configured.
@@ -277,6 +281,34 @@ This shadow price shows how much the total system cost would decrease if the exp
 ---
 
 All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
+
+### Forced import cost
+
+The marginal cost of forcing additional import from the grid at each period.
+Derived from the HiGHS reduced cost on the import connection variable.
+
+This is an advanced diagnostic sensor.
+It accounts for all constraints including pricing, policies, and efficiency losses.
+A value of 0 means the connection is already importing (the variable is interior to its bounds).
+
+### Forced export cost
+
+The marginal cost of forcing additional export to the grid at each period.
+Same derivation as forced import cost but on the export connection.
+
+### Import headroom
+
+How many kWh of additional import capacity is available before the marginal cost changes.
+Derived from HiGHS column ranging.
+
+This tells a grid operator how much demand response capacity the household has at the current price.
+
+### Export headroom
+
+How many kWh of additional export capacity is available before the marginal cost changes.
+Same derivation as import headroom but on the export connection.
+
+---
 
 ## Troubleshooting
 

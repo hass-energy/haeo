@@ -12,7 +12,12 @@ from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
+from custom_components.haeo.core.model.elements.connection import (
+    CONNECTION_CAPACITY,
+    CONNECTION_MARGINAL_COST,
+    CONNECTION_POWER,
+    CONNECTION_SEGMENTS,
+)
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 from custom_components.haeo.core.schema import extract_connection_target
@@ -38,6 +43,10 @@ type GridOutputName = Literal[
     "grid_cost_net",
     "grid_power_max_import_price",
     "grid_power_max_export_price",
+    "grid_forced_import_cost",
+    "grid_forced_export_cost",
+    "grid_import_headroom",
+    "grid_export_headroom",
 ]
 
 GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
@@ -52,6 +61,11 @@ GRID_OUTPUT_NAMES: Final[frozenset[GridOutputName]] = frozenset(
         # Shadow prices
         GRID_POWER_MAX_IMPORT_PRICE := "grid_power_max_import_price",
         GRID_POWER_MAX_EXPORT_PRICE := "grid_power_max_export_price",
+        # Grid operator signals
+        GRID_FORCED_IMPORT_COST := "grid_forced_import_cost",
+        GRID_FORCED_EXPORT_COST := "grid_forced_export_cost",
+        GRID_IMPORT_HEADROOM := "grid_import_headroom",
+        GRID_EXPORT_HEADROOM := "grid_export_headroom",
     )
 )
 
@@ -187,6 +201,16 @@ class GridAdapter:
                 and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
             ):
                 grid_outputs[output_name] = shadow
+
+        # Grid operator signals: marginal cost + capacity from connection reduced costs
+        if (mc := expect_output_data(import_conn.get(CONNECTION_MARGINAL_COST))) is not None:
+            grid_outputs[GRID_FORCED_IMPORT_COST] = replace(mc, direction="+")
+        if (mc := expect_output_data(export_conn.get(CONNECTION_MARGINAL_COST))) is not None:
+            grid_outputs[GRID_FORCED_EXPORT_COST] = replace(mc, direction="-")
+        if (cap := expect_output_data(import_conn.get(CONNECTION_CAPACITY))) is not None:
+            grid_outputs[GRID_IMPORT_HEADROOM] = replace(cap, direction="+")
+        if (cap := expect_output_data(export_conn.get(CONNECTION_CAPACITY))) is not None:
+            grid_outputs[GRID_EXPORT_HEADROOM] = replace(cap, direction="-")
 
         return {GRID_DEVICE_GRID: grid_outputs}
 

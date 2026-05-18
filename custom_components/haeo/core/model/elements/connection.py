@@ -31,12 +31,18 @@ ELEMENT_TYPE: Final[ConnectionElementTypeName] = "connection"
 type ConnectionOutputName = Literal[
     "connection_power",
     "segments",
+    "connection_marginal_cost",
+    "connection_capacity",
 ]
 
 CONNECTION_POWER: Final = "connection_power"
 CONNECTION_SEGMENTS: Final = "segments"
+CONNECTION_MARGINAL_COST: Final = "connection_marginal_cost"
+CONNECTION_CAPACITY: Final = "connection_capacity"
 
-CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset((CONNECTION_POWER, CONNECTION_SEGMENTS))
+CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
+    (CONNECTION_POWER, CONNECTION_SEGMENTS, CONNECTION_MARGINAL_COST, CONNECTION_CAPACITY)
+)
 
 
 class ConnectionElementConfig(TypedDict):
@@ -271,6 +277,57 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """Return outputs grouped by segment."""
         outputs = self._segment_outputs()
         return outputs or None
+
+    @output(name=CONNECTION_MARGINAL_COST)
+    def _marginal_cost_output(self) -> OutputData | None:
+        """Marginal cost of increasing power flow, per kWh.
+
+        The reduced cost of each power_in variable, divided by period
+        duration to give $/kWh. Non-zero when not currently flowing
+        (at lower bound). Aggregated across tags (max).
+        """
+        sol = self._solver.getSolution()
+        n = self.n_periods
+        agg = [0.0] * n
+        for arr in self._power_in.values():
+            for t in range(n):
+                rc = float(sol.col_dual[arr[t].index])
+                cost_kwh = rc / float(self.periods[t]) if self.periods[t] > 0 else 0.0
+                agg[t] = max(agg[t], cost_kwh)
+        if all(abs(v) < 1e-10 for v in agg):  # noqa: PLR2004
+            return None
+        return OutputData(
+            type=OutputType.PRICE,
+            unit="$/kWh",
+            values=tuple(agg),
+            direction=None,
+            advanced=True,
+        )
+
+    @output(name=CONNECTION_CAPACITY)
+    def _capacity_output(self) -> OutputData | None:
+        """Available capacity before marginal cost changes, in kWh.
+
+        Uses column ranging from the solver to determine how much more
+        power could flow before a basis change (price step).
+        """
+        _status, rng = self._solver.getRanging()
+        sol = self._solver.getSolution()
+        n = self.n_periods
+        agg = [0.0] * n
+        for arr in self._power_in.values():
+            for t in range(n):
+                current = sol.col_value[arr[t].index]
+                upper = rng.col_bound_up.value_[arr[t].index]
+                cap_kwh = max(0.0, (upper - current)) * float(self.periods[t])
+                agg[t] += cap_kwh
+        return OutputData(
+            type=OutputType.ENERGY,
+            unit="kWh",
+            values=tuple(agg),
+            direction=None,
+            advanced=True,
+        )
 
     def __getitem__(self, key: str | int) -> Any:
         """Look up segments by name or index."""

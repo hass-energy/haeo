@@ -38,6 +38,8 @@ class OutputData:
     state_last: bool = False
     priority: int | None = None
     fixed: bool = False
+    range_up: Sequence[Any] | None = None
+    range_dn: Sequence[Any] | None = None
 
     def __init__(
         self,
@@ -50,6 +52,8 @@ class OutputData:
         state_last: bool = False,
         priority: int | None = None,
         fixed: bool = False,
+        range_up: Sequence[Any] | None = None,
+        range_dn: Sequence[Any] | None = None,
     ) -> None:
         """Initialize OutputData.
 
@@ -62,6 +66,8 @@ class OutputData:
             state_last: If True, the sensor state uses the last value instead of the first.
             priority: The connection priority for this output, if applicable.
             fixed: Whether the output is constrained to equal its forecast (no curtailment).
+            range_up: Upper capacity range (constraint outputs: how much RHS can increase at same shadow price).
+            range_dn: Lower capacity range (constraint outputs: how much RHS can decrease at same shadow price).
 
         """
         self.type = type
@@ -71,6 +77,8 @@ class OutputData:
         self.state_last = state_last
         self.priority = priority
         self.fixed = fixed
+        self.range_up = range_up
+        self.range_dn = range_dn
 
         # Normalize to a tuple
         if isinstance(values, np.ndarray):
