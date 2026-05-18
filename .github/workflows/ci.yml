@@ -263,7 +263,12 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload coverage to Codecov
-        if: ${{ github.event_name != 'release' && !cancelled() }}
+        # `fail_ci_if_error: true` means this step fails the job on upload
+        # failure. Forks have no CODECOV_TOKEN, so the tokenless upload is
+        # rejected and the job fails on coverage upload, not on test results.
+        # Run this step only on the canonical repo (same pattern as HACS
+        # and the docs Pages deploy).
+        if: ${{ github.event_name != 'release' && !cancelled() && github.repository == 'hass-energy/haeo' }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           flags: python
@@ -340,6 +345,9 @@ jobs:
   hacs:
     name: HACS
     runs-on: ubuntu-latest
+    # HACS publish requirements (issues enabled, repo topics, etc.) only apply
+    # to the canonical integration repo. Skip on forks so they don't show red.
+    if: github.repository == 'hass-energy/haeo'
     steps:
       - name: Run HACS validation
         uses: hacs/action@d556e736723344f83838d08488c983a15381059a # 22.5.0
@@ -393,6 +401,7 @@ jobs:
     steps:
       - name: Check all jobs passed
         run: |
+          # 'skipped' is allowed (e.g., hacs is gated to the upstream repo).
           if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
             echo "::error::One or more required jobs failed"
             exit 1

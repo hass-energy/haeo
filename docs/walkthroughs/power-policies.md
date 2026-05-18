@@ -102,9 +102,11 @@ add_policies(
 ### Step 5: Verify and review
 
 Validate that all four policies were saved correctly, then open the reconfigure view to see them.
+The Battery element surfaces a "Battery discharge cost" rule automatically from its pricing fields, so it appears alongside the four rules added above.
 
 ```guide
 validate_policies(hass, expected_rules=[
+    "Battery discharge cost",
     "Solar to Grid",
     "Battery to Grid",
     "Battery to Load",
