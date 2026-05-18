@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 import logging
-from typing import Any, Final, Literal, overload
+from typing import TYPE_CHECKING, Any, Final, Literal, overload
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
@@ -16,6 +16,9 @@ from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import PolicyPricing, PolicyPricingElementConfig
+
+if TYPE_CHECKING:
+    from .reserve import ReserveResult
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -294,6 +297,53 @@ class Network:
         primary = Highs.qsum(primaries) if primaries else None
         secondary = Highs.qsum(secondaries) if secondaries else None
         return (primary, secondary)
+
+    def add_reserve(
+        self,
+        *,
+        exclude_elements: set[str] | None = None,
+        window_periods: int | None = None,
+    ) -> "ReserveResult | None":
+        """Add reserve power constraints based on the network topology.
+
+        Discovers the island (all elements except grid), computes path
+        efficiencies, and adds constraints ensuring batteries hold enough
+        energy to survive a blackout.
+
+        Args:
+            exclude_elements: Element names to exclude from the island
+                (grid nodes auto-excluded; use this for sheddable loads).
+            window_periods: If set, reserve covers only the next W periods
+                (sliding window). If None, covers the full horizon.
+
+        Returns:
+            ReserveResult with LP variables, or None if no batteries found.
+
+        """
+        from custom_components.haeo.core.model.reserve import add_reserve_constraints  # noqa: PLC0415
+        from custom_components.haeo.core.model.reserve_graph import build_reserve_config_from_network  # noqa: PLC0415
+
+        island, config = build_reserve_config_from_network(
+            self,
+            exclude_elements=exclude_elements,
+        )
+
+        if not island.battery_names:
+            return None
+
+        result = add_reserve_constraints(
+            self._solver,
+            config,
+            window_periods=window_periods,
+        )
+
+        self._reserve_result = result
+        return result
+
+    @property
+    def reserve_result(self) -> "ReserveResult | None":
+        """Return the reserve result if reserve constraints have been added."""
+        return getattr(self, "_reserve_result", None)
 
     def optimize(self) -> float:
         """Solve the optimization problem and return the primary objective value."""

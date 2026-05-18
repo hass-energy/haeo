@@ -507,3 +507,106 @@ def test_reserve_windowed() -> None:
     # Windowed reserve should be ~4 kWh (only 4 periods)
     assert reserve_win_0 == pytest.approx(4.0, abs=0.5)
     assert reserve_win_0 < reserve_full_0
+
+
+def test_network_add_reserve_method() -> None:
+    """Network.add_reserve() wraps graph walk + constraint creation."""
+    periods_arr = np.array([0.5] * 6)
+
+    net = Network(name="test", periods=periods_arr)
+    net.add({"element_type": "node", "name": "Grid", "is_source": True, "is_sink": True})
+    net.add({"element_type": "node", "name": "SW", "is_source": False, "is_sink": False})
+    net.add({"element_type": "node", "name": "Load", "is_source": False, "is_sink": True})
+    net.add({"element_type": "battery", "name": "Bat", "capacity": 10.0, "initial_charge": 5.0})
+
+    net.add(
+        {
+            "element_type": "connection",
+            "name": "Grid:import",
+            "source": "Grid",
+            "target": "SW",
+            "tags": {1},
+            "segments": {"pricing": {"segment_type": "pricing", "price": [0.30] * 6}},
+        }
+    )
+    net.add(
+        {
+            "element_type": "connection",
+            "name": "Load:conn",
+            "source": "SW",
+            "target": "Load",
+            "tags": {1},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": [2.0] * 6, "fixed": True}},
+        }
+    )
+    net.add(
+        {
+            "element_type": "connection",
+            "name": "Bat:charge",
+            "source": "SW",
+            "target": "Bat",
+            "tags": {1},
+            "segments": {"efficiency": {"segment_type": "efficiency", "efficiency": 0.95}},
+        }
+    )
+    net.add(
+        {
+            "element_type": "connection",
+            "name": "Bat:discharge",
+            "source": "Bat",
+            "target": "SW",
+            "tags": {1},
+            "segments": {"efficiency": {"segment_type": "efficiency", "efficiency": 0.95}},
+        }
+    )
+
+    # One-liner reserve
+    result = net.add_reserve()
+    assert result is not None
+    assert net.reserve_result is result
+
+    # Solve and verify reserve is enforced
+    net.optimize()
+    sol = net._solver.getSolution()
+
+    bat = net.elements["Bat"]
+    soc = [float(v) for v in bat.outputs()["battery_energy_stored"].values]
+
+    for t in range(6):
+        reserve_val = sol.col_value[result.reserve_requirement[t].index]
+        assert soc[t + 1] >= reserve_val - 0.5, f"t={t}: SOC {soc[t + 1]:.1f} < reserve {reserve_val:.1f}"
+
+
+def test_network_add_reserve_no_batteries() -> None:
+    """Network.add_reserve() returns None if no batteries in the island."""
+    periods_arr = np.array([0.5] * 4)
+
+    net = Network(name="test", periods=periods_arr)
+    net.add({"element_type": "node", "name": "Grid", "is_source": True, "is_sink": True})
+    net.add({"element_type": "node", "name": "SW", "is_source": False, "is_sink": False})
+    net.add({"element_type": "node", "name": "Load", "is_source": False, "is_sink": True})
+
+    net.add(
+        {
+            "element_type": "connection",
+            "name": "Grid:import",
+            "source": "Grid",
+            "target": "SW",
+            "tags": {1},
+            "segments": {"pricing": {"segment_type": "pricing", "price": [0.30] * 4}},
+        }
+    )
+    net.add(
+        {
+            "element_type": "connection",
+            "name": "Load:conn",
+            "source": "SW",
+            "target": "Load",
+            "tags": {1},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": [2.0] * 4, "fixed": True}},
+        }
+    )
+
+    result = net.add_reserve()
+    assert result is None
+    assert net.reserve_result is None

@@ -29,6 +29,9 @@ import numpy as np
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.model.output_data import OutputData
+
 
 @dataclass
 class ReserveConfig:
@@ -65,6 +68,37 @@ class ReserveResult:
 
     cum_net_demand: list[Any]
     """Cumulative net demand at each period (kWh). LP expressions."""
+
+    def outputs(self, solver: Highs) -> dict[str, OutputData]:
+        """Extract post-solve reserve outputs.
+
+        Args:
+            solver: HiGHS solver instance (must be solved).
+
+        Returns:
+            Dict of output name to OutputData for sensor display.
+
+        """
+        sol = solver.getSolution()
+        reserve_vals = tuple(
+            sol.col_value[self.reserve_requirement[t].index] for t in range(len(self.reserve_requirement))
+        )
+        max_cum_vals = tuple(sol.col_value[self.max_cum_deficit[t].index] for t in range(len(self.max_cum_deficit)))
+
+        return {
+            "reserve_energy_requirement": OutputData(
+                type=OutputType.ENERGY,
+                unit="kWh",
+                values=reserve_vals,
+                advanced=False,
+            ),
+            "reserve_peak_deficit": OutputData(
+                type=OutputType.ENERGY,
+                unit="kWh",
+                values=max_cum_vals,
+                advanced=True,
+            ),
+        }
 
 
 def add_reserve_constraints(
