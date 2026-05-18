@@ -111,26 +111,32 @@ Creates one "max" per window rather than one for the full horizon.
 
 ## File locations
 
-- `custom_components/haeo/core/model/reserve.py` -- reserve formulation (running max chain + windowed)
+- `custom_components/haeo/core/model/reserve.py` -- reserve formulation (running max chain + windowed + soft/hard SOC floor)
 - `custom_components/haeo/core/model/reserve_graph.py` -- island discovery + path efficiencies
 - `custom_components/haeo/core/model/elements/segments/soc_pricing.py` -- updated to accept LP variable thresholds
-- `custom_components/haeo/core/model/tests/test_reserve.py` -- 10 tests (formulation + integration)
-- `custom_components/haeo/core/model/tests/test_reserve_graph.py` -- 6 tests (graph walk)
+- `custom_components/haeo/core/model/network.py` -- `Network.add_reserve()` API
+- `custom_components/haeo/core/model/tests/test_reserve.py` -- 12 unit tests
+- `custom_components/haeo/core/model/tests/test_reserve_graph.py` -- 6 graph walk tests
+- `custom_components/haeo/core/model/tests/test_reserve_e2e.py` -- 5 end-to-end tests (realistic 24h topology)
 
-## Status (experiment/reserve-power branch)
+## Status (experiment/reserve-power branch, 10 commits)
 
 ### Complete
 - [x] Core formulation: running max chain, O(n) for full horizon
 - [x] Sliding window mode: O(n*W) for W-period windows
+- [x] Soft vs hard SOC floor: hard_soc_floor parameter controls enforcement
 - [x] soc_pricing accepts LP variable thresholds (backwards-compatible)
 - [x] Graph walk: auto-discovers island (batteries, loads, generators)
-- [x] Path efficiency: BFS with efficiency product tracking
+- [x] Path efficiency: BFS with efficiency product tracking (multi-hop)
 - [x] Multi-battery pooling: LP allocates reserve across batteries
-- [x] Full Network integration test
-- [x] 16 tests passing, lint clean
+- [x] Network.add_reserve() one-liner API
+- [x] Post-solve outputs: reserve_energy_requirement + reserve_peak_deficit
+- [x] Sheddable load exclusion (manual exclude_elements)
+- [x] Realistic e2e tests: 24h topology with inverter, solar, EV, multiple loads
+- [x] 23 tests passing, 6 scenario tests unbroken, all lint clean
 
 ### TODO
-- [ ] Adapter integration: wire into battery adapter's undercharge section
-- [ ] Configuration UI: user selects island elements + window duration
-- [ ] Post-solve display: per-battery reserve allocation for charting
-- [ ] Sensor entities: expose reserve[t] as HA sensor
+- [ ] Coordinator integration: call add_reserve() after network creation
+- [ ] Configuration schema: reserve section on hub entry (enable, window_hours, exclude_elements)
+- [ ] Sensor entities: expose reserve_energy_requirement as HA sensor
+- [ ] Per-battery reserve allocation for dashboard display
