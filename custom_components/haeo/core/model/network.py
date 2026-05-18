@@ -303,6 +303,7 @@ class Network:
         *,
         exclude_elements: set[str] | None = None,
         window_periods: int | None = None,
+        hard_soc_floor: bool = False,
     ) -> "ReserveResult | None":
         """Add reserve power constraints based on the network topology.
 
@@ -315,6 +316,9 @@ class Network:
                 (grid nodes auto-excluded; use this for sheddable loads).
             window_periods: If set, reserve covers only the next W periods
                 (sliding window). If None, covers the full horizon.
+            hard_soc_floor: If True, adds hard constraint that battery SOC
+                must meet reserve. If False (default), only computes reserve
+                variables for use with soc_pricing soft penalty.
 
         Returns:
             ReserveResult with LP variables, or None if no batteries found.
@@ -335,6 +339,7 @@ class Network:
             self._solver,
             config,
             window_periods=window_periods,
+            hard_soc_floor=hard_soc_floor,
         )
 
         self._reserve_result = result

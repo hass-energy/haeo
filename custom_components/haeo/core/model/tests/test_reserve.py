@@ -560,8 +560,7 @@ def test_network_add_reserve_method() -> None:
         }
     )
 
-    # One-liner reserve
-    result = net.add_reserve()
+    result = net.add_reserve(hard_soc_floor=True)
     assert result is not None
     assert net.reserve_result is result
 

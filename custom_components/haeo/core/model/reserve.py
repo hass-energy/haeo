@@ -107,6 +107,7 @@ def add_reserve_constraints(
     *,
     name_prefix: str = "reserve",
     window_periods: int | None = None,
+    hard_soc_floor: bool = True,
 ) -> ReserveResult:
     """Add reserve power constraints to the LP.
 
@@ -122,6 +123,9 @@ def add_reserve_constraints(
         name_prefix: Prefix for variable/constraint names.
         window_periods: If set, reserve at period t covers only the next
             W periods (sliding window). If None, covers the full horizon.
+        hard_soc_floor: If True, adds hard constraint that battery SOC must
+            meet the reserve. If False, only computes reserve variables
+            (use soc_pricing for soft penalty instead).
 
     Returns:
         ReserveResult with the LP variables for post-solve extraction.
@@ -191,17 +195,17 @@ def add_reserve_constraints(
                 solver.addConstr(max_cum[t] >= cum[s])
             solver.addConstr(reserve[t] >= max_cum[t] - cum_before)
 
-    # Step 5: Battery group SOC floor
-    # Σ_batteries stored_energy[t] x η ≥ reserve[t]
-    for t in range(n):
-        total_available: Any = 0.0
-        for batt_name, stored in config.battery_stored_energy.items():
-            eta = config.battery_efficiency.get(batt_name, 1.0)
-            # stored[t+1] is the stored energy at the END of period t
-            # (battery uses n+1 boundary values)
-            total_available = total_available + stored[t + 1] * eta
+    # Step 5: Battery group SOC floor (optional hard constraint)
+    # When hard_soc_floor=False, the reserve variables are still computed
+    # but enforcement is left to soc_pricing (soft penalty).
+    if hard_soc_floor:
+        for t in range(n):
+            total_available: Any = 0.0
+            for batt_name, stored in config.battery_stored_energy.items():
+                eta = config.battery_efficiency.get(batt_name, 1.0)
+                total_available = total_available + stored[t + 1] * eta
 
-        solver.addConstr(total_available >= reserve[t])
+            solver.addConstr(total_available >= reserve[t])
 
     # Step 6 (optional): Power constraint
     # Σ discharge_limits ≥ peak instantaneous load within window
