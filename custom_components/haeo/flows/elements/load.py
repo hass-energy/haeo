@@ -13,6 +13,7 @@ from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
     CONF_FORECAST,
+    CONF_THRESHOLD_PRICE,
     SECTION_CURTAILMENT,
 )
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields, get_surfaced_input_fields
@@ -32,7 +33,7 @@ from custom_components.haeo.flows.surfaced_policy import (
     build_surfaced_schema_entries,
     save_surfaced_rules_from_input,
 )
-from custom_components.haeo.sections import build_common_fields, forecast_section
+from custom_components.haeo.sections import build_common_fields, forecast_section, threshold_section
 
 # Surfaced policy field names (not stored in load config)
 SURFACED_POLICY_FIELDS: frozenset[str] = frozenset({CONF_CONSUMPTION_COST})
@@ -48,6 +49,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             SectionDefinition(
                 key=SECTION_CURTAILMENT, fields=(CONF_CURTAILMENT, CONF_CONSUMPTION_COST), collapsed=True
             ),
+            threshold_section((CONF_THRESHOLD_PRICE,), collapsed=True),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:

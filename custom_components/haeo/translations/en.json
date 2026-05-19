@@ -334,7 +334,8 @@
             "consumption_cost": "Consumption cost",
             "curtailment": "Allow shedding",
             "forecast": "Forecast",
-            "name": "Load Name"
+            "name": "Load Name",
+            "threshold_price": "Threshold price"
           },
           "sections": {
             "common": { "data": { "connection": "Connection", "name": "Load Name" }, "name": "Common settings" },
@@ -342,7 +343,8 @@
               "data": { "consumption_cost": "Consumption cost", "curtailment": "Allow shedding" },
               "name": "Shedding"
             },
-            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" }
+            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" },
+            "threshold": { "data": { "threshold_price": "Threshold price" }, "name": "Threshold" }
           }
         }
       },
@@ -498,6 +500,7 @@
       "inverter_max_power_target_source": { "name": "Max AC to DC power" },
       "load_forecast": { "name": "Forecast" },
       "load_price_target_source": { "name": "Consumption value" },
+      "load_threshold_price": { "name": "Threshold price" },
       "policy_price": { "name": "{rule_name} price" },
       "solar_forecast": { "name": "Forecast" },
       "solar_price_source_target": { "name": "Production price" }
@@ -539,7 +542,16 @@
       "inverter_power_active": { "name": "Active power" },
       "inverter_power_dc_to_ac": { "name": "DC to AC power" },
       "load_forecast_limit_price": { "name": "Forecast limit shadow price" },
+      "load_horizon_average_marginal_price": { "name": "Horizon average marginal price" },
+      "load_horizon_energy": { "name": "Horizon energy" },
+      "load_horizon_marginal_cost": { "name": "Horizon marginal cost" },
+      "load_horizon_runtime": { "name": "Horizon runtime" },
+      "load_next_24h_average_marginal_price": { "name": "Next 24h average marginal price" },
+      "load_next_24h_energy": { "name": "Next 24h energy" },
+      "load_next_24h_marginal_cost": { "name": "Next 24h marginal cost" },
+      "load_next_24h_runtime": { "name": "Next 24h runtime" },
       "load_power": { "name": "Power" },
+      "load_threshold_price": { "name": "Threshold price" },
       "network_optimization_cost": { "name": "Cost" },
       "network_optimization_duration": { "name": "Duration" },
       "network_optimization_status": { "name": "Status" },

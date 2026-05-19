@@ -36,24 +36,34 @@ Load creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into connection segments:
 
-| User Configuration       | Segment           | Segment Field             | Notes                                            |
-| ------------------------ | ----------------- | ------------------------- | ------------------------------------------------ |
-| `forecast`               | PowerLimitSegment | `max_power_target_source` | Maximum consumption at each time                 |
-| `curtailment` (shedding) | PowerLimitSegment | `fixed`                   | True when curtailment is disabled (fixed demand) |
-| `connection`             | Connection        | `source`                  | Node to connect from                             |
-| —                        | PowerLimitSegment | `max_power_source_target` | Set to zero to prevent reverse flow              |
-| —                        | Node              | `is_source=false`         | Load cannot provide power                        |
-| —                        | Node              | `is_sink=true`            | Load consumes power                              |
+| User Configuration       | Segment           | Segment Field             | Notes                                                                 |
+| ------------------------ | ----------------- | ------------------------- | --------------------------------------------------------------------- |
+| `forecast`               | PowerLimitSegment | `max_power_target_source` | Maximum consumption at each time                                      |
+| `curtailment` (shedding) | PowerLimitSegment | `fixed`                   | True when curtailment is disabled (fixed demand)                      |
+| `threshold_price`        | PricingSegment    | `price` (negated)         | Only when curtailment is enabled — load sheds above this \$/kWh value |
+| `connection`             | Connection        | `source`                  | Node to connect from                                                  |
+| —                        | PowerLimitSegment | `max_power_source_target` | Set to zero to prevent reverse flow                                   |
+| —                        | Node              | `is_source=false`         | Load cannot provide power                                             |
+| —                        | Node              | `is_sink=true`            | Load consumes power                                                   |
 
 ## Sensors Created
 
 ### Load Device
 
-| Sensor                 | Unit   | Update    | Description                        |
-| ---------------------- | ------ | --------- | ---------------------------------- |
-| `power`                | kW     | Real-time | Power consumed by load             |
-| `power_possible`       | kW     | Real-time | Maximum possible load (forecast)   |
-| `forecast_limit_price` | \$/kWh | Real-time | Marginal cost of serving this load |
+| Sensor                 | Unit   | Update    | Description                                                                                                            |
+| ---------------------- | ------ | --------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `power`                | kW     | Real-time | Power consumed by load                                                                                                 |
+| `power_possible`       | kW     | Real-time | Maximum possible load (forecast)                                                                                       |
+| `forecast_limit_price` | \$/kWh | Real-time | Marginal cost of serving this load                                                                                     |
+| `threshold_price`      | \$/kWh | Real-time | Configured willingness-to-pay ceiling (sheddable loads only, default \$0)                                              |
+| `total_energy`         | kWh    | Per solve | Cumulative energy consumed over the optimization horizon                                                               |
+| `total_cost`           | \$     | Per solve | Cumulative marginal cost over the horizon (`Σ p_load[t] × node_dual[t]`)                                               |
+| `total_runtime`        | h      | Per solve | Cumulative time the load is dispatched (power > 0) over the horizon                                                    |
+| `total_average_cost`   | \$/kWh | Per solve | Energy-weighted average cost of served load over the horizon (`total_cost / total_energy`; 0 when no energy is served) |
+| `daily_energy`         | kWh    | Per solve | Energy forecast to be consumed over the next 24h, starting at the horizon start                                        |
+| `daily_cost`           | \$     | Per solve | Marginal cost forecast over the next 24h, starting at the horizon start                                                |
+| `daily_runtime`        | h      | Per solve | Time the load is forecast to be dispatched over the next 24h                                                           |
+| `daily_average_cost`   | \$/kWh | Per solve | Energy-weighted average cost forecast for the next 24h (0 when no energy is served)                                    |
 
 See [Load Configuration](../../user-guide/elements/load.md) for detailed sensor and configuration documentation.
 
@@ -95,6 +105,22 @@ When enabled, the optimizer may shed the load if that reduces total system cost.
 
 The model represents average power within each optimization period.
 This means reduced power can be interpreted as partial operation in whatever way fits the physical device (duty cycle, throttling, staging, etc.).
+
+### Threshold price
+
+A sheddable load can also expose a **threshold price** (\$/kWh): the maximum amount the user is willing to pay to serve this load.
+The optimizer dispatches the load only while the marginal value of energy at its connection node is at or below the threshold; above that, the load sheds.
+The default threshold of \$0 leaves the LP unchanged from the original behaviour.
+
+The comparison is against the **shadow price (LP dual) of the node selected in the load's *Connection* field** — not the raw grid import tariff.
+When a battery or solar can supply that node more cheaply than the grid in a given interval, the dual tracks the cheaper source and the load can keep running even while the grid tariff is above the threshold.
+If you want the threshold to act directly on the grid tariff, connect the load to the grid element instead of to an intermediate switchboard.
+See [Load shedding via threshold price](../shedding.md) for the full derivation, plus the matching shadow-price sensor on each node device (e.g. `sensor.switchboard_node_power_balance_energy_price`).
+
+For example, a load with `forecast = 5 kW` and `threshold_price = $0.30/kWh` connected to a switchboard whose marginal energy price varies will be served while local energy is cheaper than \$0.30/kWh and will shed when it is more expensive.
+
+This is implemented as a `PricingSegment` on the load's connection with `price = -threshold_price`, so the LP minimisation gains a benefit equal to `threshold_price × p_load × Δt` for every period the load is served.
+The threshold-price field is ignored when curtailment is disabled (fixed loads cannot shed).
 
 ### Configuration Guidelines
 

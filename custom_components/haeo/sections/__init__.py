@@ -10,6 +10,7 @@ from .efficiency import build_efficiency_fields, efficiency_section
 from .forecast import build_forecast_fields, forecast_section
 from .power_limits import build_power_limits_fields, power_limits_section
 from .pricing import build_pricing_fields, pricing_section
+from .threshold import build_threshold_fields, threshold_section
 
 __all__ = [
     "build_common_fields",
@@ -18,9 +19,11 @@ __all__ = [
     "build_forecast_fields",
     "build_power_limits_fields",
     "build_pricing_fields",
+    "build_threshold_fields",
     "curtailment_section",
     "efficiency_section",
     "forecast_section",
     "power_limits_section",
     "pricing_section",
+    "threshold_section",
 ]

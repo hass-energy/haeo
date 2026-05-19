@@ -4,9 +4,15 @@ from collections.abc import Mapping, Sequence
 from typing import Any, TypedDict
 
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
-from custom_components.haeo.core.adapters.elements.load import LOAD_DEVICE_LOAD, LOAD_FORECAST_LIMIT_PRICE, LOAD_POWER
+from custom_components.haeo.core.adapters.elements.load import (
+    LOAD_DEVICE_LOAD,
+    LOAD_FORECAST_LIMIT_PRICE,
+    LOAD_POWER,
+    LOAD_THRESHOLD_PRICE,
+)
 from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
@@ -37,6 +43,7 @@ class OutputsCase(TypedDict):
     name: str
     config: LoadConfigData
     model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
+    periods: NDArray[np.floating[Any]]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 
@@ -92,6 +99,65 @@ CREATE_CASES: Sequence[CreateCase] = [
             },
         ],
     },
+    {
+        "description": "Sheddable load with threshold price (adds pricing segment with negated price)",
+        "data": LoadConfigData(
+            element_type=ElementType.LOAD,
+            name="load_threshold",
+            connection=as_connection_target("network"),
+            forecast={"forecast": np.array([1.0, 2.0])},
+            curtailment={"curtailment": True},
+            threshold={"threshold_price": 0.30},
+        ),
+        "model": [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": "load_threshold",
+                "is_source": False,
+                "is_sink": True,
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "load_threshold:connection",
+                "source": "network",
+                "target": "load_threshold",
+                "is_time_sensitive": True,
+                "segments": {
+                    "power_limit": {"segment_type": "power_limit", "max_power": [1.0, 2.0], "fixed": False},
+                    "pricing": {"segment_type": "pricing", "price": -0.30},
+                },
+            },
+        ],
+    },
+    {
+        "description": "Fixed load with threshold price ignored (no pricing segment)",
+        "data": LoadConfigData(
+            element_type=ElementType.LOAD,
+            name="load_fixed_threshold",
+            connection=as_connection_target("network"),
+            forecast={"forecast": np.array([1.0, 2.0])},
+            curtailment={"curtailment": False},
+            threshold={"threshold_price": 0.30},
+        ),
+        "model": [
+            {
+                "element_type": MODEL_ELEMENT_TYPE_NODE,
+                "name": "load_fixed_threshold",
+                "is_source": False,
+                "is_sink": True,
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": "load_fixed_threshold:connection",
+                "source": "network",
+                "target": "load_fixed_threshold",
+                "is_time_sensitive": True,
+                "segments": {
+                    "power_limit": {"segment_type": "power_limit", "max_power": [1.0, 2.0], "fixed": True},
+                },
+            },
+        ],
+    },
 ]
 
 
@@ -118,10 +184,37 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 },
             }
         },
+        "periods": np.array([1.0]),
         "outputs": {
             LOAD_DEVICE_LOAD: {
                 LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-", fixed=True),
                 LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
+            }
+        },
+    },
+    {
+        "description": "Sheddable load with threshold price exposes a $/kWh sensor",
+        "name": "load_threshold",
+        "config": LoadConfigData(
+            element_type=ElementType.LOAD,
+            name="load_threshold",
+            connection=as_connection_target("network"),
+            forecast={"forecast": np.array([1.0])},
+            curtailment={"curtailment": True},
+            threshold={"threshold_price": 0.30},
+        ),
+        "model_outputs": {
+            "load_threshold:connection": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"
+                ),
+            }
+        },
+        "periods": np.array([1.0]),
+        "outputs": {
+            LOAD_DEVICE_LOAD: {
+                LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-", fixed=False),
+                LOAD_THRESHOLD_PRICE: OutputData(type=OutputType.PRICE, unit="$/kWh", values=(0.30,)),
             }
         },
     },
@@ -140,5 +233,5 @@ def test_model_elements(case: CreateCase) -> None:
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES[ElementType.LOAD]
-    result = entry.outputs(case["name"], case["model_outputs"], config=case["config"])
+    result = entry.outputs(case["name"], case["model_outputs"], config=case["config"], periods=case["periods"])
     assert result == case["outputs"]

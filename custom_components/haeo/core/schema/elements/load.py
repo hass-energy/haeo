@@ -1,6 +1,6 @@
 """Load element schema definitions."""
 
-from typing import Annotated, Final, Literal
+from typing import Annotated, Final, Literal, NotRequired
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.elements.element_type import ElementType
@@ -8,19 +8,23 @@ from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHin
 from custom_components.haeo.core.schema.sections import (
     CONF_CURTAILMENT,
     CONF_FORECAST,
+    CONF_THRESHOLD_PRICE,
     SECTION_CURTAILMENT,
     SECTION_FORECAST,
+    SECTION_THRESHOLD,
     ConnectedCommonConfig,
     ConnectedCommonData,
     CurtailmentConfig,
     CurtailmentData,
     ForecastConfig,
     ForecastData,
+    ThresholdConfig,
+    ThresholdData,
 )
 
 ELEMENT_TYPE = ElementType.LOAD
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT})
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_CURTAILMENT, CONF_THRESHOLD_PRICE})
 
 CONF_CONSUMPTION_COST: Final = "consumption_cost"
 
@@ -66,6 +70,21 @@ class LoadConfigSchema(ConnectedCommonConfig):
             }
         ),
     ]
+    threshold: NotRequired[
+        Annotated[
+            ThresholdConfig,
+            SectionHints(
+                {
+                    CONF_THRESHOLD_PRICE: FieldHint(
+                        output_type=OutputType.PRICE,
+                        time_series=True,
+                        default_mode="value",
+                        default_value=0.0,
+                    ),
+                }
+            ),
+        ]
+    ]
 
 
 class LoadConfigData(ConnectedCommonData):
@@ -74,15 +93,18 @@ class LoadConfigData(ConnectedCommonData):
     element_type: Literal[ElementType.LOAD]
     forecast: ForecastData
     curtailment: CurtailmentData
+    threshold: NotRequired[ThresholdData]
 
 
 __all__ = [
     "CONF_CURTAILMENT",
     "CONF_FORECAST",
+    "CONF_THRESHOLD_PRICE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_CURTAILMENT",
     "SECTION_FORECAST",
+    "SECTION_THRESHOLD",
     "LoadConfigData",
     "LoadConfigSchema",
 ]
