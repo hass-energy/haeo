@@ -193,8 +193,27 @@ def form_value_to_price(value: Any) -> EntityValue | ConstantValue | None:
     - list[str] → EntityValue
     - float/int → ConstantValue
     - None/empty string → None (delete rule)
+
+    Also handles raw ChooseSelector dict format from the frontend, which
+    may arrive unnormalized when fields are inside HA sections.
     """
     if value is None or value == "":
+        return None
+    # Handle raw ChooseSelector dict format from frontend
+    if isinstance(value, dict) and "active_choice" in value:
+        choice = value.get("active_choice")
+        if choice == "none":
+            return None
+        if choice == "entity":
+            entities = value.get("entity", [])
+            if not entities:
+                return None
+            return as_entity_value(entities)
+        if choice == "constant":
+            constant = value.get("constant")
+            if constant is None or constant == "":
+                return None
+            return as_constant_value(float(constant))
         return None
     if isinstance(value, list):
         if not value:

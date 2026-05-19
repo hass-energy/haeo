@@ -217,6 +217,31 @@ def test_price_to_form_value(price: Any, expected_form_value: Any) -> None:
         pytest.param(0.5, as_constant_value(0.5), id="float"),
         pytest.param(1, as_constant_value(1.0), id="int"),
         pytest.param(["sensor.price"], as_entity_value(["sensor.price"]), id="entity_list"),
+        pytest.param(
+            {"active_choice": "constant", "constant": 0.005},
+            as_constant_value(0.005),
+            id="raw_dict_constant",
+        ),
+        pytest.param(
+            {"active_choice": "entity", "entity": ["sensor.price"]},
+            as_entity_value(["sensor.price"]),
+            id="raw_dict_entity",
+        ),
+        pytest.param(
+            {"active_choice": "none", "constant": 0.1},
+            None,
+            id="raw_dict_none",
+        ),
+        pytest.param(
+            {"active_choice": "entity", "entity": []},
+            None,
+            id="raw_dict_entity_empty",
+        ),
+        pytest.param(
+            {"active_choice": "constant", "constant": None},
+            None,
+            id="raw_dict_constant_none",
+        ),
     ],
 )
 def test_form_value_to_price(form_value: Any, expected_price: Any) -> None:
