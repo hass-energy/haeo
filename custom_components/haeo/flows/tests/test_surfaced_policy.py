@@ -44,6 +44,7 @@ from custom_components.haeo.core.schema.elements.load import (
     SECTION_FORECAST,
 )
 from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE as LOAD_ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements.load import SURFACED_PRICE_HINTS as LOAD_SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_ENABLED,
     CONF_PRICE,
@@ -615,7 +616,7 @@ async def test_load_flow_creates_consumption_cost_rule(
     assert len(rules) == 1
     assert rules[0].get("target") == ["Test Load"]
     assert "source" not in rules[0]
-    assert rules[0]["price"] == as_constant_value(0.15)
+    assert rules[0]["price"] == as_constant_value(-0.15)
 
 
 async def test_load_flow_none_cost_skips_rule(
@@ -665,6 +666,23 @@ async def test_load_flow_excludes_surfaced_fields_from_config(
     created_data = flow.async_create_entry.call_args.kwargs["data"]
     curtailment = created_data.get(SECTION_CURTAILMENT, {})
     assert CONF_CONSUMPTION_COST not in curtailment
+
+
+def test_load_defaults_negates_stored_price(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Load defaults negate stored policy price for display."""
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [{"name": "consumption", "target": ["Test Load"], "price": as_constant_value(-0.15)}],
+    )
+    defaults = build_surfaced_defaults(
+        hub_entry, "Test Load", LOAD_SURFACED_PRICE_HINTS, get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
+    )
+    # Stored as -0.15 (negative cost = benefit), displayed as 0.15 (positive value)
+    assert defaults[CONF_CONSUMPTION_COST] == 0.15
 
 
 # --- Policy flow duplicate prevention tests ---

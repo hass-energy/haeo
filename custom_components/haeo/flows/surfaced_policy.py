@@ -237,6 +237,17 @@ def _resolve_endpoints(
     return [element_name], None
 
 
+def _negate_price(price: EntityValue | ConstantValue) -> EntityValue | ConstantValue:
+    """Negate a constant price value.
+
+    For entity values, negation is not supported (the entity provides the
+    value directly), so the price is returned unchanged.
+    """
+    if is_entity_value(price):
+        return price
+    return as_constant_value(-price["value"])
+
+
 def build_surfaced_defaults(
     hub_entry: ConfigEntry,
     element_name: str | None,
@@ -260,6 +271,8 @@ def build_surfaced_defaults(
             source, target = _resolve_endpoints(hint, element_name)
             price = get_surfaced_rule_price(hub_entry, source=source, target=target)
             if price is not None:
+                if hint.negate:
+                    price = _negate_price(price)
                 defaults[field_name] = price_to_form_value(price)
             continue
 
@@ -307,6 +320,8 @@ def save_surfaced_rules_from_input(
     for field_name, hint in surfaced_hints.items():
         raw_value = user_input.get(field_name)
         price = form_value_to_price(raw_value)
+        if price is not None and hint.negate:
+            price = _negate_price(price)
         source, target = _resolve_endpoints(hint, element_name)
         rule_name = translations.get(field_name, f"{element_name} {field_name}")
         save_surfaced_rule(

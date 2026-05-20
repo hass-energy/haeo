@@ -33,6 +33,7 @@ SURFACED_PRICE_HINTS: Final[dict[str, SurfacedPriceHint]] = {
             default_value=0.0,
         ),
         source_is_wildcard=True,
+        negate=True,
     ),
 }
 

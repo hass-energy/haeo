@@ -55,11 +55,15 @@ class SurfacedPriceHint:
         hint: The field hint defining output type, defaults, and constraints.
         source_is_wildcard: If True, the rule pattern is ``* → element``.
             If False, the pattern is ``element → *``.
+        negate: If True, the sign is flipped between the form value and the
+            stored policy price. Use for fields where the user enters a
+            positive "value" but the LP stores it as a negative cost.
 
     """
 
     hint: FieldHint
     source_is_wildcard: bool
+    negate: bool = False
 
 
 @dataclass(frozen=True, slots=True)
