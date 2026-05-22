@@ -247,7 +247,7 @@ async def test_setup_handles_switch_field_variants(
     else:
         matches = [e for e in input_switches if e._field_info.field_name == expect_field]
         assert matches
-        assert matches[0]._entity_mode == expect_mode
+        assert matches[0].entity_mode == expect_mode
 
 
 async def test_setup_creates_switch_entities_for_solar_curtailment(

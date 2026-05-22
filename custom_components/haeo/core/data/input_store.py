@@ -124,6 +124,10 @@ class InputStore:
         """Wait for data to be ready."""
         await self._data_ready.wait()
 
+    def mark_ready(self) -> None:
+        """Explicitly mark the store as ready."""
+        self._data_ready.set()
+
     def get_values(self) -> tuple[float, ...] | None:
         """Return values (alias for the values property)."""
         return self._values
@@ -284,6 +288,16 @@ def create_input_store(
                 boundaries=boundaries,
                 get_forecast_timestamps=get_forecast_timestamps,
                 is_percentage=is_percentage,
+            )
+        case bool() | int() | float() as constant:
+            return InputStore(
+                mode=InputMode.EDITABLE,
+                source_entity_ids=[],
+                time_series=time_series,
+                boundaries=boundaries,
+                get_forecast_timestamps=get_forecast_timestamps,
+                is_percentage=is_percentage,
+                initial_value=float(constant),
             )
         case _:
             msg = f"Invalid config value: {config_value}"

@@ -165,8 +165,8 @@ async def test_editable_mode_with_true_value(
         horizon_manager=horizon_manager,
     )
 
-    assert entity._entity_mode == ConfigEntityMode.EDITABLE
-    assert entity._source_entity_id is None
+    assert entity.entity_mode == ConfigEntityMode.EDITABLE
+    assert entity._store.source_entity_ids == []
     assert entity.is_on is True
 
     attrs = entity.extra_state_attributes
@@ -209,7 +209,7 @@ async def test_editable_mode_with_raw_boolean(
         horizon_manager=horizon_manager,
     )
 
-    assert entity._entity_mode == ConfigEntityMode.EDITABLE
+    assert entity.entity_mode == ConfigEntityMode.EDITABLE
     assert entity.is_on is True
 
 
@@ -232,7 +232,7 @@ async def test_editable_mode_with_false_value(
         horizon_manager=horizon_manager,
     )
 
-    assert entity._entity_mode == ConfigEntityMode.EDITABLE
+    assert entity.entity_mode == ConfigEntityMode.EDITABLE
     assert entity.is_on is False
 
 
@@ -255,7 +255,7 @@ async def test_editable_mode_with_none_value(
         horizon_manager=horizon_manager,
     )
 
-    assert entity._entity_mode == ConfigEntityMode.EDITABLE
+    assert entity.entity_mode == ConfigEntityMode.EDITABLE
     assert entity.is_on is None
 
 
@@ -343,8 +343,8 @@ async def test_driven_mode_with_entity_id(
         horizon_manager=horizon_manager,
     )
 
-    assert entity._entity_mode == ConfigEntityMode.DRIVEN
-    assert entity._source_entity_id == "input_boolean.allow_curtailment"
+    assert entity.entity_mode == ConfigEntityMode.DRIVEN
+    assert entity._store.source_entity_ids == ["input_boolean.allow_curtailment"]
     assert entity.is_on is None  # Not loaded yet
 
     attrs = entity.extra_state_attributes
@@ -775,7 +775,8 @@ async def test_horizon_start_returns_first_timestamp(
     )
 
     # Update forecast manually to simulate loaded state
-    entity._update_forecast()
+    entity._store.refresh()
+    entity._sync_from_store()
 
     # horizon_start should return the first timestamp
     assert entity.horizon_start == 0.0
@@ -826,7 +827,8 @@ async def test_get_values_returns_forecast_values(
     )
 
     # Update forecast
-    entity._update_forecast()
+    entity._store.refresh()
+    entity._sync_from_store()
 
     values = entity.get_values()
     assert values is not None
@@ -843,8 +845,8 @@ async def test_get_values_returns_none_without_forecast(
     curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """get_values returns None when forecast is not set."""
-    subentry = _create_subentry("Test Solar", {"allow_curtailment": True})
+    """get_values returns None when no initial value is configured."""
+    subentry = _create_subentry("Test Solar", {})
     config_entry.runtime_data = None
 
     entity = HaeoInputSwitch(
@@ -854,9 +856,6 @@ async def test_get_values_returns_none_without_forecast(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-
-    # Clear forecast
-    entity._attr_extra_state_attributes = {}
 
     assert entity.get_values() is None
 
@@ -1004,7 +1003,8 @@ async def test_horizon_change_updates_forecast_timestamps_editable(
     await _add_entity_to_hass(hass, entity)
 
     # Build initial forecast
-    entity._update_forecast()
+    entity._store.refresh()
+    entity._sync_from_store()
     assert entity.horizon_start == 0.0
 
     # Track state writes by wrapping async_write_ha_state
@@ -1200,7 +1200,7 @@ async def test_load_source_state_with_none_source_entity(
     )
 
     # source_entity_id should be None in EDITABLE mode
-    assert entity._source_entity_id is None
+    assert entity._store.source_entity_ids == []
 
     # This should return early without error
     entity._load_source_state()

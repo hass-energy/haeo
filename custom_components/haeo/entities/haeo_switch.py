@@ -1,6 +1,5 @@
 """Switch entity for HAEO boolean input configuration."""
 
-import asyncio
 from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
@@ -8,13 +7,14 @@ from typing import Any
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import STATE_ON, EntityCategory
-from homeassistant.core import Event, State, callback
+from homeassistant.core import Event, callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
+from custom_components.haeo.core.data.input_store import InputMode, create_input_store
 from custom_components.haeo.core.schema import (
     as_constant_value,
     is_connection_target,
@@ -25,7 +25,6 @@ from custom_components.haeo.core.schema import (
 )
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
 
@@ -53,16 +52,11 @@ def _field_name_is_reused_in_other_sections(
 class HaeoInputSwitch(SwitchEntity):
     """Switch entity representing a configurable boolean parameter.
 
-    This entity serves as an intermediate layer between external sensors
-    and the optimization model. It can operate in two modes:
+    Delegates data management to an InputStore. Booleans are stored as
+    0.0/1.0 in the store and converted at the HA boundary.
 
-    - EDITABLE: User can toggle the switch. Used when config contains
-      a static boolean value rather than an entity ID.
-      Value is persisted to config entry and survives restarts.
-    - DRIVEN: Value is driven by an external sensor. Used when config
-      contains an entity ID. In this mode, user toggles are ignored.
-
-    Both modes provide forecast timestamps for consistency with other entities.
+    - EDITABLE: User can toggle the switch. Value persisted to config entry.
+    - DRIVEN: Value driven by an external sensor's on/off state.
     """
 
     _attr_should_poll = False
@@ -91,34 +85,20 @@ class HaeoInputSwitch(SwitchEntity):
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
-        # Determine mode from schema value type
+        # Create the InputStore (pure core, no HA deps)
         config_value = get_nested_config_value_by_path(subentry.data, self._field_path)
+        self._store = create_input_store(
+            config_value=config_value,
+            time_series=field_info.time_series,
+            boundaries=True,
+            get_forecast_timestamps=horizon_manager.get_forecast_timestamps,
+            is_percentage=False,
+        )
 
-        match config_value:
-            case {"type": "entity", "value": entity_ids} if isinstance(entity_ids, list):
-                # DRIVEN mode: value comes from external sensor
-                self._entity_mode = ConfigEntityMode.DRIVEN
-                self._source_entity_id = entity_ids[0] if entity_ids else None
-                self._attr_is_on = None  # Will be set when data loads
-            case {"type": "constant", "value": constant}:
-                # EDITABLE mode: value is a boolean constant
-                self._entity_mode = ConfigEntityMode.EDITABLE
-                self._source_entity_id = None
-                self._attr_is_on = bool(constant)
-            case bool() as constant:
-                self._entity_mode = ConfigEntityMode.EDITABLE
-                self._source_entity_id = None
-                self._attr_is_on = constant
-            case {"type": "none"} | None:
-                # Disabled or missing configuration
-                self._entity_mode = ConfigEntityMode.EDITABLE
-                self._source_entity_id = None
-                self._attr_is_on = None
-            case _:
-                msg = f"Invalid config value for field {field_info.field_name}"
-                raise RuntimeError(msg)
+        # Set initial HA state from store
+        self._attr_is_on = self._bool_from_store()
 
-        # Unique ID: stable key with section disambiguation when required.
+        # Unique ID
         field_path_key = ".".join(self._field_path)
         is_list_item_field = len(self._field_path) >= LIST_ITEM_FIELD_PATH_LENGTH
         unique_key = field_info.field_name
@@ -137,7 +117,7 @@ class HaeoInputSwitch(SwitchEntity):
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
 
-        # Pass subentry data as translation placeholders
+        # Translation placeholders
         placeholders: dict[str, str] = {}
 
         def format_placeholder(value: Any) -> str:
@@ -159,7 +139,7 @@ class HaeoInputSwitch(SwitchEntity):
             placeholders[key] = format_placeholder(value)
         placeholders.setdefault("name", subentry.title)
 
-        # For list item fields (e.g., rules.0.enabled), expose item name.
+        # For list item fields, expose item name
         if len(self._field_path) > 1:
             list_key, index_str, *_ = self._field_path
             try:
@@ -172,65 +152,72 @@ class HaeoInputSwitch(SwitchEntity):
                 pass
         self._attr_translation_placeholders = placeholders
 
-        # Build base extra state attributes (static values)
+        # Build base extra state attributes
         self._base_extra_attrs: dict[str, Any] = {
-            "config_mode": self._entity_mode.value,
+            "config_mode": self._store.mode.value,
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,
             "field_name": field_info.field_name,
             "field_path": field_path_key,
             "field_type": field_info.output_type,
         }
-        if self._source_entity_id:
-            self._base_extra_attrs["source_entity"] = self._source_entity_id
+        if self._store.source_entity_ids:
+            self._base_extra_attrs["source_entity"] = self._store.source_entity_ids[0]
         self._attr_extra_state_attributes = dict(self._base_extra_attrs)
 
-        # Event that signals data is ready for coordinator access
-        self._data_ready = asyncio.Event()
-
-        # Captured source states for reproducibility (populated when loading data)
-        self._captured_source_states: Mapping[str, State] = {}
-
         self._record_forecasts = config_entry.data.get(CONF_RECORD_FORECASTS, False)
-        # Initialize forecast immediately for EDITABLE mode entities
-        # This ensures get_values() returns data before async_added_to_hass() is called
-        # DRIVEN mode entities load data in async_added_to_hass() - the coordinator
-        # waits for all input entities to be ready before running
-        if self._entity_mode == ConfigEntityMode.EDITABLE and self._attr_is_on is not None:
-            self._update_forecast()
 
-    def _get_forecast_timestamps(self) -> tuple[float, ...]:
-        """Get forecast timestamps from horizon manager."""
-        return self._horizon_manager.get_forecast_timestamps()
+        # Initialize forecast for editable mode with a value
+        if self._store.mode == InputMode.EDITABLE and self._store.native_value is not None:
+            self._store.mark_ready()
+            self._sync_from_store()
+
+    def _bool_from_store(self) -> bool | None:
+        """Convert store's float value to bool."""
+        val = self._store.native_value
+        if val is None:
+            return None
+        return val != 0.0
+
+    def _sync_from_store(self) -> None:
+        """Synchronize HA entity attributes from the store's current state."""
+        self._attr_is_on = self._bool_from_store()
+
+        extra_attrs = dict(self._base_extra_attrs)
+        if self._attr_is_on is not None:
+            local_tz = dt_util.get_default_time_zone()
+            forecast_timestamps = self._store.forecast_timestamps
+            forecast = [
+                {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_is_on}
+                for ts in forecast_timestamps
+            ]
+            extra_attrs["forecast"] = forecast
+
+        self._attr_extra_state_attributes = extra_attrs
 
     async def async_added_to_hass(self) -> None:
-        """Set up state tracking and load initial data.
-
-        For EDITABLE mode entities, this updates the forecast in memory
-        synchronously. For DRIVEN mode entities, this awaits data loading
-        from source sensors, ensuring the entity is ready for coordinator
-        access after async_block_till_done() completes.
-        """
+        """Set up state tracking and load initial data."""
         await super().async_added_to_hass()
         self._apply_recorder_attribute_filtering()
 
-        # Subscribe to horizon manager for time window changes
+        # Subscribe to horizon changes
         self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
 
-        if self._entity_mode == ConfigEntityMode.EDITABLE:
-            # Use defaults.value if no config value
+        if self._store.mode == InputMode.EDITABLE:
+            # Use defaults if no config value
             defaults = self._field_info.defaults
-            if self._attr_is_on is None and defaults is not None and defaults.value is not None:
-                self._attr_is_on = bool(defaults.value)
-            # Update forecast for initial value
-            self._update_forecast()
+            if self._store.native_value is None and defaults is not None and defaults.value is not None:
+                self._store.set_value(1.0 if defaults.value else 0.0)
+            self._store.mark_ready()
+            self._sync_from_store()
         else:
-            # Subscribe to source entity changes for DRIVEN mode
-            if self._source_entity_id is not None:
+            # Subscribe to source entity changes for driven mode
+            source_ids = self._store.source_entity_ids
+            if source_ids:
                 self.async_on_remove(
                     async_track_state_change_event(
                         self.hass,
-                        [self._source_entity_id],
+                        source_ids[:1],
                         self._handle_source_state_change,
                     )
                 )
@@ -245,12 +232,12 @@ class HaeoInputSwitch(SwitchEntity):
 
     @callback
     def _handle_horizon_change(self) -> None:
-        """Handle horizon change - refresh forecast with new time windows."""
-        if self._entity_mode == ConfigEntityMode.EDITABLE:
-            self._update_forecast()
+        """Handle horizon change - refresh with new time windows."""
+        if self._store.mode == InputMode.EDITABLE:
+            self._store.refresh()
+            self._sync_from_store()
             self.async_write_ha_state()
         else:
-            # Re-load source state for driven mode
             self._load_source_state()
             self.async_write_ha_state()
 
@@ -258,57 +245,40 @@ class HaeoInputSwitch(SwitchEntity):
     def _handle_source_state_change(self, event: Event[EventStateChangedData]) -> None:
         """Handle source entity state change."""
         new_state = event.data["new_state"]
-        if new_state is not None and self._source_entity_id is not None:
-            # Capture source state for reproducibility
-            self._captured_source_states = {self._source_entity_id: new_state}
-            self._attr_is_on = new_state.state == STATE_ON
-            self._update_forecast()
+        if new_state is not None:
+            source_ids = self._store.source_entity_ids
+            if source_ids:
+                self._store._captured_source_states = {source_ids[0]: new_state}  # noqa: SLF001
+            value = 1.0 if new_state.state == STATE_ON else 0.0
+            self._store.set_value(value)
+            self._sync_from_store()
             self.async_write_ha_state()
 
     def _load_source_state(self) -> None:
         """Load current state from source entity."""
-        if self._source_entity_id is None:
+        source_ids = self._store.source_entity_ids
+        if not source_ids:
             return
 
-        state = self.hass.states.get(self._source_entity_id)
+        state = self.hass.states.get(source_ids[0])
         if state is not None:
-            # Capture source state for reproducibility
-            self._captured_source_states = {self._source_entity_id: state}
-            self._attr_is_on = state.state == STATE_ON
-            self._update_forecast()
-
-    def _update_forecast(self) -> None:
-        """Update forecast attribute with constant value across horizon."""
-        forecast_timestamps = self._get_forecast_timestamps()
-
-        extra_attrs = dict(self._base_extra_attrs)
-
-        if self._attr_is_on is not None:
-            # Build forecast as list of ForecastPoint-style dicts
-            local_tz = dt_util.get_default_time_zone()
-            forecast = [
-                {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_is_on}
-                for ts in forecast_timestamps
-            ]
-            extra_attrs["forecast"] = forecast
-
-        self._attr_extra_state_attributes = extra_attrs
-
-        # Signal that data is ready
-        self._data_ready.set()
+            self._store._captured_source_states = {source_ids[0]: state}  # noqa: SLF001
+            value = 1.0 if state.state == STATE_ON else 0.0
+            self._store.set_value(value)
+            self._sync_from_store()
 
     def is_ready(self) -> bool:
         """Return True if data has been loaded and entity is ready."""
-        return self._data_ready.is_set()
+        return self._store.is_ready()
 
     async def wait_ready(self) -> None:
         """Wait for data to be ready."""
-        await self._data_ready.wait()
+        await self._store.wait_ready()
 
     @property
-    def entity_mode(self) -> ConfigEntityMode:
-        """Return the entity's operating mode (EDITABLE or DRIVEN)."""
-        return self._entity_mode
+    def entity_mode(self) -> InputMode:
+        """Return the entity's operating mode."""
+        return self._store.mode
 
     @property
     def uses_forecast(self) -> bool:
@@ -328,41 +298,26 @@ class HaeoInputSwitch(SwitchEntity):
         return None
 
     def get_values(self) -> tuple[bool, ...] | None:
-        """Return the forecast values as a tuple, or None if not loaded."""
-        forecast = self._attr_extra_state_attributes.get("forecast")
-        if forecast:
-            return tuple(point["value"] for point in forecast if isinstance(point, dict) and "value" in point)
-        return None
+        """Return forecast values as booleans, or None if not loaded."""
+        if self._attr_is_on is None:
+            return None
+        forecast_timestamps = self._store.forecast_timestamps
+        return tuple(self._attr_is_on for _ in forecast_timestamps)
 
     @property
-    def captured_source_states(self) -> Mapping[str, State]:
-        """Source states captured when data was last loaded.
-
-        Returns:
-            Dict mapping source entity IDs to their State objects at load time.
-            Empty dict for EDITABLE mode entities (no source entities).
-
-        """
-        return self._captured_source_states
+    def captured_source_states(self) -> dict[str, Any]:
+        """Source states captured when data was last loaded."""
+        return self._store.captured_source_states
 
     async def async_turn_on(self, **_kwargs: Any) -> None:
-        """Handle user turning switch on.
-
-        In DRIVEN mode, user changes are effectively ignored because the
-        source entity will overwrite with its value.
-
-        In EDITABLE mode, the value is persisted to the config entry so it
-        survives restarts and is visible in reconfigure flows.
-        """
-        if self._entity_mode == ConfigEntityMode.DRIVEN:
+        """Handle user turning switch on."""
+        if self._store.mode == InputMode.DRIVEN:
             self.async_write_ha_state()
             return
 
-        self._attr_is_on = True
-        self._update_forecast()
+        self._store.set_value(1.0)
+        self._sync_from_store()
 
-        # Persist to config entry before writing state so the coordinator
-        # reads the updated config when handling the synchronous state change
         await async_update_subentry_value(
             self.hass,
             self._config_entry,
@@ -374,23 +329,14 @@ class HaeoInputSwitch(SwitchEntity):
         self.async_write_ha_state()
 
     async def async_turn_off(self, **_kwargs: Any) -> None:
-        """Handle user turning switch off.
-
-        In DRIVEN mode, user changes are effectively ignored because the
-        source entity will overwrite with its value.
-
-        In EDITABLE mode, the value is persisted to the config entry so it
-        survives restarts and is visible in reconfigure flows.
-        """
-        if self._entity_mode == ConfigEntityMode.DRIVEN:
+        """Handle user turning switch off."""
+        if self._store.mode == InputMode.DRIVEN:
             self.async_write_ha_state()
             return
 
-        self._attr_is_on = False
-        self._update_forecast()
+        self._store.set_value(0.0)
+        self._sync_from_store()
 
-        # Persist to config entry before writing state so the coordinator
-        # reads the updated config when handling the synchronous state change
         await async_update_subentry_value(
             self.hass,
             self._config_entry,
