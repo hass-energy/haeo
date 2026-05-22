@@ -987,8 +987,8 @@ async def test_get_values_returns_none_without_forecast(
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """get_values returns None when forecast is not set."""
-    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
+    """get_values returns None when no initial value is configured."""
+    subentry = _create_subentry("Test Battery", {})
     config_entry.runtime_data = None
 
     entity = HaeoInputNumber(
@@ -998,9 +998,6 @@ async def test_get_values_returns_none_without_forecast(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-
-    # Clear forecast
-    entity._attr_extra_state_attributes = {}
 
     assert entity.get_values() is None
 
@@ -1227,8 +1224,7 @@ async def test_driven_mode_triggers_reload_task(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    entity._async_load_data_and_update = AsyncMock()
-    entity._loader.load_intervals = AsyncMock(return_value=[1.0, 2.0])
+    entity._async_load_sync_and_update = AsyncMock()
     await _add_entity_to_hass(hass, entity)
 
     if handler == "horizon":
@@ -1240,7 +1236,7 @@ async def test_driven_mode_triggers_reload_task(
 
     await hass.async_block_till_done()
 
-    entity._async_load_data_and_update.assert_awaited_once()
+    entity._async_load_sync_and_update.assert_awaited_once()
 
 
 @pytest.mark.parametrize(
@@ -1388,12 +1384,12 @@ async def test_scalar_horizon_change_noop(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    entity._async_load_data_and_update = AsyncMock()
+    entity._async_load_sync_and_update = AsyncMock()
 
     entity._handle_horizon_change()
     await hass.async_block_till_done()
 
-    entity._async_load_data_and_update.assert_not_awaited()
+    entity._async_load_sync_and_update.assert_not_awaited()
 
 
 async def test_scalar_editable_forecast_omitted(
