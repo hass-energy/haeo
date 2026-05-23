@@ -116,6 +116,10 @@ class InputStore:
         """Source states captured from the last data load."""
         return self._captured_source_states
 
+    def capture_state(self, entity_id: str, state: EntityState) -> None:
+        """Capture a single source entity state (e.g., from a state change event)."""
+        self._captured_source_states = {entity_id: state}
+
     def is_ready(self) -> bool:
         """Return True if data has been loaded and store is ready."""
         return self._data_ready.is_set()

@@ -38,8 +38,8 @@ from custom_components.haeo.services import async_setup_services
 from . import migrations as _migrations
 
 if TYPE_CHECKING:
+    from custom_components.haeo.core.data.input_store import InputMode
     from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
-    from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class InputEntity(Protocol):
     entity_id: str
 
     @property
-    def entity_mode(self) -> ConfigEntityMode:
+    def entity_mode(self) -> InputMode:
         """Return the entity's operating mode."""
         ...
 

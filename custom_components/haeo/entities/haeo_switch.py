@@ -248,7 +248,7 @@ class HaeoInputSwitch(SwitchEntity):
         if new_state is not None:
             source_ids = self._store.source_entity_ids
             if source_ids:
-                self._store._captured_source_states = {source_ids[0]: new_state}  # noqa: SLF001
+                self._store.capture_state(source_ids[0], new_state)
             value = 1.0 if new_state.state == STATE_ON else 0.0
             self._store.set_value(value)
             self._sync_from_store()
@@ -262,7 +262,7 @@ class HaeoInputSwitch(SwitchEntity):
 
         state = self.hass.states.get(source_ids[0])
         if state is not None:
-            self._store._captured_source_states = {source_ids[0]: state}  # noqa: SLF001
+            self._store.capture_state(source_ids[0], state)
             value = 1.0 if state.state == STATE_ON else 0.0
             self._store.set_value(value)
             self._sync_from_store()

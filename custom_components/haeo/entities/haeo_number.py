@@ -31,9 +31,6 @@ from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.util import async_update_subentry_value
 
-# Re-export for backwards compatibility
-ConfigEntityMode = InputMode
-
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
 LIST_ITEM_FIELD_PATH_LENGTH = 3
@@ -402,4 +399,4 @@ class HaeoInputNumber(NumberEntity):
         self.async_write_ha_state()
 
 
-__all__ = ["ConfigEntityMode", "HaeoInputNumber"]
+__all__ = ["HaeoInputNumber"]

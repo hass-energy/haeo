@@ -21,17 +21,14 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_NAME
+from custom_components.haeo.core.data.input_store import InputMode
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.entities.haeo_number import (
-    FORECAST_UNRECORDED_ATTRIBUTES,
-    ConfigEntityMode,
-    HaeoInputNumber,
-)
+from custom_components.haeo.entities.haeo_number import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputNumber
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 
@@ -243,7 +240,7 @@ async def test_editable_mode_with_static_value(
         horizon_manager=horizon_manager,
     )
 
-    assert entity._entity_mode == ConfigEntityMode.EDITABLE
+    assert entity._entity_mode == InputMode.EDITABLE
     assert entity._source_entity_ids == []
     assert entity.native_value == 10.5
     assert entity.native_unit_of_measurement == "kW"
@@ -618,7 +615,7 @@ async def test_driven_mode_with_single_entity(
         horizon_manager=horizon_manager,
     )
 
-    assert entity._entity_mode == ConfigEntityMode.DRIVEN
+    assert entity._entity_mode == InputMode.DRIVEN
     assert entity._source_entity_ids == ["sensor.power_limit"]
     assert entity.native_value is None  # Not loaded yet
 
@@ -650,7 +647,7 @@ async def test_driven_mode_with_multiple_entities(
         horizon_manager=horizon_manager,
     )
 
-    assert entity._entity_mode == ConfigEntityMode.DRIVEN
+    assert entity._entity_mode == InputMode.DRIVEN
     assert entity._source_entity_ids == ["sensor.power1", "sensor.power2"]
 
 
@@ -1533,7 +1530,7 @@ async def test_entity_mode_property(
         horizon_manager=horizon_manager,
     )
 
-    assert entity.entity_mode == ConfigEntityMode.EDITABLE
+    assert entity.entity_mode == InputMode.EDITABLE
 
     # Test DRIVEN mode
     subentry_driven = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
@@ -1545,7 +1542,7 @@ async def test_entity_mode_property(
         horizon_manager=horizon_manager,
     )
 
-    assert entity_driven.entity_mode == ConfigEntityMode.DRIVEN
+    assert entity_driven.entity_mode == InputMode.DRIVEN
 
 
 async def test_uses_forecast_reflects_field_info(
@@ -1657,7 +1654,7 @@ async def test_driven_mode_with_v01_single_entity_string(
         horizon_manager=horizon_manager,
     )
 
-    assert entity._entity_mode == ConfigEntityMode.DRIVEN
+    assert entity._entity_mode == InputMode.DRIVEN
     assert entity._source_entity_ids == ["sensor.power_limit"]
     assert entity.native_value is None  # Not loaded yet
 

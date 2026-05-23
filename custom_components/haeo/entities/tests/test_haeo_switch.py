@@ -20,6 +20,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.data.input_store import InputMode
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements import ElementType
@@ -27,7 +28,6 @@ from custom_components.haeo.core.schema.elements.policy import CONF_ENABLED, CON
 from custom_components.haeo.core.schema.elements.solar import CONF_FORECAST, SECTION_CURTAILMENT, SECTION_FORECAST
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
-from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.entities.haeo_switch import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputSwitch
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
@@ -165,7 +165,7 @@ async def test_editable_mode_with_true_value(
         horizon_manager=horizon_manager,
     )
 
-    assert entity.entity_mode == ConfigEntityMode.EDITABLE
+    assert entity.entity_mode == InputMode.EDITABLE
     assert entity._store.source_entity_ids == []
     assert entity.is_on is True
 
@@ -209,7 +209,7 @@ async def test_editable_mode_with_raw_boolean(
         horizon_manager=horizon_manager,
     )
 
-    assert entity.entity_mode == ConfigEntityMode.EDITABLE
+    assert entity.entity_mode == InputMode.EDITABLE
     assert entity.is_on is True
 
 
@@ -232,7 +232,7 @@ async def test_editable_mode_with_false_value(
         horizon_manager=horizon_manager,
     )
 
-    assert entity.entity_mode == ConfigEntityMode.EDITABLE
+    assert entity.entity_mode == InputMode.EDITABLE
     assert entity.is_on is False
 
 
@@ -255,7 +255,7 @@ async def test_editable_mode_with_none_value(
         horizon_manager=horizon_manager,
     )
 
-    assert entity.entity_mode == ConfigEntityMode.EDITABLE
+    assert entity.entity_mode == InputMode.EDITABLE
     assert entity.is_on is None
 
 
@@ -343,7 +343,7 @@ async def test_driven_mode_with_entity_id(
         horizon_manager=horizon_manager,
     )
 
-    assert entity.entity_mode == ConfigEntityMode.DRIVEN
+    assert entity.entity_mode == InputMode.DRIVEN
     assert entity._store.source_entity_ids == ["input_boolean.allow_curtailment"]
     assert entity.is_on is None  # Not loaded yet
 
@@ -1251,7 +1251,7 @@ async def test_entity_mode_property_returns_mode(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    assert entity_editable.entity_mode == ConfigEntityMode.EDITABLE
+    assert entity_editable.entity_mode == InputMode.EDITABLE
 
     # Test DRIVEN mode
     subentry_driven = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
@@ -1262,7 +1262,7 @@ async def test_entity_mode_property_returns_mode(
         device_entry=device_entry,
         horizon_manager=horizon_manager,
     )
-    assert entity_driven.entity_mode == ConfigEntityMode.DRIVEN
+    assert entity_driven.entity_mode == InputMode.DRIVEN
 
 
 async def test_uses_forecast_reflects_field_info(
