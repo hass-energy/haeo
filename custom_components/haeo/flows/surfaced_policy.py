@@ -295,11 +295,20 @@ def save_surfaced_rules_from_input(
     for field_name, hint in surfaced_hints.items():
         if field_name in user_input:
             raw_value = user_input[field_name]
-        elif apply_defaults and hint.hint.default_value is not None:
-            raw_value = hint.hint.default_value
+        elif apply_defaults:
+            raw_value = None
         else:
             continue
+
         price = form_value_to_price(raw_value)
+
+        # When the frontend submits the field but with a value that doesn't
+        # produce a price (e.g. ChooseSelector couldn't render a negative
+        # suggested value so the field was empty), apply the hint default
+        # for new elements instead of skipping the rule.
+        if price is None and apply_defaults and hint.hint.default_value is not None:
+            price = form_value_to_price(hint.hint.default_value)
+
         source, target = _resolve_endpoints(hint, element_name)
         rule_name = translations.get(field_name, f"{element_name} {field_name}")
         save_surfaced_rule(
