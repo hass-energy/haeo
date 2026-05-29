@@ -17,6 +17,7 @@ from . import (
     nordpool,
     open_meteo_solar_forecast,
     solcast_solar,
+    volcast_solar,
 )
 from .utils import EntityMetadata, separate_duplicate_timestamps
 
@@ -31,6 +32,7 @@ ExtractorFormat = (
     | nordpool.Format
     | open_meteo_solar_forecast.Format
     | solcast_solar.Format
+    | volcast_solar.Format
 )
 
 # Union of all Extractor class types
@@ -44,6 +46,7 @@ DataExtractor = (
     | type[nordpool.Parser]
     | type[open_meteo_solar_forecast.Parser]
     | type[solcast_solar.Parser]
+    | type[volcast_solar.Parser]
 )
 
 
@@ -58,6 +61,7 @@ FORMATS: dict[ExtractorFormat, DataExtractor] = {
     nordpool.DOMAIN: nordpool.Parser,
     open_meteo_solar_forecast.DOMAIN: open_meteo_solar_forecast.Parser,
     solcast_solar.DOMAIN: solcast_solar.Parser,
+    volcast_solar.DOMAIN: volcast_solar.Parser,
 }
 
 
@@ -96,6 +100,8 @@ def extract(state: EntityState) -> ExtractedData:
         data, unit, device_class = open_meteo_solar_forecast.Parser.extract(state)
     elif solcast_solar.Parser.detect(state):
         data, unit, device_class = solcast_solar.Parser.extract(state)
+    elif volcast_solar.Parser.detect(state):
+        data, unit, device_class = volcast_solar.Parser.extract(state)
     else:
         # If no extractor matched read the state as a single float value
         data = float(state.state)
