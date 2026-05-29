@@ -8,7 +8,7 @@ VALID: list[dict[str, Any]] = [
         "entity_id": "sensor.volcast_forecast",
         "state": "0",
         "attributes": {"detailedForecast": [{"period_start": "2026-05-29T00:00:00+10:00", "power_w": 0}]},
-        "expected_format": "volcast_solar",
+        "expected_format": "volcast",
         "expected_unit": "kW",
         "expected_data": [(1779976800.0, 0.0)],
         "description": "Single Volcast forecast entry",
@@ -22,7 +22,7 @@ VALID: list[dict[str, Any]] = [
                 {"period_start": "2026-05-29T00:05:00+10:00", "power_w": 3500},
             ]
         },
-        "expected_format": "volcast_solar",
+        "expected_format": "volcast",
         "expected_unit": "kW",
         "expected_data": [(1779976800.0, 0.0), (1779977100.0, 3.5)],
         "description": "Multiple Volcast forecast entries",
@@ -36,7 +36,7 @@ VALID: list[dict[str, Any]] = [
                 {"period_start": datetime(2026, 5, 29, 0, 5, 0, tzinfo=UTC), "power_w": 7500},
             ]
         },
-        "expected_format": "volcast_solar",
+        "expected_format": "volcast",
         "expected_unit": "kW",
         "expected_data": [(1780012800.0, 2.0), (1780013100.0, 7.5)],
         "description": "Volcast forecast with datetime objects instead of strings",
@@ -50,7 +50,7 @@ VALID: list[dict[str, Any]] = [
                 {"period_start": datetime(2026, 5, 29, 1, 0, 0, tzinfo=UTC), "power_w": 4000},
             ]
         },
-        "expected_format": "volcast_solar",
+        "expected_format": "volcast",
         "expected_unit": "kW",
         "expected_data": [(1779976800.0, 1.0), (1780016400.0, 4.0)],
         "description": "Volcast forecast with mixed string and datetime object timestamps",

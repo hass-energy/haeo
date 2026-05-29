@@ -19,7 +19,7 @@ VALID_SENSORS_BY_PARSER: dict[str, list[dict[str, Any]]] = {
     "nordpool": nordpool.VALID,
     "solcast_solar": solcast.VALID,
     "open_meteo_solar_forecast": open_meteo.VALID,
-    "volcast_solar": volcast.VALID,
+    "volcast": volcast.VALID,
 }
 
 # Aggregate all invalid sensor configs by parser type
@@ -33,7 +33,7 @@ INVALID_SENSORS_BY_PARSER: dict[str, list[dict[str, Any]]] = {
     "nordpool": nordpool.INVALID,
     "solcast_solar": solcast.INVALID,
     "open_meteo_solar_forecast": open_meteo.INVALID,
-    "volcast_solar": volcast.INVALID,
+    "volcast": volcast.INVALID,
 }
 
 # Flatten all valid sensors into a single list for easy iteration

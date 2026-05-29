@@ -12,8 +12,8 @@ from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
-Format = Literal["volcast_solar"]
-DOMAIN: Format = "volcast_solar"
+Format = Literal["volcast"]
+DOMAIN: Format = "volcast"
 
 
 class VolcastForecastEntry(TypedDict):
@@ -23,16 +23,16 @@ class VolcastForecastEntry(TypedDict):
     power_w: int | float
 
 
-class VolcastSolarAttributes(TypedDict):
-    """Type definition for Volcast solar forecast state attributes."""
+class VolcastAttributes(TypedDict):
+    """Type definition for Volcast state attributes."""
 
     detailedForecast: Sequence[VolcastForecastEntry]
 
 
-class VolcastSolarState(Protocol):
-    """Protocol for a State object with validated Volcast solar forecast data."""
+class VolcastState(Protocol):
+    """Protocol for a State object with validated Volcast forecast data."""
 
-    attributes: VolcastSolarAttributes
+    attributes: VolcastAttributes
 
 
 class Parser:
@@ -43,7 +43,7 @@ class Parser:
     DEVICE_CLASS: DeviceClass = DeviceClass.POWER
 
     @staticmethod
-    def detect(state: EntityState) -> TypeGuard[VolcastSolarState]:
+    def detect(state: EntityState) -> TypeGuard[VolcastState]:
         """Check if data matches Volcast solar forecast format and narrow type."""
 
         if "detailedForecast" not in state.attributes:
@@ -66,8 +66,8 @@ class Parser:
         )
 
     @staticmethod
-    def extract(state: VolcastSolarState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
-        """Extract forecast data from Volcast solar forecast format.
+    def extract(state: VolcastState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
+        """Extract forecast data from Volcast format.
 
         State has been validated by detect(), so all entries are guaranteed to be valid.
         """
