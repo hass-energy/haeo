@@ -266,7 +266,7 @@ class BatteryConfigSchema(ConnectedCommonConfig):
                         device_type="undercharge_partition",
                     ),
                     CONF_PARTITION_COST: FieldHint(
-                        output_type=OutputType.PRICE,
+                        output_type=OutputType.PRICE_RATE,
                         direction="-",
                         time_series=True,
                         default_mode="value",
@@ -293,7 +293,7 @@ class BatteryConfigSchema(ConnectedCommonConfig):
                         device_type="overcharge_partition",
                     ),
                     CONF_PARTITION_COST: FieldHint(
-                        output_type=OutputType.PRICE,
+                        output_type=OutputType.PRICE_RATE,
                         direction="-",
                         time_series=True,
                         default_mode="value",
