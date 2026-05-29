@@ -240,7 +240,8 @@ class HaeoInputNumber(NumberEntity):
             self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
 
         if self._store.mode == InputMode.EDITABLE:
-            # Sync HA state attributes from store's initial values
+            # Refresh to signal readiness (mirrors previous _update_editable_forecast path)
+            self._store.refresh()
             self._sync_from_store()
         else:
             # Subscribe to source entity changes for DRIVEN mode
@@ -279,14 +280,19 @@ class HaeoInputNumber(NumberEntity):
 
     async def _async_load_sync_and_update(self) -> None:
         """Load data, sync attributes, and write state."""
-        await self._async_load_and_sync()
-        self.async_write_ha_state()
+        if await self._async_load_and_sync():
+            self.async_write_ha_state()
 
-    async def _async_load_and_sync(self) -> None:
-        """Load data from store via HA state machine and sync entity attributes."""
+    async def _async_load_and_sync(self) -> bool:
+        """Load data from store via HA state machine and sync entity attributes.
+
+        Returns True if loading succeeded and state was synced.
+        """
         sm = HomeAssistantStateMachine(self.hass)
-        await self._store.async_load(sm)
+        if not await self._store.async_load(sm):
+            return False
         self._sync_from_store()
+        return True
 
     def _sync_from_store(self) -> None:
         """Synchronize HA entity attributes from the store's current state."""

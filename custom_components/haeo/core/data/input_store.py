@@ -265,10 +265,10 @@ def create_input_store(
     - {"type": "none"} or None → EDITABLE mode with no value
     """
     match config_value:
-        case {"type": "entity", "value": entity_ids} if isinstance(entity_ids, list):
+        case {"type": "entity", "value": entity_ids} if isinstance(entity_ids, (list, tuple)):
             return InputStore(
                 mode=InputMode.DRIVEN,
-                source_entity_ids=entity_ids,
+                source_entity_ids=list(entity_ids),
                 time_series=time_series,
                 boundaries=boundaries,
                 get_forecast_timestamps=get_forecast_timestamps,
