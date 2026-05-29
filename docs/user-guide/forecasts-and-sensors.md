@@ -290,7 +290,7 @@ HAEO automatically detects and parses these forecast formats:
 | [Nordpool](https://github.com/custom-components/nordpool)                          | `nordpool`                  | Electricity pricing (Europe)    | Variable intervals  |
 | [HAFO](https://hafo.haeo.io)                                                       | `hafo`                      | Historical load forecasting     | Hourly intervals    |
 | [Solcast Solar](https://github.com/BJReplay/ha-solcast-solar)                      | `solcast_pv_forecast`       | Solar generation                | 30-minute intervals |
-| [Volcast](https://github.com/volter-labs/volcast-ha-integration)             | `volcast`                   | Solar generation                | 5-minute intervals  |
+| [Volcast](https://github.com/volter-labs/volcast-ha-integration)                   | `volcast`                   | Solar generation                | 5-minute intervals  |
 | [Open-Meteo Solar Forecast](https://github.com/rany2/ha-open-meteo-solar-forecast) | `open_meteo_solar_forecast` | Solar generation                | Hourly intervals    |
 
 Format detection is automatic—you don't need to specify the integration type.
