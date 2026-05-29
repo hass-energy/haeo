@@ -501,6 +501,35 @@ async def test_battery_flow_none_cost_skips_rule(
     assert len(rules) == 0
 
 
+async def test_battery_flow_applies_defaults_when_fields_absent(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Battery flow applies hint defaults when pricing fields are absent from input."""
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
+    flow.async_create_entry = Mock(
+        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}}
+    )
+
+    # Don't include charge_cost or discharge_cost - simulates frontend not submitting them
+    user_input = _base_battery_input()
+
+    result = await flow.async_step_user(user_input=_wrap_battery_input(user_input))
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+    rules = _get_rules(hub_entry)
+    assert len(rules) == 2
+
+    # Verify charge cost rule uses default -0.001
+    charge_rule = next(r for r in rules if "charge" in r["name"].lower())
+    assert charge_rule["price"] == as_constant_value(-0.001)
+
+    # Verify discharge cost rule uses default 0.0
+    discharge_rule = next(r for r in rules if "discharge" in r["name"].lower())
+    assert discharge_rule["price"] == as_constant_value(0.0)
+
+
 async def test_battery_flow_excludes_surfaced_fields_from_config(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,

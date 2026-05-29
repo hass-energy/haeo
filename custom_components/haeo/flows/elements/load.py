@@ -211,11 +211,18 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         curtailment_input = user_input.get(SECTION_CURTAILMENT, {})
         hub_entry = self._get_entry()
         translations = {"consumption_cost": f"{name} consumption cost"}
+        subentry = self._get_subentry()
+        is_new = subentry is None
         save_surfaced_rules_from_input(
-            self.hass, hub_entry, name, curtailment_input, SURFACED_PRICE_HINTS, translations
+            self.hass,
+            hub_entry,
+            name,
+            curtailment_input,
+            SURFACED_PRICE_HINTS,
+            translations,
+            apply_defaults=is_new,
         )
 
-        subentry = self._get_subentry()
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
         return self.async_create_entry(title=name, data=config)
