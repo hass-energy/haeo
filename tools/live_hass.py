@@ -32,7 +32,7 @@ from homeassistant import loader
 from homeassistant.auth import auth_manager_from_config
 from homeassistant.auth.models import Credentials
 from homeassistant.config_entries import ConfigEntries, ConfigSubentry
-from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, EVENT_HOMEASSISTANT_STOP
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import category_registry as cr
@@ -374,6 +374,17 @@ async def setup_haeo_entry(hass: HomeAssistant, scenario_config: dict[str, Any])
     return mock_config_entry
 
 
+async def _require_component(
+    hass: HomeAssistant,
+    domain: str,
+    hass_config: dict[str, Any],
+) -> None:
+    """Set up a core component, failing fast when programmatic bootstrap cannot continue."""
+    if not await async_setup_component(hass, domain, hass_config):
+        msg = f"Failed to set up {domain} component"
+        raise RuntimeError(msg)
+
+
 async def _setup_home_assistant_async(
     port: int,
     config_dir: str,
@@ -399,13 +410,9 @@ async def _setup_home_assistant_async(
     loader.async_setup(hass)
 
     hass.config_entries = ConfigEntries(hass, {"_": "placeholder"})
-    hass.bus.async_listen_once(
-        EVENT_HOMEASSISTANT_STOP,
-        hass.config_entries._async_shutdown,
-    )
 
     entity.async_setup(hass)
-    hass.data[translation.TRANSLATION_FLATTEN_CACHE] = translation._TranslationCache(hass)
+    translation.async_setup(hass)
 
     await ar.async_load(hass)
     await cr.async_load(hass)
@@ -415,6 +422,7 @@ async def _setup_home_assistant_async(
     await ir.async_load(hass)
     await lr.async_load(hass)
     await rs.async_load(hass)
+    await hass.config_entries.async_initialize()
 
     hass.auth = await auth_manager_from_config(
         hass,
@@ -434,23 +442,23 @@ async def _setup_home_assistant_async(
     except ImportError:
         pass
 
-    assert await async_setup_component(hass, "http", {"http": http_config})
-    assert await async_setup_component(hass, "websocket_api", {})
-    assert await async_setup_component(hass, "auth", {})
-    assert await async_setup_component(hass, "onboarding", {})
+    await _require_component(hass, "http", {"http": http_config})
+    await _require_component(hass, "websocket_api", {})
+    await _require_component(hass, "auth", {})
+    await _require_component(hass, "onboarding", {})
 
     access_token, refresh_token_value = await _ensure_dev_auth(hass, port=port)
 
-    assert await async_setup_component(hass, "frontend", {})
-    assert await async_setup_component(hass, "config", {})
+    await _require_component(hass, "frontend", {})
+    await _require_component(hass, "config", {})
 
     from homeassistant.helpers.recorder import async_initialize_recorder  # noqa: PLC0415
 
     async_initialize_recorder(hass)
-    assert await async_setup_component(hass, "recorder", {"recorder": {"commit_interval": 1}})
+    await _require_component(hass, "recorder", {"recorder": {"commit_interval": 1}})
 
-    assert await async_setup_component(hass, "calendar", {})
-    assert await async_setup_component(hass, "local_calendar", {})
+    await _require_component(hass, "calendar", {})
+    await _require_component(hass, "local_calendar", {})
 
     hass.set_state(CoreState.running)
     hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
@@ -570,7 +578,7 @@ def _start_live_home_assistant(
 
 def _stop_live_home_assistant(instance: LiveHomeAssistant, thread: threading.Thread) -> None:
     """Stop a live Home Assistant instance."""
-    instance.loop.call_soon_threadsafe(instance._stop_event.set)
+    instance.stop()
     thread.join(timeout=10)
 
 

@@ -132,11 +132,6 @@ split-on-trailing-comma = false
     'FBT001', # Boolean positional argument - required by import-linter Contract interface
 ]
 
-"tools/live_hass.py" = [
-    'S101',   # HA bootstrap uses assert on component setup success
-    'SLF001', # HA internals require private API access during programmatic bootstrap
-]
-
 
 [tool.pyright]
 # Type checking configuration with maximum strictness
