@@ -62,6 +62,7 @@ def load_scenario_environment() -> dict[str, object]:
         environment: dict[str, object] = json.load(environment_file)
     return environment
 
+
 # Regex to extract ```guide and ```guide-setup blocks from markdown
 _GUIDE_BLOCK_RE = re.compile(
     r"^```guide(?P<setup>-setup)?\s*\n(?P<source>.*?)^```\s*$",
