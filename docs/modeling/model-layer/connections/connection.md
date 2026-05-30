@@ -112,13 +112,19 @@ The network solves this lexicographically: primary cost is minimized first, then
 
 ## Outputs
 
-Connection exposes power flow and segment outputs:
+Connection exposes power flow, segment outputs, and sensitivity analysis:
 
 - `connection_power` — power flow through this connection
 - `segments` — nested map of segment names to constraint shadow outputs
+- `connection_marginal_cost` — reduced cost of increasing flow (\$/kWh), from HiGHS column duals
+- `connection_capacity` — available headroom before marginal cost changes (kWh), from HiGHS column ranging
 
 The `segments` output groups segment outputs using the segment names provided in the configuration.
 Adapters use this map to surface segment-specific shadow prices.
+
+The marginal cost and capacity outputs enable [intent engine](../../developer-guide/intent-engine.md) signals
+and grid operator planning signals.
+They account for all constraints the variable participates in (pricing, policies, efficiency, balance).
 
 ## Tag decomposition
 
