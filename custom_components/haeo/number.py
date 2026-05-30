@@ -7,11 +7,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.core.schema import is_none_value
 from custom_components.haeo.elements import (
     get_input_fields,
     get_list_input_fields,
-    get_nested_config_value_by_path,
     is_element_config_schema,
     iter_input_field_paths,
 )
@@ -72,9 +70,10 @@ async def async_setup_entry(
         device_entry = get_or_create_element_device(hass, config_entry, subentry, element_type)
 
         for field_path, field_info in number_fields:
-            # Only create entities for configured fields
-            config_value = get_nested_config_value_by_path(subentry.data, field_path)
-            if config_value is None or is_none_value(config_value):
+            # Only create entities for fields that have a prebuilt store
+            # (none/disabled fields are skipped during store construction)
+            store = runtime_data.input_stores.get((subentry.title, field_path))
+            if store is None:
                 continue
 
             entity = HaeoInputNumber(
@@ -84,12 +83,9 @@ async def async_setup_entry(
                 field_path=field_path,
                 device_entry=device_entry,
                 horizon_manager=horizon_manager,
+                store=store,
             )
             entities.append(entity)
-
-            # Register in runtime_data for coordinator access
-            element_name = subentry.title
-            runtime_data.input_entities[(element_name, field_path)] = entity
 
     if entities:
         _LOGGER.debug("Creating %d number entities for HAEO inputs", len(entities))

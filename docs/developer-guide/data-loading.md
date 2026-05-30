@@ -5,7 +5,8 @@ Technical guide to HAEO's unified time series loading architecture.
 ## Overview
 
 The data loading system transforms Home Assistant sensor data into time series aligned with optimization horizons.
-[Input entities](inputs.md) call this system to load and expose forecast data.
+[Input stores](inputs.md) hold each field's resolved value and call this system to load forecast data; the coordinator
+reads those store values directly, and [input entities](inputs.md) merely display and edit the stores.
 
 The system addresses three core challenges:
 
@@ -29,32 +30,38 @@ The data loading pipeline consists of four stages:
 3. **Combination** ([`forecast_combiner.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/util/forecast_combiner.py)) - Merges multiple sensors into unified data
 4. **Fusion** ([`forecast_fuser.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/util/forecast_fuser.py)) - Aligns data to optimization horizon using interpolation
 
-Input entities call `TimeSeriesLoader.load_intervals() or load_boundaries()` when they need to refresh their data.
-The coordinator reads the already-loaded values from input entities.
+An `InputStore` resolves its field through the shared field resolver (`resolve_field`), which uses this pipeline for
+time series data. Driven stores resolve from source entities via the state machine; editable stores resolve a stored
+constant. The coordinator assembles each element's config from the stores' already-resolved values
+(`load_element_config_from_values`) and subscribes to store change listeners — it never re-reads the state machine.
 
 ```mermaid
 graph LR
-    subgraph "Input Entity"
-        IE[HaeoInputNumber]
+    subgraph "Storage"
+        SE[Config subentry]
+    end
+
+    subgraph "Input Store"
+        IS[InputStore]
     end
 
     subgraph "Loading Pipeline"
+        RF[resolve_field]
         TSL[TimeSeriesLoader]
         Ext[Extraction]
         Comb[Combination]
         Fuse[Fusion]
     end
 
-    subgraph "Runtime Data"
-        RD[runtime_data.inputs]
-    end
-
-    IE --> TSL
+    SE --> IS
+    IS --> RF
+    RF --> TSL
     TSL --> Ext
     Ext --> Comb
     Comb --> Fuse
-    Fuse --> IE
-    IE --> RD
+    Fuse --> IS
+    IS --> Coord[Coordinator]
+    IS --> Ent[HA entity]
 ```
 
 Each stage has a single responsibility and clear interfaces, making the system testable and extensible.
@@ -347,7 +354,7 @@ uv run pytest custom_components/haeo/core/data/ --cov=custom_components.haeo.cor
 
     ---
 
-    How input entities use the loading system.
+    How input stores and entities use the loading system.
 
     [:material-arrow-right: Input entities guide](inputs.md)
 
@@ -371,7 +378,7 @@ uv run pytest custom_components/haeo/core/data/ --cov=custom_components.haeo.cor
 
     ---
 
-    How coordinator reads loaded data.
+    How the coordinator reads loaded data from stores.
 
     [:material-arrow-right: Coordinator guide](coordinator.md)
 

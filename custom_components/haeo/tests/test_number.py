@@ -25,6 +25,7 @@ from custom_components.haeo.core.schema.elements.grid import ELEMENT_TYPE as GRI
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.input_stores import build_input_stores
 from custom_components.haeo.number import async_setup_entry
 
 
@@ -119,6 +120,11 @@ def _add_subentry(
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(entry, subentry)
+    # Rebuild input stores so the platform can wrap them (production builds these
+    # in async_setup_entry before forwarding the platform setup).
+    runtime_data = entry.runtime_data
+    if runtime_data is not None:
+        runtime_data.input_stores = build_input_stores(hass, entry, runtime_data.horizon_manager)
     return subentry
 
 

@@ -14,7 +14,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
-from custom_components.haeo.core.data.input_store import InputMode, create_input_store
+from custom_components.haeo.core.data.input_store import InputMode, InputStore
 from custom_components.haeo.core.schema import (
     as_constant_value,
     is_connection_target,
@@ -23,10 +23,9 @@ from custom_components.haeo.core.schema import (
     is_none_value,
     is_schema_value,
 )
-from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
+from custom_components.haeo.elements import InputFieldPath, find_nested_config_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.util import async_update_subentry_value
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -70,6 +69,7 @@ class HaeoInputSwitch(SwitchEntity):
         field_info: InputFieldInfo[SwitchEntityDescription],
         device_entry: DeviceEntry,
         horizon_manager: HorizonManager,
+        store: InputStore,
         field_path: InputFieldPath | None = None,
     ) -> None:
         """Initialize the input switch entity."""
@@ -85,15 +85,8 @@ class HaeoInputSwitch(SwitchEntity):
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
-        # Create the InputStore (pure core, no HA deps)
-        config_value = get_nested_config_value_by_path(subentry.data, self._field_path)
-        self._store = create_input_store(
-            config_value=config_value,
-            time_series=field_info.time_series,
-            boundaries=True,
-            get_forecast_timestamps=horizon_manager.get_forecast_timestamps,
-            is_percentage=False,
-        )
+        # Wrap the prebuilt InputStore (the system's source of truth)
+        self._store = store
 
         # Set initial HA state from store
         self._attr_is_on = self._bool_from_store()
@@ -173,11 +166,11 @@ class HaeoInputSwitch(SwitchEntity):
             self._sync_from_store()
 
     def _bool_from_store(self) -> bool | None:
-        """Convert store's float value to bool."""
+        """Convert the store's value to a bool, or None when unset."""
         val = self._store.native_value
         if val is None:
             return None
-        return val != 0.0
+        return bool(val)
 
     def _sync_from_store(self) -> None:
         """Synchronize HA entity attributes from the store's current state."""
@@ -186,7 +179,7 @@ class HaeoInputSwitch(SwitchEntity):
         extra_attrs = dict(self._base_extra_attrs)
         if self._attr_is_on is not None:
             local_tz = dt_util.get_default_time_zone()
-            forecast_timestamps = self._store.forecast_timestamps
+            forecast_timestamps = self._horizon_manager.get_forecast_timestamps()
             forecast = [
                 {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._attr_is_on}
                 for ts in forecast_timestamps
@@ -207,7 +200,7 @@ class HaeoInputSwitch(SwitchEntity):
             # Use defaults if no config value
             defaults = self._field_info.defaults
             if self._store.native_value is None and defaults is not None and defaults.value is not None:
-                self._store.set_value(1.0 if defaults.value else 0.0)
+                self._store.set_value(bool(defaults.value))
             self._store.mark_ready()
             self._sync_from_store()
         else:
@@ -249,8 +242,7 @@ class HaeoInputSwitch(SwitchEntity):
             source_ids = self._store.source_entity_ids
             if source_ids:
                 self._store.capture_state(source_ids[0], new_state)
-            value = 1.0 if new_state.state == STATE_ON else 0.0
-            self._store.set_value(value)
+            self._store.set_value(new_state.state == STATE_ON)
             self._sync_from_store()
             self.async_write_ha_state()
 
@@ -263,8 +255,7 @@ class HaeoInputSwitch(SwitchEntity):
         state = self.hass.states.get(source_ids[0])
         if state is not None:
             self._store.capture_state(source_ids[0], state)
-            value = 1.0 if state.state == STATE_ON else 0.0
-            self._store.set_value(value)
+            self._store.set_value(state.state == STATE_ON)
             self._sync_from_store()
 
     def is_ready(self) -> bool:
@@ -285,46 +276,16 @@ class HaeoInputSwitch(SwitchEntity):
         """Return True if this entity produces time-series forecast data."""
         return self._uses_forecast
 
-    @property
-    def horizon_start(self) -> float | None:
-        """Return the first forecast timestamp, or None if not loaded."""
-        forecast = self._attr_extra_state_attributes.get("forecast")
-        if forecast and len(forecast) > 0:
-            first_point = forecast[0]
-            if isinstance(first_point, dict) and "time" in first_point:
-                time_val = first_point["time"]
-                if isinstance(time_val, datetime):
-                    return time_val.timestamp()
-        return None
-
-    def get_values(self) -> tuple[bool, ...] | None:
-        """Return forecast values as booleans, or None if not loaded."""
-        if self._attr_is_on is None:
-            return None
-        forecast_timestamps = self._store.forecast_timestamps
-        return tuple(self._attr_is_on for _ in forecast_timestamps)
-
-    @property
-    def captured_source_states(self) -> dict[str, Any]:
-        """Source states captured when data was last loaded."""
-        return self._store.captured_source_states
-
     async def async_turn_on(self, **_kwargs: Any) -> None:
         """Handle user turning switch on."""
         if self._store.mode == InputMode.DRIVEN:
             self.async_write_ha_state()
             return
 
-        self._store.set_value(1.0)
+        self._store.set_value(value=True)
         self._sync_from_store()
 
-        await async_update_subentry_value(
-            self.hass,
-            self._config_entry,
-            self._subentry,
-            field_path=self._field_path,
-            value=as_constant_value(value=True),
-        )
+        await self._store.persist(as_constant_value(value=True))
 
         self.async_write_ha_state()
 
@@ -334,16 +295,10 @@ class HaeoInputSwitch(SwitchEntity):
             self.async_write_ha_state()
             return
 
-        self._store.set_value(0.0)
+        self._store.set_value(value=False)
         self._sync_from_store()
 
-        await async_update_subentry_value(
-            self.hass,
-            self._config_entry,
-            self._subentry,
-            field_path=self._field_path,
-            value=as_constant_value(value=False),
-        )
+        await self._store.persist(as_constant_value(value=False))
 
         self.async_write_ha_state()
 

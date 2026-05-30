@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Mapping
 from dataclasses import dataclass, field
 import logging
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
@@ -33,12 +32,12 @@ from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.input_stores import InputStoreMap, build_input_stores
 from custom_components.haeo.services import async_setup_services
 
 from . import migrations as _migrations
 
 if TYPE_CHECKING:
-    from custom_components.haeo.core.data.input_store import InputMode
     from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,49 +46,7 @@ async_migrate_entry = _migrations.async_migrate_entry
 MIGRATION_MINOR_VERSION = _migrations.MIGRATION_MINOR_VERSION
 
 
-class InputEntity(Protocol):
-    """Protocol for input entities tracked by the runtime data."""
-
-    entity_id: str
-
-    @property
-    def entity_mode(self) -> InputMode:
-        """Return the entity's operating mode."""
-        ...
-
-    @property
-    def uses_forecast(self) -> bool:
-        """Return True if this entity produces time-series forecast data."""
-        ...
-
-    @property
-    def horizon_start(self) -> float | None:
-        """Return the first forecast timestamp, or None if not loaded."""
-        ...
-
-    def is_ready(self) -> bool:
-        """Return True if data has been loaded and entity is ready."""
-        ...
-
-    def wait_ready(self) -> Awaitable[None]:
-        """Wait for data to be ready."""
-        ...
-
-    def get_values(self) -> tuple[float | bool, ...] | None:
-        """Return forecast values or None if not loaded."""
-        ...
-
-    @property
-    def captured_source_states(self) -> Mapping[str, State]:
-        """Source states captured from the last data load."""
-        ...
-
-
-type InputEntityKey = tuple[str, tuple[str, ...]]
-type InputEntityMap = dict[InputEntityKey, InputEntity]
-
-
-def _create_input_entities() -> InputEntityMap:
+def _create_input_stores() -> InputStoreMap:
     return {}
 
 
@@ -139,7 +96,7 @@ class HaeoRuntimeData:
 
     Attributes:
         horizon_manager: Manager providing forecast time windows.
-        input_entities: Dict of input entities keyed by (element_name, field_path).
+        input_stores: Dict of input stores keyed by (element_name, field_path).
         auto_optimize_switch: Switch controlling automatic optimization.
         coordinator: Coordinator for network-level optimization (set after input platforms).
         value_update_in_progress: Flag to skip reload when updating entity values.
@@ -147,7 +104,7 @@ class HaeoRuntimeData:
     """
 
     horizon_manager: HorizonManager
-    input_entities: InputEntityMap = field(default_factory=_create_input_entities)
+    input_stores: InputStoreMap = field(default_factory=_create_input_stores)
     auto_optimize_switch: AutoOptimizeSwitch | None = field(default=None)
     coordinator: HaeoDataUpdateCoordinator | None = field(default=None)
     value_update_in_progress: bool = field(default=False)
@@ -369,7 +326,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Start horizon manager's scheduled updates - returns stop function
     entry.async_on_unload(horizon_manager.start())
 
-    # Set up input platforms first - they populate runtime_data.input_entities
+    # Build input stores from configuration before any entities exist. The
+    # stores are the system's source of truth; entities wrap them for display
+    # and the coordinator reads their resolved values.
+    runtime_data.input_stores = build_input_stores(hass, entry, horizon_manager)
+
+    # Set up input platforms - entities wrap the prebuilt stores and trigger
+    # their initial load (driven stores from source entities, editable stores
+    # from their persisted value).
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
     # Register cleanup - will be called on failure or unload
     # Return the coroutine directly - HA will wrap it in async_create_task
@@ -377,14 +341,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         lambda: hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)  # type: ignore[arg-type]
     )
 
-    # Wait for all input entities to have their data ready
-    # Each entity signals via asyncio.Event when its forecast data is loaded
-    _LOGGER.debug("Waiting for %d input entities to be ready", len(runtime_data.input_entities))
+    # Wait for all input stores to have their data ready
+    # Each store signals via asyncio.Event when its data is loaded
+    _LOGGER.debug("Waiting for %d input stores to be ready", len(runtime_data.input_stores))
     try:
         async with asyncio.timeout(INPUT_ENTITY_READY_TIMEOUT):
-            await asyncio.gather(*[entity.wait_ready() for entity in runtime_data.input_entities.values()])
+            await asyncio.gather(*[store.wait_ready() for store in runtime_data.input_stores.values()])
     except TimeoutError:
-        not_ready = [key for key, entity in runtime_data.input_entities.items() if not entity.is_ready()]
+        not_ready = [key for key, store in runtime_data.input_stores.items() if not store.is_ready()]
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
             translation_key="input_entities_not_ready",

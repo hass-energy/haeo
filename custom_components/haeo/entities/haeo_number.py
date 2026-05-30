@@ -1,21 +1,20 @@
 """Number entity for HAEO input configuration."""
 
-import asyncio
 from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
-from homeassistant.const import PERCENTAGE, EntityCategory
-from homeassistant.core import Event, State, callback
+from homeassistant.const import EntityCategory
+from homeassistant.core import Event, callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
-from custom_components.haeo.core.data.input_store import InputMode, InputStore, create_input_store
+from custom_components.haeo.core.data.input_store import InputMode, InputStore
 from custom_components.haeo.core.schema import (
     as_constant_value,
     is_connection_target,
@@ -29,7 +28,6 @@ from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.util import async_update_subentry_value
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -71,6 +69,7 @@ class HaeoInputNumber(NumberEntity):
         field_info: InputFieldInfo[NumberEntityDescription],
         device_entry: DeviceEntry,
         horizon_manager: HorizonManager,
+        store: InputStore,
         field_path: InputFieldPath | None = None,
     ) -> None:
         """Initialize the input number entity."""
@@ -86,15 +85,8 @@ class HaeoInputNumber(NumberEntity):
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
-        # Create the InputStore (pure core, no HA deps)
-        config_value = get_nested_config_value_by_path(subentry.data, self._field_path)
-        self._store = create_input_store(
-            config_value=config_value,
-            time_series=field_info.time_series,
-            boundaries=field_info.boundaries,
-            get_forecast_timestamps=horizon_manager.get_forecast_timestamps,
-            is_percentage=field_info.entity_description.native_unit_of_measurement == PERCENTAGE,
-        )
+        # Wrap the prebuilt InputStore (the system's source of truth)
+        self._store = store
 
         # Set initial native value from store
         self._attr_native_value = self._store.native_value
@@ -189,47 +181,6 @@ class HaeoInputNumber(NumberEntity):
         """Return the underlying InputStore."""
         return self._store
 
-    # --- Compatibility shims for test access to internals ---
-
-    @property
-    def _entity_mode(self) -> InputMode:
-        return self._store.mode
-
-    @property
-    def _source_entity_ids(self) -> list[str]:
-        return self._store.source_entity_ids
-
-    @property
-    def _scalar_loader(self) -> Any:
-        return self._store._scalar_loader  # noqa: SLF001
-
-    @property
-    def _time_series_loader(self) -> Any:
-        return self._store._time_series_loader  # noqa: SLF001
-
-    @property
-    def _data_ready(self) -> asyncio.Event:
-        return self._store._data_ready  # noqa: SLF001
-
-    def _update_editable_forecast(self) -> None:
-        self._store.refresh()
-        self._sync_from_store()
-
-    @property
-    def _loader(self) -> Any:
-        return self._store._time_series_loader  # noqa: SLF001
-
-    @_loader.setter
-    def _loader(self, value: Any) -> None:
-        self._store._time_series_loader = value  # noqa: SLF001
-
-    async def _async_load_data(self) -> None:
-        sm = HomeAssistantStateMachine(self.hass)
-        await self._store.async_load(sm)
-        self._sync_from_store()
-
-    # --- End compatibility shims ---
-
     async def async_added_to_hass(self) -> None:
         """Set up state tracking and load initial data."""
         await super().async_added_to_hass()
@@ -306,34 +257,24 @@ class HaeoInputNumber(NumberEntity):
     def _build_forecast_attribute(self) -> list[dict[str, Any]]:
         """Build the HA forecast attribute from store values.
 
-        Converts raw store values into HA-formatted forecast dicts with
-        localized datetime objects.
+        Uses the store's display values (percentage fields already scaled back
+        to 0-100) paired with the loaded forecast timestamps.
         """
-        # Get raw values from store (before percentage conversion — use native_value based)
-        # We need the unconverted values for the forecast attribute display
+        if not self._uses_forecast:
+            return []
+
+        display_values = self._store.display_values
+        if display_values is None:
+            return []
+
         forecast_timestamps = self._store.forecast_timestamps
         local_tz = dt_util.get_default_time_zone()
 
-        # Reconstruct raw values from store internals for display
-        # The forecast attribute shows the raw value (not percentage-converted)
-        values = self._store.values
-        if values is None:
-            return []
-
-        # If percentage was applied, undo it for display purposes
-        display_values = tuple(v * 100.0 for v in values) if self._store._is_percentage else values  # noqa: SLF001
-
-        if self._uses_forecast:
-            if self._field_info.boundaries:
-                return [
-                    {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
-                    for ts, val in zip(forecast_timestamps, display_values, strict=True)
-                ]
-            return [
-                {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
-                for ts, val in zip(forecast_timestamps[:-1], display_values, strict=True)
-            ]
-        return []
+        timestamps = forecast_timestamps if self._field_info.boundaries else forecast_timestamps[:-1]
+        return [
+            {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
+            for ts, val in zip(timestamps, display_values, strict=True)
+        ]
 
     def is_ready(self) -> bool:
         """Return True if data has been loaded and entity is ready."""
@@ -353,38 +294,11 @@ class HaeoInputNumber(NumberEntity):
         """Return True if this entity produces time-series forecast data."""
         return self._uses_forecast
 
-    @property
-    def horizon_start(self) -> float | None:
-        """Return the first forecast timestamp, or None if not loaded."""
-        forecast = self._attr_extra_state_attributes.get("forecast")
-        if forecast and len(forecast) > 0:
-            first_point = forecast[0]
-            if isinstance(first_point, dict) and "time" in first_point:
-                time_val = first_point["time"]
-                if isinstance(time_val, datetime):
-                    return time_val.timestamp()
-        return None
-
-    def get_values(self) -> tuple[float, ...] | None:
-        """Return the forecast values as a tuple, or None if not loaded."""
-        return self._store.get_values()
-
-    @property
-    def captured_source_states(self) -> Mapping[str, State]:
-        """Source states captured when data was last loaded.
-
-        Maps store's EntityState objects to HA State objects. In practice,
-        HomeAssistantStateMachine returns HA State objects which satisfy
-        both protocols, so this is a safe cast.
-        """
-        # The states stored are actually HA State objects (from HomeAssistantStateMachine)
-        return self._store.captured_source_states  # type: ignore[return-value]
-
     async def async_set_native_value(self, value: float) -> None:
         """Handle user setting a value.
 
         In DRIVEN mode, user changes are effectively ignored.
-        In EDITABLE mode, the value is persisted to config entry.
+        In EDITABLE mode, the store is updated and persisted to config entry.
         """
         if self._store.mode == InputMode.DRIVEN:
             self.async_write_ha_state()
@@ -393,14 +307,8 @@ class HaeoInputNumber(NumberEntity):
         self._store.set_value(value)
         self._sync_from_store()
 
-        # Persist to config entry
-        await async_update_subentry_value(
-            self.hass,
-            self._config_entry,
-            self._subentry,
-            field_path=self._field_path,
-            value=as_constant_value(value),
-        )
+        # Persist through the store's storage binding
+        await self._store.persist(as_constant_value(value))
 
         self.async_write_ha_state()
 
