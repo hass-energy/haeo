@@ -369,9 +369,18 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         pricing_input = self._step1_data.get(SECTION_PRICING, {})
         hub_entry = self._get_entry()
         translations = self._surfaced_rule_translations(name)
-        save_surfaced_rules_from_input(self.hass, hub_entry, name, pricing_input, SURFACED_PRICE_HINTS, translations)
-
         subentry = self._get_subentry()
+        is_new = subentry is None
+        save_surfaced_rules_from_input(
+            self.hass,
+            hub_entry,
+            name,
+            pricing_input,
+            SURFACED_PRICE_HINTS,
+            translations,
+            apply_defaults=is_new,
+        )
+
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
         return self.async_create_entry(title=name, data=config)

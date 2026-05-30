@@ -245,11 +245,21 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
             coordinator.signal_optimization_stale()
         return
 
-    # Clean up policy rules that reference deleted elements
-    _cleanup_policy_rules(hass, entry)
+    # Clean up policy rules that reference deleted elements. An element's
+    # subentry is committed only after its config flow finishes, but the flow
+    # writes the element's surfaced policy rules before that. Skip cleanup while
+    # a subentry flow for this entry is active so those rules are not mistaken
+    # for orphans; element deletions do not run a flow, so they still clean up.
+    if not _element_flow_in_progress(hass, entry):
+        _cleanup_policy_rules(hass, entry)
 
     _LOGGER.info("HAEO configuration changed, reloading integration")
     hass.config_entries.async_schedule_reload(entry.entry_id)
+
+
+def _element_flow_in_progress(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Return whether a subentry config flow for this entry is in progress."""
+    return any(flow["handler"][0] == entry.entry_id for flow in hass.config_entries.subentries.async_progress())
 
 
 def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
