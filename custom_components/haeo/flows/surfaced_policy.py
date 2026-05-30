@@ -279,15 +279,36 @@ def save_surfaced_rules_from_input(
     user_input: Mapping[str, Any],
     surfaced_hints: dict[str, SurfacedPriceHint],
     translations: Mapping[str, str],
+    *,
+    apply_defaults: bool = False,
 ) -> None:
     """Save surfaced policy rules from element config flow input.
 
     Reads the surfaced price field values from user_input and creates,
     updates, or deletes the corresponding policy rules.
+
+    When apply_defaults is True, fields absent from user_input use the
+    hint's default_value. This handles the case where the frontend does
+    not submit a suggested value for a field (e.g. on initial element
+    creation).
     """
     for field_name, hint in surfaced_hints.items():
-        raw_value = user_input.get(field_name)
+        if field_name in user_input:
+            raw_value = user_input[field_name]
+        elif apply_defaults:
+            raw_value = None
+        else:
+            continue
+
         price = form_value_to_price(raw_value)
+
+        # When the frontend submits the field but with a value that doesn't
+        # produce a price (e.g. ChooseSelector couldn't render a negative
+        # suggested value so the field was empty), apply the hint default
+        # for new elements instead of skipping the rule.
+        if price is None and apply_defaults and hint.hint.default_value is not None:
+            price = form_value_to_price(hint.hint.default_value)
+
         source, target = _resolve_endpoints(hint, element_name)
         rule_name = translations.get(field_name, f"{element_name} {field_name}")
         save_surfaced_rule(
