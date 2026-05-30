@@ -23,7 +23,6 @@ import sys
 
 from playwright.sync_api import sync_playwright
 
-from tests.guides.ha_runner import LiveHomeAssistant, live_home_assistant
 from tests.guides.primitives import (
     ConstantInput,
     EntityInput,
@@ -45,6 +44,7 @@ from tests.guides.primitives import (
     verify_setup,
 )
 from tools.guide_hashing import compute_content_hash, compute_page_hash, extract_sources
+from tools.live_hass import LiveHomeAssistant, live_home_assistant
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,6 +53,14 @@ PROJECT_ROOT = Path(__file__).parent.parent
 DOCS_DIR = PROJECT_ROOT / "docs"
 SCENARIO_DIR = PROJECT_ROOT / "tests" / "scenarios" / "scenario1"
 INPUTS_FILE = SCENARIO_DIR / "inputs.json"
+ENVIRONMENT_FILE = SCENARIO_DIR / "environment.json"
+
+
+def load_scenario_environment() -> dict[str, object]:
+    """Load scenario environment used to bootstrap live Home Assistant."""
+    with ENVIRONMENT_FILE.open(encoding="utf-8") as environment_file:
+        environment: dict[str, object] = json.load(environment_file)
+    return environment
 
 # Regex to extract ```guide and ```guide-setup blocks from markdown
 _GUIDE_BLOCK_RE = re.compile(
@@ -354,7 +362,9 @@ def run_guide_from_markdown(
 
     viewport = {"width": 1280, "height": 800}
 
-    with live_home_assistant(timeout=120) as hass:
+    scenario_environment = load_scenario_environment()
+
+    with live_home_assistant(timeout=120, environment=scenario_environment) as hass:
         hass.load_states_from_file(INPUTS_FILE)
 
         # Run light mode
@@ -362,7 +372,7 @@ def run_guide_from_markdown(
         light_results = run_blocks_for_mode(hass, blocks, output_dir, "light", headless=headless)
 
     # Need a fresh HA instance for dark mode (different auth/theme state)
-    with live_home_assistant(timeout=120) as hass:
+    with live_home_assistant(timeout=120, environment=scenario_environment) as hass:
         hass.load_states_from_file(INPUTS_FILE)
 
         # Run dark mode

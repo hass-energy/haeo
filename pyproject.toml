@@ -10,6 +10,7 @@ dependencies = ["homeassistant>=2026.1.1", "numpy>=2.3.2", "highspy>=1.12.0"]
 [project.scripts]
 diag = "tools.diag:main"
 snapshot = "tools.snapshot:main"
+sim = "tools.sim:main"
 
 [dependency-groups]
 dev = [
@@ -129,6 +130,11 @@ split-on-trailing-comma = false
 "tools/**/*.py" = [
     'T201',   # Allow print statements in CLI tools
     'FBT001', # Boolean positional argument - required by import-linter Contract interface
+]
+
+"tools/live_hass.py" = [
+    'S101',   # HA bootstrap uses assert on component setup success
+    'SLF001', # HA internals require private API access during programmatic bootstrap
 ]
 
 

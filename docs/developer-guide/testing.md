@@ -26,6 +26,19 @@ Tests are colocated with source code in `tests/` subdirectories within each pack
 
 **Scenario tests**: Complete battery + solar + grid systems with realistic data
 
+## Local Home Assistant simulation
+
+Use `uv run sim` to boot a live Home Assistant instance with time-shifted scenario inputs for interactive testing.
+This is the recommended way to explore HAEO behavior with realistic forecast and price data.
+
+```bash
+uv run sim scenario1
+uv run sim scenario1 --interval 30 --speed 60
+uv run sim scenario1 --no-config
+```
+
+See [Local simulation](local-sim.md) for full options and architecture.
+
 ## Scenario Testing
 
 Scenario tests verify complete system integration with realistic Home Assistant data.
