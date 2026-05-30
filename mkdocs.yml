@@ -214,6 +214,7 @@ nav:
       - Horizon Manager: developer-guide/horizon-manager.md
       - Input Entities: developer-guide/inputs.md
       - Setup: developer-guide/setup.md
+      - Local simulation: developer-guide/local-sim.md
       - Typing Philosophy: developer-guide/typing.md
       - Units & Stability: developer-guide/units.md
       - Energy Models: developer-guide/energy-models.md

@@ -10,7 +10,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tests.guides.ha_runner import LiveHomeAssistant
+    from tools.live_hass import LiveHomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
