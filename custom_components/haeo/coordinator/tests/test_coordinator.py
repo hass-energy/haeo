@@ -93,6 +93,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION as CONF_CONNECTION_GRID
+from custom_components.haeo.elements import get_element_configs
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.input_stores import build_input_stores
 
@@ -302,9 +303,7 @@ def test_load_element_config_reflects_store_values(
     input entities mutate them) is reflected on the next load without rebuilding.
     """
     # Build the real stores backing this element's configured fields.
-    mock_runtime_data.input_stores = build_input_stores(
-        hass, mock_hub_entry, mock_runtime_data.horizon_manager
-    )
+    mock_runtime_data.input_stores = build_input_stores(hass, mock_hub_entry, mock_runtime_data.horizon_manager)
 
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
@@ -1313,14 +1312,15 @@ async def test_async_update_data_raises_when_runtime_data_none_in_body(
         await coordinator._async_update_data()
 
 
-def test_get_participant_configs_raises_for_invalid_element_type(
+def test_get_element_configs_raises_for_invalid_element_type(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Reading configs raises for elements with invalid element types."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    """Reading configs raises for elements with invalid element types.
 
+    The coordinator snapshots participant configs at construction via
+    ``get_element_configs``; this exercises that validation boundary directly.
+    """
     invalid_subentry = ConfigSubentry(
         data=MappingProxyType(
             {
@@ -1333,10 +1333,9 @@ def test_get_participant_configs_raises_for_invalid_element_type(
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(mock_hub_entry, invalid_subentry)
-    coordinator._participant_subentry_ids["Invalid Element"] = invalid_subentry.subentry_id
 
     with pytest.raises(ValueError, match="Subentry 'Invalid Element' failed config validation"):
-        coordinator._get_participant_configs()
+        get_element_configs(mock_hub_entry, {"Invalid Element": invalid_subentry.subentry_id})
 
 
 def test_get_participant_configs_skips_removed_subentry(
