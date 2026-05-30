@@ -1,16 +1,17 @@
-"""In-process Home Assistant runner for dev tools and guide tests.
+"""In-process Home Assistant runner for guide tests.
 
 This module provides a way to run Home Assistant entirely in-process with
-an HTTP server on an ephemeral port, allowing browser automation via Playwright
-or interactive development via ``uv run sim``.
+an HTTP server on an ephemeral port, allowing browser automation via Playwright.
 
 The key insight is that we can:
 1. Create a HomeAssistant instance with a minimal temp config directory
 2. Set up the HTTP, frontend, and auth components programmatically
 3. Load entity states directly via hass.states.async_set()
 4. Run the event loop in a background thread
-5. Access the HA instance from the main thread for automation
+5. Access the HA instance from the main thread for Playwright automation
 6. Pre-create an owner user and auth token to bypass onboarding UI
+
+This avoids needing config files, YAML, or packages - just load states from JSON.
 """
 
 from __future__ import annotations
@@ -24,14 +25,13 @@ from pathlib import Path
 import socket
 import tempfile
 import threading
-from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 import warnings
 
 from homeassistant import loader
 from homeassistant.auth import auth_manager_from_config
 from homeassistant.auth.models import Credentials
-from homeassistant.config_entries import ConfigEntries, ConfigSubentry
+from homeassistant.config_entries import ConfigEntries
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers import area_registry as ar
@@ -44,28 +44,14 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers import restore_state as rs
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-
-from custom_components.haeo import MIGRATION_MINOR_VERSION
-from custom_components.haeo.const import DOMAIN, INTEGRATION_TYPE_HUB
-from custom_components.haeo.core.const import (
-    CONF_ELEMENT_TYPE,
-    CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-)
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 
 if TYPE_CHECKING:
     from playwright.sync_api import BrowserContext
 
 PROJECT_ROOT = Path(__file__).parent.parent
+
+# Client ID for refresh tokens (matches HA frontend)
+CLIENT_ID = "http://127.0.0.1/"
 
 
 def _find_free_port() -> int:
@@ -76,108 +62,24 @@ def _find_free_port() -> int:
         return sock.getsockname()[1]
 
 
-def _client_id(port: int) -> str:
-    """Return the OAuth client ID for a live Home Assistant instance."""
-    return f"http://127.0.0.1:{port}/"
-
-
-def _write_onboarding_storage(config_dir: str) -> None:
-    """Mark onboarding complete before Home Assistant initializes storage caches."""
-    storage_dir = Path(config_dir) / ".storage"
-    storage_dir.mkdir(parents=True, exist_ok=True)
-    onboarding_storage = storage_dir / "onboarding"
-    onboarding_data = {
-        "version": 4,
-        "minor_version": 1,
-        "key": "onboarding",
-        "data": {"done": ["user", "core_config", "analytics", "integration"]},
-    }
-    onboarding_storage.write_text(json.dumps(onboarding_data))
-
-
-def _find_dev_user(users: list[Any]) -> Any | None:
-    """Return the developer user if one already exists in storage."""
-    for user in users:
-        if user.system_generated:
-            continue
-        if user.name == "Test User":
-            return user
-        for credential in user.credentials:
-            if credential.data.get("username") == "testuser":
-                return user
-
-    for user in users:
-        if user.is_owner and not user.system_generated:
-            return user
-
-    return None
-
-
-def _find_testuser(users: list[Any]) -> tuple[Any, Credentials] | None:
-    """Return the user and credential for testuser when already linked."""
-    for user in users:
-        for credential in user.credentials:
-            if credential.data.get("username") == "testuser":
-                return user, credential
-    return None
-
-
-async def _ensure_dev_auth(hass: HomeAssistant, *, port: int) -> tuple[str, str]:
-    """Ensure onboarding is bypassed and testuser credentials exist."""
-    from homeassistant.components.onboarding import async_is_onboarded  # noqa: PLC0415
-
-    if not async_is_onboarded(hass):
-        msg = "Onboarding bypass failed - check storage file format and timing"
+async def _require_component(
+    hass: HomeAssistant,
+    domain: str,
+    hass_config: dict[str, Any],
+) -> None:
+    """Set up a core component, failing fast when programmatic bootstrap cannot continue."""
+    if not await async_setup_component(hass, domain, hass_config):
+        msg = f"Failed to set up {domain} component"
         raise RuntimeError(msg)
-
-    client_id = _client_id(port)
-    provider = hass.auth.auth_providers[0]
-    users = await hass.auth.async_get_users()
-    linked = _find_testuser(users)
-
-    if linked is None:
-        await provider.async_add_auth("testuser", "testpass")  # pyright: ignore[reportAttributeAccessIssue]
-        owner = _find_dev_user(users)
-        if owner is None:
-            owner = await hass.auth.async_create_user(
-                name="Test User",
-                group_ids=["system-admin"],
-            )
-        credential = Credentials(
-            id="test-credential",
-            auth_provider_type="homeassistant",
-            auth_provider_id=None,
-            data={"username": "testuser"},
-            is_new=False,
-        )
-        await hass.auth.async_link_user(owner, credential)
-    else:
-        owner, credential = linked
-
-    refresh_token = await hass.auth.async_create_refresh_token(
-        owner,
-        client_id,
-        credential=credential,
-    )
-    access_token = hass.auth.async_create_access_token(refresh_token)
-    return access_token, refresh_token.token
-
-
-AUTH_BOOTSTRAP_FILENAME = "haeo-sim-login.html"
-
-
-def _ensure_haeo_symlink(config_dir: Path) -> None:
-    """Ensure custom_components/haeo symlink exists in the config directory."""
-    custom_components = config_dir / "custom_components"
-    custom_components.mkdir(parents=True, exist_ok=True)
-    haeo_target = custom_components / "haeo"
-    if not haeo_target.exists():
-        haeo_target.symlink_to(PROJECT_ROOT / "custom_components" / "haeo")
 
 
 @dataclass
 class LiveHomeAssistant:
-    """A running Home Assistant instance with HTTP server."""
+    """A running Home Assistant instance with HTTP server.
+
+    Provides methods to interact with the HA instance from outside
+    the event loop thread.
+    """
 
     hass: HomeAssistant
     url: str
@@ -222,7 +124,7 @@ class LiveHomeAssistant:
             states = json.load(f)
         self.set_states(states)
 
-    def run_coro(self, coro: Any, timeout: float | None = 30) -> Any:
+    def run_coro(self, coro: Any, timeout: float = 30) -> Any:
         """Run a coroutine on the HA event loop."""
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         return future.result(timeout=timeout)
@@ -249,7 +151,14 @@ class LiveHomeAssistant:
 
         context.route("**/*", add_auth_header)
 
-        token_data = _auth_token_data(self)
+        token_data = {
+            "hassUrl": self.url,
+            "clientId": CLIENT_ID,
+            "access_token": self.access_token,
+            "refresh_token": self.refresh_token,
+            "token_type": "Bearer",
+            "expires_in": 1800,
+        }
 
         theme_js = ""
         if dark_mode:
@@ -263,39 +172,6 @@ class LiveHomeAssistant:
             {theme_js}
         """
         context.add_init_script(init_script)
-
-    def publish_browser_auth(self) -> str:
-        """Write a same-origin bootstrap page that stores auth tokens for the frontend."""
-        config_dir = Path(self.hass.config.config_dir)
-        www_dir = config_dir / "www"
-        www_dir.mkdir(parents=True, exist_ok=True)
-
-        token_data = _auth_token_data(self)
-        bootstrap_path = www_dir / AUTH_BOOTSTRAP_FILENAME
-        bootstrap_path.write_text(
-            f"""<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>HAEO Sim Login</title>
-  </head>
-  <body>
-    <script>
-      localStorage.setItem("hassTokens", JSON.stringify({json.dumps(token_data)}));
-      window.location.replace({json.dumps(f"{self.url}/")});
-    </script>
-  </body>
-</html>
-""",
-            encoding="utf-8",
-        )
-        return f"{self.url}/local/{AUTH_BOOTSTRAP_FILENAME}"
-
-    def remove_browser_auth(self) -> None:
-        """Remove the temporary browser auth bootstrap page."""
-        bootstrap_path = Path(self.hass.config.config_dir) / "www" / AUTH_BOOTSTRAP_FILENAME
-        if bootstrap_path.exists():
-            bootstrap_path.unlink()
 
     def call_service(
         self,
@@ -323,79 +199,23 @@ class LiveHomeAssistant:
         self.loop.call_soon_threadsafe(self._stop_event.set)
 
 
-def _auth_token_data(live_hass: LiveHomeAssistant) -> dict[str, object]:
-    """Return frontend localStorage token payload for a live instance."""
-    return {
-        "hassUrl": live_hass.url,
-        "clientId": _client_id(live_hass.port),
-        "access_token": live_hass.access_token,
-        "refresh_token": live_hass.refresh_token,
-        "token_type": "Bearer",
-        "expires_in": 1800,
-    }
-
-
-async def setup_haeo_entry(hass: HomeAssistant, scenario_config: dict[str, Any]) -> MockConfigEntry:
-    """Create and set up a HAEO hub config entry from scenario config data."""
-    tiers_data = scenario_config.get("tiers") or scenario_config
-    mock_config_entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            "integration_type": INTEGRATION_TYPE_HUB,
-            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
-            HUB_SECTION_TIERS: {
-                CONF_TIER_1_COUNT: tiers_data["tier_1_count"],
-                CONF_TIER_1_DURATION: tiers_data["tier_1_duration"],
-                CONF_TIER_2_COUNT: tiers_data.get("tier_2_count", 0),
-                CONF_TIER_2_DURATION: tiers_data.get("tier_2_duration", 5),
-                CONF_TIER_3_COUNT: tiers_data.get("tier_3_count", 0),
-                CONF_TIER_3_DURATION: tiers_data.get("tier_3_duration", 30),
-                CONF_TIER_4_COUNT: tiers_data.get("tier_4_count", 0),
-                CONF_TIER_4_DURATION: tiers_data.get("tier_4_duration", 60),
-            },
-            HUB_SECTION_ADVANCED: {},
-        },
-        version=scenario_config.get("version", 1),
-        minor_version=scenario_config.get("minor_version", MIGRATION_MINOR_VERSION),
-    )
-    mock_config_entry.add_to_hass(hass)
-
-    for name, config in scenario_config["participants"].items():
-        subentry = ConfigSubentry(
-            data=MappingProxyType(config),
-            subentry_type=config[CONF_ELEMENT_TYPE],
-            title=name,
-            unique_id=None,
-        )
-        hass.config_entries.async_add_subentry(mock_config_entry, subentry)
-
-    await hass.config_entries.async_setup(mock_config_entry.entry_id)
-    await hass.async_block_till_done(wait_background_tasks=True)
-    return mock_config_entry
-
-
-async def _require_component(
-    hass: HomeAssistant,
-    domain: str,
-    hass_config: dict[str, Any],
-) -> None:
-    """Set up a core component, failing fast when programmatic bootstrap cannot continue."""
-    if not await async_setup_component(hass, domain, hass_config):
-        msg = f"Failed to set up {domain} component"
-        raise RuntimeError(msg)
-
-
 async def _setup_home_assistant_async(
     port: int,
     config_dir: str,
     *,
-    environment: dict[str, Any] | None = None,
+    timezone: str = "UTC",
 ) -> tuple[HomeAssistant, str, str]:
     """Set up a Home Assistant instance with HTTP server and pre-authenticated user."""
-    scenario_environment = environment or {}
-    timezone = scenario_environment.get("timezone", "UTC")
-
-    _write_onboarding_storage(config_dir)
+    storage_dir = Path(config_dir) / ".storage"
+    storage_dir.mkdir(exist_ok=True)
+    onboarding_storage = storage_dir / "onboarding"
+    onboarding_data = {
+        "version": 4,
+        "minor_version": 1,
+        "key": "onboarding",
+        "data": {"done": ["user", "core_config", "analytics", "integration"]},
+    }
+    onboarding_storage.write_text(json.dumps(onboarding_data))
 
     hass = HomeAssistant(config_dir)
 
@@ -430,6 +250,31 @@ async def _setup_home_assistant_async(
         module_configs=[],
     )
 
+    provider = hass.auth.auth_providers[0]
+    await provider.async_add_auth("testuser", "testpass")  # pyright: ignore[reportAttributeAccessIssue]
+
+    owner = await hass.auth.async_create_user(
+        name="Test User",
+        group_ids=["system-admin"],
+    )
+
+    credential = Credentials(
+        id="test-credential",
+        auth_provider_type="homeassistant",
+        auth_provider_id=None,
+        data={"username": "testuser"},
+        is_new=False,
+    )
+    await hass.auth.async_link_user(owner, credential)
+
+    refresh_token = await hass.auth.async_create_refresh_token(
+        owner,
+        CLIENT_ID,
+        credential=credential,
+    )
+    access_token = hass.auth.async_create_access_token(refresh_token)
+    refresh_token_value = refresh_token.token
+
     http_config = {
         "server_port": port,
     }
@@ -447,7 +292,11 @@ async def _setup_home_assistant_async(
     await _require_component(hass, "auth", {})
     await _require_component(hass, "onboarding", {})
 
-    access_token, refresh_token_value = await _ensure_dev_auth(hass, port=port)
+    from homeassistant.components.onboarding import async_is_onboarded  # noqa: PLC0415
+
+    if not async_is_onboarded(hass):
+        msg = "Onboarding bypass failed - check storage file format and timing"
+        raise RuntimeError(msg)
 
     await _require_component(hass, "frontend", {})
     await _require_component(hass, "config", {})
@@ -472,7 +321,7 @@ async def _setup_home_assistant_async(
 def _run_hass_thread(
     port: int,
     config_dir: str,
-    environment: dict[str, Any] | None,
+    timezone: str,
     hass_holder: list[HomeAssistant],
     token_holder: list[tuple[str, str]],
     loop_holder: list[asyncio.AbstractEventLoop],
@@ -493,7 +342,7 @@ def _run_hass_thread(
             hass, access_token, refresh_token_value = await _setup_home_assistant_async(
                 port,
                 config_dir,
-                environment=environment,
+                timezone=timezone,
             )
             hass_holder.append(hass)
             token_holder.append((access_token, refresh_token_value))
@@ -512,116 +361,80 @@ def _run_hass_thread(
         loop.close()
 
 
-def _start_live_home_assistant(
-    config_dir: Path,
-    *,
-    timeout: float,
-    port: int | None,
-    environment: dict[str, Any] | None,
-) -> tuple[LiveHomeAssistant, threading.Thread]:
-    """Start HA in a background thread and return the live instance."""
-    _ensure_haeo_symlink(config_dir)
-    resolved_port = port if port is not None else _find_free_port()
-    hass_holder: list[HomeAssistant] = []
-    token_holder: list[tuple[str, str]] = []
-    loop_holder: list[asyncio.AbstractEventLoop] = []
-    error_holder: list[Exception] = []
-    async_stop_event_holder: list[asyncio.Event] = []
-    ready_event = threading.Event()
-
-    thread = threading.Thread(
-        target=_run_hass_thread,
-        args=(
-            resolved_port,
-            str(config_dir),
-            environment,
-            hass_holder,
-            token_holder,
-            loop_holder,
-            ready_event,
-            async_stop_event_holder,
-            error_holder,
-        ),
-        daemon=True,
-    )
-    thread.start()
-
-    if not ready_event.wait(timeout=timeout):
-        if loop_holder and async_stop_event_holder:
-            loop_holder[0].call_soon_threadsafe(async_stop_event_holder[0].set)
-        thread.join(timeout=5)
-        msg = f"Home Assistant did not start within {timeout}s"
-        raise TimeoutError(msg)
-
-    if error_holder:
-        if loop_holder and async_stop_event_holder:
-            loop_holder[0].call_soon_threadsafe(async_stop_event_holder[0].set)
-        thread.join(timeout=5)
-        raise error_holder[0]
-
-    hass = hass_holder[0]
-    access_token, refresh_token_value = token_holder[0]
-    loop = loop_holder[0]
-    async_stop_event = async_stop_event_holder[0]
-
-    instance = LiveHomeAssistant(
-        hass=hass,
-        url=f"http://127.0.0.1:{resolved_port}",
-        port=resolved_port,
-        loop=loop,
-        access_token=access_token,
-        refresh_token=refresh_token_value,
-        _stop_event=async_stop_event,
-    )
-    return instance, thread
-
-
-def _stop_live_home_assistant(instance: LiveHomeAssistant, thread: threading.Thread) -> None:
-    """Stop a live Home Assistant instance."""
-    instance.stop()
-    thread.join(timeout=10)
-
-
 @contextmanager
 def live_home_assistant(
     timeout: float = 60.0,
     *,
-    config_dir: Path | None = None,
-    port: int | None = None,
     environment: dict[str, Any] | None = None,
 ) -> Generator[LiveHomeAssistant]:
-    """Context manager for a live Home Assistant instance.
+    """Context manager for a live Home Assistant instance."""
+    scenario_environment = environment or {}
+    timezone = str(scenario_environment.get("timezone", "UTC"))
 
-    Args:
-        timeout: Maximum seconds to wait for HA to start.
-        config_dir: Optional persistent config directory. When omitted, a temporary
-            directory is created and removed on exit.
-        port: Optional fixed HTTP port. When omitted, an ephemeral port is chosen.
-        environment: Optional scenario environment dict. When provided, ``timezone``
-            is applied during bootstrap and onboarding/auth are prepared for dev use.
+    with tempfile.TemporaryDirectory(prefix="ha_live_") as tmp_dir:
+        guide_config_dir = Path(tmp_dir)
+        config_dir = str(guide_config_dir)
 
-    """
-    if config_dir is None:
-        with tempfile.TemporaryDirectory(prefix="ha_live_") as tmp_dir:
-            instance, thread = _start_live_home_assistant(
-                Path(tmp_dir),
-                timeout=timeout,
-                port=port,
-                environment=environment,
-            )
-            try:
-                yield instance
-            finally:
-                _stop_live_home_assistant(instance, thread)
-    else:
-        config_dir.mkdir(parents=True, exist_ok=True)
-        instance, thread = _start_live_home_assistant(
-            config_dir,
-            timeout=timeout,
-            port=port,
-            environment=environment,
+        custom_components = guide_config_dir / "custom_components"
+        custom_components.mkdir()
+        haeo_target = custom_components / "haeo"
+        haeo_target.symlink_to(PROJECT_ROOT / "custom_components" / "haeo")
+
+        port = _find_free_port()
+        hass_holder: list[HomeAssistant] = []
+        token_holder: list[tuple[str, str]] = []
+        loop_holder: list[asyncio.AbstractEventLoop] = []
+        error_holder: list[Exception] = []
+        async_stop_event_holder: list[asyncio.Event] = []
+        ready_event = threading.Event()
+
+        thread = threading.Thread(
+            target=_run_hass_thread,
+            args=(
+                port,
+                config_dir,
+                timezone,
+                hass_holder,
+                token_holder,
+                loop_holder,
+                ready_event,
+                async_stop_event_holder,
+                error_holder,
+            ),
+            daemon=True,
         )
+        thread.start()
+
+        if not ready_event.wait(timeout=timeout):
+            if loop_holder and async_stop_event_holder:
+                loop_holder[0].call_soon_threadsafe(async_stop_event_holder[0].set)
+            thread.join(timeout=5)
+            msg = f"Home Assistant did not start within {timeout}s"
+            raise TimeoutError(msg)
+
+        if error_holder:
+            if loop_holder and async_stop_event_holder:
+                loop_holder[0].call_soon_threadsafe(async_stop_event_holder[0].set)
+            thread.join(timeout=5)
+            raise error_holder[0]
+
+        hass = hass_holder[0]
+        access_token, refresh_token_value = token_holder[0]
+        loop = loop_holder[0]
+        async_stop_event = async_stop_event_holder[0]
+
+        instance = LiveHomeAssistant(
+            hass=hass,
+            url=f"http://127.0.0.1:{port}",
+            port=port,
+            loop=loop,
+            access_token=access_token,
+            refresh_token=refresh_token_value,
+            _stop_event=async_stop_event,
+        )
+
         try:
             yield instance
         finally:
-            _stop_live_home_assistant(instance, thread)
+            instance.stop()
+            thread.join(timeout=10)

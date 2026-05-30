@@ -26,7 +26,8 @@ from zoneinfo import ZoneInfo
 
 from freezegun import freeze_time
 
-from tools.live_hass import LiveHomeAssistant, live_home_assistant, setup_haeo_entry
+from tools.live_hass import LiveHomeAssistant
+from tools.sim_hass import live_sim_home_assistant, publish_browser_auth, remove_browser_auth, setup_haeo_entry
 from tools.time_shift import parse_anchor_timestamp, shift_timestamps
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -170,7 +171,7 @@ def run_sim(
         )
 
     try:
-        with live_home_assistant(
+        with live_sim_home_assistant(
             timeout=120,
             config_dir=config_dir,
             port=port,
@@ -180,7 +181,7 @@ def run_sim(
                 live_hass.run_coro(setup_haeo_entry(live_hass.hass, scenario_data["config"]))
                 _LOGGER.info("HAEO configured from %s", scenario_data["path"].name)
 
-            auth_url = live_hass.publish_browser_auth()
+            auth_url = publish_browser_auth(live_hass)
 
             print(f"Home Assistant: {live_hass.url}/")
             print(f"Auto-login: {auth_url}")
@@ -205,7 +206,7 @@ def run_sim(
                     time_freezer=time_freezer,
                 )
             finally:
-                live_hass.remove_browser_auth()
+                remove_browser_auth(live_hass)
     finally:
         if time_freezer is not None:
             time_freezer.stop()

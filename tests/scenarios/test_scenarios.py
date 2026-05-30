@@ -15,7 +15,7 @@ from custom_components.haeo.const import OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.sensor_utils import get_output_sensors
 from tests.scenarios.conftest import ScenarioData
 from tests.scenarios.visualization import visualize_scenario_results
-from tools.live_hass import setup_haeo_entry
+from tools.sim_hass import setup_haeo_entry
 
 _LOGGER = logging.getLogger(__name__)
 
