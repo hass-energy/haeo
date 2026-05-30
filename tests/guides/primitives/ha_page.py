@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
     from playwright.sync_api import Page
 
-    from tests.guides.ha_runner import LiveHomeAssistant
+    from tools.live_hass import LiveHomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 

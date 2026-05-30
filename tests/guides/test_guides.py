@@ -19,7 +19,6 @@ from pathlib import Path
 
 import pytest
 
-from tests.guides.ha_runner import live_home_assistant
 from tools.guide_runner import (
     DOCS_DIR,
     INPUTS_FILE,
@@ -27,9 +26,11 @@ from tools.guide_runner import (
     GuideManifest,
     extract_guide_blocks,
     get_page_hash,
+    load_scenario_environment,
     output_dir_for_guide,
     run_blocks_for_mode,
 )
+from tools.live_hass import live_home_assistant
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ def test_guide(guide_md: Path, dark_mode: bool) -> None:
     blocks = extract_guide_blocks(markdown)
     output_dir = output_dir_for_guide(guide_md)
 
-    with live_home_assistant(timeout=120) as hass:
+    with live_home_assistant(timeout=120, environment=load_scenario_environment()) as hass:
         hass.load_states_from_file(INPUTS_FILE)
 
         screenshots_per_block = run_blocks_for_mode(hass, blocks, output_dir, mode, headless=True)
