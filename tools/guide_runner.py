@@ -13,7 +13,6 @@ Usage:
 
 from __future__ import annotations
 
-import contextlib
 from dataclasses import dataclass, field
 import json
 import logging
@@ -319,10 +318,6 @@ def run_blocks_for_mode(
             raise
 
         finally:
-            # Drop any in-flight HA static requests before closing the browser so
-            # aiohttp file handlers are not left open when the HA loop shuts down.
-            with contextlib.suppress(Exception):
-                page_obj.goto("about:blank", wait_until="commit", timeout=5000)
             browser.close()
 
 
