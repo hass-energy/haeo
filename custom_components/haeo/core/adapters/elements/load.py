@@ -4,12 +4,14 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
+import numpy as np
+
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import CONNECTION_SEGMENTS
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -88,7 +90,11 @@ class LoadAdapter:
         """Map model outputs to load-specific output names."""
         connection = model_outputs.get(f"{name}:connection")
         fixed = not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, False)
-        period_count = len(config[SECTION_FORECAST][CONF_FORECAST])
+        forecast = config[SECTION_FORECAST][CONF_FORECAST]
+        if connection is not None:
+            period_count = len(expect_output_data(connection[CONNECTION_POWER]).values)
+        else:
+            period_count = int(np.atleast_1d(forecast).size)
 
         power = connection_power(connection, period_count)
         load_outputs: dict[LoadOutputName, OutputData] = {

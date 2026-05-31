@@ -138,9 +138,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "model_outputs": {},
         "outputs": {
             LOAD_DEVICE_LOAD: {
-                LOAD_POWER: OutputData(
-                    type=OutputType.POWER, unit="kW", values=(0.0, 0.0), direction="-", fixed=True
-                ),
+                LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(0.0, 0.0), direction="-", fixed=True),
             }
         },
     },
