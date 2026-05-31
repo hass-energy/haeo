@@ -140,14 +140,17 @@ async def test_build_price_selector_includes_compatible_price_entities(
     hub_entry: MockConfigEntry,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """Price entity picker includes price-compatible sensors, not only HAEO entities."""
+    """Price entity picker includes price-compatible sensors across energy scales."""
     haeo_number = entity_registry.async_get_or_create(
         domain="number",
         platform=DOMAIN,
         unique_id="policy_price_constant",
         suggested_object_id="policy_price",
+        config_entry=hub_entry,
     )
     hass.states.async_set("sensor.import_price", "0.25", {"unit_of_measurement": "$/kWh"})
+    hass.states.async_set("sensor.export_price", "0.05", {"unit_of_measurement": "€/MWh"})
+    hass.states.async_set("sensor.wholesale_price", "0.001", {"unit_of_measurement": "AUD/Wh"})
     hass.states.async_set("sensor.power_only", "5", {"unit_of_measurement": "kW"})
 
     flow = _create_flow(hass, hub_entry)
@@ -155,6 +158,8 @@ async def test_build_price_selector_includes_compatible_price_entities(
 
     assert include_entities is not None
     assert "sensor.import_price" in include_entities
+    assert "sensor.export_price" in include_entities
+    assert "sensor.wholesale_price" in include_entities
     assert "sensor.power_only" not in include_entities
     assert haeo_number.entity_id not in include_entities
 
