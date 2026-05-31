@@ -11,20 +11,18 @@ Screenshots are automatically collected using the ScreenshotContext.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
+
+from playwright.sync_api import Page
+
+from tools.live_hass import LiveHomeAssistant
 
 from .capture import ScreenshotContext
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-    from playwright.sync_api import Page
-
-    from tools.live_hass import LiveHomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
