@@ -449,6 +449,7 @@ def _run_hass_thread(
             ready_event.set()
 
             await async_stop_event.wait()
+            await hass.async_block_till_done(wait_background_tasks=True)
             await hass.async_stop(force=True)
 
         except Exception as e:

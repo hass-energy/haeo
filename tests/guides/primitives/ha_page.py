@@ -164,11 +164,15 @@ class HAPage:
         full_url = f"{self.url}{path}" if path.startswith("/") else path
         # The initial load drives the trusted_networks auto-login redirect chain
         # (/ -> /auth/authorize -> token exchange -> app), which takes longer than
-        # an in-app navigation, so allow a generous timeout. We keep networkidle
-        # here because callers inspect the URL immediately after this returns.
+        # an in-app navigation, so allow a generous timeout. networkidle would wait
+        # on the HA WebSocket and OAuth static assets, leaving aiohttp file handles
+        # open when the browser closes; domcontentloaded plus leaving /auth/ is enough.
         initial_load_timeout = 30000
-        self.page.goto(full_url, timeout=initial_load_timeout)
-        self.page.wait_for_load_state("networkidle", timeout=initial_load_timeout)
+        self.page.goto(full_url, timeout=initial_load_timeout, wait_until="domcontentloaded")
+        self.page.wait_for_function(
+            "() => !window.location.pathname.startsWith('/auth/')",
+            timeout=initial_load_timeout,
+        )
 
     def wait_for_load(self) -> None:
         """Wait for page to finish loading."""
