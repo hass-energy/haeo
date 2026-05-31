@@ -16,6 +16,7 @@ permissions:
   contents: write
   pull-requests: write
   checks: write
+  id-token: write
 
 jobs:
   #region Linting and formatting
@@ -230,7 +231,8 @@ jobs:
         with:
           files: frontend/haeo-forecast-card/coverage/lcov.info
           flags: frontend
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
+          fail_ci_if_error: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
   #endregion
   #region Tests
   # =============================================================================
@@ -260,15 +262,16 @@ jobs:
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           report_type: test_results
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
+          fail_ci_if_error: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
 
       - name: Upload coverage to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           flags: python
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
+          fail_ci_if_error: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
 
   scenario:
     name: Scenario tests
