@@ -7,11 +7,13 @@ from unittest.mock import Mock
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
 from custom_components.haeo import _cleanup_policy_rules
+from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import node
@@ -57,9 +59,11 @@ from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as P
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import get_surfaced_input_fields
 from custom_components.haeo.flows.conftest import create_flow
+from custom_components.haeo.flows.field_schema import CHOICE_ENTITY
 from custom_components.haeo.flows.surfaced_policy import (
     POLICIES_TITLE,
     build_surfaced_defaults,
+    build_surfaced_schema_entries,
     find_policy_subentry,
     find_surfaced_rule,
     form_value_to_price,
@@ -877,3 +881,31 @@ def test_cleanup_deduplicates_rules_after_stripping(
     rules = _get_rules(hub_entry)
     assert len(rules) == 1
     assert rules[0]["name"] == "first"
+
+
+def test_build_surfaced_schema_entries_includes_compatible_price_entities(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Surfaced price pickers include price-compatible sensors, not this hub's own entities."""
+    haeo_number = entity_registry.async_get_or_create(
+        domain="number",
+        platform=DOMAIN,
+        unique_id="surfaced_price_constant",
+        suggested_object_id="surfaced_price",
+        config_entry=hub_entry,
+    )
+    hass.states.async_set("sensor.import_price", "0.25", {"unit_of_measurement": "$/kWh"})
+    hass.states.async_set("sensor.power_only", "5", {"unit_of_measurement": "kW"})
+
+    surfaced_fields = get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
+    _, selector = build_surfaced_schema_entries(hass, hub_entry, surfaced_fields)[CONF_CONSUMPTION_COST]
+
+    entity_choice = selector.config["choices"][CHOICE_ENTITY]
+    include_entities = entity_choice["selector"]["entity"].get("include_entities")
+
+    assert include_entities is not None
+    assert "sensor.import_price" in include_entities
+    assert "sensor.power_only" not in include_entities
+    assert haeo_number.entity_id not in include_entities
