@@ -542,9 +542,7 @@ async def test_negate_surfaces_running_value(
     subentry = _create_subentry("Test Load", {"capacity": -0.15})
     config_entry.runtime_data = None
 
-    entity = _make_entity(
-        hass, config_entry, subentry, scalar_field_info, device_entry, horizon_manager, negate=True
-    )
+    entity = _make_entity(hass, config_entry, subentry, scalar_field_info, device_entry, horizon_manager, negate=True)
 
     # Store holds -0.15; the entity surfaces +0.15.
     assert entity.store.native_value == -0.15

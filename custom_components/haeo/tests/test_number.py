@@ -287,7 +287,7 @@ async def test_mirror_entities_share_policy_store_for_battery_costs(
     assert runtime_data is not None
     runtime_data.input_stores = build_input_stores(hass, config_entry, runtime_data.horizon_manager)
 
-    device_entry = get_or_create_element_device(hass, config_entry, battery, str(BATTERY_TYPE))
+    device_entry = get_or_create_element_device(hass, config_entry, battery, BATTERY_TYPE)
     mirrors = _build_surfaced_mirror_entities(
         config_entry,
         battery,

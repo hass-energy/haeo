@@ -194,9 +194,7 @@ class GridAdapter:
         )
 
         # Output the shadow prices from power_limit segments on each connection
-        shadow_price_mappings: tuple[
-            tuple[Mapping[ModelOutputName, ModelOutputValue] | None, GridOutputName], ...
-        ] = (
+        shadow_price_mappings: tuple[tuple[Mapping[ModelOutputName, ModelOutputValue] | None, GridOutputName], ...] = (
             (export_conn, GRID_POWER_MAX_EXPORT_PRICE),
             (import_conn, GRID_POWER_MAX_IMPORT_PRICE),
         )
