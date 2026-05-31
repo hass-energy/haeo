@@ -46,11 +46,12 @@ def _make_store(
     output_type: OutputType = OutputType.ENERGY,
     time_series: bool = False,
     boundaries: bool = False,
+    negate: bool = False,
 ) -> Any:
     """Build an InputStore from an in-memory storage value and field hint."""
     storage = _MemStorage(storage_value)
     hint = FieldHint(output_type=output_type, time_series=time_series, boundaries=boundaries)
-    return create_input_store(storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
+    return create_input_store(storage=storage, hint=hint, get_forecast_timestamps=_timestamps, negate=negate)
 
 
 # --- Editable constant resolution ---
@@ -199,6 +200,47 @@ async def test_driven_async_load_success() -> None:
     assert store.available is True
     assert "sensor.x" in store.captured_source_states
     assert store.is_ready() is True
+
+
+async def test_driven_async_load_negates_resolved_value() -> None:
+    """A negated driven store flips the sign of values resolved from sources."""
+    store = _make_store(
+        storage_value=as_entity_value(["sensor.x"]),
+        output_type=OutputType.PRICE,
+        time_series=False,
+        negate=True,
+    )
+
+    sm = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "0.15", {})})
+    assert await store.async_load(sm) is True
+
+    assert store.value == pytest.approx(-0.15)
+    assert store.native_value == pytest.approx(-0.15)
+
+
+async def test_driven_async_load_negates_time_series() -> None:
+    """Negation applies element-wise to time-series source values."""
+    store = _make_store(
+        storage_value=as_entity_value(["sensor.x"]),
+        output_type=OutputType.PRICE,
+        time_series=True,
+        negate=True,
+    )
+
+    sm = FakeStateMachine(
+        {"sensor.x": FakeEntityState("sensor.x", "0.2", {"forecast": [0.2, 0.3, 0.4]})},
+    )
+    assert await store.async_load(sm) is True
+
+    assert isinstance(store.value, np.ndarray)
+    assert np.all(store.value < 0)
+
+
+def test_negate_does_not_affect_editable_constant() -> None:
+    """Constants are negated at the storage layer, so the store leaves them as-is."""
+    store = _make_store(storage_value=as_constant_value(-0.15), output_type=OutputType.PRICE, negate=True)
+
+    assert store.value == pytest.approx(-0.15)
 
 
 async def test_driven_async_load_failure_keeps_unavailable() -> None:

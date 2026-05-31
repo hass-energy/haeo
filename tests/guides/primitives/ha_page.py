@@ -164,11 +164,13 @@ class HAPage:
         should use click-based methods to demonstrate the real user flow.
         """
         full_url = f"{self.url}{path}" if path.startswith("/") else path
-        self.page.goto(full_url)
-        # The initial load is the one place we keep networkidle: HA's
-        # unauthenticated redirect to /auth/authorize is driven by frontend JS,
-        # and callers inspect the URL immediately after this returns.
-        self.page.wait_for_load_state("networkidle")
+        # The initial load drives the trusted_networks auto-login redirect chain
+        # (/ -> /auth/authorize -> token exchange -> app), which takes longer than
+        # an in-app navigation, so allow a generous timeout. We keep networkidle
+        # here because callers inspect the URL immediately after this returns.
+        initial_load_timeout = 30000
+        self.page.goto(full_url, timeout=initial_load_timeout)
+        self.page.wait_for_load_state("networkidle", timeout=initial_load_timeout)
 
     def wait_for_load(self) -> None:
         """Wait for page to finish loading."""

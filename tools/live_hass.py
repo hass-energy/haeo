@@ -9,7 +9,8 @@ The key insight is that we can:
 3. Load entity states directly via hass.states.async_set()
 4. Run the event loop in a background thread
 5. Access the HA instance from the main thread for Playwright automation
-6. Pre-create an owner user and auth token to bypass onboarding UI
+6. Pre-create the dev user and register a trusted_networks provider so loopback
+   browsers auto-login without minting tokens (shared with ``uv run sim``)
 
 This avoids needing config files, YAML, or packages - just load states from JSON.
 """
@@ -45,15 +46,70 @@ from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers import restore_state as rs
 from homeassistant.setup import async_setup_component
 
-from custom_components.haeo.const import DOMAIN
-
 if TYPE_CHECKING:
     from playwright.sync_api import BrowserContext
 
 PROJECT_ROOT = Path(__file__).parent.parent
 
-# Client ID for refresh tokens (matches HA frontend)
-CLIENT_ID = "http://127.0.0.1/"
+# Loopback networks the trusted_networks auth provider auto-logs in from. Home
+# Assistant binds to all interfaces with a dual-stack socket, so IPv4 loopback
+# connections arrive as the IPv4-mapped form ``::ffff:127.0.0.1``.
+TRUSTED_LOOPBACK_NETWORKS = ["127.0.0.1/32", "::1/128", "::ffff:127.0.0.1/128"]
+
+
+def auth_provider_configs() -> list[dict[str, Any]]:
+    """Return the auth providers shared by the guide and sim runners.
+
+    The trusted_networks provider auto-logs in the single dev user for any
+    loopback request, so the frontend completes its OAuth flow without minting
+    tokens or injecting a bootstrap page. It must come first so the authorize
+    page starts its flow by default; homeassistant stays as a username/password
+    fallback.
+    """
+    return [
+        {
+            "type": "trusted_networks",
+            "trusted_networks": TRUSTED_LOOPBACK_NETWORKS,
+            "allow_bypass_login": True,
+        },
+        {"type": "homeassistant"},
+    ]
+
+
+async def ensure_dev_user(hass: HomeAssistant) -> None:
+    """Idempotently ensure a single ``Test User`` with testuser/testpass exists.
+
+    The trusted_networks provider only auto-logs in when exactly one non-system
+    user is available, so this is the sole user created for both runners.
+    """
+    provider = hass.auth.get_auth_provider("homeassistant", None)
+    if provider is None:
+        msg = "Home Assistant auth provider is not configured"
+        raise RuntimeError(msg)
+
+    users = await hass.auth.async_get_users()
+    for user in users:
+        for credential in user.credentials:
+            if credential.data.get("username") == "testuser":
+                return
+
+    await provider.async_add_auth("testuser", "testpass")  # pyright: ignore[reportAttributeAccessIssue]
+
+    owner = next(
+        (user for user in users if user.is_owner and not user.system_generated),
+        None,
+    )
+    if owner is None:
+        owner = await hass.auth.async_create_user(name="Test User", group_ids=["system-admin"])
+
+    credential = Credentials(
+        id="test-credential",
+        auth_provider_type="homeassistant",
+        auth_provider_id=None,
+        data={"username": "testuser"},
+        is_new=False,
+    )
+    await hass.auth.async_link_user(owner, credential)
 
 
 def _find_free_port() -> int:
@@ -73,6 +129,19 @@ async def _require_component(
     if not await async_setup_component(hass, domain, hass_config):
         msg = f"Failed to set up {domain} component"
         raise RuntimeError(msg)
+
+
+async def _ensure_http_started(hass: HomeAssistant) -> None:
+    """Start the HTTP server exactly once.
+
+    Setting up the frontend normally starts the server through Home Assistant's
+    ``async_when_setup_or_start`` lifecycle hook. That hook runs standalone but
+    not under pytest, so we start it ourselves when it has not already bound.
+    Guarding on the existing site avoids binding the socket twice, which would
+    orphan the already-listening server behind a failed second bind.
+    """
+    if hass.http.site is None:
+        await hass.http.start()
 
 
 @dataclass
@@ -96,8 +165,6 @@ class LiveHomeAssistant:
     url: str
     port: int
     loop: asyncio.AbstractEventLoop
-    access_token: str
-    refresh_token: str
     _stop_event: asyncio.Event
 
     def set_state(
@@ -151,6 +218,8 @@ class LiveHomeAssistant:
         away from LOADED, ``reload_finished`` once it is back to LOADED with a
         live coordinator (or lands in a terminal error state).
         """
+        from custom_components.haeo.const import DOMAIN  # noqa: PLC0415
+
         entries = self.hass.config_entries.async_entries(DOMAIN)
         if not entries:
             msg = "HAEO config entry not found"
@@ -181,6 +250,8 @@ class LiveHomeAssistant:
         await reload_wait.reload_started.wait()
         await reload_wait.reload_finished.wait()
         reload_wait.unsubscribe()
+        from custom_components.haeo.const import DOMAIN  # noqa: PLC0415
+
         entries = self.hass.config_entries.async_entries(DOMAIN)
         if entries and entries[0].state is not ConfigEntryState.LOADED:
             msg = f"HAEO config entry reload failed: {entries[0].state} ({entries[0].reason})"
@@ -218,40 +289,19 @@ class LiveHomeAssistant:
         future = asyncio.run_coroutine_threadsafe(async_wait_recording_done(self.hass), self.loop)
         future.result(timeout=timeout)
 
-    def inject_auth(self, context: BrowserContext, *, dark_mode: bool = False) -> None:
-        """Inject authentication into a Playwright browser context."""
-        from playwright.sync_api import Request, Route  # noqa: PLC0415
+    def configure_context(self, context: BrowserContext, *, dark_mode: bool = False) -> None:
+        """Apply browser preferences for a Playwright context.
 
-        def add_auth_header(route: Route, request: Request) -> None:
-            headers = {
-                **request.headers,
-                "Authorization": f"Bearer {self.access_token}",
-            }
-            route.continue_(headers=headers)
-
-        context.route("**/*", add_auth_header)
-
-        token_data = {
-            "hassUrl": self.url,
-            "clientId": CLIENT_ID,
-            "access_token": self.access_token,
-            "refresh_token": self.refresh_token,
-            "token_type": "Bearer",
-            "expires_in": 1800,
-        }
-
-        theme_js = ""
-        if dark_mode:
-            theme_data = {"theme": "default", "dark": True}
-            theme_js = f"""
-            localStorage.setItem('selectedTheme', JSON.stringify({json.dumps(theme_data)}));
-            """
-
-        init_script = f"""
-            localStorage.setItem('hassTokens', JSON.stringify({json.dumps(token_data)}));
-            {theme_js}
+        Authentication is automatic from loopback via the trusted_networks
+        provider, so this only seeds the dark mode theme when requested.
         """
-        context.add_init_script(init_script)
+        if not dark_mode:
+            return
+
+        theme_data = {"theme": "default", "dark": True}
+        context.add_init_script(
+            f"localStorage.setItem('selectedTheme', JSON.stringify({json.dumps(theme_data)}));",
+        )
 
     def call_service(
         self,
@@ -284,7 +334,7 @@ async def _setup_home_assistant_async(
     config_dir: str,
     *,
     timezone: str = "UTC",
-) -> tuple[HomeAssistant, str, str]:
+) -> HomeAssistant:
     """Set up a Home Assistant instance with HTTP server and pre-authenticated user."""
     storage_dir = Path(config_dir) / ".storage"
     storage_dir.mkdir(exist_ok=True)
@@ -326,38 +376,10 @@ async def _setup_home_assistant_async(
 
     hass.auth = await auth_manager_from_config(
         hass,
-        provider_configs=[{"type": "homeassistant"}],
+        provider_configs=auth_provider_configs(),
         module_configs=[],
     )
-
-    provider = hass.auth.auth_providers[0]
-    await provider.async_add_auth("testuser", "testpass")  # pyright: ignore[reportAttributeAccessIssue]
-
-    owner = await hass.auth.async_create_user(
-        name="Test User",
-        group_ids=["system-admin"],
-    )
-
-    credential = Credentials(
-        id="test-credential",
-        auth_provider_type="homeassistant",
-        auth_provider_id=None,
-        data={"username": "testuser"},
-        is_new=False,
-    )
-    await hass.auth.async_link_user(owner, credential)
-
-    refresh_token = await hass.auth.async_create_refresh_token(
-        owner,
-        CLIENT_ID,
-        credential=credential,
-    )
-    access_token = hass.auth.async_create_access_token(refresh_token)
-    refresh_token_value = refresh_token.token
-
-    http_config = {
-        "server_port": port,
-    }
+    await ensure_dev_user(hass)
 
     warnings.filterwarnings("ignore", category=DeprecationWarning, module="aiohttp")
     try:
@@ -367,7 +389,7 @@ async def _setup_home_assistant_async(
     except ImportError:
         pass
 
-    await _require_component(hass, "http", {"http": http_config})
+    await _require_component(hass, "http", {"http": {"server_port": port}})
     await _require_component(hass, "websocket_api", {})
     await _require_component(hass, "auth", {})
     await _require_component(hass, "onboarding", {})
@@ -378,6 +400,8 @@ async def _setup_home_assistant_async(
         msg = "Onboarding bypass failed - check storage file format and timing"
         raise RuntimeError(msg)
 
+    # Setting up frontend starts the HTTP server (it is wired via
+    # async_when_setup_or_start), so we must not start it again ourselves.
     await _require_component(hass, "frontend", {})
     await _require_component(hass, "config", {})
 
@@ -393,9 +417,9 @@ async def _setup_home_assistant_async(
     hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
     await hass.async_block_till_done()
 
-    await hass.http.start()
+    await _ensure_http_started(hass)
 
-    return hass, access_token, refresh_token_value
+    return hass
 
 
 def _run_hass_thread(
@@ -403,7 +427,6 @@ def _run_hass_thread(
     config_dir: str,
     timezone: str,
     hass_holder: list[HomeAssistant],
-    token_holder: list[tuple[str, str]],
     loop_holder: list[asyncio.AbstractEventLoop],
     ready_event: threading.Event,
     async_stop_event_holder: list[asyncio.Event],
@@ -419,13 +442,12 @@ def _run_hass_thread(
         async_stop_event_holder.append(async_stop_event)
 
         try:
-            hass, access_token, refresh_token_value = await _setup_home_assistant_async(
+            hass = await _setup_home_assistant_async(
                 port,
                 config_dir,
                 timezone=timezone,
             )
             hass_holder.append(hass)
-            token_holder.append((access_token, refresh_token_value))
             ready_event.set()
 
             await async_stop_event.wait()
@@ -462,7 +484,6 @@ def live_home_assistant(
 
         port = _find_free_port()
         hass_holder: list[HomeAssistant] = []
-        token_holder: list[tuple[str, str]] = []
         loop_holder: list[asyncio.AbstractEventLoop] = []
         error_holder: list[Exception] = []
         async_stop_event_holder: list[asyncio.Event] = []
@@ -475,7 +496,6 @@ def live_home_assistant(
                 config_dir,
                 timezone,
                 hass_holder,
-                token_holder,
                 loop_holder,
                 ready_event,
                 async_stop_event_holder,
@@ -499,7 +519,6 @@ def live_home_assistant(
             raise error_holder[0]
 
         hass = hass_holder[0]
-        access_token, refresh_token_value = token_holder[0]
         loop = loop_holder[0]
         async_stop_event = async_stop_event_holder[0]
 
@@ -508,8 +527,6 @@ def live_home_assistant(
             url=f"http://127.0.0.1:{port}",
             port=port,
             loop=loop,
-            access_token=access_token,
-            refresh_token=refresh_token_value,
             _stop_event=async_stop_event,
         )
 

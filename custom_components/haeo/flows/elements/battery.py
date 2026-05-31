@@ -196,7 +196,10 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build the schema with name, connection, and choose selectors for main inputs."""
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
-        surfaced_entries = build_surfaced_schema_entries(surfaced_fields)
+        element_name = subentry_data.get(CONF_NAME) if subentry_data else None
+        surfaced_entries = build_surfaced_schema_entries(
+            self._get_entry(), element_name, SURFACED_PRICE_HINTS, surfaced_fields
+        )
         return build_sectioned_choose_schema(
             self._get_sections(),
             input_fields,

@@ -468,6 +468,8 @@
   "entity": {
     "number": {
       "battery_capacity": { "name": "Capacity" },
+      "battery_charge_cost": { "name": "Charge cost" },
+      "battery_discharge_cost": { "name": "Discharge cost" },
       "battery_efficiency_source_target": { "name": "Discharge efficiency" },
       "battery_efficiency_target_source": { "name": "Charge efficiency" },
       "battery_initial_charge_percentage": { "name": "Initial charge" },
@@ -496,6 +498,7 @@
       "inverter_efficiency_target_source": { "name": "AC to DC efficiency" },
       "inverter_max_power_source_target": { "name": "Max DC to AC power" },
       "inverter_max_power_target_source": { "name": "Max AC to DC power" },
+      "load_consumption_cost": { "name": "Consumption cost" },
       "load_forecast": { "name": "Forecast" },
       "load_price_target_source": { "name": "Consumption value" },
       "policy_price": { "name": "{rule_name} price" },

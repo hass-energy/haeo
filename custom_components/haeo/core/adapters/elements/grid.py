@@ -62,6 +62,20 @@ GRID_DEVICE_NAMES: Final[frozenset[GridDeviceName]] = frozenset(
 )
 
 
+def _connection_power(
+    connection_outputs: Mapping[ModelOutputName, ModelOutputValue] | None,
+    period_count: int,
+) -> OutputData:
+    """Return a connection's power output, or zeros when the connection is absent.
+
+    A grid direction is pruned from the model when no source can reach it, in
+    which case it carries no flow and is represented as a zero-valued series.
+    """
+    if connection_outputs is None:
+        return OutputData(type=OutputType.POWER_FLOW, unit="kW", values=[0.0] * period_count, direction="+")
+    return expect_output_data(connection_outputs[CONNECTION_POWER])
+
+
 class GridAdapter:
     """Adapter for Grid elements."""
 
@@ -122,15 +136,19 @@ class GridAdapter:
         **_kwargs: Any,
     ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
         """Map model outputs to grid-specific output names."""
-        import_conn = model_outputs[f"{name}:import"]
-        export_conn = model_outputs[f"{name}:export"]
+        # A direction's connection is pruned by policy compilation when no source
+        # can reach it (e.g. the grid is the only source, so nothing feeds export).
+        # That direction simply carries no flow, so treat its power as zeros to
+        # keep the grid's outputs consistent rather than failing the optimization.
+        import_conn = model_outputs.get(f"{name}:import")
+        export_conn = model_outputs.get(f"{name}:export")
 
         grid_outputs: dict[GridOutputName, OutputData] = {}
 
         # source_target = grid to system = IMPORT
         # target_source = system to grid = EXPORT
-        power_import = expect_output_data(import_conn[CONNECTION_POWER])
-        power_export = expect_output_data(export_conn[CONNECTION_POWER])
+        power_import = _connection_power(import_conn, len(periods))
+        power_export = _connection_power(export_conn, len(periods))
 
         grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER, direction="-")
         grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER, direction="+")
@@ -176,13 +194,16 @@ class GridAdapter:
         )
 
         # Output the shadow prices from power_limit segments on each connection
-        shadow_price_mappings: tuple[tuple[Mapping[ModelOutputName, ModelOutputValue], GridOutputName], ...] = (
+        shadow_price_mappings: tuple[
+            tuple[Mapping[ModelOutputName, ModelOutputValue] | None, GridOutputName], ...
+        ] = (
             (export_conn, GRID_POWER_MAX_EXPORT_PRICE),
             (import_conn, GRID_POWER_MAX_IMPORT_PRICE),
         )
         for conn, output_name in shadow_price_mappings:
             if (
-                isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
+                conn is not None
+                and isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
                 and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
                 and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
             ):

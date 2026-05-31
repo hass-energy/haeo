@@ -240,6 +240,8 @@ def _make_entity(
     device_entry: DeviceEntry,
     horizon_manager: Mock,
     field_path: tuple[str, ...] | None = None,
+    *,
+    negate: bool = False,
 ) -> HaeoInputNumber:
     """Build an input store and number entity wrapping it."""
     fp = field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
@@ -263,6 +265,7 @@ def _make_entity(
         horizon_manager=horizon_manager,
         store=store,
         field_path=field_path,
+        negate=negate,
     )
 
 
@@ -526,6 +529,36 @@ async def test_editable_mode_set_native_value(
     entity.async_write_ha_state.assert_called_once()
     # Value should be persisted to config entry
     hass.config_entries.async_update_subentry.assert_called_once()
+
+
+async def test_negate_surfaces_running_value(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    scalar_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """A negated entity surfaces the positive value while the store holds its negation."""
+    subentry = _create_subentry("Test Load", {"capacity": -0.15})
+    config_entry.runtime_data = None
+
+    entity = _make_entity(
+        hass, config_entry, subentry, scalar_field_info, device_entry, horizon_manager, negate=True
+    )
+
+    # Store holds -0.15; the entity surfaces +0.15.
+    assert entity.store.native_value == -0.15
+    assert entity.native_value == 0.15
+
+    entity.async_write_ha_state = Mock()
+    hass.config_entries.async_update_subentry = Mock()
+    await _add_entity_to_hass(hass, entity)
+
+    await entity.async_set_native_value(0.2)
+
+    # Setting +0.2 persists -0.2 to the store.
+    assert entity.native_value == 0.2
+    assert entity.store.native_value == -0.2
 
 
 async def test_editable_set_value_updates_config_before_state_change(

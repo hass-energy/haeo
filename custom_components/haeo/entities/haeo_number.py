@@ -1,6 +1,7 @@
 """Number entity for HAEO input configuration."""
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Any
 
@@ -71,6 +72,8 @@ class HaeoInputNumber(NumberEntity):
         horizon_manager: HorizonManager,
         store: InputStore,
         field_path: InputFieldPath | None = None,
+        *,
+        negate: bool = False,
     ) -> None:
         """Initialize the input number entity."""
         self._config_entry: HaeoConfigEntry = config_entry
@@ -82,6 +85,14 @@ class HaeoInputNumber(NumberEntity):
         self._horizon_manager = horizon_manager
         self._uses_forecast = field_info.time_series
 
+        # When True the entity surfaces the running (positive) value while the
+        # backing store holds its negative. Used by surfaced policy mirrors.
+        self._negate = negate
+
+        # Suppresses reacting to store change notifications this entity itself
+        # triggered, so only sibling entities sharing the store react.
+        self._suppress_store_change = False
+
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
@@ -89,7 +100,7 @@ class HaeoInputNumber(NumberEntity):
         self._store = store
 
         # Set initial native value from store
-        self._attr_native_value = self._store.native_value
+        self._attr_native_value = self._display_value(self._store.native_value)
 
         # Unique ID
         field_path_key = ".".join(self._field_path)
@@ -181,10 +192,29 @@ class HaeoInputNumber(NumberEntity):
         """Return the underlying InputStore."""
         return self._store
 
+    def _display_value(self, value: float | None) -> float | None:
+        """Transform a stored value into the value surfaced by this entity."""
+        if value is None:
+            return None
+        return -value if self._negate else value
+
+    @contextmanager
+    def _suppress_self_notifications(self) -> Iterator[None]:
+        """Suppress reacting to store notifications fired by this entity's own mutation."""
+        self._suppress_store_change = True
+        try:
+            yield
+        finally:
+            self._suppress_store_change = False
+
     async def async_added_to_hass(self) -> None:
         """Set up state tracking and load initial data."""
         await super().async_added_to_hass()
         self._apply_recorder_attribute_filtering()
+
+        # Track store changes so entities sharing a store (e.g. a policy rule
+        # surfaced on both the policy device and an element device) stay in sync.
+        self.async_on_remove(self._store.add_listener(self._handle_store_change))
 
         # Subscribe to horizon manager for consistent time windows
         if self._uses_forecast:
@@ -192,7 +222,8 @@ class HaeoInputNumber(NumberEntity):
 
         if self._store.mode == InputMode.EDITABLE:
             # Refresh to signal readiness (mirrors previous _update_editable_forecast path)
-            self._store.refresh()
+            with self._suppress_self_notifications():
+                self._store.refresh()
             self._sync_from_store()
         else:
             # Subscribe to source entity changes for DRIVEN mode
@@ -218,11 +249,20 @@ class HaeoInputNumber(NumberEntity):
         if not self._uses_forecast:
             return
         if self._store.mode == InputMode.EDITABLE:
-            self._store.refresh()
+            with self._suppress_self_notifications():
+                self._store.refresh()
             self._sync_from_store()
             self.async_write_ha_state()
         else:
             self.hass.async_create_task(self._async_load_sync_and_update())
+
+    @callback
+    def _handle_store_change(self) -> None:
+        """Handle a value change made through another entity sharing this store."""
+        if self._suppress_store_change:
+            return
+        self._sync_from_store()
+        self.async_write_ha_state()
 
     @callback
     def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
@@ -240,14 +280,16 @@ class HaeoInputNumber(NumberEntity):
         Returns True if loading succeeded and state was synced.
         """
         sm = HomeAssistantStateMachine(self.hass)
-        if not await self._store.async_load(sm):
+        with self._suppress_self_notifications():
+            loaded = await self._store.async_load(sm)
+        if not loaded:
             return False
         self._sync_from_store()
         return True
 
     def _sync_from_store(self) -> None:
         """Synchronize HA entity attributes from the store's current state."""
-        self._attr_native_value = self._store.native_value
+        self._attr_native_value = self._display_value(self._store.native_value)
 
         extra_attrs = dict(self._base_extra_attrs)
         if self._uses_forecast and self._store.native_value is not None:
@@ -272,7 +314,7 @@ class HaeoInputNumber(NumberEntity):
 
         timestamps = forecast_timestamps if self._field_info.boundaries else forecast_timestamps[:-1]
         return [
-            {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": val}
+            {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._display_value(val)}
             for ts, val in zip(timestamps, display_values, strict=True)
         ]
 
@@ -304,11 +346,13 @@ class HaeoInputNumber(NumberEntity):
             self.async_write_ha_state()
             return
 
-        self._store.set_value(value)
+        store_value = -value if self._negate else value
+        with self._suppress_self_notifications():
+            self._store.set_value(store_value)
         self._sync_from_store()
 
         # Persist through the store's storage binding
-        await self._store.persist(as_constant_value(value))
+        await self._store.persist(as_constant_value(store_value))
 
         self.async_write_ha_state()
 

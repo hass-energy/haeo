@@ -116,6 +116,67 @@ def test_build_input_stores_creates_stores_for_configured_fields(
     assert stores[driven_key].source_entity_ids == ["sensor.export_price"]
 
 
+async def test_build_input_stores_negates_entity_surfaced_price(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """An entity-valued negated surfaced price resolves to its negative.
+
+    The load consumption cost surfaces a running (positive) value but the policy
+    must see its negative. Constants are negated at the storage layer, so this
+    covers the entity-driven path where negation happens on load.
+    """
+    import numpy as np  # noqa: PLC0415
+
+    from conftest import FakeEntityState, FakeStateMachine  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE as LOAD_TYPE  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_TYPE  # noqa: PLC0415
+
+    load = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: str(LOAD_TYPE), CONF_NAME: "MyLoad"}),
+        subentry_type=str(LOAD_TYPE),
+        title="MyLoad",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, load)
+
+    policy = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: str(POLICY_TYPE),
+                CONF_NAME: "Policies",
+                CONF_RULES: [
+                    {
+                        "name": "consumption",
+                        "enabled": True,
+                        "target": ["MyLoad"],
+                        "price": as_entity_value(["sensor.cost"]),
+                    },
+                ],
+            }
+        ),
+        subentry_type=str(POLICY_TYPE),
+        title="Policies",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, policy)
+
+    stores = build_input_stores(hass, config_entry, horizon_manager)
+    price_store = stores[("Policies", (CONF_RULES, "0", CONF_PRICE))]
+
+    assert price_store.mode == InputMode.DRIVEN
+
+    sm = FakeStateMachine(
+        {"sensor.cost": FakeEntityState("sensor.cost", "0.15", {"forecast": [0.15, 0.25, 0.35]})},
+    )
+    assert await price_store.async_load(sm) is True
+
+    assert isinstance(price_store.value, np.ndarray)
+    assert np.all(price_store.value < 0)
+
+
 def test_subentry_storage_read_returns_persisted_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,

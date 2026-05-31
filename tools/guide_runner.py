@@ -278,7 +278,7 @@ def run_blocks_for_mode(
             viewport={"width": 1280, "height": 800},
             reduced_motion="reduce",
         )
-        hass.inject_auth(context, dark_mode=dark_mode)
+        hass.configure_context(context, dark_mode=dark_mode)
         page_obj = context.new_page()
         page_obj.set_default_timeout(5000)
 

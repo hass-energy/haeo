@@ -238,6 +238,75 @@ async def test_setup_creates_correct_device_identifiers(
             assert entity.device_entry is not None
 
 
+async def test_mirror_entities_share_policy_store_for_battery_costs(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """Battery charge/discharge policy prices surface as entities on the battery device.
+
+    The element-device mirror and the policy-device entity wrap the same store,
+    so editing either updates the single stored value.
+    """
+    from custom_components.haeo.core.schema.elements.battery import (  # noqa: PLC0415
+        CONF_CHARGE_COST,
+        CONF_DISCHARGE_COST,
+    )
+    from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES  # noqa: PLC0415
+    from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_TYPE  # noqa: PLC0415
+    from custom_components.haeo.entities.device import get_or_create_element_device  # noqa: PLC0415
+    from custom_components.haeo.number import _build_surfaced_mirror_entities  # noqa: PLC0415
+
+    battery = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: str(BATTERY_TYPE), CONF_NAME: "MyBattery"}),
+        subentry_type=str(BATTERY_TYPE),
+        title="MyBattery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, battery)
+
+    policy = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: str(POLICY_TYPE),
+                CONF_NAME: "Policies",
+                CONF_RULES: [
+                    {"name": "charge", "enabled": True, "target": ["MyBattery"], "price": as_constant_value(-0.001)},
+                    {"name": "discharge", "enabled": True, "source": ["MyBattery"], "price": as_constant_value(0.02)},
+                ],
+            }
+        ),
+        subentry_type=str(POLICY_TYPE),
+        title="Policies",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, policy)
+
+    runtime_data = config_entry.runtime_data
+    assert runtime_data is not None
+    runtime_data.input_stores = build_input_stores(hass, config_entry, runtime_data.horizon_manager)
+
+    device_entry = get_or_create_element_device(hass, config_entry, battery, str(BATTERY_TYPE))
+    mirrors = _build_surfaced_mirror_entities(
+        config_entry,
+        battery,
+        str(BATTERY_TYPE),
+        device_entry,
+        runtime_data,
+        horizon_manager,
+    )
+
+    mirror_fields = {e._field_info.field_name for e in mirrors}
+    assert mirror_fields == {CONF_CHARGE_COST, CONF_DISCHARGE_COST}
+
+    # The mirror wraps the same store as the underlying policy rule price.
+    charge_mirror = next(e for e in mirrors if e._field_info.field_name == CONF_CHARGE_COST)
+    assert charge_mirror.store is runtime_data.input_stores[("Policies", (CONF_RULES, "0", CONF_PRICE))]
+    # Mirrors live on the battery device, not the policy device.
+    assert charge_mirror.device_entry is device_entry
+
+
 async def test_setup_handles_multiple_elements(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,

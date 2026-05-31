@@ -29,10 +29,9 @@ SURFACED_PRICE_HINTS: Final[dict[str, SurfacedPriceHint]] = {
         hint=FieldHint(
             output_type=OutputType.PRICE,
             time_series=True,
-            default_mode="value",
-            default_value=0.0,
         ),
         source_is_wildcard=True,
+        negate=True,
     ),
 }
 

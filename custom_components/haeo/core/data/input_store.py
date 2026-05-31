@@ -54,6 +54,7 @@ class InputStore:
         get_forecast_timestamps: Callable returning current forecast timestamps.
         storage: Persistence binding backing this store.
         initial_value: Initial constant value (display units) for editable mode.
+        negate: When True, values resolved from source entities are negated.
 
     """
 
@@ -66,6 +67,7 @@ class InputStore:
         get_forecast_timestamps: Callable[[], tuple[float, ...]],
         storage: Storage,
         initial_value: float | bool | None = None,
+        negate: bool = False,
     ) -> None:
         """Initialize the input store."""
         self._mode = mode
@@ -73,6 +75,12 @@ class InputStore:
         self._hint = hint
         self._get_forecast_timestamps = get_forecast_timestamps
         self._storage = storage
+
+        # When True, values resolved from source entities are negated so the
+        # optimization sees the running cost's negative. Constant (editable)
+        # values are negated at the storage layer instead, so this only affects
+        # the driven path; see ``async_load``.
+        self._negate = negate
 
         self._constant: float | bool | None = initial_value
         self._value: bool | float | np.ndarray | None = None
@@ -280,6 +288,9 @@ class InputStore:
             self._available = False
             return False
 
+        if self._negate and not isinstance(resolved, bool):
+            resolved = -resolved
+
         self._value = resolved
         self._available = True
         self._loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
@@ -309,6 +320,7 @@ def create_input_store(
     storage: Storage,
     hint: FieldHint,
     get_forecast_timestamps: Callable[[], tuple[float, ...]],
+    negate: bool = False,
 ) -> InputStore:
     """Create an InputStore from its storage binding and field hint.
 
@@ -317,6 +329,10 @@ def create_input_store(
     - {"type": "constant", "value": X} → EDITABLE mode with that value
     - bare bool/int/float → EDITABLE mode with that value
     - {"type": "none"} or None → EDITABLE mode with no value
+
+    When ``negate`` is True, values resolved from source entities are negated.
+    Constant values are already stored negated, so the flag only changes the
+    driven path.
     """
     config_value = storage.read()
     match config_value:
@@ -327,6 +343,7 @@ def create_input_store(
                 hint=hint,
                 get_forecast_timestamps=get_forecast_timestamps,
                 storage=storage,
+                negate=negate,
             )
         case {"type": "constant", "value": constant}:
             return InputStore(
@@ -336,6 +353,7 @@ def create_input_store(
                 get_forecast_timestamps=get_forecast_timestamps,
                 storage=storage,
                 initial_value=constant if isinstance(constant, bool) else float(constant),
+                negate=negate,
             )
         case {"type": "none"} | None:
             return InputStore(
@@ -344,6 +362,7 @@ def create_input_store(
                 hint=hint,
                 get_forecast_timestamps=get_forecast_timestamps,
                 storage=storage,
+                negate=negate,
             )
         case bool() as constant:
             return InputStore(
@@ -353,6 +372,7 @@ def create_input_store(
                 get_forecast_timestamps=get_forecast_timestamps,
                 storage=storage,
                 initial_value=constant,
+                negate=negate,
             )
         case int() | float() as constant:
             return InputStore(
@@ -362,6 +382,7 @@ def create_input_store(
                 get_forecast_timestamps=get_forecast_timestamps,
                 storage=storage,
                 initial_value=float(constant),
+                negate=negate,
             )
         case _:
             msg = f"Invalid config value: {config_value}"
