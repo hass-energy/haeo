@@ -23,6 +23,7 @@ class OutputType(StrEnum):
 
     Monetary types:
         PRICE: Price per energy unit ($/kWh, €/kWh, etc.)
+        PRICE_RATE: Price rate per energy unit per hour ($/kWh/h) for holding costs
         COST: Total cost in currency units
 
     Other types:
@@ -37,6 +38,7 @@ class OutputType(StrEnum):
     POWER_LIMIT = auto()
     ENERGY = auto()
     PRICE = auto()
+    PRICE_RATE = auto()
     STATE_OF_CHARGE = auto()
     EFFICIENCY = auto()
     COST = auto()

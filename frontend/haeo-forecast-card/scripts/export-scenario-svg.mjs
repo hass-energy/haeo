@@ -1,10 +1,12 @@
 /**
  * Render HAEO forecast card as SVG from scenario outputs.
  *
- * Usage: node export-scenario-svg.mjs <outputs.json> <output.svg>
+ * Usage: node export-scenario-svg.mjs <outputs.json> <output.svg> [anchor_iso8601]
  */
 import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { performance as nodePerformance } from "node:perf_hooks";
 import { resolve, dirname } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 let JSDOM;
 try {
@@ -20,6 +22,17 @@ const bundlePath = resolve(workspaceRoot, "custom_components", "haeo", "www", "h
 
 const CARD_WIDTH = 1920;
 const CARD_HEIGHT = 900;
+
+const CARD_RECT = {
+  width: CARD_WIDTH,
+  height: CARD_HEIGHT,
+  x: 0,
+  y: 0,
+  top: 0,
+  left: 0,
+  right: CARD_WIDTH,
+  bottom: CARD_HEIGHT,
+};
 
 function pickEntities(states) {
   const preferred = [
@@ -52,9 +65,67 @@ function pickEntities(states) {
     .map((state) => state.entity_id);
 }
 
-function setupDom() {
+function earliestForecastMs(states) {
+  let anchor = null;
+  for (const state of Object.values(states)) {
+    const forecast = state?.attributes?.forecast;
+    if (!Array.isArray(forecast)) continue;
+    for (const point of forecast) {
+      const raw = point?.time ?? point?.timestamp;
+      if (raw == null) continue;
+      const ms = Date.parse(String(raw));
+      if (!Number.isFinite(ms)) continue;
+      anchor = anchor == null ? ms : Math.min(anchor, ms);
+    }
+  }
+  return anchor;
+}
+
+function resolveAnchorNowMs(states, anchorIso) {
+  if (anchorIso) {
+    const parsed = Date.parse(anchorIso);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  const earliest = earliestForecastMs(states);
+  if (earliest == null) {
+    throw new Error("No forecast timestamps found to anchor scenario SVG rendering");
+  }
+  return earliest;
+}
+
+function installFixedClock(anchorNowMs) {
+  const RealDate = Date;
+  class MockDate extends RealDate {
+    constructor(...args) {
+      if (args.length === 0) {
+        super(anchorNowMs);
+        return;
+      }
+      super(...args);
+    }
+
+    static now() {
+      return anchorNowMs;
+    }
+  }
+  MockDate.parse = RealDate.parse;
+  MockDate.UTC = RealDate.UTC;
+  globalThis.Date = MockDate;
+  globalThis.performance = { now: () => anchorNowMs };
+  globalThis.requestAnimationFrame = (cb) => {
+    setTimeout(() => cb(anchorNowMs), 0);
+    return 1;
+  };
+  globalThis.cancelAnimationFrame = () => {};
+}
+
+function setupDom(anchorNowMs) {
+  installFixedClock(anchorNowMs);
+
   const dom = new JSDOM("<!doctype html><html><body></body></html>", {
-    url: "http://localhost/",
+    url: "http://127.0.0.1/",
     pretendToBeVisual: true,
   });
   const { window } = dom;
@@ -63,8 +134,14 @@ function setupDom() {
   globalThis.document = window.document;
   globalThis.customElements = window.customElements;
   globalThis.HTMLElement = window.HTMLElement;
-  globalThis.requestAnimationFrame = (cb) => setTimeout(() => cb(Date.now()), 16);
-  globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
+  const originalGetBoundingClientRect = window.HTMLElement.prototype.getBoundingClientRect;
+  window.HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this.id === "mount" || this.classList?.contains("chartContainer")) {
+      return CARD_RECT;
+    }
+    return originalGetBoundingClientRect.call(this);
+  };
+
   globalThis.IntersectionObserver = class {
     observe() {}
     disconnect() {}
@@ -74,50 +151,33 @@ function setupDom() {
       this._callback = callback;
     }
     observe(target) {
-      setTimeout(
-        () =>
-          this._callback([
-            {
-              target,
-              contentRect: { width: CARD_WIDTH, height: CARD_HEIGHT, x: 0, y: 0, top: 0, left: 0 },
-            },
-          ]),
-        10
+      queueMicrotask(() =>
+        this._callback([
+          {
+            target,
+            contentRect: { width: CARD_WIDTH, height: CARD_HEIGHT, x: 0, y: 0, top: 0, left: 0 },
+          },
+        ])
       );
     }
     disconnect() {}
   };
 
+  window.matchMedia = (query) => ({
+    matches: query.includes("prefers-reduced-motion: reduce"),
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  });
+
   return window;
 }
 
-async function renderCard(window, states, entities) {
-  await import(pathToFileURL(bundlePath).href);
-
-  const element = window.document.createElement("haeo-forecast-card");
-  element.getBoundingClientRect = () => ({
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    x: 0,
-    y: 0,
-    top: 0,
-    left: 0,
-    right: CARD_WIDTH,
-    bottom: CARD_HEIGHT,
-  });
-
-  element.setConfig({
-    type: "custom:haeo-forecast-card",
-    entities,
-    height: CARD_HEIGHT,
-    animation_mode: "off",
-  });
-  element.hass = { states };
-  window.document.body.appendChild(element);
-
-  await new Promise((r) => setTimeout(r, 500));
-
-  // Find the main chart SVG (contains plotViewport or large content)
+function findChartSvg(element) {
   const svgs = element.shadowRoot?.querySelectorAll("svg") ?? [];
   for (const svg of svgs) {
     if (
@@ -130,14 +190,46 @@ async function renderCard(window, states, entities) {
   return null;
 }
 
+function isChartSized(svg) {
+  const width = Number(svg.getAttribute("width") ?? 0);
+  const height = Number(svg.getAttribute("height") ?? 0);
+  return width === CARD_WIDTH && height === CARD_HEIGHT;
+}
+
+async function renderCard(window, states, entities) {
+  await import(pathToFileURL(bundlePath).href);
+
+  const element = window.document.createElement("haeo-forecast-card");
+  element.getBoundingClientRect = () => CARD_RECT;
+
+  element.setConfig({
+    type: "custom:haeo-forecast-card",
+    entities,
+    height: CARD_HEIGHT,
+    animation_mode: "off",
+  });
+  element.hass = { states, locale: { language: "en" } };
+  window.document.body.appendChild(element);
+
+  const deadline = nodePerformance.now() + 10_000;
+  while (nodePerformance.now() < deadline) {
+    const result = findChartSvg(element);
+    if (result && isChartSized(result.svg)) {
+      return result;
+    }
+    await sleep(50);
+  }
+  return null;
+}
+
 async function main() {
   const args = process.argv.slice(2);
   if (args.length < 2) {
-    console.error("Usage: node export-scenario-svg.mjs <outputs.json> <output.svg>");
+    console.error("Usage: node export-scenario-svg.mjs <outputs.json> <output.svg> [anchor_iso8601]");
     process.exit(1);
   }
 
-  const [outputsPath, svgPath] = args;
+  const [outputsPath, svgPath, anchorIso] = args;
   const states = JSON.parse(await readFile(resolve(outputsPath), "utf-8"));
   const entities = pickEntities(states);
 
@@ -146,7 +238,8 @@ async function main() {
     process.exit(1);
   }
 
-  const window = setupDom();
+  const anchorNowMs = resolveAnchorNowMs(states, anchorIso);
+  const window = setupDom(anchorNowMs);
   const result = await renderCard(window, states, entities);
 
   if (!result) {
