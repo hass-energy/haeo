@@ -22,9 +22,17 @@ const bundlePath = resolve(workspaceRoot, "custom_components", "haeo", "www", "h
 
 const CARD_WIDTH = 1920;
 const CARD_HEIGHT = 900;
-// Plot viewport size at CARD_WIDTH x CARD_HEIGHT (ForecastCardStore margins when width >= 420).
-const EXPECTED_PLOT_WIDTH = 1716;
-const EXPECTED_PLOT_HEIGHT = 824;
+
+const CARD_RECT = {
+  width: CARD_WIDTH,
+  height: CARD_HEIGHT,
+  x: 0,
+  y: 0,
+  top: 0,
+  left: 0,
+  right: CARD_WIDTH,
+  bottom: CARD_HEIGHT,
+};
 
 function pickEntities(states) {
   const preferred = [
@@ -126,6 +134,14 @@ function setupDom(anchorNowMs) {
   globalThis.document = window.document;
   globalThis.customElements = window.customElements;
   globalThis.HTMLElement = window.HTMLElement;
+  const originalGetBoundingClientRect = window.HTMLElement.prototype.getBoundingClientRect;
+  window.HTMLElement.prototype.getBoundingClientRect = function () {
+    if (this.id === "mount" || this.classList?.contains("chartContainer")) {
+      return CARD_RECT;
+    }
+    return originalGetBoundingClientRect.call(this);
+  };
+
   globalThis.IntersectionObserver = class {
     observe() {}
     disconnect() {}
@@ -135,15 +151,13 @@ function setupDom(anchorNowMs) {
       this._callback = callback;
     }
     observe(target) {
-      setTimeout(
-        () =>
-          this._callback([
-            {
-              target,
-              contentRect: { width: CARD_WIDTH, height: CARD_HEIGHT, x: 0, y: 0, top: 0, left: 0 },
-            },
-          ]),
-        10
+      queueMicrotask(() =>
+        this._callback([
+          {
+            target,
+            contentRect: { width: CARD_WIDTH, height: CARD_HEIGHT, x: 0, y: 0, top: 0, left: 0 },
+          },
+        ])
       );
     }
     disconnect() {}
@@ -176,30 +190,17 @@ function findChartSvg(element) {
   return null;
 }
 
-function isChartLayoutReady(svg) {
-  const viewport = svg.querySelector(".plotViewport");
-  if (!viewport) {
-    return false;
-  }
-  const width = Number(viewport.getAttribute("width") ?? 0);
-  const height = Number(viewport.getAttribute("height") ?? 0);
-  return width >= EXPECTED_PLOT_WIDTH && height >= EXPECTED_PLOT_HEIGHT;
+function isChartSized(svg) {
+  const width = Number(svg.getAttribute("width") ?? 0);
+  const height = Number(svg.getAttribute("height") ?? 0);
+  return width === CARD_WIDTH && height === CARD_HEIGHT;
 }
 
 async function renderCard(window, states, entities) {
   await import(pathToFileURL(bundlePath).href);
 
   const element = window.document.createElement("haeo-forecast-card");
-  element.getBoundingClientRect = () => ({
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    x: 0,
-    y: 0,
-    top: 0,
-    left: 0,
-    right: CARD_WIDTH,
-    bottom: CARD_HEIGHT,
-  });
+  element.getBoundingClientRect = () => CARD_RECT;
 
   element.setConfig({
     type: "custom:haeo-forecast-card",
@@ -207,13 +208,13 @@ async function renderCard(window, states, entities) {
     height: CARD_HEIGHT,
     animation_mode: "off",
   });
-  element.hass = { states, locale: { language: "en", country: "US" } };
+  element.hass = { states, locale: { language: "en" } };
   window.document.body.appendChild(element);
 
   const deadline = nodePerformance.now() + 10_000;
   while (nodePerformance.now() < deadline) {
     const result = findChartSvg(element);
-    if (result && isChartLayoutReady(result.svg)) {
+    if (result && isChartSized(result.svg)) {
       return result;
     }
     await sleep(50);
