@@ -61,7 +61,8 @@ uv run sim scenario1 --config-dir config --port 8123
 
 ## How it works
 
-1. **`tools/live_hass.py`** boots an in-process Home Assistant with HTTP, frontend, auth, and recorder (default: `config/` on port 8123). The sim binds HTTP to `127.0.0.1` and adds a `trusted_networks` provider with `allow_bypass_login`, so loopback requests log in automatically.
+1. **`tools/live_hass.py`** boots an in-process Home Assistant with HTTP, frontend, auth, and recorder (default: `config/` on port 8123).
+    The sim binds HTTP to `127.0.0.1` and adds a `trusted_networks` provider with `allow_bypass_login`, so loopback requests log in automatically.
 2. **`tools/time_shift.py`** applies a uniform timestamp delta to scenario input attributes.
 3. **`tools/sim.py`** runs a loop that recomputes the delta each tick, pushes shifted states via `hass.states.async_set()`, and optionally calls `setup_haeo_entry()` from the scenario config.
 
