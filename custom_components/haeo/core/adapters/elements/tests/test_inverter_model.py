@@ -178,6 +178,40 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             }
         },
     },
+    {
+        "description": "Inverter AC-to-DC connection pruned - rectifier carries no flow",
+        "name": "inverter_main",
+        "model_outputs": {
+            "inverter_main": {
+                NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+            },
+            "inverter_main:dc_to_ac": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
+                ),
+                connection.CONNECTION_SEGMENTS: {
+                    "power_limit": {
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
+                    }
+                },
+            },
+        },
+        "outputs": {
+            INVERTER_DEVICE_INVERTER: {
+                INVERTER_DC_BUS_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                INVERTER_POWER_DC_TO_AC: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
+                ),
+                INVERTER_POWER_AC_TO_DC: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.0,), direction="-"
+                ),
+                INVERTER_POWER_ACTIVE: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction=None),
+                INVERTER_MAX_POWER_DC_TO_AC_PRICE: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)
+                ),
+            }
+        },
+    },
 ]
 
 

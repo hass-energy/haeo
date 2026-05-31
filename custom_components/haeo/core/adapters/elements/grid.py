@@ -7,12 +7,12 @@ from typing import Any, Final, Literal
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.adapters.output_utils import expect_output_data
+from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
+from custom_components.haeo.core.model.elements.connection import CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 from custom_components.haeo.core.schema import extract_connection_target
@@ -122,15 +122,15 @@ class GridAdapter:
         **_kwargs: Any,
     ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
         """Map model outputs to grid-specific output names."""
-        import_conn = model_outputs[f"{name}:import"]
-        export_conn = model_outputs[f"{name}:export"]
+        import_conn = model_outputs.get(f"{name}:import")
+        export_conn = model_outputs.get(f"{name}:export")
 
         grid_outputs: dict[GridOutputName, OutputData] = {}
 
         # source_target = grid to system = IMPORT
         # target_source = system to grid = EXPORT
-        power_import = expect_output_data(import_conn[CONNECTION_POWER])
-        power_export = expect_output_data(export_conn[CONNECTION_POWER])
+        power_import = connection_power(import_conn, len(periods))
+        power_export = connection_power(export_conn, len(periods))
 
         grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER, direction="-")
         grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER, direction="+")
@@ -176,13 +176,14 @@ class GridAdapter:
         )
 
         # Output the shadow prices from power_limit segments on each connection
-        shadow_price_mappings: tuple[tuple[Mapping[ModelOutputName, ModelOutputValue], GridOutputName], ...] = (
+        shadow_price_mappings: tuple[tuple[Mapping[ModelOutputName, ModelOutputValue] | None, GridOutputName], ...] = (
             (export_conn, GRID_POWER_MAX_EXPORT_PRICE),
             (import_conn, GRID_POWER_MAX_IMPORT_PRICE),
         )
         for conn, output_name in shadow_price_mappings:
             if (
-                isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
+                conn is not None
+                and isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
                 and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
                 and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
             ):
