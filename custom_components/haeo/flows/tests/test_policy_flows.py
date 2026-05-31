@@ -7,6 +7,7 @@ from unittest.mock import Mock
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 import voluptuous as vol
@@ -41,7 +42,7 @@ from custom_components.haeo.flows.elements.policy import (
     POLICIES_TITLE,
     PolicySubentryFlowHandler,
 )
-from custom_components.haeo.flows.field_schema import CHOICE_NONE
+from custom_components.haeo.flows.field_schema import CHOICE_ENTITY, CHOICE_NONE
 
 
 @pytest.fixture
@@ -124,6 +125,43 @@ def _get_selector(result: Any, field_name: str) -> Any:
         if getattr(key, "schema", None) == field_name:
             return selector
     return None
+
+
+def _get_entity_include_entities(selector: Any) -> list[str] | None:
+    """Extract include_entities from the entity branch of a choose selector."""
+    entity_choice = selector.config["choices"][CHOICE_ENTITY]
+    entity_config = entity_choice["selector"]["entity"]
+    included = entity_config.get("include_entities")
+    return list(included) if included is not None else None
+
+
+async def test_build_price_selector_includes_compatible_price_entities(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Price entity picker includes price-compatible sensors across energy scales."""
+    haeo_number = entity_registry.async_get_or_create(
+        domain="number",
+        platform=DOMAIN,
+        unique_id="policy_price_constant",
+        suggested_object_id="policy_price",
+        config_entry=hub_entry,
+    )
+    hass.states.async_set("sensor.import_price", "0.25", {"unit_of_measurement": "$/kWh"})
+    hass.states.async_set("sensor.export_price", "0.05", {"unit_of_measurement": "€/MWh"})
+    hass.states.async_set("sensor.wholesale_price", "0.001", {"unit_of_measurement": "AUD/Wh"})
+    hass.states.async_set("sensor.power_only", "5", {"unit_of_measurement": "kW"})
+
+    flow = _create_flow(hass, hub_entry)
+    include_entities = _get_entity_include_entities(flow._build_price_selector())
+
+    assert include_entities is not None
+    assert "sensor.import_price" in include_entities
+    assert "sensor.export_price" in include_entities
+    assert "sensor.wholesale_price" in include_entities
+    assert "sensor.power_only" not in include_entities
+    assert haeo_number.entity_id not in include_entities
 
 
 # --- User step (adding a policy rule) ---

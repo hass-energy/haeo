@@ -142,7 +142,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             config = self._build_config(user_input, {})
             return self._finalize(config)
 
-        entity_metadata = extract_entity_metadata(self.hass)
+        entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
         schema = self._build_schema(
             participants,
@@ -176,7 +176,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             return self._finalize(config)
 
         input_fields = get_input_fields(ELEMENT_TYPE)
-        entity_metadata = extract_entity_metadata(self.hass)
+        entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
 
         schema = self._build_partition_schema(input_fields, section_inclusion_map, subentry_data)
@@ -196,7 +196,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build the schema with name, connection, and choose selectors for main inputs."""
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
-        surfaced_entries = build_surfaced_schema_entries(surfaced_fields)
+        surfaced_entries = build_surfaced_schema_entries(self.hass, self._get_entry(), surfaced_fields)
         return build_sectioned_choose_schema(
             self._get_sections(),
             input_fields,
