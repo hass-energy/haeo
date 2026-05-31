@@ -46,6 +46,7 @@ from custom_components.haeo.core.schema.elements.load import (
     SECTION_FORECAST,
 )
 from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE as LOAD_ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements.load import SURFACED_PRICE_HINTS as LOAD_SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_ENABLED,
     CONF_PRICE,
@@ -665,14 +666,16 @@ async def test_load_flow_creates_consumption_cost_rule(
     assert len(rules) == 1
     assert rules[0].get("target") == ["Test Load"]
     assert "source" not in rules[0]
-    assert rules[0]["price"] == as_constant_value(0.15)
+    # Consumption cost is a running value: the form shows the positive value
+    # while the policy stores its negation.
+    assert rules[0]["price"] == as_constant_value(-0.15)
 
 
-async def test_load_flow_new_element_always_applies_defaults(
+async def test_load_flow_new_element_without_consumption_cost_creates_no_rule(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """New load always gets default consumption cost rule."""
+    """New load with no consumption cost leaves the price unset (no rule)."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, LOAD_ELEMENT_TYPE)
     flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Load", "data": {}})
@@ -683,15 +686,93 @@ async def test_load_flow_new_element_always_applies_defaults(
             CONF_CONNECTION: "main_bus",
             CONF_FORECAST: ["sensor.load_forecast"],
             CONF_CURTAILMENT: False,
-            CONF_CONSUMPTION_COST: "",  # New element: default applied
+            CONF_CONSUMPTION_COST: "",  # No default: no rule created
         }
     )
     result = await flow.async_step_user(user_input=user_input)
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     rules = _get_rules(hub_entry)
-    assert len(rules) == 1
-    assert rules[0]["price"] == as_constant_value(0.0)
+    assert len(rules) == 0
+
+
+def test_build_surfaced_defaults_skips_fields_without_input_info(
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Defaults omit surfaced hints that have no matching InputFieldInfo."""
+    surfaced_fields = get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
+    defaults = build_surfaced_defaults(
+        hub_entry,
+        "Test Load",
+        LOAD_SURFACED_PRICE_HINTS,
+        {k: v for k, v in surfaced_fields.items() if k != CONF_CONSUMPTION_COST},
+    )
+
+    assert CONF_CONSUMPTION_COST not in defaults
+
+
+def test_build_surfaced_schema_entries_uses_existing_rule_price(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Schema entries reflect an existing surfaced rule when reconfiguring."""
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "consume", "target": ["Test Load"], "price": as_constant_value(-0.15)},
+        ],
+    )
+    surfaced_fields = get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
+    entries = build_surfaced_schema_entries(
+        hass,
+        hub_entry,
+        "Test Load",
+        LOAD_SURFACED_PRICE_HINTS,
+        surfaced_fields,
+    )
+
+    assert CONF_CONSUMPTION_COST in entries
+
+
+def test_defaults_negate_load_consumption_cost_preserves_entity_selection(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Entity-driven consumption cost is not sign-flipped for the form default."""
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "consume", "target": ["Test Load"], "price": as_entity_value(["sensor.cost"])},
+        ],
+    )
+    defaults = build_surfaced_defaults(
+        hub_entry,
+        "Test Load",
+        LOAD_SURFACED_PRICE_HINTS,
+        get_surfaced_input_fields(LOAD_ELEMENT_TYPE),
+    )
+
+    assert defaults[CONF_CONSUMPTION_COST] == ["sensor.cost"]
+
+
+def test_defaults_negate_load_consumption_cost(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Load consumption cost surfaces as positive while stored negative."""
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "consume", "target": ["Test Load"], "price": as_constant_value(-0.15)},
+        ],
+    )
+    defaults = build_surfaced_defaults(
+        hub_entry, "Test Load", LOAD_SURFACED_PRICE_HINTS, get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
+    )
+    assert defaults[CONF_CONSUMPTION_COST] == 0.15
 
 
 async def test_load_flow_excludes_surfaced_fields_from_config(
@@ -902,7 +983,9 @@ def test_build_surfaced_schema_entries_includes_compatible_price_entities(
     hass.states.async_set("sensor.power_only", "5", {"unit_of_measurement": "kW"})
 
     surfaced_fields = get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
-    _, selector = build_surfaced_schema_entries(hass, hub_entry, surfaced_fields)[CONF_CONSUMPTION_COST]
+    _, selector = build_surfaced_schema_entries(
+        hass, hub_entry, "Test Load", LOAD_SURFACED_PRICE_HINTS, surfaced_fields
+    )[CONF_CONSUMPTION_COST]
 
     entity_choice = selector.config["choices"][CHOICE_ENTITY]
     include_entities = entity_choice["selector"]["entity"].get("include_entities")

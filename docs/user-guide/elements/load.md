@@ -211,10 +211,15 @@ Combine multiple consumption sources:
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number or Switch entities with the `config` entity category.
 
-| Input                       | Unit | Description                                   |
-| --------------------------- | ---- | --------------------------------------------- |
-| `number.{name}_forecast`    | kW   | Load power forecast from configured sensor(s) |
-| `switch.{name}_curtailment` | -    | Whether shedding is permitted                 |
+| Input                            | Unit   | Description                                       |
+| -------------------------------- | ------ | ------------------------------------------------- |
+| `number.{name}_forecast`         | kW     | Load power forecast from configured sensor(s)     |
+| `switch.{name}_curtailment`      | -      | Whether shedding is permitted                     |
+| `number.{name}_consumption_cost` | \$/kWh | Running value of serving the load (if configured) |
+
+The consumption cost surfaces the value of serving this load for shedding decisions.
+It is entered as a positive running value and stored as the negative of a [policy](../../walkthroughs/power-policies.md) rule; the input appears on both the load device and the Policies device.
+This also applies when the value is driven by a sensor: a positive sensor reading is negated for the policy, and the entities continue to display the positive running value.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.

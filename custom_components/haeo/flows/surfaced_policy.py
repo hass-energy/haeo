@@ -19,7 +19,7 @@ from homeassistant.core import HomeAssistant
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value
+from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value, is_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_PRICE,
@@ -38,9 +38,13 @@ from custom_components.haeo.flows.field_schema import (
     CHOICE_NONE,
     build_choose_selector,
     get_choose_default,
+    get_preferred_choice,
 )
 
 POLICIES_TITLE = "Policies"
+
+# Surfaced fields can be a constant, an entity, or none.
+SURFACED_CHOICES = frozenset({CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE})
 
 
 def find_policy_subentry(hub_entry: ConfigEntry) -> ConfigSubentry | None:
@@ -173,6 +177,26 @@ def _save_policy_rules(
         hass.config_entries.async_add_subentry(hub_entry, new_subentry)
 
 
+def _negate_form_value(value: Any) -> Any:
+    """Negate a numeric form value, leaving entity selections untouched.
+
+    Only constant (numeric) values flip sign; entity references cannot be
+    negated and pass through unchanged.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return -value
+    return value
+
+
+def _negate_price(price: EntityValue | ConstantValue | None) -> EntityValue | ConstantValue | None:
+    """Negate a stored constant price, leaving entity prices untouched."""
+    if price is not None and is_constant_value(price):
+        return as_constant_value(-price["value"])
+    return price
+
+
 def price_to_form_value(price: EntityValue | ConstantValue | None) -> Any:
     """Convert a stored policy price to a form field value.
 
@@ -210,7 +234,7 @@ def form_value_to_price(value: Any) -> EntityValue | ConstantValue | None:
 # --- Flow helpers ---
 
 
-def _resolve_endpoints(
+def resolve_surfaced_endpoints(
     hint: SurfacedPriceHint,
     element_name: str,
 ) -> tuple[list[str] | None, list[str] | None]:
@@ -240,10 +264,13 @@ def build_surfaced_defaults(
             continue
 
         if element_name is not None:
-            source, target = _resolve_endpoints(hint, element_name)
+            source, target = resolve_surfaced_endpoints(hint, element_name)
             price = get_surfaced_rule_price(hub_entry, source=source, target=target)
             if price is not None:
-                defaults[field_name] = price_to_form_value(price)
+                form_value = price_to_form_value(price)
+                if hint.negate:
+                    form_value = _negate_form_value(form_value)
+                defaults[field_name] = form_value
             continue
 
         default = get_choose_default(field_info, None)
@@ -255,28 +282,40 @@ def build_surfaced_defaults(
 def build_surfaced_schema_entries(
     hass: HomeAssistant,
     hub_entry: ConfigEntry,
+    element_name: str | None,
+    surfaced_hints: Mapping[str, SurfacedPriceHint],
     surfaced_fields: Mapping[str, Any],
 ) -> dict[str, tuple[Any, Any]]:
     """Build vol.Schema entries for surfaced pricing fields.
 
     Uses the standard build_choose_selector to create selectors from the
-    InputFieldInfo objects.
+    InputFieldInfo objects. The pre-selected choice is derived from the
+    field hint defaults (new elements) or the existing rule value
+    (reconfigure), so fields without a default surface as "none".
     """
     entity_metadata = extract_entity_metadata(hass, hub_entry)
     inclusion_map = build_inclusion_map(dict(surfaced_fields), entity_metadata)
-    return {
-        field_info.field_name: (
-            vol.Optional(field_info.field_name),
+    entries: dict[str, tuple[Any, Any]] = {}
+    for field_name, field_info in surfaced_fields.items():
+        hint = surfaced_hints.get(field_name)
+        current_data: dict[str, Any] | None = None
+        if hint is not None and element_name is not None:
+            source, target = resolve_surfaced_endpoints(hint, element_name)
+            price = get_surfaced_rule_price(hub_entry, source=source, target=target)
+            if price is not None:
+                current_data = {field_name: price}
+        preferred = get_preferred_choice(field_info, current_data, allowed_choices=SURFACED_CHOICES)
+        entries[field_name] = (
+            vol.Optional(field_name),
             build_choose_selector(
                 field_info,
-                allowed_choices={CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE},
-                include_entities=inclusion_map.get(field_info.field_name),
+                allowed_choices=SURFACED_CHOICES,
+                include_entities=inclusion_map.get(field_name),
                 multiple=True,
-                preferred_choice=CHOICE_CONSTANT,
+                preferred_choice=preferred,
             ),
         )
-        for field_info in surfaced_fields.values()
-    }
+    return entries
 
 
 def save_surfaced_rules_from_input(
@@ -316,7 +355,12 @@ def save_surfaced_rules_from_input(
         if price is None and apply_defaults and hint.hint.default_value is not None:
             price = form_value_to_price(hint.hint.default_value)
 
-        source, target = _resolve_endpoints(hint, element_name)
+        # The form shows the running (positive) value; the policy stores its
+        # negative so the optimizer sees the underlying cost.
+        if hint.negate:
+            price = _negate_price(price)
+
+        source, target = resolve_surfaced_endpoints(hint, element_name)
         rule_name = translations.get(field_name, f"{element_name} {field_name}")
         save_surfaced_rule(
             hass,

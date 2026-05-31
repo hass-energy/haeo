@@ -13,6 +13,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.data.input_store import InputMode
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -35,9 +36,9 @@ from custom_components.haeo.core.schema.elements.solar import (
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
-from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.input_stores import build_input_stores
 from custom_components.haeo.switch import async_setup_entry
 
 
@@ -146,6 +147,11 @@ def _add_subentry(
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(entry, subentry)
+    # Rebuild input stores so the platform can wrap them (production builds these
+    # in async_setup_entry before forwarding the platform setup).
+    runtime_data = entry.runtime_data
+    if runtime_data is not None:
+        runtime_data.input_stores = build_input_stores(hass, entry, runtime_data.horizon_manager)
     return subentry
 
 
@@ -218,7 +224,7 @@ async def test_setup_creates_auto_optimize_switch_for_network(
                 CONF_CURTAILMENT: "input_boolean.curtail_solar",
             },
             CONF_CURTAILMENT,
-            ConfigEntityMode.DRIVEN,
+            InputMode.DRIVEN,
             id="solar_driven_switch",
         ),
     ],
@@ -230,7 +236,7 @@ async def test_setup_handles_switch_field_variants(
     title: str,
     data: dict[str, object],
     expect_field: str | None,
-    expect_mode: ConfigEntityMode | None,
+    expect_mode: InputMode | None,
 ) -> None:
     """Setup handles elements with missing, absent, or driven switch fields."""
     _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
@@ -247,7 +253,7 @@ async def test_setup_handles_switch_field_variants(
     else:
         matches = [e for e in input_switches if e._field_info.field_name == expect_field]
         assert matches
-        assert matches[0]._entity_mode == expect_mode
+        assert matches[0].entity_mode == expect_mode
 
 
 async def test_setup_creates_switch_entities_for_solar_curtailment(
