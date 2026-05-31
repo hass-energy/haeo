@@ -30,6 +30,8 @@ from custom_components.haeo.core.schema.elements.policy import (
 )
 from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value, is_entity_value
 from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
+from custom_components.haeo.flows.element_flow import build_inclusion_map
+from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
     CHOICE_ENTITY,
@@ -251,13 +253,17 @@ def build_surfaced_defaults(
 
 
 def build_surfaced_schema_entries(
+    hass: HomeAssistant,
     surfaced_fields: Mapping[str, Any],
 ) -> dict[str, tuple[Any, Any]]:
     """Build vol.Schema entries for surfaced pricing fields.
 
     Uses the standard build_choose_selector to create selectors from the
-    InputFieldInfo objects.
+    InputFieldInfo objects, with the same unit-based entity filtering as
+    other element config flows.
     """
+    entity_metadata = extract_entity_metadata(hass)
+    inclusion_map = build_inclusion_map(surfaced_fields, entity_metadata)
     return {
         field_info.field_name: (
             vol.Optional(field_info.field_name),
@@ -266,6 +272,7 @@ def build_surfaced_schema_entries(
                 allowed_choices={CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE},
                 multiple=True,
                 preferred_choice=CHOICE_CONSTANT,
+                include_entities=inclusion_map.get(field_info.field_name),
             ),
         )
         for field_info in surfaced_fields.values()

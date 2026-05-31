@@ -962,6 +962,13 @@ def test_build_entity_selector_without_include_entities(hass: HomeAssistant) -> 
     assert "include_entities" not in config
 
 
+def test_build_entity_selector_with_empty_include_entities(hass: HomeAssistant) -> None:
+    """Empty unit-filtered list does not fall back to a HAEO-only whitelist."""
+    selector = build_entity_selector(include_entities=[])
+    config = selector.config
+    assert "include_entities" not in config
+
+
 # --- Tests for preprocess_choose_selector_input ---
 
 

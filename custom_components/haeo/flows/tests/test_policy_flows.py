@@ -142,16 +142,22 @@ async def test_user_step_shows_form(
     assert result.get("step_id") == "user"
 
 
-def test_price_selector_allows_all_home_assistant_entities(
+async def test_price_selector_uses_price_unit_filtering_not_haeo_only(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Policy price entity picker is not restricted to HAEO entities only."""
+    """Policy price entity picker uses unit filtering like other config flows."""
+    hass.states.async_set("sensor.import_price", "0.25", {"unit_of_measurement": "$/kWh"})
+    hass.states.async_set("sensor.grid_power", "1.5", {"unit_of_measurement": "kW"})
+
     flow = _create_flow(hass, hub_entry)
     price_selector = flow._build_price_selector()
     entity_choice = price_selector.config["choices"][CHOICE_ENTITY]
     entity_selector_config = entity_choice["selector"]["entity"]
-    assert "include_entities" not in entity_selector_config
+    include_entities = entity_selector_config["include_entities"]
+
+    assert "sensor.import_price" in include_entities
+    assert "sensor.grid_power" not in include_entities
 
 
 async def test_user_step_creates_entry_when_none_exists(

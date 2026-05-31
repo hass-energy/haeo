@@ -57,9 +57,11 @@ from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as P
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import get_surfaced_input_fields
 from custom_components.haeo.flows.conftest import create_flow
+from custom_components.haeo.flows.field_schema import CHOICE_ENTITY
 from custom_components.haeo.flows.surfaced_policy import (
     POLICIES_TITLE,
     build_surfaced_defaults,
+    build_surfaced_schema_entries,
     find_policy_subentry,
     find_surfaced_rule,
     form_value_to_price,
@@ -346,6 +348,24 @@ def test_save_with_none_price_no_match_is_noop(
     )
     rules = _get_rules(hub_entry)
     assert len(rules) == 1
+
+
+# --- build_surfaced_schema_entries tests ---
+
+
+async def test_surfaced_schema_entries_use_price_unit_filtering(hass: HomeAssistant) -> None:
+    """Surfaced pricing fields use the same unit-based entity filtering as element flows."""
+    hass.states.async_set("sensor.import_price", "0.25", {"unit_of_measurement": "$/kWh"})
+    hass.states.async_set("sensor.grid_power", "1.5", {"unit_of_measurement": "kW"})
+
+    surfaced_fields = get_surfaced_input_fields(BATTERY_ELEMENT_TYPE)
+    entries = build_surfaced_schema_entries(hass, surfaced_fields)
+    _, charge_selector = entries[CONF_CHARGE_COST]
+    entity_selector_config = charge_selector.config["choices"][CHOICE_ENTITY]["selector"]["entity"]
+    include_entities = entity_selector_config["include_entities"]
+
+    assert "sensor.import_price" in include_entities
+    assert "sensor.grid_power" not in include_entities
 
 
 # --- build_surfaced_defaults tests ---
