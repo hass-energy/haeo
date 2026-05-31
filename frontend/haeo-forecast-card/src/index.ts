@@ -1,7 +1,5 @@
 import "./card";
-import "./editor.tsx";
 import "./topology-card";
-import "./topology-editor.tsx";
 
 declare global {
   interface Window {

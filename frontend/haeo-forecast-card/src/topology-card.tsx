@@ -2,6 +2,8 @@ import { render } from "preact";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { TopologyCardView } from "./components/TopologyCardView";
+import { buildHubConfigForm } from "./config-form";
+import { discoverHaeoHubEntryId } from "./hub-selection";
 import type { HassLike } from "./series";
 import TOPOLOGY_CARD_STYLES from "./topology-card.css";
 import { readTopology, resolveTopologyEntity } from "./topology-card-utils";
@@ -23,12 +25,20 @@ export class HaeoTopologyCard extends HTMLElement {
     this.renderCard();
   }
 
-  static getConfigElement(): HTMLElement {
-    return document.createElement("haeo-topology-card-editor");
+  static getConfigForm(): ReturnType<typeof buildHubConfigForm> {
+    return buildHubConfigForm();
   }
 
-  static getStubConfig(_hass?: HassLike): Omit<TopologyCardConfig, "type"> {
-    return { title: "HAEO network topology" };
+  static getStubConfig(hass?: HassLike): Omit<TopologyCardConfig, "type"> {
+    const stub: Omit<TopologyCardConfig, "type"> = { title: "HAEO network topology" };
+    if (hass === undefined) {
+      return stub;
+    }
+    const hubEntryId = discoverHaeoHubEntryId(hass);
+    if (hubEntryId !== null) {
+      stub.hub_entry_id = hubEntryId;
+    }
+    return stub;
   }
 
   set hass(hass: HassLike | null) {

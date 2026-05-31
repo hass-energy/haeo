@@ -6,6 +6,7 @@ const EN_TRANSLATIONS: TranslationDict = {
   "card.title.default": "HAEO forecast",
   "card.empty.message":
     "No forecast data found. Add forecast entities in card config or ensure HAEO output sensors are available.",
+  "card.empty.configure_hub": "Configure a HAEO hub in the card editor.",
   "header.horizon": "Horizon: {hours}",
   "axis.power": "Power (kW)",
   "axis.price": "Price",
@@ -34,12 +35,6 @@ const EN_TRANSLATIONS: TranslationDict = {
   "legend.group.battery_power": "Charge / discharge",
   "legend.group.battery_soc": "Min / max / charge %",
   "legend.group.toggle": "Toggle {element} {group}",
-  "editor.error.ws_unavailable": "Home Assistant websocket API unavailable in editor.",
-  "editor.title.label": "Title",
-  "editor.title.placeholder": "HAEO forecast",
-  "editor.discovery.loading": "Discovering HAEO hubs and forecast entities...",
-  "editor.discovery.count": "Discovered entities for selected hub: {count}",
-  "editor.elements.label": "Elements: {elements}",
   "topology.card.title.default": "HAEO network topology",
   "topology.card.empty.configure_hub": "Configure a HAEO hub in the card editor.",
   "topology.card.empty.no_entity":
@@ -47,14 +42,6 @@ const EN_TRANSLATIONS: TranslationDict = {
   "topology.card.empty.waiting": "Waiting for topology data on {entity}.",
   "topology.card.loading": "Computing layout…",
   "topology.card.error.layout": "Layout error",
-  "topology.editor.title.label": "Title",
-  "topology.editor.title.placeholder": "HAEO network topology",
-  "topology.editor.hub.label": "HAEO hub",
-  "topology.editor.hub.placeholder": "Select a HAEO hub to display its network topology.",
-  "topology.editor.resolution.loading": "Resolving optimization status sensor for selected hub…",
-  "topology.editor.resolution.found": "Optimization status sensor: {entity}",
-  "topology.editor.resolution.none": "No optimization status sensor with topology data found for the selected hub.",
-  "topology.editor.error.ws_unavailable": "Home Assistant websocket API unavailable in editor.",
 };
 
 const TRANSLATIONS: Record<string, TranslationDict> = {

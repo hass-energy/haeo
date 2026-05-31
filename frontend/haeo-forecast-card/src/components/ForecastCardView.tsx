@@ -142,6 +142,16 @@ const TooltipSection = observer(function TooltipSection(props: { store: Forecast
 });
 
 export const ForecastCardView = observer(function ForecastCardView(props: ForecastCardViewProps): JSX.Element {
+  const hubEntryId = props.store.config.hub_entry_id?.trim();
+  if (hubEntryId === undefined || hubEntryId === "") {
+    return (
+      <ha-card>
+        <CardTitle store={props.store} />
+        <div className="empty">{t(props.store.locale, "card.empty.configure_hub")}</div>
+      </ha-card>
+    );
+  }
+
   return (
     <ha-card>
       <CardTitle store={props.store} />

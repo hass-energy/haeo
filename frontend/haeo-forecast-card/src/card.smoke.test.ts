@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import "./card";
 
 interface HaeoCardElement extends HTMLElement {
-  setConfig: (config: { type: "custom:haeo-forecast-card"; entities?: string[] }) => void;
+  setConfig: (config: { type: "custom:haeo-forecast-card"; hub_entry_id?: string; entities?: string[] }) => void;
   hass: unknown;
   getCardSize: () => number;
   getGridOptions: () => {
@@ -14,6 +14,12 @@ interface HaeoCardElement extends HTMLElement {
   getCardWidth: () => number;
 }
 
+const smokeConfig = {
+  type: "custom:haeo-forecast-card" as const,
+  hub_entry_id: "hub-alpha",
+  entities: ["sensor.haeo_grid_import_power"],
+};
+
 describe("haeo-forecast-card smoke", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -21,10 +27,7 @@ describe("haeo-forecast-card smoke", () => {
 
   it("defines the custom element and accepts config", () => {
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
-    element.setConfig({
-      type: "custom:haeo-forecast-card" as const,
-      entities: ["sensor.haeo_grid_import_power"],
-    });
+    element.setConfig(smokeConfig);
     document.body.appendChild(element);
 
     expect(customElements.get("haeo-forecast-card")).toBeDefined();
@@ -33,10 +36,7 @@ describe("haeo-forecast-card smoke", () => {
 
   it("renders svg when forecast data is provided", async () => {
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
-    element.setConfig({
-      type: "custom:haeo-forecast-card" as const,
-      entities: ["sensor.haeo_grid_import_power"],
-    });
+    element.setConfig(smokeConfig);
     element.hass = {
       states: {
         "sensor.haeo_grid_import_power": {
@@ -77,7 +77,7 @@ describe("haeo-forecast-card smoke", () => {
     await new Promise((resolve) => {
       setTimeout(resolve, 20);
     });
-    expect(element.shadowRoot?.textContent).toContain("No forecast data found");
+    expect(element.shadowRoot?.textContent).toContain("Configure a HAEO hub in the card editor");
     element.remove();
   });
 
@@ -110,9 +110,7 @@ describe("haeo-forecast-card smoke", () => {
 
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
     try {
-      element.setConfig({
-        type: "custom:haeo-forecast-card",
-      });
+      element.setConfig(smokeConfig);
       document.body.appendChild(element);
       await new Promise((resolve) => {
         setTimeout(resolve, 20);
@@ -166,9 +164,7 @@ describe("haeo-forecast-card smoke", () => {
     });
 
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
-    element.setConfig({
-      type: "custom:haeo-forecast-card",
-    });
+    element.setConfig(smokeConfig);
     document.body.appendChild(element);
     await new Promise((resolve) => {
       setTimeout(resolve, 20);

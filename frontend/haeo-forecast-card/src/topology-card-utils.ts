@@ -1,14 +1,7 @@
 import type { HassLike } from "./series";
 import type { TopologyData } from "./topology/types";
 import type { TopologyCardConfig } from "./types";
-
-interface EntityRegistryEntryLike {
-  config_entry_id?: string | null;
-}
-
-interface TopologyHassLike extends HassLike {
-  entities?: Record<string, EntityRegistryEntryLike | undefined>;
-}
+import { entityIdsForHub } from "./hub-selection";
 
 export function isTopologyData(value: unknown): value is TopologyData {
   if (typeof value !== "object" || value === null) {
@@ -33,14 +26,6 @@ export function discoverTopologyEntities(hass: HassLike): string[] {
   return entities.sort((a, b) => a.localeCompare(b));
 }
 
-function topologyEntitiesForHub(hass: TopologyHassLike, hubEntryId: string): string[] {
-  const discovered = discoverTopologyEntities(hass);
-  if (hass.entities === undefined) {
-    return discovered;
-  }
-  return discovered.filter((entityId) => hass.entities?.[entityId]?.config_entry_id === hubEntryId);
-}
-
 export function resolveTopologyEntity(config: TopologyCardConfig, hass: HassLike | null): string | null {
   const configured = config.entity?.trim();
   if (configured !== undefined && configured !== "" && hass?.states[configured] !== undefined) {
@@ -55,10 +40,11 @@ export function resolveTopologyEntity(config: TopologyCardConfig, hass: HassLike
     return null;
   }
 
-  const topologyHass = hass as TopologyHassLike;
-  const hubEntities = topologyEntitiesForHub(topologyHass, hubEntryId);
+  const hubEntities = discoverTopologyEntities(hass).filter((entityId) =>
+    entityIdsForHub(hass, hubEntryId).includes(entityId)
+  );
 
-  if (topologyHass.entities !== undefined) {
+  if (hass.entities !== undefined) {
     if (hubEntities.length === 1) {
       return hubEntities[0]!;
     }

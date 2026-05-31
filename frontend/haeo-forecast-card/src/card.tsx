@@ -2,6 +2,8 @@ import { render } from "preact";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ForecastCardView } from "./components/ForecastCardView";
+import { buildHubConfigForm } from "./config-form";
+import { discoverHaeoHubEntryId } from "./hub-selection";
 import type { HassLike } from "./series";
 import { ForecastCardStore } from "./store";
 import CARD_STYLES from "./styles.css";
@@ -29,30 +31,20 @@ export class HaeoForecastCard extends HTMLElement {
     this.store.setConfig(config);
   }
 
-  static getConfigElement(): HTMLElement {
-    return document.createElement("haeo-forecast-card-editor");
+  static getConfigForm(): ReturnType<typeof buildHubConfigForm> {
+    return buildHubConfigForm();
   }
 
   static getStubConfig(hass?: HassLike): Omit<ForecastCardConfig, "type"> {
-    if (!hass) {
-      return { title: "HAEO forecast" };
+    const stub: Omit<ForecastCardConfig, "type"> = { title: "HAEO forecast" };
+    if (hass === undefined) {
+      return stub;
     }
-    const entities: string[] = [];
-    for (const [entityId, state] of Object.entries(hass.states)) {
-      if (!entityId.startsWith("sensor.") || !state) continue;
-      const forecast = state.attributes["forecast"];
-      const platform = state.attributes["platform"];
-      if (Array.isArray(forecast) && forecast.length > 0 && (platform === "haeo" || entityId.includes("haeo"))) {
-        entities.push(entityId);
-      }
+    const hubEntryId = discoverHaeoHubEntryId(hass);
+    if (hubEntryId !== null) {
+      stub.hub_entry_id = hubEntryId;
     }
-    if (entities.length === 0) {
-      return { title: "HAEO forecast" };
-    }
-    return {
-      title: "HAEO forecast",
-      entities: entities.sort((a, b) => a.localeCompare(b)),
-    };
+    return stub;
   }
 
   set hass(hass: HassLike | null) {

@@ -74,7 +74,7 @@ describe("topology-card-utils", () => {
       entities: {
         [entityId]: { config_entry_id: "hub-alpha" },
       },
-    } as HassLike & { entities: Record<string, { config_entry_id: string }> };
+    } as HassLike;
 
     const config: TopologyCardConfig = {
       type: "custom:haeo-topology-card",

@@ -7,6 +7,7 @@ import type {
   SeriesSourceRole,
 } from "./types";
 import type { ConfigMode } from "./types";
+import { discoverForecastEntityIdsForHub } from "./hub-selection";
 
 interface HassEntityState {
   entity_id: string;
@@ -14,8 +15,13 @@ interface HassEntityState {
   attributes: Record<string, unknown>;
 }
 
+interface EntityRegistryEntryLike {
+  config_entry_id?: string | null;
+}
+
 interface HassLike {
   states: Record<string, HassEntityState | undefined>;
+  entities?: Record<string, EntityRegistryEntryLike | undefined>;
   language?: string;
   locale?: { language?: string };
 }
@@ -144,14 +150,17 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
   if (!hass) {
     return [];
   }
+  const hubEntryId = config.hub_entry_id?.trim();
   const configured = config.entities ?? [];
   const entityIds =
     configured.length > 0
       ? configured
-      : Object.keys(hass.states).filter((entityId) => {
-          const state = hass.states[entityId];
-          return Boolean(state?.attributes["forecast"]);
-        });
+      : hubEntryId !== undefined && hubEntryId !== ""
+        ? discoverForecastEntityIdsForHub(hass, hubEntryId)
+        : Object.keys(hass.states).filter((entityId) => {
+            const state = hass.states[entityId];
+            return Boolean(state?.attributes["forecast"]);
+          });
 
   const result: ForecastSeries[] = [];
   const elementVariantCount = new Map<string, number>();
