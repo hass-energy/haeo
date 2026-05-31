@@ -1,8 +1,9 @@
 """Sim-specific extensions for the live Home Assistant runner.
 
 ``uv run sim`` uses persistent config directories, port-specific auth client IDs,
-optional HAEO setup from scenario config, and a browser auto-login bootstrap page.
-Guide tests continue to use ``tools.live_hass`` directly.
+optional HAEO setup from scenario config, and a trusted-networks auth provider so
+the browser is always logged in from loopback. Guide tests continue to use
+``tools.live_hass`` directly.
 """
 
 from __future__ import annotations
@@ -20,8 +21,7 @@ import warnings
 
 from homeassistant import loader
 from homeassistant.auth import auth_manager_from_config
-from homeassistant.auth.models import Credentials
-from homeassistant.config_entries import ConfigEntries, ConfigSubentry
+from homeassistant.config_entries import ConfigEntries, ConfigEntryState, ConfigSubentry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers import area_registry as ar
@@ -50,14 +50,15 @@ from custom_components.haeo.core.const import (
     CONF_TIER_4_DURATION,
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
-from tools.live_hass import PROJECT_ROOT, LiveHomeAssistant, _find_free_port, _require_component
-
-AUTH_BOOTSTRAP_FILENAME = "haeo-sim-login.html"
-
-
-def _client_id(port: int) -> str:
-    """Return the OAuth client ID for a live Home Assistant instance."""
-    return f"http://127.0.0.1:{port}/"
+from tools.live_hass import (
+    PROJECT_ROOT,
+    LiveHomeAssistant,
+    _ensure_http_started,
+    _find_free_port,
+    _require_component,
+    auth_provider_configs,
+    ensure_dev_user,
+)
 
 
 def _ensure_haeo_symlink(config_dir: Path) -> None:
@@ -69,88 +70,24 @@ def _ensure_haeo_symlink(config_dir: Path) -> None:
         haeo_target.symlink_to(PROJECT_ROOT / "custom_components" / "haeo")
 
 
-def _find_dev_user(users: list[Any]) -> Any | None:
-    """Return the developer user if one already exists in storage."""
-    for user in users:
-        if user.system_generated:
-            continue
-        if user.name == "Test User":
-            return user
-        for credential in user.credentials:
-            if credential.data.get("username") == "testuser":
-                return user
-
-    for user in users:
-        if user.is_owner and not user.system_generated:
-            return user
-
-    return None
+async def _remove_haeo_entries(hass: HomeAssistant) -> None:
+    """Remove HAEO config entries left from prior ``uv run sim`` sessions."""
+    for entry in list(hass.config_entries.async_entries(DOMAIN)):
+        if entry.state in (ConfigEntryState.LOADED, ConfigEntryState.SETUP_IN_PROGRESS):
+            await hass.config_entries.async_unload(entry.entry_id)
+        await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
 
 
-def _find_testuser(users: list[Any]) -> tuple[Any, Credentials] | None:
-    """Return the user and credential for testuser when already linked."""
-    for user in users:
-        for credential in user.credentials:
-            if credential.data.get("username") == "testuser":
-                return user, credential
-    return None
-
-
-async def _ensure_dev_auth(hass: HomeAssistant, *, port: int) -> tuple[str, str]:
-    """Ensure onboarding is bypassed and testuser credentials exist."""
-    from homeassistant.components.onboarding import async_is_onboarded  # noqa: PLC0415
-
-    if not async_is_onboarded(hass):
-        msg = "Onboarding bypass failed - check storage file format and timing"
-        raise RuntimeError(msg)
-
-    client_id = _client_id(port)
-    provider = hass.auth.auth_providers[0]
-    users = await hass.auth.async_get_users()
-    linked = _find_testuser(users)
-
-    if linked is None:
-        await provider.async_add_auth("testuser", "testpass")  # pyright: ignore[reportAttributeAccessIssue]
-        owner = _find_dev_user(users)
-        if owner is None:
-            owner = await hass.auth.async_create_user(
-                name="Test User",
-                group_ids=["system-admin"],
-            )
-        credential = Credentials(
-            id="test-credential",
-            auth_provider_type="homeassistant",
-            auth_provider_id=None,
-            data={"username": "testuser"},
-            is_new=False,
-        )
-        await hass.auth.async_link_user(owner, credential)
-    else:
-        owner, credential = linked
-
-    refresh_token = await hass.auth.async_create_refresh_token(
-        owner,
-        client_id,
-        credential=credential,
-    )
-    access_token = hass.auth.async_create_access_token(refresh_token)
-    return access_token, refresh_token.token
-
-
-def _auth_token_data(live_hass: LiveHomeAssistant) -> dict[str, object]:
-    """Return frontend localStorage token payload for a live instance."""
-    return {
-        "hassUrl": live_hass.url,
-        "clientId": _client_id(live_hass.port),
-        "access_token": live_hass.access_token,
-        "refresh_token": live_hass.refresh_token,
-        "token_type": "Bearer",
-        "expires_in": 1800,
-    }
+async def wait_for_sim_idle(hass: HomeAssistant) -> None:
+    """Wait until scheduled setup/reload work on the HA loop has finished."""
+    await hass.async_block_till_done(wait_background_tasks=True)
 
 
 async def setup_haeo_entry(hass: HomeAssistant, scenario_config: dict[str, Any]) -> MockConfigEntry:
     """Create and set up a HAEO hub config entry from scenario config data."""
+    await _remove_haeo_entries(hass)
+
     tiers_data = scenario_config.get("tiers") or scenario_config
     mock_config_entry = MockConfigEntry(
         domain=DOMAIN,
@@ -193,8 +130,8 @@ async def _setup_sim_home_assistant_async(
     config_dir: str,
     *,
     timezone: str,
-) -> tuple[HomeAssistant, str, str]:
-    """Bootstrap Home Assistant for sim with port-specific, idempotent dev auth."""
+) -> HomeAssistant:
+    """Bootstrap Home Assistant for sim with loopback auto-login dev auth."""
     storage_dir = Path(config_dir) / ".storage"
     storage_dir.mkdir(parents=True, exist_ok=True)
     onboarding_storage = storage_dir / "onboarding"
@@ -233,15 +170,15 @@ async def _setup_sim_home_assistant_async(
     await rs.async_load(hass)
     await hass.config_entries.async_initialize()
 
+    # Drop entries persisted from earlier sim runs so we do not boot into a
+    # pile of parallel HAEO setups that race the browser auto-login redirect.
+    await _remove_haeo_entries(hass)
+
     hass.auth = await auth_manager_from_config(
         hass,
-        provider_configs=[{"type": "homeassistant"}],
+        provider_configs=auth_provider_configs(),
         module_configs=[],
     )
-
-    http_config = {
-        "server_port": port,
-    }
 
     warnings.filterwarnings("ignore", category=DeprecationWarning, module="aiohttp")
     try:
@@ -251,12 +188,18 @@ async def _setup_sim_home_assistant_async(
     except ImportError:
         pass
 
-    await _require_component(hass, "http", {"http": http_config})
+    await _require_component(hass, "http", {"http": {"server_port": port}})
     await _require_component(hass, "websocket_api", {})
     await _require_component(hass, "auth", {})
     await _require_component(hass, "onboarding", {})
 
-    access_token, refresh_token_value = await _ensure_dev_auth(hass, port=port)
+    from homeassistant.components.onboarding import async_is_onboarded  # noqa: PLC0415
+
+    if not async_is_onboarded(hass):
+        msg = "Onboarding bypass failed - check storage file format and timing"
+        raise RuntimeError(msg)
+
+    await ensure_dev_user(hass)
 
     await _require_component(hass, "frontend", {})
     await _require_component(hass, "config", {})
@@ -273,9 +216,9 @@ async def _setup_sim_home_assistant_async(
     hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
     await hass.async_block_till_done()
 
-    await hass.http.start()
+    await _ensure_http_started(hass)
 
-    return hass, access_token, refresh_token_value
+    return hass
 
 
 def _run_sim_hass_thread(
@@ -283,7 +226,6 @@ def _run_sim_hass_thread(
     config_dir: str,
     timezone: str,
     hass_holder: list[HomeAssistant],
-    token_holder: list[tuple[str, str]],
     loop_holder: list[asyncio.AbstractEventLoop],
     ready_event: threading.Event,
     async_stop_event_holder: list[asyncio.Event],
@@ -299,13 +241,12 @@ def _run_sim_hass_thread(
         async_stop_event_holder.append(async_stop_event)
 
         try:
-            hass, access_token, refresh_token_value = await _setup_sim_home_assistant_async(
+            hass = await _setup_sim_home_assistant_async(
                 port,
                 config_dir,
                 timezone=timezone,
             )
             hass_holder.append(hass)
-            token_holder.append((access_token, refresh_token_value))
             ready_event.set()
 
             await async_stop_event.wait()
@@ -332,7 +273,6 @@ def _start_sim_home_assistant(
     _ensure_haeo_symlink(config_dir)
     resolved_port = port if port is not None else _find_free_port()
     hass_holder: list[HomeAssistant] = []
-    token_holder: list[tuple[str, str]] = []
     loop_holder: list[asyncio.AbstractEventLoop] = []
     error_holder: list[Exception] = []
     async_stop_event_holder: list[asyncio.Event] = []
@@ -345,7 +285,6 @@ def _start_sim_home_assistant(
             str(config_dir),
             timezone,
             hass_holder,
-            token_holder,
             loop_holder,
             ready_event,
             async_stop_event_holder,
@@ -369,7 +308,6 @@ def _start_sim_home_assistant(
         raise error_holder[0]
 
     hass = hass_holder[0]
-    access_token, refresh_token_value = token_holder[0]
     loop = loop_holder[0]
     async_stop_event = async_stop_event_holder[0]
 
@@ -378,46 +316,9 @@ def _start_sim_home_assistant(
         url=f"http://127.0.0.1:{resolved_port}",
         port=resolved_port,
         loop=loop,
-        access_token=access_token,
-        refresh_token=refresh_token_value,
         _stop_event=async_stop_event,
     )
     return instance, thread
-
-
-def publish_browser_auth(live_hass: LiveHomeAssistant) -> str:
-    """Write a same-origin bootstrap page that stores auth tokens for the frontend."""
-    config_dir = Path(live_hass.hass.config.config_dir)
-    www_dir = config_dir / "www"
-    www_dir.mkdir(parents=True, exist_ok=True)
-
-    token_data = _auth_token_data(live_hass)
-    bootstrap_path = www_dir / AUTH_BOOTSTRAP_FILENAME
-    bootstrap_path.write_text(
-        f"""<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>HAEO Sim Login</title>
-  </head>
-  <body>
-    <script>
-      localStorage.setItem("hassTokens", JSON.stringify({json.dumps(token_data)}));
-      window.location.replace({json.dumps(f"{live_hass.url}/")});
-    </script>
-  </body>
-</html>
-""",
-        encoding="utf-8",
-    )
-    return f"{live_hass.url}/local/{AUTH_BOOTSTRAP_FILENAME}"
-
-
-def remove_browser_auth(live_hass: LiveHomeAssistant) -> None:
-    """Remove the temporary browser auth bootstrap page."""
-    bootstrap_path = Path(live_hass.hass.config.config_dir) / "www" / AUTH_BOOTSTRAP_FILENAME
-    if bootstrap_path.exists():
-        bootstrap_path.unlink()
 
 
 @contextmanager
