@@ -238,6 +238,88 @@ async def test_setup_creates_correct_device_identifiers(
             assert entity.device_entry is not None
 
 
+async def test_mirror_entities_empty_without_policy_subentry(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """Mirror entities are not created when the policy subentry does not exist."""
+    from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE  # noqa: PLC0415
+    from custom_components.haeo.entities.device import get_or_create_element_device  # noqa: PLC0415
+    from custom_components.haeo.number import _build_surfaced_mirror_entities  # noqa: PLC0415
+
+    battery = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: str(BATTERY_TYPE), CONF_NAME: "MyBattery"}),
+        subentry_type=str(BATTERY_TYPE),
+        title="MyBattery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, battery)
+
+    runtime_data = config_entry.runtime_data
+    assert runtime_data is not None
+    device_entry = get_or_create_element_device(hass, config_entry, battery, BATTERY_TYPE)
+
+    mirrors = _build_surfaced_mirror_entities(
+        config_entry,
+        battery,
+        str(BATTERY_TYPE),
+        device_entry,
+        runtime_data,
+        horizon_manager,
+    )
+
+    assert mirrors == []
+
+
+async def test_mirror_entities_empty_for_element_without_surfaced_hints(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """Elements without surfaced price hints do not get mirror entities."""
+    from custom_components.haeo.entities.device import get_or_create_element_device  # noqa: PLC0415
+    from custom_components.haeo.number import _build_surfaced_mirror_entities  # noqa: PLC0415
+
+    grid = _add_subentry(
+        hass,
+        config_entry,
+        GRID_TYPE,
+        "Main Grid",
+        {
+            "connection": "main_bus",
+            "price_source_target": 0.30,
+            "price_target_source": 0.05,
+        },
+    )
+    runtime_data = config_entry.runtime_data
+    assert runtime_data is not None
+    device_entry = get_or_create_element_device(hass, config_entry, grid, GRID_TYPE)
+
+    mirrors = _build_surfaced_mirror_entities(
+        config_entry,
+        grid,
+        GRID_TYPE,
+        device_entry,
+        runtime_data,
+        horizon_manager,
+    )
+
+    assert mirrors == []
+
+
+async def test_setup_raises_when_runtime_data_missing(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Platform setup fails fast when integration setup did not attach runtime data."""
+    config_entry.runtime_data = None
+    async_add_entities = Mock()
+
+    with pytest.raises(RuntimeError, match="Runtime data not set"):
+        await async_setup_entry(hass, config_entry, async_add_entities)
+
+
 async def test_mirror_entities_share_policy_store_for_battery_costs(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,

@@ -692,6 +692,21 @@ async def test_load_flow_new_element_without_consumption_cost_creates_no_rule(
     assert len(rules) == 0
 
 
+def test_build_surfaced_defaults_skips_fields_without_input_info(
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Defaults omit surfaced hints that have no matching InputFieldInfo."""
+    surfaced_fields = get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
+    defaults = build_surfaced_defaults(
+        hub_entry,
+        "Test Load",
+        LOAD_SURFACED_PRICE_HINTS,
+        {k: v for k, v in surfaced_fields.items() if k != CONF_CONSUMPTION_COST},
+    )
+
+    assert CONF_CONSUMPTION_COST not in defaults
+
+
 def test_defaults_negate_load_consumption_cost(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,

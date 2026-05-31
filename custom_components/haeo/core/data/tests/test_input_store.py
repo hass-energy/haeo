@@ -123,6 +123,22 @@ def test_editable_bool_constant() -> None:
     assert store.mode == InputMode.EDITABLE
     assert store.value is True
     assert store.native_value is True
+    assert store.display_values == (True,)
+
+
+def test_hint_property_returns_field_hint() -> None:
+    """The hint property exposes the store's field metadata."""
+    store = _make_store(storage_value=1.0, output_type=OutputType.PRICE, time_series=True)
+
+    assert store.hint.output_type == OutputType.PRICE
+    assert store.hint.time_series is True
+
+
+def test_display_values_none_when_not_loaded() -> None:
+    """display_values is None before any value is resolved."""
+    store = _make_store(output_type=OutputType.ENERGY, time_series=False)
+
+    assert store.display_values is None
 
 
 # --- Mutation: set_value / listeners / persist ---
@@ -241,6 +257,17 @@ def test_negate_does_not_affect_editable_constant() -> None:
     store = _make_store(storage_value=as_constant_value(-0.15), output_type=OutputType.PRICE, negate=True)
 
     assert store.value == pytest.approx(-0.15)
+
+
+async def test_driven_async_load_without_source_entities() -> None:
+    """A driven store with no source entity IDs cannot load."""
+    storage = _MemStorage({"type": "entity", "value": []})
+    hint = FieldHint(output_type=OutputType.PRICE, time_series=False)
+    store = create_input_store(storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
+
+    sm = FakeStateMachine({})
+    assert await store.async_load(sm) is False
+    assert store.available is False
 
 
 async def test_driven_async_load_failure_keeps_unavailable() -> None:

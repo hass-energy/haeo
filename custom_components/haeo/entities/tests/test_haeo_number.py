@@ -531,6 +531,27 @@ async def test_editable_mode_set_native_value(
     hass.config_entries.async_update_subentry.assert_called_once()
 
 
+async def test_store_listener_syncs_when_store_mutates_externally(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    scalar_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Entities sharing a store update when another writer mutates the store."""
+    subentry = _create_subentry("Test Battery", {"capacity": 5.0})
+    config_entry.runtime_data = None
+
+    entity = _make_entity(hass, config_entry, subentry, scalar_field_info, device_entry, horizon_manager)
+    entity.async_write_ha_state = Mock()
+    await _add_entity_to_hass(hass, entity)
+
+    entity.store.set_value(12.0)
+
+    assert entity.native_value == 12.0
+    entity.async_write_ha_state.assert_called()
+
+
 async def test_negate_surfaces_running_value(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
