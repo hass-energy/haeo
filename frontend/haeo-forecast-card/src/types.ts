@@ -11,6 +11,12 @@ export interface ForecastCardConfig {
   power_display_mode?: PowerDisplayMode;
 }
 
+export interface TopologyCardConfig {
+  type: "custom:haeo-topology-card";
+  title?: string;
+  entity?: string;
+}
+
 export type ElementType =
   | "battery"
   | "battery_section"

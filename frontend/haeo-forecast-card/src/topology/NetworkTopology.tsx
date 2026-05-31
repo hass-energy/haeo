@@ -153,6 +153,9 @@ interface Props {
   topology: TopologyData;
   width?: number;
   height?: number;
+  onLayoutSize?: (width: number, height: number) => void;
+  layoutErrorMessage?: string;
+  layoutLoadingMessage?: string;
 }
 
 export function NetworkTopology(props: Props): JSX.Element {
@@ -167,8 +170,24 @@ export function NetworkTopology(props: Props): JSX.Element {
       .catch((e: unknown) => setError(String(e)));
   }, [topology]);
 
-  if (error != null) return <div style={{ color: "red" }}>Layout error: {error}</div>;
-  if (layout == null) return <div>Computing layout…</div>;
+  useEffect(() => {
+    if (layout === null || props.onLayoutSize === undefined) {
+      return;
+    }
+    props.onLayoutSize(layout.width, layout.height);
+  }, [layout, props.onLayoutSize]);
+
+  if (error != null) {
+    const prefix = props.layoutErrorMessage ?? "Layout error";
+    return (
+      <div style={{ color: "red" }}>
+        {prefix}: {error}
+      </div>
+    );
+  }
+  if (layout == null) {
+    return <div>{props.layoutLoadingMessage ?? "Computing layout…"}</div>;
+  }
 
   // Build node name → TopologyNode lookup
   const nodeMap = new Map(topology.nodes.map((n) => [n.name, n]));

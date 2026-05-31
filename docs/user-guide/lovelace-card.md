@@ -56,6 +56,27 @@ entities:
 - Automatic scaling based on card dimensions.
 - Smooth time sliding between forecast updates.
 
+## Network topology card
+
+The same Lovelace resource also registers `custom:haeo-topology-card`.
+It reads the `topology` attribute from a HAEO optimization status sensor and renders the LP network as an interactive SVG graph.
+
+### Basic topology card config
+
+```yaml
+type: custom:haeo-topology-card
+title: HAEO network topology
+entity: sensor.{network_name}_optimization_status
+```
+
+If `entity` is omitted, the card auto-discovers the first HAEO optimization status sensor that exposes a `topology` attribute.
+
+### Topology card options
+
+- `type`: Must be `custom:haeo-topology-card`.
+- `title`: Optional card title.
+- `entity`: Optional optimization status sensor entity ID.
+
 ## Troubleshooting
 
 If no data appears:
