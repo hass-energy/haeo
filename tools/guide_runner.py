@@ -272,53 +272,51 @@ def run_blocks_for_mode(
         shutil.rmtree(mode_dir)
     mode_dir.mkdir(parents=True)
 
-    with sync_playwright() as p:
-        browser = p.firefox.launch(headless=headless)
-        context = browser.new_context(
+    with (
+        sync_playwright() as playwright,
+        playwright.firefox.launch(headless=headless) as browser,
+        browser.new_context(
             viewport={"width": 1280, "height": 800},
             reduced_motion="reduce",
-        )
+        ) as context,
+    ):
         hass.configure_context(context, dark_mode=dark_mode)
-        page_obj = context.new_page()
-        page_obj.set_default_timeout(5000)
+        with context.new_page() as page_obj:
+            page_obj.set_default_timeout(5000)
+            try:
+                page = HAPage(page=page_obj, url=hass.url, ha=hass)
+                namespace = build_exec_namespace(page, hass)
 
-        try:
-            page = HAPage(page=page_obj, url=hass.url, ha=hass)
-            namespace = build_exec_namespace(page, hass)
+                # All blocks share one screenshot context (continuous numbering)
+                # but we track per-block boundaries
+                with screenshot_context(mode_dir) as ctx:
+                    per_block: list[list[str]] = []
 
-            # All blocks share one screenshot context (continuous numbering)
-            # but we track per-block boundaries
-            with screenshot_context(mode_dir) as ctx:
-                per_block: list[list[str]] = []
+                    for block in blocks:
+                        if not block.captures:
+                            # Setup blocks run without screenshot capture
+                            with pause_screenshots():
+                                exec(compile(block.source, f"<guide-setup block {block.index}>", "exec"), namespace)  # noqa: S102 (guide runner must execute user-authored code blocks)
+                            continue
 
-                for block in blocks:
-                    if not block.captures:
-                        # Setup blocks run without screenshot capture
-                        with pause_screenshots():
-                            exec(compile(block.source, f"<guide-setup block {block.index}>", "exec"), namespace)  # noqa: S102 (guide runner must execute user-authored code blocks)
-                        continue
+                        # Record screenshots before this block
+                        before_count = len(ctx.screenshots)
 
-                    # Record screenshots before this block
-                    before_count = len(ctx.screenshots)
+                        # Execute the block in the shared namespace
+                        exec(compile(block.source, f"<guide block {block.index}>", "exec"), namespace)  # noqa: S102 (guide runner must execute user-authored code blocks)
 
-                    # Execute the block in the shared namespace
-                    exec(compile(block.source, f"<guide block {block.index}>", "exec"), namespace)  # noqa: S102 (guide runner must execute user-authored code blocks)
+                        # Collect screenshots produced by this block
+                        all_names = list(ctx.screenshots.keys())
+                        block_names = all_names[before_count:]
+                        per_block.append(block_names)
 
-                    # Collect screenshots produced by this block
-                    all_names = list(ctx.screenshots.keys())
-                    block_names = all_names[before_count:]
-                    per_block.append(block_names)
+                    return per_block
 
-                return per_block
-
-        except Exception:
-            _LOGGER.exception("Error running guide block")
-            error_path = mode_dir / "error_state.png"
-            page_obj.screenshot(path=str(error_path))
-            raise
-
-        finally:
-            browser.close()
+            except Exception:
+                _LOGGER.exception("Error running guide block")
+                error_path = mode_dir / "error_state.png"
+                page_obj.screenshot(path=str(error_path))
+                raise
 
 
 def run_guide_from_markdown(
