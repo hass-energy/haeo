@@ -1266,6 +1266,18 @@ def test_signal_optimization_stale_optimizes_immediately_outside_cooldown(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
+def test_field_values_for_element_empty_without_runtime_data(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Field value collection returns nothing when runtime data is unavailable."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    mock_hub_entry.runtime_data = None
+
+    assert coordinator._field_values_for_element("Test Battery") == {}
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
 def test_load_from_input_stores_delegates_to_config_loader(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,

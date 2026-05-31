@@ -11,8 +11,12 @@ from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import (
     _resolve_list_items,
     load_element_config,
+    load_element_config_from_values,
     load_element_configs,
 )
+from custom_components.haeo.core.schema.elements.battery import CONF_CAPACITY, SECTION_STORAGE
+from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
+from custom_components.haeo.core.schema.sections import CONF_EFFICIENCY_SOURCE_TARGET, SECTION_EFFICIENCY
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
@@ -530,3 +534,96 @@ def test_load_element_config_resolves_list_fields(monkeypatch: pytest.MonkeyPatc
     assert len(result["rules"]) == 1
     assert isinstance(result["rules"][0]["price"], np.ndarray)
     np.testing.assert_array_equal(result["rules"][0]["price"], [0.02, 0.02, 0.02])
+
+
+# -- load_element_config_from_values tests --
+
+
+def test_load_element_config_from_values_substitutes_store_values() -> None:
+    """Pre-resolved store values are written into the loaded element config."""
+    config = _battery_config()
+    prices = np.array([10.0, 10.0, 10.0, 10.0])
+
+    result = load_element_config_from_values(
+        "Battery",
+        config,
+        {(SECTION_STORAGE, CONF_CAPACITY): prices},
+        FORECAST_TIMES,
+    )
+
+    np.testing.assert_array_equal(result["storage"]["capacity"], prices)
+
+
+def test_load_element_config_from_values_none_uses_default() -> None:
+    """A None store value falls back to the field hint default when one exists."""
+    config = _inverter_config(efficiency_source_target={"type": "constant", "value": 90.0})
+
+    result = load_element_config_from_values(
+        "Inverter",
+        config,
+        {(SECTION_EFFICIENCY, CONF_EFFICIENCY_SOURCE_TARGET): None},
+        FORECAST_TIMES,
+    )
+
+    np.testing.assert_allclose(result["efficiency"]["efficiency_source_target"], [1.0, 1.0, 1.0])
+
+
+def test_load_element_config_from_values_missing_optional_field_is_removed() -> None:
+    """Fields without a store entry and no default are removed from the loaded config."""
+    config = _grid_config_without_export()
+
+    result = load_element_config_from_values("Grid", config, {}, FORECAST_TIMES)
+
+    assert "price_target_source" not in result["pricing"]
+
+
+def test_load_element_config_from_values_missing_field_uses_default() -> None:
+    """Fields without a store entry receive schema defaults when configured."""
+    config = _inverter_config()
+
+    result = load_element_config_from_values("Inverter", config, {}, FORECAST_TIMES)
+
+    np.testing.assert_allclose(result["efficiency"]["efficiency_source_target"], [1.0, 1.0, 1.0])
+
+
+def test_load_element_config_from_values_applies_list_field_values() -> None:
+    """List-backed fields (e.g. policy rules) accept pre-resolved store values."""
+    config: dict[str, Any] = {
+        "element_type": "policy",
+        "name": "Policies",
+        "rules": [{"name": "solar", "enabled": True, "price": {"type": "constant", "value": 0.02}}],
+    }
+    resolved_price = np.array([0.02, 0.02, 0.02])
+
+    result = load_element_config_from_values(
+        "Policies",
+        config,
+        {(CONF_RULES, "0", CONF_PRICE): resolved_price},
+        FORECAST_TIMES,
+    )
+
+    np.testing.assert_array_equal(result["rules"][0]["price"], resolved_price)
+
+
+def test_load_element_config_from_values_skips_non_mapping_list_items() -> None:
+    """Non-mapping list entries pass through unchanged."""
+    config: dict[str, Any] = {
+        "element_type": "policy",
+        "name": "Policies",
+        "rules": ["literal-entry", {"name": "priced", "enabled": True, "price": {"type": "constant", "value": 0.01}}],
+    }
+
+    result = load_element_config_from_values("Policies", config, {}, FORECAST_TIMES)
+
+    assert result["rules"][0] == "literal-entry"
+
+
+def test_load_element_config_from_values_unknown_element_type_raises() -> None:
+    """Invalid element types are rejected before assembly."""
+    with pytest.raises(ValueError, match="Unknown element type"):
+        load_element_config_from_values(
+            "Bad",
+            {"element_type": "not_real", "name": "Bad"},
+            {},
+            FORECAST_TIMES,
+        )
