@@ -26,7 +26,7 @@ from pathlib import Path
 import socket
 import tempfile
 import threading
-from typing import TYPE_CHECKING, Any
+from typing import Any
 import warnings
 
 from homeassistant import loader
@@ -45,9 +45,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers import restore_state as rs
 from homeassistant.setup import async_setup_component
-
-if TYPE_CHECKING:
-    from playwright.sync_api import BrowserContext
+from playwright.sync_api import BrowserContext
 
 PROJECT_ROOT = Path(__file__).parent.parent
 
