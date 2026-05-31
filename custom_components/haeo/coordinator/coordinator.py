@@ -299,14 +299,24 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._element_updaters: dict[str, network_module.ElementUpdater] = {}
         self.topology: dict[str, Any] = {}  # Serialized topology for frontend
 
-        # Map element names to subentry IDs so we can look up fresh data
-        # from config_entry.subentries at load time. We don't cache subentry.data
-        # because async_update_subentry_value replaces the MappingProxyType,
-        # making cached references stale.
+        # Snapshot the participant structure (which elements exist and the shape
+        # of each, including list fields like policy rules) taken before platform
+        # setup yields to the event loop. Field *values* are read live from input
+        # entities at optimization time, so value edits still apply; only the
+        # structure is fixed. Structural changes always trigger a reload, which
+        # rebuilds the coordinator snapshot together with the input entities.
+        # Reading the structure live instead would let a subentry committed during
+        # setup's awaits (which schedules its own reload) leak in without matching
+        # entities, breaking config assembly.
         self._participant_subentry_ids: dict[str, str] = {}  # element_name -> subentry_id
 
         for participant in collect_element_subentries(config_entry):
             self._participant_subentry_ids[participant.name] = participant.subentry.subentry_id
+
+        self._participant_configs: dict[str, ElementConfigSchema] = get_element_configs(
+            config_entry,
+            self._participant_subentry_ids,
+        )
 
         # Custom debouncing state
         advanced_data = config_entry.data.get(HUB_SECTION_ADVANCED, {})
@@ -331,13 +341,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._state_change_unsubs: list[Callable[[], None]] = []
 
     def _get_participant_configs(self) -> dict[str, ElementConfigSchema]:
-        """Read fresh participant configs from the config entry's subentries.
+        """Return the participant structure snapshot taken at construction.
 
-        Delegates to ``get_element_configs`` which validates each subentry via
-        the ``is_element_config_schema`` TypeGuard, ensuring the returned data
-        is properly typed as ``ElementConfigSchema`` with no ``Any``.
+        The snapshot is fixed for this coordinator lifetime. Field values are
+        read live from input entities at optimization time, so value edits still
+        apply; only structure changes on reload.
         """
-        return get_element_configs(self.config_entry, self._participant_subentry_ids)
+        return self._participant_configs
 
     async def async_initialize(self) -> None:
         """Initialize the network and set up subscriptions.

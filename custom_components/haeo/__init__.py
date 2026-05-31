@@ -369,6 +369,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Start horizon manager's scheduled updates - returns stop function
     entry.async_on_unload(horizon_manager.start())
 
+    # Create the coordinator before setting up input platforms. Platform setup
+    # and entity readiness below yield to the event loop, during which a
+    # concurrent subentry commit (which schedules its own reload) can mutate
+    # entry.subentries. Capturing the coordinator's participant set now keeps
+    # structure consistent; the pending reload picks up any element added in
+    # the meantime.
+    coordinator = HaeoDataUpdateCoordinator(hass, entry)
+    runtime_data.coordinator = coordinator
+    entry.async_on_unload(coordinator.cleanup)
+
     # Set up input platforms first - they populate runtime_data.input_entities
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
     # Register cleanup - will be called on failure or unload
@@ -394,12 +404,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
             },
         ) from None
     _LOGGER.debug("All input entities ready")
-
-    # Create coordinator after input entities are ready - it reads from them
-    coordinator = HaeoDataUpdateCoordinator(hass, entry)
-    runtime_data.coordinator = coordinator
-    # Register coordinator cleanup
-    entry.async_on_unload(coordinator.cleanup)
 
     # Wrap coordinator operations to provide meaningful HA error messages
     # Cleanup is handled via async_on_unload callbacks - no explicit cleanup needed here
