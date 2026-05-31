@@ -30,6 +30,8 @@ from custom_components.haeo.core.schema.elements.policy import (
 )
 from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value, is_entity_value
 from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
+from custom_components.haeo.flows.element_flow import build_inclusion_map
+from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
     CHOICE_ENTITY,
@@ -278,6 +280,7 @@ def build_surfaced_defaults(
 
 
 def build_surfaced_schema_entries(
+    hass: HomeAssistant,
     hub_entry: ConfigEntry,
     element_name: str | None,
     surfaced_hints: Mapping[str, SurfacedPriceHint],
@@ -290,6 +293,8 @@ def build_surfaced_schema_entries(
     field hint defaults (new elements) or the existing rule value
     (reconfigure), so fields without a default surface as "none".
     """
+    entity_metadata = extract_entity_metadata(hass, hub_entry)
+    inclusion_map = build_inclusion_map(dict(surfaced_fields), entity_metadata)
     entries: dict[str, tuple[Any, Any]] = {}
     for field_name, field_info in surfaced_fields.items():
         hint = surfaced_hints.get(field_name)
@@ -305,6 +310,7 @@ def build_surfaced_schema_entries(
             build_choose_selector(
                 field_info,
                 allowed_choices=SURFACED_CHOICES,
+                include_entities=inclusion_map.get(field_name),
                 multiple=True,
                 preferred_choice=preferred,
             ),

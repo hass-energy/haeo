@@ -77,7 +77,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             config = self._build_config(user_input)
             return self._finalize(config, user_input)
 
-        entity_metadata = extract_entity_metadata(self.hass)
+        entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
         schema = self._build_schema(
             participants,
@@ -118,7 +118,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
         element_name = subentry_data.get(CONF_NAME) if subentry_data else None
         surfaced_entries = build_surfaced_schema_entries(
-            self._get_entry(), element_name, SURFACED_PRICE_HINTS, surfaced_fields
+            self.hass, self._get_entry(), element_name, SURFACED_PRICE_HINTS, surfaced_fields
         )
         return build_sectioned_choose_schema(
             self._get_sections(),
