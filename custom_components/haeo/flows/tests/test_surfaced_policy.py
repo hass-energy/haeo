@@ -61,6 +61,7 @@ from custom_components.haeo.flows.conftest import create_flow
 from custom_components.haeo.flows.surfaced_policy import (
     POLICIES_TITLE,
     build_surfaced_defaults,
+    build_surfaced_schema_entries,
     find_policy_subentry,
     find_surfaced_rule,
     form_value_to_price,
@@ -705,6 +706,51 @@ def test_build_surfaced_defaults_skips_fields_without_input_info(
     )
 
     assert CONF_CONSUMPTION_COST not in defaults
+
+
+def test_build_surfaced_schema_entries_uses_existing_rule_price(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Schema entries reflect an existing surfaced rule when reconfiguring."""
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "consume", "target": ["Test Load"], "price": as_constant_value(-0.15)},
+        ],
+    )
+    surfaced_fields = get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
+    entries = build_surfaced_schema_entries(
+        hub_entry,
+        "Test Load",
+        LOAD_SURFACED_PRICE_HINTS,
+        surfaced_fields,
+    )
+
+    assert CONF_CONSUMPTION_COST in entries
+
+
+def test_defaults_negate_load_consumption_cost_preserves_entity_selection(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Entity-driven consumption cost is not sign-flipped for the form default."""
+    _add_policy_subentry(
+        hass,
+        hub_entry,
+        [
+            {"name": "consume", "target": ["Test Load"], "price": as_entity_value(["sensor.cost"])},
+        ],
+    )
+    defaults = build_surfaced_defaults(
+        hub_entry,
+        "Test Load",
+        LOAD_SURFACED_PRICE_HINTS,
+        get_surfaced_input_fields(LOAD_ELEMENT_TYPE),
+    )
+
+    assert defaults[CONF_CONSUMPTION_COST] == ["sensor.cost"]
 
 
 def test_defaults_negate_load_consumption_cost(

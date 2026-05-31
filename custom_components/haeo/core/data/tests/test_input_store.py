@@ -7,6 +7,7 @@ loader (``resolve_field``/``resolve_constant``).
 """
 
 from typing import Any
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -257,6 +258,53 @@ def test_negate_does_not_affect_editable_constant() -> None:
     store = _make_store(storage_value=as_constant_value(-0.15), output_type=OutputType.PRICE, negate=True)
 
     assert store.value == pytest.approx(-0.15)
+
+
+def test_editable_none_storage_stays_unavailable() -> None:
+    """An editable store with no configured value has no resolved data."""
+    store = _make_store(storage_value={"type": "none"})
+
+    store.refresh()
+
+    assert store.value is None
+    assert store.available is False
+    assert store.display_values is None
+
+
+async def test_driven_async_load_resolve_failure() -> None:
+    """Resolution exceptions leave the store unavailable without clearing prior state."""
+    store = _make_store(
+        storage_value=as_entity_value(["sensor.x"]),
+        output_type=OutputType.PRICE,
+        time_series=False,
+    )
+    sm = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "1.0", {})})
+
+    with patch(
+        "custom_components.haeo.core.data.input_store.resolve_field",
+        side_effect=RuntimeError("boom"),
+    ):
+        assert await store.async_load(sm) is False
+
+    assert store.available is False
+
+
+async def test_driven_async_load_rejects_empty_time_series() -> None:
+    """An empty time-series result is treated as a failed load."""
+    store = _make_store(
+        storage_value=as_entity_value(["sensor.x"]),
+        output_type=OutputType.PRICE,
+        time_series=True,
+    )
+    sm = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "1.0", {})})
+
+    with patch(
+        "custom_components.haeo.core.data.input_store.resolve_field",
+        return_value=np.array([]),
+    ):
+        assert await store.async_load(sm) is False
+
+    assert store.available is False
 
 
 async def test_driven_async_load_without_source_entities() -> None:

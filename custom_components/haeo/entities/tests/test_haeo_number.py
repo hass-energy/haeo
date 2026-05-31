@@ -531,6 +531,28 @@ async def test_editable_mode_set_native_value(
     hass.config_entries.async_update_subentry.assert_called_once()
 
 
+async def test_async_load_sync_and_update_writes_state_when_load_succeeds(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """A successful driven reload writes entity state to Home Assistant."""
+    hass.states.async_set("sensor.power", "10.0")
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
+    entity.async_write_ha_state = Mock()
+    await _add_entity_to_hass(hass, entity)
+    entity.async_write_ha_state.reset_mock()
+
+    await entity._async_load_sync_and_update()
+
+    entity.async_write_ha_state.assert_called_once()
+
+
 async def test_store_listener_syncs_when_store_mutates_externally(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
