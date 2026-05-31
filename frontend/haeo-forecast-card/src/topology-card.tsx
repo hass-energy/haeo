@@ -9,6 +9,19 @@ import TOPOLOGY_CARD_STYLES from "./topology-card.css";
 import { readTopology, resolveTopologyEntity } from "./topology-card-utils";
 import type { TopologyCardConfig } from "./types";
 
+function buildTopologyStubConfig(hass: HassLike): Omit<TopologyCardConfig, "type"> {
+  const stub: Omit<TopologyCardConfig, "type"> = { title: "HAEO network topology" };
+  const hubEntryId = discoverHaeoHubEntryId(hass);
+  if (hubEntryId !== null) {
+    stub.hub_entry_id = hubEntryId;
+  }
+  const entity = resolveTopologyEntity({ type: "custom:haeo-topology-card", ...stub }, hass);
+  if (entity !== null) {
+    stub.entity = entity;
+  }
+  return stub;
+}
+
 export class HaeoTopologyCard extends HTMLElement {
   private static readonly MASONRY_ROW_HEIGHT_PX = 50;
   private _config: TopologyCardConfig = { type: "custom:haeo-topology-card" };
@@ -19,9 +32,13 @@ export class HaeoTopologyCard extends HTMLElement {
   private hasRenderedHost = false;
 
   setConfig(config: TopologyCardConfig): void {
+    const previousEntityId = resolveTopologyEntity(this._config, this._hass);
     this._config = { ...config, type: "custom:haeo-topology-card" };
-    this._lastRenderedEntityId = null;
-    this._lastRenderedTopology = undefined;
+    const nextEntityId = resolveTopologyEntity(this._config, this._hass);
+    if (previousEntityId !== nextEntityId) {
+      this._lastRenderedEntityId = null;
+      this._lastRenderedTopology = undefined;
+    }
     this.renderCard();
   }
 
@@ -30,15 +47,10 @@ export class HaeoTopologyCard extends HTMLElement {
   }
 
   static getStubConfig(hass?: HassLike): Omit<TopologyCardConfig, "type"> {
-    const stub: Omit<TopologyCardConfig, "type"> = { title: "HAEO network topology" };
     if (hass === undefined) {
-      return stub;
+      return { title: "HAEO network topology" };
     }
-    const hubEntryId = discoverHaeoHubEntryId(hass);
-    if (hubEntryId !== null) {
-      stub.hub_entry_id = hubEntryId;
-    }
-    return stub;
+    return buildTopologyStubConfig(hass);
   }
 
   set hass(hass: HassLike | null) {
@@ -112,6 +124,7 @@ export class HaeoTopologyCard extends HTMLElement {
       return;
     }
     this._layoutHeight = height;
+    this.dispatchEvent(new Event("ll-update", { bubbles: true, composed: true }));
   };
 
   private renderCard(): void {

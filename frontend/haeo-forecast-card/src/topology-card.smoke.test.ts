@@ -70,7 +70,7 @@ describe("haeo-topology-card smoke", () => {
     element.remove();
   });
 
-  it("renders configure hub message when no hub is selected", async () => {
+  it("renders configure hub message when no hub is available", async () => {
     const element = document.createElement("haeo-topology-card") as HaeoTopologyCardElement;
     element.setConfig({
       type: "custom:haeo-topology-card",
@@ -80,6 +80,38 @@ describe("haeo-topology-card smoke", () => {
       setTimeout(resolve, 20);
     });
     expect(element.shadowRoot?.textContent).toContain("Configure a HAEO hub in the card editor");
+    element.remove();
+  });
+
+  it("renders topology preview using the first discovered hub", async () => {
+    const scenario = findScenarioTopologyState();
+    expect(scenario).not.toBeNull();
+    if (scenario === null) {
+      throw new Error("Expected scenario topology state");
+    }
+
+    const element = document.createElement("haeo-topology-card") as HaeoTopologyCardElement;
+    element.setConfig({
+      type: "custom:haeo-topology-card",
+    });
+    element.hass = {
+      states: {
+        [scenario.entityId]: scenario.state,
+      },
+      entities: {
+        [scenario.entityId]: { platform: "haeo", device_id: "dev-alpha" },
+      },
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+      },
+    };
+    document.body.appendChild(element);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 500);
+    });
+
+    expect(element.shadowRoot?.textContent).not.toContain("Configure a HAEO hub in the card editor");
+    expect(element.shadowRoot?.querySelector("svg")).toBeTruthy();
     element.remove();
   });
 });

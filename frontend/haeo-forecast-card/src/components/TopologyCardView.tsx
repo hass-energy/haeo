@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { t } from "../i18n";
 import type { HassLike } from "../series";
 import { NetworkTopology } from "../topology/NetworkTopology";
+import { resolveHubEntryId } from "../hub-selection";
 import { readTopology, resolveTopologyEntity } from "../topology-card-utils";
 import type { TopologyCardConfig } from "../types";
 
@@ -48,7 +49,7 @@ export function TopologyCardView(props: TopologyCardViewProps): JSX.Element {
     [onLayoutHeight]
   );
 
-  if (config.hub_entry_id === undefined || config.hub_entry_id === "") {
+  if (resolveHubEntryId(config, hass) === null && entityId === null) {
     return (
       <div className="topologyCard">
         <div className="topologyHeader">{title}</div>

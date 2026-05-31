@@ -72,7 +72,10 @@ describe("topology-card-utils", () => {
         [entityId]: scenarioOutputs[entityId as keyof typeof scenarioOutputs] as HassLike["states"][string],
       },
       entities: {
-        [entityId]: { config_entry_id: "hub-alpha" },
+        [entityId]: { platform: "haeo", device_id: "dev-alpha" },
+      },
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
       },
     } as HassLike;
 
@@ -111,7 +114,7 @@ describe("topology-card-utils", () => {
     expect(resolveTopologyEntity(config, hass)).toBeNull();
   });
 
-  it("returns null when hub is not configured", () => {
+  it("resolves topology from states when hub is not configured", () => {
     const entityId = findScenarioTopologyEntity();
     expect(entityId).not.toBeNull();
     if (entityId === null) {
@@ -127,6 +130,6 @@ describe("topology-card-utils", () => {
       type: "custom:haeo-topology-card",
     };
 
-    expect(resolveTopologyEntity(config, hass)).toBeNull();
+    expect(resolveTopologyEntity(config, hass)).toBe(entityId);
   });
 });

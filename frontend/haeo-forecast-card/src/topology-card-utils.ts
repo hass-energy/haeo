@@ -1,7 +1,7 @@
 import type { HassLike } from "./series";
 import type { TopologyData } from "./topology/types";
 import type { TopologyCardConfig } from "./types";
-import { entityIdsForHub } from "./hub-selection";
+import { entityBelongsToHub, resolveHubEntryId } from "./hub-selection";
 
 export function isTopologyData(value: unknown): value is TopologyData {
   if (typeof value !== "object" || value === null) {
@@ -35,13 +35,24 @@ export function resolveTopologyEntity(config: TopologyCardConfig, hass: HassLike
     }
   }
 
-  const hubEntryId = config.hub_entry_id?.trim();
-  if (hubEntryId === undefined || hubEntryId === "" || hass === null) {
+  if (hass === null) {
     return null;
   }
 
+  const hubEntryId = resolveHubEntryId(config, hass);
+  if (hubEntryId === null) {
+    const discovered = discoverTopologyEntities(hass);
+    if (discovered.length === 1) {
+      return discovered[0]!;
+    }
+    const optimizationStatus = discovered.find(
+      (entityId) => hass.states[entityId]?.attributes["output_name"] === "network_optimization_status"
+    );
+    return optimizationStatus ?? null;
+  }
+
   const hubEntities = discoverTopologyEntities(hass).filter((entityId) =>
-    entityIdsForHub(hass, hubEntryId).includes(entityId)
+    entityBelongsToHub(hass, entityId, hubEntryId)
   );
 
   if (hass.entities !== undefined) {

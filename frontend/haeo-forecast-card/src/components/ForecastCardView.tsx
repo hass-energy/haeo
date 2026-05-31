@@ -4,6 +4,7 @@ import * as mdi from "@mdi/js";
 import { ChartSvg } from "./ChartSvg";
 import { Legend } from "./Legend";
 import { Tooltip } from "./Tooltip";
+import { resolveHubEntryId } from "../hub-selection";
 import { t } from "../i18n";
 import { observer } from "../mobx-observer";
 import { formatHorizonDuration } from "../store";
@@ -142,8 +143,7 @@ const TooltipSection = observer(function TooltipSection(props: { store: Forecast
 });
 
 export const ForecastCardView = observer(function ForecastCardView(props: ForecastCardViewProps): JSX.Element {
-  const hubEntryId = props.store.config.hub_entry_id?.trim();
-  if (hubEntryId === undefined || hubEntryId === "") {
+  if (resolveHubEntryId(props.store.config, props.store.hass) === null && !props.store.hasData) {
     return (
       <ha-card>
         <CardTitle store={props.store} />
