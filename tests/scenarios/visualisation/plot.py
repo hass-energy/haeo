@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 import json
 import logging
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -15,10 +16,18 @@ _LOGGER = logging.getLogger(__name__)
 CARD_WIDTH = 1920
 CARD_HEIGHT = 900
 
+_SUBPROCESS_ENV = {
+    **os.environ,
+    "TZ": "UTC",
+    "LC_ALL": "C.UTF-8",
+}
+
 
 def create_card_visualization(
     output_sensors: Mapping[str, Mapping[str, Any]],
     output_path: str,
+    *,
+    anchor_time: str | None = None,
 ) -> None:
     """Render the HAEO forecast card as SVG via the bundled card component.
 
@@ -42,13 +51,17 @@ def create_card_visualization(
         temp_path = f.name
 
     try:
+        command = ["node", str(script), temp_path, output_path]
+        if anchor_time is not None:
+            command.append(anchor_time)
         result = subprocess.run(  # noqa: S603 — trusted repo-local script, no user input
-            ["node", str(script), temp_path, output_path],  # noqa: S607 — node is a well-known executable
+            command,
             capture_output=True,
             text=True,
             timeout=30,
             cwd=str(script.parent.parent),
             check=False,
+            env=_SUBPROCESS_ENV,
         )
         if result.returncode != 0:
             msg = f"Card export failed (exit {result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -101,6 +114,7 @@ def create_topology_visualization(
             timeout=30,
             cwd=str(script.parent.parent),
             check=False,
+            env=_SUBPROCESS_ENV,
         )
         if result.returncode != 0:
             msg = (
@@ -122,6 +136,8 @@ def visualize_scenario_results(
     scenario_name: str,
     output_dir: Path,
     topology: dict[str, Any],
+    *,
+    anchor_time: str | None = None,
 ) -> None:
     """Create visualizations for HAEO scenario test results.
 
@@ -133,13 +149,14 @@ def visualize_scenario_results(
         scenario_name: Name identifier for the scenario (used in filenames).
         output_dir: Directory path where visualization files will be saved.
         topology: Serialized topology dict for graph visualization.
+        anchor_time: Scenario optimization start time for deterministic SVG rendering.
 
     """
     output_dir_path = Path(output_dir)
     output_dir_path.mkdir(parents=True, exist_ok=True)
 
     main_plot_path = output_dir_path / f"{scenario_name}_optimization.svg"
-    create_card_visualization(output_sensors, str(main_plot_path))
+    create_card_visualization(output_sensors, str(main_plot_path), anchor_time=anchor_time)
 
     graph_plot_path = output_dir_path / f"{scenario_name}_network_topology.svg"
     create_topology_visualization(topology, str(graph_plot_path))

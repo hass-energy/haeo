@@ -140,6 +140,7 @@ async def test_scenarios(
             scenario_path.name,
             scenario_path / "visualizations",
             coordinator.topology,
+            anchor_time=scenario_data["environment"]["optimization_start_time"],
         )
 
         # Compare actual outputs with expected outputs using snapshot
