@@ -20,7 +20,11 @@ from custom_components.haeo.elements import (
 )
 from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
-from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, find_surfaced_rule
+from custom_components.haeo.flows.surfaced_policy import (
+    find_policy_subentry,
+    find_surfaced_rule,
+    resolve_surfaced_endpoints,
+)
 from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,8 +62,7 @@ def _build_surfaced_mirror_entities(
         if field_info is None:
             continue
 
-        source = None if hint.source_is_wildcard else [subentry.title]
-        target = [subentry.title] if hint.source_is_wildcard else None
+        source, target = resolve_surfaced_endpoints(hint, subentry.title)
         rule_index = find_surfaced_rule(rules, source=source, target=target)
         if rule_index is None:
             continue

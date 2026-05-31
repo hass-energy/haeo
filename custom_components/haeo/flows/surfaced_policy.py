@@ -232,7 +232,7 @@ def form_value_to_price(value: Any) -> EntityValue | ConstantValue | None:
 # --- Flow helpers ---
 
 
-def _resolve_endpoints(
+def resolve_surfaced_endpoints(
     hint: SurfacedPriceHint,
     element_name: str,
 ) -> tuple[list[str] | None, list[str] | None]:
@@ -262,7 +262,7 @@ def build_surfaced_defaults(
             continue
 
         if element_name is not None:
-            source, target = _resolve_endpoints(hint, element_name)
+            source, target = resolve_surfaced_endpoints(hint, element_name)
             price = get_surfaced_rule_price(hub_entry, source=source, target=target)
             if price is not None:
                 form_value = price_to_form_value(price)
@@ -295,7 +295,7 @@ def build_surfaced_schema_entries(
         hint = surfaced_hints.get(field_name)
         current_data: dict[str, Any] | None = None
         if hint is not None and element_name is not None:
-            source, target = _resolve_endpoints(hint, element_name)
+            source, target = resolve_surfaced_endpoints(hint, element_name)
             price = get_surfaced_rule_price(hub_entry, source=source, target=target)
             if price is not None:
                 current_data = {field_name: price}
@@ -354,7 +354,7 @@ def save_surfaced_rules_from_input(
         if hint.negate:
             price = _negate_price(price)
 
-        source, target = _resolve_endpoints(hint, element_name)
+        source, target = resolve_surfaced_endpoints(hint, element_name)
         rule_name = translations.get(field_name, f"{element_name} {field_name}")
         save_surfaced_rule(
             hass,

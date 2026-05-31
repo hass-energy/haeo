@@ -29,7 +29,11 @@ from custom_components.haeo.elements import (
     is_element_config_schema,
     iter_input_field_paths,
 )
-from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, find_surfaced_rule
+from custom_components.haeo.flows.surfaced_policy import (
+    find_policy_subentry,
+    find_surfaced_rule,
+    resolve_surfaced_endpoints,
+)
 from custom_components.haeo.util import async_update_subentry_value
 
 if TYPE_CHECKING:
@@ -112,8 +116,7 @@ def _negated_policy_price_fields(config_entry: HaeoConfigEntry) -> set[InputFiel
         for hint in get_surfaced_price_hints(element_type).values():
             if not hint.negate:
                 continue
-            source = None if hint.source_is_wildcard else [subentry.title]
-            target = [subentry.title] if hint.source_is_wildcard else None
+            source, target = resolve_surfaced_endpoints(hint, subentry.title)
             index = find_surfaced_rule(rules, source=source, target=target)
             if index is not None:
                 negated.add((CONF_RULES, str(index), CONF_PRICE))
