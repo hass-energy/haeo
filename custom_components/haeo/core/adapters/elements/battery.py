@@ -6,13 +6,12 @@ from typing import Any, Final, Literal
 
 import numpy as np
 
-from custom_components.haeo.core.adapters.output_utils import expect_output_data
+from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as model_battery
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION
-from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER
 from custom_components.haeo.core.model.elements.segments import SegmentSpec, SocPricingSegmentSpec
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.util import broadcast_to_sequence
@@ -218,12 +217,12 @@ class BatteryAdapter:
         **_kwargs: Any,
     ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
         """Map model outputs to battery-specific output names."""
-        # Power from connections (same pattern as solar/load/grid adapters)
-        discharge_conn = model_outputs[f"{name}:discharge"]
-        charge_conn = model_outputs[f"{name}:charge"]
+        discharge_conn = model_outputs.get(f"{name}:discharge")
+        charge_conn = model_outputs.get(f"{name}:charge")
+        period_count = len(expect_output_data(model_outputs[name][model_battery.BATTERY_POWER_CHARGE]).values)
 
-        power_discharge = replace(expect_output_data(discharge_conn[CONNECTION_POWER]), type=OutputType.POWER)
-        power_charge = replace(expect_output_data(charge_conn[CONNECTION_POWER]), type=OutputType.POWER, direction="-")
+        power_discharge = replace(connection_power(discharge_conn, period_count), type=OutputType.POWER)
+        power_charge = replace(connection_power(charge_conn, period_count), type=OutputType.POWER, direction="-")
 
         # Battery-internal outputs (energy, SOC, shadow prices)
         battery_outputs = {key: expect_output_data(value) for key, value in model_outputs[name].items()}

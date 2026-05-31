@@ -330,6 +330,82 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         },
     },
     {
+        "description": "Battery charge connection pruned - charge carries no flow",
+        "name": "battery_no_balance",
+        "data": BatteryConfigData(
+            element_type=ElementType.BATTERY,
+            name="battery_no_balance",
+            connection=as_connection_target("network"),
+            storage={
+                "capacity": np.array([10.0, 10.0]),
+                "initial_charge_percentage": 0.5,
+            },
+            limits={
+                "min_charge_percentage": np.array([0.0, 0.0]),
+                "max_charge_percentage": np.array([1.0, 1.0]),
+            },
+            power_limits={
+                "max_power_source_target": np.array([5.0]),
+                "max_power_target_source": np.array([5.0]),
+            },
+            pricing={
+                "salvage_value": 0.0,
+            },
+            efficiency={
+                "efficiency_source_target": np.array([0.95]),
+                "efficiency_target_source": np.array([0.95]),
+            },
+            partitioning={},
+            undercharge={},
+            overcharge={},
+        ),
+        "model_outputs": {
+            "battery_no_balance": {
+                battery_model.BATTERY_POWER_CHARGE: OutputData(
+                    type=OutputType.POWER, unit="kW", values=(0.0,), direction="-"
+                ),
+                battery_model.BATTERY_POWER_DISCHARGE: OutputData(
+                    type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"
+                ),
+                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(4.0, 4.0)),
+                battery_model.BATTERY_POWER_BALANCE: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.1,)
+                ),
+                battery_model.BATTERY_ENERGY_IN_FLOW: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
+                ),
+                battery_model.BATTERY_ENERGY_OUT_FLOW: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)
+                ),
+                battery_model.BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+                battery_model.BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+            },
+            "battery_no_balance:discharge": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"
+                ),
+            },
+        },
+        "outputs": {
+            BATTERY_DEVICE_BATTERY: {
+                BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.0,), direction="-"),
+                BATTERY_POWER_DISCHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"),
+                BATTERY_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction=None),
+                BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(4.0, 4.0)),
+                BATTERY_STATE_OF_CHARGE: OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.4, 0.4)),
+                BATTERY_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.1,)),
+                BATTERY_ENERGY_IN_FLOW: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True
+                ),
+                BATTERY_ENERGY_OUT_FLOW: OutputData(
+                    type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True
+                ),
+                BATTERY_SOC_MAX: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
+                BATTERY_SOC_MIN: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,), advanced=True),
+            },
+        },
+    },
+    {
         "description": "Battery outputs include undercharge offset",
         "name": "battery_with_thresholds",
         "data": BatteryConfigData(

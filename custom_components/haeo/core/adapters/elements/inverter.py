@@ -4,13 +4,13 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
-from custom_components.haeo.core.adapters.output_utils import expect_output_data
+from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
+from custom_components.haeo.core.model.elements.connection import CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -113,11 +113,12 @@ class InverterAdapter:
         **_kwargs: Any,
     ) -> Mapping[InverterDeviceName, Mapping[InverterOutputName, OutputData]]:
         """Map model outputs to inverter-specific output names."""
-        forward_conn = model_outputs[f"{name}:dc_to_ac"]
-        reverse_conn = model_outputs[f"{name}:ac_to_dc"]
+        forward_conn = model_outputs.get(f"{name}:dc_to_ac")
+        reverse_conn = model_outputs.get(f"{name}:ac_to_dc")
         dc_bus = model_outputs[name]
-        power_forward = expect_output_data(forward_conn[CONNECTION_POWER])
-        power_reverse = expect_output_data(reverse_conn[CONNECTION_POWER])
+        period_count = len(expect_output_data(dc_bus[ELEMENT_POWER_BALANCE]).values)
+        power_forward = connection_power(forward_conn, period_count)
+        power_reverse = connection_power(reverse_conn, period_count)
 
         inverter_outputs: dict[InverterOutputName, OutputData] = {}
 
@@ -145,13 +146,17 @@ class InverterAdapter:
         inverter_outputs[INVERTER_DC_BUS_POWER_BALANCE] = expect_output_data(dc_bus[ELEMENT_POWER_BALANCE])
 
         # Shadow prices from power_limit segments on each connection
-        shadow_price_mappings: tuple[tuple[Mapping[ModelOutputName, ModelOutputValue], InverterOutputName], ...] = (
+        shadow_price_mappings: tuple[
+            tuple[Mapping[ModelOutputName, ModelOutputValue] | None, InverterOutputName],
+            ...,
+        ] = (
             (forward_conn, INVERTER_MAX_POWER_DC_TO_AC_PRICE),
             (reverse_conn, INVERTER_MAX_POWER_AC_TO_DC_PRICE),
         )
         for conn, output_name in shadow_price_mappings:
             if (
-                isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
+                conn is not None
+                and isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
                 and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
                 and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
             ):

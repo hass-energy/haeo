@@ -136,6 +136,23 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             }
         },
     },
+    {
+        "description": "Solar connection pruned - solar carries no flow",
+        "name": "pv_main",
+        "config": SolarConfigData(
+            element_type=ElementType.SOLAR,
+            name="pv_main",
+            connection=as_connection_target("network"),
+            forecast={"forecast": np.array([2.0, 3.0])},
+            curtailment={"curtailment": True},
+        ),
+        "model_outputs": {},
+        "outputs": {
+            SOLAR_DEVICE_SOLAR: {
+                SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(0.0, 0.0), direction="+"),
+            }
+        },
+    },
 ]
 
 

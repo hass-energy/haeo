@@ -4,12 +4,12 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
-from custom_components.haeo.core.adapters.output_utils import expect_output_data
+from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
+from custom_components.haeo.core.model.elements.connection import CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -84,17 +84,19 @@ class SolarAdapter:
         **_kwargs: Any,
     ) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
         """Map model outputs to solar-specific output names."""
-        connection = model_outputs[f"{name}:connection"]
+        connection = model_outputs.get(f"{name}:connection")
         fixed = not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, True)
+        period_count = len(config[SECTION_FORECAST][CONF_FORECAST])
 
-        power = expect_output_data(connection[CONNECTION_POWER])
+        power = connection_power(connection, period_count)
         solar_outputs: dict[SolarOutputName, OutputData] = {
             SOLAR_POWER: replace(power, type=OutputType.POWER, fixed=fixed),
         }
 
         # Shadow price from power_limit segment (if present)
         if (
-            isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
+            connection is not None
+            and isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
             and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
             and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
         ):
