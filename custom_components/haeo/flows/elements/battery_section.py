@@ -57,7 +57,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             config = self._build_config(user_input)
             return self._finalize(config, user_input)
 
-        entity_metadata = extract_entity_metadata(self.hass)
+        entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
 
         schema = self._build_schema(

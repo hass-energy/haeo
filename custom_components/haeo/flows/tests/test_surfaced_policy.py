@@ -7,11 +7,13 @@ from unittest.mock import Mock
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
 from custom_components.haeo import _cleanup_policy_rules
+from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import node
@@ -57,9 +59,11 @@ from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as P
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import get_surfaced_input_fields
 from custom_components.haeo.flows.conftest import create_flow
+from custom_components.haeo.flows.field_schema import CHOICE_ENTITY
 from custom_components.haeo.flows.surfaced_policy import (
     POLICIES_TITLE,
     build_surfaced_defaults,
+    build_surfaced_schema_entries,
     find_policy_subentry,
     find_surfaced_rule,
     form_value_to_price,
@@ -479,17 +483,79 @@ async def test_battery_flow_creates_surfaced_rules(
     assert discharge_rule["price"] == as_constant_value(0.02)
 
 
-async def test_battery_flow_none_cost_skips_rule(
+async def test_battery_flow_new_element_always_applies_defaults(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Battery flow with None cost values doesn't create rules."""
+    """New battery always gets default rules even if frontend sends 'none' values."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
     flow.async_create_entry = Mock(
         return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}}
     )
 
+    # Even with explicit "none" choice, new elements get defaults applied
+    user_input = _base_battery_input()
+    user_input[CONF_CHARGE_COST] = ""
+    user_input[CONF_DISCHARGE_COST] = ""
+
+    result = await flow.async_step_user(user_input=_wrap_battery_input(user_input))
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+    rules = _get_rules(hub_entry)
+    assert len(rules) == 2
+    charge_rule = next(r for r in rules if "charge" in r["name"].lower())
+    assert charge_rule["price"] == as_constant_value(-0.001)
+    discharge_rule = next(r for r in rules if "discharge" in r["name"].lower())
+    assert discharge_rule["price"] == as_constant_value(0.0)
+
+
+async def test_battery_flow_applies_defaults_when_fields_absent(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Battery flow applies hint defaults when pricing fields are absent from input."""
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
+    flow.async_create_entry = Mock(
+        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}}
+    )
+
+    # Don't include charge_cost or discharge_cost - simulates frontend not submitting them
+    user_input = _base_battery_input()
+
+    result = await flow.async_step_user(user_input=_wrap_battery_input(user_input))
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+    rules = _get_rules(hub_entry)
+    assert len(rules) == 2
+
+    # Verify charge cost rule uses default -0.001
+    charge_rule = next(r for r in rules if "charge" in r["name"].lower())
+    assert charge_rule["price"] == as_constant_value(-0.001)
+
+    # Verify discharge cost rule uses default 0.0
+    discharge_rule = next(r for r in rules if "discharge" in r["name"].lower())
+    assert discharge_rule["price"] == as_constant_value(0.0)
+
+
+async def test_battery_flow_applies_defaults_when_fields_none(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Battery flow applies defaults when frontend submits None for pricing fields.
+
+    This covers the case where the HA frontend includes the field key in the
+    section data but with a None value (e.g. ChooseSelector couldn't render a
+    negative suggested value so the constant field was empty on submit).
+    """
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, BATTERY_ELEMENT_TYPE)
+    flow.async_create_entry = Mock(
+        return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Battery", "data": {}}
+    )
+
+    # Include fields with None - simulates frontend submitting empty constant
     user_input = _base_battery_input()
     user_input[CONF_CHARGE_COST] = None
     user_input[CONF_DISCHARGE_COST] = None
@@ -498,7 +564,13 @@ async def test_battery_flow_none_cost_skips_rule(
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     rules = _get_rules(hub_entry)
-    assert len(rules) == 0
+    assert len(rules) == 2
+
+    charge_rule = next(r for r in rules if "charge" in r["name"].lower())
+    assert charge_rule["price"] == as_constant_value(-0.001)
+
+    discharge_rule = next(r for r in rules if "discharge" in r["name"].lower())
+    assert discharge_rule["price"] == as_constant_value(0.0)
 
 
 async def test_battery_flow_excludes_surfaced_fields_from_config(
@@ -537,13 +609,16 @@ async def test_battery_flow_entity_cost_creates_entity_rule(
 
     user_input = _base_battery_input()
     user_input[CONF_CHARGE_COST] = ["sensor.cost"]
-    user_input[CONF_DISCHARGE_COST] = None
+    user_input[CONF_DISCHARGE_COST] = ""  # New element: default applied
 
     await flow.async_step_user(user_input=_wrap_battery_input(user_input))
 
     rules = _get_rules(hub_entry)
-    assert len(rules) == 1
-    assert rules[0]["price"] == as_entity_value(["sensor.cost"])
+    assert len(rules) == 2
+    charge_rule = next(r for r in rules if "charge" in r["name"].lower())
+    assert charge_rule["price"] == as_entity_value(["sensor.cost"])
+    discharge_rule = next(r for r in rules if "discharge" in r["name"].lower())
+    assert discharge_rule["price"] == as_constant_value(0.0)
 
 
 # --- Load flow integration tests ---
@@ -593,11 +668,11 @@ async def test_load_flow_creates_consumption_cost_rule(
     assert rules[0]["price"] == as_constant_value(0.15)
 
 
-async def test_load_flow_none_cost_skips_rule(
+async def test_load_flow_new_element_always_applies_defaults(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Load flow with None consumption cost doesn't create a rule."""
+    """New load always gets default consumption cost rule."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, LOAD_ELEMENT_TYPE)
     flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test Load", "data": {}})
@@ -608,13 +683,15 @@ async def test_load_flow_none_cost_skips_rule(
             CONF_CONNECTION: "main_bus",
             CONF_FORECAST: ["sensor.load_forecast"],
             CONF_CURTAILMENT: False,
-            CONF_CONSUMPTION_COST: None,
+            CONF_CONSUMPTION_COST: "",  # New element: default applied
         }
     )
     result = await flow.async_step_user(user_input=user_input)
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
-    assert _get_rules(hub_entry) == []
+    rules = _get_rules(hub_entry)
+    assert len(rules) == 1
+    assert rules[0]["price"] == as_constant_value(0.0)
 
 
 async def test_load_flow_excludes_surfaced_fields_from_config(
@@ -804,3 +881,35 @@ def test_cleanup_deduplicates_rules_after_stripping(
     rules = _get_rules(hub_entry)
     assert len(rules) == 1
     assert rules[0]["name"] == "first"
+
+
+def test_build_surfaced_schema_entries_includes_compatible_price_entities(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Surfaced price pickers include price-compatible sensors, not this hub's own entities."""
+    haeo_number = entity_registry.async_get_or_create(
+        domain="number",
+        platform=DOMAIN,
+        unique_id="surfaced_price_constant",
+        suggested_object_id="surfaced_price",
+        config_entry=hub_entry,
+    )
+    hass.states.async_set("sensor.import_price", "0.25", {"unit_of_measurement": "$/kWh"})
+    hass.states.async_set("sensor.export_price", "0.05", {"unit_of_measurement": "€/MWh"})
+    hass.states.async_set("sensor.wholesale_price", "0.001", {"unit_of_measurement": "AUD/Wh"})
+    hass.states.async_set("sensor.power_only", "5", {"unit_of_measurement": "kW"})
+
+    surfaced_fields = get_surfaced_input_fields(LOAD_ELEMENT_TYPE)
+    _, selector = build_surfaced_schema_entries(hass, hub_entry, surfaced_fields)[CONF_CONSUMPTION_COST]
+
+    entity_choice = selector.config["choices"][CHOICE_ENTITY]
+    include_entities = entity_choice["selector"]["entity"].get("include_entities")
+
+    assert include_entities is not None
+    assert "sensor.import_price" in include_entities
+    assert "sensor.export_price" in include_entities
+    assert "sensor.wholesale_price" in include_entities
+    assert "sensor.power_only" not in include_entities
+    assert haeo_number.entity_id not in include_entities

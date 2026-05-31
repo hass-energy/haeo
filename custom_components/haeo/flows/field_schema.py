@@ -11,9 +11,7 @@ from numbers import Real
 from typing import Any
 
 from homeassistant.components.number import NumberEntityDescription
-from homeassistant.core import async_get_hass
 from homeassistant.data_entry_flow import section
-from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     BooleanSelector,
     BooleanSelectorConfig,
@@ -118,58 +116,12 @@ def boolean_selector_from_field() -> BooleanSelector:  # type: ignore[type-arg]
     return BooleanSelector(BooleanSelectorConfig())
 
 
-def get_haeo_input_entity_ids() -> list[str]:
-    """Get all HAEO-created input entity IDs.
-
-    Returns all entity IDs for HAEO input entities (number/switch) that were
-    created for configurable fields. These should always be included in entity
-    pickers so they can be re-selected during reconfiguration.
-
-    Returns:
-        List of entity IDs for HAEO input entities.
-
-    """
-    hass = async_get_hass()
-    registry = er.async_get(hass)
-    return [
-        entry.entity_id
-        for entry in registry.entities.values()
-        if entry.platform == DOMAIN and entry.domain in ("number", "switch")
-    ]
-
-
-def resolve_haeo_input_entity_id(
-    entry_id: str,
-    subentry_id: str,
-    field_name: str,
-) -> str | None:
-    """Resolve the HAEO-created entity for a configured field.
-
-    When a user configures a field with a constant value, HAEO creates an
-    input entity (e.g., number.grid_export_limit). This function looks up
-    that resolved entity.
-
-    Args:
-        entry_id: The config entry ID.
-        subentry_id: The subentry ID for the element.
-        field_name: The field name (e.g., 'export_limit').
-
-    Returns:
-        The entity_id (e.g., 'number.grid_export_limit') or None if not found.
-
-    """
-    hass = async_get_hass()
-    registry = er.async_get(hass)
-    unique_id = f"{entry_id}_{subentry_id}_{field_name}"
-    return registry.async_get_entity_id("number", DOMAIN, unique_id)
-
-
 def build_entity_selector(
     *,
     include_entities: list[str] | None = None,
     multiple: bool = True,
 ) -> EntitySelector:  # type: ignore[type-arg]
-    """Build an EntitySelector for compatible entities.
+    """Build an EntitySelector restricted to unit-compatible entities.
 
     Args:
         include_entities: Entity IDs to include (compatible entities from unit filtering).
@@ -179,11 +131,7 @@ def build_entity_selector(
         EntitySelector configured with include_entities list.
 
     """
-    # Start with compatible entities from unit filtering
     entities_to_include = list(include_entities or [])
-
-    # Include all HAEO input entities so they can be re-selected during reconfigure
-    entities_to_include.extend(get_haeo_input_entity_ids())
 
     config_kwargs: dict[str, Any] = {
         "domain": [DOMAIN, "sensor", "input_number", "number", "switch"],
@@ -870,13 +818,11 @@ __all__ = [
     "convert_choose_data_to_config",
     "convert_sectioned_choose_data_to_config",
     "get_choose_default",
-    "get_haeo_input_entity_ids",
     "get_preferred_choice",
     "is_valid_choose_value",
     "number_selector_from_field",
     "preprocess_choose_selector_input",
     "preprocess_sectioned_choose_input",
-    "resolve_haeo_input_entity_id",
     "validate_choose_fields",
     "validate_sectioned_choose_fields",
 ]

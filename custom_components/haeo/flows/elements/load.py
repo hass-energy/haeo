@@ -77,7 +77,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             config = self._build_config(user_input)
             return self._finalize(config, user_input)
 
-        entity_metadata = extract_entity_metadata(self.hass)
+        entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
         schema = self._build_schema(
             participants,
@@ -116,7 +116,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build the schema with name, connection, and choose selectors for inputs."""
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
-        surfaced_entries = build_surfaced_schema_entries(surfaced_fields)
+        surfaced_entries = build_surfaced_schema_entries(self.hass, self._get_entry(), surfaced_fields)
         return build_sectioned_choose_schema(
             self._get_sections(),
             input_fields,
@@ -211,11 +211,18 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         curtailment_input = user_input.get(SECTION_CURTAILMENT, {})
         hub_entry = self._get_entry()
         translations = {"consumption_cost": f"{name} consumption cost"}
+        subentry = self._get_subentry()
+        is_new = subentry is None
         save_surfaced_rules_from_input(
-            self.hass, hub_entry, name, curtailment_input, SURFACED_PRICE_HINTS, translations
+            self.hass,
+            hub_entry,
+            name,
+            curtailment_input,
+            SURFACED_PRICE_HINTS,
+            translations,
+            apply_defaults=is_new,
         )
 
-        subentry = self._get_subentry()
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
         return self.async_create_entry(title=name, data=config)

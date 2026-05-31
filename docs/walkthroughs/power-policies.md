@@ -101,10 +101,14 @@ add_policies(
 
 ### Step 5: Verify and review
 
-Validate that all four policies were saved correctly, then open the reconfigure view to see them.
+Validate that all policies were saved correctly, then open the reconfigure view to see them.
+The first three rules were created automatically: the battery added charge and discharge cost rules, and the load added a consumption cost rule.
 
 ```guide
 validate_policies(hass, expected_rules=[
+    "Battery charge cost",
+    "Battery discharge cost",
+    "Constant Load consumption cost",
     "Solar to Grid",
     "Battery to Grid",
     "Battery to Load",

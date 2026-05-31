@@ -30,6 +30,8 @@ from custom_components.haeo.core.schema.elements.policy import (
 )
 from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value, is_entity_value
 from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
+from custom_components.haeo.flows.element_flow import build_inclusion_map
+from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
     CHOICE_ENTITY,
@@ -251,6 +253,8 @@ def build_surfaced_defaults(
 
 
 def build_surfaced_schema_entries(
+    hass: HomeAssistant,
+    hub_entry: ConfigEntry,
     surfaced_fields: Mapping[str, Any],
 ) -> dict[str, tuple[Any, Any]]:
     """Build vol.Schema entries for surfaced pricing fields.
@@ -258,12 +262,15 @@ def build_surfaced_schema_entries(
     Uses the standard build_choose_selector to create selectors from the
     InputFieldInfo objects.
     """
+    entity_metadata = extract_entity_metadata(hass, hub_entry)
+    inclusion_map = build_inclusion_map(dict(surfaced_fields), entity_metadata)
     return {
         field_info.field_name: (
             vol.Optional(field_info.field_name),
             build_choose_selector(
                 field_info,
                 allowed_choices={CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE},
+                include_entities=inclusion_map.get(field_info.field_name),
                 multiple=True,
                 preferred_choice=CHOICE_CONSTANT,
             ),
@@ -279,15 +286,36 @@ def save_surfaced_rules_from_input(
     user_input: Mapping[str, Any],
     surfaced_hints: dict[str, SurfacedPriceHint],
     translations: Mapping[str, str],
+    *,
+    apply_defaults: bool = False,
 ) -> None:
     """Save surfaced policy rules from element config flow input.
 
     Reads the surfaced price field values from user_input and creates,
     updates, or deletes the corresponding policy rules.
+
+    When apply_defaults is True, fields absent from user_input use the
+    hint's default_value. This handles the case where the frontend does
+    not submit a suggested value for a field (e.g. on initial element
+    creation).
     """
     for field_name, hint in surfaced_hints.items():
-        raw_value = user_input.get(field_name)
+        if field_name in user_input:
+            raw_value = user_input[field_name]
+        elif apply_defaults:
+            raw_value = None
+        else:
+            continue
+
         price = form_value_to_price(raw_value)
+
+        # When the frontend submits the field but with a value that doesn't
+        # produce a price (e.g. ChooseSelector couldn't render a negative
+        # suggested value so the field was empty), apply the hint default
+        # for new elements instead of skipping the rule.
+        if price is None and apply_defaults and hint.hint.default_value is not None:
+            price = form_value_to_price(hint.hint.default_value)
+
         source, target = _resolve_endpoints(hint, element_name)
         rule_name = translations.get(field_name, f"{element_name} {field_name}")
         save_surfaced_rule(
