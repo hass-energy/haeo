@@ -48,6 +48,15 @@ export function TopologyCardView(props: TopologyCardViewProps): JSX.Element {
     [onLayoutHeight]
   );
 
+  if (config.hub_entry_id === undefined || config.hub_entry_id === "") {
+    return (
+      <div className="topologyCard">
+        <div className="topologyHeader">{title}</div>
+        <div className="topologyMessage">{t(locale, "topology.card.empty.configure_hub")}</div>
+      </div>
+    );
+  }
+
   if (entityId === null) {
     return (
       <div className="topologyCard">

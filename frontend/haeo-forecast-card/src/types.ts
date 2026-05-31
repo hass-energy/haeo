@@ -14,6 +14,7 @@ export interface ForecastCardConfig {
 export interface TopologyCardConfig {
   type: "custom:haeo-topology-card";
   title?: string;
+  hub_entry_id?: string;
   entity?: string;
 }
 

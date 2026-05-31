@@ -66,16 +66,17 @@ It reads the `topology` attribute from a HAEO optimization status sensor and ren
 ```yaml
 type: custom:haeo-topology-card
 title: HAEO network topology
-entity: sensor.{network_name}_optimization_status
+hub_entry_id: <your_haeo_hub_config_entry_id>
 ```
 
-If `entity` is omitted, the card auto-discovers the first HAEO optimization status sensor that exposes a `topology` attribute.
+Use the visual card editor to select a HAEO hub. The editor resolves the hub's optimization status sensor automatically and stores it as `entity` in the saved config.
 
 ### Topology card options
 
 - `type`: Must be `custom:haeo-topology-card`.
 - `title`: Optional card title.
-- `entity`: Optional optimization status sensor entity ID.
+- `hub_entry_id`: Required HAEO hub config entry ID (chosen via the visual editor).
+- `entity`: Resolved optimization status sensor entity ID (filled in by the editor; used as a fast path at render time).
 
 ## Troubleshooting
 

@@ -1,14 +1,21 @@
 import { render } from "preact";
-import { useMemo } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 
 import { t } from "./i18n";
-import { discoverTopologyEntities } from "./topology-card-utils";
-import type { HassLike } from "./series";
+import { isTopologyData } from "./topology-card-utils";
 import type { TopologyCardConfig } from "./types";
+
+interface EntityRegistryEntry {
+  entity_id: string;
+  platform: string;
+  config_entry_id: string | null;
+  disabled_by: string | null;
+}
 
 interface HassEditorLike {
   states: Record<string, { attributes?: Record<string, unknown> } | undefined>;
+  callWS?: <T>(message: Record<string, unknown>) => Promise<T>;
   language?: string;
   locale?: { language?: string };
 }
@@ -21,13 +28,14 @@ const EDITOR_STYLES = `
   }
   .wrap { display: grid; gap: 12px; }
   label { display: grid; gap: 6px; font-size: 13px; font-weight: 500; }
-  input, select {
+  input {
     font: inherit; color: inherit;
     background: var(--card-background-color);
     border: 1px solid var(--divider-color);
     border-radius: 8px; padding: 8px 10px;
   }
   .meta { font-size: 12px; color: var(--secondary-text-color); line-height: 1.4; }
+  .error { color: var(--error-color); font-size: 12px; }
 `;
 
 interface EditorFormProps {
@@ -36,10 +44,130 @@ interface EditorFormProps {
   onConfigChanged: (config: TopologyCardConfig) => void;
 }
 
+function discoverTopologyEntityForHub(
+  hass: HassEditorLike,
+  registry: EntityRegistryEntry[],
+  hubEntryId: string
+): string | null {
+  let fallback: string | null = null;
+  for (const entry of registry) {
+    if (entry.platform !== "haeo" || entry.disabled_by !== null || entry.config_entry_id !== hubEntryId) {
+      continue;
+    }
+    const state = hass.states[entry.entity_id];
+    const topology = state?.attributes?.["topology"];
+    if (!isTopologyData(topology)) {
+      continue;
+    }
+    const outputName = state?.attributes?.["output_name"];
+    if (outputName === "network_optimization_status") {
+      return entry.entity_id;
+    }
+    fallback ??= entry.entity_id;
+  }
+  return fallback;
+}
+
+function HaSelectorBridge(props: {
+  hass: HassEditorLike | null;
+  value: string;
+  onValueChanged: (value: string) => void;
+}): JSX.Element {
+  const ref = useRef<HTMLElement | null>(null);
+  const onValueChangedRef = useRef(props.onValueChanged);
+  onValueChangedRef.current = props.onValueChanged;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const handler = (ev: Event): void => {
+      const detail = (ev as CustomEvent<{ value?: string }>).detail;
+      const value = detail.value ?? "";
+      onValueChangedRef.current(value);
+    };
+    el.addEventListener("value-changed", handler);
+    return () => el.removeEventListener("value-changed", handler);
+  }, []);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const bridge = el as unknown as Record<string, unknown>;
+    bridge["hass"] = props.hass;
+    bridge["selector"] = { config_entry: { integration: "haeo" } };
+    bridge["value"] = props.value;
+  }, [props.hass, props.value]);
+
+  return <ha-selector-config_entry ref={ref} />;
+}
+
 function EditorForm(props: EditorFormProps): JSX.Element {
   const { config, hass, onConfigChanged } = props;
+  const [resolvedEntity, setResolvedEntity] = useState<string | null>(config.entity ?? null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const configRef = useRef(config);
+  const onConfigChangedRef = useRef(onConfigChanged);
+  configRef.current = config;
+  onConfigChangedRef.current = onConfigChanged;
+
   const locale = hass?.language ?? hass?.locale?.language ?? "en";
-  const discoveredEntities = useMemo(() => (hass ? discoverTopologyEntities(hass as HassLike) : []), [hass]);
+
+  const refreshEntity = useCallback(
+    (hubEntryId: string) => {
+      if (!hass?.callWS) {
+        setResolvedEntity(null);
+        setError(t(locale, "topology.editor.error.ws_unavailable"));
+        return;
+      }
+      setLoading(true);
+      setError(null);
+      void hass
+        .callWS<EntityRegistryEntry[]>({ type: "config/entity_registry/list" })
+        .then((registry) => {
+          const entityId = discoverTopologyEntityForHub(hass, registry, hubEntryId);
+          setResolvedEntity(entityId);
+          const next: TopologyCardConfig = {
+            ...configRef.current,
+            type: "custom:haeo-topology-card",
+            hub_entry_id: hubEntryId,
+          };
+          if (entityId !== null) {
+            next.entity = entityId;
+          } else {
+            delete next.entity;
+          }
+          onConfigChangedRef.current(next);
+        })
+        .catch((err: unknown) => {
+          setResolvedEntity(null);
+          setError(err instanceof Error ? err.message : String(err));
+        })
+        .finally(() => setLoading(false));
+    },
+    [hass, locale]
+  );
+
+  useEffect(() => {
+    if (config.hub_entry_id !== undefined && config.hub_entry_id !== "") {
+      refreshEntity(config.hub_entry_id);
+    }
+  }, [config.hub_entry_id, refreshEntity]);
+
+  const onHubChange = (hubEntryId: string): void => {
+    if (!hubEntryId) {
+      const next: TopologyCardConfig = {
+        ...config,
+        type: "custom:haeo-topology-card",
+      };
+      delete next.hub_entry_id;
+      delete next.entity;
+      setResolvedEntity(null);
+      onConfigChanged(next);
+      return;
+    }
+    refreshEntity(hubEntryId);
+  };
 
   const onTitleChange = (event: Event): void => {
     const target = event.target as HTMLInputElement;
@@ -56,20 +184,6 @@ function EditorForm(props: EditorFormProps): JSX.Element {
     onConfigChanged(next);
   };
 
-  const onEntityChange = (event: Event): void => {
-    const target = event.target as HTMLSelectElement;
-    const next: TopologyCardConfig = {
-      ...config,
-      type: "custom:haeo-topology-card",
-    };
-    if (target.value) {
-      next.entity = target.value;
-    } else {
-      delete next.entity;
-    }
-    onConfigChanged(next);
-  };
-
   return (
     <div className="wrap">
       <label>
@@ -82,21 +196,19 @@ function EditorForm(props: EditorFormProps): JSX.Element {
         />
       </label>
       <label>
-        {t(locale, "topology.editor.entity.label")}
-        <select value={config.entity ?? ""} onChange={onEntityChange}>
-          <option value="">{t(locale, "topology.editor.entity.auto")}</option>
-          {discoveredEntities.map((entityId) => (
-            <option key={entityId} value={entityId}>
-              {entityId}
-            </option>
-          ))}
-        </select>
+        {t(locale, "topology.editor.hub.label")}
+        <HaSelectorBridge hass={hass} value={config.hub_entry_id ?? ""} onValueChanged={onHubChange} />
       </label>
       <div className="meta">
-        {discoveredEntities.length > 0
-          ? t(locale, "topology.editor.discovery.count", { count: discoveredEntities.length })
-          : t(locale, "topology.editor.discovery.none")}
+        {loading
+          ? t(locale, "topology.editor.resolution.loading")
+          : resolvedEntity !== null
+            ? t(locale, "topology.editor.resolution.found", { entity: resolvedEntity })
+            : config.hub_entry_id !== undefined && config.hub_entry_id !== ""
+              ? t(locale, "topology.editor.resolution.none")
+              : t(locale, "topology.editor.hub.placeholder")}
       </div>
+      {error !== null && <div className="error">{error}</div>}
     </div>
   );
 }

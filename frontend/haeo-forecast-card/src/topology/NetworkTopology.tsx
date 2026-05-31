@@ -174,8 +174,13 @@ export function NetworkTopology(props: Props): JSX.Element {
     if (layout === null || props.onLayoutSize === undefined) {
       return;
     }
-    props.onLayoutSize(layout.width, layout.height);
-  }, [layout, props.onLayoutSize]);
+    const layoutWidth = layout.width;
+    const layoutHeight = layout.height;
+    const renderedWidth = props.width ?? layoutWidth;
+    const renderedHeight =
+      props.width !== undefined ? props.width * (layoutHeight / layoutWidth) : (props.height ?? layoutHeight);
+    props.onLayoutSize(renderedWidth, renderedHeight);
+  }, [layout, props.onLayoutSize, props.width, props.height]);
 
   if (error != null) {
     const prefix = props.layoutErrorMessage ?? "Layout error";
@@ -207,13 +212,21 @@ export function NetworkTopology(props: Props): JSX.Element {
   }
 
   const leg = layout.legend;
-  const w = props.width ?? layout.width;
-  const h = props.height ?? layout.height;
+  const layoutWidth = layout.width;
+  const layoutHeight = layout.height;
+  const renderedWidth = props.width ?? layoutWidth;
+  const renderedHeight =
+    props.width !== undefined ? props.width * (layoutHeight / layoutWidth) : (props.height ?? layoutHeight);
   const hide = (): void => setTooltip(null);
 
   return (
     <div style={{ position: "relative", display: "inline-block" }}>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox={`0 0 ${layoutWidth} ${layoutHeight}`}
+        width={renderedWidth}
+        height={renderedHeight}
+      >
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
             <polygon points="0 0, 8 3, 0 6" fill="#888" />

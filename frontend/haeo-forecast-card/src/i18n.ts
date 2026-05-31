@@ -41,17 +41,20 @@ const EN_TRANSLATIONS: TranslationDict = {
   "editor.discovery.count": "Discovered entities for selected hub: {count}",
   "editor.elements.label": "Elements: {elements}",
   "topology.card.title.default": "HAEO network topology",
+  "topology.card.empty.configure_hub": "Configure a HAEO hub in the card editor.",
   "topology.card.empty.no_entity":
-    "No optimization status entity found. Configure an entity or wait for HAEO to finish its first optimization run.",
+    "No optimization status sensor found for the selected hub. Wait for HAEO to finish its first optimization run.",
   "topology.card.empty.waiting": "Waiting for topology data on {entity}.",
   "topology.card.loading": "Computing layout…",
   "topology.card.error.layout": "Layout error",
   "topology.editor.title.label": "Title",
   "topology.editor.title.placeholder": "HAEO network topology",
-  "topology.editor.entity.label": "Optimization status entity",
-  "topology.editor.entity.auto": "Auto-discover",
-  "topology.editor.discovery.count": "Discovered topology entities: {count}",
-  "topology.editor.discovery.none": "No topology entities found yet.",
+  "topology.editor.hub.label": "HAEO hub",
+  "topology.editor.hub.placeholder": "Select a HAEO hub to display its network topology.",
+  "topology.editor.resolution.loading": "Resolving optimization status sensor for selected hub…",
+  "topology.editor.resolution.found": "Optimization status sensor: {entity}",
+  "topology.editor.resolution.none": "No optimization status sensor with topology data found for the selected hub.",
+  "topology.editor.error.ws_unavailable": "Home Assistant websocket API unavailable in editor.",
 };
 
 const TRANSLATIONS: Record<string, TranslationDict> = {

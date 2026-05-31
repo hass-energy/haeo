@@ -5,7 +5,7 @@ import { isTopologyData } from "./topology-card-utils";
 import "./topology-card";
 
 interface HaeoTopologyCardElement extends HTMLElement {
-  setConfig: (config: { type: "custom:haeo-topology-card"; entity?: string }) => void;
+  setConfig: (config: { type: "custom:haeo-topology-card"; hub_entry_id?: string; entity?: string }) => void;
   hass: unknown;
   getCardSize: () => number;
   getGridOptions: () => {
@@ -34,6 +34,7 @@ describe("haeo-topology-card smoke", () => {
     const element = document.createElement("haeo-topology-card") as HaeoTopologyCardElement;
     element.setConfig({
       type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
     });
     document.body.appendChild(element);
 
@@ -51,6 +52,7 @@ describe("haeo-topology-card smoke", () => {
     const element = document.createElement("haeo-topology-card") as HaeoTopologyCardElement;
     element.setConfig({
       type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
       entity: scenario.entityId,
     });
     element.hass = {
@@ -68,7 +70,7 @@ describe("haeo-topology-card smoke", () => {
     element.remove();
   });
 
-  it("renders empty state when no topology entity is available", async () => {
+  it("renders configure hub message when no hub is selected", async () => {
     const element = document.createElement("haeo-topology-card") as HaeoTopologyCardElement;
     element.setConfig({
       type: "custom:haeo-topology-card",
@@ -77,7 +79,7 @@ describe("haeo-topology-card smoke", () => {
     await new Promise((resolve) => {
       setTimeout(resolve, 20);
     });
-    expect(element.shadowRoot?.textContent).toContain("No optimization status entity found");
+    expect(element.shadowRoot?.textContent).toContain("Configure a HAEO hub in the card editor");
     element.remove();
   });
 });
