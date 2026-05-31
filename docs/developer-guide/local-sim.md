@@ -11,10 +11,11 @@ This replaces the previous `config/packages/` command_line sensor workflow.
 uv run sim scenario1
 ```
 
-By default it uses the repo `config/` directory on port 8123, applies the scenario timezone, skips onboarding, and opens your browser to an auto-login page (same mechanism as guide tests, via frontend `localStorage` tokens).
+By default it uses the repo `config/` directory on port 8123, applies the scenario timezone, skips onboarding, and opens your browser to `http://127.0.0.1:8123/`.
 From there you can inspect entities, HAEO sensors, and the frontend while the simulator pushes updated input states on an interval.
 
-Use the `127.0.0.1` auto-login URL printed in the terminal — opening `localhost` directly will not match the stored auth client ID.
+Login is automatic: the instance registers a `trusted_networks` auth provider that logs in the single dev user for any request from loopback, so the frontend completes its OAuth flow without any token bootstrap.
+This is the same auth setup the guide tests use, so there is a single login mechanism across both runners.
 If auto-login does not take, `testuser` / `testpass` works as a fallback.
 
 ## Scenario data
@@ -55,12 +56,12 @@ uv run sim scenario1 --config-dir config --port 8123
 | `--no-config`  | off         | Skip automatic HAEO setup from `config.json`                            |
 | `--config-dir` | `config/`   | Home Assistant config directory                                         |
 | `--port`       | `8123`      | HTTP port                                                               |
-| `--no-open`    | off         | Do not open the browser to the auto-login page on startup               |
+| `--no-open`    | off         | Do not open the browser on startup                                      |
 | `--ephemeral`  | off         | Use a temporary config directory and ephemeral port                     |
 
 ## How it works
 
-1. **`tools/live_hass.py`** boots an in-process Home Assistant with HTTP, frontend, auth, and recorder (default: `config/` on port 8123).
+1. **`tools/live_hass.py`** boots an in-process Home Assistant with HTTP, frontend, auth, and recorder (default: `config/` on port 8123). The sim binds HTTP to `127.0.0.1` and adds a `trusted_networks` provider with `allow_bypass_login`, so loopback requests log in automatically.
 2. **`tools/time_shift.py`** applies a uniform timestamp delta to scenario input attributes.
 3. **`tools/sim.py`** runs a loop that recomputes the delta each tick, pushes shifted states via `hass.states.async_set()`, and optionally calls `setup_haeo_entry()` from the scenario config.
 

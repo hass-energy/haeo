@@ -27,7 +27,7 @@ from zoneinfo import ZoneInfo
 from freezegun import freeze_time
 
 from tools.live_hass import LiveHomeAssistant
-from tools.sim_hass import live_sim_home_assistant, publish_browser_auth, remove_browser_auth, setup_haeo_entry
+from tools.sim_hass import live_sim_home_assistant, setup_haeo_entry, wait_for_sim_idle
 from tools.time_shift import parse_anchor_timestamp, shift_timestamps
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -181,11 +181,15 @@ def run_sim(
                 live_hass.run_coro(setup_haeo_entry(live_hass.hass, scenario_data["config"]))
                 _LOGGER.info("HAEO configured from %s", scenario_data["path"].name)
 
-            auth_url = publish_browser_auth(live_hass)
+            # Let any in-flight setup/reload work finish before opening the browser.
+            live_hass.run_coro(wait_for_sim_idle(live_hass.hass))
 
-            print(f"Home Assistant: {live_hass.url}/")
-            print(f"Auto-login: {auth_url}")
-            print("Fallback login: testuser / testpass")
+            # The trusted_networks auth provider auto-logs in from loopback, so
+            # opening the root URL is enough; no token bootstrap is required.
+            home_url = f"{live_hass.url}/"
+
+            print(f"Home Assistant: {home_url}")
+            print("Login: automatic from loopback (fallback: testuser / testpass)")
             print(f"Scenario: {scenario_data['path'].name}")
             print(f"Timezone: {timezone}")
             print(f"Config dir: {config_dir if config_dir is not None else 'ephemeral'}")
@@ -193,20 +197,17 @@ def run_sim(
             print("Press Ctrl+C to stop.")
 
             if open_browser:
-                webbrowser.open(auth_url)
+                webbrowser.open(home_url)
 
-            try:
-                run_sim_loop(
-                    live_hass,
-                    inputs=scenario_data["inputs"],
-                    anchor=anchor,
-                    timezone=timezone,
-                    interval=interval,
-                    speed=speed,
-                    time_freezer=time_freezer,
-                )
-            finally:
-                remove_browser_auth(live_hass)
+            run_sim_loop(
+                live_hass,
+                inputs=scenario_data["inputs"],
+                anchor=anchor,
+                timezone=timezone,
+                interval=interval,
+                speed=speed,
+                time_freezer=time_freezer,
+            )
     finally:
         if time_freezer is not None:
             time_freezer.stop()
