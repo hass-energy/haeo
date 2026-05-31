@@ -176,14 +176,16 @@ def build_entity_selector(
         multiple: Whether to allow multiple entity selection (for chaining).
 
     Returns:
-        EntitySelector configured with include_entities list.
+        EntitySelector with domain filter only, or restricted to include_entities
+        when unit-compatible entities are provided.
 
     """
-    # Start with compatible entities from unit filtering
     entities_to_include = list(include_entities or [])
 
-    # Include all HAEO input entities so they can be re-selected during reconfigure
-    entities_to_include.extend(get_haeo_input_entity_ids())
+    # Only restrict the picker when unit filtering supplies a list. HAEO input
+    # entities are added to that list so they remain selectable on reconfigure.
+    if include_entities:
+        entities_to_include.extend(get_haeo_input_entity_ids())
 
     config_kwargs: dict[str, Any] = {
         "domain": [DOMAIN, "sensor", "input_number", "number", "switch"],

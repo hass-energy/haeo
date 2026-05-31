@@ -955,11 +955,11 @@ def test_build_entity_selector_with_include_entities(hass: HomeAssistant) -> Non
 
 
 def test_build_entity_selector_without_include_entities(hass: HomeAssistant) -> None:
-    """build_entity_selector with no include_entities still includes HAEO entities."""
+    """build_entity_selector without include_entities does not restrict entity choices."""
     selector = build_entity_selector(include_entities=None)
     config = selector.config
-    # Even with None, HAEO input entities are added (if any exist)
     assert config["domain"] == [DOMAIN, "sensor", "input_number", "number", "switch"]
+    assert "include_entities" not in config
 
 
 # --- Tests for preprocess_choose_selector_input ---

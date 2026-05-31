@@ -41,7 +41,7 @@ from custom_components.haeo.flows.elements.policy import (
     POLICIES_TITLE,
     PolicySubentryFlowHandler,
 )
-from custom_components.haeo.flows.field_schema import CHOICE_NONE
+from custom_components.haeo.flows.field_schema import CHOICE_ENTITY, CHOICE_NONE
 
 
 @pytest.fixture
@@ -140,6 +140,18 @@ async def test_user_step_shows_form(
 
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
+
+
+def test_price_selector_allows_all_home_assistant_entities(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Policy price entity picker is not restricted to HAEO entities only."""
+    flow = _create_flow(hass, hub_entry)
+    price_selector = flow._build_price_selector()
+    entity_choice = price_selector.config["choices"][CHOICE_ENTITY]
+    entity_selector_config = entity_choice["selector"]["entity"]
+    assert "include_entities" not in entity_selector_config
 
 
 async def test_user_step_creates_entry_when_none_exists(
