@@ -9,11 +9,44 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from functools import wraps
 from pathlib import Path
 from typing import Any
+
+# Block screenshot capture until the page has visually settled: web fonts loaded,
+# every <img> (including those inside shadow roots, which HA uses heavily) either
+# decoded or failed, and two animation frames painted so freshly-decoded images
+# are on screen. Each image is raced against a short per-image deadline so a
+# single slow/broken asset can't stall the run. This is what stops screenshots
+# from capturing half-loaded brand logos and result charts.
+_WAIT_VISUALLY_READY_JS = """
+async () => {
+  const pending = [];
+  const collect = (root) => {
+    for (const img of root.querySelectorAll('img')) {
+      if (!(img.complete && img.naturalWidth > 0)) pending.push(img);
+    }
+    for (const el of root.querySelectorAll('*')) {
+      if (el.shadowRoot) collect(el.shadowRoot);
+    }
+  };
+  collect(document);
+  // Fast path: nothing is mid-load, so the screenshot is already accurate.
+  if (pending.length === 0) return;
+  await Promise.all(pending.map((img) => new Promise((resolve) => {
+    img.addEventListener('load', resolve, { once: true });
+    img.addEventListener('error', resolve, { once: true });
+    setTimeout(resolve, 1500);
+  })));
+  // Only pay for font readiness and a paint settle when something loaded.
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready; } catch (e) {}
+  }
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+"""
 
 
 @dataclass
@@ -93,6 +126,11 @@ class ScreenshotContext:
         # Include step number for ordering and uniqueness
         filename = f"{self._step_number:03d}_{name}.png"
         path = self.output_dir / filename
+
+        # A readiness probe must never break a screenshot (e.g. mid-navigation
+        # execution-context swaps), so failures are swallowed.
+        with suppress(Exception):
+            page.evaluate(_WAIT_VISUALLY_READY_JS)
 
         page.screenshot(path=str(path), animations="disabled")
         self.screenshots[filename] = path

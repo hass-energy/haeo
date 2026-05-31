@@ -93,6 +93,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION as CONF_CONNECTION_GRID
+from custom_components.haeo.elements import get_element_configs
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 
 
@@ -294,29 +295,26 @@ def test_load_element_config_sees_updated_subentry_data(
     mock_runtime_data: HaeoRuntimeData,
     patch_state_change_listener: MagicMock,
 ) -> None:
-    """Config loader returns updated values after async_update_subentry replaces MappingProxyType.
+    """Constant subentry values apply after reload rebuilds the coordinator snapshot.
 
-    async_update_subentry replaces the entire ConfigSubentry and its
-    MappingProxyType data. The coordinator must read the new data from
-    config_entry.subentries rather than a stale cached reference, otherwise
-    value edits via input entities never take effect in the optimization.
+    The coordinator snapshots participant structure (including constant fields)
+    at construction. ``async_update_subentry`` replaces subentry data during
+    normal operation, but the running coordinator keeps its snapshot until reload.
     """
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
 
-    # Load element config — verify initial salvage_value is 0.0
     battery_config = coordinator._load_element_config("Test Battery")
     assert battery_config["element_type"] == ElementType.BATTERY
     assert battery_config[SECTION_PRICING].get(CONF_SALVAGE_VALUE) == 0.0
 
-    # Simulate a value edit: update the subentry's salvage_value to 5.0
     new_data = dict(mock_battery_subentry.data)
     new_pricing = dict(new_data[SECTION_PRICING])
     new_pricing[CONF_SALVAGE_VALUE] = as_constant_value(5.0)
     new_data[SECTION_PRICING] = new_pricing
     hass.config_entries.async_update_subentry(mock_hub_entry, mock_battery_subentry, data=new_data)
 
-    # Load again — must see 5.0, not stale 0.0
-    battery_config = coordinator._load_element_config("Test Battery")
+    reloaded = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    battery_config = reloaded._load_element_config("Test Battery")
     assert battery_config["element_type"] == ElementType.BATTERY
     assert battery_config[SECTION_PRICING].get(CONF_SALVAGE_VALUE) == 5.0
 
@@ -1296,14 +1294,15 @@ async def test_async_update_data_raises_when_runtime_data_none_in_body(
         await coordinator._async_update_data()
 
 
-def test_get_participant_configs_raises_for_invalid_element_type(
+def test_get_element_configs_raises_for_invalid_element_type(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Reading configs raises for elements with invalid element types."""
-    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    """Reading configs raises for elements with invalid element types.
 
+    The coordinator snapshots participant configs at construction via
+    ``get_element_configs``; this exercises that validation boundary directly.
+    """
     invalid_subentry = ConfigSubentry(
         data=MappingProxyType(
             {
@@ -1316,10 +1315,9 @@ def test_get_participant_configs_raises_for_invalid_element_type(
         unique_id=None,
     )
     hass.config_entries.async_add_subentry(mock_hub_entry, invalid_subentry)
-    coordinator._participant_subentry_ids["Invalid Element"] = invalid_subentry.subentry_id
 
     with pytest.raises(ValueError, match="Subentry 'Invalid Element' failed config validation"):
-        coordinator._get_participant_configs()
+        get_element_configs(mock_hub_entry, {"Invalid Element": invalid_subentry.subentry_id})
 
 
 def test_get_participant_configs_skips_removed_subentry(

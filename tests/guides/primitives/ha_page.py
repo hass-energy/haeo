@@ -11,6 +11,7 @@ Screenshots are automatically collected using the ScreenshotContext.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 import logging
 from pathlib import Path
@@ -19,7 +20,11 @@ from typing import TYPE_CHECKING, Any
 from .capture import ScreenshotContext
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from playwright.sync_api import Page
+
+    from tools.live_hass import LiveHomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,6 +63,7 @@ class HAPage:
 
     page: Page
     url: str
+    ha: LiveHomeAssistant | None = None
 
     # region: Screenshot Capture
 
@@ -168,7 +174,7 @@ class HAPage:
 
     def wait_for_load(self) -> None:
         """Wait for page to finish loading."""
-        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_load_state("domcontentloaded")
 
     def navigate_to_settings(self) -> None:
         """Navigate to Settings via sidebar click."""
@@ -181,11 +187,11 @@ class HAPage:
                 self._capture("home")
                 self._capture_with_indicator("sidebar", settings)
                 settings.click()
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
                 self._capture("settings_page")
         else:
             settings.click()
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("domcontentloaded")
 
     def navigate_to_integrations(self) -> None:
         """Navigate to Devices & services from Settings page."""
@@ -197,10 +203,10 @@ class HAPage:
             with ctx.scope("navigate_integrations"):
                 self._capture_with_indicator("settings_item", ds)
                 ds.click()
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
         else:
             ds.click()
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("domcontentloaded")
 
     def navigate_to_integration(self, name: str) -> None:
         """Navigate to a specific integration page by clicking its card."""
@@ -215,11 +221,11 @@ class HAPage:
                 inner_card = card.locator("ha-card")
                 self._capture_with_indicator("card", inner_card)
                 card.click()
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
                 self._capture("integration_page")
         else:
             card.click()
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("domcontentloaded")
 
     def navigate_to_developer_tools_actions(self) -> None:
         """Navigate to Developer Tools > Actions via Settings."""
@@ -235,11 +241,11 @@ class HAPage:
             with ctx.scope("navigate_developer_tools"):
                 self._capture_with_indicator("sidebar", dev_tools)
                 dev_tools.click()
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
                 self._capture("developer_tools_page")
         else:
             dev_tools.click()
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("domcontentloaded")
 
         # Click Actions tab if not already active
         actions_tab = self.page.get_by_role("tab", name="Actions")
@@ -248,11 +254,11 @@ class HAPage:
             with ctx.scope("actions_tab"):
                 self._capture_with_indicator("tab", actions_tab)
                 actions_tab.click()
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
                 self._capture("actions_page")
         else:
             actions_tab.click()
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("domcontentloaded")
 
     def fill_service_action(self, service_name: str, display_name: str) -> None:
         """Fill the service/action field in Developer Tools.
@@ -275,34 +281,31 @@ class HAPage:
         # Clear the current selection by clicking the X button
         clear_btn = picker.locator("ha-svg-icon").first
         clear_btn.click()
-        self.page.wait_for_timeout(300)
 
         if ctx:
             with ctx.scope("fill_action"):
-                # Now the picker shows an input field for searching
+                # Now the picker shows an input field for searching.
+                # The following wait_for absorbs the picker's appearance.
                 search = picker.locator("input")
                 search.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
                 self._capture_with_indicator("field", picker)
 
                 search.fill(service_name)
-                self.page.wait_for_timeout(500)
 
-                # Match the dropdown item by its display name
+                # Match the dropdown item by its display name;
+                # the wait_for absorbs the picker's search debounce.
                 option = self.page.get_by_text(display_name).first
                 option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
                 self._capture_with_indicator("option", option)
                 option.click()
-                self.page.wait_for_timeout(500)
                 self._capture("selected")
         else:
             search = picker.locator("input")
             search.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
             search.fill(service_name)
-            self.page.wait_for_timeout(500)
             option = self.page.get_by_text(display_name).first
             option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
             option.click()
-            self.page.wait_for_timeout(500)
 
     def fill_datetime_field(self, label: str, value: str) -> None:
         """Fill a datetime selector field in a service form.
@@ -824,7 +827,7 @@ class HAPage:
                         self._capture("dialog")
                         self._capture_with_indicator("select", item)
                         item.click()
-                        self.page.wait_for_timeout(300)
+                        select_dialog.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
                         self._capture("selected")
         else:
             for option_text in options:
@@ -833,7 +836,7 @@ class HAPage:
                 item = select_dialog.locator(f":text('{option_text}')").first
                 item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
                 item.click()
-                self.page.wait_for_timeout(300)
+                select_dialog.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
 
     # endregion
 
@@ -963,6 +966,30 @@ class HAPage:
 
         _LOGGER.info("Dialog closed successfully")
 
+    @contextmanager
+    def expect_config_reload(self) -> Iterator[None]:
+        """Wait for the config-entry reload triggered inside the block to finish.
+
+        Committing a subentry (adding or editing an element, saving a policy)
+        schedules a full integration reload that rebuilds the element-add
+        buttons. Starting the next action before that reload settles races the
+        teardown, so callers wrap the triggering action::
+
+            with page.expect_config_reload():
+                page.submit()
+                page.close_element_dialog()
+
+        The HA state listener is registered on entry (before the action runs)
+        so the reload's start can't be missed, and the block exits only once
+        the entry is loaded again.
+        """
+        if self.ha is None:
+            yield
+            return
+        reload_wait = self.ha.begin_wait_for_config_reload()
+        yield
+        self.ha.wait_for_config_reload(reload_wait)
+
     def close_success_dialog(self) -> None:
         """Close the config flow success dialog shown after creating an entry.
 
@@ -1005,7 +1032,7 @@ class HAPage:
         self._capture("dialog_opened")
 
     def submit(self) -> None:
-        """Click Submit button."""
+        """Click the Submit button."""
         self.click_button("Submit")
 
     def select_list_option(self, option_text: str) -> None:
@@ -1146,11 +1173,11 @@ class HAPage:
             with ctx.scope("navigate_calendar"):
                 self._capture_with_indicator("sidebar", calendar_link)
                 calendar_link.click()
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
                 self._capture("calendar_page")
         else:
             calendar_link.click()
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("domcontentloaded")
 
     def create_calendar_event(
         self,

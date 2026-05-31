@@ -283,7 +283,7 @@ def run_blocks_for_mode(
         page_obj.set_default_timeout(5000)
 
         try:
-            page = HAPage(page=page_obj, url=hass.url)
+            page = HAPage(page=page_obj, url=hass.url, ha=hass)
             namespace = build_exec_namespace(page, hass)
 
             # All blocks share one screenshot context (continuous numbering)

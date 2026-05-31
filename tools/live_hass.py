@@ -18,7 +18,7 @@ This avoids needing config files, YAML, or packages - just load states from JSON
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import closing, contextmanager
 from dataclasses import dataclass
 import json
@@ -32,9 +32,9 @@ import warnings
 from homeassistant import loader
 from homeassistant.auth import auth_manager_from_config
 from homeassistant.auth.models import Credentials
-from homeassistant.config_entries import ConfigEntries
+from homeassistant.config_entries import ConfigEntries, ConfigEntryState
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
-from homeassistant.core import CoreState, HomeAssistant
+from homeassistant.core import CoreState, HomeAssistant, callback
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import category_registry as cr
 from homeassistant.helpers import device_registry as dr
@@ -145,6 +145,15 @@ async def _ensure_http_started(hass: HomeAssistant) -> None:
 
 
 @dataclass
+class ConfigReloadWait:
+    """Handle for waiting on a config entry reload cycle."""
+
+    reload_started: asyncio.Event
+    reload_finished: asyncio.Event
+    unsubscribe: Callable[[], None]
+
+
+@dataclass
 class LiveHomeAssistant:
     """A running Home Assistant instance with HTTP server.
 
@@ -193,8 +202,81 @@ class LiveHomeAssistant:
             states = json.load(f)
         self.set_states(states)
 
-    def run_coro(self, coro: Any, timeout: float = 30) -> Any:
-        """Run a coroutine on the HA event loop."""
+    def begin_wait_for_config_reload(self) -> ConfigReloadWait:
+        """Register listeners before an action that triggers a reload."""
+        return self.run_coro(self._async_begin_wait_for_config_reload())
+
+    def wait_for_config_reload(self, reload_wait: ConfigReloadWait) -> None:
+        """Block until the config entry reload cycle completes."""
+        self.run_coro(self._async_wait_for_config_reload(reload_wait), timeout=None)
+
+    async def _async_begin_wait_for_config_reload(self) -> ConfigReloadWait:
+        """Register a config entry state listener on the HA event loop.
+
+        Committing a subentry schedules a full integration reload. We watch the
+        entry's state transitions: ``reload_started`` is set on the first move
+        away from LOADED, ``reload_finished`` once it is back to LOADED with a
+        live coordinator (or lands in a terminal error state).
+        """
+        from custom_components.haeo.const import DOMAIN  # noqa: PLC0415
+
+        entries = self.hass.config_entries.async_entries(DOMAIN)
+        if not entries:
+            msg = "HAEO config entry not found"
+            raise RuntimeError(msg)
+        entry = entries[0]
+
+        reload_started = asyncio.Event()
+        reload_finished = asyncio.Event()
+
+        @callback
+        def on_state_change() -> None:
+            if entry.state in (
+                ConfigEntryState.UNLOAD_IN_PROGRESS,
+                ConfigEntryState.NOT_LOADED,
+                ConfigEntryState.SETUP_IN_PROGRESS,
+            ):
+                reload_started.set()
+            if entry.state in (ConfigEntryState.SETUP_ERROR, ConfigEntryState.FAILED_UNLOAD) or (
+                reload_started.is_set() and self._entry_is_operational(entry)
+            ):
+                reload_finished.set()
+
+        unsubscribe = entry.async_on_state_change(on_state_change)
+        return ConfigReloadWait(reload_started, reload_finished, unsubscribe)
+
+    async def _async_wait_for_config_reload(self, reload_wait: ConfigReloadWait) -> None:
+        """Wait for the reload to start and complete without polling."""
+        await reload_wait.reload_started.wait()
+        await reload_wait.reload_finished.wait()
+        reload_wait.unsubscribe()
+        from custom_components.haeo.const import DOMAIN  # noqa: PLC0415
+
+        entries = self.hass.config_entries.async_entries(DOMAIN)
+        if entries and entries[0].state is not ConfigEntryState.LOADED:
+            msg = f"HAEO config entry reload failed: {entries[0].state} ({entries[0].reason})"
+            raise RuntimeError(msg)
+        await self.hass.async_block_till_done()
+
+    @staticmethod
+    def _entry_is_operational(entry: Any) -> bool:
+        """Return True when the HAEO entry finished setup and has a coordinator."""
+        if entry.state is not ConfigEntryState.LOADED:
+            return False
+        runtime_data = entry.runtime_data
+        return runtime_data is not None and runtime_data.coordinator is not None
+
+    def run_coro(self, coro: Any, timeout: float | None = 30) -> Any:
+        """Run a coroutine on the HA event loop.
+
+        Args:
+            coro: Coroutine to run
+            timeout: Maximum seconds to wait; None waits indefinitely
+
+        Returns:
+            Result of the coroutine
+
+        """
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         return future.result(timeout=timeout)
 
