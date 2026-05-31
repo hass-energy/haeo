@@ -22,6 +22,9 @@ const bundlePath = resolve(workspaceRoot, "custom_components", "haeo", "www", "h
 
 const CARD_WIDTH = 1920;
 const CARD_HEIGHT = 900;
+// Plot viewport size at CARD_WIDTH x CARD_HEIGHT (ForecastCardStore margins when width >= 420).
+const EXPECTED_PLOT_WIDTH = 1716;
+const EXPECTED_PLOT_HEIGHT = 824;
 
 function pickEntities(states) {
   const preferred = [
@@ -140,7 +143,7 @@ function setupDom(anchorNowMs) {
               contentRect: { width: CARD_WIDTH, height: CARD_HEIGHT, x: 0, y: 0, top: 0, left: 0 },
             },
           ]),
-        0
+        10
       );
     }
     disconnect() {}
@@ -173,6 +176,16 @@ function findChartSvg(element) {
   return null;
 }
 
+function isChartLayoutReady(svg) {
+  const viewport = svg.querySelector(".plotViewport");
+  if (!viewport) {
+    return false;
+  }
+  const width = Number(viewport.getAttribute("width") ?? 0);
+  const height = Number(viewport.getAttribute("height") ?? 0);
+  return width >= EXPECTED_PLOT_WIDTH && height >= EXPECTED_PLOT_HEIGHT;
+}
+
 async function renderCard(window, states, entities) {
   await import(pathToFileURL(bundlePath).href);
 
@@ -200,7 +213,7 @@ async function renderCard(window, states, entities) {
   const deadline = nodePerformance.now() + 10_000;
   while (nodePerformance.now() < deadline) {
     const result = findChartSvg(element);
-    if (result) {
+    if (result && isChartLayoutReady(result.svg)) {
       return result;
     }
     await sleep(50);
