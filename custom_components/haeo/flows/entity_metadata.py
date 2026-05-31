@@ -19,9 +19,7 @@ def extract_entity_metadata(hass: HomeAssistant, hub_entry: ConfigEntry) -> list
     repeated entity registry and state lookups.
     """
     registry = er.async_get(hass)
-    own_entity_ids = {
-        entry.entity_id for entry in er.async_entries_for_config_entry(registry, hub_entry.entry_id)
-    }
+    own_entity_ids = {entry.entity_id for entry in er.async_entries_for_config_entry(registry, hub_entry.entry_id)}
 
     entities: list[EntityMetadata] = []
     for state in hass.states.async_all():
