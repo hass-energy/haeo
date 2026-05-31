@@ -318,6 +318,12 @@ def run_blocks_for_mode(
             raise
 
         finally:
+            try:
+                page_obj.goto("about:blank", wait_until="domcontentloaded", timeout=5000)
+            except Exception:
+                _LOGGER.debug("Failed to navigate to about:blank during teardown", exc_info=True)
+            page_obj.close()
+            context.close()
             browser.close()
 
 
