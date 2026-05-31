@@ -7,12 +7,12 @@ from typing import Any, Final, Literal
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.adapters.output_utils import expect_output_data
+from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
+from custom_components.haeo.core.model.elements.connection import CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 from custom_components.haeo.core.schema import extract_connection_target
@@ -60,20 +60,6 @@ type GridDeviceName = Literal[ElementType.GRID]
 GRID_DEVICE_NAMES: Final[frozenset[GridDeviceName]] = frozenset(
     (GRID_DEVICE_GRID := ElementType.GRID,),
 )
-
-
-def _connection_power(
-    connection_outputs: Mapping[ModelOutputName, ModelOutputValue] | None,
-    period_count: int,
-) -> OutputData:
-    """Return a connection's power output, or zeros when the connection is absent.
-
-    A grid direction is pruned from the model when no source can reach it, in
-    which case it carries no flow and is represented as a zero-valued series.
-    """
-    if connection_outputs is None:
-        return OutputData(type=OutputType.POWER_FLOW, unit="kW", values=[0.0] * period_count, direction="+")
-    return expect_output_data(connection_outputs[CONNECTION_POWER])
 
 
 class GridAdapter:
@@ -136,10 +122,6 @@ class GridAdapter:
         **_kwargs: Any,
     ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
         """Map model outputs to grid-specific output names."""
-        # A direction's connection is pruned by policy compilation when no source
-        # can reach it (e.g. the grid is the only source, so nothing feeds export).
-        # That direction simply carries no flow, so treat its power as zeros to
-        # keep the grid's outputs consistent rather than failing the optimization.
         import_conn = model_outputs.get(f"{name}:import")
         export_conn = model_outputs.get(f"{name}:export")
 
@@ -147,8 +129,8 @@ class GridAdapter:
 
         # source_target = grid to system = IMPORT
         # target_source = system to grid = EXPORT
-        power_import = _connection_power(import_conn, len(periods))
-        power_export = _connection_power(export_conn, len(periods))
+        power_import = connection_power(import_conn, len(periods))
+        power_export = connection_power(export_conn, len(periods))
 
         grid_outputs[GRID_POWER_EXPORT] = replace(power_export, type=OutputType.POWER, direction="-")
         grid_outputs[GRID_POWER_IMPORT] = replace(power_import, type=OutputType.POWER, direction="+")

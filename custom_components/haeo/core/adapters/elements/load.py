@@ -4,7 +4,9 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
-from custom_components.haeo.core.adapters.output_utils import expect_output_data
+import numpy as np
+
+from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -86,17 +88,23 @@ class LoadAdapter:
         **_kwargs: Any,
     ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
         """Map model outputs to load-specific output names."""
-        connection = model_outputs[f"{name}:connection"]
+        connection = model_outputs.get(f"{name}:connection")
         fixed = not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, False)
+        forecast = config[SECTION_FORECAST][CONF_FORECAST]
+        if connection is not None:
+            period_count = len(expect_output_data(connection[CONNECTION_POWER]).values)
+        else:
+            period_count = int(np.atleast_1d(forecast).size)
 
-        power = expect_output_data(connection[CONNECTION_POWER])
+        power = connection_power(connection, period_count)
         load_outputs: dict[LoadOutputName, OutputData] = {
             LOAD_POWER: replace(power, type=OutputType.POWER, direction="-", fixed=fixed),
         }
 
         # Shadow price from power_limit segment (if present)
         if (
-            isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
+            connection is not None
+            and isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
             and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
             and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
         ):
