@@ -76,6 +76,13 @@ OUTPUT_TYPE_DEFAULTS: dict[OutputType, OutputTypeMetadata] = {
         max_value=PRICE_NATIVE_MAX_VALUE,
         step=0.001,
     ),
+    OutputType.PRICE_RATE: OutputTypeMetadata(
+        unit=None,
+        device_class=None,
+        min_value=PRICE_NATIVE_MIN_VALUE,
+        max_value=PRICE_NATIVE_MAX_VALUE,
+        step=0.001,
+    ),
 }
 
 

@@ -120,9 +120,9 @@ class SocPricingSegment(Segment):
         """Penalty cost for operating outside SOC thresholds."""
         cost_terms = []
         if self._discharge_energy_slack is not None and self._discharge_energy_price is not None:
-            cost_terms.append(Highs.qsum(self._discharge_energy_slack * self._discharge_energy_price))
+            cost_terms.append(Highs.qsum(self._discharge_energy_slack * self._discharge_energy_price * self.periods))
         if self._charge_capacity_slack is not None and self._charge_capacity_price is not None:
-            cost_terms.append(Highs.qsum(self._charge_capacity_slack * self._charge_capacity_price))
+            cost_terms.append(Highs.qsum(self._charge_capacity_slack * self._charge_capacity_price * self.periods))
         if not cost_terms:
             return None
         if len(cost_terms) == 1:
