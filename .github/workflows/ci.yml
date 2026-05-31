@@ -231,6 +231,7 @@ jobs:
         with:
           files: frontend/haeo-forecast-card/coverage/lcov.info
           flags: frontend
+          slug: hass-energy/haeo
           use_oidc: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
           fail_ci_if_error: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
   #endregion
@@ -262,6 +263,7 @@ jobs:
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           report_type: test_results
+          slug: hass-energy/haeo
           use_oidc: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
           fail_ci_if_error: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
 
@@ -270,6 +272,7 @@ jobs:
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           flags: python
+          slug: hass-energy/haeo
           use_oidc: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
           fail_ci_if_error: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
 
