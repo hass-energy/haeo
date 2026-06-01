@@ -28,10 +28,7 @@ export function TopologyCardView(props: TopologyCardViewProps): JSX.Element {
       return;
     }
     const updateWidth = (): void => {
-      const width = viewport.getBoundingClientRect().width;
-      if (width > 0) {
-        setViewportWidth(width);
-      }
+      setViewportWidth(Math.max(viewport.getBoundingClientRect().width, 1));
     };
     updateWidth();
     const observer = new ResizeObserver(() => {

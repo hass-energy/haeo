@@ -16,7 +16,7 @@ function isHaeoEntity(hass: HassLike, entityId: string, entry: NonNullable<HassL
   }
   const state = hass.states[entityId];
   if (state === undefined) {
-    return entityId.includes("haeo");
+    return false;
   }
   const attrs = state.attributes;
   if (attrs["element_type"] !== undefined) {
@@ -31,10 +31,7 @@ function isHaeoEntity(hass: HassLike, entityId: string, entry: NonNullable<HassL
   if (isTopologyAttribute(attrs["topology"])) {
     return true;
   }
-  if (attrs["platform"] === "haeo") {
-    return true;
-  }
-  return entityId.includes("haeo");
+  return attrs["platform"] === "haeo";
 }
 
 function deviceConfigEntryIds(hass: HassLike, deviceId: string): string[] {

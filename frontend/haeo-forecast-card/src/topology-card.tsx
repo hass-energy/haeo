@@ -6,7 +6,7 @@ import { buildHubConfigForm } from "./config-form";
 import { discoverHaeoHubEntryId } from "./hub-selection";
 import type { HassLike } from "./series";
 import TOPOLOGY_CARD_STYLES from "./topology-card.css";
-import { readTopology, resolveTopologyEntity } from "./topology-card-utils";
+import { resolveTopologyEntity } from "./topology-card-utils";
 import type { TopologyCardConfig } from "./types";
 
 function buildTopologyStubConfig(hass: HassLike): Omit<TopologyCardConfig, "type"> {
@@ -27,18 +27,9 @@ export class HaeoTopologyCard extends HTMLElement {
   private _config: TopologyCardConfig = { type: "custom:haeo-topology-card" };
   private _hass: HassLike | null = null;
   private _layoutHeight = 320;
-  private _lastRenderedEntityId: string | null = null;
-  private _lastRenderedTopology: unknown = undefined;
-  private hasRenderedHost = false;
 
   setConfig(config: TopologyCardConfig): void {
-    const previousEntityId = resolveTopologyEntity(this._config, this._hass);
     this._config = { ...config, type: "custom:haeo-topology-card" };
-    const nextEntityId = resolveTopologyEntity(this._config, this._hass);
-    if (previousEntityId !== nextEntityId) {
-      this._lastRenderedEntityId = null;
-      this._lastRenderedTopology = undefined;
-    }
     this.renderCard();
   }
 
@@ -54,17 +45,7 @@ export class HaeoTopologyCard extends HTMLElement {
   }
 
   set hass(hass: HassLike | null) {
-    const hadNoHass = this._hass === null;
     this._hass = hass;
-
-    const entityId = resolveTopologyEntity(this._config, hass);
-    const topology = readTopology(hass, entityId);
-    if (!hadNoHass && entityId === this._lastRenderedEntityId && topology === this._lastRenderedTopology) {
-      return;
-    }
-
-    this._lastRenderedEntityId = entityId;
-    this._lastRenderedTopology = topology;
     this.renderCard();
   }
 
@@ -84,7 +65,6 @@ export class HaeoTopologyCard extends HTMLElement {
     if (this.shadowRoot) {
       render(null, this.shadowRoot);
     }
-    this.hasRenderedHost = false;
   }
 
   getCardSize(): number {
@@ -105,7 +85,7 @@ export class HaeoTopologyCard extends HTMLElement {
   }
 
   private ensureHostElements(): void {
-    if (!this.shadowRoot || this.hasRenderedHost) {
+    if (!this.shadowRoot || this.shadowRoot.querySelector("#mount")) {
       return;
     }
     const style = document.createElement("style");
@@ -116,23 +96,24 @@ export class HaeoTopologyCard extends HTMLElement {
     mount.id = "mount";
     mount.style.cssText = "width: 100%; height: 100%; display: flex; flex-direction: column;";
     this.shadowRoot.appendChild(mount);
-    this.hasRenderedHost = true;
   }
 
   private readonly onLayoutHeight = (height: number): void => {
-    if (height === this._layoutHeight) {
+    const previousCardSize = this.getCardSize();
+    this._layoutHeight = height;
+    if (this.getCardSize() === previousCardSize) {
       return;
     }
-    this._layoutHeight = height;
     this.dispatchEvent(new Event("ll-update", { bubbles: true, composed: true }));
   };
 
   private renderCard(): void {
-    if (!this.shadowRoot) {
+    if (this.shadowRoot === null) {
       return;
     }
+    this.ensureHostElements();
     const mount = this.shadowRoot.querySelector("#mount");
-    if (!mount) {
+    if (mount === null) {
       return;
     }
     const locale = this._hass?.language ?? this._hass?.locale?.language ?? "en";
