@@ -335,6 +335,20 @@ describe("hub-selection", () => {
     expect(entityBelongsToHub(hass, "sensor.grid_import_power", "hub-alpha")).toBe(true);
   });
 
+  it("rejects non-HAEO entities with no state when device config entries are empty", () => {
+    const hass: HassLike = {
+      states: {},
+      entities: {
+        "sensor.unknown": { platform: "other", device_id: "dev-empty" },
+      },
+      devices: {
+        "dev-empty": { config_entries: [] },
+      },
+    };
+
+    expect(entityBelongsToHub(hass, "sensor.unknown", "hub-alpha")).toBe(false);
+  });
+
   it("recognizes HAEO entities from registry platform and state attributes", () => {
     const hass: HassLike = {
       states: {
