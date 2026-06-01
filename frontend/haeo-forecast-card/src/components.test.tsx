@@ -3,12 +3,12 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { ForecastCardView } from "./components/ForecastCardView";
 import { Legend } from "./components/Legend";
-import { loadScenarioHassState } from "./fixtures/scenarioOutputs";
+import { loadScenarioHassState, withSingleHubRegistry } from "./fixtures/scenarioOutputs";
 import { normalizeSeries } from "./series";
 import { ForecastCardStore } from "./store";
 import type { HassLike } from "./series";
 
-const testFixture: HassLike = {
+const testFixture: HassLike = withSingleHubRegistry({
   states: {
     "sensor.grid_import_power": {
       entity_id: "sensor.grid_import_power",
@@ -57,7 +57,7 @@ const testFixture: HassLike = {
       },
     },
   },
-};
+});
 
 const testCardConfig = {
   type: "custom:haeo-forecast-card" as const,
@@ -122,7 +122,7 @@ describe("ForecastCardView components", () => {
     store.setConfig({ type: "custom:haeo-forecast-card", hub_entry_id: "hub-alpha" });
     store.setSize(800, 300);
     render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
-    expect(root.textContent).toContain("No forecast data found");
+    expect(root.textContent).toContain("The selected HAEO hub no longer exists");
   });
 
   it("handles legend enter and leave callbacks", () => {
@@ -130,7 +130,7 @@ describe("ForecastCardView components", () => {
     const groups: Array<string | null> = [];
     const toggles: string[] = [];
     const elementToggles: string[] = [];
-    const series = normalizeSeries(testFixture, { type: "custom:haeo-forecast-card" });
+    const series = normalizeSeries(testFixture, testCardConfig);
     render(
       <Legend
         series={series}
@@ -177,7 +177,7 @@ describe("ForecastCardView components", () => {
 
   it("updates store state from forecast view interactions", () => {
     const store = new ForecastCardStore();
-    store.setConfig({ ...testCardConfig, animation_mode: "off" as const });
+    store.setConfig({ ...testCardConfig });
     store.setHass(testFixture);
     store.setSize(900, 380);
     store.setPointer(300, 120);
@@ -205,7 +205,7 @@ describe("ForecastCardView components", () => {
 
   it("updates the horizon from the slider", async () => {
     const store = new ForecastCardStore();
-    store.setConfig({ type: "custom:haeo-forecast-card", hub_entry_id: "hub-alpha", animation_mode: "off" });
+    store.setConfig({ type: "custom:haeo-forecast-card", hub_entry_id: "hub-alpha" });
     store.setHass(loadScenarioHassState("scenario2"));
     store.setSize(900, 380);
     render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);

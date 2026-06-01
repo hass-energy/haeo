@@ -76,7 +76,6 @@ async function main() {
     title: "HAEO card preview",
     entities,
     height: 420,
-    animation_mode: "off",
   });
   element.hass = { states };
   window.document.body.appendChild(element);

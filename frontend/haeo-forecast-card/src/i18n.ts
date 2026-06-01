@@ -4,9 +4,10 @@ type TranslationDict = Record<string, TranslationValue>;
 
 const EN_TRANSLATIONS: TranslationDict = {
   "card.title.default": "HAEO forecast",
-  "card.empty.message":
-    "No forecast data found. Add forecast entities in card config or ensure HAEO output sensors are available.",
   "card.empty.configure_hub": "Configure a HAEO hub in the card editor.",
+  "card.empty.hub_not_found":
+    "The selected HAEO hub no longer exists. Open the card editor and choose a hub again.",
+  "card.empty.no_data": "No forecast data yet. Wait for HAEO to finish its first optimization run.",
   "header.horizon": "Horizon: {hours}",
   "axis.power": "Power (kW)",
   "axis.price": "Price",
@@ -37,6 +38,8 @@ const EN_TRANSLATIONS: TranslationDict = {
   "legend.group.toggle": "Toggle {element} {group}",
   "topology.card.title.default": "HAEO network topology",
   "topology.card.empty.configure_hub": "Configure a HAEO hub in the card editor.",
+  "topology.card.empty.hub_not_found":
+    "The selected HAEO hub no longer exists. Open the card editor and choose a hub again.",
   "topology.card.empty.no_entity":
     "No optimization status sensor found for the selected hub. Wait for HAEO to finish its first optimization run.",
   "topology.card.empty.waiting": "Waiting for topology data on {entity}.",

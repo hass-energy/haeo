@@ -44,8 +44,7 @@ Use the visual card editor to select a HAEO hub. Forecast entities for that hub 
 - `hub_entry_id`: Required HAEO hub config entry ID (chosen via the visual editor).
 - `entities`: Optional list of forecast sensor entities. When omitted, the card discovers forecast sensors for the selected hub.
 - `height`: Optional chart height in pixels.
-- `animation_mode`: `off`, `reduced`, or `smooth`.
-- `animation_speed`: Relative timeline slide speed (default `1`).
+- `power_display_mode`: `opposed` or `overlay`.
 
 ## Interaction features
 
@@ -53,7 +52,7 @@ Use the visual card editor to select a HAEO hub. Forecast entities for that hub 
 - Tooltip with per-series values and per-lane totals.
 - Legend hover highlighting.
 - Automatic scaling based on card dimensions.
-- Smooth time sliding between forecast updates.
+- Chart updates when forecast data changes from Home Assistant.
 
 ## Network topology card
 
@@ -75,15 +74,19 @@ Use the visual card editor to select a HAEO hub. The card resolves the hub's opt
 - `type`: Must be `custom:haeo-topology-card`.
 - `title`: Optional card title.
 - `hub_entry_id`: Required HAEO hub config entry ID (chosen via the visual editor).
-- `entity`: Optional resolved optimization status sensor entity ID (legacy fast path when present in saved config).
 
 ## Troubleshooting
 
-If no data appears:
+If the card shows an empty state:
 
-- Confirm your selected entity IDs exist.
-- Confirm each entity has a populated `forecast` attribute.
-- Confirm the Lovelace resource URL is exactly `/haeo-static/haeo-forecast-card.min.js`.
+- **Configure a HAEO hub**: Open the card editor and select a hub.
+- **The selected HAEO hub no longer exists**: Your hub was removed or recreated. Open the card editor and choose the current hub again.
+- **No forecast data yet** / **No optimization status sensor**: HAEO is still starting up or has not finished its first optimization run.
+
+For forecast data issues, also confirm:
+
+- Each forecast entity has a populated `forecast` attribute.
+- The Lovelace resource URL is exactly `/haeo-static/haeo-forecast-card.min.js`.
 
 ## Next steps
 

@@ -102,7 +102,6 @@ function ForecastCardElementFrame(props: {
     element.setConfig({
       type: "custom:haeo-forecast-card",
       title: `${props.args.scenario} forecast (${props.args.dataMode})`,
-      animation_mode: "off",
       power_display_mode: props.args.powerDisplayMode,
     });
     element.hass = getScenarioFixture(props.args.scenario, props.args.dataMode);

@@ -6,7 +6,6 @@ import { buildHubConfigForm } from "./config-form";
 import { discoverHaeoHubEntryId } from "./hub-selection";
 import type { HassLike } from "./series";
 import TOPOLOGY_CARD_STYLES from "./topology-card.css";
-import { resolveTopologyEntity } from "./topology-card-utils";
 import type { TopologyCardConfig } from "./types";
 
 function buildTopologyStubConfig(hass: HassLike): Omit<TopologyCardConfig, "type"> {
@@ -14,10 +13,6 @@ function buildTopologyStubConfig(hass: HassLike): Omit<TopologyCardConfig, "type
   const hubEntryId = discoverHaeoHubEntryId(hass);
   if (hubEntryId !== null) {
     stub.hub_entry_id = hubEntryId;
-  }
-  const entity = resolveTopologyEntity({ type: "custom:haeo-topology-card", ...stub }, hass);
-  if (entity !== null) {
-    stub.entity = entity;
   }
   return stub;
 }

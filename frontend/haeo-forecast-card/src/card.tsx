@@ -17,18 +17,15 @@ export class HaeoForecastCard extends HTMLElement {
   readonly instanceId = HaeoForecastCard.nextInstanceId++;
   private readonly store = new ForecastCardStore(this.instanceId);
   private resizeObserver: ResizeObserver | null = null;
-  private frameHandle = 0;
   private pointerFrameHandle = 0;
   private pointerFlushScheduled = false;
   private pendingPointer: { x: number | null; y: number | null } | null = null;
   private hasRenderedHost = false;
   private _hass: HassLike | null = null;
-  private animationPaused = false;
-  private intersectionObserver: IntersectionObserver | null = null;
-  private isIntersecting = true;
 
   setConfig(config: ForecastCardConfig): void {
     this.store.setConfig(config);
+    this.renderCard();
   }
 
   static getConfigForm(): ReturnType<typeof buildHubConfigForm> {
@@ -52,6 +49,7 @@ export class HaeoForecastCard extends HTMLElement {
     if (hass) {
       this.store.setHass(hass);
     }
+    this.renderCard();
   }
 
   get hass(): HassLike | null {
@@ -63,8 +61,6 @@ export class HaeoForecastCard extends HTMLElement {
       this.attachShadow({ mode: "open" });
     }
     this.ensureHostElements();
-    this.startAnimationLoop();
-    this.observeVisibility();
     this.renderCard();
     this.observeCardResize();
   }
@@ -72,10 +68,6 @@ export class HaeoForecastCard extends HTMLElement {
   disconnectedCallback(): void {
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
-    this.intersectionObserver?.disconnect();
-    this.intersectionObserver = null;
-    document.removeEventListener("visibilitychange", this.onVisibilityChange);
-    cancelAnimationFrame(this.frameHandle);
     if (this.pointerFlushScheduled) {
       cancelAnimationFrame(this.pointerFrameHandle);
       this.pointerFlushScheduled = false;
@@ -159,52 +151,6 @@ export class HaeoForecastCard extends HTMLElement {
     return width > 0 ? width : this.store.cardWidth;
   }
 
-  private startAnimationLoop(): void {
-    const tick = (): void => {
-      if (this.animationPaused) {
-        return;
-      }
-      const hovering = this.store.pointerX !== null && this.store.pointerY !== null;
-      if (!hovering) {
-        this.store.setNow(Date.now());
-      }
-      if (this.store.motionMode === "smooth") {
-        this.frameHandle = requestAnimationFrame(tick);
-      }
-    };
-    this.frameHandle = requestAnimationFrame(tick);
-  }
-
-  private observeVisibility(): void {
-    document.addEventListener("visibilitychange", this.onVisibilityChange);
-    this.intersectionObserver = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry) {
-          this.isIntersecting = entry.isIntersecting;
-          this.updateAnimationPaused();
-        }
-      },
-      { threshold: 0 }
-    );
-    this.intersectionObserver.observe(this);
-  }
-
-  private readonly onVisibilityChange = (): void => {
-    this.updateAnimationPaused();
-  };
-
-  private updateAnimationPaused(): void {
-    const shouldPause = document.hidden || !this.isIntersecting;
-    if (shouldPause === this.animationPaused) {
-      return;
-    }
-    this.animationPaused = shouldPause;
-    if (!shouldPause && this.store.motionMode === "smooth") {
-      this.startAnimationLoop();
-    }
-  }
-
   private onPointerMove(event: PointerEvent): void {
     const svgElement = event.currentTarget as SVGSVGElement | null;
     if (!svgElement) {
@@ -259,7 +205,7 @@ export class HaeoForecastCard extends HTMLElement {
   }
 
   private renderCard(): void {
-    if (!this.shadowRoot) {
+    if (!this.shadowRoot || !this.hasRenderedHost) {
       return;
     }
     const mount = this.shadowRoot.querySelector("#mount");

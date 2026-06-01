@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { HassLike } from "./series";
+import { withSingleHubRegistry } from "./fixtures/scenarioOutputs";
 import "./card";
 
 interface ForecastCardConstructor {
@@ -25,6 +26,10 @@ const smokeConfig = {
   entities: ["sensor.haeo_grid_import_power"],
 };
 
+function smokeHass(states: HassLike["states"]): HassLike {
+  return withSingleHubRegistry({ states }, "hub-alpha");
+}
+
 describe("haeo-forecast-card smoke", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -39,34 +44,68 @@ describe("haeo-forecast-card smoke", () => {
     expect(element).toBeInstanceOf(HTMLElement);
   });
 
+  it("renders svg when hass is set after connect", async () => {
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    document.body.appendChild(element);
+    element.setConfig(smokeConfig);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
+    expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeFalsy();
+
+    element.hass = smokeHass({
+      "sensor.haeo_grid_import_power": {
+        entity_id: "sensor.haeo_grid_import_power",
+        attributes: {
+          field_type: "power",
+          output_name: "import_power",
+          direction: "-",
+          element_name: "Grid",
+          element_type: "grid",
+          unit_of_measurement: "kW",
+          forecast: [
+            { time: "2026-03-14T00:00:00Z", value: 1.0 },
+            { time: "2026-03-14T00:05:00Z", value: 2.0 },
+            { time: "2026-03-14T00:10:00Z", value: 1.5 },
+          ],
+        },
+      },
+    });
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
+
+    expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeTruthy();
+    element.remove();
+  });
+
   it("renders svg when forecast data is provided", async () => {
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
     element.setConfig(smokeConfig);
-    element.hass = {
-      states: {
-        "sensor.haeo_grid_import_power": {
-          entity_id: "sensor.haeo_grid_import_power",
-          attributes: {
-            field_type: "power",
-            output_name: "import_power",
-            direction: "-",
-            element_name: "Grid",
-            unit_of_measurement: "kW",
-            forecast: [
-              { time: "2026-03-14T00:00:00Z", value: 1.0 },
-              { time: "2026-03-14T00:05:00Z", value: 2.0 },
-              { time: "2026-03-14T00:10:00Z", value: 1.5 },
-            ],
-          },
+    element.hass = smokeHass({
+      "sensor.haeo_grid_import_power": {
+        entity_id: "sensor.haeo_grid_import_power",
+        attributes: {
+          field_type: "power",
+          output_name: "import_power",
+          direction: "-",
+          element_name: "Grid",
+          element_type: "grid",
+          unit_of_measurement: "kW",
+          forecast: [
+            { time: "2026-03-14T00:00:00Z", value: 1.0 },
+            { time: "2026-03-14T00:05:00Z", value: 2.0 },
+            { time: "2026-03-14T00:10:00Z", value: 1.5 },
+          ],
         },
       },
-    };
+    });
     document.body.appendChild(element);
     await new Promise((resolve) => {
       setTimeout(resolve, 20);
     });
 
-    const svg = element.shadowRoot?.querySelector("svg");
+    const svg = element.shadowRoot?.querySelector(".chartContainer svg");
     expect(svg).toBeTruthy();
     svg?.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 200, clientY: 120 }));
     svg?.dispatchEvent(new PointerEvent("pointerleave", { bubbles: true }));
@@ -116,6 +155,23 @@ describe("haeo-forecast-card smoke", () => {
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
     try {
       element.setConfig(smokeConfig);
+      element.hass = smokeHass({
+        "sensor.haeo_grid_import_power": {
+          entity_id: "sensor.haeo_grid_import_power",
+          attributes: {
+            field_type: "power",
+            output_name: "import_power",
+            direction: "-",
+            element_name: "Grid",
+            element_type: "grid",
+            unit_of_measurement: "kW",
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1.0 },
+              { time: "2026-03-14T00:05:00Z", value: 2.0 },
+            ],
+          },
+        },
+      });
       document.body.appendChild(element);
       await new Promise((resolve) => {
         setTimeout(resolve, 20);

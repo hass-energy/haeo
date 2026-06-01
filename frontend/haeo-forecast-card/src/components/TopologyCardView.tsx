@@ -4,8 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { t } from "../i18n";
 import type { HassLike } from "../series";
 import { NetworkTopology } from "../topology/NetworkTopology";
-import { resolveHubEntryId } from "../hub-selection";
-import { readTopology, resolveTopologyEntity } from "../topology-card-utils";
+import { resolveTopology } from "../topology-card-utils";
 import type { TopologyCardConfig } from "../types";
 
 interface TopologyCardViewProps {
@@ -19,8 +18,7 @@ export function TopologyCardView(props: TopologyCardViewProps): JSX.Element {
   const { config, hass, locale, onLayoutHeight } = props;
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [viewportWidth, setViewportWidth] = useState(640);
-  const entityId = resolveTopologyEntity(config, hass);
-  const topology = readTopology(hass, entityId);
+  const resolution = resolveTopology(config, hass);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -46,7 +44,7 @@ export function TopologyCardView(props: TopologyCardViewProps): JSX.Element {
     [onLayoutHeight]
   );
 
-  if (resolveHubEntryId(config, hass) === null && entityId === null) {
+  if (resolution.status === "not_configured") {
     return (
       <div className="topologyCard">
         <div className="topologyHeader">{title}</div>
@@ -55,7 +53,16 @@ export function TopologyCardView(props: TopologyCardViewProps): JSX.Element {
     );
   }
 
-  if (entityId === null) {
+  if (resolution.status === "hub_not_found") {
+    return (
+      <div className="topologyCard">
+        <div className="topologyHeader">{title}</div>
+        <div className="topologyMessage">{t(locale, "topology.card.empty.hub_not_found")}</div>
+      </div>
+    );
+  }
+
+  if (resolution.status === "no_entity") {
     return (
       <div className="topologyCard">
         <div className="topologyHeader">{title}</div>
@@ -64,11 +71,13 @@ export function TopologyCardView(props: TopologyCardViewProps): JSX.Element {
     );
   }
 
-  if (topology === null) {
+  if (resolution.status === "waiting") {
     return (
       <div className="topologyCard">
         <div className="topologyHeader">{title}</div>
-        <div className="topologyMessage">{t(locale, "topology.card.empty.waiting", { entity: entityId })}</div>
+        <div className="topologyMessage">
+          {t(locale, "topology.card.empty.waiting", { entity: resolution.entityId })}
+        </div>
       </div>
     );
   }
@@ -78,11 +87,10 @@ export function TopologyCardView(props: TopologyCardViewProps): JSX.Element {
       <div className="topologyHeader">{title}</div>
       <div className="topologyViewport" ref={viewportRef}>
         <NetworkTopology
-          topology={topology}
+          topology={resolution.topology}
+          locale={locale}
           width={viewportWidth}
           onLayoutSize={handleLayoutSize}
-          layoutErrorMessage={t(locale, "topology.card.error.layout")}
-          layoutLoadingMessage={t(locale, "topology.card.loading")}
         />
       </div>
     </div>

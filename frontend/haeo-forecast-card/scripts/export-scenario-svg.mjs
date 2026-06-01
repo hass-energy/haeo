@@ -206,7 +206,6 @@ async function renderCard(window, states, entities) {
     type: "custom:haeo-forecast-card",
     entities,
     height: CARD_HEIGHT,
-    animation_mode: "off",
   });
   element.hass = { states, locale: { language: "en" } };
   window.document.body.appendChild(element);
