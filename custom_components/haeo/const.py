@@ -18,6 +18,8 @@ CONF_RECORD_FORECASTS: Final = "record_forecasts"
 ELEMENT_TYPE_NETWORK: Final = "network"
 
 # Static frontend resources
+STATIC_FORECAST_CARD_STATIC_PATH: Final = "/haeo-static"
+STATIC_FORECAST_CARD_STATIC_DIR: Final = "www"
 STATIC_FORECAST_CARD_URL_PATH: Final = "/haeo-static/haeo-forecast-card.min.js"
 STATIC_FORECAST_CARD_FILE_PATH: Final = "www/haeo-forecast-card.min.js"
 

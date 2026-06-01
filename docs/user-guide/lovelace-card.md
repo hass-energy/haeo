@@ -44,7 +44,9 @@ Use the visual card editor to select a HAEO hub. Forecast entities for that hub 
 - `hub_entry_id`: Required HAEO hub config entry ID (chosen via the visual editor).
 - `entities`: Optional list of forecast sensor entities. When omitted, the card discovers forecast sensors for the selected hub.
 - `height`: Optional chart height in pixels.
-- `power_display_mode`: `opposed` or `overlay`.
+- `power_display_mode`: `opposed` or `overlay`. Default is `opposed`.
+- `default_horizon`: Initial horizon slider value. One of `full`, `15m`, `30m`, `1h`, `2h`, `4h`, `8h`, `12h`, `1d`, `2d`, or `3d`. Default is `full`. Shorter values are used automatically when the forecast horizon is shorter than the configured value.
+- `tooltip_visible`: Whether the information panel below the chart is shown initially. Default is `true`.
 
 ## Interaction features
 

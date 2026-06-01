@@ -1,5 +1,5 @@
 import type { JSX } from "preact";
-import * as mdi from "@mdi/js";
+import { mdiIcons } from "../mdi-icons";
 
 import { ChartSvg } from "./ChartSvg";
 import { Legend } from "./Legend";
@@ -29,7 +29,7 @@ function horizonIndex(store: ForecastCardStore): number {
 }
 
 const CardTitle = observer(function CardTitle(props: { store: ForecastCardStore }): JSX.Element {
-  const icons = mdi as Record<string, string>;
+  const icons = mdiIcons;
   const modeIconPath = icons["mdiSwapVertical"] ?? icons["mdiSwapHorizontal"] ?? icons["mdiSwapVerticalVariant"] ?? "";
   const tooltipIconPath = props.store.tooltipVisible
     ? (icons["mdiInformationOutline"] ?? icons["mdiEyeOutline"] ?? "")
@@ -144,6 +144,15 @@ const TooltipSection = observer(function TooltipSection(props: { store: Forecast
 
 export const ForecastCardView = observer(function ForecastCardView(props: ForecastCardViewProps): JSX.Element {
   const emptyReason = forecastEmptyReason(props.store.hass, props.store.config, props.store.hasData);
+
+  if (emptyReason === "loading") {
+    return (
+      <ha-card>
+        <div className="title">{props.store.config.title ?? t(props.store.locale, "card.title.default")}</div>
+        <div className="empty">{t(props.store.locale, "card.empty.loading")}</div>
+      </ha-card>
+    );
+  }
 
   if (emptyReason === "not_configured" || emptyReason === "hub_not_found") {
     const messageKey = emptyReason === "not_configured" ? "card.empty.configure_hub" : "card.empty.hub_not_found";

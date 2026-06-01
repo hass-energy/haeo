@@ -117,9 +117,22 @@ describe("ForecastCardView components", () => {
     expect(root.querySelector(".tooltip")).toBeNull();
   });
 
-  it("renders empty state when there is no data", () => {
+  it("renders loading state before hass registry data is available", () => {
     const store = new ForecastCardStore();
     store.setConfig({ type: "custom:haeo-forecast-card", hub_entry_id: "hub-alpha" });
+    store.setSize(800, 300);
+    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+    expect(root.textContent).toContain("Loading HAEO forecast data");
+  });
+
+  it("renders hub-not-found when registry data excludes the configured hub", () => {
+    const store = new ForecastCardStore();
+    store.setConfig({ type: "custom:haeo-forecast-card", hub_entry_id: "hub-deleted" });
+    store.setHass({
+      states: {},
+      entities: {},
+      devices: { "dev-alpha": { config_entries: ["hub-alpha"] } },
+    });
     store.setSize(800, 300);
     render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
     expect(root.textContent).toContain("The selected HAEO hub no longer exists");

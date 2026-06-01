@@ -156,7 +156,11 @@ export function discoverForecastEntityIds(hass: HassLike, hubEntryId: string): s
   return forecastEntityIdsFromStates(hass).filter((entityId) => entityBelongsToHub(hass, entityId, hubEntryId));
 }
 
-export type ForecastEmptyReason = "not_configured" | "hub_not_found" | "no_data";
+export function isHubRegistryReady(hass: HassLike | null): boolean {
+  return hass?.entities !== undefined && hass.devices !== undefined;
+}
+
+export type ForecastEmptyReason = "loading" | "not_configured" | "hub_not_found" | "no_data";
 
 export function forecastEmptyReason(
   hass: HassLike | null,
@@ -165,6 +169,12 @@ export function forecastEmptyReason(
 ): ForecastEmptyReason | null {
   if (hasData) {
     return null;
+  }
+  if (!isHubConfigured(config)) {
+    return "not_configured";
+  }
+  if (!isHubRegistryReady(hass)) {
+    return "loading";
   }
   const hub = resolveConfiguredHub(config, hass);
   if (hub.status === "not_configured") {

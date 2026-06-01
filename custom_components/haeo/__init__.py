@@ -23,6 +23,8 @@ from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
     STATIC_FORECAST_CARD_FILE_PATH,
+    STATIC_FORECAST_CARD_STATIC_DIR,
+    STATIC_FORECAST_CARD_STATIC_PATH,
     STATIC_FORECAST_CARD_URL_PATH,
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
@@ -80,12 +82,13 @@ async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None
     if http is None:
         _LOGGER.debug("HTTP component unavailable; skipping static forecast card registration")
         return
-    card_path = Path(__file__).parent / STATIC_FORECAST_CARD_FILE_PATH
+    static_dir = Path(__file__).parent / STATIC_FORECAST_CARD_STATIC_DIR
+    card_path = static_dir / Path(STATIC_FORECAST_CARD_FILE_PATH).name
     if not card_path.exists():
         _LOGGER.debug("Static forecast card bundle not found at %s", card_path)
         return
     await http.async_register_static_paths(
-        [StaticPathConfig(STATIC_FORECAST_CARD_URL_PATH, str(card_path), cache_headers=False)]
+        [StaticPathConfig(STATIC_FORECAST_CARD_STATIC_PATH, str(static_dir), cache_headers=False)]
     )
     add_extra_js_url(hass, STATIC_FORECAST_CARD_URL_PATH)
 

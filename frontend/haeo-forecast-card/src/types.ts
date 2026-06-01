@@ -1,3 +1,5 @@
+import type { DefaultHorizonPreset } from "./horizon-config";
+
 export type PowerDisplayMode = "opposed" | "overlay";
 
 export interface ForecastCardConfig {
@@ -6,6 +8,8 @@ export interface ForecastCardConfig {
   hub_entry_id?: string;
   entities?: string[];
   power_display_mode?: PowerDisplayMode;
+  default_horizon?: DefaultHorizonPreset;
+  tooltip_visible?: boolean;
 }
 
 export interface TopologyCardConfig {

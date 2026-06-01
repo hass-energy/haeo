@@ -90,6 +90,21 @@ describe("ForecastCardStore", () => {
     expect(store.panelTimeMs).toBe(store.xDomain.min);
   });
 
+  it("applies configured defaults for display mode, horizon, and tooltip visibility", () => {
+    const store = new ForecastCardStore();
+    store.setHass(loadScenarioHassState("scenario2"));
+    store.setConfig({
+      ...testConfig,
+      power_display_mode: "overlay",
+      tooltip_visible: false,
+      default_horizon: "4h",
+    });
+
+    expect(store.powerDisplayMode).toBe("overlay");
+    expect(store.tooltipVisible).toBe(false);
+    expect(store.horizonDurationMs).toBe(4 * 3_600_000);
+  });
+
   it("toggles display mode and series visibility controls", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario4"));

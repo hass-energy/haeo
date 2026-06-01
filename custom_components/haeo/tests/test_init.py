@@ -30,6 +30,8 @@ from custom_components.haeo.const import (
     DOMAIN,
     INTEGRATION_TYPE_HUB,
     STATIC_FORECAST_CARD_FILE_PATH,
+    STATIC_FORECAST_CARD_STATIC_DIR,
+    STATIC_FORECAST_CARD_STATIC_PATH,
     STATIC_FORECAST_CARD_URL_PATH,
 )
 from custom_components.haeo.core.const import (
@@ -895,8 +897,8 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     mock_http.async_register_static_paths.assert_called_once()
     configs: list[StaticPathConfig] = mock_http.async_register_static_paths.call_args[0][0]
     assert len(configs) == 1
-    assert configs[0].url_path == STATIC_FORECAST_CARD_URL_PATH
-    assert configs[0].path.endswith(STATIC_FORECAST_CARD_FILE_PATH)
+    assert configs[0].url_path == STATIC_FORECAST_CARD_STATIC_PATH
+    assert configs[0].path.endswith(STATIC_FORECAST_CARD_STATIC_DIR)
     assert STATIC_FORECAST_CARD_URL_PATH in hass.data[DATA_EXTRA_MODULE_URL].urls
 
 

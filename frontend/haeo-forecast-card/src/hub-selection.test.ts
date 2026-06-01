@@ -445,6 +445,8 @@ describe("hub-selection", () => {
     };
 
     expect(forecastEmptyReason(null, {}, false)).toBe("not_configured");
+    expect(forecastEmptyReason(null, { hub_entry_id: "hub-alpha" }, false)).toBe("loading");
+    expect(forecastEmptyReason({ states: {} }, { hub_entry_id: "hub-alpha" }, false)).toBe("loading");
     expect(forecastEmptyReason(hass, { hub_entry_id: "hub-deleted" }, false)).toBe("hub_not_found");
     expect(forecastEmptyReason(hass, { hub_entry_id: "hub-alpha" }, false)).toBe("no_data");
     expect(forecastEmptyReason(hass, { hub_entry_id: "hub-alpha" }, true)).toBeNull();

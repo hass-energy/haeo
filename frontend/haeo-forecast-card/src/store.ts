@@ -9,6 +9,7 @@ import type { HassLike } from "./series";
 import type { LineSvgPath, PowerShape } from "./store-paths";
 import { computeHoveredPowerKeys, computePowerShapes, computePricePaths, computeSocPaths } from "./store-paths";
 import { buildTooltipRows, type TooltipSectionId } from "./tooltip-helpers";
+import { clampHorizonToOptions, horizonPresetToDuration, type HorizonOption } from "./horizon-config";
 import type { ChartMargins, ForecastCardConfig, ForecastSeries, LaneBounds, PowerDisplayMode } from "./types";
 
 const DEFAULT_HEIGHT = 360;
@@ -31,7 +32,7 @@ function between(min: number, value: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-export type HorizonOption = number | null;
+export type { HorizonOption } from "./horizon-config";
 
 export function formatHorizonDuration(durationMs: number): string {
   if (durationMs < HOUR_MS) {
@@ -116,6 +117,7 @@ export class ForecastCardStore {
 
   setConfig(config: ForecastCardConfig): void {
     this.config = config;
+    this.applyConfigDefaults();
     this.refreshNormalizedSeries();
   }
 
@@ -731,6 +733,29 @@ export class ForecastCardStore {
 
     this.applyDefaultHiddenSeries();
     this.recomputePowerBounds();
+    this.clampHorizonToAvailableOptions();
+  }
+
+  private applyConfigDefaults(): void {
+    this.powerDisplayModeOverride = null;
+    this.tooltipVisible = this.config.tooltip_visible ?? true;
+    const nextHorizon = horizonPresetToDuration(this.config.default_horizon);
+    if (this.horizonDurationMs !== nextHorizon) {
+      this.horizonDurationMs = nextHorizon;
+      this.horizonRevision += 1;
+    }
+  }
+
+  private clampHorizonToAvailableOptions(): void {
+    if (!this.hasData) {
+      return;
+    }
+    const clamped = clampHorizonToOptions(this.horizonDurationMs, this.horizonOptions);
+    if (clamped === this.horizonDurationMs) {
+      return;
+    }
+    this.horizonDurationMs = clamped;
+    this.horizonRevision += 1;
   }
 
   private startHorizonAnimation(from: Domain, to: Domain): void {

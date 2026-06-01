@@ -1,10 +1,10 @@
-import * as mdi from "@mdi/js";
+import { mdiIcons } from "./mdi-icons";
 
 import { classifyPowerSeries } from "./power-series-classification";
 import type { ForecastSeries } from "./types";
 
 export function seriesIconPath(series: ForecastSeries): string {
-  const icons = mdi as Record<string, string>;
+  const icons = mdiIcons;
   const fallback = icons["mdiChartLine"] ?? "";
   if (series.lane === "price" || series.outputName.includes("price")) {
     const output = series.outputName.toLowerCase();
