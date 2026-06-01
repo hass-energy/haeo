@@ -6,6 +6,7 @@ const EN_TRANSLATIONS: TranslationDict = {
   "card.title.default": "HAEO forecast",
   "card.empty.message":
     "No forecast data found. Add forecast entities in card config or ensure HAEO output sensors are available.",
+  "card.empty.configure_hub": "Configure a HAEO hub in the card editor.",
   "header.horizon": "Horizon: {hours}",
   "axis.power": "Power (kW)",
   "axis.price": "Price",
@@ -34,12 +35,13 @@ const EN_TRANSLATIONS: TranslationDict = {
   "legend.group.battery_power": "Charge / discharge",
   "legend.group.battery_soc": "Min / max / charge %",
   "legend.group.toggle": "Toggle {element} {group}",
-  "editor.error.ws_unavailable": "Home Assistant websocket API unavailable in editor.",
-  "editor.title.label": "Title",
-  "editor.title.placeholder": "HAEO forecast",
-  "editor.discovery.loading": "Discovering HAEO hubs and forecast entities...",
-  "editor.discovery.count": "Discovered entities for selected hub: {count}",
-  "editor.elements.label": "Elements: {elements}",
+  "topology.card.title.default": "HAEO network topology",
+  "topology.card.empty.configure_hub": "Configure a HAEO hub in the card editor.",
+  "topology.card.empty.no_entity":
+    "No optimization status sensor found for the selected hub. Wait for HAEO to finish its first optimization run.",
+  "topology.card.empty.waiting": "Waiting for topology data on {entity}.",
+  "topology.card.loading": "Computing layout…",
+  "topology.card.error.layout": "Layout error",
 };
 
 const TRANSLATIONS: Record<string, TranslationDict> = {

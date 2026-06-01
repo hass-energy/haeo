@@ -32,18 +32,17 @@ Add this as a Lovelace resource:
 ```yaml
 type: custom:haeo-forecast-card
 title: HAEO forecast
-entities:
-  - sensor.haeo_grid_import_power
-  - sensor.haeo_grid_export_power
-  - sensor.haeo_battery_state_of_charge
+hub_entry_id: <your_haeo_hub_config_entry_id>
 ```
+
+Use the visual card editor to select a HAEO hub. Forecast entities for that hub are discovered automatically at runtime.
 
 ## Configuration options
 
 - `type`: Must be `custom:haeo-forecast-card`.
 - `title`: Optional card title.
-- `entities`: Optional list of forecast sensor entities.
-    If omitted, the card auto-discovers entities with a `forecast` attribute.
+- `hub_entry_id`: Required HAEO hub config entry ID (chosen via the visual editor).
+- `entities`: Optional list of forecast sensor entities. When omitted, the card discovers forecast sensors for the selected hub.
 - `height`: Optional chart height in pixels.
 - `animation_mode`: `off`, `reduced`, or `smooth`.
 - `animation_speed`: Relative timeline slide speed (default `1`).
@@ -55,6 +54,28 @@ entities:
 - Legend hover highlighting.
 - Automatic scaling based on card dimensions.
 - Smooth time sliding between forecast updates.
+
+## Network topology card
+
+The same Lovelace resource also registers `custom:haeo-topology-card`.
+It reads the `topology` attribute from a HAEO optimization status sensor and renders the LP network as an interactive SVG graph.
+
+### Basic topology card config
+
+```yaml
+type: custom:haeo-topology-card
+title: HAEO network topology
+hub_entry_id: <your_haeo_hub_config_entry_id>
+```
+
+Use the visual card editor to select a HAEO hub. The card resolves the hub's optimization status sensor at runtime.
+
+### Topology card options
+
+- `type`: Must be `custom:haeo-topology-card`.
+- `title`: Optional card title.
+- `hub_entry_id`: Required HAEO hub config entry ID (chosen via the visual editor).
+- `entity`: Optional resolved optimization status sensor entity ID (legacy fast path when present in saved config).
 
 ## Troubleshooting
 
