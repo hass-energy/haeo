@@ -19,7 +19,7 @@ This package builds the `haeo-forecast-card` Lovelace custom card bundle with [R
 ## Bundling
 
 - **Bundler**: Rolldown (`rolldown.config.mjs`) with ESM output, minification, and code splitting.
-- **Forecast card entry**: ~130 KB initial load; topology/ELK loads lazily from `/haeo-static/` chunks.
+- **Forecast card entry**: ~130 KB initial load; topology/ELK loads lazily from stable `/haeo-static/haeo-forecast-card-topology-entry.js`.
 - **Tree-shaking**: unused dependency exports are dropped; app modules keep side-effect imports (`customElements.define`, CSS).
 - **Node helper**: `dist/render-topology-svg.mjs` is built in the same Rolldown config for SVG export scripts.
 

@@ -177,9 +177,6 @@ export function forecastEmptyReason(
     return "loading";
   }
   const hub = resolveConfiguredHub(config, hass);
-  if (hub.status === "not_configured") {
-    return "not_configured";
-  }
   if (hub.status === "not_found") {
     return "hub_not_found";
   }

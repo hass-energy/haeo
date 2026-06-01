@@ -9,6 +9,7 @@ import {
   forecastEmptyReason,
   hubConfigEntryExists,
   isHubConfigured,
+  isHubRegistryReady,
   resolveConfiguredHub,
   resolveHubEntryId,
 } from "./hub-selection";
@@ -433,6 +434,12 @@ describe("hub-selection", () => {
       status: "ok",
       hubEntryId: "hub-alpha",
     });
+  });
+
+  it("reports when the hub registry is ready", () => {
+    expect(isHubRegistryReady(null)).toBe(false);
+    expect(isHubRegistryReady({ states: {} })).toBe(false);
+    expect(isHubRegistryReady({ states: {}, entities: {}, devices: {} })).toBe(true);
   });
 
   it("reports forecast empty reasons", () => {

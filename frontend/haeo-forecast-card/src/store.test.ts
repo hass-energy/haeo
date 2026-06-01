@@ -105,6 +105,18 @@ describe("ForecastCardStore", () => {
     expect(store.horizonDurationMs).toBe(4 * 3_600_000);
   });
 
+  it("clamps configured horizon presets to the available forecast range", () => {
+    const store = new ForecastCardStore();
+    store.setHass(loadScenarioHassState("scenario4"));
+    store.setConfig({
+      ...testConfig,
+      default_horizon: "3d",
+    });
+
+    expect(store.horizonDurationMs).not.toBe(3 * 24 * 3_600_000);
+    expect(store.horizonOptions).toContain(store.horizonDurationMs);
+  });
+
   it("toggles display mode and series visibility controls", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario4"));
