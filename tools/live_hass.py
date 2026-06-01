@@ -22,6 +22,7 @@ from collections.abc import Callable, Generator
 from contextlib import closing, contextmanager
 from dataclasses import dataclass
 import json
+import logging
 from pathlib import Path
 import socket
 import tempfile
@@ -48,6 +49,7 @@ from homeassistant.setup import async_setup_component
 from playwright.sync_api import BrowserContext
 
 PROJECT_ROOT = Path(__file__).parent.parent
+_LOGGER = logging.getLogger(__name__)
 
 # Loopback networks the trusted_networks auth provider auto-logs in from. Home
 # Assistant binds to all interfaces with a dual-stack socket, so IPv4 loopback
@@ -420,6 +422,17 @@ async def _setup_home_assistant_async(
     return hass
 
 
+def _shutdown_event_loop(loop: asyncio.AbstractEventLoop) -> None:
+    """Close async generators and executors before tearing down the HA loop."""
+    try:
+        loop.run_until_complete(loop.shutdown_asyncgens())
+        loop.run_until_complete(loop.shutdown_default_executor())
+    except Exception:
+        _LOGGER.debug("HA event loop shutdown encountered an error", exc_info=True)
+    finally:
+        loop.close()
+
+
 def _run_hass_thread(
     port: int,
     config_dir: str,
@@ -451,6 +464,8 @@ def _run_hass_thread(
             await async_stop_event.wait()
             await hass.async_block_till_done(wait_background_tasks=True)
             await hass.async_stop(force=True)
+            await hass.async_block_till_done(wait_background_tasks=True)
+            await asyncio.sleep(0)
 
         except Exception as e:
             error_holder.append(e)
@@ -459,7 +474,7 @@ def _run_hass_thread(
     try:
         loop.run_until_complete(_run())
     finally:
-        loop.close()
+        _shutdown_event_loop(loop)
 
 
 @contextmanager
@@ -533,4 +548,4 @@ def live_home_assistant(
             yield instance
         finally:
             instance.stop()
-            thread.join(timeout=10)
+            thread.join(timeout=15)

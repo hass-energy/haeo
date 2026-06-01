@@ -9,14 +9,8 @@ import type { HassLike } from "./series";
 import type { LineSvgPath, PowerShape } from "./store-paths";
 import { computeHoveredPowerKeys, computePowerShapes, computePricePaths, computeSocPaths } from "./store-paths";
 import { buildTooltipRows, type TooltipSectionId } from "./tooltip-helpers";
-import type {
-  ChartMargins,
-  ForecastCardConfig,
-  ForecastSeries,
-  LaneBounds,
-  MotionMode,
-  PowerDisplayMode,
-} from "./types";
+import { clampHorizonToOptions, horizonPresetToDuration, type HorizonOption } from "./horizon-config";
+import type { ChartMargins, ForecastCardConfig, ForecastSeries, LaneBounds, PowerDisplayMode } from "./types";
 
 const DEFAULT_HEIGHT = 360;
 const VISIBLE_LANES = new Set(["power", "price", "soc"]);
@@ -38,7 +32,7 @@ function between(min: number, value: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-export type HorizonOption = number | null;
+export type { HorizonOption } from "./horizon-config";
 
 export function formatHorizonDuration(durationMs: number): string {
   if (durationMs < HOUR_MS) {
@@ -63,6 +57,12 @@ interface HorizonAnimation {
   startMs: number;
 }
 
+interface PlotPaths {
+  powerShapes: PowerShape[];
+  pricePaths: LineSvgPath[];
+  socPaths: LineSvgPath[];
+}
+
 export class ForecastCardStore {
   hass: HassLike | null = null;
   config: ForecastCardConfig = { type: "custom:haeo-forecast-card" };
@@ -73,13 +73,13 @@ export class ForecastCardStore {
   height = DEFAULT_HEIGHT;
   pointerX: number | null = null;
   pointerY: number | null = null;
-  nowMs = Date.now();
   highlightedSeries: string | null = null;
   highlightedSeriesGroupKeys = new Set<string>();
   hoveredLegendElement: string | null = null;
   hiddenSeriesKeys = new Set<string>();
   forcedVisibleSeriesKeys = new Set<string>();
   visibilityRevision = 0;
+  seriesDataRevision = 0;
   powerDisplayModeOverride: PowerDisplayMode | null = null;
   horizonDurationMs: HorizonOption = null;
   horizonRevision = 0;
@@ -88,11 +88,15 @@ export class ForecastCardStore {
   horizonAnimationFrame = 0;
   tooltipVisible = true;
   readonly instanceId: number;
+  plotPathsSnapshot: PlotPaths | null = null;
+  plotPathsSnapshotKey = "";
 
   constructor(instanceId = 0) {
     this.instanceId = instanceId;
     makeAutoObservable(this, {
       instanceId: false,
+      plotPathsSnapshot: false,
+      plotPathsSnapshotKey: false,
       margins: computed.struct,
       normalizedSeries: computed.struct,
       visibleSeries: computed.struct,
@@ -113,6 +117,7 @@ export class ForecastCardStore {
 
   setConfig(config: ForecastCardConfig): void {
     this.config = config;
+    this.applyConfigDefaults();
     this.refreshNormalizedSeries();
   }
 
@@ -132,10 +137,6 @@ export class ForecastCardStore {
   setPointer(x: number | null, y: number | null): void {
     this.pointerX = x;
     this.pointerY = y;
-  }
-
-  setNow(nowMs: number): void {
-    this.nowMs = nowMs;
   }
 
   setHighlightedSeries(key: string | null): void {
@@ -220,15 +221,6 @@ export class ForecastCardStore {
 
   get powerDisplayMode(): PowerDisplayMode {
     return this.powerDisplayModeOverride ?? this.config.power_display_mode ?? "opposed";
-  }
-
-  get motionMode(): MotionMode {
-    return this.config.animation_mode ?? "smooth";
-  }
-
-  get animationSpeed(): number {
-    const raw = this.config.animation_speed ?? 1;
-    return clamp(raw, 0.2, 3);
   }
 
   get locale(): string {
@@ -344,7 +336,7 @@ export class ForecastCardStore {
 
   get fullXDomain(): Domain {
     if (!this.hasPlottedData) {
-      const now = this.nowMs;
+      const now = Date.now();
       return { min: now, max: now + 60_000, step: 60_000 };
     }
     let min = Number.POSITIVE_INFINITY;
@@ -361,7 +353,7 @@ export class ForecastCardStore {
       step = Math.min(step, Math.max(1, second - first));
     }
     if (!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(step)) {
-      const now = this.nowMs;
+      const now = Date.now();
       return { min: now, max: now + 60_000, step: 60_000 };
     }
     return { min, max, step };
@@ -408,51 +400,12 @@ export class ForecastCardStore {
     return [...options, null];
   }
 
-  get hasUniformTimeline(): boolean {
-    const firstSeries = this.visibleSeries[0];
-    if (!firstSeries || firstSeries.times.length < 3) {
-      return true;
-    }
-    const base = (firstSeries.times[1] ?? 0) - (firstSeries.times[0] ?? 0);
-    if (base <= 0) {
-      return false;
-    }
-    for (let idx = 2; idx < firstSeries.times.length; idx += 1) {
-      const prev = firstSeries.times[idx - 1] ?? 0;
-      const curr = firstSeries.times[idx] ?? 0;
-      if (Math.abs(curr - prev - base) > 1) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  get animatedOffsetMs(): number {
-    if (this.motionMode === "off") {
-      return 0;
-    }
-    const prefersReducedMotion = globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (this.motionMode === "reduced" || prefersReducedMotion) {
-      return 0;
-    }
-    if (!this.hasUniformTimeline) {
-      return 0;
-    }
-    const { min, step } = this.xDomain;
-    const elapsed = (this.nowMs - min) * this.animationSpeed;
-    if (elapsed <= 0 || step <= 0) {
-      return 0;
-    }
-    return elapsed % step;
-  }
-
-  /** Cached x-scale function reused by powerShapes, pricePaths, socPaths. */
+  /** Cached x-scale function reused by plotPaths and hover mapping. */
   get cachedXScale(): (time: number) => number {
     const { min, max } = this.xDomain;
     const innerWidth = this.width - this.margins.left - this.margins.right;
     const left = this.margins.left;
-    const offset = this.animatedOffsetMs;
-    return (time: number) => linearScale(time - offset, min, max, left, left + innerWidth);
+    return (time: number) => linearScale(time, min, max, left, left + innerWidth);
   }
 
   xScale(time: number): number {
@@ -538,11 +491,11 @@ export class ForecastCardStore {
     const { min, max } = this.xDomain;
     const innerWidth = this.width - this.margins.left - this.margins.right;
     const ratio = innerWidth > 0 ? (x - this.margins.left) / innerWidth : 0;
-    return min + ratio * (max - min) + this.animatedOffsetMs;
+    return min + ratio * (max - min);
   }
 
   get panelTimeMs(): number {
-    return this.hoverTimeMs ?? this.nowMs;
+    return this.hoverTimeMs ?? this.xDomain.min;
   }
 
   get hoverX(): number | null {
@@ -568,15 +521,62 @@ export class ForecastCardStore {
 
   // --- Computed: SVG paths ---
 
-  get powerShapes(): PowerShape[] {
-    return computePowerShapes(
-      this.orderedPowerSeries,
-      this.powerBounds,
+  private plotPathsCacheKey(): string {
+    const { min, max } = this.xDomain;
+    return [
+      this.seriesDataRevision,
+      this.visibilityRevision,
       this.powerDisplayMode,
-      this.plotTop,
-      this.plotBottom,
-      this.cachedXScale
-    );
+      this.width,
+      this.height,
+      this.horizonDurationMs,
+      min,
+      max,
+      this.horizonAnimationNowMs,
+      this.powerBoundsCache.min,
+      this.powerBoundsCache.max,
+    ].join("\0");
+  }
+
+  get plotPaths(): PlotPaths {
+    const key = this.plotPathsCacheKey();
+    if (this.plotPathsSnapshot !== null && this.plotPathsSnapshotKey === key) {
+      return this.plotPathsSnapshot;
+    }
+    const xScale = this.cachedXScale;
+    const snapshot: PlotPaths = {
+      powerShapes: computePowerShapes(
+        this.orderedPowerSeries,
+        this.powerBounds,
+        this.powerDisplayMode,
+        this.plotTop,
+        this.plotBottom,
+        xScale
+      ),
+      pricePaths: computePricePaths(
+        this.priceSeries,
+        this.powerBounds,
+        this.priceBounds,
+        this.plotTop,
+        this.plotBottom,
+        xScale
+      ),
+      socPaths: computeSocPaths(
+        this.socSeries,
+        this.powerBounds,
+        this.socBounds,
+        this.plotTop,
+        this.plotBottom,
+        xScale
+      ),
+    };
+    this.plotPathsSnapshotKey = key;
+    this.plotPathsSnapshot = snapshot;
+    return snapshot;
+  }
+
+  get powerShapes(): PowerShape[] {
+    return this.plotPaths.powerShapes;
   }
 
   get hoveredPowerSeriesKeys(): Set<string> {
@@ -599,25 +599,11 @@ export class ForecastCardStore {
   }
 
   get pricePaths(): LineSvgPath[] {
-    return computePricePaths(
-      this.priceSeries,
-      this.powerBounds,
-      this.priceBounds,
-      this.plotTop,
-      this.plotBottom,
-      this.cachedXScale
-    );
+    return this.plotPaths.pricePaths;
   }
 
   get socPaths(): LineSvgPath[] {
-    return computeSocPaths(
-      this.socSeries,
-      this.powerBounds,
-      this.socBounds,
-      this.plotTop,
-      this.plotBottom,
-      this.cachedXScale
-    );
+    return this.plotPaths.socPaths;
   }
 
   // --- Computed: tooltip ---
@@ -727,6 +713,7 @@ export class ForecastCardStore {
     const nextSeries = normalizeSeries(this.hass, this.config);
 
     this.normalizedSeriesCache = nextSeries;
+    this.seriesDataRevision += 1;
 
     const seriesKeys = new Set(nextSeries.map((s) => s.key));
     this.hiddenSeriesKeys = new Set([...this.hiddenSeriesKeys].filter((key) => seriesKeys.has(key)));
@@ -746,6 +733,29 @@ export class ForecastCardStore {
 
     this.applyDefaultHiddenSeries();
     this.recomputePowerBounds();
+    this.clampHorizonToAvailableOptions();
+  }
+
+  private applyConfigDefaults(): void {
+    this.powerDisplayModeOverride = null;
+    this.tooltipVisible = this.config.tooltip_visible ?? true;
+    const nextHorizon = horizonPresetToDuration(this.config.default_horizon);
+    if (this.horizonDurationMs !== nextHorizon) {
+      this.horizonDurationMs = nextHorizon;
+      this.horizonRevision += 1;
+    }
+  }
+
+  private clampHorizonToAvailableOptions(): void {
+    if (!this.hasData) {
+      return;
+    }
+    const clamped = clampHorizonToOptions(this.horizonDurationMs, this.horizonOptions);
+    if (clamped === this.horizonDurationMs) {
+      return;
+    }
+    this.horizonDurationMs = clamped;
+    this.horizonRevision += 1;
   }
 
   private startHorizonAnimation(from: Domain, to: Domain): void {

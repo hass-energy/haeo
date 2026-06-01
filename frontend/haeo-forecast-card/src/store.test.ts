@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { ForecastCardStore } from "./store";
-import { loadScenarioHassState } from "./fixtures/scenarioOutputs";
-import type { HassLike } from "./series";
+import { DEFAULT_TEST_HUB, loadScenarioHassState, withSingleHubRegistry } from "./fixtures/scenarioOutputs";
+
+const testConfig = { type: "custom:haeo-forecast-card" as const, hub_entry_id: DEFAULT_TEST_HUB };
 
 describe("ForecastCardStore", () => {
   it("builds filtered visible series from real scenario outputs", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario2"));
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig(testConfig);
 
     expect(store.hasData).toBe(true);
     expect(store.visibleSeries.length).toBeGreaterThan(1);
@@ -19,7 +20,7 @@ describe("ForecastCardStore", () => {
   it("computes hover rows", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario3"));
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig(testConfig);
     store.setSize(900, 380);
     store.setPointer(300, 120);
 
@@ -30,7 +31,7 @@ describe("ForecastCardStore", () => {
   it("keeps limit series available for tooltip values without plotting them", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario1"));
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig(testConfig);
 
     expect(store.visibleSeries.some((series) => series.sourceRole === "limit" && series.lane === "power")).toBe(true);
     expect(store.powerSeries.some((series) => series.sourceRole === "limit")).toBe(false);
@@ -39,7 +40,7 @@ describe("ForecastCardStore", () => {
   it("shows grid limits as paired tooltip totals even when default-hidden", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario1"));
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig(testConfig);
 
     const gridLimitKeys = store.normalizedSeries
       .filter((series) => series.elementName === "Grid" && series.sourceRole === "limit" && series.lane === "power")
@@ -68,31 +69,58 @@ describe("ForecastCardStore", () => {
     expect(store.cardWidth).toBe(520);
   });
 
-  it("supports reduced and smooth animation modes", () => {
+  it("keeps plot paths stable while the pointer moves", () => {
+    const store = new ForecastCardStore();
+    store.setHass(loadScenarioHassState("scenario4"));
+    store.setConfig(testConfig);
+    store.setSize(1000, 420);
+
+    const before = store.plotPaths;
+    store.setPointer(400, 180);
+    expect(store.plotPaths).toBe(before);
+    store.setPointer(null, null);
+    expect(store.plotPaths).toBe(before);
+  });
+
+  it("uses the first visible timepoint for the panel when not hovering", () => {
+    const store = new ForecastCardStore();
+    store.setHass(loadScenarioHassState("scenario4"));
+    store.setConfig(testConfig);
+
+    expect(store.panelTimeMs).toBe(store.xDomain.min);
+  });
+
+  it("applies configured defaults for display mode, horizon, and tooltip visibility", () => {
+    const store = new ForecastCardStore();
+    store.setHass(loadScenarioHassState("scenario2"));
+    store.setConfig({
+      ...testConfig,
+      power_display_mode: "overlay",
+      tooltip_visible: false,
+      default_horizon: "4h",
+    });
+
+    expect(store.powerDisplayMode).toBe("overlay");
+    expect(store.tooltipVisible).toBe(false);
+    expect(store.horizonDurationMs).toBe(4 * 3_600_000);
+  });
+
+  it("clamps configured horizon presets to the available forecast range", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario4"));
     store.setConfig({
-      type: "custom:haeo-forecast-card",
-      animation_mode: "reduced",
-      animation_speed: 1.5,
+      ...testConfig,
+      default_horizon: "3d",
     });
 
-    expect(store.motionMode).toBe("reduced");
-    expect(store.animatedOffsetMs).toBe(0);
-
-    store.setConfig({
-      type: "custom:haeo-forecast-card",
-      animation_mode: "smooth",
-      animation_speed: 1.5,
-    });
-    store.setNow(store.xDomain.min + store.xDomain.step * 2);
-    expect(store.animatedOffsetMs).toBeGreaterThanOrEqual(0);
+    expect(store.horizonDurationMs).not.toBe(3 * 24 * 3_600_000);
+    expect(store.horizonOptions).toContain(store.horizonDurationMs);
   });
 
   it("toggles display mode and series visibility controls", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario4"));
-    store.setConfig({ type: "custom:haeo-forecast-card", power_display_mode: "opposed" });
+    store.setConfig({ ...testConfig, power_display_mode: "opposed" });
     store.setSize(1000, 420);
 
     expect(store.powerDisplayMode).toBe("opposed");
@@ -122,7 +150,7 @@ describe("ForecastCardStore", () => {
 
   it("uses step interval index before midpoint switch", () => {
     const store = new ForecastCardStore();
-    const hass: HassLike = {
+    const hass = withSingleHubRegistry({
       states: {
         "sensor.test_power": {
           entity_id: "sensor.test_power",
@@ -141,9 +169,9 @@ describe("ForecastCardStore", () => {
           },
         },
       },
-    };
+    });
     store.setHass(hass);
-    store.setConfig({ type: "custom:haeo-forecast-card", animation_mode: "off" });
+    store.setConfig({ ...testConfig, entities: ["sensor.test_power"] });
     store.setSize(900, 380);
 
     const series = store.visibleSeries[0];
@@ -162,7 +190,7 @@ describe("ForecastCardStore", () => {
   it("clips xDomain when horizon is set", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario2"));
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig(testConfig);
 
     const fourHoursMs = 4 * 3_600_000;
     const fullMax = store.xDomain.max;
@@ -195,7 +223,7 @@ describe("ForecastCardStore", () => {
     try {
       const store = new ForecastCardStore();
       store.setHass(loadScenarioHassState("scenario2"));
-      store.setConfig({ type: "custom:haeo-forecast-card" });
+      store.setConfig(testConfig);
       store.setHoveredLegendElement("missing element");
       store.setHighlightedSeries("missing:series");
 
@@ -217,26 +245,28 @@ describe("ForecastCardStore", () => {
 
   it("hides policy series by default", () => {
     const store = new ForecastCardStore();
-    store.setHass({
-      states: {
-        "sensor.policy_power": {
-          entity_id: "sensor.policy_power",
-          attributes: {
-            field_type: "power",
-            output_name: "active_power",
-            direction: "+",
-            element_type: "policy",
-            element_name: "Policy",
-            unit_of_measurement: "kW",
-            forecast: [
-              { time: "2026-03-14T00:00:00Z", value: 1 },
-              { time: "2026-03-14T00:10:00Z", value: 1 },
-            ],
+    store.setHass(
+      withSingleHubRegistry({
+        states: {
+          "sensor.policy_power": {
+            entity_id: "sensor.policy_power",
+            attributes: {
+              field_type: "power",
+              output_name: "active_power",
+              direction: "+",
+              element_type: "policy",
+              element_name: "Policy",
+              unit_of_measurement: "kW",
+              forecast: [
+                { time: "2026-03-14T00:00:00Z", value: 1 },
+                { time: "2026-03-14T00:10:00Z", value: 1 },
+              ],
+            },
           },
         },
-      },
-    });
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+      })
+    );
+    store.setConfig({ ...testConfig, entities: ["sensor.policy_power"] });
 
     expect(store.hiddenSeriesKeys.size).toBe(1);
     expect(store.visibilityRevision).toBe(1);
@@ -244,7 +274,7 @@ describe("ForecastCardStore", () => {
 
   it("keeps potential totals for fixed elements", () => {
     const store = new ForecastCardStore();
-    const hass: HassLike = {
+    const hass = withSingleHubRegistry({
       states: {
         "sensor.load_power": {
           entity_id: "sensor.load_power",
@@ -282,9 +312,12 @@ describe("ForecastCardStore", () => {
           },
         },
       },
-    };
+    });
     store.setHass(hass);
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig({
+      ...testConfig,
+      entities: ["sensor.load_power", "sensor.load_forecast"],
+    });
 
     expect(store.normalizedSeries.some((s) => s.sourceRole === "output")).toBe(true);
     expect(store.normalizedSeries.some((s) => s.sourceRole === "forecast")).toBe(true);
@@ -299,7 +332,7 @@ describe("ForecastCardStore", () => {
   it("toggles element visibility for all series of an element", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario2"));
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig(testConfig);
 
     const firstElement = store.legendSeries[0]?.elementName ?? null;
     expect(firstElement).not.toBeNull();

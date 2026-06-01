@@ -37,7 +37,7 @@ type Story = StoryObj<StoryArgs>;
 export const Default: Story = {
   render: (args) => {
     const store = new ForecastCardStore();
-    store.setConfig({ type: "custom:haeo-forecast-card", animation_mode: "off" });
+    store.setConfig({ type: "custom:haeo-forecast-card" });
     store.setHass(getScenarioFixture(args.scenario, args.dataMode));
     store.setSize(1000, 320);
     return (

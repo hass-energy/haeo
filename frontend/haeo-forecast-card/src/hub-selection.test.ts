@@ -6,6 +6,11 @@ import {
   discoverHaeoHubEntryId,
   entityBelongsToHub,
   entityIdsForHub,
+  forecastEmptyReason,
+  hubConfigEntryExists,
+  isHubConfigured,
+  isHubRegistryReady,
+  resolveConfiguredHub,
   resolveHubEntryId,
 } from "./hub-selection";
 import type { HassLike } from "./series";
@@ -80,7 +85,23 @@ describe("hub-selection", () => {
     expect(resolveHubEntryId({ hub_entry_id: "configured-hub" }, hass)).toBe("configured-hub");
   });
 
-  it("falls back to the first discovered hub when config is empty", () => {
+  it("detects configured hubs and whether they still exist", () => {
+    expect(isHubConfigured({ hub_entry_id: "hub-alpha" })).toBe(true);
+    expect(isHubConfigured({})).toBe(false);
+
+    const hass: HassLike = {
+      states: {},
+      entities: {},
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+      },
+    };
+    expect(hubConfigEntryExists(hass, "hub-alpha")).toBe(true);
+    expect(hubConfigEntryExists(hass, "hub-deleted")).toBe(false);
+    expect(hubConfigEntryExists({ states: {}, entities: {} }, "hub-alpha")).toBe(false);
+  });
+
+  it("discovers the first hub for stub config when config is empty", () => {
     const hass: HassLike = {
       states: {
         "sensor.haeo_status": {
@@ -131,7 +152,7 @@ describe("hub-selection", () => {
     expect(discoverForecastEntityIdsForHub(hass, "hub-alpha")).toEqual(["sensor.grid_import_power"]);
   });
 
-  it("finds forecast entities when registry entries are missing from hass.entities", () => {
+  it("ignores forecast entities missing registry device linkage", () => {
     const hass: HassLike = {
       states: {
         "sensor.grid_import_power": {
@@ -156,10 +177,10 @@ describe("hub-selection", () => {
       },
     };
 
-    expect(discoverForecastEntityIdsForHub(hass, "hub-alpha")).toEqual(["sensor.grid_import_power"]);
+    expect(discoverForecastEntityIdsForHub(hass, "hub-alpha")).toEqual([]);
   });
 
-  it("treats registry entries without device_id as hub ownership unknown", () => {
+  it("rejects entities without device linkage", () => {
     const hass: HassLike = {
       states: {
         "sensor.grid_import_power": {
@@ -198,11 +219,8 @@ describe("hub-selection", () => {
       },
     };
 
-    expect(entityBelongsToHub(hass, "sensor.grid_import_power", "hub-alpha")).toBe(true);
-    expect(discoverForecastEntityIds(hass, "hub-alpha")).toEqual([
-      "sensor.grid_import_power",
-      "sensor.grid_import_price",
-    ]);
+    expect(entityBelongsToHub(hass, "sensor.grid_import_power", "hub-alpha")).toBe(false);
+    expect(discoverForecastEntityIds(hass, "hub-alpha")).toEqual([]);
   });
 
   it("does not fall back to all forecast entities for a different selected hub", () => {
@@ -287,7 +305,6 @@ describe("hub-selection", () => {
     };
 
     expect(entityIdsForHub(hass, "hub-alpha")).toEqual(["sensor.alpha_import_power"]);
-    expect(discoverForecastEntityIds(hass, null)).toEqual(["sensor.alpha_import_power", "sensor.beta_import_power"]);
   });
 
   it("rejects non-HAEO entities when device ownership is unknown", () => {
@@ -311,7 +328,7 @@ describe("hub-selection", () => {
     expect(entityBelongsToHub(hass, "sensor.other", "hub-alpha")).toBe(false);
   });
 
-  it("falls back when a device has no config entries", () => {
+  it("rejects entities when a device has no config entries", () => {
     const hass: HassLike = {
       states: {
         "sensor.grid_import_power": {
@@ -332,7 +349,7 @@ describe("hub-selection", () => {
       },
     };
 
-    expect(entityBelongsToHub(hass, "sensor.grid_import_power", "hub-alpha")).toBe(true);
+    expect(entityBelongsToHub(hass, "sensor.grid_import_power", "hub-alpha")).toBe(false);
   });
 
   it("rejects non-HAEO entities with no state when device config entries are empty", () => {
@@ -397,5 +414,48 @@ describe("hub-selection", () => {
 
     expect(entityIdsForHub(hass, "hub-alpha")).toEqual(["sensor.haeo_status"]);
     expect(discoverHaeoHubEntryId(hass)).toBe("hub-alpha");
+  });
+
+  it("resolves configured hub status for runtime cards", () => {
+    const hass: HassLike = {
+      states: {},
+      entities: {},
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+      },
+    };
+
+    expect(resolveConfiguredHub({}, hass)).toEqual({ status: "not_configured", hubEntryId: null });
+    expect(resolveConfiguredHub({ hub_entry_id: "hub-deleted" }, hass)).toEqual({
+      status: "not_found",
+      hubEntryId: "hub-deleted",
+    });
+    expect(resolveConfiguredHub({ hub_entry_id: "hub-alpha" }, hass)).toEqual({
+      status: "ok",
+      hubEntryId: "hub-alpha",
+    });
+  });
+
+  it("reports when the hub registry is ready", () => {
+    expect(isHubRegistryReady(null)).toBe(false);
+    expect(isHubRegistryReady({ states: {} })).toBe(false);
+    expect(isHubRegistryReady({ states: {}, entities: {}, devices: {} })).toBe(true);
+  });
+
+  it("reports forecast empty reasons", () => {
+    const hass: HassLike = {
+      states: {},
+      entities: {},
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+      },
+    };
+
+    expect(forecastEmptyReason(null, {}, false)).toBe("not_configured");
+    expect(forecastEmptyReason(null, { hub_entry_id: "hub-alpha" }, false)).toBe("loading");
+    expect(forecastEmptyReason({ states: {} }, { hub_entry_id: "hub-alpha" }, false)).toBe("loading");
+    expect(forecastEmptyReason(hass, { hub_entry_id: "hub-deleted" }, false)).toBe("hub_not_found");
+    expect(forecastEmptyReason(hass, { hub_entry_id: "hub-alpha" }, false)).toBe("no_data");
+    expect(forecastEmptyReason(hass, { hub_entry_id: "hub-alpha" }, true)).toBeNull();
   });
 });

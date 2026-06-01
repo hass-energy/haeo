@@ -7,7 +7,7 @@ import type {
   SeriesSourceRole,
 } from "./types";
 import type { ConfigMode } from "./types";
-import { discoverForecastEntityIds, resolveHubEntryId } from "./hub-selection";
+import { discoverForecastEntityIds, resolveConfiguredHub } from "./hub-selection";
 
 interface HassEntityState {
   entity_id: string;
@@ -45,6 +45,17 @@ function asNumber(value: unknown): number | null {
     if (Number.isFinite(parsed)) {
       return parsed;
     }
+  }
+  return null;
+}
+
+function parseForecastTimeMs(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value > 1e12 ? value : value * 1000;
+  }
+  if (typeof value === "string" && value !== "") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
 }
@@ -152,9 +163,12 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
   if (!hass) {
     return [];
   }
-  const hubEntryId = resolveHubEntryId(config, hass);
+  const hub = resolveConfiguredHub(config, hass);
+  if (hub.status !== "ok" || hub.hubEntryId === null) {
+    return [];
+  }
   const configured = config.entities ?? [];
-  const entityIds = configured.length > 0 ? configured : discoverForecastEntityIds(hass, hubEntryId);
+  const entityIds = configured.length > 0 ? configured : discoverForecastEntityIds(hass, hub.hubEntryId);
 
   const result: ForecastSeries[] = [];
   const elementVariantCount = new Map<string, number>();
@@ -176,10 +190,10 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
           return null;
         }
         const row = item as Record<string, unknown>;
-        const timeRaw = row["time"];
-        const time = Date.parse(asString(timeRaw));
+        const timeRaw = row["time"] ?? row["timestamp"];
+        const time = parseForecastTimeMs(timeRaw);
         const value = asNumber(row["value"]);
-        if (!Number.isFinite(time) || value === null) {
+        if (time === null || value === null) {
           return null;
         }
         return { time, value };

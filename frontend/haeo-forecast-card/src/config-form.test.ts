@@ -18,4 +18,17 @@ describe("config-form", () => {
     expect(form.computeLabel({ name: "unknown" })).toBeUndefined();
     expect(form.computeHelper({ name: "title" })).toBeUndefined();
   });
+
+  it("exposes editor defaults for power mode, horizon, and tooltip visibility", () => {
+    const form = buildHubConfigForm();
+    expect(form.schema.find((field) => field.name === "power_display_mode")?.default).toBe("opposed");
+    expect(form.schema.find((field) => field.name === "default_horizon")?.default).toBe("full");
+    expect(form.schema.find((field) => field.name === "tooltip_visible")?.default).toBe(true);
+    expect(form.computeLabel({ name: "power_display_mode" })).toBe("Power display mode");
+    expect(form.computeLabel({ name: "default_horizon" })).toBe("Default horizon");
+    expect(form.computeLabel({ name: "tooltip_visible" })).toBe("Show information panel");
+    expect(form.computeHelper({ name: "power_display_mode" })).toContain("separate axes");
+    expect(form.computeHelper({ name: "default_horizon" })).toContain("horizon slider");
+    expect(form.computeHelper({ name: "tooltip_visible" })).toContain("information panel");
+  });
 });

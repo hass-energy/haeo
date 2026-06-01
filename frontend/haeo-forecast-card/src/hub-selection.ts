@@ -38,6 +38,44 @@ function deviceConfigEntryIds(hass: HassLike, deviceId: string): string[] {
   return hass.devices?.[deviceId]?.config_entries ?? [];
 }
 
+export function isHubConfigured(config: { hub_entry_id?: string }): boolean {
+  const configured = config.hub_entry_id?.trim();
+  return configured !== undefined && configured !== "";
+}
+
+export function hubConfigEntryExists(hass: HassLike, hubEntryId: string): boolean {
+  if (hass.devices === undefined) {
+    return false;
+  }
+  for (const device of Object.values(hass.devices)) {
+    if (device?.config_entries.includes(hubEntryId) === true) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export type ConfiguredHubStatus = "ok" | "not_configured" | "not_found";
+
+export interface ConfiguredHubResolution {
+  status: ConfiguredHubStatus;
+  hubEntryId: string | null;
+}
+
+export function resolveConfiguredHub(
+  config: { hub_entry_id?: string },
+  hass: HassLike | null
+): ConfiguredHubResolution {
+  if (!isHubConfigured(config)) {
+    return { status: "not_configured", hubEntryId: null };
+  }
+  const hubEntryId = config.hub_entry_id!.trim();
+  if (hass === null || !hubConfigEntryExists(hass, hubEntryId)) {
+    return { status: "not_found", hubEntryId };
+  }
+  return { status: "ok", hubEntryId };
+}
+
 function hasForecastAttribute(hass: HassLike, entityId: string): boolean {
   const forecast = hass.states[entityId]?.attributes["forecast"];
   return Array.isArray(forecast) && forecast.length > 0;
@@ -52,19 +90,10 @@ function forecastEntityIdsFromStates(hass: HassLike): string[] {
 export function entityBelongsToHub(hass: HassLike, entityId: string, hubEntryId: string): boolean {
   const entry = hass.entities?.[entityId];
   const deviceId = entry?.device_id;
-  if (deviceId !== undefined && hass.devices !== undefined) {
-    const configEntries = deviceConfigEntryIds(hass, deviceId);
-    if (configEntries.length > 0) {
-      return configEntries.includes(hubEntryId);
-    }
-  }
-
-  if (!isHaeoEntity(hass, entityId, entry)) {
+  if (deviceId === undefined || hass.devices === undefined) {
     return false;
   }
-
-  const discoveredHub = discoverHaeoHubEntryId(hass);
-  return discoveredHub === null || discoveredHub === hubEntryId;
+  return deviceConfigEntryIds(hass, deviceId).includes(hubEntryId);
 }
 
 export function discoverHaeoHubEntryId(hass: HassLike): string | null {
@@ -90,6 +119,7 @@ export function discoverHaeoHubEntryId(hass: HassLike): string | null {
   return [...hubIds].sort((a, b) => a.localeCompare(b))[0]!;
 }
 
+/** Used by card editor stub config only — runtime cards require an explicit hub. */
 export function resolveHubEntryId(config: { hub_entry_id?: string }, hass: HassLike | null): string | null {
   const configured = config.hub_entry_id?.trim();
   if (configured !== undefined && configured !== "") {
@@ -102,12 +132,15 @@ export function resolveHubEntryId(config: { hub_entry_id?: string }, hass: HassL
 }
 
 export function entityIdsForHub(hass: HassLike, hubEntryId: string): string[] {
+  if (hass.entities === undefined || hass.devices === undefined) {
+    return [];
+  }
   const entityIds: string[] = [];
   for (const [entityId, state] of Object.entries(hass.states)) {
     if (state === undefined) {
       continue;
     }
-    if (hass.entities !== undefined && !entityBelongsToHub(hass, entityId, hubEntryId)) {
+    if (!entityBelongsToHub(hass, entityId, hubEntryId)) {
       continue;
     }
     entityIds.push(entityId);
@@ -119,10 +152,33 @@ export function discoverForecastEntityIdsForHub(hass: HassLike, hubEntryId: stri
   return discoverForecastEntityIds(hass, hubEntryId);
 }
 
-export function discoverForecastEntityIds(hass: HassLike, hubEntryId: string | null): string[] {
-  const allForecast = forecastEntityIdsFromStates(hass);
-  if (hubEntryId === null) {
-    return allForecast;
+export function discoverForecastEntityIds(hass: HassLike, hubEntryId: string): string[] {
+  return forecastEntityIdsFromStates(hass).filter((entityId) => entityBelongsToHub(hass, entityId, hubEntryId));
+}
+
+export function isHubRegistryReady(hass: HassLike | null): boolean {
+  return hass?.entities !== undefined && hass.devices !== undefined;
+}
+
+export type ForecastEmptyReason = "loading" | "not_configured" | "hub_not_found" | "no_data";
+
+export function forecastEmptyReason(
+  hass: HassLike | null,
+  config: { hub_entry_id?: string },
+  hasData: boolean
+): ForecastEmptyReason | null {
+  if (hasData) {
+    return null;
   }
-  return allForecast.filter((entityId) => entityBelongsToHub(hass, entityId, hubEntryId));
+  if (!isHubConfigured(config)) {
+    return "not_configured";
+  }
+  if (!isHubRegistryReady(hass)) {
+    return "loading";
+  }
+  const hub = resolveConfiguredHub(config, hass);
+  if (hub.status === "not_found") {
+    return "hub_not_found";
+  }
+  return "no_data";
 }

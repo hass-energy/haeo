@@ -10,6 +10,8 @@ coverage:
 
 ignore:
   - "frontend/haeo-forecast-card/src/topology/"
+  - "frontend/haeo-forecast-card/src/topology-entry.ts"
+  - "frontend/haeo-forecast-card/src/index.ts"
 
 flags:
   python:

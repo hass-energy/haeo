@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { normalizeSeries, type HassLike } from "./series";
-import { loadScenarioHassState } from "./fixtures/scenarioOutputs";
+import { DEFAULT_TEST_HUB, loadScenarioHassState, withSingleHubRegistry } from "./fixtures/scenarioOutputs";
+
+const testHubConfig = { type: "custom:haeo-forecast-card" as const, hub_entry_id: DEFAULT_TEST_HUB };
 
 describe("normalizeSeries", () => {
   it("builds typed arrays and inferred lane metadata", () => {
-    const hass = {
+    const hass = withSingleHubRegistry({
       states: {
         "sensor.haeo_grid_import_power": {
           entity_id: "sensor.haeo_grid_import_power",
@@ -23,9 +25,9 @@ describe("normalizeSeries", () => {
           },
         },
       },
-    };
+    });
 
-    const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
+    const output = normalizeSeries(hass, testHubConfig);
     expect(output).toHaveLength(1);
     const first = output[0];
     expect(first).toBeDefined();
@@ -56,13 +58,28 @@ describe("normalizeSeries", () => {
       },
     };
 
-    const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
+    const output = normalizeSeries(hass, testHubConfig);
     expect(output).toHaveLength(0);
+  });
+
+  it("returns empty when no hub is configured", () => {
+    const hass = withSingleHubRegistry({
+      states: {
+        "sensor.haeo_grid_import_power": {
+          entity_id: "sensor.haeo_grid_import_power",
+          attributes: {
+            forecast: [{ time: "2026-03-14T00:00:00Z", value: 1.2 }],
+          },
+        },
+      },
+    });
+
+    expect(normalizeSeries(hass, { type: "custom:haeo-forecast-card" })).toHaveLength(0);
   });
 
   it("ingests scenario outputs emitted by HAEO integration", () => {
     const hass = loadScenarioHassState("scenario1");
-    const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
+    const output = normalizeSeries(hass, testHubConfig);
 
     expect(output.length).toBeGreaterThanOrEqual(13);
     expect(output.some((series) => series.lane === "power")).toBe(true);
@@ -76,7 +93,7 @@ describe("normalizeSeries", () => {
   });
 
   it("coerces numeric and string attribute values", () => {
-    const hass = {
+    const hass = withSingleHubRegistry({
       states: {
         "sensor.coerce": {
           entity_id: "sensor.coerce",
@@ -95,8 +112,8 @@ describe("normalizeSeries", () => {
           },
         },
       },
-    };
-    const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
+    });
+    const output = normalizeSeries(hass, testHubConfig);
     expect(output).toHaveLength(1);
     const first = output[0]!;
     expect(first.values[0]).toBe(1.5);
@@ -105,7 +122,7 @@ describe("normalizeSeries", () => {
   });
 
   it("handles state_of_charge output type as line draw", () => {
-    const hass = {
+    const hass = withSingleHubRegistry({
       states: {
         "sensor.soc": {
           entity_id: "sensor.soc",
@@ -122,15 +139,15 @@ describe("normalizeSeries", () => {
           },
         },
       },
-    };
-    const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
+    });
+    const output = normalizeSeries(hass, testHubConfig);
     expect(output).toHaveLength(1);
     expect(output[0]!.drawType).toBe("line");
     expect(output[0]!.lane).toBe("soc");
   });
 
   it("uses friendly_name as label when present", () => {
-    const hass = {
+    const hass = withSingleHubRegistry({
       states: {
         "sensor.power": {
           entity_id: "sensor.power",
@@ -149,8 +166,8 @@ describe("normalizeSeries", () => {
           },
         },
       },
-    };
-    const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
+    });
+    const output = normalizeSeries(hass, testHubConfig);
     expect(output).toHaveLength(1);
     expect(output[0]!.label).toBe("My Custom Name");
   });
@@ -203,7 +220,7 @@ describe("normalizeSeries", () => {
     expect(output[0]!.entityId).toBe("sensor.haeo_grid_import_power");
   });
 
-  it("loads forecast data when hub is selected but registry omits device_id", () => {
+  it("returns empty when registry metadata is incomplete", () => {
     const hass: HassLike = {
       states: {
         "sensor.grid_import_power": {
@@ -234,8 +251,41 @@ describe("normalizeSeries", () => {
       type: "custom:haeo-forecast-card",
       hub_entry_id: "hub-alpha",
     });
-    expect(output).toHaveLength(1);
-    expect(output[0]!.entityId).toBe("sensor.grid_import_power");
+    expect(output).toHaveLength(0);
+  });
+
+  it("returns empty when the configured hub no longer exists", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.grid_import_power": {
+          entity_id: "sensor.grid_import_power",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1.0 },
+              { time: "2026-03-14T00:05:00Z", value: 2.0 },
+            ],
+            field_type: "power",
+            output_name: "import_power",
+            direction: "-",
+            element_type: "grid",
+            element_name: "Grid",
+          },
+        },
+      },
+      entities: {
+        "sensor.grid_import_power": { platform: "haeo", device_id: "dev-beta" },
+      },
+      devices: {
+        "dev-beta": { config_entries: ["hub-beta"] },
+      },
+    };
+
+    expect(
+      normalizeSeries(hass, {
+        type: "custom:haeo-forecast-card",
+        hub_entry_id: "hub-deleted",
+      })
+    ).toHaveLength(0);
   });
 
   it("returns empty for null hass", () => {

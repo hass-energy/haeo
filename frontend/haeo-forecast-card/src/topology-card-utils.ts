@@ -1,7 +1,7 @@
 import type { HassLike } from "./series";
 import type { TopologyData } from "./topology/types";
 import type { TopologyCardConfig } from "./types";
-import { entityBelongsToHub, resolveHubEntryId } from "./hub-selection";
+import { entityBelongsToHub, resolveConfiguredHub } from "./hub-selection";
 
 export function isTopologyData(value: unknown): value is TopologyData {
   if (typeof value !== "object" || value === null) {
@@ -26,51 +26,46 @@ export function discoverTopologyEntities(hass: HassLike): string[] {
   return entities.sort((a, b) => a.localeCompare(b));
 }
 
-export function resolveTopologyEntity(config: TopologyCardConfig, hass: HassLike | null): string | null {
-  const configured = config.entity?.trim();
-  if (configured !== undefined && configured !== "" && hass?.states[configured] !== undefined) {
-    const topology = hass.states[configured].attributes["topology"];
-    if (isTopologyData(topology)) {
-      return configured;
-    }
+function optimizationStatusEntity(hass: HassLike, entityIds: string[]): string | null {
+  if (entityIds.length === 1) {
+    return entityIds[0]!;
+  }
+  const optimizationStatus = entityIds.find(
+    (entityId) => hass.states[entityId]?.attributes["output_name"] === "network_optimization_status"
+  );
+  return optimizationStatus ?? null;
+}
+
+export type TopologyResolution =
+  | { status: "ok"; entityId: string; topology: TopologyData }
+  | { status: "not_configured" }
+  | { status: "hub_not_found" }
+  | { status: "no_entity" }
+  | { status: "waiting"; entityId: string };
+
+export function resolveTopology(config: TopologyCardConfig, hass: HassLike | null): TopologyResolution {
+  const hub = resolveConfiguredHub(config, hass);
+  if (hub.status === "not_configured") {
+    return { status: "not_configured" };
+  }
+  if (hub.status === "not_found" || hass === null || hub.hubEntryId === null) {
+    return { status: "hub_not_found" };
   }
 
-  if (hass === null) {
-    return null;
-  }
-
-  const hubEntryId = resolveHubEntryId(config, hass);
-  if (hubEntryId === null) {
-    const discovered = discoverTopologyEntities(hass);
-    if (discovered.length === 1) {
-      return discovered[0]!;
-    }
-    const optimizationStatus = discovered.find(
-      (entityId) => hass.states[entityId]?.attributes["output_name"] === "network_optimization_status"
-    );
-    return optimizationStatus ?? null;
-  }
-
+  const hubEntryId = hub.hubEntryId;
   const hubEntities = discoverTopologyEntities(hass).filter((entityId) =>
     entityBelongsToHub(hass, entityId, hubEntryId)
   );
-
-  if (hass.entities !== undefined) {
-    if (hubEntities.length === 1) {
-      return hubEntities[0]!;
-    }
-    const optimizationStatus = hubEntities.find(
-      (entityId) => hass.states[entityId]?.attributes["output_name"] === "network_optimization_status"
-    );
-    return optimizationStatus ?? null;
+  const entityId = optimizationStatusEntity(hass, hubEntities);
+  if (entityId === null) {
+    return { status: "no_entity" };
   }
 
-  const discovered = discoverTopologyEntities(hass);
-  if (discovered.length === 1) {
-    return discovered[0]!;
+  const topology = readTopology(hass, entityId);
+  if (topology === null) {
+    return { status: "waiting", entityId };
   }
-
-  return null;
+  return { status: "ok", entityId, topology };
 }
 
 export function readTopology(hass: HassLike | null, entityId: string | null): TopologyData | null {

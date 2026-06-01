@@ -6,17 +6,12 @@ import { isTopologyData } from "./topology-card-utils";
 import "./topology-card";
 
 interface TopologyCardConstructor {
-  getStubConfig: (hass?: HassLike) => { title?: string; hub_entry_id?: string; entity?: string };
+  getStubConfig: (hass?: HassLike) => { title?: string; hub_entry_id?: string };
   getConfigForm: () => { schema: Array<{ name: string }> };
 }
 
 interface HaeoTopologyCardElement extends HTMLElement {
-  setConfig: (config: {
-    type: "custom:haeo-topology-card";
-    title?: string;
-    hub_entry_id?: string;
-    entity?: string;
-  }) => void;
+  setConfig: (config: { type: "custom:haeo-topology-card"; title?: string; hub_entry_id?: string }) => void;
   hass: unknown;
   getCardSize: () => number;
   getGridOptions: () => {
@@ -42,6 +37,20 @@ function topologyCardClass(): TopologyCardConstructor {
     throw new Error("Expected haeo-topology-card custom element");
   }
   return ctor as unknown as TopologyCardConstructor;
+}
+
+function scenarioHass(scenario: { entityId: string; state: Record<string, unknown> }, hubEntryId: string): HassLike {
+  return {
+    states: {
+      [scenario.entityId]: scenario.state as unknown as HassLike["states"][string],
+    },
+    entities: {
+      [scenario.entityId]: { platform: "haeo", device_id: "dev-alpha" },
+    },
+    devices: {
+      "dev-alpha": { config_entries: [hubEntryId] },
+    },
+  };
 }
 
 describe("haeo-topology-card smoke", () => {
@@ -72,13 +81,8 @@ describe("haeo-topology-card smoke", () => {
     element.setConfig({
       type: "custom:haeo-topology-card",
       hub_entry_id: "hub-alpha",
-      entity: scenario.entityId,
     });
-    element.hass = {
-      states: {
-        [scenario.entityId]: scenario.state,
-      },
-    };
+    element.hass = scenarioHass(scenario, "hub-alpha");
     document.body.appendChild(element);
     await new Promise((resolve) => {
       setTimeout(resolve, 500);
@@ -113,19 +117,8 @@ describe("haeo-topology-card smoke", () => {
     expect(cardClass.getStubConfig()).toEqual({ title: "HAEO network topology" });
     expect(cardClass.getStubConfig(undefined)).toEqual({ title: "HAEO network topology" });
 
-    const stub = cardClass.getStubConfig({
-      states: {
-        [scenario.entityId]: scenario.state as unknown as HassLike["states"][string],
-      },
-      entities: {
-        [scenario.entityId]: { platform: "haeo", device_id: "dev-alpha" },
-      },
-      devices: {
-        "dev-alpha": { config_entries: ["hub-alpha"] },
-      },
-    });
+    const stub = cardClass.getStubConfig(scenarioHass(scenario, "hub-alpha"));
     expect(stub.hub_entry_id).toBe("hub-alpha");
-    expect(stub.entity).toBe(scenario.entityId);
     expect(cardClass.getConfigForm().schema.some((field) => field.name === "hub_entry_id")).toBe(true);
   });
 
@@ -155,13 +148,8 @@ describe("haeo-topology-card smoke", () => {
     element.setConfig({
       type: "custom:haeo-topology-card",
       hub_entry_id: "hub-alpha",
-      entity: scenario.entityId,
     });
-    element.hass = {
-      states: {
-        [scenario.entityId]: scenario.state,
-      },
-    };
+    element.hass = scenarioHass(scenario, "hub-alpha");
     document.body.appendChild(element);
     await new Promise((resolve) => {
       setTimeout(resolve, 500);
@@ -172,7 +160,6 @@ describe("haeo-topology-card smoke", () => {
     element.setConfig({
       type: "custom:haeo-topology-card",
       hub_entry_id: "hub-alpha",
-      entity: scenario.entityId,
     });
     await new Promise((resolve) => {
       setTimeout(resolve, 500);
@@ -181,7 +168,7 @@ describe("haeo-topology-card smoke", () => {
     element.remove();
   });
 
-  it("renders topology after switching hub entity", async () => {
+  it("renders topology after switching hub", async () => {
     const scenario = findScenarioTopologyState();
     expect(scenario).not.toBeNull();
     if (scenario === null) {
@@ -199,6 +186,7 @@ describe("haeo-topology-card smoke", () => {
         "sensor.other_topology": {
           entity_id: "sensor.other_topology",
           attributes: {
+            output_name: "network_optimization_status",
             topology: (scenario.state as { attributes: Record<string, unknown> }).attributes["topology"],
           },
         },
@@ -220,10 +208,9 @@ describe("haeo-topology-card smoke", () => {
     element.setConfig({
       type: "custom:haeo-topology-card",
       hub_entry_id: "hub-beta",
-      entity: "sensor.other_topology",
     });
     await new Promise((resolve) => {
-      setTimeout(resolve, 20);
+      setTimeout(resolve, 500);
     });
 
     expect(element.shadowRoot?.querySelector("svg")).toBeTruthy();
@@ -242,13 +229,8 @@ describe("haeo-topology-card smoke", () => {
       type: "custom:haeo-topology-card",
       title: "First title",
       hub_entry_id: "hub-alpha",
-      entity: scenario.entityId,
     });
-    element.hass = {
-      states: {
-        [scenario.entityId]: scenario.state,
-      },
-    };
+    element.hass = scenarioHass(scenario, "hub-alpha");
     document.body.appendChild(element);
     await new Promise((resolve) => {
       setTimeout(resolve, 500);
@@ -258,7 +240,6 @@ describe("haeo-topology-card smoke", () => {
       type: "custom:haeo-topology-card",
       title: "Second title",
       hub_entry_id: "hub-alpha",
-      entity: scenario.entityId,
     });
     await new Promise((resolve) => {
       setTimeout(resolve, 20);
@@ -269,7 +250,7 @@ describe("haeo-topology-card smoke", () => {
     element.remove();
   });
 
-  it("renders topology preview using the first discovered hub", async () => {
+  it("shows configure hub message when no hub is configured at runtime", async () => {
     const scenario = findScenarioTopologyState();
     expect(scenario).not.toBeNull();
     if (scenario === null) {
@@ -280,24 +261,14 @@ describe("haeo-topology-card smoke", () => {
     element.setConfig({
       type: "custom:haeo-topology-card",
     });
-    element.hass = {
-      states: {
-        [scenario.entityId]: scenario.state,
-      },
-      entities: {
-        [scenario.entityId]: { platform: "haeo", device_id: "dev-alpha" },
-      },
-      devices: {
-        "dev-alpha": { config_entries: ["hub-alpha"] },
-      },
-    };
+    element.hass = scenarioHass(scenario, "hub-alpha");
     document.body.appendChild(element);
     await new Promise((resolve) => {
-      setTimeout(resolve, 500);
+      setTimeout(resolve, 20);
     });
 
-    expect(element.shadowRoot?.textContent).not.toContain("Configure a HAEO hub in the card editor");
-    expect(element.shadowRoot?.querySelector("svg")).toBeTruthy();
+    expect(element.shadowRoot?.textContent).toContain("Configure a HAEO hub in the card editor");
+    expect(element.shadowRoot?.querySelector("svg")).toBeNull();
     element.remove();
   });
 });
