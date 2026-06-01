@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeSeries } from "./series";
+import { normalizeSeries, type HassLike } from "./series";
 import { loadScenarioHassState } from "./fixtures/scenarioOutputs";
 
 describe("normalizeSeries", () => {
@@ -153,6 +153,89 @@ describe("normalizeSeries", () => {
     const output = normalizeSeries(hass, { type: "custom:haeo-forecast-card" });
     expect(output).toHaveLength(1);
     expect(output[0]!.label).toBe("My Custom Name");
+  });
+
+  it("filters forecast entities to the selected hub", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.haeo_grid_import_power": {
+          entity_id: "sensor.haeo_grid_import_power",
+          attributes: {
+            element_type: "grid",
+            field_type: "power",
+            output_name: "import_power",
+            direction: "-",
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1.0 },
+              { time: "2026-03-14T00:05:00Z", value: 2.0 },
+            ],
+          },
+        },
+        "sensor.other_hub_import_power": {
+          entity_id: "sensor.other_hub_import_power",
+          attributes: {
+            element_type: "grid",
+            field_type: "power",
+            output_name: "import_power",
+            direction: "-",
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 3.0 },
+              { time: "2026-03-14T00:05:00Z", value: 4.0 },
+            ],
+          },
+        },
+      },
+      entities: {
+        "sensor.haeo_grid_import_power": { platform: "haeo", device_id: "dev-alpha" },
+        "sensor.other_hub_import_power": { platform: "haeo", device_id: "dev-beta" },
+      },
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+        "dev-beta": { config_entries: ["hub-beta"] },
+      },
+    };
+
+    const output = normalizeSeries(hass, {
+      type: "custom:haeo-forecast-card",
+      hub_entry_id: "hub-alpha",
+    });
+    expect(output).toHaveLength(1);
+    expect(output[0]!.entityId).toBe("sensor.haeo_grid_import_power");
+  });
+
+  it("loads forecast data when hub is selected but registry omits device_id", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.grid_import_power": {
+          entity_id: "sensor.grid_import_power",
+          attributes: {
+            element_name: "Grid",
+            element_type: "grid",
+            output_name: "import_power",
+            field_type: "power",
+            direction: "-",
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1.0 },
+              { time: "2026-03-14T00:05:00Z", value: 2.0 },
+            ],
+          },
+        },
+      },
+      entities: {
+        "sensor.grid_import_power": { platform: "haeo" },
+        "sensor.haeo_status": { platform: "haeo", device_id: "dev-alpha" },
+      },
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+      },
+    };
+
+    const output = normalizeSeries(hass, {
+      type: "custom:haeo-forecast-card",
+      hub_entry_id: "hub-alpha",
+    });
+    expect(output).toHaveLength(1);
+    expect(output[0]!.entityId).toBe("sensor.grid_import_power");
   });
 
   it("returns empty for null hass", () => {

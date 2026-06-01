@@ -1,0 +1,232 @@
+import { describe, expect, it } from "vitest";
+
+import scenarioOutputs from "../../../tests/scenarios/scenario1/outputs.json";
+import { discoverTopologyEntities, isTopologyData, readTopology, resolveTopologyEntity } from "./topology-card-utils";
+import type { HassLike } from "./series";
+import type { TopologyCardConfig } from "./types";
+
+function findScenarioTopologyEntity(): string | null {
+  for (const [entityId, state] of Object.entries(scenarioOutputs)) {
+    const topology = (state as { attributes?: Record<string, unknown> }).attributes?.["topology"];
+    if (isTopologyData(topology)) {
+      return entityId;
+    }
+  }
+  return null;
+}
+
+describe("topology-card-utils", () => {
+  it("validates topology payloads", () => {
+    expect(isTopologyData(null)).toBe(false);
+    expect(isTopologyData({ nodes: [], edges: [] })).toBe(false);
+    expect(isTopologyData({ nodes: [], edges: [], groups: {} })).toBe(true);
+  });
+
+  it("discovers optimization status entities with topology attributes", () => {
+    const entityId = findScenarioTopologyEntity();
+    expect(entityId).not.toBeNull();
+    if (entityId === null) {
+      throw new Error("Expected scenario topology entity");
+    }
+
+    const hass: HassLike = {
+      states: {
+        [entityId]: scenarioOutputs[entityId as keyof typeof scenarioOutputs] as HassLike["states"][string],
+      },
+    };
+
+    expect(discoverTopologyEntities(hass)).toEqual([entityId]);
+    expect(readTopology(hass, entityId)).toBeTruthy();
+  });
+
+  it("prefers configured entity when available", () => {
+    const entityId = findScenarioTopologyEntity();
+    expect(entityId).not.toBeNull();
+    if (entityId === null) {
+      throw new Error("Expected scenario topology entity");
+    }
+
+    const hass: HassLike = {
+      states: {
+        [entityId]: scenarioOutputs[entityId as keyof typeof scenarioOutputs] as HassLike["states"][string],
+      },
+    };
+    const config: TopologyCardConfig = {
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
+      entity: entityId,
+    };
+
+    expect(resolveTopologyEntity(config, hass)).toBe(entityId);
+  });
+
+  it("resolves entity by hub when registry is available", () => {
+    const entityId = findScenarioTopologyEntity();
+    expect(entityId).not.toBeNull();
+    if (entityId === null) {
+      throw new Error("Expected scenario topology entity");
+    }
+
+    const hass = {
+      states: {
+        [entityId]: scenarioOutputs[entityId as keyof typeof scenarioOutputs] as HassLike["states"][string],
+      },
+      entities: {
+        [entityId]: { platform: "haeo", device_id: "dev-alpha" },
+      },
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+      },
+    } as HassLike;
+
+    const config: TopologyCardConfig = {
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
+    };
+
+    expect(resolveTopologyEntity(config, hass)).toBe(entityId);
+  });
+
+  it("returns null when multiple topology entities cannot be disambiguated", () => {
+    const entityId = findScenarioTopologyEntity();
+    expect(entityId).not.toBeNull();
+    if (entityId === null) {
+      throw new Error("Expected scenario topology entity");
+    }
+
+    const hass: HassLike = {
+      states: {
+        [entityId]: scenarioOutputs[entityId as keyof typeof scenarioOutputs] as HassLike["states"][string],
+        "sensor.other_topology": {
+          entity_id: "sensor.other_topology",
+          attributes: {
+            topology: { nodes: [], edges: [], groups: {} },
+          },
+        },
+      },
+    };
+
+    const config: TopologyCardConfig = {
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
+    };
+
+    expect(resolveTopologyEntity(config, hass)).toBeNull();
+  });
+
+  it("resolves topology from states when hub is not configured", () => {
+    const entityId = findScenarioTopologyEntity();
+    expect(entityId).not.toBeNull();
+    if (entityId === null) {
+      throw new Error("Expected scenario topology entity");
+    }
+
+    const hass: HassLike = {
+      states: {
+        [entityId]: scenarioOutputs[entityId as keyof typeof scenarioOutputs] as HassLike["states"][string],
+      },
+    };
+    const config: TopologyCardConfig = {
+      type: "custom:haeo-topology-card",
+    };
+
+    expect(resolveTopologyEntity(config, hass)).toBe(entityId);
+  });
+
+  it("returns null when hass is unavailable", () => {
+    const config: TopologyCardConfig = {
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
+    };
+
+    expect(readTopology(null, "sensor.example")).toBeNull();
+    expect(resolveTopologyEntity(config, null)).toBeNull();
+  });
+
+  it("ignores configured entities without topology data", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.missing_topology": {
+          entity_id: "sensor.missing_topology",
+          attributes: {},
+        },
+      },
+    };
+    const config: TopologyCardConfig = {
+      type: "custom:haeo-topology-card",
+      entity: "sensor.missing_topology",
+    };
+
+    expect(resolveTopologyEntity(config, hass)).toBeNull();
+  });
+
+  it("skips undefined states when discovering topology entities", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.missing": undefined as unknown as HassLike["states"][string],
+        "sensor.haeo_status": {
+          entity_id: "sensor.haeo_status",
+          attributes: {
+            output_name: "network_optimization_status",
+            topology: { nodes: [], edges: [], groups: {} },
+          },
+        },
+      },
+    };
+
+    expect(discoverTopologyEntities(hass)).toEqual(["sensor.haeo_status"]);
+  });
+
+  it("prefers the optimization status entity when multiple hub topology entities exist", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.haeo_status": {
+          entity_id: "sensor.haeo_status",
+          attributes: {
+            output_name: "network_optimization_status",
+            topology: { nodes: [], edges: [], groups: {} },
+          },
+        },
+        "sensor.other_topology": {
+          entity_id: "sensor.other_topology",
+          attributes: {
+            topology: { nodes: [], edges: [], groups: {} },
+          },
+        },
+      },
+      entities: {
+        "sensor.haeo_status": { platform: "haeo", device_id: "dev-alpha" },
+        "sensor.other_topology": { platform: "haeo", device_id: "dev-alpha" },
+      },
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+      },
+    };
+    const config: TopologyCardConfig = {
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
+    };
+
+    expect(resolveTopologyEntity(config, hass)).toBe("sensor.haeo_status");
+  });
+
+  it("resolves a single topology entity without registry metadata when a hub is configured", () => {
+    const entityId = findScenarioTopologyEntity();
+    expect(entityId).not.toBeNull();
+    if (entityId === null) {
+      throw new Error("Expected scenario topology entity");
+    }
+
+    const hass: HassLike = {
+      states: {
+        [entityId]: scenarioOutputs[entityId as keyof typeof scenarioOutputs] as HassLike["states"][string],
+      },
+    };
+    const config: TopologyCardConfig = {
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
+    };
+
+    expect(resolveTopologyEntity(config, hass)).toBe(entityId);
+  });
+});

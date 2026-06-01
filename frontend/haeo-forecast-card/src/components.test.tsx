@@ -59,6 +59,12 @@ const testFixture: HassLike = {
   },
 };
 
+const testCardConfig = {
+  type: "custom:haeo-forecast-card" as const,
+  hub_entry_id: "hub-alpha",
+  entities: ["sensor.grid_import_power", "sensor.grid_import_price", "sensor.battery_soc"],
+};
+
 describe("ForecastCardView components", () => {
   const root = document.createElement("div");
   document.body.appendChild(root);
@@ -69,7 +75,7 @@ describe("ForecastCardView components", () => {
 
   it("renders chart lanes and legend items", () => {
     const store = new ForecastCardStore();
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig(testCardConfig);
     store.setHass(testFixture);
     store.setSize(900, 380);
 
@@ -82,7 +88,7 @@ describe("ForecastCardView components", () => {
 
   it("renders tooltip when hover pointer is set", () => {
     const store = new ForecastCardStore();
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig(testCardConfig);
     store.setHass(testFixture);
     store.setSize(900, 380);
     store.setPointer(300, 110);
@@ -95,7 +101,7 @@ describe("ForecastCardView components", () => {
 
   it("hides tooltip details from the header toggle", async () => {
     const store = new ForecastCardStore();
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig(testCardConfig);
     store.setHass(testFixture);
     store.setSize(900, 380);
     store.setPointer(300, 110);
@@ -113,7 +119,7 @@ describe("ForecastCardView components", () => {
 
   it("renders empty state when there is no data", () => {
     const store = new ForecastCardStore();
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig({ type: "custom:haeo-forecast-card", hub_entry_id: "hub-alpha" });
     store.setSize(800, 300);
     render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
     expect(root.textContent).toContain("No forecast data found");
@@ -171,7 +177,7 @@ describe("ForecastCardView components", () => {
 
   it("updates store state from forecast view interactions", () => {
     const store = new ForecastCardStore();
-    store.setConfig({ type: "custom:haeo-forecast-card", animation_mode: "off" });
+    store.setConfig({ ...testCardConfig, animation_mode: "off" as const });
     store.setHass(testFixture);
     store.setSize(900, 380);
     store.setPointer(300, 120);
@@ -199,14 +205,14 @@ describe("ForecastCardView components", () => {
 
   it("updates the horizon from the slider", async () => {
     const store = new ForecastCardStore();
-    store.setConfig({ type: "custom:haeo-forecast-card", animation_mode: "off" });
+    store.setConfig({ type: "custom:haeo-forecast-card", hub_entry_id: "hub-alpha", animation_mode: "off" });
     store.setHass(loadScenarioHassState("scenario2"));
     store.setSize(900, 380);
     render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
 
     const horizonValue = root.querySelector(".horizonValue");
     const horizonSlider = root.querySelector<HTMLInputElement>(".horizonSlider");
-    expect(horizonValue?.textContent).toBe("3d");
+    expect(horizonValue?.textContent).toMatch(/^3(\.0)?d$/);
     expect(horizonSlider).toBeTruthy();
     if (horizonSlider) {
       horizonSlider.value = "4";

@@ -153,6 +153,9 @@ interface Props {
   topology: TopologyData;
   width?: number;
   height?: number;
+  onLayoutSize?: (width: number, height: number) => void;
+  layoutErrorMessage?: string;
+  layoutLoadingMessage?: string;
 }
 
 export function NetworkTopology(props: Props): JSX.Element {
@@ -167,8 +170,29 @@ export function NetworkTopology(props: Props): JSX.Element {
       .catch((e: unknown) => setError(String(e)));
   }, [topology]);
 
-  if (error != null) return <div style={{ color: "red" }}>Layout error: {error}</div>;
-  if (layout == null) return <div>Computing layout…</div>;
+  useEffect(() => {
+    if (layout === null || props.onLayoutSize === undefined) {
+      return;
+    }
+    const layoutWidth = layout.width;
+    const layoutHeight = layout.height;
+    const renderedWidth = props.width ?? layoutWidth;
+    const renderedHeight =
+      props.width !== undefined ? props.width * (layoutHeight / layoutWidth) : (props.height ?? layoutHeight);
+    props.onLayoutSize(renderedWidth, renderedHeight);
+  }, [layout, props.onLayoutSize, props.width, props.height]);
+
+  if (error != null) {
+    const prefix = props.layoutErrorMessage ?? "Layout error";
+    return (
+      <div style={{ color: "red" }}>
+        {prefix}: {error}
+      </div>
+    );
+  }
+  if (layout == null) {
+    return <div>{props.layoutLoadingMessage ?? "Computing layout…"}</div>;
+  }
 
   // Build node name → TopologyNode lookup
   const nodeMap = new Map(topology.nodes.map((n) => [n.name, n]));
@@ -188,13 +212,21 @@ export function NetworkTopology(props: Props): JSX.Element {
   }
 
   const leg = layout.legend;
-  const w = props.width ?? layout.width;
-  const h = props.height ?? layout.height;
+  const layoutWidth = layout.width;
+  const layoutHeight = layout.height;
+  const renderedWidth = props.width ?? layoutWidth;
+  const renderedHeight =
+    props.width !== undefined ? props.width * (layoutHeight / layoutWidth) : (props.height ?? layoutHeight);
   const hide = (): void => setTooltip(null);
 
   return (
     <div style={{ position: "relative", display: "inline-block" }}>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox={`0 0 ${layoutWidth} ${layoutHeight}`}
+        width={renderedWidth}
+        height={renderedHeight}
+      >
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
             <polygon points="0 0, 8 3, 0 6" fill="#888" />
