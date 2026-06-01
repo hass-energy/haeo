@@ -168,6 +168,65 @@ describe("haeo-topology-card smoke", () => {
     });
 
     expect(updates.length).toBeGreaterThan(0);
+    const initialCount = updates.length;
+    element.setConfig({
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
+      entity: scenario.entityId,
+    });
+    await new Promise((resolve) => {
+      setTimeout(resolve, 500);
+    });
+    expect(updates.length).toBe(initialCount);
+    element.remove();
+  });
+
+  it("resets cached topology when the resolved entity changes", async () => {
+    const scenario = findScenarioTopologyState();
+    expect(scenario).not.toBeNull();
+    if (scenario === null) {
+      throw new Error("Expected scenario topology state");
+    }
+
+    const element = document.createElement("haeo-topology-card") as HaeoTopologyCardElement;
+    element.setConfig({
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
+    });
+    element.hass = {
+      states: {
+        [scenario.entityId]: scenario.state,
+        "sensor.other_topology": {
+          entity_id: "sensor.other_topology",
+          attributes: {
+            topology: (scenario.state as { attributes: Record<string, unknown> }).attributes["topology"],
+          },
+        },
+      },
+      entities: {
+        [scenario.entityId]: { platform: "haeo", device_id: "dev-alpha" },
+        "sensor.other_topology": { platform: "haeo", device_id: "dev-beta" },
+      },
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+        "dev-beta": { config_entries: ["hub-beta"] },
+      },
+    };
+    document.body.appendChild(element);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 500);
+    });
+
+    element.setConfig({
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-beta",
+      entity: "sensor.other_topology",
+    });
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
+
+    expect(element.shadowRoot?.querySelector("svg")).toBeTruthy();
     element.remove();
   });
 

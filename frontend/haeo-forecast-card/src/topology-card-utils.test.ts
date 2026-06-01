@@ -159,4 +159,74 @@ describe("topology-card-utils", () => {
 
     expect(resolveTopologyEntity(config, hass)).toBeNull();
   });
+
+  it("skips undefined states when discovering topology entities", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.missing": undefined as unknown as HassLike["states"][string],
+        "sensor.haeo_status": {
+          entity_id: "sensor.haeo_status",
+          attributes: {
+            output_name: "network_optimization_status",
+            topology: { nodes: [], edges: [], groups: {} },
+          },
+        },
+      },
+    };
+
+    expect(discoverTopologyEntities(hass)).toEqual(["sensor.haeo_status"]);
+  });
+
+  it("prefers the optimization status entity when multiple hub topology entities exist", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.haeo_status": {
+          entity_id: "sensor.haeo_status",
+          attributes: {
+            output_name: "network_optimization_status",
+            topology: { nodes: [], edges: [], groups: {} },
+          },
+        },
+        "sensor.other_topology": {
+          entity_id: "sensor.other_topology",
+          attributes: {
+            topology: { nodes: [], edges: [], groups: {} },
+          },
+        },
+      },
+      entities: {
+        "sensor.haeo_status": { platform: "haeo", device_id: "dev-alpha" },
+        "sensor.other_topology": { platform: "haeo", device_id: "dev-alpha" },
+      },
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+      },
+    };
+    const config: TopologyCardConfig = {
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
+    };
+
+    expect(resolveTopologyEntity(config, hass)).toBe("sensor.haeo_status");
+  });
+
+  it("resolves a single topology entity without registry metadata when a hub is configured", () => {
+    const entityId = findScenarioTopologyEntity();
+    expect(entityId).not.toBeNull();
+    if (entityId === null) {
+      throw new Error("Expected scenario topology entity");
+    }
+
+    const hass: HassLike = {
+      states: {
+        [entityId]: scenarioOutputs[entityId as keyof typeof scenarioOutputs] as HassLike["states"][string],
+      },
+    };
+    const config: TopologyCardConfig = {
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
+    };
+
+    expect(resolveTopologyEntity(config, hass)).toBe(entityId);
+  });
 });

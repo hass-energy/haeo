@@ -334,4 +334,54 @@ describe("hub-selection", () => {
 
     expect(entityBelongsToHub(hass, "sensor.grid_import_power", "hub-alpha")).toBe(true);
   });
+
+  it("recognizes HAEO entities from state attributes and entity id heuristics", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.haeo_status": {
+          entity_id: "sensor.haeo_status",
+          attributes: { output_name: "network_optimization_status" },
+        },
+        "sensor.custom": {
+          entity_id: "sensor.custom",
+          attributes: { platform: "haeo" },
+        },
+      },
+      entities: {
+        "sensor.haeo_status": { device_id: "dev-alpha" },
+        "sensor.custom": { device_id: "dev-alpha" },
+        "sensor.haeo_registry_only": { platform: "haeo", device_id: "dev-alpha" },
+      },
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+      },
+    };
+
+    expect(discoverHaeoHubEntryId(hass)).toBe("hub-alpha");
+    expect(entityBelongsToHub(hass, "sensor.haeo_registry_only", "hub-alpha")).toBe(true);
+  });
+
+  it("skips undefined states and non-HAEO registry entries when discovering hubs", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.missing_state": undefined as unknown as HassLike["states"][string],
+        "sensor.haeo_status": {
+          entity_id: "sensor.haeo_status",
+          attributes: { element_type: "node" },
+        },
+      },
+      entities: {
+        "sensor.missing_state": { platform: "haeo", device_id: "dev-alpha" },
+        "sensor.other_platform": { platform: "mqtt", device_id: "dev-other" },
+        "sensor.haeo_status": { platform: "haeo", device_id: "dev-alpha" },
+      },
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+        "dev-other": { config_entries: ["hub-other"] },
+      },
+    };
+
+    expect(entityIdsForHub(hass, "hub-alpha")).toEqual(["sensor.haeo_status"]);
+    expect(discoverHaeoHubEntryId(hass)).toBe("hub-alpha");
+  });
 });

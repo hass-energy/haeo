@@ -208,4 +208,15 @@ describe("haeo-forecast-card smoke", () => {
       })
     ).toEqual({ title: "HAEO forecast", hub_entry_id: "hub-alpha" });
   });
+
+  it("exposes the shared config form", () => {
+    const ctor = customElements.get("haeo-forecast-card");
+    if (ctor === undefined) {
+      throw new Error("Expected haeo-forecast-card custom element");
+    }
+    const cardClass = ctor as unknown as ForecastCardConstructor & {
+      getConfigForm: () => { schema: Array<{ name: string }> };
+    };
+    expect(cardClass.getConfigForm().schema.some((field) => field.name === "hub_entry_id")).toBe(true);
+  });
 });
