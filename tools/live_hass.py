@@ -22,6 +22,7 @@ from collections.abc import Callable, Generator
 from contextlib import closing, contextmanager
 from dataclasses import dataclass
 import json
+import logging
 from pathlib import Path
 import socket
 import tempfile
@@ -48,6 +49,7 @@ from homeassistant.setup import async_setup_component
 from playwright.sync_api import BrowserContext
 
 PROJECT_ROOT = Path(__file__).parent.parent
+_LOGGER = logging.getLogger(__name__)
 
 # Loopback networks the trusted_networks auth provider auto-logs in from. Home
 # Assistant binds to all interfaces with a dual-stack socket, so IPv4 loopback
@@ -426,7 +428,7 @@ def _shutdown_event_loop(loop: asyncio.AbstractEventLoop) -> None:
         loop.run_until_complete(loop.shutdown_asyncgens())
         loop.run_until_complete(loop.shutdown_default_executor())
     except Exception:
-        pass
+        _LOGGER.debug("HA event loop shutdown encountered an error", exc_info=True)
     finally:
         loop.close()
 
