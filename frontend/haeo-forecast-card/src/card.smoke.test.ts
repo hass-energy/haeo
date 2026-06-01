@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { HassLike } from "./series";
 import "./card";
+
+interface ForecastCardConstructor {
+  getStubConfig: (hass?: HassLike) => { title?: string; hub_entry_id?: string };
+}
 
 interface HaeoCardElement extends HTMLElement {
   setConfig: (config: { type: "custom:haeo-forecast-card"; hub_entry_id?: string; entities?: string[] }) => void;
@@ -182,5 +187,25 @@ describe("haeo-forecast-card smoke", () => {
 
     bounds.mockReturnValue(new DOMRect(0, 0, 0, 0));
     expect(element.getCardWidth()).toBe(640);
+  });
+
+  it("builds stub config with the first discovered hub", () => {
+    const ctor = customElements.get("haeo-forecast-card");
+    if (ctor === undefined) {
+      throw new Error("Expected haeo-forecast-card custom element");
+    }
+    const cardClass = ctor as unknown as ForecastCardConstructor;
+    expect(cardClass.getStubConfig()).toEqual({ title: "HAEO forecast" });
+    expect(
+      cardClass.getStubConfig({
+        states: {},
+        entities: {
+          "sensor.haeo_status": { platform: "haeo", device_id: "dev-alpha" },
+        },
+        devices: {
+          "dev-alpha": { config_entries: ["hub-alpha"] },
+        },
+      })
+    ).toEqual({ title: "HAEO forecast", hub_entry_id: "hub-alpha" });
   });
 });

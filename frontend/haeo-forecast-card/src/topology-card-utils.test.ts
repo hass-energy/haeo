@@ -132,4 +132,31 @@ describe("topology-card-utils", () => {
 
     expect(resolveTopologyEntity(config, hass)).toBe(entityId);
   });
+
+  it("returns null when hass is unavailable", () => {
+    const config: TopologyCardConfig = {
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
+    };
+
+    expect(readTopology(null, "sensor.example")).toBeNull();
+    expect(resolveTopologyEntity(config, null)).toBeNull();
+  });
+
+  it("ignores configured entities without topology data", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.missing_topology": {
+          entity_id: "sensor.missing_topology",
+          attributes: {},
+        },
+      },
+    };
+    const config: TopologyCardConfig = {
+      type: "custom:haeo-topology-card",
+      entity: "sensor.missing_topology",
+    };
+
+    expect(resolveTopologyEntity(config, hass)).toBeNull();
+  });
 });

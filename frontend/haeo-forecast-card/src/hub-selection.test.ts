@@ -5,6 +5,7 @@ import {
   discoverForecastEntityIdsForHub,
   discoverHaeoHubEntryId,
   entityBelongsToHub,
+  entityIdsForHub,
   resolveHubEntryId,
 } from "./hub-selection";
 import type { HassLike } from "./series";
@@ -245,5 +246,92 @@ describe("hub-selection", () => {
     };
 
     expect(discoverForecastEntityIds(hass, "hub-beta")).toEqual(["sensor.beta_import_power"]);
+  });
+
+  it("returns null when the entity registry is unavailable", () => {
+    expect(discoverHaeoHubEntryId({ states: {} })).toBeNull();
+    expect(resolveHubEntryId({}, null)).toBeNull();
+  });
+
+  it("returns null when HAEO entities have no device links", () => {
+    const hass: HassLike = {
+      states: {},
+      entities: {
+        "sensor.haeo_status": { platform: "haeo" },
+      },
+    };
+
+    expect(discoverHaeoHubEntryId(hass)).toBeNull();
+  });
+
+  it("lists state entities for a hub", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.alpha_import_power": {
+          entity_id: "sensor.alpha_import_power",
+          attributes: { element_type: "grid", forecast: [{ time: "2026-03-14T00:00:00Z", value: 1 }] },
+        },
+        "sensor.beta_import_power": {
+          entity_id: "sensor.beta_import_power",
+          attributes: { element_type: "grid", forecast: [{ time: "2026-03-14T00:00:00Z", value: 2 }] },
+        },
+      },
+      entities: {
+        "sensor.alpha_import_power": { platform: "haeo", device_id: "dev-alpha" },
+        "sensor.beta_import_power": { platform: "haeo", device_id: "dev-beta" },
+      },
+      devices: {
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+        "dev-beta": { config_entries: ["hub-beta"] },
+      },
+    };
+
+    expect(entityIdsForHub(hass, "hub-alpha")).toEqual(["sensor.alpha_import_power"]);
+    expect(discoverForecastEntityIds(hass, null)).toEqual(["sensor.alpha_import_power", "sensor.beta_import_power"]);
+  });
+
+  it("rejects non-HAEO entities when device ownership is unknown", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.other": {
+          entity_id: "sensor.other",
+          attributes: { forecast: [{ time: "2026-03-14T00:00:00Z", value: 1 }] },
+        },
+      },
+      entities: {
+        "sensor.other": { platform: "other", device_id: "dev-other" },
+        "sensor.haeo_status": { platform: "haeo", device_id: "dev-alpha" },
+      },
+      devices: {
+        "dev-other": { config_entries: ["hub-other"] },
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+      },
+    };
+
+    expect(entityBelongsToHub(hass, "sensor.other", "hub-alpha")).toBe(false);
+  });
+
+  it("falls back when a device has no config entries", () => {
+    const hass: HassLike = {
+      states: {
+        "sensor.grid_import_power": {
+          entity_id: "sensor.grid_import_power",
+          attributes: {
+            element_type: "grid",
+            forecast: [{ time: "2026-03-14T00:00:00Z", value: 1 }],
+          },
+        },
+      },
+      entities: {
+        "sensor.grid_import_power": { platform: "haeo", device_id: "dev-empty" },
+        "sensor.haeo_status": { platform: "haeo", device_id: "dev-alpha" },
+      },
+      devices: {
+        "dev-empty": { config_entries: [] },
+        "dev-alpha": { config_entries: ["hub-alpha"] },
+      },
+    };
+
+    expect(entityBelongsToHub(hass, "sensor.grid_import_power", "hub-alpha")).toBe(true);
   });
 });
