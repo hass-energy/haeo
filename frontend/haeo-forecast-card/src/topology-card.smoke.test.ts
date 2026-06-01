@@ -181,7 +181,7 @@ describe("haeo-topology-card smoke", () => {
     element.remove();
   });
 
-  it("resets cached topology when the resolved entity changes", async () => {
+  it("renders topology after switching hub entity", async () => {
     const scenario = findScenarioTopologyState();
     expect(scenario).not.toBeNull();
     if (scenario === null) {

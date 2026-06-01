@@ -335,7 +335,7 @@ describe("hub-selection", () => {
     expect(entityBelongsToHub(hass, "sensor.grid_import_power", "hub-alpha")).toBe(true);
   });
 
-  it("recognizes HAEO entities from state attributes and entity id heuristics", () => {
+  it("recognizes HAEO entities from registry platform and state attributes", () => {
     const hass: HassLike = {
       states: {
         "sensor.haeo_status": {
