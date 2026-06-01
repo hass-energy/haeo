@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ForecastCardStore } from "./store";
 import { DEFAULT_TEST_HUB, loadScenarioHassState, withSingleHubRegistry } from "./fixtures/scenarioOutputs";
-import type { HassLike } from "./series";
 
 const testConfig = { type: "custom:haeo-forecast-card" as const, hub_entry_id: DEFAULT_TEST_HUB };
 

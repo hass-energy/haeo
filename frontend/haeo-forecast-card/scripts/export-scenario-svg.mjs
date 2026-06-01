@@ -20,6 +20,22 @@ const rootDir = resolve(import.meta.dirname, "..");
 const workspaceRoot = resolve(rootDir, "..", "..");
 const bundlePath = resolve(workspaceRoot, "custom_components", "haeo", "www", "haeo-forecast-card.min.js");
 
+const SCENARIO_EXPORT_HUB = "scenario-export";
+const SCENARIO_EXPORT_DEVICE = "dev-scenario-export";
+
+function withScenarioHubRegistry(states) {
+  const entities = {};
+  for (const entityId of Object.keys(states)) {
+    entities[entityId] = { platform: "haeo", device_id: SCENARIO_EXPORT_DEVICE };
+  }
+  return {
+    states,
+    entities,
+    devices: {
+      [SCENARIO_EXPORT_DEVICE]: { config_entries: [SCENARIO_EXPORT_HUB] },
+    },
+  };
+}
 const CARD_WIDTH = 1920;
 const CARD_HEIGHT = 900;
 
@@ -196,7 +212,7 @@ function isChartSized(svg) {
   return width === CARD_WIDTH && height === CARD_HEIGHT;
 }
 
-async function renderCard(window, states, entities) {
+async function renderCard(window, hass, entities) {
   await import(pathToFileURL(bundlePath).href);
 
   const element = window.document.createElement("haeo-forecast-card");
@@ -204,10 +220,11 @@ async function renderCard(window, states, entities) {
 
   element.setConfig({
     type: "custom:haeo-forecast-card",
+    hub_entry_id: SCENARIO_EXPORT_HUB,
     entities,
     height: CARD_HEIGHT,
   });
-  element.hass = { states, locale: { language: "en" } };
+  element.hass = { ...hass, locale: { language: "en" } };
   window.document.body.appendChild(element);
 
   const deadline = nodePerformance.now() + 10_000;
@@ -231,6 +248,7 @@ async function main() {
   const [outputsPath, svgPath, anchorIso] = args;
   const states = JSON.parse(await readFile(resolve(outputsPath), "utf-8"));
   const entities = pickEntities(states);
+  const hass = withScenarioHubRegistry(states);
 
   if (entities.length === 0) {
     console.error("No entities with forecast data found");
@@ -239,7 +257,7 @@ async function main() {
 
   const anchorNowMs = resolveAnchorNowMs(states, anchorIso);
   const window = setupDom(anchorNowMs);
-  const result = await renderCard(window, states, entities);
+  const result = await renderCard(window, hass, entities);
 
   if (!result) {
     console.error("Unable to render forecast card chart SVG");

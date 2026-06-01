@@ -52,8 +52,9 @@ export function resolveTopology(config: TopologyCardConfig, hass: HassLike | nul
     return { status: "hub_not_found" };
   }
 
+  const hubEntryId = hub.hubEntryId;
   const hubEntities = discoverTopologyEntities(hass).filter((entityId) =>
-    entityBelongsToHub(hass, entityId, hub.hubEntryId)
+    entityBelongsToHub(hass, entityId, hubEntryId)
   );
   const entityId = optimizationStatusEntity(hass, hubEntities);
   if (entityId === null) {

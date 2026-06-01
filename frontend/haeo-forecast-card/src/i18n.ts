@@ -5,8 +5,7 @@ type TranslationDict = Record<string, TranslationValue>;
 const EN_TRANSLATIONS: TranslationDict = {
   "card.title.default": "HAEO forecast",
   "card.empty.configure_hub": "Configure a HAEO hub in the card editor.",
-  "card.empty.hub_not_found":
-    "The selected HAEO hub no longer exists. Open the card editor and choose a hub again.",
+  "card.empty.hub_not_found": "The selected HAEO hub no longer exists. Open the card editor and choose a hub again.",
   "card.empty.no_data": "No forecast data yet. Wait for HAEO to finish its first optimization run.",
   "header.horizon": "Horizon: {hours}",
   "axis.power": "Power (kW)",

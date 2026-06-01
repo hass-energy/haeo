@@ -11,11 +11,7 @@ interface TopologyCardConstructor {
 }
 
 interface HaeoTopologyCardElement extends HTMLElement {
-  setConfig: (config: {
-    type: "custom:haeo-topology-card";
-    title?: string;
-    hub_entry_id?: string;
-  }) => void;
+  setConfig: (config: { type: "custom:haeo-topology-card"; title?: string; hub_entry_id?: string }) => void;
   hass: unknown;
   getCardSize: () => number;
   getGridOptions: () => {

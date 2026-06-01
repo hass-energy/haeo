@@ -146,8 +146,7 @@ export const ForecastCardView = observer(function ForecastCardView(props: Foreca
   const emptyReason = forecastEmptyReason(props.store.hass, props.store.config, props.store.hasData);
 
   if (emptyReason === "not_configured" || emptyReason === "hub_not_found") {
-    const messageKey =
-      emptyReason === "not_configured" ? "card.empty.configure_hub" : "card.empty.hub_not_found";
+    const messageKey = emptyReason === "not_configured" ? "card.empty.configure_hub" : "card.empty.hub_not_found";
     return (
       <ha-card>
         <CardTitle store={props.store} />

@@ -62,11 +62,13 @@ describe("topology-card-utils", () => {
       hub_entry_id: "hub-alpha",
     };
 
-    expect(resolveTopology(config, hass)).toEqual({
-      status: "ok",
-      entityId,
-      topology: expect.any(Object),
-    });
+    const resolution = resolveTopology(config, hass);
+    expect(resolution.status).toBe("ok");
+    if (resolution.status !== "ok") {
+      return;
+    }
+    expect(resolution.entityId).toBe(entityId);
+    expect(resolution.topology).toBeTruthy();
   });
 
   it("reports hub_not_found when the configured hub no longer exists", () => {
@@ -204,11 +206,13 @@ describe("topology-card-utils", () => {
       hub_entry_id: "hub-alpha",
     };
 
-    expect(resolveTopology(config, hass)).toEqual({
-      status: "ok",
-      entityId: "sensor.haeo_status",
-      topology: expect.any(Object),
-    });
+    const resolution = resolveTopology(config, hass);
+    expect(resolution.status).toBe("ok");
+    if (resolution.status !== "ok") {
+      return;
+    }
+    expect(resolution.entityId).toBe("sensor.haeo_status");
+    expect(resolution.topology).toBeTruthy();
   });
 
   it("reports no_entity when registry metadata is missing", () => {

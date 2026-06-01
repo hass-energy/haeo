@@ -88,9 +88,10 @@ export function TopologyCardView(props: TopologyCardViewProps): JSX.Element {
       <div className="topologyViewport" ref={viewportRef}>
         <NetworkTopology
           topology={resolution.topology}
-          locale={locale}
           width={viewportWidth}
           onLayoutSize={handleLayoutSize}
+          layoutErrorMessage={t(locale, "topology.card.error.layout")}
+          layoutLoadingMessage={t(locale, "topology.card.loading")}
         />
       </div>
     </div>
