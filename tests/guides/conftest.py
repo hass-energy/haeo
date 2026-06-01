@@ -21,7 +21,15 @@ import pytest
 # DeprecationWarnings (aiohttp, HA internals) into RuntimeErrors that
 # crash the background event loop. Reset to "default" for guide tests
 # since we don't control third-party warning behavior.
-pytestmark = [pytest.mark.filterwarnings("default")]
+#
+# HA's frontend static handler can emit unraisable ResourceWarnings when
+# the browser disconnects during shutdown on CI. Ignore pytest's wrapper so
+# guide screenshot assertions remain the signal.
+pytestmark = [
+    pytest.mark.filterwarnings("default"),
+    pytest.mark.filterwarnings("ignore::ResourceWarning"),
+    pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning"),
+]
 
 
 def pytest_configure(config: pytest.Config) -> None:
