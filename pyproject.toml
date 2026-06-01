@@ -1,6 +1,6 @@
 [project]
 name = "haeo"
-version = "0.4.0rc5"
+version = "0.4.0rc6"
 description = "Home Assistant Energy Network Optimizer"
 readme = "README.md"
 requires-python = ">=3.13.2,<3.14"
@@ -10,13 +10,12 @@ dependencies = ["homeassistant>=2026.1.1", "numpy>=2.3.2", "highspy>=1.12.0"]
 [project.scripts]
 diag = "tools.diag:main"
 snapshot = "tools.snapshot:main"
+sim = "tools.sim:main"
 
 [dependency-groups]
 dev = [
     "freezegun>=1.5.2",
     "home-assistant-frontend>=20260107.1",
-    "matplotlib>=3.10.8",
-    "networkx>=3.4.2",
     "playwright>=1.57.0",
     "tabulate>=0.9.0",
     "mdformat-beautysh>=1.0.0",
@@ -167,7 +166,14 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
-addopts = ["--strict-markers", "--strict-config", "--import-mode=importlib", "--benchmark-disable", "--benchmark-group-by=param", "--benchmark-sort=mean"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib",
+    "--benchmark-disable",
+    "--benchmark-group-by=param",
+    "--benchmark-sort=mean",
+]
 filterwarnings = ["error"]
 markers = [
     "scenario: marks tests as scenario tests (select with '-m \"scenario\"')",

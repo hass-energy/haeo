@@ -49,11 +49,11 @@ The adapter transforms user configuration into connection segments:
 
 ### Load Device
 
-| Sensor                 | Unit  | Update    | Description                        |
-| ---------------------- | ----- | --------- | ---------------------------------- |
-| `power`                | kW    | Real-time | Power consumed by load             |
-| `power_possible`       | kW    | Real-time | Maximum possible load (forecast)   |
-| `forecast_limit_price` | \$/kW | Real-time | Marginal cost of serving this load |
+| Sensor                 | Unit   | Update    | Description                        |
+| ---------------------- | ------ | --------- | ---------------------------------- |
+| `power`                | kW     | Real-time | Power consumed by load             |
+| `power_possible`       | kW     | Real-time | Maximum possible load (forecast)   |
+| `forecast_limit_price` | \$/kWh | Real-time | Marginal cost of serving this load |
 
 See [Load Configuration](../../user-guide/elements/load.md) for detailed sensor and configuration documentation.
 

@@ -59,15 +59,20 @@ class PowerLimitSegment(Segment):
         self._fixed = spec.get("fixed", False)
         self.max_power = broadcast_to_sequence(spec.get("max_power"), self._n_periods)
 
-    @constraint(output=True, unit="$/kW")
+    @constraint(output=True, unit="$/kWh")
     def power_limit(self) -> list[highs_linear_expression] | None:
-        """Directional power limit constraint."""
+        """Directional power limit constraint (energy-native).
+
+        Formulated as energy: power * dt <= max_power * dt.
+        Shadow prices are $/kWh.
+        """
         if self.max_power is None:
             return None
         total = self.total_power_in
+        dt = self.periods
         if self._fixed:
-            return list(total == self.max_power)
-        return list(total <= self.max_power)
+            return list(total * dt == self.max_power * dt)
+        return list(total * dt <= self.max_power * dt)
 
 
 __all__ = [

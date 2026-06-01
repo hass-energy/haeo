@@ -252,6 +252,9 @@ async def test_async_setup_entry_initializes_coordinator(
     forward_mock = AsyncMock()
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", forward_mock)
 
+    # No input stores to wait for in this test
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
+
     result = await async_setup_entry(hass, mock_hub_entry)
 
     assert result is True
@@ -459,14 +462,14 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     mock_hub_entry: MockConfigEntry,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Setup raises ConfigEntryNotReady when input entities don't become ready in time.
+    """Setup raises ConfigEntryNotReady when input stores don't become ready in time.
 
     Verifies that ConfigEntryNotReady is raised with descriptive translation key.
     Cleanup is handled via async_on_unload callbacks registered during setup.
     """
 
-    # Create a mock input entity that never becomes ready
-    class NeverReadyEntity:
+    # Create a mock input store that never becomes ready
+    class NeverReadyStore:
         async def wait_ready(self) -> None:
             # Wait forever - will timeout
             await asyncio.sleep(100)
@@ -477,12 +480,12 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     # Create mock horizon manager
     mock_horizon = _create_mock_horizon_manager()
 
-    never_ready_entity = NeverReadyEntity()
+    never_ready_store = NeverReadyStore()
 
     class MockRuntimeData:
         def __init__(self) -> None:
             self.horizon_manager = mock_horizon
-            self.input_entities = {("Test Element", ("section", "field")): never_ready_entity}
+            self.input_stores: dict[object, object] = {}
             self.coordinator = None
             self.value_update_in_progress = False
 
@@ -493,9 +496,14 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     # Patch the module-level imports to bypass normal setup
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", create_mock_runtime_data)
 
-    # Patch forward_entry_setups to populate the mock input entities
+    # Patch store construction so the never-ready store is the one awaited
+    monkeypatch.setattr(
+        "custom_components.haeo.build_input_stores",
+        lambda *_args, **_kwargs: {("Test Element", ("section", "field")): never_ready_store},
+    )
+
+    # Patch forward_entry_setups to bypass real platform setup
     async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
-        # After input platform setup, entry should have mock runtime_data
         pass
 
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
@@ -553,8 +561,8 @@ async def test_setup_reentry_after_timeout_failure(
     """
     attempt_count = 0
 
-    # Create a mock input entity that fails first time, succeeds second time
-    class ConditionalReadyEntity:
+    # Create a mock input store that fails first time, succeeds second time
+    class ConditionalReadyStore:
         def __init__(self) -> None:
             self._ready = False
 
@@ -569,17 +577,24 @@ async def test_setup_reentry_after_timeout_failure(
         def is_ready(self) -> bool:
             return self._ready
 
-    # Create a runtime data factory that uses our conditional entity
-    entity = ConditionalReadyEntity()
+    # Create a runtime data factory that uses our conditional store
+    store = ConditionalReadyStore()
 
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {("Test Element", ("section", "field")): entity}
+            self.input_stores: dict[object, object] = {}
             self.coordinator = None
             self.value_update_in_progress = False
 
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
+
+    # Patch store construction so the conditional store is the one awaited
+    monkeypatch.setattr(
+        "custom_components.haeo.build_input_stores",
+        lambda *_args, **_kwargs: {("Test Element", ("section", "field")): store},
+    )
 
     # Mock horizon manager - use a real-like one that tracks state
     def create_horizon_manager(hass: HomeAssistant, config_entry: ConfigEntry) -> Mock:
@@ -649,11 +664,12 @@ async def test_setup_cleanup_on_coordinator_error(
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {}  # No entities to wait for
+            self.input_stores: dict[object, object] = {}  # No stores to wait for
             self.coordinator = None
             self.value_update_in_progress = False
 
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
 
     # Patch forward_entry_setups
     async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
@@ -700,11 +716,12 @@ async def test_async_setup_entry_raises_config_entry_error_on_permanent_failure(
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {}  # No entities to wait for
+            self.input_stores: dict[object, object] = {}  # No stores to wait for
             self.coordinator = None
             self.value_update_in_progress = False
 
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
 
     # Patch forward_entry_setups
     async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
@@ -751,11 +768,12 @@ async def test_setup_preserves_config_entry_not_ready_exception(
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {}  # No entities to wait for
+            self.input_stores: dict[object, object] = {}  # No stores to wait for
             self.coordinator = None
             self.value_update_in_progress = False
 
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
 
     # Patch forward_entry_setups
     async def mock_forward_setups(entry: ConfigEntry, platforms: Iterable[Platform | str]) -> None:
@@ -813,11 +831,12 @@ async def test_setup_preserves_config_entry_error_exception(
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {}  # No entities to wait for
+            self.input_stores: dict[object, object] = {}  # No stores to wait for
             self.coordinator = None
             self.value_update_in_progress = False
 
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
 
     # Patch forward_entry_setups
     async def mock_forward_setups(entry: ConfigEntry, platforms: Iterable[Platform | str]) -> None:

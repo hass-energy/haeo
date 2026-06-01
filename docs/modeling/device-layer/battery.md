@@ -88,17 +88,17 @@ Battery creates a single Home Assistant device:
 
 The adapter maps model outputs directly from the battery element:
 
-| Model Output              | Sensor Name       | Description                |
-| ------------------------- | ----------------- | -------------------------- |
-| `BATTERY_POWER_CHARGE`    | `power_charge`    | Charge power               |
-| `BATTERY_POWER_DISCHARGE` | `power_discharge` | Discharge power            |
-| `BATTERY_ENERGY_STORED`   | `energy_stored`   | Total energy stored        |
-| Calculated SOC            | `state_of_charge` | State of charge            |
-| `BATTERY_POWER_BALANCE`   | `power_balance`   | Power balance shadow price |
-| `BATTERY_ENERGY_IN_FLOW`  | `energy_in_flow`  | Energy-in shadow price     |
-| `BATTERY_ENERGY_OUT_FLOW` | `energy_out_flow` | Energy-out shadow price    |
-| `BATTERY_SOC_MAX`         | `soc_max`         | Max SOC shadow price       |
-| `BATTERY_SOC_MIN`         | `soc_min`         | Min SOC shadow price       |
+| Model Output              | Sensor Name                         | Description                |
+| ------------------------- | ----------------------------------- | -------------------------- |
+| `BATTERY_POWER_CHARGE`    | `power_charge`                      | Charge power               |
+| `BATTERY_POWER_DISCHARGE` | `power_discharge`                   | Discharge power            |
+| `BATTERY_ENERGY_STORED`   | `energy_stored`                     | Total energy stored        |
+| Calculated SOC            | `state_of_charge`                   | State of charge            |
+| `BATTERY_POWER_BALANCE`   | `power_balance_shadow_energy_price` | Power balance shadow price |
+| `BATTERY_ENERGY_IN_FLOW`  | `energy_in_flow`                    | Energy-in shadow price     |
+| `BATTERY_ENERGY_OUT_FLOW` | `energy_out_flow`                   | Energy-out shadow price    |
+| `BATTERY_SOC_MAX`         | `soc_max`                           | Max SOC shadow price       |
+| `BATTERY_SOC_MIN`         | `soc_min`                           | Min SOC shadow price       |
 
 See [Battery Configuration](../../user-guide/elements/battery.md#sensors-created) for complete sensor documentation.
 

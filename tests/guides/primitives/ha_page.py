@@ -11,15 +11,18 @@ Screenshots are automatically collected using the ScreenshotContext.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
+
+from playwright.sync_api import Page
+
+from tools.live_hass import LiveHomeAssistant
 
 from .capture import ScreenshotContext
-
-if TYPE_CHECKING:
-    from playwright.sync_api import Page
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,6 +61,7 @@ class HAPage:
 
     page: Page
     url: str
+    ha: LiveHomeAssistant | None = None
 
     # region: Screenshot Capture
 
@@ -87,7 +91,7 @@ class HAPage:
             "ha-list-item, ha-combo-box-item, mwc-list-item, "
             "ha-md-list-item, md-item, "
             "ha-button, ha-icon-button, .mdc-text-field, ha-textfield, "
-            "input, select, ha-select, ha-integration-list-item"
+            "input, select, ha-select, ha-integration-list-item, ha-checkbox"
         )
 
         element.evaluate(_CLICK_INDICATOR_JS, clickable_selector)
@@ -158,12 +162,21 @@ class HAPage:
         should use click-based methods to demonstrate the real user flow.
         """
         full_url = f"{self.url}{path}" if path.startswith("/") else path
-        self.page.goto(full_url)
-        self.page.wait_for_load_state("networkidle")
+        # The initial load drives the trusted_networks auto-login redirect chain
+        # (/ -> /auth/authorize -> token exchange -> app), which takes longer than
+        # an in-app navigation, so allow a generous timeout. networkidle would wait
+        # on the HA WebSocket and OAuth static assets, leaving aiohttp file handles
+        # open when the browser closes; domcontentloaded plus leaving /auth/ is enough.
+        initial_load_timeout = 30000
+        self.page.goto(full_url, timeout=initial_load_timeout, wait_until="domcontentloaded")
+        self.page.wait_for_function(
+            "() => !window.location.pathname.startsWith('/auth/')",
+            timeout=initial_load_timeout,
+        )
 
     def wait_for_load(self) -> None:
         """Wait for page to finish loading."""
-        self.page.wait_for_load_state("networkidle")
+        self.page.wait_for_load_state("domcontentloaded")
 
     def navigate_to_settings(self) -> None:
         """Navigate to Settings via sidebar click."""
@@ -176,11 +189,11 @@ class HAPage:
                 self._capture("home")
                 self._capture_with_indicator("sidebar", settings)
                 settings.click()
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
                 self._capture("settings_page")
         else:
             settings.click()
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("domcontentloaded")
 
     def navigate_to_integrations(self) -> None:
         """Navigate to Devices & services from Settings page."""
@@ -192,10 +205,10 @@ class HAPage:
             with ctx.scope("navigate_integrations"):
                 self._capture_with_indicator("settings_item", ds)
                 ds.click()
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
         else:
             ds.click()
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("domcontentloaded")
 
     def navigate_to_integration(self, name: str) -> None:
         """Navigate to a specific integration page by clicking its card."""
@@ -210,11 +223,280 @@ class HAPage:
                 inner_card = card.locator("ha-card")
                 self._capture_with_indicator("card", inner_card)
                 card.click()
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
                 self._capture("integration_page")
         else:
             card.click()
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("domcontentloaded")
+
+    def navigate_to_developer_tools_actions(self) -> None:
+        """Navigate to Developer Tools > Actions via Settings."""
+        ctx = ScreenshotContext.current()
+
+        # Developer Tools is under Settings in modern HA
+        self.navigate_to_settings()
+
+        dev_tools = self.page.get_by_text("Developer tools")
+        dev_tools.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        if ctx:
+            with ctx.scope("navigate_developer_tools"):
+                self._capture_with_indicator("sidebar", dev_tools)
+                dev_tools.click()
+                self.page.wait_for_load_state("domcontentloaded")
+                self._capture("developer_tools_page")
+        else:
+            dev_tools.click()
+            self.page.wait_for_load_state("domcontentloaded")
+
+        # Click Actions tab if not already active
+        actions_tab = self.page.get_by_role("tab", name="Actions")
+        actions_tab.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        if ctx:
+            with ctx.scope("actions_tab"):
+                self._capture_with_indicator("tab", actions_tab)
+                actions_tab.click()
+                self.page.wait_for_load_state("domcontentloaded")
+                self._capture("actions_page")
+        else:
+            actions_tab.click()
+            self.page.wait_for_load_state("domcontentloaded")
+
+    def fill_service_action(self, service_name: str, display_name: str) -> None:
+        """Fill the service/action field in Developer Tools.
+
+        The action picker in HA uses a custom web component with shadow DOM.
+        We clear the current selection, type the service name to filter,
+        and click the matching dropdown item.
+
+        Args:
+            service_name: The service identifier to search (e.g., "haeo.save_diagnostics").
+            display_name: The visible display name in the dropdown (e.g., "Save diagnostics").
+
+        """
+        ctx = ScreenshotContext.current()
+
+        # The action picker shows the currently selected service with an X and dropdown
+        picker = self.page.locator("ha-service-picker")
+        picker.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        # Clear the current selection by clicking the X button
+        clear_btn = picker.locator("ha-svg-icon").first
+        clear_btn.click()
+
+        if ctx:
+            with ctx.scope("fill_action"):
+                # Now the picker shows an input field for searching.
+                # The following wait_for absorbs the picker's appearance.
+                search = picker.locator("input")
+                search.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                self._capture_with_indicator("field", picker)
+
+                search.fill(service_name)
+
+                # Match the dropdown item by its display name;
+                # the wait_for absorbs the picker's search debounce.
+                option = self.page.get_by_text(display_name).first
+                option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                self._capture_with_indicator("option", option)
+                option.click()
+                self._capture("selected")
+        else:
+            search = picker.locator("input")
+            search.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            search.fill(service_name)
+            option = self.page.get_by_text(display_name).first
+            option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            option.click()
+
+    def fill_datetime_field(self, label: str, value: str) -> None:
+        """Fill a datetime selector field in a service form.
+
+        HA datetime selectors have a checkbox to enable them (optional fields)
+        and split date/time components. This method enables the checkbox,
+        then fills the date and time inputs.
+
+        Args:
+            label: The visible label text of the datetime field (e.g., "Time").
+            value: The datetime value as "YYYY-MM-DD HH:MM" string.
+
+        """
+        ctx = ScreenshotContext.current()
+
+        # Find the checkbox associated with this label. HA renders optional service
+        # fields with a ha-checkbox next to the label text inside a container element.
+        # Scope by label to avoid clicking the wrong checkbox when multiple exist.
+        field_container = self.page.locator(f"ha-checkbox:near(:text('{label}'))").first
+        field_container.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        checkbox = field_container
+
+        if ctx:
+            with ctx.scope(f"fill_datetime_{label}"):
+                self._capture_with_indicator("checkbox", checkbox)
+                checkbox.click()
+                self.page.wait_for_timeout(300)
+                self._capture("enabled")
+
+                # Parse the value to fill date and time separately
+                parts = value.split(" ", 1)
+                date_str = parts[0]  # YYYY-MM-DD
+                time_str = parts[1] if len(parts) > 1 else "12:00"
+
+                # Set the date via the underlying ha-date-input component's value property
+                # The input is readonly (opens a calendar picker), so we set it via JS
+                self.page.evaluate(
+                    """(date) => {
+                        const el = document.querySelector('ha-date-input')
+                            || document.querySelector('home-assistant').shadowRoot
+                                .querySelector('ha-date-input');
+                        // Walk through all shadow roots to find ha-date-input
+                        function find(root) {
+                            if (!root) return null;
+                            const direct = root.querySelector('ha-date-input');
+                            if (direct) return direct;
+                            for (const el of root.querySelectorAll('*')) {
+                                if (el.shadowRoot) {
+                                    const found = find(el.shadowRoot);
+                                    if (found) return found;
+                                }
+                            }
+                            return null;
+                        }
+                        const dateInput = find(document);
+                        if (dateInput) {
+                            dateInput.value = date;
+                            dateInput.dispatchEvent(new Event('change', {bubbles: true}));
+                        }
+                    }""",
+                    date_str,
+                )
+                self.page.wait_for_timeout(300)
+
+                # Fill time inputs (hh, mm)
+                time_parts = time_str.split(":")
+                hour = int(time_parts[0])
+                minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+                # HA uses 12-hour format with AM/PM
+                am_pm = "AM" if hour < 12 else "PM"
+                display_hour = hour % 12 or 12
+
+                hh_input = self.page.locator("ha-base-time-input input").nth(0)
+                mm_input = self.page.locator("ha-base-time-input input").nth(1)
+
+                hh_input.fill(str(display_hour))
+                mm_input.fill(str(minute).zfill(2))
+                self.page.wait_for_timeout(300)
+
+                # Set AM/PM if needed
+                if am_pm == "PM":
+                    # The AM/PM selector is an MDC select component inside shadow DOM
+                    # Use the dropdown arrow icon to open it, then select PM
+                    ampm_dropdown = self.page.locator("ha-base-time-input ha-select")
+                    ampm_dropdown.click(force=True)
+                    self.page.wait_for_timeout(300)
+                    pm_option = self.page.get_by_text("PM", exact=True).last
+                    pm_option.click()
+                    self.page.wait_for_timeout(300)
+
+                self._capture("filled")
+        else:
+            checkbox.click()
+            self.page.wait_for_timeout(300)
+            parts = value.split(" ", 1)
+            date_str = parts[0]
+            time_str = parts[1] if len(parts) > 1 else "12:00"
+            self.page.evaluate(
+                """(date) => {
+                    function find(root) {
+                        if (!root) return null;
+                        const direct = root.querySelector('ha-date-input');
+                        if (direct) return direct;
+                        for (const el of root.querySelectorAll('*')) {
+                            if (el.shadowRoot) {
+                                const found = find(el.shadowRoot);
+                                if (found) return found;
+                            }
+                        }
+                        return null;
+                    }
+                    const dateInput = find(document);
+                    if (dateInput) {
+                        dateInput.value = date;
+                        dateInput.dispatchEvent(new Event('change', {bubbles: true}));
+                    }
+                }""",
+                date_str,
+            )
+            time_parts = time_str.split(":")
+            hour = int(time_parts[0])
+            minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+            am_pm = "AM" if hour < 12 else "PM"
+            display_hour = hour % 12 or 12
+            hh_input = self.page.locator("ha-base-time-input input").nth(0)
+            mm_input = self.page.locator("ha-base-time-input input").nth(1)
+            hh_input.fill(str(display_hour))
+            mm_input.fill(str(minute).zfill(2))
+            if am_pm == "PM":
+                ampm_dropdown = self.page.locator("ha-base-time-input ha-select")
+                ampm_dropdown.click(force=True)
+                self.page.wait_for_timeout(300)
+                pm_option = self.page.get_by_text("PM", exact=True).last
+                pm_option.click()
+                self.page.wait_for_timeout(300)
+
+    def select_config_entry(self, name: str) -> None:
+        """Select a config entry from the Integration dropdown.
+
+        Clicks the Integration dropdown to open it, then selects
+        the matching entry by display name.
+
+        Args:
+            name: The display name of the config entry to select.
+
+        """
+        ctx = ScreenshotContext.current()
+
+        # Click the Integration dropdown to open it
+        dropdown = self.page.get_by_text("Integration", exact=False).first
+        dropdown.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        if ctx:
+            with ctx.scope("select_config_entry"):
+                self._capture_with_indicator("dropdown", dropdown)
+                dropdown.click()
+                self.page.wait_for_timeout(500)
+
+                # Select the matching entry from the opened list
+                option = self.page.get_by_text(name).first
+                option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                self._capture_with_indicator("option", option)
+                option.click()
+                self.page.wait_for_timeout(300)
+                self._capture("selected")
+        else:
+            dropdown.click()
+            self.page.wait_for_timeout(500)
+            option = self.page.get_by_text(name).first
+            option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            option.click()
+            self.page.wait_for_timeout(300)
+
+    def click_perform_action(self) -> None:
+        """Click the Perform action button in Developer Tools."""
+        ctx = ScreenshotContext.current()
+        button = self.page.get_by_role("button", name="Perform action")
+        button.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        if ctx:
+            with ctx.scope("perform_action"):
+                self._scroll_and_capture(button)
+                self._capture_with_indicator("button", button)
+                button.click()
+                self.page.wait_for_timeout(2000)
+                self._capture("result")
+        else:
+            button.click()
+            self.page.wait_for_timeout(2000)
 
     # endregion
 
@@ -547,7 +829,7 @@ class HAPage:
                         self._capture("dialog")
                         self._capture_with_indicator("select", item)
                         item.click()
-                        self.page.wait_for_timeout(300)
+                        select_dialog.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
                         self._capture("selected")
         else:
             for option_text in options:
@@ -556,7 +838,7 @@ class HAPage:
                 item = select_dialog.locator(f":text('{option_text}')").first
                 item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
                 item.click()
-                self.page.wait_for_timeout(300)
+                select_dialog.wait_for(state="hidden", timeout=DEFAULT_TIMEOUT)
 
     # endregion
 
@@ -686,6 +968,30 @@ class HAPage:
 
         _LOGGER.info("Dialog closed successfully")
 
+    @contextmanager
+    def expect_config_reload(self) -> Iterator[None]:
+        """Wait for the config-entry reload triggered inside the block to finish.
+
+        Committing a subentry (adding or editing an element, saving a policy)
+        schedules a full integration reload that rebuilds the element-add
+        buttons. Starting the next action before that reload settles races the
+        teardown, so callers wrap the triggering action::
+
+            with page.expect_config_reload():
+                page.submit()
+                page.close_element_dialog()
+
+        The HA state listener is registered on entry (before the action runs)
+        so the reload's start can't be missed, and the block exits only once
+        the entry is loaded again.
+        """
+        if self.ha is None:
+            yield
+            return
+        reload_wait = self.ha.begin_wait_for_config_reload()
+        yield
+        self.ha.wait_for_config_reload(reload_wait)
+
     def close_success_dialog(self) -> None:
         """Close the config flow success dialog shown after creating an entry.
 
@@ -728,7 +1034,7 @@ class HAPage:
         self._capture("dialog_opened")
 
     def submit(self) -> None:
-        """Click Submit button."""
+        """Click the Submit button."""
         self.click_button("Submit")
 
     def select_list_option(self, option_text: str) -> None:
@@ -869,11 +1175,11 @@ class HAPage:
             with ctx.scope("navigate_calendar"):
                 self._capture_with_indicator("sidebar", calendar_link)
                 calendar_link.click()
-                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_load_state("domcontentloaded")
                 self._capture("calendar_page")
         else:
             calendar_link.click()
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("domcontentloaded")
 
     def create_calendar_event(
         self,

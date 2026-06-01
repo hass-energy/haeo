@@ -10,7 +10,9 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
+    CONF_CHARGE_COST,
     CONF_CONFIGURE_PARTITIONS,
+    CONF_DISCHARGE_COST,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -24,15 +26,17 @@ from custom_components.haeo.core.schema.elements.battery import (
     SECTION_LIMITS,
     SECTION_OVERCHARGE,
     SECTION_PARTITIONING,
+    SECTION_PRICING,
     SECTION_STORAGE,
     SECTION_UNDERCHARGE,
+    SURFACED_PRICE_HINTS,
 )
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
 )
-from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
+from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields, get_surfaced_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
@@ -43,6 +47,11 @@ from custom_components.haeo.flows.field_schema import (
     convert_sectioned_choose_data_to_config,
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
+)
+from custom_components.haeo.flows.surfaced_policy import (
+    build_surfaced_defaults,
+    build_surfaced_schema_entries,
+    save_surfaced_rules_from_input,
 )
 from custom_components.haeo.sections import (
     build_common_fields,
@@ -63,6 +72,9 @@ PARTITION_SECTION_DEFINITIONS = (
         collapsed=False,
     ),
 )
+
+# Surfaced policy field names (not stored in battery config)
+SURFACED_POLICY_FIELDS: frozenset[str] = frozenset({CONF_CHARGE_COST, CONF_DISCHARGE_COST})
 
 
 class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -88,7 +100,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 collapsed=False,
             ),
             power_limits_section((CONF_MAX_POWER_TARGET_SOURCE, CONF_MAX_POWER_SOURCE_TARGET), collapsed=False),
-            pricing_section((CONF_SALVAGE_VALUE,), collapsed=False),
+            pricing_section((CONF_SALVAGE_VALUE, CONF_CHARGE_COST, CONF_DISCHARGE_COST), collapsed=False),
             efficiency_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE), collapsed=True),
             SectionDefinition(key=SECTION_PARTITIONING, fields=(CONF_CONFIGURE_PARTITIONS,), collapsed=True),
         )
@@ -130,7 +142,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             config = self._build_config(user_input, {})
             return self._finalize(config)
 
-        entity_metadata = extract_entity_metadata(self.hass)
+        entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
         schema = self._build_schema(
             participants,
@@ -164,7 +176,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             return self._finalize(config)
 
         input_fields = get_input_fields(ELEMENT_TYPE)
-        entity_metadata = extract_entity_metadata(self.hass)
+        entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
 
         schema = self._build_partition_schema(input_fields, section_inclusion_map, subentry_data)
@@ -183,6 +195,11 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for main inputs."""
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
+        surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
+        element_name = subentry_data.get(CONF_NAME) if subentry_data else None
+        surfaced_entries = build_surfaced_schema_entries(
+            self.hass, self._get_entry(), element_name, SURFACED_PRICE_HINTS, surfaced_fields
+        )
         return build_sectioned_choose_schema(
             self._get_sections(),
             input_fields,
@@ -201,6 +218,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                         BooleanSelector(BooleanSelectorConfig()),
                     )
                 },
+                SECTION_PRICING: surfaced_entries,
             },
         )
 
@@ -245,6 +263,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 ):
                     has_partitions = True
                     break
+
+        hub_entry = self._get_entry()
+        element_name = subentry_data.get(CONF_NAME) if subentry_data else None
+        surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
+        surfaced_defaults = build_surfaced_defaults(hub_entry, element_name, SURFACED_PRICE_HINTS, surfaced_fields)
+
         section_defaults = build_sectioned_choose_defaults(
             self._get_sections(),
             input_fields,
@@ -253,6 +277,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 SECTION_PARTITIONING: {
                     CONF_CONFIGURE_PARTITIONS: has_partitions,
                 },
+                SECTION_PRICING: surfaced_defaults,
             },
         )
         return {
@@ -290,7 +315,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 input_fields,
                 field_schema,
                 self._get_sections(),
-                exclude_fields=tuple(PARTITION_FIELD_NAMES),
+                exclude_fields=(*PARTITION_FIELD_NAMES, *SURFACED_POLICY_FIELDS),
             )
         )
         return errors if errors else None
@@ -318,6 +343,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             main_input,
             input_fields,
             sections,
+            exclude_fields=tuple(SURFACED_POLICY_FIELDS),
         )
 
         if partition_input:
@@ -339,9 +365,32 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
     def _finalize(self, config: dict[str, Any]) -> SubentryFlowResult:
-        """Finalize the flow by creating or updating the entry."""
+        """Finalize the flow by creating or updating the entry and saving surfaced rules."""
         name = str(self._step1_data[CONF_NAME])
+
+        # Save surfaced policy rules from the pricing section input
+        pricing_input = self._step1_data.get(SECTION_PRICING, {})
+        hub_entry = self._get_entry()
+        translations = self._surfaced_rule_translations(name)
         subentry = self._get_subentry()
+        is_new = subentry is None
+        save_surfaced_rules_from_input(
+            self.hass,
+            hub_entry,
+            name,
+            pricing_input,
+            SURFACED_PRICE_HINTS,
+            translations,
+            apply_defaults=is_new,
+        )
+
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
         return self.async_create_entry(title=name, data=config)
+
+    def _surfaced_rule_translations(self, element_name: str) -> dict[str, str]:
+        """Build translated rule names for surfaced policy rules."""
+        return {
+            "charge_cost": f"{element_name} charge cost",
+            "discharge_cost": f"{element_name} discharge cost",
+        }

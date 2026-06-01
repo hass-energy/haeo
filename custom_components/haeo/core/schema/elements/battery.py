@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
+from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints, SurfacedPriceHint
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -44,6 +44,30 @@ CONF_CONFIGURE_PARTITIONS: Final = "configure_partitions"
 CONF_PARTITION_PERCENTAGE: Final = "percentage"
 CONF_PARTITION_COST: Final = "cost"
 CONF_SALVAGE_VALUE: Final = "salvage_value"
+
+CONF_CHARGE_COST: Final = "charge_cost"
+CONF_DISCHARGE_COST: Final = "discharge_cost"
+
+SURFACED_PRICE_HINTS: Final[dict[str, SurfacedPriceHint]] = {
+    CONF_CHARGE_COST: SurfacedPriceHint(
+        hint=FieldHint(
+            output_type=OutputType.PRICE,
+            time_series=True,
+            default_mode="value",
+            default_value=-0.001,
+        ),
+        source_is_wildcard=True,
+    ),
+    CONF_DISCHARGE_COST: SurfacedPriceHint(
+        hint=FieldHint(
+            output_type=OutputType.PRICE,
+            time_series=True,
+            default_mode="value",
+            default_value=0.0,
+        ),
+        source_is_wildcard=False,
+    ),
+}
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
@@ -242,7 +266,7 @@ class BatteryConfigSchema(ConnectedCommonConfig):
                         device_type="undercharge_partition",
                     ),
                     CONF_PARTITION_COST: FieldHint(
-                        output_type=OutputType.PRICE,
+                        output_type=OutputType.PRICE_RATE,
                         direction="-",
                         time_series=True,
                         default_mode="value",
@@ -269,7 +293,7 @@ class BatteryConfigSchema(ConnectedCommonConfig):
                         device_type="overcharge_partition",
                     ),
                     CONF_PARTITION_COST: FieldHint(
-                        output_type=OutputType.PRICE,
+                        output_type=OutputType.PRICE_RATE,
                         direction="-",
                         time_series=True,
                         default_mode="value",

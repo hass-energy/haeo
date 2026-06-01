@@ -287,8 +287,13 @@ Input entities appear as Number entities with the `config` entity category.
 | `number.{name}_efficiency_target_source`  | %      | Charge efficiency (if configured)            |
 | `number.{name}_percentage`                | %      | Undercharge or overcharge percentage         |
 | `number.{name}_cost`                      | \$/kWh | Undercharge or overcharge cost               |
+| `number.{name}_charge_cost`               | \$/kWh | Charge cost (if configured)                  |
+| `number.{name}_discharge_cost`            | \$/kWh | Discharge cost (if configured)               |
 
 When both undercharge and overcharge partitions are configured, Home Assistant adds a suffix to keep entity IDs unique.
+
+The charge and discharge cost inputs are surfaced from the [policy](../../walkthroughs/power-policies.md) rules they create.
+They appear on both the battery device and the Policies device; editing either updates the same stored value.
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
@@ -305,13 +310,13 @@ A Battery element creates a single device in Home Assistant:
 
 These sensors appear on the battery device:
 
-| Sensor                                                       | Unit  | Description                                  |
-| ------------------------------------------------------------ | ----- | -------------------------------------------- |
-| [`sensor.{name}_power_charge`](#charge-power)                | kW    | Charging power                               |
-| [`sensor.{name}_power_discharge`](#discharge-power)          | kW    | Discharging power                            |
-| [`sensor.{name}_energy_stored`](#energy-stored)              | kWh   | Current energy level                         |
-| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %     | State of charge percentage                   |
-| [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kW | Marginal value of power at battery terminals |
+| Sensor                                                       | Unit   | Description                                  |
+| ------------------------------------------------------------ | ------ | -------------------------------------------- |
+| [`sensor.{name}_power_charge`](#charge-power)                | kW     | Charging power                               |
+| [`sensor.{name}_power_discharge`](#discharge-power)          | kW     | Discharging power                            |
+| [`sensor.{name}_energy_stored`](#energy-stored)              | kWh    | Current energy level                         |
+| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %      | State of charge percentage                   |
+| [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kWh | Marginal value of power at battery terminals |
 
 ### Charge Power
 

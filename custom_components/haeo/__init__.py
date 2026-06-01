@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Mapping
 from dataclasses import dataclass, field
 import logging
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
@@ -28,16 +27,18 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema.elements.policy import PolicyRuleConfig
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
+from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.input_stores import InputStoreMap, build_input_stores
 from custom_components.haeo.services import async_setup_services
 
 from . import migrations as _migrations
 
 if TYPE_CHECKING:
     from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
-    from custom_components.haeo.entities.haeo_number import ConfigEntityMode
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,49 +46,7 @@ async_migrate_entry = _migrations.async_migrate_entry
 MIGRATION_MINOR_VERSION = _migrations.MIGRATION_MINOR_VERSION
 
 
-class InputEntity(Protocol):
-    """Protocol for input entities tracked by the runtime data."""
-
-    entity_id: str
-
-    @property
-    def entity_mode(self) -> ConfigEntityMode:
-        """Return the entity's operating mode."""
-        ...
-
-    @property
-    def uses_forecast(self) -> bool:
-        """Return True if this entity produces time-series forecast data."""
-        ...
-
-    @property
-    def horizon_start(self) -> float | None:
-        """Return the first forecast timestamp, or None if not loaded."""
-        ...
-
-    def is_ready(self) -> bool:
-        """Return True if data has been loaded and entity is ready."""
-        ...
-
-    def wait_ready(self) -> Awaitable[None]:
-        """Wait for data to be ready."""
-        ...
-
-    def get_values(self) -> tuple[float | bool, ...] | None:
-        """Return forecast values or None if not loaded."""
-        ...
-
-    @property
-    def captured_source_states(self) -> Mapping[str, State]:
-        """Source states captured from the last data load."""
-        ...
-
-
-type InputEntityKey = tuple[str, tuple[str, ...]]
-type InputEntityMap = dict[InputEntityKey, InputEntity]
-
-
-def _create_input_entities() -> InputEntityMap:
+def _create_input_stores() -> InputStoreMap:
     return {}
 
 
@@ -137,7 +96,7 @@ class HaeoRuntimeData:
 
     Attributes:
         horizon_manager: Manager providing forecast time windows.
-        input_entities: Dict of input entities keyed by (element_name, field_path).
+        input_stores: Dict of input stores keyed by (element_name, field_path).
         auto_optimize_switch: Switch controlling automatic optimization.
         coordinator: Coordinator for network-level optimization (set after input platforms).
         value_update_in_progress: Flag to skip reload when updating entity values.
@@ -145,7 +104,7 @@ class HaeoRuntimeData:
     """
 
     horizon_manager: HorizonManager
-    input_entities: InputEntityMap = field(default_factory=_create_input_entities)
+    input_stores: InputStoreMap = field(default_factory=_create_input_stores)
     auto_optimize_switch: AutoOptimizeSwitch | None = field(default=None)
     coordinator: HaeoDataUpdateCoordinator | None = field(default=None)
     value_update_in_progress: bool = field(default=False)
@@ -243,8 +202,89 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
             coordinator.signal_optimization_stale()
         return
 
+    # Clean up policy rules that reference deleted elements. An element's
+    # subentry is committed only after its config flow finishes, but the flow
+    # writes the element's surfaced policy rules before that. Skip cleanup while
+    # a subentry flow for this entry is active so those rules are not mistaken
+    # for orphans; element deletions do not run a flow, so they still clean up.
+    if not _element_flow_in_progress(hass, entry):
+        _cleanup_policy_rules(hass, entry)
+
     _LOGGER.info("HAEO configuration changed, reloading integration")
     hass.config_entries.async_schedule_reload(entry.entry_id)
+
+
+def _element_flow_in_progress(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Return whether a subentry config flow for this entry is in progress."""
+    return any(flow["handler"][0] == entry.entry_id for flow in hass.config_entries.subentries.async_progress())
+
+
+def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove deleted element references from policy rules.
+
+    When an element subentry is deleted, policy rules may still reference
+    it by name. This strips deleted names from source/target lists,
+    removes rules where either side had elements but became empty, and
+    deduplicates rules that end up with the same source/target pattern.
+    """
+    from custom_components.haeo.flows.surfaced_policy import _save_policy_rules  # noqa: PLC0415
+
+    policy_subentry = find_policy_subentry(entry)
+    if policy_subentry is None:
+        return
+
+    current_element_names = {
+        subentry.title for subentry in entry.subentries.values() if subentry.subentry_id != policy_subentry.subentry_id
+    }
+
+    rules = get_policy_rules(entry)
+    cleaned: list[PolicyRuleConfig] = []
+    seen_patterns: set[tuple[tuple[str, ...] | None, tuple[str, ...] | None]] = set()
+    changed = False
+
+    for rule in rules:
+        source = rule.get("source")
+        target = rule.get("target")
+
+        new_source = [name for name in source if name in current_element_names] if source else source
+        new_target = [name for name in target if name in current_element_names] if target else target
+
+        if new_source != source or new_target != target:
+            changed = True
+
+        # Drop rules where a named side lost all its elements
+        source_emptied = source and not new_source
+        target_emptied = target and not new_target
+        if source_emptied or target_emptied:
+            changed = True
+            continue
+
+        new_rule: PolicyRuleConfig = dict(rule)  # type: ignore[assignment]
+        if new_source != source:
+            if new_source:
+                new_rule["source"] = new_source
+            else:
+                new_rule.pop("source", None)
+        if new_target != target:
+            if new_target:
+                new_rule["target"] = new_target
+            else:
+                new_rule.pop("target", None)
+
+        # Deduplicate rules with the same source/target pattern
+        pattern = (
+            tuple(sorted(new_source)) if new_source else None,
+            tuple(sorted(new_target)) if new_target else None,
+        )
+        if pattern in seen_patterns:
+            changed = True
+            continue
+        seen_patterns.add(pattern)
+
+        cleaned.append(new_rule)
+
+    if changed:
+        _save_policy_rules(hass, entry, cleaned)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
@@ -286,7 +326,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # Start horizon manager's scheduled updates - returns stop function
     entry.async_on_unload(horizon_manager.start())
 
-    # Set up input platforms first - they populate runtime_data.input_entities
+    # Build input stores from configuration before any entities exist. The
+    # stores are the system's source of truth; entities wrap them for display
+    # and the coordinator reads their resolved values.
+    runtime_data.input_stores = build_input_stores(hass, entry, horizon_manager)
+
+    # Create the coordinator from the same subentry snapshot used to build the
+    # input stores, before setting up platforms. Platform setup and store
+    # readiness below yield to the event loop, during which a concurrent
+    # subentry commit (which schedules its own reload) can mutate
+    # entry.subentries. Capturing the coordinator's participant set now keeps it
+    # consistent with the stores it reads from; the pending reload picks up any
+    # element added in the meantime.
+    coordinator = HaeoDataUpdateCoordinator(hass, entry)
+    runtime_data.coordinator = coordinator
+    entry.async_on_unload(coordinator.cleanup)
+
+    # Set up input platforms - entities wrap the prebuilt stores and trigger
+    # their initial load (driven stores from source entities, editable stores
+    # from their persisted value).
     await hass.config_entries.async_forward_entry_setups(entry, INPUT_PLATFORMS)
     # Register cleanup - will be called on failure or unload
     # Return the coroutine directly - HA will wrap it in async_create_task
@@ -294,14 +352,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         lambda: hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)  # type: ignore[arg-type]
     )
 
-    # Wait for all input entities to have their data ready
-    # Each entity signals via asyncio.Event when its forecast data is loaded
-    _LOGGER.debug("Waiting for %d input entities to be ready", len(runtime_data.input_entities))
+    # Wait for all input stores to have their data ready
+    # Each store signals via asyncio.Event when its data is loaded
+    _LOGGER.debug("Waiting for %d input stores to be ready", len(runtime_data.input_stores))
     try:
         async with asyncio.timeout(INPUT_ENTITY_READY_TIMEOUT):
-            await asyncio.gather(*[entity.wait_ready() for entity in runtime_data.input_entities.values()])
+            await asyncio.gather(*[store.wait_ready() for store in runtime_data.input_stores.values()])
     except TimeoutError:
-        not_ready = [key for key, entity in runtime_data.input_entities.items() if not entity.is_ready()]
+        not_ready = [key for key, store in runtime_data.input_stores.items() if not store.is_ready()]
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
             translation_key="input_entities_not_ready",
@@ -311,12 +369,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
             },
         ) from None
     _LOGGER.debug("All input entities ready")
-
-    # Create coordinator after input entities are ready - it reads from them
-    coordinator = HaeoDataUpdateCoordinator(hass, entry)
-    runtime_data.coordinator = coordinator
-    # Register coordinator cleanup
-    entry.async_on_unload(coordinator.cleanup)
 
     # Wrap coordinator operations to provide meaningful HA error messages
     # Cleanup is handled via async_on_unload callbacks - no explicit cleanup needed here

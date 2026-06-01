@@ -118,7 +118,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)),
                     }
                 },
             },
@@ -128,7 +128,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
                     }
                 },
             },
@@ -148,8 +148,52 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 GRID_COST_NET: OutputData(
                     type=OutputType.COST, unit="$", values=(0.40,), direction=None, state_last=True
                 ),
-                GRID_POWER_MAX_EXPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
-                GRID_POWER_MAX_IMPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                GRID_POWER_MAX_EXPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
+                GRID_POWER_MAX_IMPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)),
+            }
+        },
+    },
+    {
+        "description": "Grid export connection pruned - export carries no flow",
+        "name": "grid_main",
+        "config": GridConfigData(
+            element_type=ElementType.GRID,
+            name="grid_main",
+            connection=as_connection_target("network"),
+            pricing={
+                "price_source_target": np.array([0.10]),
+                "price_target_source": np.array([0.05]),
+            },
+            power_limits={},
+        ),
+        "model_outputs": {
+            "grid_main:import": {
+                connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
+                ),
+                connection.CONNECTION_SEGMENTS: {
+                    "power_limit": {
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)),
+                    }
+                },
+            },
+        },
+        "periods": np.array([1.0]),
+        "outputs": {
+            GRID_DEVICE_GRID: {
+                GRID_POWER_EXPORT: OutputData(type=OutputType.POWER, unit="kW", values=(0.0,), direction="-"),
+                GRID_POWER_IMPORT: OutputData(type=OutputType.POWER, unit="kW", values=(5.0,), direction="+"),
+                GRID_POWER_ACTIVE: OutputData(type=OutputType.POWER, unit="kW", values=(5.0,), direction=None),
+                GRID_COST_IMPORT: OutputData(
+                    type=OutputType.COST, unit="$", values=(0.50,), direction="-", state_last=True
+                ),
+                GRID_REVENUE_EXPORT: OutputData(
+                    type=OutputType.COST, unit="$", values=(0.0,), direction="+", state_last=True
+                ),
+                GRID_COST_NET: OutputData(
+                    type=OutputType.COST, unit="$", values=(0.50,), direction=None, state_last=True
+                ),
+                GRID_POWER_MAX_IMPORT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)),
             }
         },
     },

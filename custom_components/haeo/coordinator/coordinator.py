@@ -33,9 +33,9 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMENT_TYPE, DEFAULT_DEBOUNCE_SECONDS
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.forecast_times import tiers_to_periods_seconds
-from custom_components.haeo.core.data.loader.config_loader import load_element_config as _core_load_element_config
-from custom_components.haeo.core.data.loader.config_loader import load_element_configs
+from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.util import extract_unit_parts
 from custom_components.haeo.core.state import EntityState
@@ -46,15 +46,15 @@ from custom_components.haeo.elements import (
     collect_element_subentries,
     get_element_configs,
 )
-from custom_components.haeo.elements.availability import schema_config_available
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
-from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 
 from . import network as network_module
 
 if TYPE_CHECKING:
-    from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData, InputEntity
+    from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
+    from custom_components.haeo.core.data.input_store import InputStore
+    from custom_components.haeo.elements import InputFieldPath
     from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -214,7 +214,11 @@ def _build_coordinator_output(
         state=state,
         forecast=forecast,
         direction=output_data.direction,
-        entity_category=(EntityCategory.DIAGNOSTIC if output_name == OUTPUT_NAME_OPTIMIZATION_DURATION else None),
+        entity_category=(
+            EntityCategory.DIAGNOSTIC
+            if output_name == OUTPUT_NAME_OPTIMIZATION_DURATION or output_data.type == OutputType.SHADOW_PRICE
+            else None
+        ),
         device_class=DEVICE_CLASS_MAP.get(output_data.type),
         state_class=STATE_CLASS_MAP.get(output_data.type),
         options=(STATUS_OPTIONS if output_data.type == OutputType.STATUS else None),
@@ -227,13 +231,13 @@ def _build_coordinator_output(
 def _build_optimization_context(
     hub_config: Mapping[str, Any],
     participant_configs: Mapping[str, ElementConfigSchema],
-    input_entities: Mapping[Any, "InputEntity"],
+    input_stores: Mapping[Any, "InputStore"],
     horizon_manager: "HorizonManager",
 ) -> OptimizationContext:
     """Build an optimization context by pulling from existing sources."""
     source_states: dict[str, EntityState] = {}
-    for entity in input_entities.values():
-        source_states.update(entity.captured_source_states)
+    for store in input_stores.values():
+        source_states.update(store.captured_source_states)
 
     horizon_start = horizon_manager.current_start_time
     if horizon_start is None:
@@ -292,15 +296,26 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Tests may set this manually before the first optimization.
         self.network: Network = None  # type: ignore[assignment]
         self._element_updaters: dict[str, network_module.ElementUpdater] = {}
+        self.topology: dict[str, Any] = {}  # Serialized topology for frontend
 
-        # Map element names to subentry IDs so we can look up fresh data
-        # from config_entry.subentries at load time. We don't cache subentry.data
-        # because async_update_subentry_value replaces the MappingProxyType,
-        # making cached references stale.
+        # Snapshot the participant structure (which elements exist and the shape
+        # of each, including list fields like policy rules) taken from the same
+        # subentry view that built the input stores. Field *values* are read live
+        # from the stores at optimization time, so value edits still apply; only
+        # the structure is fixed. Structural changes always trigger a reload,
+        # which rebuilds both the stores and this snapshot together. Reading the
+        # structure live instead would let a subentry committed during setup's
+        # awaits (which schedules its own reload) leak in without matching
+        # stores, breaking config assembly.
         self._participant_subentry_ids: dict[str, str] = {}  # element_name -> subentry_id
 
         for participant in collect_element_subentries(config_entry):
             self._participant_subentry_ids[participant.name] = participant.subentry.subentry_id
+
+        self._participant_configs: dict[str, ElementConfigSchema] = get_element_configs(
+            config_entry,
+            self._participant_subentry_ids,
+        )
 
         # Custom debouncing state
         advanced_data = config_entry.data.get(HUB_SECTION_ADVANCED, {})
@@ -325,13 +340,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._state_change_unsubs: list[Callable[[], None]] = []
 
     def _get_participant_configs(self) -> dict[str, ElementConfigSchema]:
-        """Read fresh participant configs from the config entry's subentries.
+        """Return the participant structure snapshot taken at construction.
 
-        Delegates to ``get_element_configs`` which validates each subentry via
-        the ``is_element_config_schema`` TypeGuard, ensuring the returned data
-        is properly typed as ``ElementConfigSchema`` with no ``Any``.
+        The snapshot is consistent with the input stores: both derive from the
+        same subentry view. Field values are read live from the stores, so this
+        only fixes structure, which changes solely via a reload.
         """
-        return get_element_configs(self.config_entry, self._participant_subentry_ids)
+        return self._participant_configs
 
     async def async_initialize(self) -> None:
         """Initialize the network and set up subscriptions.
@@ -346,7 +361,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             raise RuntimeError(msg)
 
         periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
-        loaded_configs = self._load_from_input_entities()
+        loaded_configs = self._load_from_input_stores()
 
         _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
 
@@ -355,14 +370,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             periods_seconds=periods_seconds,
             participants=loaded_configs,
         )
+
+        # Build topology for frontend card
+        element_types = {name: str(config[CONF_ELEMENT_TYPE]) for name, config in loaded_configs.items()}
+        self.topology = serialize_topology(self.network, element_types=element_types)
         await network_module.evaluate_network_connectivity(
             self.hass,
             self.config_entry,
             participants=loaded_configs,
         )
 
-        # Subscribe to input entity changes
-        self._subscribe_to_input_entities()
+        # Subscribe to input store changes
+        self._subscribe_to_input_stores()
 
     def _get_config_entry(self) -> "HaeoConfigEntry":
         """Get the typed config entry."""
@@ -373,11 +392,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         config_entry = self._get_config_entry()
         return getattr(config_entry, "runtime_data", None)
 
-    def _subscribe_to_input_entities(self) -> None:
-        """Subscribe to state changes from input entities.
+    def _subscribe_to_input_stores(self) -> None:
+        """Subscribe to value changes from input stores.
 
-        Sets up per-element callbacks so each input entity only updates
-        its specific element's TrackedParams when it changes.
+        Sets up per-store listeners so each store only updates its specific
+        element's TrackedParams when its value changes.
 
         Also subscribes to the auto-optimize switch to control horizon manager
         pause/resume and trigger optimization on re-enable.
@@ -407,32 +426,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # Apply initial state from the switch (it may have been restored)
             self._apply_auto_optimize_state(is_enabled=runtime_data.auto_optimize_switch.is_on or False)
 
-        # Group input entities by element name
-        entities_by_element: dict[str, list[str]] = {}
-        for (element_name, _field_path), entity in runtime_data.input_entities.items():
-            if element_name not in entities_by_element:
-                entities_by_element[element_name] = []
-            entities_by_element[element_name].append(entity.entity_id)
+        # Subscribe each store to update only its element when its value changes
+        for (element_name, _field_path), store in runtime_data.input_stores.items():
+            self._state_change_unsubs.append(store.add_listener(self._create_store_listener(element_name)))
 
-        # Subscribe each element's entities to update only that element
-        for element_name, entity_ids in entities_by_element.items():
-            self._state_change_unsubs.append(
-                async_track_state_change_event(
-                    self.hass,
-                    entity_ids,
-                    self._create_element_update_callback(element_name),
-                )
-            )
-
-    def _create_element_update_callback(self, element_name: str) -> Callable[[Event[EventStateChangedData]], None]:
-        """Create a callback that updates a specific element when its inputs change."""
+    def _create_store_listener(self, element_name: str) -> Callable[[], None]:
+        """Create a listener that updates a specific element when its inputs change."""
 
         @callback
-        def element_update_callback(_event: Event[EventStateChangedData]) -> None:
-            """Handle state change for a specific element's inputs."""
+        def store_listener() -> None:
             self._handle_element_update(element_name)
 
-        return element_update_callback
+        return store_listener
 
     @callback
     def _handle_element_update(self, element_name: str) -> None:
@@ -593,21 +598,32 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             return False
         expected_start = expected_horizon[0]
 
-        # Check forecast input entities have values and matching horizon
-        for entity in runtime_data.input_entities.values():
-            if not entity.uses_forecast:
+        # Check forecast input stores have values and matching horizon
+        for store in runtime_data.input_stores.values():
+            if not store.time_series:
                 continue
-            entity_horizon = entity.horizon_start
-            if entity_horizon is None:
+            store_horizon = store.horizon_start
+            if store_horizon is None:
                 return False
             # Allow small floating point tolerance
-            if abs(entity_horizon - expected_start) > 1.0:
+            if abs(store_horizon - expected_start) > 1.0:
                 return False
 
         return True
 
+    def _field_values_for_element(self, element_name: str) -> dict["InputFieldPath", Any]:
+        """Collect resolved field values from the element's input stores."""
+        runtime_data = self._get_runtime_data()
+        if runtime_data is None:
+            return {}
+        return {
+            field_path: store.value
+            for (name, field_path), store in runtime_data.input_stores.items()
+            if name == element_name
+        }
+
     def _load_element_config(self, element_name: str) -> ElementConfigData:
-        """Load configuration for a single element via the core config loader.
+        """Assemble a single element's config from its input stores.
 
         Args:
             element_name: Name of the element to load
@@ -630,14 +646,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             raise ValueError(msg)
 
         forecast_times = runtime_data.horizon_manager.get_forecast_timestamps()
-        sm = HomeAssistantStateMachine(self.hass)
-        return _core_load_element_config(element_name, participant_configs[element_name], sm, forecast_times)
+        return load_element_config_from_values(
+            element_name,
+            participant_configs[element_name],
+            self._field_values_for_element(element_name),
+            forecast_times,
+        )
 
-    def _load_from_input_entities(self) -> dict[str, ElementConfigData]:
-        """Load element configurations via the core config loader.
+    def _load_from_input_stores(self) -> dict[str, ElementConfigData]:
+        """Assemble all element configurations from input stores.
 
-        Resolves raw participant configs against the HA state machine
-        to produce fully loaded ElementConfigData for each element.
+        Substitutes each input field with its store's pre-resolved value to
+        produce fully loaded ElementConfigData. No state machine is consulted.
         """
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
@@ -645,8 +665,15 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             raise UpdateFailed(msg)
 
         forecast_times = runtime_data.horizon_manager.get_forecast_timestamps()
-        sm = HomeAssistantStateMachine(self.hass)
-        return load_element_configs(self._get_participant_configs(), sm, forecast_times)
+        return {
+            name: load_element_config_from_values(
+                name,
+                config,
+                self._field_values_for_element(name),
+                forecast_times,
+            )
+            for name, config in self._get_participant_configs().items()
+        }
 
     def cleanup(self) -> None:
         """Clean up coordinator resources when unloading."""
@@ -713,24 +740,22 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             context = _build_optimization_context(
                 hub_config=self.config_entry.data,
                 participant_configs=self._get_participant_configs(),
-                input_entities=runtime_data.input_entities,
+                input_stores=runtime_data.input_stores,
                 horizon_manager=runtime_data.horizon_manager,
             )
 
-            # Verify all entity-backed inputs are available before proceeding.
+            # Verify all store-backed inputs are available before proceeding.
             # When any input is unavailable the optimization is skipped, matching
             # the behaviour during initial setup where the integration stays in
-            # the "not ready" state until every entity can supply data.
-            sm = HomeAssistantStateMachine(self.hass)
-            participant_configs = context.participants
-            for name, config in participant_configs.items():
-                if not schema_config_available(config, sm=sm):
+            # the "not ready" state until every store can supply data.
+            for (name, _field_path), store in runtime_data.input_stores.items():
+                if not store.available:
                     msg = f"Element '{name}' has unavailable inputs"
                     raise UpdateFailed(msg)
 
-            # Load element configurations from input entities
-            # All input entities are guaranteed to be fully loaded by the time we get here
-            loaded_configs = self._load_from_input_entities()
+            # Load element configurations from input stores
+            # All input stores are guaranteed to be fully loaded by the time we get here
+            loaded_configs = self._load_from_input_stores()
 
             _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
 

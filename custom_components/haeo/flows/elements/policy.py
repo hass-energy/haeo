@@ -46,7 +46,8 @@ from custom_components.haeo.core.schema.elements.policy import (
 from custom_components.haeo.core.schema.entity_value import as_entity_value, is_entity_value
 from custom_components.haeo.elements import get_list_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldInfo
-from custom_components.haeo.flows.element_flow import ElementFlowMixin
+from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map
+from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
     CHOICE_ENTITY,
@@ -171,9 +172,12 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     def _build_price_selector(self) -> NormalizingChooseSelector:
         """Build a ChooseSelector for the price field (entity/constant)."""
         field_info = self._get_price_field_info()
+        entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
+        inclusion_map = build_inclusion_map({CONF_PRICE: field_info}, entity_metadata)
         return build_choose_selector(
             field_info,
             allowed_choices={CHOICE_ENTITY, CHOICE_CONSTANT},
+            include_entities=inclusion_map.get(CONF_PRICE),
             multiple=True,
             preferred_choice=CHOICE_CONSTANT,
         )
@@ -355,6 +359,20 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if source and target and source == target:
             errors["base"] = "source_target_same"
             return False
+
+        # Block duplicate source/target patterns
+        source_list = sorted(source) if isinstance(source, list) and source else None
+        target_list = sorted(target) if isinstance(target, list) and target else None
+        for i, rule in enumerate(self._rules):
+            if i == exclude_index:
+                continue
+            rule_source = rule.get(CONF_SOURCE)
+            rule_target = rule.get(CONF_TARGET)
+            existing_source = sorted(rule_source) if rule_source else None
+            existing_target = sorted(rule_target) if rule_target else None
+            if source_list == existing_source and target_list == existing_target:
+                errors["base"] = "duplicate_rule"
+                return False
 
         price = user_input.get(CONF_PRICE)
         if isinstance(price, str) and price == "":

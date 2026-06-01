@@ -99,8 +99,10 @@
           "description": "Configure battery parameters for energy optimization",
           "data": {
             "capacity": "Capacity",
+            "charge_cost": "Charge cost",
             "configure_partitions": "Configure battery partitions",
             "connection": "Connection",
+            "discharge_cost": "Discharge cost",
             "efficiency_source_target": "Discharge efficiency",
             "efficiency_target_source": "Charge efficiency",
             "initial_charge_percentage": "State of Charge",
@@ -109,8 +111,6 @@
             "max_power_target_source": "Max charge power",
             "min_charge_percentage": "Min Charge Level",
             "name": "Battery Name",
-            "price_source_target": "Discharge price",
-            "price_target_source": "Charge price",
             "salvage_value": "Salvage value"
           },
           "sections": {
@@ -139,8 +139,8 @@
             },
             "pricing": {
               "data": {
-                "price_source_target": "Discharge price",
-                "price_target_source": "Charge price",
+                "charge_cost": "Charge cost",
+                "discharge_cost": "Discharge cost",
                 "salvage_value": "Salvage value"
               },
               "name": "Pricing"
@@ -331,16 +331,18 @@
           "description": "Configure a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
           "data": {
             "connection": "Connection",
+            "consumption_cost": "Consumption cost",
             "curtailment": "Allow shedding",
             "forecast": "Forecast",
-            "name": "Load Name",
-            "price_target_source": "Consumption value"
+            "name": "Load Name"
           },
           "sections": {
             "common": { "data": { "connection": "Connection", "name": "Load Name" }, "name": "Common settings" },
-            "curtailment": { "data": { "curtailment": "Allow shedding" }, "name": "Shedding" },
-            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" },
-            "pricing": { "data": { "price_target_source": "Consumption value" }, "name": "Value" }
+            "curtailment": {
+              "data": { "consumption_cost": "Consumption cost", "curtailment": "Allow shedding" },
+              "name": "Shedding"
+            },
+            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" }
           }
         }
       },
@@ -416,6 +418,7 @@
         }
       },
       "error": {
+        "duplicate_rule": "A rule with this source and target already exists",
         "missing_name": "Policy name is required",
         "name_exists": "A policy with this name already exists",
         "source_target_same": "Source and target cannot be the same element"
@@ -465,7 +468,8 @@
   "entity": {
     "number": {
       "battery_capacity": { "name": "Capacity" },
-      "battery_cost": { "name": "Cost" },
+      "battery_charge_cost": { "name": "Charge cost" },
+      "battery_discharge_cost": { "name": "Discharge cost" },
       "battery_efficiency_source_target": { "name": "Discharge efficiency" },
       "battery_efficiency_target_source": { "name": "Charge efficiency" },
       "battery_initial_charge_percentage": { "name": "Initial charge" },
@@ -473,10 +477,13 @@
       "battery_max_power_source_target": { "name": "Max discharge power" },
       "battery_max_power_target_source": { "name": "Max charge power" },
       "battery_min_charge_percentage": { "name": "Min charge" },
-      "battery_percentage": { "name": "Percentage" },
+      "battery_overcharge_partition_cost": { "name": "Overcharge cost" },
+      "battery_overcharge_partition_percentage": { "name": "Overcharge percentage" },
       "battery_price_source_target": { "name": "Discharge price" },
       "battery_price_target_source": { "name": "Charge price" },
       "battery_salvage_value": { "name": "Salvage value" },
+      "battery_undercharge_partition_cost": { "name": "Undercharge cost" },
+      "battery_undercharge_partition_percentage": { "name": "Undercharge percentage" },
       "connection_efficiency_source_target": { "name": "Source to target efficiency" },
       "connection_efficiency_target_source": { "name": "Target to source efficiency" },
       "connection_max_power_source_target": { "name": "Max source to target power" },
@@ -491,6 +498,7 @@
       "inverter_efficiency_target_source": { "name": "AC to DC efficiency" },
       "inverter_max_power_source_target": { "name": "Max DC to AC power" },
       "inverter_max_power_target_source": { "name": "Max AC to DC power" },
+      "load_consumption_cost": { "name": "Consumption cost" },
       "load_forecast": { "name": "Forecast" },
       "load_price_target_source": { "name": "Consumption value" },
       "policy_price": { "name": "{rule_name} price" },

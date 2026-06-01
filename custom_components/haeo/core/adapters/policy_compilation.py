@@ -253,6 +253,12 @@ def compile_policies(
     for rule_idx, policy in enumerate(policy_configs):
         sources = _resolve_wildcard(_as_name_list(policy["sources"]), names, wildcard_set=source_names)
         destinations = _resolve_wildcard(_as_name_list(policy["destinations"]), names, wildcard_set=sink_names)
+        # Build a human-readable label from the original source/destination
+        raw_src = _as_name_list(policy["sources"])
+        raw_dst = _as_name_list(policy["destinations"])
+        src_label = ", ".join(raw_src) if raw_src != ["*"] else "*"
+        dst_label = ", ".join(raw_dst) if raw_dst != ["*"] else "*"
+        rule_label = f"{src_label} → {dst_label}"
         # Disabled rules compile into the network structure (VLANs, tags)
         # but start with zero price so they have no cost influence.
         # Toggling enabled/disabled updates the TrackedParam reactively.
@@ -285,6 +291,7 @@ def compile_policies(
                 PolicyPricingElementConfig(
                     element_type=MODEL_ELEMENT_TYPE_POLICY_PRICING,
                     name=element_name,
+                    label=rule_label,
                     price=price,
                     terms=terms,
                 )

@@ -27,6 +27,15 @@ Walkthroughs are generated from a live Home Assistant instance, so the screensho
 
     [:material-arrow-right: Power Policies walkthrough](power-policies.md)
 
+- :material-history:{ .lg .middle } **Historic Diagnostics**
+
+    ---
+
+    Generate a diagnostics snapshot from a past point in time using Developer Tools.
+    Useful for reproducing issues and sharing system context with a developer.
+
+    [:material-arrow-right: Historic Diagnostics walkthrough](historic-diagnostics.md)
+
 </div>
 
 ## Next steps

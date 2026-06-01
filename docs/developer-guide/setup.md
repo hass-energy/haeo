@@ -30,6 +30,16 @@ This installs all development dependencies including:
 - pyright (type checking)
 - mkdocs (documentation)
 
+## Local Home Assistant simulation
+
+For interactive development with realistic input data and a browsable frontend:
+
+```bash
+uv run sim scenario1
+```
+
+See the [local simulation guide](local-sim.md) for options including accelerated time, ephemeral mode, and skipping automatic HAEO setup.
+
 ## Running Tests
 
 ```bash

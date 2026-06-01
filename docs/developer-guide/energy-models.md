@@ -97,7 +97,7 @@ def battery_soc_max(self) -> list[highs_linear_expression]:
 Parameters:
 
 - `output=True`: Expose constraint shadow prices as outputs (default `False`)
-- `unit`: Unit for shadow price outputs (default `"$/kW"`)
+- `unit`: Unit for shadow price outputs (default `"$/kWh"`)
 
 ### @cost decorator
 

@@ -3,35 +3,19 @@
 import asyncio
 import logging
 from pathlib import Path
-from types import MappingProxyType
 from typing import Any
 
 from freezegun import freeze_time
-from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo import MIGRATION_MINOR_VERSION
-from custom_components.haeo.const import DOMAIN, INTEGRATION_TYPE_HUB, OUTPUT_NAME_OPTIMIZATION_STATUS
-from custom_components.haeo.core.const import (
-    CONF_ELEMENT_TYPE,
-    CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-)
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.const import OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.sensor_utils import get_output_sensors
 from tests.scenarios.conftest import ScenarioData
 from tests.scenarios.visualization import visualize_scenario_results
+from tools.sim_hass import setup_haeo_entry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -82,43 +66,7 @@ async def test_scenarios(
 
         # Create hub config entry and add to hass
         scenario_config = scenario_data["config"]
-        # Support both flat tier keys (legacy) and nested under "tiers" (v2+)
-        tiers_data = scenario_config.get("tiers") or scenario_config
-        mock_config_entry = MockConfigEntry(
-            domain=DOMAIN,
-            data={
-                "integration_type": INTEGRATION_TYPE_HUB,
-                HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
-                HUB_SECTION_TIERS: {
-                    CONF_TIER_1_COUNT: tiers_data["tier_1_count"],
-                    CONF_TIER_1_DURATION: tiers_data["tier_1_duration"],
-                    CONF_TIER_2_COUNT: tiers_data.get("tier_2_count", 0),
-                    CONF_TIER_2_DURATION: tiers_data.get("tier_2_duration", 5),
-                    CONF_TIER_3_COUNT: tiers_data.get("tier_3_count", 0),
-                    CONF_TIER_3_DURATION: tiers_data.get("tier_3_duration", 30),
-                    CONF_TIER_4_COUNT: tiers_data.get("tier_4_count", 0),
-                    CONF_TIER_4_DURATION: tiers_data.get("tier_4_duration", 60),
-                },
-                HUB_SECTION_ADVANCED: {},
-            },
-            version=scenario_config.get("version", 1),
-            minor_version=scenario_config.get("minor_version", MIGRATION_MINOR_VERSION),
-        )
-        mock_config_entry.add_to_hass(hass)
-
-        # Create element subentries from the scenario config
-        for name, config in scenario_config["participants"].items():
-            subentry = ConfigSubentry(
-                data=MappingProxyType(config),
-                subentry_type=config[CONF_ELEMENT_TYPE],
-                title=name,
-                unique_id=None,
-            )
-            hass.config_entries.async_add_subentry(mock_config_entry, subentry)
-
-        # Now set up the hub - coordinator will find the subentries via _get_child_elements()
-        await hass.config_entries.async_setup(mock_config_entry.entry_id)
-        await hass.async_block_till_done(wait_background_tasks=True)
+        mock_config_entry = await setup_haeo_entry(hass, scenario_config)
 
         # Get the coordinator from the config entry
         runtime_data = mock_config_entry.runtime_data
@@ -191,7 +139,8 @@ async def test_scenarios(
             output_sensors,
             scenario_path.name,
             scenario_path / "visualizations",
-            coordinator.network,
+            coordinator.topology,
+            anchor_time=scenario_data["environment"]["optimization_start_time"],
         )
 
         # Compare actual outputs with expected outputs using snapshot

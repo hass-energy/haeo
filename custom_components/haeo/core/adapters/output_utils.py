@@ -1,8 +1,11 @@
 """Utilities for validating adapter output mappings."""
 
+from collections.abc import Mapping
 from typing import overload
 
-from custom_components.haeo.core.model import ModelOutputValue
+from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER
 from custom_components.haeo.core.model.output_data import OutputData
 
 
@@ -27,4 +30,19 @@ def expect_output_data(value: ModelOutputValue | None) -> OutputData | None:
     return value
 
 
-__all__ = ["expect_output_data"]
+def connection_power(
+    connection_outputs: Mapping[ModelOutputName, ModelOutputValue] | None,
+    period_count: int,
+) -> OutputData:
+    """Return a connection's power output, or zeros when the connection is absent.
+
+    Policy compilation drops connections that no tagged source can reach. Adapters
+    still run for the configured element, so a pruned connection is treated as
+    carrying no flow rather than failing output extraction.
+    """
+    if connection_outputs is None:
+        return OutputData(type=OutputType.POWER_FLOW, unit="kW", values=[0.0] * period_count, direction="+")
+    return expect_output_data(connection_outputs[CONNECTION_POWER])
+
+
+__all__ = ["connection_power", "expect_output_data"]

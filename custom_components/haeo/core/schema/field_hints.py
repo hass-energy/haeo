@@ -45,6 +45,28 @@ class FieldHint:
 
 
 @dataclass(frozen=True, slots=True)
+class SurfacedPriceHint:
+    """Metadata for a pricing field surfaced from policy rules onto an element form.
+
+    These fields appear on the element's config flow but are stored as
+    policy rules rather than in the element's own config data.
+
+    Attributes:
+        hint: The field hint defining output type, defaults, and constraints.
+        source_is_wildcard: If True, the rule pattern is ``* → element``.
+            If False, the pattern is ``element → *``.
+        negate: If True, the surfaced value is the negation of the stored policy
+            price. The element form and surfaced entities show the running
+            (positive) value while the policy rule stores its negative.
+
+    """
+
+    hint: FieldHint
+    source_is_wildcard: bool
+    negate: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class SectionHints:
     """Wrapper for field hints to use in Annotated metadata."""
 

@@ -23,7 +23,7 @@ Sub-element Naming Convention:
         - "home_battery:connection" (implicit connection to network)
 """
 
-from collections.abc import Mapping, MutableSequence
+from collections.abc import Mapping, MutableSequence, Sequence
 import logging
 import types
 from typing import (
@@ -107,6 +107,7 @@ from custom_components.haeo.core.schema.elements import (
     ElementType,
 )
 from custom_components.haeo.core.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.battery import SURFACED_PRICE_HINTS as BATTERY_SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
 from custom_components.haeo.core.schema.elements.battery_section import (
     OPTIONAL_INPUT_FIELDS as BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
@@ -121,13 +122,18 @@ from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
 from custom_components.haeo.core.schema.elements.load import OPTIONAL_INPUT_FIELDS as LOAD_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.load import SURFACED_PRICE_HINTS as LOAD_SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.elements.load import LoadConfigData
 from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.node import NodeConfigData
 from custom_components.haeo.core.schema.elements.policy import PolicyConfigData
 from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData
-from custom_components.haeo.core.schema.field_hints import extract_field_hints, extract_list_field_hints
+from custom_components.haeo.core.schema.field_hints import (
+    SurfacedPriceHint,
+    extract_field_hints,
+    extract_list_field_hints,
+)
 from custom_components.haeo.elements.field_hints import build_input_fields, build_list_input_fields
 
 from .field_schema import FieldSchemaInfo
@@ -234,6 +240,11 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
 }
 
+SURFACED_PRICE_HINTS_BY_TYPE: Final[dict[str, dict[str, SurfacedPriceHint]]] = {
+    str(ElementType.BATTERY): BATTERY_SURFACED_PRICE_HINTS,
+    str(ElementType.LOAD): LOAD_SURFACED_PRICE_HINTS,
+}
+
 
 def get_input_field_schema_info(
     element_type: ElementType,
@@ -331,7 +342,10 @@ def _conforms_to_typed_dict(
             )
 
         # Get the origin type for generic types (e.g., list[str] -> list)
+        # HA's deep-freeze converts list→tuple, so accept any sequence where list is expected
         check_type = origin if origin is not None else expected_type
+        if check_type is list:
+            return isinstance(value_item, Sequence) and not isinstance(value_item, str)
         return isinstance(value_item, check_type)
 
     for key in required_keys:
@@ -492,13 +506,34 @@ def get_list_input_fields(element_config: Mapping[str, Any]) -> InputFieldGroups
     result: dict[str, dict[str, InputFieldInfo[Any]]] = {}
     for list_key, hints in list_hints.items():
         items = element_config.get(list_key)
-        if not isinstance(items, (list, tuple)):
+        if not isinstance(items, Sequence) or isinstance(items, str):
             continue
         result.update(
             build_list_input_fields(str(element_type), list_key, hints, items),
         )
 
     return result
+
+
+def get_surfaced_input_fields(element_type: str | ElementType) -> dict[str, InputFieldInfo[Any]]:
+    """Return InputFieldInfo objects for surfaced pricing fields.
+
+    These fields appear on the element's config flow but are stored as
+    policy rules. The InputFieldInfo objects drive selector construction
+    and form defaults through the standard field system.
+    """
+    hints = SURFACED_PRICE_HINTS_BY_TYPE.get(str(element_type), {})
+    if not hints:
+        return {}
+    section_fields = build_input_fields(
+        str(element_type), {"_surfaced": {name: hint.hint for name, hint in hints.items()}}
+    )
+    return section_fields.get("_surfaced", {})
+
+
+def get_surfaced_price_hints(element_type: str | ElementType) -> dict[str, SurfacedPriceHint]:
+    """Return SurfacedPriceHint definitions for an element type."""
+    return SURFACED_PRICE_HINTS_BY_TYPE.get(str(element_type), {})
 
 
 def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, InputFieldInfo[Any]]]:
@@ -556,7 +591,7 @@ def get_nested_config_value_by_path(config: Mapping[str, Any], field_path: Input
             if key not in current:
                 return None
             current = current[key]
-        elif isinstance(current, (list, tuple)):
+        elif isinstance(current, Sequence) and not isinstance(current, str):
             try:
                 current = current[int(key)]
             except (ValueError, IndexError):
@@ -587,11 +622,11 @@ def set_nested_config_value_by_path(config: dict[str, Any], field_path: InputFie
     for key in field_path[:-1]:
         if isinstance(current, dict):
             next_value = current.get(key)
-            if isinstance(next_value, (dict, list, tuple)):
+            if isinstance(next_value, (dict, Sequence)) and not isinstance(next_value, str):
                 current = next_value
             else:
                 return False
-        elif isinstance(current, (list, tuple)):
+        elif isinstance(current, Sequence) and not isinstance(current, str):
             try:
                 current = current[int(key)]
             except (ValueError, IndexError):
@@ -615,6 +650,7 @@ __all__ = [
     "ELEMENT_DEVICE_NAMES",
     "ELEMENT_DEVICE_NAMES_BY_TYPE",
     "ELEMENT_OPTIONAL_INPUT_FIELDS",
+    "SURFACED_PRICE_HINTS_BY_TYPE",
     "ElementDeviceName",
     "ElementOutputName",
     "FieldSchemaInfo",
@@ -631,6 +667,8 @@ __all__ = [
     "get_list_input_fields",
     "get_nested_config_value",
     "get_nested_config_value_by_path",
+    "get_surfaced_input_fields",
+    "get_surfaced_price_hints",
     "is_element_config_data",
     "is_element_config_schema",
     "iter_input_field_paths",

@@ -47,6 +47,8 @@ def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[Un
             return [PERCENTAGE]
         case OutputType.PRICE:
             return PRICE_UNIT_SPEC
+        case OutputType.PRICE_RATE:
+            return None
         case _:
             # STATUS, COST, DURATION, SHADOW_PRICE - no unit filtering
             return None

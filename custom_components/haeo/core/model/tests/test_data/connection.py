@@ -23,7 +23,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         },
         "expected_outputs": {
             "connection_power": {"type": "power_flow", "unit": "kW", "values": (5.0, 5.0, 5.0)},
-            "segments": {"power_limit": {"power_limit": {"type": "shadow_price", "unit": "$/kW", "values": (-1.0, -1.0, -1.0)}}},
+            "segments": {"power_limit": {"power_limit": {"type": "shadow_price", "unit": "$/kWh", "values": (-1.0, -1.0, -1.0)}}},
         },
     },
     {
@@ -42,7 +42,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         },
         "expected_outputs": {
             "connection_power": {"type": "power_flow", "unit": "kW", "values": (4.0, 4.0)},
-            "segments": {"power_limit": {"power_limit": {"type": "shadow_price", "unit": "$/kW", "values": (-1.0, -1.0)}}},
+            "segments": {"power_limit": {"power_limit": {"type": "shadow_price", "unit": "$/kWh", "values": (-1.0, -1.0)}}},
         },
     },
     {
@@ -85,7 +85,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         },
         "expected_outputs": {
             "connection_power": {"type": "power_flow", "unit": "kW", "values": (5.0, 5.0)},
-            "segments": {"power_limit": {"power_limit": {"type": "shadow_price", "unit": "$/kW", "values": (-0.9, -0.4)}}},
+            "segments": {"power_limit": {"power_limit": {"type": "shadow_price", "unit": "$/kWh", "values": (-0.9, -0.8)}}},
         },
     },
     {
@@ -104,7 +104,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         },
         "expected_outputs": {
             "connection_power": {"type": "power_flow", "unit": "kW", "values": (10.0, 5.0, 8.0)},
-            "segments": {"power_limit": {"power_limit": {"type": "shadow_price", "unit": "$/kW", "values": (-1.0, -1.0, -1.0)}}},
+            "segments": {"power_limit": {"power_limit": {"type": "shadow_price", "unit": "$/kWh", "values": (-1.0, -1.0, -1.0)}}},
         },
     },
     {
@@ -126,7 +126,7 @@ VALID_CASES: list[ConnectionTestCase] = [
         },
         "expected_outputs": {
             "connection_power": {"type": "power_flow", "unit": "kW", "values": (4.0, 4.0)},
-            "segments": {"power_limit": {"power_limit": {"type": "shadow_price", "unit": "$/kW", "values": (-0.9, -0.8)}}},
+            "segments": {"power_limit": {"power_limit": {"type": "shadow_price", "unit": "$/kWh", "values": (-0.9, -0.8)}}},
         },
     },
     {

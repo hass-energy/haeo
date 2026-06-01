@@ -8,14 +8,14 @@ import voluptuous as vol
 from custom_components.haeo.const import URL_HAFO
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
-from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements.load import CONF_CONSUMPTION_COST, ELEMENT_TYPE, SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
     CONF_FORECAST,
     SECTION_CURTAILMENT,
 )
-from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
+from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields, get_surfaced_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
@@ -27,7 +27,15 @@ from custom_components.haeo.flows.field_schema import (
     preprocess_sectioned_choose_input,
     validate_sectioned_choose_fields,
 )
+from custom_components.haeo.flows.surfaced_policy import (
+    build_surfaced_defaults,
+    build_surfaced_schema_entries,
+    save_surfaced_rules_from_input,
+)
 from custom_components.haeo.sections import build_common_fields, forecast_section
+
+# Surfaced policy field names (not stored in load config)
+SURFACED_POLICY_FIELDS: frozenset[str] = frozenset({CONF_CONSUMPTION_COST})
 
 
 class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -37,7 +45,9 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Return sections for the configuration step."""
         return (
             forecast_section((CONF_FORECAST,), collapsed=False),
-            SectionDefinition(key=SECTION_CURTAILMENT, fields=(CONF_CURTAILMENT,), collapsed=True),
+            SectionDefinition(
+                key=SECTION_CURTAILMENT, fields=(CONF_CURTAILMENT, CONF_CONSUMPTION_COST), collapsed=True
+            ),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
@@ -67,7 +77,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             config = self._build_config(user_input)
             return self._finalize(config, user_input)
 
-        entity_metadata = extract_entity_metadata(self.hass)
+        entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
         schema = self._build_schema(
             participants,
@@ -105,6 +115,11 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for inputs."""
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
+        surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
+        element_name = subentry_data.get(CONF_NAME) if subentry_data else None
+        surfaced_entries = build_surfaced_schema_entries(
+            self.hass, self._get_entry(), element_name, SURFACED_PRICE_HINTS, surfaced_fields
+        )
         return build_sectioned_choose_schema(
             self._get_sections(),
             input_fields,
@@ -116,6 +131,9 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 participants=participants,
                 current_connection=current_connection,
             ),
+            extra_field_entries={
+                SECTION_CURTAILMENT: surfaced_entries,
+            },
         )
 
     def _build_defaults(
@@ -133,6 +151,10 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             if subentry_data
             else None
         )
+        hub_entry = self._get_entry()
+        element_name = subentry_data.get(CONF_NAME) if subentry_data else None
+        surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
+        surfaced_defaults = build_surfaced_defaults(hub_entry, element_name, SURFACED_PRICE_HINTS, surfaced_fields)
         return {
             CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
             CONF_CONNECTION: connection_default,
@@ -140,6 +162,9 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 self._get_sections(),
                 input_fields,
                 current_data=subentry_data,
+                base_defaults={
+                    SECTION_CURTAILMENT: surfaced_defaults,
+                },
             ),
         }
 
@@ -160,6 +185,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 input_fields,
                 field_schema,
                 self._get_sections(),
+                exclude_fields=tuple(SURFACED_POLICY_FIELDS),
             )
         )
         return errors if errors else None
@@ -171,6 +197,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             user_input,
             input_fields,
             self._get_sections(),
+            exclude_fields=tuple(SURFACED_POLICY_FIELDS),
         )
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
@@ -180,9 +207,25 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
 
     def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
-        """Finalize the flow by creating or updating the entry."""
+        """Finalize the flow by creating or updating the entry and saving surfaced rules."""
         name = str(user_input[CONF_NAME])
+
+        # Save surfaced policy rules from the curtailment section input
+        curtailment_input = user_input.get(SECTION_CURTAILMENT, {})
+        hub_entry = self._get_entry()
+        translations = {"consumption_cost": f"{name} consumption cost"}
         subentry = self._get_subentry()
+        is_new = subentry is None
+        save_surfaced_rules_from_input(
+            self.hass,
+            hub_entry,
+            name,
+            curtailment_input,
+            SURFACED_PRICE_HINTS,
+            translations,
+            apply_defaults=is_new,
+        )
+
         if subentry is not None:
             return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
         return self.async_create_entry(title=name, data=config)

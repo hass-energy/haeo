@@ -101,10 +101,10 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Solar element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                            | Unit  | Description                             |
-| ------------------------------------------------- | ----- | --------------------------------------- |
-| [`sensor.{name}_power`](#power)                   | kW    | Actual power generated                  |
-| [`sensor.{name}_forecast_limit`](#forecast-limit) | \$/kW | Value of additional generation capacity |
+| Sensor                                            | Unit   | Description                             |
+| ------------------------------------------------- | ------ | --------------------------------------- |
+| [`sensor.{name}_power`](#power)                   | kW     | Actual power generated                  |
+| [`sensor.{name}_forecast_limit`](#forecast-limit) | \$/kWh | Value of additional generation capacity |
 
 All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 
