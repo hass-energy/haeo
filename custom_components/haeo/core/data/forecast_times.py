@@ -235,9 +235,10 @@ def tiers_to_periods_seconds(
     Args:
         config: Tier configuration dictionary with tier_N_count and tier_N_duration keys,
             plus optional horizon_preset key.
-        start_time: Optional start time for preset alignment. Pass the installation
-            local timezone (timezone-aware) from Home Assistant. If None, uses
-            current UTC time (for tests and CLI only).
+        start_time: Optional start time for preset alignment. When None, uses
+            ``datetime.now(UTC)`` for tier boundary calculations. Pass a
+            timezone-aware datetime in the installation local time zone when
+            wall-clock alignment matters (for example from ``dt_util.now()``).
 
     Returns:
         List of period durations in seconds.

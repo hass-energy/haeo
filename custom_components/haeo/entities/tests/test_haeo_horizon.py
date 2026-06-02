@@ -305,6 +305,20 @@ def adelaide_timezone(hass: HomeAssistant) -> Iterator[None]:
     dt_util.set_default_time_zone(original)
 
 
+def test_update_timestamps_refreshes_smallest_period(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Smallest period is recomputed when tier durations change in config."""
+    manager = HorizonManager(hass, config_entry)
+    assert manager.smallest_period == 300
+
+    config_entry.data[HUB_SECTION_TIERS]["tier_1_duration"] = 1
+    manager._update_timestamps()
+
+    assert manager.smallest_period == 60
+
+
 @freeze_time(datetime(2025, 6, 2, 12, 0, 0, tzinfo=ADELAIDE))
 def test_horizon_manager_adelaide_preset_aligns_t4_to_local_hour(
     hass: HomeAssistant,

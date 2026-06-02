@@ -54,8 +54,11 @@ Preset horizons use the [Home Assistant configured time zone](https://www.home-a
 Installations with UTC offsets that include half-hour or quarter-hour components therefore keep coarser tiers on local clock hours rather than UTC hours.
 The implementation is in `custom_components/haeo/horizon.py` and `custom_components/haeo/core/data/forecast_times.py`.
 
-The `horizon` property returns the current forecast timestamps as a tuple of datetime objects.
-Components access this to align their data loading with the optimization time grid.
+`HorizonManager.get_forecast_timestamps()` returns boundary timestamps as epoch seconds.
+
+Input entities and the coordinator use these values to align data loading with the optimization time grid.
+
+The diagnostic `HaeoHorizonEntity` in `custom_components/haeo/entities/haeo_horizon.py` exposes the same boundaries as timezone-aware `datetime` objects in its `forecast` attribute.
 
 ## Subscription Pattern
 
