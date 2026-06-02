@@ -58,7 +58,7 @@ Use the visual card editor to select a HAEO hub. Forecast entities for that hub 
 
 ## Network topology card
 
-The same Lovelace resource also registers `custom:haeo-topology-card`.
+The integration also registers `custom:haeo-topology-card` as a separate frontend resource.
 It reads the `topology` attribute from a HAEO optimization status sensor and renders the LP network as an interactive SVG graph.
 
 ### Basic topology card config
