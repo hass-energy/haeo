@@ -87,7 +87,7 @@ Optimization settings are stored in `data` under section keys, not in `options`.
 
 Optimization settings are stored in `data` (user-editable), alongside the hub marker.
 The hub flow implementation is in `custom_components/haeo/flows/hub.py`.
-The form uses sectioned schemas (`common`, `advanced`) and an optional `custom_tiers` step when users select a custom planning horizon.
+The form uses sectioned schemas (`common`, `advanced`) with a planning horizon ChooseSelector (preset or forecast entity).
 
 ### Key implementation points
 

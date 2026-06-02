@@ -152,6 +152,17 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     return entity_ids
 
 
+def _horizon_runtime_summary(runtime_data: HaeoRuntimeData) -> dict[str, Any]:
+    """Summarize the active horizon for diagnostics."""
+    manager = runtime_data.horizon_manager
+    return {
+        "mode": getattr(manager, "horizon_mode", None),
+        "preset": getattr(manager, "horizon_preset", None),
+        "entity_id": getattr(manager, "horizon_entity_id", None),
+        "period_count": getattr(manager, "period_count", None),
+    }
+
+
 def _config_from_entry(config_entry: HaeoConfigEntry) -> dict[str, Any]:
     """Build diagnostics config section from the config entry (current config).
 
@@ -355,6 +366,9 @@ async def collect_diagnostics(
         config = _config_from_entry(config_entry)
         config["version"] = config_entry.version
         config["minor_version"] = config_entry.minor_version
+        runtime_data = config_entry.runtime_data
+        if isinstance(runtime_data, HaeoRuntimeData):
+            config["horizon_runtime"] = _horizon_runtime_summary(runtime_data)
         inputs, missing = await _fetch_inputs_at(hass, config_entry, started_at)
         diagnostic_target_time = _to_local_iso(target_time)
         optimization_start_time = _to_local_iso(started_at)
@@ -374,6 +388,7 @@ async def collect_diagnostics(
         config = _config_from_context(coordinator_data.context)
         config["version"] = config_entry.version
         config["minor_version"] = config_entry.minor_version
+        config["horizon_runtime"] = _horizon_runtime_summary(runtime_data)
         inputs = _inputs_from_context(coordinator_data.context)
         missing = []
         diagnostic_target_time = None

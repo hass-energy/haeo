@@ -36,9 +36,10 @@ from homeassistant.helpers import restore_state as rs
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import MIGRATION_MINOR_VERSION
-from custom_components.haeo.const import DOMAIN, INTEGRATION_TYPE_HUB
+from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN, INTEGRATION_TYPE_HUB
 from custom_components.haeo.core.const import (
     CONF_ELEMENT_TYPE,
+    CONF_HORIZON_PRESET,
     CONF_NAME,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
@@ -49,7 +50,12 @@ from custom_components.haeo.core.const import (
     CONF_TIER_4_COUNT,
     CONF_TIER_4_DURATION,
 )
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.flows import (
+    HUB_SECTION_ADVANCED,
+    HUB_SECTION_COMMON,
+    HUB_SECTION_TIERS,
+    get_tier_config_for_preset,
+)
 from tools.live_hass import (
     PROJECT_ROOT,
     LiveHomeAssistant,
@@ -84,28 +90,70 @@ async def wait_for_sim_idle(hass: HomeAssistant) -> None:
     await hass.async_block_till_done(wait_background_tasks=True)
 
 
+def _hub_entry_data_from_scenario(scenario_config: dict[str, Any]) -> dict[str, Any]:
+    """Build hub config entry data from scenario config (flat or sectioned)."""
+    if scenario_config.get("integration_type") == INTEGRATION_TYPE_HUB or "common" in scenario_config:
+        entry_data = {
+            key: value
+            for key, value in scenario_config.items()
+            if key
+            not in (
+                "participants",
+                "version",
+                "minor_version",
+                "update_interval_minutes",
+            )
+        }
+        if "common" in entry_data and HUB_SECTION_COMMON not in entry_data:
+            entry_data[HUB_SECTION_COMMON] = entry_data.pop("common")
+        if "tiers" in entry_data and HUB_SECTION_TIERS not in entry_data:
+            entry_data[HUB_SECTION_TIERS] = entry_data.pop("tiers")
+        if "advanced" in entry_data and HUB_SECTION_ADVANCED not in entry_data:
+            entry_data[HUB_SECTION_ADVANCED] = entry_data.pop("advanced")
+        entry_data.setdefault("integration_type", INTEGRATION_TYPE_HUB)
+        entry_data.setdefault(HUB_SECTION_ADVANCED, {})
+        return entry_data
+
+    tiers_data = scenario_config.get("tiers") or scenario_config
+    horizon_preset = scenario_config.get(CONF_HORIZON_PRESET) or scenario_config.get("horizon_preset")
+    if not isinstance(horizon_preset, str) or not horizon_preset:
+        msg = "Scenario hub config must include horizon_preset (for example 3_days)"
+        raise ValueError(msg)
+
+    common_section = {
+        CONF_NAME: scenario_config.get(CONF_NAME, "Test Hub"),
+        CONF_HORIZON_PRESET: horizon_preset,
+    }
+    if horizon_preset != "custom":
+        tiers_section = get_tier_config_for_preset(horizon_preset)
+    else:
+        tiers_section = {
+            CONF_TIER_1_COUNT: tiers_data["tier_1_count"],
+            CONF_TIER_1_DURATION: tiers_data["tier_1_duration"],
+            CONF_TIER_2_COUNT: tiers_data.get("tier_2_count", 0),
+            CONF_TIER_2_DURATION: tiers_data.get("tier_2_duration", 5),
+            CONF_TIER_3_COUNT: tiers_data.get("tier_3_count", 0),
+            CONF_TIER_3_DURATION: tiers_data.get("tier_3_duration", 30),
+            CONF_TIER_4_COUNT: tiers_data.get("tier_4_count", 0),
+            CONF_TIER_4_DURATION: tiers_data.get("tier_4_duration", 60),
+        }
+
+    return {
+        "integration_type": INTEGRATION_TYPE_HUB,
+        HUB_SECTION_COMMON: common_section,
+        HUB_SECTION_TIERS: tiers_section,
+        HUB_SECTION_ADVANCED: scenario_config.get(HUB_SECTION_ADVANCED, {}),
+        CONF_RECORD_FORECASTS: scenario_config.get(CONF_RECORD_FORECASTS, False),
+    }
+
+
 async def setup_haeo_entry(hass: HomeAssistant, scenario_config: dict[str, Any]) -> MockConfigEntry:
     """Create and set up a HAEO hub config entry from scenario config data."""
     await _remove_haeo_entries(hass)
 
-    tiers_data = scenario_config.get("tiers") or scenario_config
     mock_config_entry = MockConfigEntry(
         domain=DOMAIN,
-        data={
-            "integration_type": INTEGRATION_TYPE_HUB,
-            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
-            HUB_SECTION_TIERS: {
-                CONF_TIER_1_COUNT: tiers_data["tier_1_count"],
-                CONF_TIER_1_DURATION: tiers_data["tier_1_duration"],
-                CONF_TIER_2_COUNT: tiers_data.get("tier_2_count", 0),
-                CONF_TIER_2_DURATION: tiers_data.get("tier_2_duration", 5),
-                CONF_TIER_3_COUNT: tiers_data.get("tier_3_count", 0),
-                CONF_TIER_3_DURATION: tiers_data.get("tier_3_duration", 30),
-                CONF_TIER_4_COUNT: tiers_data.get("tier_4_count", 0),
-                CONF_TIER_4_DURATION: tiers_data.get("tier_4_duration", 60),
-            },
-            HUB_SECTION_ADVANCED: {},
-        },
+        data=_hub_entry_data_from_scenario(scenario_config),
         version=scenario_config.get("version", 1),
         minor_version=scenario_config.get("minor_version", MIGRATION_MINOR_VERSION),
     )

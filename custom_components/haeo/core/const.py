@@ -8,6 +8,7 @@ CONF_NAME: Final = "name"
 
 # Hub configuration keys
 CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
+CONF_HORIZON: Final = "horizon"
 CONF_HORIZON_PRESET: Final = "horizon_preset"
 CONF_ADVANCED_MODE: Final = "advanced_mode"
 

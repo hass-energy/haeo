@@ -16,6 +16,17 @@ from .connection_target import (
 )
 from .constant_value import ConstantValue, as_constant_value, is_constant_value
 from .entity_value import EntityValue, as_entity_value, is_entity_value
+from .horizon_value import (
+    HORIZON_PRESET_CUSTOM,
+    VALUE_TYPE_PRESET,
+    HorizonPresetValue,
+    ParsedHorizonConfig,
+    as_horizon_preset_value,
+    get_horizon_entity_id,
+    is_horizon_entity_value,
+    is_horizon_preset_value,
+    parse_horizon_config,
+)
 from .none_value import NoneValue, as_none_value, is_none_value
 from .types import SchemaContainer, SchemaValue, SchemaValueKind
 from .util import UnitSpec, extract_unit_parts, matches_unit_spec
@@ -60,15 +71,19 @@ def get_schema_value_kinds(value_type: Any) -> frozenset[SchemaValueKind]:
 
 
 __all__ = [
+    "HORIZON_PRESET_CUSTOM",
     "VALUE_TYPE_CONNECTION_TARGET",
     "VALUE_TYPE_CONSTANT",
     "VALUE_TYPE_ENTITY",
     "VALUE_TYPE_NONE",
+    "VALUE_TYPE_PRESET",
     "ConnectionTarget",
     "ConnectionTargetValue",
     "ConstantValue",
     "EntityValue",
+    "HorizonPresetValue",
     "NoneValue",
+    "ParsedHorizonConfig",
     "SchemaContainer",
     "SchemaValue",
     "SchemaValueKind",
@@ -76,16 +91,21 @@ __all__ = [
     "as_connection_target",
     "as_constant_value",
     "as_entity_value",
+    "as_horizon_preset_value",
     "as_none_value",
     "extract_connection_target",
     "extract_unit_parts",
     "get_connection_target_name",
+    "get_horizon_entity_id",
     "get_schema_value_kinds",
     "is_connection_target",
     "is_constant_value",
     "is_entity_value",
+    "is_horizon_entity_value",
+    "is_horizon_preset_value",
     "is_none_value",
     "is_schema_value",
     "matches_unit_spec",
     "normalize_connection_target",
+    "parse_horizon_config",
 ]

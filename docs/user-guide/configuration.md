@@ -36,44 +36,16 @@ A unique name for your energy hub (for example, "Home Energy System").
 
 #### Planning horizon
 
-Choose a planning horizon preset that matches your forecast coverage.
+Choose how HAEO defines the optimization time grid:
+
+- **Preset** (default): Select 2, 3, 5, or 7 days. HAEO builds a multi-tier interval schedule aligned to clock boundaries and extends partial forecasts across the full window.
+- **Forecast entity**: Select a sensor that publishes a HAEO-format `forecast` attribute (list of `time` / `value` points). HAEO uses the forecast timestamps as the horizon boundaries. This is the flexible option when you need a custom interval layout from an external planner.
+
 Presets automatically populate tier configuration.
-Select **Custom** to define tier counts and durations yourself.
-
-#### Custom tiers
-
-HAEO uses dynamic interval sizing to balance precision and performance.
-When you select **Custom**, the next step lets you configure up to four tiers, each specifying how many intervals to create and their duration in minutes.
-
-| Tier | Default Count | Default Duration | Purpose                             |
-| ---- | ------------- | ---------------- | ----------------------------------- |
-| 1    | 5             | 1 minute         | High-resolution near-term decisions |
-| 2    | 5             | 5 minutes        | Short-term response                 |
-| 3    | 46            | 30 minutes       | Day-ahead planning                  |
-| 4    | 48            | 60 minutes       | Extended horizon                    |
-
-The custom tier defaults create approximately 104 intervals spanning roughly 72 hours:
-
-- 5 × 1 min = 5 minutes of fine-grained control
-- 5 × 5 min = 25 minutes of responsive planning
-- 46 × 30 min ≈ 23 hours of day-ahead optimization
-- 48 × 60 min = 48 hours of extended lookahead
-
-**Why variable intervals?**
-
-Near-term decisions benefit from high resolution because they directly influence immediate actions.
-Distant periods can use coarser resolution since forecasts become less reliable further out and battery decisions today rarely depend on hour-by-hour precision three days from now.
-
-**Tuning tips**:
-
-- Set tier counts to zero to disable a tier entirely
-- Increase tier 1 count for faster-responding systems (EV chargers, heat pumps)
-- Reduce tier 4 count if optimization takes too long
-- Match tier 1 duration to your fastest-updating price or forecast sensor
-
-Presets automatically adjust the Tier 4 count to match the selected horizon.
 HAEO uses intelligent forecast cycling to extend partial forecast data across the full horizon.
 A 24-hour solar forecast automatically cycles to cover longer horizons with time-of-day alignment preserved.
+
+Existing hubs configured with legacy custom tiers keep working until you change the planning horizon in hub settings.
 
 #### Advanced Mode
 
@@ -91,7 +63,6 @@ Enable Advanced Mode only if you need direct control over the underlying model l
 See the [elements overview](elements/index.md) for details on which elements require Advanced Mode.
 
 Click **Submit** to create your hub.
-If you selected **Custom**, complete the custom tier step before the hub is created.
 
 ## Adding Elements
 
