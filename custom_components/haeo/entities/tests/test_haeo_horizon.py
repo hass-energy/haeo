@@ -1,10 +1,12 @@
 """Tests for the HAEO horizon entity."""
 
+from collections.abc import Iterator
 from datetime import datetime, timedelta
 import logging
 from unittest.mock import Mock
 from zoneinfo import ZoneInfo
 
+from freezegun import freeze_time
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
@@ -13,8 +15,6 @@ from homeassistant.helpers.entity_platform import EntityPlatform
 from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-
-from freezegun import freeze_time
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_HORIZON_PRESET, CONF_NAME
@@ -297,7 +297,7 @@ def _horizon_t4_boundary_local_minutes(
 
 
 @pytest.fixture
-def adelaide_timezone(hass: HomeAssistant) -> None:
+def adelaide_timezone(hass: HomeAssistant) -> Iterator[None]:
     """Set Home Assistant default timezone to Adelaide for the test."""
     original = dt_util.get_default_time_zone()
     dt_util.set_default_time_zone(ADELAIDE)
