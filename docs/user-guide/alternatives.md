@@ -263,17 +263,17 @@ That LP-first stance is expected to continue: deferrables will use MILP only whe
 
 ### Features
 
-| Feature              | HAEO                                            | EMHASS                          |
-| -------------------- | ----------------------------------------------- | ------------------------------- |
-| Power policies       | Yes (core differentiator)                       | No                              |
-| Forecasting          | Via HA integrations (modular)                   | Built-in ML + solar forecasting |
-| Sensor integration   | Native HA devices and sensors                   | Published sensors + REST API    |
-| Deferrable loads     | Planned (LP-first; use EMHASS until then)       | Yes (core feature)              |
-| Thermal loads        | Not yet                                         | Yes (built-in)                  |
-| Appliance scheduling | Planned (see deferrable loads above)            | Yes (full-horizon MILP)         |
-| Battery optimization | Yes (core feature)                              | Yes (core feature)              |
-| Solar optimization   | Yes (core feature)                              | Yes (core feature)              |
-| Control method       | HA automations with sensors                     | Shell commands, REST, sensors   |
+| Feature              | HAEO                                      | EMHASS                          |
+| -------------------- | ----------------------------------------- | ------------------------------- |
+| Power policies       | Yes (core differentiator)                 | No                              |
+| Forecasting          | Via HA integrations (modular)             | Built-in ML + solar forecasting |
+| Sensor integration   | Native HA devices and sensors             | Published sensors + REST API    |
+| Deferrable loads     | Planned (LP-first; use EMHASS until then) | Yes (core feature)              |
+| Thermal loads        | Not yet                                   | Yes (built-in)                  |
+| Appliance scheduling | Planned (see deferrable loads above)      | Yes (full-horizon MILP)         |
+| Battery optimization | Yes (core feature)                        | Yes (core feature)              |
+| Solar optimization   | Yes (core feature)                        | Yes (core feature)              |
+| Control method       | HA automations with sensors               | Shell commands, REST, sensors   |
 
 ## When to choose each solution
 
