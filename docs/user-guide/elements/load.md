@@ -326,7 +326,7 @@ If optimization fails with loads:
 
 - Disable [Shedding](#shedding) for loads that must always run.
 - Only include loads that represent required consumption in the Load element.
-    For controllable/deferrable loads, model them separately with appropriate constraints.
+    For controllable/deferrable loads today, schedule them externally (for example EMHASS) and drive this element from forecast sensors, or wait for planned native deferrable support in HAEO.
 
 ## Next Steps
 

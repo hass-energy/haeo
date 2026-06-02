@@ -38,7 +38,7 @@ When status is `failed`, check the Home Assistant logs for detailed error messag
 **Entity ID**: `sensor.{network_name}_optimization_duration`
 
 Time taken to solve the optimization in seconds.
-If this value climbs higher than you expect, adjust the interval tiers, simplify the network, or try another solver.
+If this value climbs higher than you expect, adjust the interval tiers or simplify the network.
 Review the [custom tier guidance](configuration.md#custom-tiers) before changing that value.
 
 ## Element Sensors
