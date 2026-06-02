@@ -68,7 +68,7 @@ Advanced elements require manual connection configuration and are intended for u
 
 See the [Configuration guide](../configuration.md#advanced-mode) for details on enabling Advanced Mode.
 
-## Next Steps
+## Next steps
 
 Explore detailed configuration for each element type:
 

@@ -202,7 +202,7 @@ These assertions:
 - Document the architectural invariant being relied upon
 - Return the narrowed type for continued type-safe use
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

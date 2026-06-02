@@ -201,7 +201,7 @@ Include:
 - Configuration (sanitized)
 - Relevant logs
 
-## Next Steps
+## Next steps
 
 Try these resources if you still need assistance after working through the troubleshooting steps.
 

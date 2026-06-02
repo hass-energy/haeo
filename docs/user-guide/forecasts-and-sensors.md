@@ -447,7 +447,7 @@ However, higher resolution forecasts improve accuracy:
 - Use reputable forecast providers with proven track records
 - Consider multiple forecast sources for critical elements
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

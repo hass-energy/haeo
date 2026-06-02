@@ -153,7 +153,7 @@ In practical terms:
 If you need to route policied flow through a junction, model the junction as a plain `Node` (with `is_source=false` and `is_sink=false`) and hang the real sink/source elements off it.
 See [Node roles and policy scope](../modeling/tagged-power.md#node-roles-and-policy-scope) for the full rules.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

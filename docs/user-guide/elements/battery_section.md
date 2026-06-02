@@ -217,7 +217,7 @@ Battery Section does not create implicit connections like the standard Battery e
 **Solution**: Ensure the Battery Section name matches exactly in both the Connection source and target fields.
 Check that the Battery Section element exists before creating connections.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

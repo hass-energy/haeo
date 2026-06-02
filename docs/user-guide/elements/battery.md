@@ -457,7 +457,7 @@ This allows HAEO to:
 - Optimize total system cost
 - Handle different battery characteristics
 
-## Next Steps
+## Next steps
 
 Build on your battery configuration with these guides.
 

@@ -208,12 +208,12 @@ Before committing documentation changes, verify:
 
 ## Next steps requirements
 
-All user-facing pages must end with a **Next Steps** section.
-This replaces the traditional "Related Documentation" bullet list pattern, use Next Steps cards instead.
+All user-facing pages must end with a **Next steps** section (heading `## Next steps`).
+This replaces the traditional "Related Documentation" bullet list pattern, use Next steps cards instead.
 
 ### Purpose
 
-Next Steps sections help users discover related topics and continue their learning journey.
+Next steps sections help users discover related topics and continue their learning journey.
 They prevent dead-ends and guide users toward completing common workflows.
 They also provide links to deeper technical resources (like modeling documentation) for readers who want more detail.
 
@@ -222,7 +222,7 @@ They also provide links to deeper technical resources (like modeling documentati
 Use Material for MkDocs grid cards format (match `docs/index.md`):
 
 ```markdown
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 
@@ -245,7 +245,7 @@ Use Material for MkDocs grid cards format (match `docs/index.md`):
 - **Actionable descriptions**: Focus on what users will do or learn, not just topic names
 - **Appropriate icons**: Use Material icons that match the topic (`:material-battery-charging:`, `:material-chart-line:`, etc.)
 
-### Examples of good Next Steps
+### Examples of good next steps
 
 From solar configuration:
 
@@ -298,8 +298,8 @@ Keep snippets minimal and focused on the concept being explained.
 
 - Confirm terminology matches the glossary above.
 - Compare duplicate topics (for example, battery configuration vs battery modeling) to ensure they complement rather than repeat one another.
-- Ensure every user-facing page ends with a **Next Steps** section that links to the most relevant follow-up topics, and refresh those links whenever nearby content changes.
-- Match the **Next Steps** layout in `docs/index.md`.
+- Ensure every user-facing page ends with a **Next steps** section that links to the most relevant follow-up topics, and refresh those links whenever nearby content changes.
+- Match the **Next steps** layout in `docs/index.md`.
     Use a Material grid, apply `{ .lg .middle }` to the icon, follow with a descriptive sentence, and finish with an arrow-link call to action.
 - Summarise directory layouts at a high level; avoid listing every file because those inventories fall out of date quickly.
 - Make sure each page introduces a concept once and references it elsewhere instead of re-explaining it.
@@ -481,7 +481,7 @@ Before opening a pull request:
 - [ ] Templates applied or intentionally adapted with justification in the PR description
 - [ ] No duplicate information (checked against primary references)
 - [ ] Technical details verified for accuracy (units, sensor behavior, implementation)
-- [ ] User-facing pages include Next Steps sections
+- [ ] User-facing pages include Next steps sections
 - [ ] Developer documentation focuses on architecture, not code reproduction
 
 Following these guidelines keeps HAEO documentation lean, accurate, and easy to maintain.

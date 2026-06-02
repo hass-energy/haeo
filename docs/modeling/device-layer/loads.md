@@ -112,7 +112,7 @@ This means reduced power can be interpreted as partial operation in whatever way
     When curtailment is disabled, consumption equals the forecast exactly.
     When enabled, consumption may be reduced below the forecast based on economics and constraints.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 
