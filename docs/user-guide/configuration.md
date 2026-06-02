@@ -75,20 +75,20 @@ Presets automatically adjust the Tier 4 count to match the selected horizon.
 HAEO uses intelligent forecast cycling to extend partial forecast data across the full horizon.
 A 24-hour solar forecast automatically cycles to cover longer horizons with time-of-day alignment preserved.
 
-#### Advanced Mode
+#### Expose raw model elements
 
-Advanced Mode is a hub-level setting that enables access to raw modeling elements for advanced users.
+**Expose raw model elements** is a hub-level toggle that shows low-level model building blocks you connect manually.
 
-**When enabled**, Advanced Mode makes additional element types available that provide direct access to model layer components.
-These advanced elements require manual connection configuration and are intended for users who understand the underlying optimization model.
+**When enabled**, additional element types become available with direct access to model layer components.
+These raw model elements require manual connection configuration and are intended for deliberate model composition.
 
 **When disabled** (default), only standard elements are available.
-Standard elements provide automatic connections and optimized behavior suitable for most use cases.
+Standard elements provide automatic connections and behavior suitable for most use cases.
 
-Most users should leave Advanced Mode disabled.
-Enable Advanced Mode only if you need direct control over the underlying model layer components.
+Most users should leave this toggle off.
+Turn it on only if you are deliberately building the optimization model yourself.
 
-See the [elements overview](elements/index.md) for details on which elements require Advanced Mode.
+See the [elements overview](elements/index.md) for details on which elements require raw model elements to be exposed.
 
 Click **Submit** to create your hub.
 If you selected **Custom**, complete the custom tier step before the hub is created.
@@ -149,7 +149,7 @@ HAEO provides element types for modeling different aspects of energy systems:
 energy storage, power generation, consumption, grid connections, and network topology.
 
 Most elements create automatic connections to simplify configuration.
-Some advanced elements provide direct access to model layer components and require manual connection setup.
+Some raw model elements provide direct access to model layer components and require manual connection setup.
 
 See the [elements overview](elements/index.md) for detailed configuration guides for each element type.
 

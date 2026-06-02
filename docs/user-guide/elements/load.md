@@ -5,7 +5,7 @@ The Load element uses forecast data to model any type of consumption pattern fro
 
 !!! note "Connection endpoints"
 
-    Load elements appear in connection selectors only when Advanced Mode is enabled on your hub.
+    Load elements appear in connection selectors only when **Expose raw model elements** is enabled on your hub.
 
 ## Configuration
 

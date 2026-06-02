@@ -4,8 +4,8 @@ Connections define how power flows between elements in your network with support
 
 !!! warning "Advanced Element"
 
-    Connection is only available when **Advanced Mode** is enabled on your hub.
-    This element is intended for advanced users who need explicit control over power flow paths.
+    Connection is only available when **Expose raw model elements** is enabled on your hub.
+    This element is for explicit control over power flow paths when you are building the model manually.
     Most users should rely on implicit connections created automatically by other elements.
 
 !!! note "Implicit connections"
@@ -46,7 +46,7 @@ Use [input number helpers](https://www.home-assistant.io/integrations/input_numb
 ### Connection Endpoint Selection
 
 The **Source** and **Target** fields show a dropdown of available elements that can be used as connection endpoints.
-The list of available elements is filtered based on connectivity level and your hub's Advanced Mode setting.
+The list of available elements is filtered based on connectivity level and whether **Expose raw model elements** is enabled on your hub.
 
 **Why filtering?**
 Standard elements (Grid, Battery, Solar, Load) create implicit connections automatically.
@@ -55,8 +55,8 @@ The filtering hides these elements by default to prevent common mistakes.
 
 **Filtering behavior:**
 
-- Advanced elements that require manual connection setup always appear in the selector regardless of Advanced Mode.
-- Standard elements that create implicit connections automatically only appear when Advanced Mode is enabled.
+- Raw model elements that require manual connection setup always appear in the selector regardless of the hub setting.
+- Standard elements that create implicit connections automatically only appear when **Expose raw model elements** is enabled.
 - Connection elements never appear as endpoints to prevent invalid connection topologies.
 
 This filtering ensures that connection endpoints are appropriate for your configuration level.
@@ -74,10 +74,10 @@ Bidirectional connection between two network nodes:
 | **Max Power Source→Target** | input_number.max_power |
 | **Max Power Target→Source** | input_number.max_power |
 
-!!! note "Advanced Mode required for standard elements"
+!!! note "Expose raw model elements required for standard elements"
 
     This example uses elements that are always available in connection selectors.
-    To connect standard elements that create implicit connections, enable Advanced Mode on your hub.
+    To connect standard elements that create implicit connections, enable **Expose raw model elements** on your hub.
 
 ## Physical Interpretation
 
@@ -110,10 +110,10 @@ Leave both power limits unset for unlimited flow in both directions:
 | **Max Power Source→Target** | _(leave empty)_  |
 | **Max Power Target→Source** | _(leave empty)_  |
 
-!!! note "Advanced Mode required for standard elements"
+!!! note "Expose raw model elements required for standard elements"
 
     This example uses elements that are always available in connection selectors.
-    To connect standard elements that create implicit connections, enable Advanced Mode on your hub.
+    To connect standard elements that create implicit connections, enable **Expose raw model elements** on your hub.
 
 ### Unidirectional Connection
 
@@ -175,9 +175,9 @@ Then configure the connection:
 | **Target**                  | EV_Battery                      |
 | **Max Power Source→Target** | sensor.ev_charging_availability |
 
-!!! note "Advanced Mode required"
+!!! note "Expose raw model elements required"
 
-    This example uses standard elements that require Advanced Mode to appear in connection selectors.
+    This example uses standard elements that require **Expose raw model elements** to appear in connection selectors.
 
 The optimizer will only schedule charging when the sensor value is non-zero.
 

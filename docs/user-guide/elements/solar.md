@@ -5,7 +5,7 @@ HAEO optimizes how generated power flows through your energy network.
 
 !!! note "Connection endpoints"
 
-    Solar elements appear in connection selectors only when Advanced Mode is enabled on your hub.
+    Solar elements appear in connection selectors only when **Expose raw model elements** is enabled on your hub.
 
 ## Configuration
 
