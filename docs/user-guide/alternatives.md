@@ -14,7 +14,7 @@ This page provides a fair, technical comparison to help you choose the solution 
 | **HA requirements**       | Any installation method              | Add-on needs OS/Supervised; Docker works anywhere    |
 | **Configuration**         | UI-based                             | Web UI + configuration files                         |
 | **Network topology**      | Flexible graph                       | Fixed structure                                      |
-| **Optimization**          | Linear programming (LP)              | LP + MILP for deferrable loads                       |
+| **Optimization**          | LP today; minimal MILP planned       | LP + MILP for deferrable loads                       |
 | **Solver**                | HiGHS (bundled, only option)         | HiGHS (bundled default since v0.17)                  |
 | **Typical price model**   | Volatile / real-time tariffs         | Day-ahead / stable daily schedules (MPC for dynamic) |
 | **Optimization cadence**  | Automatic (events + tier boundaries) | Day-ahead (scheduled) or MPC (`naive-mpc-optim`)     |
@@ -22,7 +22,7 @@ This page provides a fair, technical comparison to help you choose the solution 
 | **Horizon resolution**    | Multi-tier (e.g. 1 min → 60 min)     | Uniform optimization timestep                        |
 | **Forecasting**           | Via other HA integrations            | Built-in ML and solar forecasting                    |
 | **Primary use case**      | Battery/solar/grid optimization      | Appliance scheduling + battery/solar                 |
-| **Deferrable appliances** | Not supported (by design)            | Core feature (MILP)                                  |
+| **Deferrable appliances** | Planned (hybrid MILP/LP, not yet)    | Core feature (full-horizon MILP)                     |
 | **Multi-element support** | Multiple batteries/arrays/grids      | Limited                                              |
 | **Integration method**    | Native HA sensors                    | Sensors + REST API + shell commands                  |
 
@@ -179,18 +179,27 @@ Match tier 1 duration to your fastest-updating price or forecast sensor for best
 - **Unique features**: Policy-driven battery charge/discharge and overcharge/undercharge economics, flexible network modeling via connections
 - **Extensibility**: Graph structure allows modeling diverse energy systems without code changes
 
-### Limitations
+### Limitations (today)
 
-- **Continuous optimization**: Linear programming only (MILP intentionally avoided for simplicity and solve speed), cannot optimize discrete appliance on/off decisions
+- **No deferrable loads yet**: Appliance on/off scheduling is not available in HAEO today; use EMHASS (or fixed/forecast loads) until deferrable support ships
 - **Graph complexity**: Requires understanding topology and connection concepts, which adds initial learning curve
 - **Smaller community**: Less historical deployment volume than EMHASS, though actively developed
 - **Requires HACS**: Additional step before installation (though HACS is very common)
 - **Setup complexity**: Flexibility means more configuration options and decisions
 - **External forecasting dependency**: Relies entirely on other HA integrations for forecast data
-- **No MILP scheduling**: Deferrable loads, thermal storage, and appliance on/off are not modeled in HAEO (by design); use EMHASS or feed its forecasts in as inputs
 
-**Tradeoffs**: HAEO trades appliance scheduling capability for simpler configuration, faster solve times, and more flexible network topology modeling.
-The linear programming approach ensures reliable sub-second optimization even on resource-constrained hardware.
+### Deferrable loads (planned)
+
+Deferrable load support is **planned** for HAEO, but it is not a port of EMHASS's full-horizon MILP model.
+
+The intended direction is a **hybrid solve**: keep HAEO's tiered horizon and network LP for batteries, grid, solar, and policies, and add only a **small** mixed-integer part for discrete **run-now** decisions (for example, whether to start a deferrable load in the current interval).
+Later intervals stay continuous power/energy variables on the existing time grid rather than a separate binary variable per future timestep.
+
+That design is still being worked out—element types, constraints, and UI may change—so treat this as **design intent**, not a committed roadmap.
+Until it lands, EMHASS remains the practical choice for deferrable MILP scheduling, including feeding published load forecasts into HAEO as described in [Can you use both?](#can-you-use-both).
+
+**Tradeoffs (today)**: HAEO prioritizes fast, policy-aware LP over the full network; EMHASS prioritizes rich per-slot deferrable MILP inside a fixed system template.
+The linear programming core keeps today's solves reliable on resource-constrained hardware even as deferrable support is added with minimal integer overhead.
 
 ### Best for
 
@@ -223,11 +232,11 @@ The linear programming approach ensures reliable sub-second optimization even on
 
 | Feature                        | HAEO                                    | EMHASS                                    |
 | ------------------------------ | --------------------------------------- | ----------------------------------------- |
-| Algorithm                      | Linear programming (LP)                 | LP; MILP for deferrable loads             |
+| Algorithm                      | LP; sparse MILP planned for deferrables | LP; MILP for deferrable loads             |
 | Solver                         | HiGHS (only option)                     | HiGHS (default, bundled)                  |
 | Scheduling model               | Automatic continuous re-optimization    | Day-ahead or MPC (`naive-mpc-optim`)      |
 | Power policies (provenance)    | Yes (UI + tagged-flow compiler)         | No (global/unit costs in config)          |
-| Discrete decisions             | No (continuous only)                    | Yes for deferrable loads (on/off control) |
+| Discrete decisions             | No today; minimal MILP planned          | Yes for deferrable loads (on/off control) |
 | Time horizon                   | Tier presets or custom (multi-day)      | Configurable                              |
 | Time resolution                | Multi-tier (per-tier interval duration) | Uniform `optimization_time_step`          |
 | Battery management             | Charge/discharge rates                  | Charge/discharge                          |
@@ -247,17 +256,17 @@ The linear programming approach ensures reliable sub-second optimization even on
 
 ### Features
 
-| Feature              | HAEO                              | EMHASS                          |
-| -------------------- | --------------------------------- | ------------------------------- |
-| Power policies       | Yes (core differentiator)         | No                              |
-| Forecasting          | Via HA integrations (modular)     | Built-in ML + solar forecasting |
-| Sensor integration   | Native HA devices and sensors     | Published sensors + REST API    |
-| Deferrable loads     | No (by design; via EMHASS inputs) | Yes (core feature)              |
-| Thermal loads        | No (by design)                    | Yes (built-in)                  |
-| Appliance scheduling | No (by design)                    | Yes (MILP-based)                |
-| Battery optimization | Yes (core feature)                | Yes (core feature)              |
-| Solar optimization   | Yes (core feature)                | Yes (core feature)              |
-| Control method       | HA automations with sensors       | Shell commands, REST, sensors   |
+| Feature              | HAEO                                            | EMHASS                          |
+| -------------------- | ----------------------------------------------- | ------------------------------- |
+| Power policies       | Yes (core differentiator)                       | No                              |
+| Forecasting          | Via HA integrations (modular)                   | Built-in ML + solar forecasting |
+| Sensor integration   | Native HA devices and sensors                   | Published sensors + REST API    |
+| Deferrable loads     | Planned (hybrid MILP/LP; use EMHASS until then) | Yes (core feature)              |
+| Thermal loads        | Not yet                                         | Yes (built-in)                  |
+| Appliance scheduling | Planned (see deferrable loads above)            | Yes (full-horizon MILP)         |
+| Battery optimization | Yes (core feature)                              | Yes (core feature)              |
+| Solar optimization   | Yes (core feature)                              | Yes (core feature)              |
+| Control method       | HA automations with sensors                     | Shell commands, REST, sensors   |
 
 ## When to choose each solution
 
@@ -324,7 +333,7 @@ Consider these factors:
 2. **Provenance pricing**: Chain-specific solar/battery/grid economics → HAEO policies; global tariff + loads → EMHASS
 3. **System complexity**: Simple standard setup → either works; complex topology → HAEO
 4. **Installation method**: HA OS/Supervised add-on → either works; Container/Core native → HAEO; EMHASS via Docker possible on any install
-5. **Optimization type**: Appliance scheduling → EMHASS; battery/solar/grid with provenance policies → HAEO
+5. **Optimization type**: Full-horizon deferrable MILP today → EMHASS; battery/solar/grid with provenance policies → HAEO (native deferrables planned with a lighter MILP/LP split)
 6. **Configuration preference**: UI-based → HAEO; file-based acceptable → EMHASS
 7. **Forecasting**: Want built-in → EMHASS; happy using other integrations → HAEO
 8. **Project maturity**: Want longest track record → EMHASS; modern native integration → HAEO
@@ -350,12 +359,12 @@ Consider these factors:
 Both HAEO and EMHASS are actively maintained, quality projects that solve real energy optimization problems for Home Assistant users.
 Both now use **HiGHS** as their default solver—the meaningful differences are **power policies**, **scheduling setup**, **topology flexibility**, and **integration model**:
 
-- **EMHASS**: Day-ahead or MPC (`naive-mpc-optim`), integrated forecasting, MILP-based deferrable load scheduling, mature community
-- **HAEO**: Native continuous re-optimization, **power policies** for provenance-aware economics, multi-tier horizon, modular forecasting, flexible graph topology
+- **EMHASS**: Day-ahead or MPC (`naive-mpc-optim`), integrated forecasting, full-horizon MILP deferrable scheduling, mature community
+- **HAEO**: Native continuous re-optimization, **power policies** for provenance-aware economics, multi-tier horizon, modular forecasting, flexible graph topology; **deferrable loads planned** with a hybrid MILP/LP approach (not EMHASS-style per-slot binaries across the whole day)
 
 Neither is objectively "better."
-Choose based on whether you need **deferrable appliance scheduling** (EMHASS), **source→target policy economics** (HAEO), **complex topologies** (HAEO), and how you want to handle **volatile prices**—HAEO out of the box, or EMHASS with MPC automations you maintain yourself.
-You can also **combine** them: EMHASS schedules loads and publishes forecasts; HAEO ingests those sensors and optimizes the rest of the network.
+Choose based on whether you need **deferrable appliance scheduling today** (EMHASS), **source→target policy economics** (HAEO), **complex topologies** (HAEO), and how you want to handle **volatile prices**—HAEO out of the box, or EMHASS with MPC automations you maintain yourself.
+You can also **combine** them: EMHASS schedules loads and publishes forecasts; HAEO ingests those sensors and optimizes the rest of the network until native deferrable support is available.
 
 ## Next steps
 
