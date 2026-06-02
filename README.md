@@ -50,6 +50,7 @@ This focused approach means:
 
 - **Real-time Optimization**: Continuously optimizes energy flow across all connected devices
 - **Multi-device Support**: Batteries, solar panels, grid connection, loads, and energy flows
+- **Power Policies**: Source→destination pricing so the optimizer values solar, grid, and battery flows differently ([guide](https://hass-energy.github.io/haeo/walkthroughs/power-policies/))
 - **Price-based Optimization**: Minimizes costs using real-time and forecast electricity prices
 - **Solar Integration**: Optimizes solar generation with curtailment support
 - **Battery Management**: Smart charging/discharging based on prices and SOC constraints
@@ -89,7 +90,7 @@ See the [configuration guide](https://hass-energy.github.io/haeo/user-guide/conf
 - **Connection**: Explicit power flow paths between elements
 - **Battery Section**: Direct model-layer battery access
 
-Pricing and economic incentives use **policy** rules configured on elements.
+Pricing and economic incentives use [**power policies**](https://hass-energy.github.io/haeo/walkthroughs/power-policies/)—rules that price energy by where it comes from and where it goes (for example, cheap solar→load vs paid solar→export).
 See the [elements documentation](https://hass-energy.github.io/haeo/user-guide/elements/) for full details.
 
 ## 📦 Installation

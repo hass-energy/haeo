@@ -6,39 +6,43 @@ This page provides a fair, technical comparison to help you choose the solution 
 
 ## Quick comparison
 
-| Feature                   | HAEO                                  | EMHASS                                            |
-| ------------------------- | ------------------------------------- | ------------------------------------------------- |
-| **Type**                  | Native integration                    | Add-on or Docker/standalone service               |
-| **Maintenance**           | Active                                | Active                                            |
-| **Installation**          | HACS → Integration                    | Add-on store, Docker, or standalone               |
-| **HA requirements**       | Any installation method               | Add-on needs OS/Supervised; Docker works anywhere |
-| **Configuration**         | UI-based                              | Web UI + configuration files                      |
-| **Network topology**      | Flexible graph                        | Fixed structure                                   |
-| **Optimization**          | Linear programming (LP)               | LP + MILP for deferrable loads                    |
-| **Solver**                | HiGHS (bundled, only option)          | HiGHS (bundled default since v0.17)               |
-| **Typical price model**   | Volatile / real-time tariffs          | Day-ahead / stable daily schedules                |
-| **Optimization cadence**  | Continuous (events + tier boundaries) | Day-ahead run + publish current timestep          |
-| **Horizon resolution**    | Multi-tier (e.g. 1 min → 60 min)      | Uniform optimization timestep                     |
-| **Forecasting**           | Via other HA integrations             | Built-in ML and solar forecasting                 |
-| **Primary use case**      | Battery/solar/grid optimization       | Appliance scheduling + battery/solar              |
-| **Deferrable appliances** | Not supported (by design)             | Core feature (MILP)                               |
-| **Multi-element support** | Multiple batteries/arrays/grids       | Limited                                           |
-| **Integration method**    | Native HA sensors                     | Sensors + REST API + shell commands               |
+| Feature                   | HAEO                                 | EMHASS                                               |
+| ------------------------- | ------------------------------------ | ---------------------------------------------------- |
+| **Type**                  | Native integration                   | Add-on or Docker/standalone service                  |
+| **Maintenance**           | Active                               | Active                                               |
+| **Installation**          | HACS → Integration                   | Add-on store, Docker, or standalone                  |
+| **HA requirements**       | Any installation method              | Add-on needs OS/Supervised; Docker works anywhere    |
+| **Configuration**         | UI-based                             | Web UI + configuration files                         |
+| **Network topology**      | Flexible graph                       | Fixed structure                                      |
+| **Optimization**          | Linear programming (LP)              | LP + MILP for deferrable loads                       |
+| **Solver**                | HiGHS (bundled, only option)         | HiGHS (bundled default since v0.17)                  |
+| **Typical price model**   | Volatile / real-time tariffs         | Day-ahead / stable daily schedules (MPC for dynamic) |
+| **Optimization cadence**  | Automatic (events + tier boundaries) | Day-ahead (scheduled) or MPC (`naive-mpc-optim`)     |
+| **Power policies**        | Source→target provenance pricing     | Global import/export and unit costs in config        |
+| **Horizon resolution**    | Multi-tier (e.g. 1 min → 60 min)     | Uniform optimization timestep                        |
+| **Forecasting**           | Via other HA integrations            | Built-in ML and solar forecasting                    |
+| **Primary use case**      | Battery/solar/grid optimization      | Appliance scheduling + battery/solar                 |
+| **Deferrable appliances** | Not supported (by design)            | Core feature (MILP)                                  |
+| **Multi-element support** | Multiple batteries/arrays/grids      | Limited                                              |
+| **Integration method**    | Native HA sensors                    | Sensors + REST API + shell commands                  |
 
 ## Origins and optimization philosophy
 
-The deepest difference between HAEO and EMHASS is not the solver or programming language—it is **when and how** each project expects you to commit to a schedule.
+The deepest differences are **how you price power by provenance**, **how often you re-optimize**, and **what each tool is best at scheduling**—not the solver or programming language alone.
 
 ```mermaid
 flowchart LR
-  subgraph emhassFlow [EMHASS_day_ahead]
-    Forecasts[Day_ahead_forecasts]
-    Once[dayahead_optim_run]
-    Schedule[Full_timestep_schedule]
+  subgraph emhassFlow [EMHASS]
+    Mode{Optimization_mode}
+    Inputs[Forecasts_and_state]
+    Optim[Optim_run]
+    Schedule[Horizon_schedule]
     Publish[publish_closest_slot]
-    Forecasts --> Once --> Schedule --> Publish
+    Mode -->|dayahead-optim| Inputs
+    Mode -->|naive-mpc-optim| Inputs
+    Inputs --> Optim --> Schedule --> Publish
   end
-  subgraph haeoFlow [HAEO_continuous]
+  subgraph haeoFlow [HAEO]
     Live[Live_sensors_and_forecasts]
     Trigger[Input_change_or_tier_boundary]
     Solve[Single_LP_multi_tier_horizon]
@@ -47,16 +51,22 @@ flowchart LR
   end
 ```
 
-### EMHASS: day-ahead planning
+### EMHASS: day-ahead origins, MPC for rolling horizons
 
 EMHASS grew out of **European-style** residential setups where electricity prices for the **next day** are often known in advance (fixed tariffs, published day-ahead markets, or stable daily schedules).
-The primary workflow is **`dayahead-optim`**: treat forecasts and prices for the horizon as given, solve once, save a **complete timestep schedule**, then **publish** the power setpoint for the **closest timestep** to the current time.
+The classic workflow is **`dayahead-optim`**: treat forecasts and prices for the horizon as given, solve once, save a **complete timestep schedule**, then **publish** the power setpoint for the **closest timestep** to the current time.
 
 That model fits when you want every slot in the day filled with a planned action ahead of time—especially **deferrable loads** (washing machines, EV chargers, pool pumps) that need explicit on/off scheduling.
 Deferrable loads use **mixed-integer** variables (binary on/off and startup decisions), with an automatic **LP relaxation fallback** if the MILP solve fails or times out.
 
+EMHASS is **not limited to a single daily run**.
+The **`naive-mpc-optim`** action implements rolling-horizon control: re-run the optimizer on a schedule you define (for example, every 30 minutes), passing updated battery SOC, deferrable-load remaining hours, and fresh forecasts as **runtime parameters**.
+Each run replaces the published horizon schedule; automations still follow the current `sensor.p_*` values.
+This is well suited to dynamic tariffs and changing state, but you wire the cadence yourself (automations, `rest_command`, or shell calls)—it is not built into the Home Assistant integration the way HAEO's event-driven coordinator is.
+See the [EMHASS MPC study case](https://emhass.readthedocs.io/en/latest/study_cases/mpc.html).
+
 Since the v0.17 rewrite, EMHASS uses **CVXPY** with vectorized constraint building and defaults to **HiGHS** as its solver (~0.1s typical for standard cases).
-Day-ahead remains the mental model even though the engine is much faster than earlier releases.
+Day-ahead remains the most documented entry point; MPC is the path for volatile prices within EMHASS.
 
 ### HAEO: continuous re-optimization
 
@@ -70,7 +80,18 @@ See [time discretization](../../modeling/index.md#time-discretization) and [how 
 Results appear as native Home Assistant sensors with **current optimal power** plus **forecast attributes** for future intervals.
 Automations read live sensor values rather than a pre-published daily CSV schedule.
 
-Neither project is limited to one country—choose based on whether your tariffs and workflows look more like **stable day-ahead planning** or **continuous response to changing prices**.
+Neither project is limited to one country.
+For **volatile tariffs**, HAEO's native re-optimization is turnkey; EMHASS can match much of that behavior with **`naive-mpc-optim`** plus your own scheduling glue.
+For **provenance-aware economics** (different value for the same kWh depending on whether it came from solar, grid, or battery), HAEO's **power policies** are a major differentiator—see below.
+
+### HAEO power policies
+
+HAEO's [**power policies**](../walkthroughs/power-policies.md) attach **source→destination** prices and limits to energy flow using a **tagged provenance** model ([modeling reference](../../modeling/tagged-power.md)).
+The optimizer distinguishes, for example, solar→load (free self-consumption) from solar→grid (feed-in tariff), or battery→load (cheap) from battery→grid (discouraged export)—without treating all power as fungible once it enters the network.
+
+Policies compile into the linear program automatically and surface in the UI on a dedicated **Policies** device.
+Battery charge/discharge costs, export incentives, and similar rules are expressed as policies rather than a single global import/export price.
+EMHASS sets import/export unit costs and deferrable-load parameters in configuration; it does not offer an equivalent graph-wide provenance and policy compiler.
 
 ## Architectural differences
 
@@ -79,7 +100,7 @@ Beyond scheduling philosophy, the projects differ in scope and integration style
 **EMHASS** takes an integrated approach: forecasting, machine learning, thermal loads, and deferrable load scheduling live in one package with a more standard system topology.
 
 **HAEO** follows the Unix philosophy: do one thing well.
-It focuses on optimization with a flexible graph-based network model and relies on other Home Assistant integrations for forecasts and prices.
+It focuses on optimization with a flexible graph-based network model, **power policies for source-aware economics**, and relies on other Home Assistant integrations for forecasts and prices.
 The flexibility to model diverse topologies through connections (and Advanced Mode elements) is its defining software-architecture characteristic.
 
 ## EMHASS
@@ -90,11 +111,13 @@ The flexibility to model diverse topologies through connections (and Advanced Mo
 
 ### Overview
 
-EMHASS (Energy Management for Home Assistant) is a Python service (Home Assistant add-on, Docker, or standalone) that optimizes home energy management through **day-ahead optimization**.
+EMHASS (Energy Management for Home Assistant) is a Python service (Home Assistant add-on, Docker, or standalone) that optimizes home energy management.
+Its origins are **day-ahead** scheduling; **`naive-mpc-optim`** adds rolling-horizon re-runs for dynamic prices and updated state.
 It excels at scheduling deferrable loads (washing machines, dishwashers, EV chargers, pool pumps) to minimize costs and maximize self-consumption of solar energy.
 
 ### Strengths
 
+- **Rolling MPC mode**: `naive-mpc-optim` re-optimizes on a user-defined cadence with fresh SOC, forecasts, and deferrable-load windows
 - **Deferrable load MILP**: Binary variables model on/off and startup decisions for true appliance scheduling (with LP fallback)
 - **Fast modern backend**: CVXPY vectorization and bundled HiGHS deliver sub-second solves for typical configurations
 - **Built-in forecasting**: Includes machine learning-based load forecasting and integrates with solar forecasting services (Solcast, Forecast.Solar)
@@ -111,10 +134,12 @@ It excels at scheduling deferrable loads (washing machines, dishwashers, EV char
 - **Configuration complexity**: Despite simpler architecture, configuration can be complex and requires understanding many parameters
 - **Limited multi-element support**: Harder to model multiple batteries, arrays, or custom grid configurations
 - **Integration overhead**: Uses combination of sensors, REST API, and shell commands rather than native integration
+- **No provenance policies**: Economics are configured via global costs and load parameters, not source→target flow rules across the network
+- **MPC is DIY**: Continuous re-optimization requires automations or external triggers; not event-driven inside HA by default
 
 ### Best for
 
-- Day-ahead or stable daily electricity tariffs
+- Day-ahead or stable daily electricity tariffs (or MPC with automations for dynamic tariffs)
 - Users needing discrete appliance/load scheduling
 - Those wanting built-in ML and solar forecasting
 - Home Assistant OS or Supervised (add-on) or Docker/standalone deployments
@@ -133,7 +158,7 @@ It excels at scheduling deferrable loads (washing machines, dishwashers, EV char
 
 HAEO (Home Assistant Energy Optimizer) is a native Home Assistant integration that optimizes energy networks through flexible topology modeling.
 It targets **volatile price environments** with continuous re-optimization and a **multi-tier** planning horizon.
-Its key software innovation is modeling diverse system structures through connections between elements, enabling custom configurations that emerge from the graph itself.
+Its key innovations are **power policies** for provenance-aware economics and modeling diverse system structures through connections between elements.
 
 ### How HAEO chooses what to do now
 
@@ -143,14 +168,15 @@ Match tier 1 duration to your fastest-updating price or forecast sensor for best
 
 ### Strengths
 
-- **Flexible network topology**: Model any system structure through connections - the strongest differentiator. Graph-based approach enables emergent behavior for complex systems
+- **Power policies**: Source→target pricing and limits with tagged provenance—model self-consumption vs export, battery export premiums, and chain-specific costs in one optimization ([power policies walkthrough](../walkthroughs/power-policies.md))
+- **Flexible network topology**: Model any system structure through connections. Graph-based approach enables emergent behavior for complex systems
 - **Native Home Assistant integration**: Works with any HA installation method (OS, Supervised, Container, Core)
 - **Full UI configuration**: Everything configurable through Home Assistant's UI with organized devices
 - **Multiple element support**: Easy support for multiple batteries, solar arrays, grids, and loads
 - **Modern codebase**: Python 3.13+, platinum-level code quality standards, strong typing, comprehensive testing
 - **Lower latency**: Runs alongside Home Assistant instance for minimal delay
 - **Native sensor integration**: Sensors organized into devices, persist between reboots, leverage native HA features
-- **Unique features**: Battery overcharge/undercharge pricing (economic incentives for extended SOC ranges), flexible network modeling via connections
+- **Unique features**: Policy-driven battery charge/discharge and overcharge/undercharge economics, flexible network modeling via connections
 - **Extensibility**: Graph structure allows modeling diverse energy systems without code changes
 
 ### Limitations
@@ -168,7 +194,8 @@ The linear programming approach ensures reliable sub-second optimization even on
 
 ### Best for
 
-- Volatile or real-time electricity pricing (for example, Australian spot or 30-minute tariffs)
+- Volatile or real-time electricity pricing with native event-driven re-optimization (for example, Australian spot or 30-minute tariffs)
+- Source-aware tariffs and incentives (solar export, battery export limits, chain-specific costs) via power policies
 - Complex or custom system topologies
 - Users with multiple batteries, arrays, or grids
 - Home Assistant Container or Core installations
@@ -198,7 +225,8 @@ The linear programming approach ensures reliable sub-second optimization even on
 | ------------------------------ | --------------------------------------- | ----------------------------------------- |
 | Algorithm                      | Linear programming (LP)                 | LP; MILP for deferrable loads             |
 | Solver                         | HiGHS (only option)                     | HiGHS (default, bundled)                  |
-| Scheduling model               | Continuous re-optimization              | Day-ahead schedule + publish closest slot |
+| Scheduling model               | Automatic continuous re-optimization    | Day-ahead or MPC (`naive-mpc-optim`)      |
+| Power policies (provenance)    | Yes (UI + tagged-flow compiler)         | No (global/unit costs in config)          |
 | Discrete decisions             | No (continuous only)                    | Yes for deferrable loads (on/off control) |
 | Time horizon                   | Tier presets or custom (multi-day)      | Configurable                              |
 | Time resolution                | Multi-tier (per-tier interval duration) | Uniform `optimization_time_step`          |
@@ -221,6 +249,7 @@ The linear programming approach ensures reliable sub-second optimization even on
 
 | Feature              | HAEO                          | EMHASS                          |
 | -------------------- | ----------------------------- | ------------------------------- |
+| Power policies       | Yes (core differentiator)     | No                              |
 | Forecasting          | Via HA integrations (modular) | Built-in ML + solar forecasting |
 | Sensor integration   | Native HA devices and sensors | Published sensors + REST API    |
 | Deferrable loads     | Not yet (planned)             | Yes (core feature)              |
@@ -271,14 +300,15 @@ The overlap is significant enough that running both adds complexity without majo
 
 Consider these factors:
 
-1. **Price volatility**: Stable day-ahead tariffs → EMHASS; volatile real-time tariffs → HAEO
-2. **System complexity**: Simple standard setup → either works; complex topology → HAEO
-3. **Installation method**: HA OS/Supervised add-on → either works; Container/Core native → HAEO; EMHASS via Docker possible on any install
-4. **Optimization type**: Appliance scheduling → EMHASS; battery/solar/grid continuous control → HAEO
-5. **Configuration preference**: UI-based → HAEO; file-based acceptable → EMHASS
-6. **Forecasting**: Want built-in → EMHASS; happy using other integrations → HAEO
-7. **Project maturity**: Want longest track record → EMHASS; modern native integration → HAEO
-8. **Resource constraints**: Need separate machine → EMHASS; prefer integrated → HAEO
+1. **Price volatility**: Stable day-ahead tariffs → EMHASS `dayahead-optim`; volatile tariffs → HAEO native updates or EMHASS `naive-mpc-optim` with automations
+2. **Provenance pricing**: Chain-specific solar/battery/grid economics → HAEO policies; global tariff + loads → EMHASS
+3. **System complexity**: Simple standard setup → either works; complex topology → HAEO
+4. **Installation method**: HA OS/Supervised add-on → either works; Container/Core native → HAEO; EMHASS via Docker possible on any install
+5. **Optimization type**: Appliance scheduling → EMHASS; battery/solar/grid with provenance policies → HAEO
+6. **Configuration preference**: UI-based → HAEO; file-based acceptable → EMHASS
+7. **Forecasting**: Want built-in → EMHASS; happy using other integrations → HAEO
+8. **Project maturity**: Want longest track record → EMHASS; modern native integration → HAEO
+9. **Resource constraints**: Need separate machine → EMHASS; prefer integrated → HAEO
 
 ## Getting help
 
@@ -297,13 +327,13 @@ Consider these factors:
 ## Conclusion
 
 Both HAEO and EMHASS are actively maintained, quality projects that solve real energy optimization problems for Home Assistant users.
-Both now use **HiGHS** as their default solver—the meaningful differences are **scheduling philosophy**, **topology flexibility**, and **integration model**:
+Both now use **HiGHS** as their default solver—the meaningful differences are **power policies**, **scheduling setup**, **topology flexibility**, and **integration model**:
 
-- **EMHASS**: Day-ahead planning, integrated forecasting, MILP-based deferrable load scheduling, mature community
-- **HAEO**: Continuous re-optimization over a multi-tier horizon, modular forecasting, flexible graph topology, native HA integration
+- **EMHASS**: Day-ahead or MPC (`naive-mpc-optim`), integrated forecasting, MILP-based deferrable load scheduling, mature community
+- **HAEO**: Native continuous re-optimization, **power policies** for provenance-aware economics, multi-tier horizon, modular forecasting, flexible graph topology
 
 Neither is objectively "better."
-Choose based on whether your electricity market and workflow favor a **pre-planned daily schedule** (EMHASS) or **ongoing response to changing prices** (HAEO), plus whether you need **appliance on/off scheduling** or **complex multi-element topologies**.
+Choose based on whether you need **deferrable appliance scheduling** (EMHASS), **source→target policy economics** (HAEO), **complex topologies** (HAEO), and how you want to handle **volatile prices**—HAEO out of the box, or EMHASS with MPC automations you maintain yourself.
 
 ## Next steps
 
