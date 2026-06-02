@@ -103,7 +103,7 @@ Solar represents a solar generation system that produces power based on weather 
     generation equals forecast exactly.
     When enabled, generation can be reduced below forecast.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

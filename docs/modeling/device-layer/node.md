@@ -97,7 +97,7 @@ Node represents an electrical bus where Kirchhoff's current law applies—total 
 - **No Storage**: Nodes have no capacity—power balance is instantaneous. Use Battery elements for energy storage.
 - **Connection Target**: All other elements (Grid, Battery, Solar, Loads) specify which node they connect to via their `connection.target` field.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

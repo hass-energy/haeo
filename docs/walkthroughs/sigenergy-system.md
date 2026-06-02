@@ -273,7 +273,7 @@ The Inverter element simplifies configuration compared to manual DC/AC nets with
 
 See [Node](../user-guide/elements/node.md) for more on hybrid inverter modeling.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

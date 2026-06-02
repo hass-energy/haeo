@@ -19,7 +19,7 @@ This guide covers everything you need to know as an end user:
 
 Before installing HAEO, confirm:
 
-- Your Home Assistant core version is 2025.4.4 or newer
+- Your Home Assistant core version is 2026.1.1 or newer
 - You can add integrations through the UI or [HACS](https://hacs.xyz/) if you prefer managed updates
 - The data you plan to optimize (prices, forecasts, sensor readings) is already available in Home Assistant or will be added with other integrations
 
@@ -94,7 +94,7 @@ If you run into issues:
 
     Always include your Home Assistant version, HAEO version, and relevant configuration (with sensitive data removed) when asking for help.
 
-## Next Steps
+## Next steps
 
 Continue with these guides to get HAEO running smoothly in your environment.
 

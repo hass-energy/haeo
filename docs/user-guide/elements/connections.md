@@ -325,7 +325,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly) for connection issues.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 
