@@ -12,7 +12,7 @@ interface TopologyCardConstructor {
 
 interface HaeoTopologyCardElement extends HTMLElement {
   setConfig: (config: { type: "custom:haeo-topology-card"; title?: string; hub_entry_id?: string }) => void;
-  hass: unknown;
+  hass: HassLike | null;
   getCardSize: () => number;
   getGridOptions: () => {
     rows: number;
@@ -51,6 +51,13 @@ function scenarioHass(scenario: { entityId: string; state: Record<string, unknow
       "dev-alpha": { config_entries: [hubEntryId] },
     },
   };
+}
+
+async function waitForTopologyController(): Promise<void> {
+  await import("./topology-card-controller");
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
 }
 
 describe("haeo-topology-card smoke", () => {
@@ -183,7 +190,7 @@ describe("haeo-topology-card smoke", () => {
     });
     element.hass = {
       states: {
-        [scenario.entityId]: scenario.state,
+        [scenario.entityId]: scenario.state as unknown as HassLike["states"][string],
         "sensor.other_topology": {
           entity_id: "sensor.other_topology",
           attributes: {
@@ -270,6 +277,39 @@ describe("haeo-topology-card smoke", () => {
 
     expect(element.shadowRoot?.textContent).toContain("Configure a HAEO hub in the card editor");
     expect(element.shadowRoot?.querySelector("svg")).toBeNull();
+    element.remove();
+  });
+
+  it("replays config and hass through the shim after the controller loads", async () => {
+    const scenario = findScenarioTopologyState();
+    expect(scenario).not.toBeNull();
+    if (scenario === null) {
+      throw new Error("Expected scenario topology state");
+    }
+
+    const element = document.createElement("haeo-topology-card") as HaeoTopologyCardElement;
+    element.setConfig({
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
+    });
+    document.body.appendChild(element);
+    await waitForTopologyController();
+
+    element.setConfig({
+      type: "custom:haeo-topology-card",
+      title: "Updated topology",
+      hub_entry_id: "hub-alpha",
+    });
+    element.hass = scenarioHass(scenario, "hub-alpha");
+    await new Promise((resolve) => {
+      setTimeout(resolve, 20);
+    });
+    expect(element.hass.states[scenario.entityId]).toBeTruthy();
+    expect(element.getGridOptions()).toEqual({
+      rows: 7,
+      min_rows: 6,
+      columns: "full",
+    });
     element.remove();
   });
 });

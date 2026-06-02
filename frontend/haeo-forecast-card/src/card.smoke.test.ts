@@ -9,8 +9,13 @@ interface ForecastCardConstructor {
 }
 
 interface HaeoCardElement extends HTMLElement {
-  setConfig: (config: { type: "custom:haeo-forecast-card"; hub_entry_id?: string; entities?: string[] }) => void;
-  hass: unknown;
+  setConfig: (config: {
+    type: "custom:haeo-forecast-card";
+    title?: string;
+    hub_entry_id?: string;
+    entities?: string[];
+  }) => void;
+  hass: HassLike | null;
   getCardSize: () => number;
   getGridOptions: () => {
     rows: number;
@@ -280,5 +285,35 @@ describe("haeo-forecast-card smoke", () => {
       getConfigForm: () => { schema: Array<{ name: string }> };
     };
     expect(cardClass.getConfigForm().schema.some((field) => field.name === "hub_entry_id")).toBe(true);
+  });
+
+  it("replays config and hass through the shim after the controller loads", async () => {
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    element.setConfig(smokeConfig);
+    document.body.appendChild(element);
+    await waitForController();
+
+    element.setConfig({ ...smokeConfig, title: "Updated forecast" });
+    element.hass = smokeHass({
+      "sensor.haeo_grid_import_power": {
+        entity_id: "sensor.haeo_grid_import_power",
+        attributes: {
+          field_type: "power",
+          output_name: "import_power",
+          direction: "-",
+          element_name: "Grid",
+          element_type: "grid",
+          unit_of_measurement: "kW",
+          forecast: [
+            { time: "2026-03-14T00:00:00Z", value: 1.0 },
+            { time: "2026-03-14T00:05:00Z", value: 2.0 },
+          ],
+        },
+      },
+    });
+    expect(element.hass.states["sensor.haeo_grid_import_power"]).toBeTruthy();
+    expect(element.getCardWidth()).toBeGreaterThan(0);
+    expect(element.getGridOptions().rows).toBeGreaterThan(5);
+    element.remove();
   });
 });
