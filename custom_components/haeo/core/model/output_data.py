@@ -48,7 +48,7 @@ class OutputData:
     direction: Literal["+", "-"] | None = None
     advanced: bool = False
     state_last: bool = False
-    state: Any | None = None
+    state: float | None = None
     priority: int | None = None
     fixed: bool = False
     display_precision: int | None = None
@@ -64,7 +64,7 @@ class OutputData:
         *,
         advanced: bool = False,
         state_last: bool = False,
-        state: Any | None = None,
+        state: float | None = None,
         priority: int | None = None,
         fixed: bool = False,
         display_precision: int | None = None,

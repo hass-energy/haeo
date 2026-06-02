@@ -36,7 +36,9 @@ type ConnectionOutputName = Literal[
 CONNECTION_POWER: Final = "connection_power"
 CONNECTION_SEGMENTS: Final = "segments"
 
-CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset((CONNECTION_POWER, CONNECTION_SEGMENTS))
+CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
+    (CONNECTION_POWER, CONNECTION_SEGMENTS)
+)
 
 
 class ConnectionElementConfig(TypedDict):

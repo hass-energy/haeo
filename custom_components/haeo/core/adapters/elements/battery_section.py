@@ -4,7 +4,6 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
-from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as model_battery
@@ -83,7 +82,9 @@ class BatterySectionAdapter:
         **_kwargs: Any,
     ) -> Mapping[BatterySectionDeviceName, Mapping[BatterySectionOutputName, OutputData]]:
         """Map model outputs to battery section output names."""
-        battery_data = {key: expect_output_data(value) for key, value in model_outputs[name].items()}
+        battery_data = {
+            key: value for key, value in model_outputs[name].items() if isinstance(value, OutputData)
+        }
 
         section_outputs: dict[BatterySectionOutputName, OutputData] = {}
 

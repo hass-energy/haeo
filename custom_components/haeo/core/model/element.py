@@ -359,6 +359,43 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
                 )
         return self._produced_by_tag
 
+    @constraint
+    def _element_power_decomposition(self) -> list[highs_linear_expression] | None:
+        """Decompose element production and consumption across connection tags.
+
+        For each tag set, creates auxiliary per-tag variables and constrains their
+        sum to equal total production/consumption. Skipped when there are no
+        connection tags (simple path handled by ``element_power_balance``).
+        """
+        tags = self.connection_tags()
+        if not tags:
+            return None
+
+        dt = self.periods
+        produced = self.element_power_produced()
+        consumed = self.element_power_consumed()
+
+        outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
+        inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
+
+        constraints: list[highs_linear_expression] = []
+
+        if produced is not None:
+            if outbound:
+                produced_by_tag = self._get_produced_by_tag(outbound)
+                constraints.extend(list((reduce(operator.add, produced_by_tag.values()) - produced) * dt == 0))
+            else:
+                constraints.extend(list(produced * dt == 0))
+
+        if consumed is not None:
+            if inbound:
+                consumed_by_tag = self._get_consumed_by_tag(inbound)
+                constraints.extend(list((reduce(operator.add, consumed_by_tag.values()) - consumed) * dt == 0))
+            else:
+                constraints.extend(list(consumed * dt == 0))
+
+        return constraints if constraints else None
+
     @constraint(output=True, unit="$/kWh")
     def element_power_balance(self) -> list[highs_linear_expression] | None:
         """Per-tag energy balance: for each tag, (connection + produced - consumed) * dt == 0.
@@ -367,9 +404,12 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         independent of period width. Power (kW) is multiplied by the period
         duration (h) to give energy (kWh) for each balance constraint.
 
-        Production is decomposed across ``outbound_tags`` via per-tag variables.
-        Consumption is decomposed across ``inbound_tags`` via per-tag variables.
-        Tags outside both sets are blocked (each connection's per-tag flow == 0).
+        Production and consumption decomposition constraints live in
+        ``_element_power_decomposition`` so this output carries only per-tag
+        balance shadow prices (one block of ``n_periods`` values per tag).
+
+        Tags outside both ``outbound_tags`` and ``inbound_tags`` are blocked
+        (each connection's per-tag flow == 0).
 
         Output: shadow price indicating the marginal value of energy at this element.
         Skipped when there are no connections and no external power.
@@ -391,31 +431,17 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         produced = self.element_power_produced()
         consumed = self.element_power_consumed()
 
-        # Determine which tags can carry produced/consumed power
         outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
         inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
 
+        produced_by_tag: dict[int, HighspyArray] = (
+            self._get_produced_by_tag(outbound) if produced is not None and outbound else {}
+        )
+        consumed_by_tag: dict[int, HighspyArray] = (
+            self._get_consumed_by_tag(inbound) if consumed is not None and inbound else {}
+        )
+
         constraints: list[highs_linear_expression] = []
-
-        # Decompose production across outbound tags
-        produced_by_tag: dict[int, HighspyArray] = {}
-        if produced is not None:
-            if outbound:
-                produced_by_tag = self._get_produced_by_tag(outbound)
-                constraints.extend(list((reduce(operator.add, produced_by_tag.values()) - produced) * dt == 0))
-            else:
-                constraints.extend(list(produced * dt == 0))
-
-        # Decompose consumption across inbound tags
-        consumed_by_tag: dict[int, HighspyArray] = {}
-        if consumed is not None:
-            if inbound:
-                consumed_by_tag = self._get_consumed_by_tag(inbound)
-                constraints.extend(list((reduce(operator.add, consumed_by_tag.values()) - consumed) * dt == 0))
-            else:
-                constraints.extend(list(consumed * dt == 0))
-
-        # Per-tag power balance
         for tag in sorted(tags):
             tag_prod = produced_by_tag.get(tag, 0)
             tag_cons = consumed_by_tag.get(tag, 0)

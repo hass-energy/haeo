@@ -225,7 +225,9 @@ class BatteryAdapter:
         power_charge = replace(connection_power(charge_conn, period_count), type=OutputType.POWER, direction="-")
 
         # Battery-internal outputs (energy, SOC, shadow prices)
-        battery_outputs = {key: expect_output_data(value) for key, value in model_outputs[name].items()}
+        battery_outputs = {
+            key: value for key, value in model_outputs[name].items() if isinstance(value, OutputData)
+        }
         energy_stored = battery_outputs[model_battery.BATTERY_ENERGY_STORED]
 
         total_energy_stored = _calculate_total_energy(energy_stored, config)
