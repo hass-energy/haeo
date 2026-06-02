@@ -320,7 +320,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 - Review connections in network configuration
 - Check grid import limit vs total load
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

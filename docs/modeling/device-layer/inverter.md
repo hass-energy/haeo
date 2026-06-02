@@ -114,7 +114,7 @@ while the AC side connects to your home's AC network.
     Peak/surge ratings should not be used as they are not sustainable.
 - **DC Bus Connections**: Other elements (batteries, PV) should connect to the inverter's DC bus by specifying the inverter name as their connection target.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

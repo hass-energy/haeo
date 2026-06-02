@@ -62,7 +62,7 @@ Connections are kept separate from elements to enable flexible network topologie
 
 This separation allows the same element types to be connected in different ways depending on the physical system being modeled.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

@@ -236,7 +236,7 @@ Watch optimization duration in the sensor.
 If it takes too long, adjust interval tiers (increase durations or reduce counts).
 See [performance considerations](optimization.md#performance-considerations) for more details.
 
-## Next Steps
+## Next steps
 
 Use these resources to expand your configuration and understand the results.
 

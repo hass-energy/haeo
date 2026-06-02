@@ -205,7 +205,7 @@ Verify power limits and efficiency values are realistic.
 Set efficiency values slightly lower to account for real-world losses.
 Avoid using 100% efficiency unless your inverter truly has no losses.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

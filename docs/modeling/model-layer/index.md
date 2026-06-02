@@ -81,7 +81,7 @@ $$
 
 This selective rebuilding (warm start optimization) is more efficient than reconstructing the entire problem, particularly when only a subset of forecasts or parameters change between optimization cycles.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

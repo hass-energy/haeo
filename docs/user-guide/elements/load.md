@@ -328,7 +328,7 @@ If optimization fails with loads:
 - Only include loads that represent required consumption in the Load element.
     For controllable/deferrable loads today, schedule them externally (for example EMHASS) and drive this element from forecast sensors, or wait for planned native deferrable support in HAEO.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

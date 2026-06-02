@@ -109,7 +109,7 @@ Grid represents the utility connection that can supply power (import) when local
 - **Pricing Strategy**: Flat pricing provides limited optimization value (battery only useful for solar storage). Time-varying pricing enables full optimization benefits.
 - **Zero Prices**: Avoid setting both import and export prices to zero simultaneously—optimizer has no economic preference and may produce unexpected results.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

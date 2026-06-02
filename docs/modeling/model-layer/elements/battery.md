@@ -207,7 +207,7 @@ The single-section battery model is a building block for more complex battery be
 
 See the [Battery Device Layer documentation](../../device-layer/battery.md) for how these are composed.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

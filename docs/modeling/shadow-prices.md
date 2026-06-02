@@ -63,7 +63,7 @@ The optimizer has headroom, so relaxing the limit would not change its decisions
 **Non-zero values**: When a shadow price is non-zero, the constraint is binding.
 The magnitude indicates how valuable additional capacity would be at that point.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

@@ -139,7 +139,7 @@ Use explicit Connection devices when you need:
 - **Implicit Connections**:
     Don't create explicit connections that duplicate implicit ones—this creates parallel paths with potentially confusing results.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 
