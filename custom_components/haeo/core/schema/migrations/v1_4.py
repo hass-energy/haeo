@@ -11,7 +11,6 @@ from custom_components.haeo.core.const import (
     CONF_HORIZON_PRESET,
     HORIZON_PRESET_5_DAYS,
     HUB_SECTION_COMMON,
-    HUB_SECTION_TIERS,
 )
 from custom_components.haeo.core.schema.horizon_value import HORIZON_PRESET_CUSTOM, as_horizon_preset_value
 
@@ -47,11 +46,10 @@ def _migrate_horizon_to_choose_value(
         return data, options
 
     preset = common.get(CONF_HORIZON_PRESET) or options.get(CONF_HORIZON_PRESET)
-    if not isinstance(preset, str) or not preset:
-        if isinstance(data.get(HUB_SECTION_TIERS), dict) or data.get(CONF_HORIZON_PRESET) == HORIZON_PRESET_CUSTOM:
-            preset = HORIZON_PRESET_CUSTOM
-        else:
-            preset = HORIZON_PRESET_5_DAYS
+    if preset == HORIZON_PRESET_CUSTOM or data.get(CONF_HORIZON_PRESET) == HORIZON_PRESET_CUSTOM:
+        preset = HORIZON_PRESET_CUSTOM
+    elif not isinstance(preset, str) or not preset:
+        preset = HORIZON_PRESET_5_DAYS
 
     new_common = dict(common)
     new_common[CONF_HORIZON] = as_horizon_preset_value(preset)

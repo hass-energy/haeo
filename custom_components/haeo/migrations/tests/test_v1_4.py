@@ -16,8 +16,8 @@ def test_migrate_horizon_preset_to_choose_value() -> None:
     assert CONF_HORIZON_PRESET not in migrated_data[HUB_SECTION_COMMON]
 
 
-def test_migrate_sectioned_tiers_without_preset_uses_custom() -> None:
-    """Sectioned hub with tiers but no horizon preset keeps legacy custom mode."""
+def test_migrate_sectioned_tiers_without_preset_defaults_to_five_days() -> None:
+    """Sectioned hub with tiers but no horizon preset defaults to five days."""
     data = {
         HUB_SECTION_COMMON: {"name": "Hub"},
         HUB_SECTION_TIERS: {"tier_1_count": 5, "tier_1_duration": 1},
@@ -25,7 +25,7 @@ def test_migrate_sectioned_tiers_without_preset_uses_custom() -> None:
     migrated_data, _ = migrate_hub_config(data, {}, "Hub")
 
     horizon = migrated_data[HUB_SECTION_COMMON][CONF_HORIZON]
-    assert horizon == as_horizon_preset_value(HORIZON_PRESET_CUSTOM)
+    assert horizon == as_horizon_preset_value("5_days")
 
 
 def test_migrate_custom_preset_preserved() -> None:

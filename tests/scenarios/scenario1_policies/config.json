@@ -1,4 +1,5 @@
 {
+  "horizon_preset": "3_days",
   "minor_version": 3,
   "tier_1_count": 5,
   "tier_1_duration": 1,

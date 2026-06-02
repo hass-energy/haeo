@@ -87,9 +87,6 @@ def parse_horizon_config(config: Mapping[str, Any]) -> ParsedHorizonConfig:
             return ParsedHorizonConfig(mode="legacy_custom")
         return ParsedHorizonConfig(mode="preset", preset="5_days")
 
-    if CONF_HORIZON not in common and CONF_HORIZON_PRESET not in common and tiers_section:
-        return ParsedHorizonConfig(mode="legacy_custom")
-
     horizon = _horizon_from_common(common)
     if is_horizon_entity_value(horizon):
         return ParsedHorizonConfig(mode="entity", entity_id=get_horizon_entity_id(horizon))

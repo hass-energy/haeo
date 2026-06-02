@@ -12,10 +12,7 @@
         },
         "sections": {
           "advanced": { "data": { "advanced_mode": "Advanced Mode" }, "name": "Advanced settings" },
-          "common": {
-            "data": { "horizon": "Planning horizon", "name": "System Name" },
-            "name": "Common settings"
-          }
+          "common": { "data": { "horizon": "Planning horizon", "name": "System Name" }, "name": "Common settings" }
         }
       }
     },
@@ -55,8 +52,8 @@
       }
     },
     "error": {
-      "invalid_horizon_entity": "Select a sensor with a valid HAEO-format forecast attribute",
       "cannot_connect_to_self": "Cannot connect a device to itself",
+      "invalid_horizon_entity": "Select a sensor with a valid HAEO-format forecast attribute",
       "invalid_name": "Invalid device name",
       "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
       "min_power_negative_not_allowed_unidirectional": "Minimum power cannot be negative for unidirectional connections",
@@ -585,9 +582,7 @@
     }
   },
   "selector": {
-    "horizon_preset": {
-      "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days" }
-    },
+    "horizon_preset": { "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days" } },
     "horizon_source": { "choices": { "entity": "Forecast entity", "preset": "Preset" } },
     "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },
     "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }
