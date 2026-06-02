@@ -29,9 +29,9 @@ from custom_components.haeo.const import (
     CONF_INTEGRATION_TYPE,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
-    STATIC_FORECAST_CARD_STATIC_DIR,
-    STATIC_FORECAST_CARD_STATIC_PATH,
-    STATIC_FORECAST_CARD_URL_PATH,
+    STATIC_CARD_BUNDLES,
+    STATIC_CARD_STATIC_DIR,
+    STATIC_CARD_STATIC_PATH,
 )
 from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
@@ -884,7 +884,7 @@ async def test_setup_preserves_config_entry_error_exception(
 
 
 async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistant) -> None:
-    """Test that async_setup registers the forecast card static path."""
+    """Test that async_setup registers each card bundle as its own resource."""
     mock_http = Mock()
     mock_http.async_register_static_paths = AsyncMock()
     hass.http = mock_http  # type: ignore[attr-defined]
@@ -896,9 +896,11 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     mock_http.async_register_static_paths.assert_called_once()
     configs: list[StaticPathConfig] = mock_http.async_register_static_paths.call_args[0][0]
     assert len(configs) == 1
-    assert configs[0].url_path == STATIC_FORECAST_CARD_STATIC_PATH
-    assert configs[0].path.endswith(STATIC_FORECAST_CARD_STATIC_DIR)
-    assert STATIC_FORECAST_CARD_URL_PATH in hass.data[DATA_EXTRA_MODULE_URL].urls
+    assert configs[0].url_path == STATIC_CARD_STATIC_PATH
+    assert configs[0].path.endswith(STATIC_CARD_STATIC_DIR)
+    registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
+    for _file_path, url_path in STATIC_CARD_BUNDLES:
+        assert url_path in registered_urls
 
 
 async def test_async_register_static_skips_when_http_unavailable(

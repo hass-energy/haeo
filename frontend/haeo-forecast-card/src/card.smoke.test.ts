@@ -26,6 +26,18 @@ const smokeConfig = {
   entities: ["sensor.haeo_grid_import_power"],
 };
 
+/**
+ * Wait for the lazily-imported rendering controller to load and flush its
+ * synchronous render. The element registers instantly but defers heavy
+ * rendering behind a dynamic import, so tests must await that load.
+ */
+async function waitForController(): Promise<void> {
+  await import("./forecast-card-controller");
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
 function smokeHass(states: HassLike["states"]): HassLike {
   return withSingleHubRegistry({ states }, "hub-alpha");
 }
@@ -44,13 +56,17 @@ describe("haeo-forecast-card smoke", () => {
     expect(element).toBeInstanceOf(HTMLElement);
   });
 
+  it("reports fallback sizing before the rendering controller loads", () => {
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    expect(element.getCardSize()).toBe(6);
+    expect(element.getGridOptions()).toEqual({ rows: 5, min_rows: 4, columns: "full" });
+  });
+
   it("renders svg when hass is set after connect", async () => {
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
     document.body.appendChild(element);
     element.setConfig(smokeConfig);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
+    await waitForController();
     expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeFalsy();
 
     element.hass = smokeHass({
@@ -71,9 +87,7 @@ describe("haeo-forecast-card smoke", () => {
         },
       },
     });
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
+    await waitForController();
 
     expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeTruthy();
     element.remove();
@@ -101,9 +115,7 @@ describe("haeo-forecast-card smoke", () => {
       },
     });
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
+    await waitForController();
 
     const svg = element.shadowRoot?.querySelector(".chartContainer svg");
     expect(svg).toBeTruthy();
@@ -118,9 +130,7 @@ describe("haeo-forecast-card smoke", () => {
       type: "custom:haeo-forecast-card",
     });
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
+    await waitForController();
     expect(element.shadowRoot?.textContent).toContain("Configure a HAEO hub in the card editor");
     element.remove();
   });
@@ -173,9 +183,7 @@ describe("haeo-forecast-card smoke", () => {
         },
       });
       document.body.appendChild(element);
-      await new Promise((resolve) => {
-        setTimeout(resolve, 20);
-      });
+      await waitForController();
 
       const chartContainer = element.shadowRoot?.querySelector(".chartContainer");
       expect(chartContainer).toBeTruthy();
@@ -227,9 +235,7 @@ describe("haeo-forecast-card smoke", () => {
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
     element.setConfig(smokeConfig);
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
+    await waitForController();
 
     expect(element.getCardSize()).toBe(14);
     element.remove();

@@ -1,12 +1,11 @@
-import { render } from "preact";
-
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { TopologyCardView } from "./components/TopologyCardView";
 import { buildHubConfigForm } from "./config-form";
 import { discoverHaeoHubEntryId } from "./hub-selection";
 import type { HassLike } from "./series";
-import TOPOLOGY_CARD_STYLES from "./topology-card.css";
+import type { TopologyCardController } from "./topology-card-controller";
+import { topologyCardSize, TOPOLOGY_DEFAULT_LAYOUT_HEIGHT_PX } from "./topology-layout";
 import type { TopologyCardConfig } from "./types";
+
+const FALLBACK_CARD_SIZE_ROWS = topologyCardSize(TOPOLOGY_DEFAULT_LAYOUT_HEIGHT_PX);
 
 function buildTopologyStubConfig(hass: HassLike): Omit<TopologyCardConfig, "type"> {
   const stub: Omit<TopologyCardConfig, "type"> = { title: "HAEO network topology" };
@@ -17,15 +16,28 @@ function buildTopologyStubConfig(hass: HassLike): Omit<TopologyCardConfig, "type
   return stub;
 }
 
+/**
+ * Thin custom element for `haeo-topology-card`.
+ *
+ * Kept free of heavy imports (preact, ELK, the SVG view) so that
+ * `customElements.define` runs immediately when the bundle loads, avoiding the
+ * Home Assistant "Custom element doesn't exist" registration race. The heavy
+ * rendering controller is imported lazily on first use.
+ */
 export class HaeoTopologyCard extends HTMLElement {
-  private static readonly MASONRY_ROW_HEIGHT_PX = 50;
+  private controller: TopologyCardController | null = null;
+  private controllerPromise: Promise<TopologyCardController> | null = null;
   private _config: TopologyCardConfig = { type: "custom:haeo-topology-card" };
   private _hass: HassLike | null = null;
-  private _layoutHeight = 320;
+  private isConnected_ = false;
 
   setConfig(config: TopologyCardConfig): void {
     this._config = { ...config, type: "custom:haeo-topology-card" };
-    this.renderCard();
+    if (this.controller) {
+      this.controller.setConfig(this._config);
+    } else {
+      void this.ensureController();
+    }
   }
 
   static getConfigForm(): ReturnType<typeof buildHubConfigForm> {
@@ -41,7 +53,11 @@ export class HaeoTopologyCard extends HTMLElement {
 
   set hass(hass: HassLike | null) {
     this._hass = hass;
-    this.renderCard();
+    if (this.controller) {
+      this.controller.setHass(hass);
+    } else {
+      void this.ensureController();
+    }
   }
 
   get hass(): HassLike | null {
@@ -49,21 +65,17 @@ export class HaeoTopologyCard extends HTMLElement {
   }
 
   connectedCallback(): void {
-    if (!this.shadowRoot) {
-      this.attachShadow({ mode: "open" });
-    }
-    this.ensureHostElements();
-    this.renderCard();
+    this.isConnected_ = true;
+    void this.ensureController();
   }
 
   disconnectedCallback(): void {
-    if (this.shadowRoot) {
-      render(null, this.shadowRoot);
-    }
+    this.isConnected_ = false;
+    this.controller?.disconnected();
   }
 
   getCardSize(): number {
-    return Math.max(4, Math.ceil(this._layoutHeight / HaeoTopologyCard.MASONRY_ROW_HEIGHT_PX));
+    return this.controller?.getCardSize() ?? FALLBACK_CARD_SIZE_ROWS;
   }
 
   getGridOptions(): {
@@ -71,58 +83,30 @@ export class HaeoTopologyCard extends HTMLElement {
     min_rows: number;
     columns: "full";
   } {
-    const rows = this.getCardSize();
+    if (this.controller) {
+      return this.controller.getGridOptions();
+    }
     return {
-      rows,
-      min_rows: Math.max(3, rows - 1),
+      rows: FALLBACK_CARD_SIZE_ROWS,
+      min_rows: Math.max(3, FALLBACK_CARD_SIZE_ROWS - 1),
       columns: "full",
     };
   }
 
-  private ensureHostElements(): void {
-    if (!this.shadowRoot || this.shadowRoot.querySelector("#mount")) {
-      return;
-    }
-    const style = document.createElement("style");
-    style.textContent = TOPOLOGY_CARD_STYLES;
-    this.shadowRoot.appendChild(style);
-
-    const mount = document.createElement("div");
-    mount.id = "mount";
-    mount.style.cssText = "width: 100%; height: 100%; display: flex; flex-direction: column;";
-    this.shadowRoot.appendChild(mount);
-  }
-
-  private readonly onLayoutHeight = (height: number): void => {
-    const previousCardSize = this.getCardSize();
-    this._layoutHeight = height;
-    if (this.getCardSize() === previousCardSize) {
-      return;
-    }
-    this.dispatchEvent(new Event("ll-update", { bubbles: true, composed: true }));
-  };
-
-  private renderCard(): void {
-    if (this.shadowRoot === null) {
-      return;
-    }
-    this.ensureHostElements();
-    const mount = this.shadowRoot.querySelector("#mount");
-    if (mount === null) {
-      return;
-    }
-    const locale = this._hass?.language ?? this._hass?.locale?.language ?? "en";
-    render(
-      <ErrorBoundary>
-        <TopologyCardView
-          config={this._config}
-          hass={this._hass}
-          locale={locale}
-          onLayoutHeight={this.onLayoutHeight}
-        />
-      </ErrorBoundary>,
-      mount
-    );
+  private async ensureController(): Promise<TopologyCardController> {
+    this.controllerPromise ??= import("./topology-card-controller").then(({ TopologyCardController }) => {
+      const controller = new TopologyCardController(this);
+      this.controller = controller;
+      controller.setConfig(this._config);
+      if (this._hass) {
+        controller.setHass(this._hass);
+      }
+      if (this.isConnected_) {
+        controller.connected();
+      }
+      return controller;
+    });
+    return this.controllerPromise;
   }
 }
 

@@ -125,6 +125,7 @@ describe("haeo-topology-card smoke", () => {
   it("reports grid options from card size", () => {
     const element = document.createElement("haeo-topology-card") as HaeoTopologyCardElement;
     document.body.appendChild(element);
+    expect(element.getCardSize()).toBe(7);
     expect(element.getGridOptions()).toEqual({
       rows: 7,
       min_rows: 6,

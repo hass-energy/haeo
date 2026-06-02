@@ -22,10 +22,9 @@ from homeassistant.helpers.typing import ConfigType
 from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
-    STATIC_FORECAST_CARD_FILE_PATH,
-    STATIC_FORECAST_CARD_STATIC_DIR,
-    STATIC_FORECAST_CARD_STATIC_PATH,
-    STATIC_FORECAST_CARD_URL_PATH,
+    STATIC_CARD_BUNDLES,
+    STATIC_CARD_STATIC_DIR,
+    STATIC_CARD_STATIC_PATH,
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
@@ -75,22 +74,32 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
 
 
 async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None:
-    """Register static frontend resources used by custom Lovelace cards."""
+    """Register static frontend resources used by custom Lovelace cards.
+
+    Each card bundle is registered as its own independent Lovelace resource so
+    a stale or missing copy of one card cannot break registration of another.
+    """
     # Some test/headless contexts do not initialize the HTTP component.
     # Use getattr instead of direct access so static registration can be skipped safely.
     http = getattr(hass, "http", None)
     if http is None:
-        _LOGGER.debug("HTTP component unavailable; skipping static forecast card registration")
+        _LOGGER.debug("HTTP component unavailable; skipping static card registration")
         return
-    static_dir = Path(__file__).parent / STATIC_FORECAST_CARD_STATIC_DIR
-    card_path = static_dir / Path(STATIC_FORECAST_CARD_FILE_PATH).name
-    if not card_path.exists():
-        _LOGGER.debug("Static forecast card bundle not found at %s", card_path)
+
+    integration_dir = Path(__file__).parent
+    static_dir = integration_dir / STATIC_CARD_STATIC_DIR
+    available_bundles = [
+        url_path for file_path, url_path in STATIC_CARD_BUNDLES if (integration_dir / file_path).exists()
+    ]
+    if not available_bundles:
+        _LOGGER.debug("No static card bundles found in %s", static_dir)
         return
+
     await http.async_register_static_paths(
-        [StaticPathConfig(STATIC_FORECAST_CARD_STATIC_PATH, str(static_dir), cache_headers=False)]
+        [StaticPathConfig(STATIC_CARD_STATIC_PATH, str(static_dir), cache_headers=False)]
     )
-    add_extra_js_url(hass, STATIC_FORECAST_CARD_URL_PATH)
+    for url_path in available_bundles:
+        add_extra_js_url(hass, url_path)
 
 
 @dataclass(slots=True)

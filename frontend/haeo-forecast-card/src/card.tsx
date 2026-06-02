@@ -1,31 +1,39 @@
-import { render } from "preact";
-
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { ForecastCardView } from "./components/ForecastCardView";
 import { buildHubConfigForm } from "./config-form";
 import { discoverHaeoHubEntryId } from "./hub-selection";
 import type { HassLike } from "./series";
-import { ForecastCardStore } from "./store";
-import CARD_STYLES from "./styles.css";
 import type { ForecastCardConfig } from "./types";
+import type { ForecastCardController } from "./forecast-card-controller";
 
+const FALLBACK_CARD_WIDTH_PX = 640;
+const FALLBACK_CARD_SIZE_ROWS = 6;
+const FALLBACK_GRID_ROWS = 5;
+
+/**
+ * Thin custom element for `haeo-forecast-card`.
+ *
+ * This class is intentionally tiny and free of heavy imports (no preact, MobX,
+ * or SVG view code) so that `customElements.define` runs immediately when the
+ * bundle loads. Home Assistant only guarantees a custom card via
+ * `customElements.whenDefined` plus a short timeout, so gating registration
+ * behind a large dependency graph causes the intermittent "Custom element
+ * doesn't exist" race. The heavy rendering stack is loaded lazily on first use.
+ */
 export class HaeoForecastCard extends HTMLElement {
-  private static readonly MASONRY_ROW_HEIGHT_PX = 50;
-  private static readonly SECTIONS_ROW_HEIGHT_PX = 56;
-  private static readonly SECTIONS_ROW_GAP_PX = 8;
   private static nextInstanceId = 0;
-  readonly instanceId = HaeoForecastCard.nextInstanceId++;
-  private readonly store = new ForecastCardStore(this.instanceId);
-  private resizeObserver: ResizeObserver | null = null;
-  private pointerFrameHandle = 0;
-  private pointerFlushScheduled = false;
-  private pendingPointer: { x: number | null; y: number | null } | null = null;
-  private hasRenderedHost = false;
+  private readonly instanceId = HaeoForecastCard.nextInstanceId++;
+  private controller: ForecastCardController | null = null;
+  private controllerPromise: Promise<ForecastCardController> | null = null;
+  private _config: ForecastCardConfig | null = null;
   private _hass: HassLike | null = null;
+  private isConnected_ = false;
 
   setConfig(config: ForecastCardConfig): void {
-    this.store.setConfig(config);
-    this.renderCard();
+    this._config = config;
+    if (this.controller) {
+      this.controller.setConfig(config);
+    } else {
+      void this.ensureController();
+    }
   }
 
   static getConfigForm(): ReturnType<typeof buildHubConfigForm> {
@@ -46,10 +54,11 @@ export class HaeoForecastCard extends HTMLElement {
 
   set hass(hass: HassLike | null) {
     this._hass = hass;
-    if (hass) {
-      this.store.setHass(hass);
+    if (this.controller) {
+      this.controller.setHass(hass);
+    } else {
+      void this.ensureController();
     }
-    this.renderCard();
   }
 
   get hass(): HassLike | null {
@@ -57,31 +66,17 @@ export class HaeoForecastCard extends HTMLElement {
   }
 
   connectedCallback(): void {
-    if (!this.shadowRoot) {
-      this.attachShadow({ mode: "open" });
-    }
-    this.ensureHostElements();
-    this.renderCard();
-    this.observeCardResize();
+    this.isConnected_ = true;
+    void this.ensureController();
   }
 
   disconnectedCallback(): void {
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
-    if (this.pointerFlushScheduled) {
-      cancelAnimationFrame(this.pointerFrameHandle);
-      this.pointerFlushScheduled = false;
-      this.pendingPointer = null;
-    }
-    if (this.shadowRoot) {
-      render(null, this.shadowRoot);
-    }
-    this.hasRenderedHost = false;
+    this.isConnected_ = false;
+    this.controller?.disconnected();
   }
 
   getCardSize(): number {
-    const targetHeight = this.store.responsiveHeight(this.store.cardWidth);
-    return Math.max(1, Math.ceil(targetHeight / HaeoForecastCard.MASONRY_ROW_HEIGHT_PX));
+    return this.controller?.getCardSize() ?? FALLBACK_CARD_SIZE_ROWS;
   }
 
   getGridOptions(): {
@@ -89,139 +84,44 @@ export class HaeoForecastCard extends HTMLElement {
     min_rows: number;
     columns: "full";
   } {
-    const targetHeight = this.store.responsiveHeight(this.store.cardWidth);
-    const rowUnit = HaeoForecastCard.SECTIONS_ROW_HEIGHT_PX + HaeoForecastCard.SECTIONS_ROW_GAP_PX;
-    const rows = Math.max(2, Math.ceil((targetHeight + HaeoForecastCard.SECTIONS_ROW_GAP_PX) / rowUnit));
-    return {
-      rows,
-      min_rows: Math.max(2, rows - 1),
-      columns: "full",
-    };
-  }
-
-  private ensureHostElements(): void {
-    if (!this.shadowRoot || this.hasRenderedHost) {
-      return;
-    }
-    const style = document.createElement("style");
-    style.textContent = CARD_STYLES;
-    this.shadowRoot.appendChild(style);
-
-    const mount = document.createElement("div");
-    mount.id = "mount";
-    mount.style.cssText = "width: 100%; height: 100%; display: flex; flex-direction: column;";
-    this.shadowRoot.appendChild(mount);
-    this.hasRenderedHost = true;
-  }
-
-  private observeCardResize(): void {
-    if (!this.shadowRoot) {
-      return;
-    }
-    const target = this.shadowRoot.querySelector(".chartContainer") ?? this.shadowRoot.querySelector("#mount");
-    if (!target) {
-      return;
-    }
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (!rect) {
-        return;
+    return (
+      this.controller?.getGridOptions() ?? {
+        rows: FALLBACK_GRID_ROWS,
+        min_rows: FALLBACK_GRID_ROWS - 1,
+        columns: "full",
       }
-      const width = rect.width > 0 ? rect.width : target.getBoundingClientRect().width;
-      if (width <= 0) {
-        return;
-      }
-      const cardWidth = this.getCardWidth();
-      const height = rect.height > 0 ? rect.height : this.store.responsiveHeight(cardWidth);
-      this.store.setSize(width, height, cardWidth);
-    });
-    this.resizeObserver.observe(target);
-    const initialRect = target.getBoundingClientRect();
-    if (initialRect.width > 0) {
-      const cardWidth = this.getCardWidth();
-      const height = initialRect.height > 0 ? initialRect.height : this.store.responsiveHeight(cardWidth);
-      this.store.setSize(initialRect.width, height, cardWidth);
-    }
-  }
-
-  private getCardWidth(): number {
-    const mount = this.shadowRoot?.querySelector("#mount");
-    const width = mount?.getBoundingClientRect().width ?? this.getBoundingClientRect().width;
-    return width > 0 ? width : this.store.cardWidth;
-  }
-
-  private onPointerMove(event: PointerEvent): void {
-    const svgElement = event.currentTarget as SVGSVGElement | null;
-    if (!svgElement) {
-      return;
-    }
-    const screenCtm = svgElement.getScreenCTM();
-    if (!screenCtm) {
-      throw new Error("Expected non-null SVG screen CTM for pointer mapping");
-    }
-    const inverse = screenCtm.inverse();
-    const x = Math.round(event.clientX * inverse.a + event.clientY * inverse.c + inverse.e);
-    const y = Math.round(event.clientX * inverse.b + event.clientY * inverse.d + inverse.f);
-    this.schedulePointerUpdate(x, y);
-  }
-
-  private onPointerLeave(): void {
-    this.schedulePointerUpdate(null, null);
-  }
-
-  private schedulePointerUpdate(x: number | null, y: number | null): void {
-    this.pendingPointer = { x, y };
-    if (this.pointerFlushScheduled) {
-      return;
-    }
-    this.pointerFlushScheduled = true;
-    this.pointerFrameHandle = requestAnimationFrame(() => {
-      this.pointerFlushScheduled = false;
-      const pending = this.pendingPointer;
-      this.pendingPointer = null;
-      if (!pending) {
-        return;
-      }
-      if (pending.x === null || pending.y === null) {
-        if (this.store.pointerX === null && this.store.pointerY === null) {
-          return;
-        }
-        this.store.setPointer(null, null);
-        return;
-      }
-      if (this.store.pointerX !== null && this.store.pointerY !== null) {
-        const deltaX = Math.abs(this.store.pointerX - pending.x);
-        const deltaY = Math.abs(this.store.pointerY - pending.y);
-        if (deltaX < 1 && deltaY < 1) {
-          return;
-        }
-      }
-      if (this.store.pointerX === pending.x && this.store.pointerY === pending.y) {
-        return;
-      }
-      this.store.setPointer(pending.x, pending.y);
-    });
-  }
-
-  private renderCard(): void {
-    if (!this.shadowRoot || !this.hasRenderedHost) {
-      return;
-    }
-    const mount = this.shadowRoot.querySelector("#mount");
-    if (!mount) {
-      return;
-    }
-    render(
-      <ErrorBoundary>
-        <ForecastCardView
-          store={this.store}
-          onPointerMove={(event) => this.onPointerMove(event)}
-          onPointerLeave={() => this.onPointerLeave()}
-        />
-      </ErrorBoundary>,
-      mount
     );
+  }
+
+  getCardWidth(): number {
+    if (this.controller) {
+      return this.controller.getCardWidth();
+    }
+    const width = this.getBoundingClientRect().width;
+    return width > 0 ? width : FALLBACK_CARD_WIDTH_PX;
+  }
+
+  /**
+   * Load the heavy rendering controller on demand and replay any buffered
+   * config/hass/connection state into it. Registration of the element never
+   * depends on this completing.
+   */
+  private async ensureController(): Promise<ForecastCardController> {
+    this.controllerPromise ??= import("./forecast-card-controller").then(({ ForecastCardController }) => {
+      const controller = new ForecastCardController(this, this.instanceId);
+      this.controller = controller;
+      if (this._config) {
+        controller.setConfig(this._config);
+      }
+      if (this._hass) {
+        controller.setHass(this._hass);
+      }
+      if (this.isConnected_) {
+        controller.connected();
+      }
+      return controller;
+    });
+    return this.controllerPromise;
   }
 }
 
