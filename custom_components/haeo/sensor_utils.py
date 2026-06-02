@@ -4,10 +4,12 @@ import math
 from typing import Any, TypedDict, cast
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN, ELEMENT_TYPE_NETWORK, OUTPUT_NAME_HORIZON, OUTPUT_NAME_OPTIMIZATION_DURATION
+from .coordinator import HaeoDataUpdateCoordinator
 from .entities.device import build_device_identifier
 
 # Target significant figures for rounding.
@@ -155,6 +157,41 @@ def get_horizon_sensor_entity_id(hass: HomeAssistant, config_entry: ConfigEntry)
     """
     unique_id = f"{config_entry.entry_id}_{OUTPUT_NAME_HORIZON}"
     return er.async_get(hass).async_get_entity_id("sensor", DOMAIN, unique_id)
+
+
+async def enable_all_config_entry_entities(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+    """Enable every entity registered to a config entry.
+
+    Scenario snapshots assert the full optimization output surface, including
+    sensors that are disabled by default for new installs.
+    """
+    entity_registry = er.async_get(hass)
+    for entry in er.async_entries_for_config_entry(entity_registry, config_entry.entry_id):
+        if entry.disabled_by is not None:
+            entity_registry.async_update_entity(entry.entity_id, disabled_by=None)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+
+async def refresh_config_entry_output_entities(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+) -> None:
+    """Enable all config-entry entities and materialize every output sensor.
+
+    Disabled-by-default entities are registered but never added to the sensor
+    platform. Scenario snapshots need the full output surface, so re-enable
+    registry entries and reload the sensor platform without re-running setup.
+    """
+    await enable_all_config_entry_entities(hass, config_entry)
+    await hass.config_entries.async_unload_platforms(config_entry, [Platform.SENSOR])
+    await hass.config_entries.async_forward_entry_setups(config_entry, [Platform.SENSOR])
+    runtime_data = config_entry.runtime_data
+    if runtime_data is None:
+        return
+    coordinator: HaeoDataUpdateCoordinator | None = runtime_data.coordinator
+    if coordinator is not None:
+        coordinator.async_update_listeners()
+    await hass.async_block_till_done(wait_background_tasks=True)
 
 
 def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, SensorStateDict]:
