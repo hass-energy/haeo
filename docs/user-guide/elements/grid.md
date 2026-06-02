@@ -5,7 +5,7 @@ It allows bidirectional power flow: importing (buying) and exporting (selling) e
 
 !!! note "Connection endpoints"
 
-    Grid elements appear in connection selectors only when Advanced Mode is enabled on your hub.
+    Grid elements appear in connection selectors only when **Expose raw model elements** is enabled on your hub.
 
 ## Configuration
 
