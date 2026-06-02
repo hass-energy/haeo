@@ -2,6 +2,7 @@ import { render } from "preact";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ForecastCardView } from "./components/ForecastCardView";
+import { dispatchLovelaceUpdate } from "./lovelace-events";
 import type { HassLike } from "./series";
 import { ForecastCardStore } from "./store";
 import CARD_STYLES from "./styles.css";
@@ -154,7 +155,7 @@ export class ForecastCardController {
       return;
     }
     this.lastReportedCardSize = cardSize;
-    this.host.dispatchEvent(new Event("ll-update", { bubbles: true, composed: true }));
+    dispatchLovelaceUpdate(this.host);
   }
 
   private onPointerMove(event: PointerEvent): void {

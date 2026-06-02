@@ -2,6 +2,7 @@ import { render } from "preact";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { TopologyCardView } from "./components/TopologyCardView";
+import { dispatchLovelaceUpdate } from "./lovelace-events";
 import type { HassLike } from "./series";
 import { topologyCardSize, TOPOLOGY_DEFAULT_LAYOUT_HEIGHT_PX } from "./topology-layout";
 import TOPOLOGY_CARD_STYLES from "./topology-card.css";
@@ -80,7 +81,7 @@ export class TopologyCardController {
     if (this.getCardSize() === previousCardSize) {
       return;
     }
-    this.host.dispatchEvent(new Event("ll-update", { bubbles: true, composed: true }));
+    dispatchLovelaceUpdate(this.host);
   };
 
   private renderCard(): void {
