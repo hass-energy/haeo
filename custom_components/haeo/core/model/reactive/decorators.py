@@ -37,6 +37,7 @@ def clear_ranging_cache(solver: Highs) -> None:
     """Clear the cached ranging data after a solve cycle."""
     solver._haeo_ranging_cache = None  # type: ignore[attr-defined]  # noqa: SLF001 (intentional cache attribute)
 
+
 # Type variable for generic return types
 R = TypeVar("R")
 
