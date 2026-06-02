@@ -19,7 +19,11 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
+from custom_components.haeo.core.data.forecast_times import (
+    floor_timestamp,
+    generate_forecast_timestamps,
+    tiers_to_periods_seconds,
+)
 
 
 class HorizonManager:
@@ -43,9 +47,8 @@ class HorizonManager:
         self._hass = hass
         self._config_entry = config_entry
 
-        # Calculate period durations from config
-        self._periods_seconds = tiers_to_periods_seconds(config_entry.data)
-        self._smallest_period = min(self._periods_seconds)
+        self._periods_seconds: list[int] = []
+        self._smallest_period = 60
 
         # Timer for next update
         self._unsub_timer: CALLBACK_TYPE | None = None
@@ -61,8 +64,14 @@ class HorizonManager:
 
     def _update_timestamps(self) -> None:
         """Update the cached forecast timestamps."""
-        self._periods_seconds = tiers_to_periods_seconds(self._config_entry.data)
-        self._forecast_timestamps = generate_forecast_timestamps(self._periods_seconds)
+        now = dt_util.now()
+        periods_for_min = tiers_to_periods_seconds(self._config_entry.data, start_time=now)
+        if periods_for_min:
+            self._smallest_period = min(periods_for_min)
+        start_ts = floor_timestamp(now.timestamp(), self._smallest_period)
+        start_dt = datetime.fromtimestamp(start_ts, tz=now.tzinfo)
+        self._periods_seconds = tiers_to_periods_seconds(self._config_entry.data, start_time=start_dt)
+        self._forecast_timestamps = generate_forecast_timestamps(self._periods_seconds, start_ts)
 
     def start(self) -> Callable[[], None]:
         """Start the scheduled updates.
@@ -116,7 +125,7 @@ class HorizonManager:
         epoch_seconds = now.timestamp()
 
         # Calculate next period boundary
-        current_boundary = epoch_seconds // self._smallest_period * self._smallest_period
+        current_boundary = floor_timestamp(epoch_seconds, self._smallest_period)
         next_boundary = current_boundary + self._smallest_period
 
         # Convert to datetime for scheduling
