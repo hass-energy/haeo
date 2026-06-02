@@ -26,6 +26,7 @@ import pytest
 # the browser disconnects during shutdown on CI. Ignore pytest's wrapper so
 # guide screenshot assertions remain the signal.
 pytestmark = [
+    pytest.mark.usefixtures("socket_enabled"),
     pytest.mark.filterwarnings("default"),
     pytest.mark.filterwarnings("ignore::ResourceWarning"),
     pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning"),
