@@ -5,19 +5,12 @@ from typing import Any
 
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
+import voluptuous as vol
 
-from custom_components.haeo.const import CONF_RECORD_FORECASTS
-from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_DEBOUNCE_SECONDS, CONF_HORIZON_PRESET
+from custom_components.haeo.core.const import CONF_HORIZON, CONF_NAME
 
-from . import (
-    HORIZON_PRESET_CUSTOM,
-    HUB_SECTION_ADVANCED,
-    HUB_SECTION_COMMON,
-    HUB_SECTION_TIERS,
-    get_custom_tiers_schema,
-    get_hub_options_schema,
-    get_tier_config,
-)
+from . import HUB_SECTION_COMMON, build_hub_entry_data, get_hub_options_schema
+from .horizon_schema import is_horizon_entity_selection, preprocess_horizon_input, validate_horizon_entity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,56 +23,43 @@ class HubOptionsFlow(config_entries.OptionsFlow):
         self._user_input: dict[str, Any] = {}
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Configure hub settings with simplified preset dropdown."""
+        """Configure hub settings."""
         if user_input is not None:
-            # Store user input for later
+            errors: dict[str, str] = {}
+            horizon_raw = user_input[HUB_SECTION_COMMON].get(CONF_HORIZON)
+            horizon_processed = preprocess_horizon_input(horizon_raw)
+            if is_horizon_entity_selection(horizon_processed):
+                entity_id = (
+                    horizon_processed[0] if isinstance(horizon_processed, list) else horizon_processed
+                )
+                try:
+                    validate_horizon_entity(self.hass, entity_id, config_entry=self.config_entry)
+                except vol.Invalid:
+                    errors[CONF_HORIZON] = "invalid_horizon_entity"
+
+            if errors:
+                return self.async_show_form(
+                    step_id="init",
+                    data_schema=get_hub_options_schema(config_entry=self.config_entry),
+                    errors=errors,
+                )
+
             self._user_input = user_input
-
-            # If custom preset selected, go to custom tiers step
-            if user_input[HUB_SECTION_COMMON][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM:
-                return await self.async_step_custom_tiers()
-
-            # Otherwise, apply preset values and save
             return await self._save_options()
 
-        data_schema = get_hub_options_schema(config_entry=self.config_entry)
-        return self.async_show_form(step_id="init", data_schema=data_schema)
-
-    async def async_step_custom_tiers(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Handle custom tier configuration step."""
-        if user_input is not None:
-            # Merge custom tier config with stored user input
-            self._user_input[HUB_SECTION_TIERS] = user_input
-            return await self._save_options()
-
-        # Show full tier configuration form with current values
         return self.async_show_form(
-            step_id="custom_tiers",
-            data_schema=get_custom_tiers_schema(config_entry=self.config_entry),
+            step_id="init",
+            data_schema=get_hub_options_schema(config_entry=self.config_entry),
         )
 
     async def _save_options(self) -> ConfigFlowResult:
-        """Save the options with tier configuration."""
-        tier_config, stored_preset = get_tier_config(
+        """Save the options with horizon configuration."""
+        hub_name = self.config_entry.data.get(HUB_SECTION_COMMON, {}).get(CONF_NAME, self.config_entry.title)
+        new_data = build_hub_entry_data(
             self._user_input,
-            self._user_input[HUB_SECTION_COMMON].get(CONF_HORIZON_PRESET),
+            hub_name=hub_name,
+            existing_data=dict(self.config_entry.data),
         )
-
-        # Update config entry data with new values
-        new_data = {
-            **self.config_entry.data,
-            HUB_SECTION_COMMON: {
-                **self.config_entry.data.get(HUB_SECTION_COMMON, {}),
-                CONF_HORIZON_PRESET: stored_preset,
-            },
-            HUB_SECTION_TIERS: tier_config,
-            HUB_SECTION_ADVANCED: {
-                **self.config_entry.data.get(HUB_SECTION_ADVANCED, {}),
-                CONF_DEBOUNCE_SECONDS: self._user_input[HUB_SECTION_ADVANCED][CONF_DEBOUNCE_SECONDS],
-                CONF_ADVANCED_MODE: self._user_input[HUB_SECTION_ADVANCED][CONF_ADVANCED_MODE],
-            },
-            CONF_RECORD_FORECASTS: self._user_input[HUB_SECTION_ADVANCED].get(CONF_RECORD_FORECASTS, False),
-        }
 
         self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
         return self.async_create_entry(title="", data={})

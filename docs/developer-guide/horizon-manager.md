@@ -39,8 +39,11 @@ This ordering ensures input entities can subscribe immediately during their setu
 
 ## Horizon Computation
 
-The horizon consists of timestamps computed from tier configuration.
-Each tier specifies a period duration and count:
+The horizon consists of boundary timestamps that define the optimization time grid.
+In **preset** mode, timestamps are computed from tier configuration.
+In **entity** mode, timestamps are read from a configured sensor's HAEO-format `forecast` attribute (times only; values are ignored).
+
+Each preset tier specifies a period duration and count:
 
 | Tier | Period | Count | Coverage |
 | ---- | ------ | ----- | -------- |
@@ -66,7 +69,8 @@ The subscription returns an unsubscribe callable that entities register for auto
 
 ## Period Boundary Scheduling
 
-The HorizonManager schedules updates at the start of each finest-tier period:
+In preset mode, the HorizonManager schedules updates at the start of each finest-tier period.
+In entity mode, it subscribes to the source entity's state changes instead of using boundary timers.
 
 ```mermaid
 sequenceDiagram

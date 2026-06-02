@@ -16,6 +16,17 @@ from .connection_target import (
 )
 from .constant_value import ConstantValue, as_constant_value, is_constant_value
 from .entity_value import EntityValue, as_entity_value, is_entity_value
+from .horizon_value import (
+    HORIZON_PRESET_CUSTOM,
+    HorizonPresetValue,
+    ParsedHorizonConfig,
+    VALUE_TYPE_PRESET,
+    as_horizon_preset_value,
+    get_horizon_entity_id,
+    is_horizon_entity_value,
+    is_horizon_preset_value,
+    parse_horizon_config,
+)
 from .none_value import NoneValue, as_none_value, is_none_value
 from .types import SchemaContainer, SchemaValue, SchemaValueKind
 from .util import UnitSpec, extract_unit_parts, matches_unit_spec
@@ -68,7 +79,16 @@ __all__ = [
     "ConnectionTargetValue",
     "ConstantValue",
     "EntityValue",
+    "HORIZON_PRESET_CUSTOM",
+    "HorizonPresetValue",
     "NoneValue",
+    "ParsedHorizonConfig",
+    "VALUE_TYPE_PRESET",
+    "as_horizon_preset_value",
+    "get_horizon_entity_id",
+    "is_horizon_entity_value",
+    "is_horizon_preset_value",
+    "parse_horizon_config",
     "SchemaContainer",
     "SchemaValue",
     "SchemaValueKind",

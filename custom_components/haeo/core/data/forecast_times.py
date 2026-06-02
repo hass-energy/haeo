@@ -1,7 +1,17 @@
 """Forecast time generation utilities."""
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from itertools import pairwise
+from typing import Any
+
+from custom_components.haeo.core.data.loader.extractors import haeo as haeo_extractor
+from custom_components.haeo.core.data.loader.extractors.utils import parse_datetime_to_timestamp
+from custom_components.haeo.core.schema.horizon_value import parse_horizon_config
+from custom_components.haeo.core.state import EntityState
+
+_MIN_BOUNDARY_TIMESTAMPS = 2
 
 _PRESET_DAYS: dict[str, int] = {
     "2_days": 2,
@@ -217,6 +227,77 @@ def calculate_total_steps(
     return sum(min_counts) + base_t4_steps + alignment_buffer
 
 
+@dataclass(frozen=True, slots=True)
+class _StateAdapter:
+    """Minimal EntityState adapter for HAEO forecast detection."""
+
+    entity_id: str
+    state: str
+    attributes: Mapping[str, Any]
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"entity_id": self.entity_id, "state": self.state, "attributes": dict(self.attributes)}
+
+
+def extract_haeo_forecast_timestamps(state: EntityState) -> tuple[float, ...]:
+    """Extract sorted unique boundary timestamps from a HAEO-format forecast entity.
+
+    Uses the ``time`` field of each forecast point; values are ignored.
+
+    Raises:
+        ValueError: If the state is not a valid HAEO forecast or has fewer than two times.
+
+    """
+    if not haeo_extractor.Parser.detect(state):
+        msg = f"Entity {state.entity_id} does not provide a HAEO-format forecast"
+        raise ValueError(msg)
+
+    forecast = state.attributes["forecast"]
+    timestamps = sorted({float(parse_datetime_to_timestamp(item["time"])) for item in forecast})
+    if len(timestamps) < _MIN_BOUNDARY_TIMESTAMPS:
+        msg = f"Entity {state.entity_id} forecast must have at least two time points"
+        raise ValueError(msg)
+    return tuple(timestamps)
+
+
+def extract_haeo_forecast_timestamps_from_attributes(
+    entity_id: str,
+    attributes: Mapping[str, Any],
+    *,
+    state: str = "unknown",
+) -> tuple[float, ...]:
+    """Extract timestamps from attributes using HAEO forecast validation."""
+    adapter = _StateAdapter(entity_id=entity_id, state=state, attributes=attributes)
+    return extract_haeo_forecast_timestamps(adapter)
+
+
+def periods_seconds_from_boundaries(timestamps: Sequence[float]) -> list[int]:
+    """Derive period durations in seconds from consecutive boundary timestamps.
+
+    Args:
+        timestamps: Monotonically increasing boundary timestamps in epoch seconds.
+
+    Returns:
+        List of period durations, one per interval between boundaries.
+
+    Raises:
+        ValueError: If fewer than two timestamps or any period is non-positive.
+
+    """
+    if len(timestamps) < _MIN_BOUNDARY_TIMESTAMPS:
+        msg = "At least two boundary timestamps are required"
+        raise ValueError(msg)
+
+    periods: list[int] = []
+    for start, end in pairwise(timestamps):
+        duration = int(end - start)
+        if duration <= 0:
+            msg = "Boundary timestamps must be strictly increasing"
+            raise ValueError(msg)
+        periods.append(duration)
+    return periods
+
+
 def tiers_to_periods_seconds(
     config: Mapping[str, int | str | Mapping[str, int | str]],
     start_time: datetime | None = None,
@@ -224,27 +305,25 @@ def tiers_to_periods_seconds(
     """Convert tier configuration to list of period durations in seconds.
 
     Uses dynamic time alignment when a preset is selected (2/3/5/7 days).
-    Falls back to fixed tier counts when using custom configuration.
+    Falls back to fixed tier counts for legacy custom configuration.
+    Entity-based horizons are resolved by HorizonManager, not this function.
 
     Args:
-        config: Tier configuration dictionary with tier_N_count and tier_N_duration keys,
-            plus optional horizon_preset key.
+        config: Hub config with common/tiers sections or flat tier keys.
         start_time: Optional start time for alignment. If None, uses current time.
 
     Returns:
         List of period durations in seconds.
 
     """
-    # Support sectioned hub config by reading from nested sections when present
-    common = config.get("common") if isinstance(config.get("common"), Mapping) else None
+    parsed = parse_horizon_config(config)
+    if parsed.mode == "entity":
+        return []
+
     tiers_section = config.get("tiers") if isinstance(config.get("tiers"), Mapping) else None
+    horizon_preset = parsed.preset
 
-    # Check if using a preset (enables time alignment)
-    horizon_preset = (
-        (common or {}).get("horizon_preset") if isinstance(common, Mapping) else config.get("horizon_preset")
-    )
-
-    if horizon_preset and horizon_preset in _PRESET_DAYS:
+    if parsed.mode == "preset" and horizon_preset and horizon_preset in _PRESET_DAYS:
         # Preset mode: use dynamic time alignment with fixed tier configuration
         days = _PRESET_DAYS[horizon_preset]
         horizon_minutes = days * 24 * 60
@@ -264,7 +343,7 @@ def tiers_to_periods_seconds(
         )
         return periods_seconds
 
-    # Custom/legacy mode: use fixed tier counts from config
+    # Legacy custom mode: use fixed tier counts from config
     if isinstance(tiers_section, Mapping):
         tier_config: Mapping[str, int | str] = tiers_section
     else:

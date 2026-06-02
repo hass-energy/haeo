@@ -9,9 +9,11 @@ import pytest
 from custom_components.haeo.core.data.forecast_times import (
     calculate_aligned_tier_counts,
     calculate_total_steps,
+    extract_haeo_forecast_timestamps_from_attributes,
     generate_forecast_timestamps,
     generate_forecast_timestamps_from_config,
     minutes_to_next_boundary,
+    periods_seconds_from_boundaries,
     tiers_to_periods_seconds,
 )
 
@@ -311,6 +313,27 @@ def test_alignment_no_extra_steps() -> None:
     assert len(periods_seconds) == sum(tier_counts)
     # T4 count should be exactly remaining_steps (no variance absorption)
     assert tier_counts[3] == total_steps - (tier_counts[0] + tier_counts[1] + tier_counts[2])
+
+
+def test_periods_seconds_from_boundaries() -> None:
+    """Derive period durations from boundary timestamps."""
+    timestamps = (0.0, 60.0, 360.0)
+    assert periods_seconds_from_boundaries(timestamps) == [60, 300]
+
+
+def test_extract_haeo_forecast_timestamps_from_attributes() -> None:
+    """Extract sorted timestamps from HAEO forecast attributes."""
+    attributes = {
+        "forecast": [
+            {"time": "2025-10-06T01:00:00+00:00", "value": 1.0},
+            {"time": "2025-10-06T00:00:00+00:00", "value": 2.0},
+            {"time": "2025-10-06T00:30:00+00:00", "value": 3.0},
+        ],
+        "unit_of_measurement": "kW",
+    }
+    timestamps = extract_haeo_forecast_timestamps_from_attributes("sensor.test", attributes)
+    assert len(timestamps) == 3
+    assert timestamps == tuple(sorted(timestamps))
 
 
 def test_tiers_to_periods_with_custom() -> None:

@@ -5,61 +5,40 @@
       "user": {
         "title": "HAEO Setup",
         "description": "Configure your system and choose a planning horizon that matches your forecast data availability.",
-        "data": { "advanced_mode": "Advanced Mode", "horizon_preset": "Planning Horizon", "name": "System Name" },
-        "data_description": { "advanced_mode": "Reveals additional element types for complex energy systems." },
+        "data": { "advanced_mode": "Advanced Mode", "horizon": "Planning horizon", "name": "System Name" },
+        "data_description": {
+          "advanced_mode": "Reveals additional element types for complex energy systems.",
+          "horizon": "Use a day preset or an external sensor that publishes HAEO-format forecast timestamps."
+        },
         "sections": {
           "advanced": { "data": { "advanced_mode": "Advanced Mode" }, "name": "Advanced settings" },
           "common": {
-            "data": { "horizon_preset": "Planning Horizon", "name": "System Name" },
+            "data": { "horizon": "Planning horizon", "name": "System Name" },
             "name": "Common settings"
           }
         }
-      },
-      "custom_tiers": {
-        "title": "Custom Tier Configuration",
-        "description": "Configure custom interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
-        "data": {
-          "tier_1_count": "Tier 1 Count (fine-grained)",
-          "tier_1_duration": "Tier 1 Duration (minutes)",
-          "tier_2_count": "Tier 2 Count (short-term)",
-          "tier_2_duration": "Tier 2 Duration (minutes)",
-          "tier_3_count": "Tier 3 Count (medium-term)",
-          "tier_3_duration": "Tier 3 Duration (minutes)",
-          "tier_4_count": "Tier 4 Count (long-term)",
-          "tier_4_duration": "Tier 4 Duration (minutes)"
-        }
       }
     },
-    "error": { "name_exists": "A system with this name already exists" },
+    "error": {
+      "invalid_horizon_entity": "Select a sensor with a valid HAEO-format forecast attribute",
+      "name_exists": "A system with this name already exists"
+    },
     "abort": { "already_configured": "HAEO already configured" }
   },
   "options": {
     "step": {
-      "custom_tiers": {
-        "title": "Custom Tier Configuration",
-        "description": "Configure custom interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
-        "data": {
-          "tier_1_count": "Tier 1 Count (fine-grained)",
-          "tier_1_duration": "Tier 1 Duration (minutes)",
-          "tier_2_count": "Tier 2 Count (short-term)",
-          "tier_2_duration": "Tier 2 Duration (minutes)",
-          "tier_3_count": "Tier 3 Count (medium-term)",
-          "tier_3_duration": "Tier 3 Duration (minutes)",
-          "tier_4_count": "Tier 4 Count (long-term)",
-          "tier_4_duration": "Tier 4 Duration (minutes)"
-        }
-      },
       "init": {
         "title": "HAEO Settings",
         "description": "Configure optimization settings. Choose a planning horizon that matches your forecast data availability.",
         "data": {
           "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_preset": "Planning Horizon",
+          "horizon": "Planning horizon",
           "record_forecasts": "Record forecast data"
         },
         "data_description": {
           "advanced_mode": "Reveals additional element types for complex energy systems.",
+          "horizon": "Use a day preset or an external sensor that publishes HAEO-format forecast timestamps.",
           "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
         },
         "sections": {
@@ -71,11 +50,12 @@
             },
             "name": "Advanced settings"
           },
-          "common": { "data": { "horizon_preset": "Planning Horizon" }, "name": "Common settings" }
+          "common": { "data": { "horizon": "Planning horizon" }, "name": "Common settings" }
         }
       }
     },
     "error": {
+      "invalid_horizon_entity": "Select a sensor with a valid HAEO-format forecast attribute",
       "cannot_connect_to_self": "Cannot connect a device to itself",
       "invalid_name": "Invalid device name",
       "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
@@ -606,8 +586,9 @@
   },
   "selector": {
     "horizon_preset": {
-      "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
+      "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days" }
     },
+    "horizon_source": { "choices": { "entity": "Forecast entity", "preset": "Preset" } },
     "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },
     "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }
   },
