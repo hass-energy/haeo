@@ -65,7 +65,7 @@ Each run replaces the published horizon schedule; automations still follow the c
 This is well suited to dynamic tariffs and changing state, but you wire the cadence yourself (automations, `rest_command`, or shell calls)—it is not built into the Home Assistant integration the way HAEO's event-driven coordinator is.
 See the [EMHASS MPC study case](https://emhass.readthedocs.io/en/latest/study_cases/mpc.html).
 
-Since the v0.17 rewrite, EMHASS uses **CVXPY** with vectorized constraint building and defaults to **HiGHS** as its solver (~0.1s typical for standard cases).
+Since the v0.17 rewrite, EMHASS uses **CVXPY** with vectorized constraint building and defaults to **HiGHS** as its solver, with substantially faster solves than earlier releases.
 Day-ahead remains the most documented entry point; MPC is the path for volatile prices within EMHASS.
 
 ### HAEO: continuous re-optimization
@@ -75,7 +75,7 @@ Rather than locking in a full day plan when prices were fixed, HAEO **re-optimiz
 
 HAEO uses a **single LP solve** over a **multi-tier** horizon—not two separate optimizers.
 Near-term tiers use fine intervals (for example, 1-minute steps) for precise immediate decisions; distant tiers use coarser intervals (for example, 30–60 minutes) for multi-day **lookahead** without over-committing to hour-by-hour detail far in the future.
-See [time discretization](../../modeling/index.md#time-discretization) and [how data updates work](data-updates.md).
+See [time discretization](../modeling/index.md#time-discretization) and [how data updates work](data-updates.md).
 
 Results appear as native Home Assistant sensors with **current optimal power** plus **forecast attributes** for future intervals.
 Automations read live sensor values rather than a pre-published daily CSV schedule.
@@ -86,7 +86,7 @@ For **provenance-aware economics** (different value for the same kWh depending o
 
 ### HAEO power policies
 
-HAEO's [**power policies**](../walkthroughs/power-policies.md) attach **source→destination** prices and limits to energy flow using a **tagged provenance** model ([modeling reference](../../modeling/tagged-power.md)).
+HAEO's [**power policies**](../walkthroughs/power-policies.md) attach **source→destination** prices and limits to energy flow using a **tagged provenance** model ([modeling reference](../modeling/tagged-power.md)).
 The optimizer distinguishes, for example, solar→load (free self-consumption) from solar→grid (feed-in tariff), or battery→load (cheap) from battery→grid (discouraged export)—without treating all power as fungible once it enters the network.
 
 Policies compile into the linear program automatically and surface in the UI on a dedicated **Policies** device.
@@ -119,7 +119,7 @@ It excels at scheduling deferrable loads (washing machines, dishwashers, EV char
 
 - **Rolling MPC mode**: `naive-mpc-optim` re-optimizes on a user-defined cadence with fresh SOC, forecasts, and deferrable-load windows
 - **Deferrable load MILP**: Binary variables model on/off and startup decisions for true appliance scheduling (with LP fallback)
-- **Fast modern backend**: CVXPY vectorization and bundled HiGHS deliver sub-second solves for typical configurations
+- **Fast modern backend**: CVXPY vectorization and bundled HiGHS (see [EMHASS v0.17 release notes](https://github.com/davidusb-geek/emhass/blob/master/CHANGELOG.md))
 - **Built-in forecasting**: Includes machine learning-based load forecasting and integrates with solar forecasting services (Solcast, Forecast.Solar)
 - **Purpose-built for deferrable loads**: Designed specifically for appliance scheduling and load management
 - **Mature and proven**: Established project with large community, extensive real-world deployments, and comprehensive documentation
@@ -187,7 +187,7 @@ Match tier 1 duration to your fastest-updating price or forecast sensor for best
 - **Requires HACS**: Additional step before installation (though HACS is very common)
 - **Setup complexity**: Flexibility means more configuration options and decisions
 - **External forecasting dependency**: Relies entirely on other HA integrations for forecast data
-- **Missing features**: Thermal loads and deferrable load scheduling are planned future additions
+- **No MILP scheduling**: Deferrable loads, thermal storage, and appliance on/off are not modeled in HAEO (by design); use EMHASS or feed its forecasts in as inputs
 
 **Tradeoffs**: HAEO trades appliance scheduling capability for simpler configuration, faster solve times, and more flexible network topology modeling.
 The linear programming approach ensures reliable sub-second optimization even on resource-constrained hardware.
@@ -247,17 +247,17 @@ The linear programming approach ensures reliable sub-second optimization even on
 
 ### Features
 
-| Feature              | HAEO                          | EMHASS                          |
-| -------------------- | ----------------------------- | ------------------------------- |
-| Power policies       | Yes (core differentiator)     | No                              |
-| Forecasting          | Via HA integrations (modular) | Built-in ML + solar forecasting |
-| Sensor integration   | Native HA devices and sensors | Published sensors + REST API    |
-| Deferrable loads     | Not yet (planned)             | Yes (core feature)              |
-| Thermal loads        | Planned                       | Yes (built-in)                  |
-| Appliance scheduling | Not yet (planned)             | Yes (MILP-based)                |
-| Battery optimization | Yes (core feature)            | Yes (core feature)              |
-| Solar optimization   | Yes (core feature)            | Yes (core feature)              |
-| Control method       | HA automations with sensors   | Shell commands, REST, sensors   |
+| Feature              | HAEO                              | EMHASS                          |
+| -------------------- | --------------------------------- | ------------------------------- |
+| Power policies       | Yes (core differentiator)         | No                              |
+| Forecasting          | Via HA integrations (modular)     | Built-in ML + solar forecasting |
+| Sensor integration   | Native HA devices and sensors     | Published sensors + REST API    |
+| Deferrable loads     | No (by design; via EMHASS inputs) | Yes (core feature)              |
+| Thermal loads        | No (by design)                    | Yes (built-in)                  |
+| Appliance scheduling | No (by design)                    | Yes (MILP-based)                |
+| Battery optimization | Yes (core feature)                | Yes (core feature)              |
+| Solar optimization   | Yes (core feature)                | Yes (core feature)              |
+| Control method       | HA automations with sensors       | Shell commands, REST, sensors   |
 
 ## When to choose each solution
 

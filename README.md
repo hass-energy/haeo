@@ -136,7 +136,7 @@ See the [configuration guide](https://hass-energy.github.io/haeo/user-guide/conf
 After creating your hub, add elements from the hub integration card:
 
 1. Open your **HAEO** integration
-2. Click the **:** menu → **Add Entry**
+2. Click the **menu button** (three vertical dots, top right) → **Add Entry**
 3. Choose an element type and complete the configuration flow
 
 #### Battery Configuration
