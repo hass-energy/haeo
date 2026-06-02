@@ -9,8 +9,13 @@ interface ForecastCardConstructor {
 }
 
 interface HaeoCardElement extends HTMLElement {
-  setConfig: (config: { type: "custom:haeo-forecast-card"; hub_entry_id?: string; entities?: string[] }) => void;
-  hass: unknown;
+  setConfig: (config: {
+    type: "custom:haeo-forecast-card";
+    title?: string;
+    hub_entry_id?: string;
+    entities?: string[];
+  }) => void;
+  hass: HassLike | null;
   getCardSize: () => number;
   getGridOptions: () => {
     rows: number;
@@ -25,6 +30,18 @@ const smokeConfig = {
   hub_entry_id: "hub-alpha",
   entities: ["sensor.haeo_grid_import_power"],
 };
+
+/**
+ * Wait for the lazily-imported rendering controller to load and flush its
+ * synchronous render. The element registers instantly but defers heavy
+ * rendering behind a dynamic import, so tests must await that load.
+ */
+async function waitForController(): Promise<void> {
+  await import("./forecast-card-controller");
+  await new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
 
 function smokeHass(states: HassLike["states"]): HassLike {
   return withSingleHubRegistry({ states }, "hub-alpha");
@@ -44,13 +61,17 @@ describe("haeo-forecast-card smoke", () => {
     expect(element).toBeInstanceOf(HTMLElement);
   });
 
+  it("reports fallback sizing before the rendering controller loads", () => {
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    expect(element.getCardSize()).toBe(6);
+    expect(element.getGridOptions()).toEqual({ rows: 5, min_rows: 4, columns: "full" });
+  });
+
   it("renders svg when hass is set after connect", async () => {
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
     document.body.appendChild(element);
     element.setConfig(smokeConfig);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
+    await waitForController();
     expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeFalsy();
 
     element.hass = smokeHass({
@@ -71,9 +92,7 @@ describe("haeo-forecast-card smoke", () => {
         },
       },
     });
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
+    await waitForController();
 
     expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeTruthy();
     element.remove();
@@ -101,9 +120,7 @@ describe("haeo-forecast-card smoke", () => {
       },
     });
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
+    await waitForController();
 
     const svg = element.shadowRoot?.querySelector(".chartContainer svg");
     expect(svg).toBeTruthy();
@@ -118,9 +135,7 @@ describe("haeo-forecast-card smoke", () => {
       type: "custom:haeo-forecast-card",
     });
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
+    await waitForController();
     expect(element.shadowRoot?.textContent).toContain("Configure a HAEO hub in the card editor");
     element.remove();
   });
@@ -173,9 +188,7 @@ describe("haeo-forecast-card smoke", () => {
         },
       });
       document.body.appendChild(element);
-      await new Promise((resolve) => {
-        setTimeout(resolve, 20);
-      });
+      await waitForController();
 
       const chartContainer = element.shadowRoot?.querySelector(".chartContainer");
       expect(chartContainer).toBeTruthy();
@@ -227,9 +240,7 @@ describe("haeo-forecast-card smoke", () => {
     const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
     element.setConfig(smokeConfig);
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
+    await waitForController();
 
     expect(element.getCardSize()).toBe(14);
     element.remove();
@@ -274,5 +285,66 @@ describe("haeo-forecast-card smoke", () => {
       getConfigForm: () => { schema: Array<{ name: string }> };
     };
     expect(cardClass.getConfigForm().schema.some((field) => field.name === "hub_entry_id")).toBe(true);
+  });
+
+  it("replays config and hass through the shim after the controller loads", async () => {
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    element.setConfig(smokeConfig);
+    document.body.appendChild(element);
+    await waitForController();
+
+    element.setConfig({ ...smokeConfig, title: "Updated forecast" });
+    element.hass = smokeHass({
+      "sensor.haeo_grid_import_power": {
+        entity_id: "sensor.haeo_grid_import_power",
+        attributes: {
+          field_type: "power",
+          output_name: "import_power",
+          direction: "-",
+          element_name: "Grid",
+          element_type: "grid",
+          unit_of_measurement: "kW",
+          forecast: [
+            { time: "2026-03-14T00:00:00Z", value: 1.0 },
+            { time: "2026-03-14T00:05:00Z", value: 2.0 },
+          ],
+        },
+      },
+    });
+    expect(element.hass.states["sensor.haeo_grid_import_power"]).toBeTruthy();
+    expect(element.getCardWidth()).toBeGreaterThan(0);
+    expect(element.getGridOptions().rows).toBeGreaterThan(5);
+    element.remove();
+  });
+
+  it("reconnects the rendering controller after DOM detach and reattach", async () => {
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    element.setConfig(smokeConfig);
+    element.hass = smokeHass({
+      "sensor.haeo_grid_import_power": {
+        entity_id: "sensor.haeo_grid_import_power",
+        attributes: {
+          field_type: "power",
+          output_name: "import_power",
+          direction: "-",
+          element_name: "Grid",
+          element_type: "grid",
+          unit_of_measurement: "kW",
+          forecast: [
+            { time: "2026-03-14T00:00:00Z", value: 1.0 },
+            { time: "2026-03-14T00:05:00Z", value: 2.0 },
+          ],
+        },
+      },
+    });
+    document.body.appendChild(element);
+    await waitForController();
+    expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeTruthy();
+
+    element.remove();
+    document.body.appendChild(element);
+    await waitForController();
+    expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeTruthy();
+    element.remove();
   });
 });

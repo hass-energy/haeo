@@ -20,5 +20,3 @@ window.customCards.push({
   documentationURL: "https://github.com/hass-energy/haeo/blob/main/docs/user-guide/lovelace-card.md",
   preview: true,
 });
-
-void import("./topology-entry");
