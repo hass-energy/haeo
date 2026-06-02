@@ -64,6 +64,40 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         },
     },
     {
+        "description": "Multi-tag node with collapsed and per-tag balance outputs",
+        "name": "node_main",
+        "model_outputs": {
+            "node_main": {
+                ELEMENT_POWER_BALANCE: OutputData(
+                    type=OutputType.SHADOW_PRICE,
+                    unit="$/kWh",
+                    values=(0.1, 0.2, 0.3, 0.4),
+                    range_up=(1.0, 1.0, 0.0, 0.0),
+                    balance_tags=(1, 2),
+                ),
+            }
+        },
+        "outputs": {
+            NODE_DEVICE_NODE: {
+                NODE_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.1, 0.2)),
+                "node_tag_1_power_balance": OutputData(
+                    type=OutputType.SHADOW_PRICE,
+                    unit="$/kWh",
+                    values=(0.1, 0.2),
+                    advanced=True,
+                    range_up=(1.0, 1.0),
+                ),
+                "node_tag_2_power_balance": OutputData(
+                    type=OutputType.SHADOW_PRICE,
+                    unit="$/kWh",
+                    values=(0.3, 0.4),
+                    advanced=True,
+                    range_up=(0.0, 0.0),
+                ),
+            }
+        },
+    },
+    {
         "description": "Unconstrained node without power balance",
         "name": "node_main",
         "model_outputs": {"node_main": {}},
@@ -84,5 +118,5 @@ def test_model_elements(case: CreateCase) -> None:
 def test_outputs_mapping(case: OutputsCase) -> None:
     """Verify adapter maps model outputs to device outputs."""
     entry = ELEMENT_TYPES[ElementType.NODE]
-    result = entry.outputs(case["name"], case["model_outputs"])
+    result = entry.outputs(case["name"], case["model_outputs"], periods=[1.0, 1.0])
     assert result == case["outputs"]

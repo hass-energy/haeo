@@ -2,11 +2,15 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Any, Final, Literal, cast
 
 import numpy as np
 
-from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
+from custom_components.haeo.core.adapters.output_utils import (
+    balance_shadow_price_device_outputs,
+    connection_power,
+    expect_output_data,
+)
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as model_battery
@@ -56,6 +60,7 @@ type BatteryOutputName = Literal[
     "battery_energy_stored",
     "battery_state_of_charge",
     "battery_power_balance",
+    "battery_tag_power_balance",
     "battery_energy_in_flow",
     "battery_energy_out_flow",
     "battery_soc_max",
@@ -70,6 +75,7 @@ BATTERY_OUTPUT_NAMES: Final[frozenset[BatteryOutputName]] = frozenset(
         BATTERY_ENERGY_STORED := "battery_energy_stored",
         BATTERY_STATE_OF_CHARGE := "battery_state_of_charge",
         BATTERY_POWER_BALANCE := "battery_power_balance",
+        BATTERY_TAG_POWER_BALANCE := "battery_tag_power_balance",
         BATTERY_ENERGY_IN_FLOW := "battery_energy_in_flow",
         BATTERY_ENERGY_OUT_FLOW := "battery_energy_out_flow",
         BATTERY_SOC_MAX := "battery_soc_max",
@@ -225,13 +231,17 @@ class BatteryAdapter:
         power_charge = replace(connection_power(charge_conn, period_count), type=OutputType.POWER, direction="-")
 
         # Battery-internal outputs (energy, SOC, shadow prices)
-        battery_outputs = {key: value for key, value in model_outputs[name].items() if isinstance(value, OutputData)}
+        battery_outputs = {
+            key: expect_output_data(value)
+            for key, value in model_outputs[name].items()
+            if not isinstance(value, Mapping)
+        }
         energy_stored = battery_outputs[model_battery.BATTERY_ENERGY_STORED]
 
         total_energy_stored = _calculate_total_energy(energy_stored, config)
         aggregate_soc = _calculate_soc(total_energy_stored, config)
 
-        aggregate_outputs: dict[BatteryOutputName, OutputData] = {
+        aggregate_outputs: dict[str, OutputData] = {
             BATTERY_POWER_CHARGE: power_charge,
             BATTERY_POWER_DISCHARGE: power_discharge,
             BATTERY_ENERGY_STORED: total_energy_stored,
@@ -245,7 +255,15 @@ class BatteryAdapter:
             type=OutputType.POWER,
         )
 
-        aggregate_outputs[BATTERY_POWER_BALANCE] = battery_outputs[model_battery.BATTERY_POWER_BALANCE]
+        balance_dual = battery_outputs[model_battery.BATTERY_POWER_BALANCE]
+        aggregate_outputs.update(
+            balance_shadow_price_device_outputs(
+                element_prefix="battery",
+                primary_output_name=BATTERY_POWER_BALANCE,
+                dual=balance_dual,
+                n_periods=period_count,
+            )
+        )
         aggregate_outputs[BATTERY_ENERGY_IN_FLOW] = replace(
             battery_outputs[model_battery.BATTERY_ENERGY_IN_FLOW], advanced=True
         )
@@ -255,7 +273,7 @@ class BatteryAdapter:
         aggregate_outputs[BATTERY_SOC_MAX] = replace(battery_outputs[model_battery.BATTERY_SOC_MAX], advanced=True)
         aggregate_outputs[BATTERY_SOC_MIN] = replace(battery_outputs[model_battery.BATTERY_SOC_MIN], advanced=True)
 
-        return {BATTERY_DEVICE_BATTERY: aggregate_outputs}
+        return {BATTERY_DEVICE_BATTERY: cast("Mapping[BatteryOutputName, OutputData]", aggregate_outputs)}
 
 
 adapter = BatteryAdapter()

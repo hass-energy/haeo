@@ -6,7 +6,12 @@ from typing import Any, Final, Literal
 
 import numpy as np
 
-from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
+from custom_components.haeo.core.adapters.output_utils import (
+    connection_power,
+    expect_output_data,
+    marginal_balance_dual_per_step,
+    split_balance_shadow_rows,
+)
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -62,8 +67,6 @@ _NEXT_24H_WINDOW_HOURS: Final[float] = 24.0
 # Power threshold below which a timestep is considered "shed" (not running), in kW.
 # Small but non-zero to ignore floating-point noise from the LP solver.
 _RUNTIME_POWER_EPS: Final[float] = 1e-9
-# Ranging headroom threshold (kWh): tags with range_up below this are treated as saturated.
-_RANGE_UP_EPS: Final[float] = 1e-9
 
 type LoadDeviceName = Literal[ElementType.LOAD]
 
@@ -165,11 +168,11 @@ def _marginal_cost_per_step(
     if dual is None:
         return None
 
-    split = _split_shadow_rows(dual, n_periods)
+    split = split_balance_shadow_rows(dual, n_periods)
     if split is None:
         return None
     duals_by_tag, range_up_by_tag = split
-    marginal_dual = _marginal_dual_per_step(duals_by_tag, range_up_by_tag)
+    marginal_dual = marginal_balance_dual_per_step(duals_by_tag, range_up_by_tag)
 
     power = expect_output_data(connection.get(CONNECTION_POWER))
     if power is None:
@@ -178,57 +181,6 @@ def _marginal_cost_per_step(
     if len(power_values) != n_periods:
         return None
     return power_values * np.asarray(periods, dtype=float) * marginal_dual
-
-
-def _split_shadow_rows(
-    dual: OutputData,
-    n_periods: int,
-) -> tuple[np.ndarray, np.ndarray | None] | None:
-    """Reshape flat balance-constraint rows into (n_tags, n_periods)."""
-    duals = np.asarray(dual.values, dtype=float)
-    if len(duals) == n_periods:
-        return duals.reshape(1, n_periods), _reshape_ranging(dual.range_up, n_periods, n_tags=1)
-    if len(duals) % n_periods != 0:
-        return None
-    n_tags = len(duals) // n_periods
-    return duals.reshape(n_tags, n_periods), _reshape_ranging(dual.range_up, n_periods, n_tags)
-
-
-def _reshape_ranging(
-    range_up: Sequence[Any] | None,
-    n_periods: int,
-    n_tags: int,
-) -> np.ndarray | None:
-    """Reshape flat ranging rows to match per-tag dual blocks."""
-    if range_up is None:
-        return None
-    ranging = np.asarray(range_up, dtype=float)
-    expected = n_tags * n_periods
-    if len(ranging) != expected:
-        return None
-    return ranging.reshape(n_tags, n_periods)
-
-
-def _marginal_dual_per_step(
-    duals_by_tag: np.ndarray,
-    range_up_by_tag: np.ndarray | None,
-) -> np.ndarray:
-    """Select the cheapest available source balance dual at each timestep."""
-    n_tags, n_periods = duals_by_tag.shape
-    if n_tags == 1:
-        return duals_by_tag[0]
-
-    marginal = np.empty(n_periods, dtype=float)
-    for t in range(n_periods):
-        if range_up_by_tag is not None:
-            available = range_up_by_tag[:, t] > _RANGE_UP_EPS
-            if np.any(available):
-                marginal[t] = float(np.min(duals_by_tag[available, t]))
-                continue
-            marginal[t] = float(np.max(duals_by_tag[:, t]))
-            continue
-        marginal[t] = float(np.min(duals_by_tag[:, t]))
-    return marginal
 
 
 def _stats_outputs(

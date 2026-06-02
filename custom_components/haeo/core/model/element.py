@@ -149,7 +149,7 @@ class Element[OutputNameT: str]:
                 continue
 
             if output_name in self._output_names and (output_data := attr.get_output(self)) is not None:
-                result[output_name] = output_data  # type: ignore[assignment]  # name validated by `in` check at runtime
+                result[output_name] = output_data  # type: ignore[assignment]
         return result
 
     def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
@@ -255,6 +255,16 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
 
         # Lazily-created per-tag production decomposition variables
         self._produced_by_tag: dict[int, HighspyArray] | None = None
+
+    def outputs(self) -> Mapping[OutputNameT, OutputData]:
+        """Return outputs with VLAN tag ids attached to multi-tag balance shadow prices."""
+        result = dict(super().outputs())
+        balance = next((data for name, data in result.items() if name == ELEMENT_POWER_BALANCE), None)
+        if balance is not None:
+            tags = sorted(self.connection_tags())
+            if len(tags) > 1 and len(balance.values) == len(tags) * self.n_periods:
+                balance.balance_tags = tuple(tags)
+        return result
 
     def register_connection(self, connection: Any, end: Literal["source", "target"]) -> None:
         """Register a connection to this element.

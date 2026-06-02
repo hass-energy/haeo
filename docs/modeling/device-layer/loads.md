@@ -63,10 +63,9 @@ The adapter transforms user configuration into connection segments:
 | `next_24h_runtime`                | h      | Per solve | Time the load is forecast to be dispatched over the next 24 h                                                            |
 | `next_24h_average_marginal_price` | \$/kWh | Per solve | Energy-weighted average marginal price forecast for the next 24 h (0 when no energy is served)                           |
 
-Incremental marginal cost prices load energy at `λ_marginal[t]`, the cheapest source-node
-balance shadow price among VLAN tags that still have ranging headroom. When every tag is
-saturated, the highest dual is used. This answers "what would one more kWh cost right now?"
-rather than allocating mixed-VLAN energy to a utility bill.
+Incremental marginal cost prices load energy at `λ_marginal[t]`, the cheapest source-node balance shadow price among VLAN tags that still have ranging headroom.
+When every tag is saturated, the highest dual is used.
+This answers "what would one more kWh cost right now?" rather than allocating mixed-VLAN energy to a utility bill.
 
 See [Load Configuration](../../user-guide/elements/load.md) for detailed sensor and configuration documentation.
 

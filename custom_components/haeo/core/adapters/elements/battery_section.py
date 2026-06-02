@@ -2,8 +2,9 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Any, Final, Literal, cast
 
+from custom_components.haeo.core.adapters.output_utils import balance_shadow_price_device_outputs, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as model_battery
@@ -25,6 +26,7 @@ type BatterySectionOutputName = Literal[
     "battery_section_power_active",
     "battery_section_energy_stored",
     "battery_section_power_balance",
+    "battery_section_tag_power_balance",
     "battery_section_energy_in_flow",
     "battery_section_energy_out_flow",
     "battery_section_soc_max",
@@ -38,6 +40,7 @@ BATTERY_SECTION_OUTPUT_NAMES: Final[frozenset[BatterySectionOutputName]] = froze
         BATTERY_SECTION_POWER_ACTIVE := "battery_section_power_active",
         BATTERY_SECTION_ENERGY_STORED := "battery_section_energy_stored",
         BATTERY_SECTION_POWER_BALANCE := "battery_section_power_balance",
+        BATTERY_SECTION_TAG_POWER_BALANCE := "battery_section_tag_power_balance",
         BATTERY_SECTION_ENERGY_IN_FLOW := "battery_section_energy_in_flow",
         BATTERY_SECTION_ENERGY_OUT_FLOW := "battery_section_energy_out_flow",
         BATTERY_SECTION_SOC_MAX := "battery_section_soc_max",
@@ -82,9 +85,13 @@ class BatterySectionAdapter:
         **_kwargs: Any,
     ) -> Mapping[BatterySectionDeviceName, Mapping[BatterySectionOutputName, OutputData]]:
         """Map model outputs to battery section output names."""
-        battery_data = {key: value for key, value in model_outputs[name].items() if isinstance(value, OutputData)}
+        battery_data = {
+            key: expect_output_data(value)
+            for key, value in model_outputs[name].items()
+            if not isinstance(value, Mapping)
+        }
 
-        section_outputs: dict[BatterySectionOutputName, OutputData] = {}
+        section_outputs: dict[str, OutputData] = {}
 
         # Power outputs
         section_outputs[BATTERY_SECTION_POWER_CHARGE] = replace(
@@ -109,7 +116,14 @@ class BatterySectionAdapter:
 
         # Shadow prices
         if model_battery.BATTERY_POWER_BALANCE in battery_data:
-            section_outputs[BATTERY_SECTION_POWER_BALANCE] = battery_data[model_battery.BATTERY_POWER_BALANCE]
+            section_outputs.update(
+                balance_shadow_price_device_outputs(
+                    element_prefix="battery_section",
+                    primary_output_name=BATTERY_SECTION_POWER_BALANCE,
+                    dual=battery_data[model_battery.BATTERY_POWER_BALANCE],
+                    n_periods=len(battery_data[model_battery.BATTERY_POWER_CHARGE].values),
+                )
+            )
         if model_battery.BATTERY_ENERGY_IN_FLOW in battery_data:
             section_outputs[BATTERY_SECTION_ENERGY_IN_FLOW] = battery_data[model_battery.BATTERY_ENERGY_IN_FLOW]
         if model_battery.BATTERY_ENERGY_OUT_FLOW in battery_data:
@@ -119,7 +133,7 @@ class BatterySectionAdapter:
         if model_battery.BATTERY_SOC_MIN in battery_data:
             section_outputs[BATTERY_SECTION_SOC_MIN] = battery_data[model_battery.BATTERY_SOC_MIN]
 
-        return {BATTERY_SECTION_DEVICE: section_outputs}
+        return {BATTERY_SECTION_DEVICE: cast("Mapping[BatterySectionOutputName, OutputData]", section_outputs)}
 
 
 adapter = BatterySectionAdapter()

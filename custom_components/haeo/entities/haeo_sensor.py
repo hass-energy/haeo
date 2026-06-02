@@ -12,6 +12,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.haeo.const import CONF_RECORD_FORECASTS, OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
+from custom_components.haeo.core.adapters.output_utils import tag_power_balance_translation
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, SOURCE_ROLE_OUTPUT
@@ -53,15 +54,22 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         self._output_name: ElementOutputName = output_name
         self._output_type: OutputType = output_data.type
 
+        translation_key = output_name
+        tag_placeholders: dict[str, str] = {}
+        if tag_translation := tag_power_balance_translation(output_name):
+            translation_key, tag_placeholders = tag_translation
+
         # Use entity description for static field-derived attributes
         self.entity_description = SensorEntityDescription(
             key=output_name,
-            translation_key=output_name,
+            translation_key=translation_key,
         )
 
         self._attr_unique_id = unique_id
-        if translation_placeholders is not None:
-            self._attr_translation_placeholders = translation_placeholders
+        merged_placeholders = dict(translation_placeholders or {})
+        merged_placeholders.update(tag_placeholders)
+        if merged_placeholders:
+            self._attr_translation_placeholders = merged_placeholders
         self._attr_entity_registry_enabled_default = not output_data.advanced
         self._apply_output(output_data)
 

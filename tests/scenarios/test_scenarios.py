@@ -12,8 +12,9 @@ from homeassistant.helpers.event import async_track_state_change_event
 import pytest
 
 from custom_components.haeo.const import OUTPUT_NAME_OPTIMIZATION_STATUS
-from custom_components.haeo.sensor_utils import get_output_sensors, refresh_config_entry_output_entities
+from custom_components.haeo.sensor_utils import get_output_sensors
 from tests.scenarios.conftest import ScenarioData
+from tests.scenarios.scenario_outputs import refresh_config_entry_output_entities
 from tests.scenarios.visualization import visualize_scenario_results
 from tools.sim_hass import setup_haeo_entry
 

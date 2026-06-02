@@ -1,9 +1,9 @@
 """Node element adapter for model layer integration."""
 
-from collections.abc import Mapping
-from typing import Any, Final, Literal
+from collections.abc import Mapping, Sequence
+from typing import Any, Final, Literal, cast
 
-from custom_components.haeo.core.adapters.output_utils import expect_output_data
+from custom_components.haeo.core.adapters.output_utils import balance_shadow_price_device_outputs, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE
@@ -23,10 +23,13 @@ DEFAULT_IS_SOURCE: Final[bool] = False
 DEFAULT_IS_SINK: Final[bool] = False
 
 # Node output names
-type NodeOutputName = Literal["node_power_balance"]
+type NodeOutputName = Literal["node_power_balance", "node_tag_power_balance"]
 
 NODE_POWER_BALANCE: Final[NodeOutputName] = "node_power_balance"
-NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset((NODE_POWER_BALANCE,))
+NODE_TAG_POWER_BALANCE: Final[NodeOutputName] = "node_tag_power_balance"
+NODE_OUTPUT_NAMES: Final[frozenset[NodeOutputName]] = frozenset(
+    (NODE_POWER_BALANCE, NODE_TAG_POWER_BALANCE),
+)
 
 type NodeDeviceName = Literal[ElementType.NODE]
 
@@ -59,17 +62,27 @@ class NodeAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
+        *,
+        periods: Sequence[float],
         **_kwargs: Any,
     ) -> Mapping[NodeDeviceName, Mapping[NodeOutputName, OutputData]]:
         """Convert model element outputs to node adapter outputs."""
         node_model = model_outputs[name]
+        n_periods = len(periods)
 
-        # Map Node power_balance to node_power_balance (only present for constrained nodes)
-        node_outputs: dict[NodeOutputName, OutputData] = {}
+        node_outputs: dict[str, OutputData] = {}
         if ELEMENT_POWER_BALANCE in node_model:
-            node_outputs[NODE_POWER_BALANCE] = expect_output_data(node_model[ELEMENT_POWER_BALANCE])
+            dual = expect_output_data(node_model[ELEMENT_POWER_BALANCE])
+            node_outputs.update(
+                balance_shadow_price_device_outputs(
+                    element_prefix="node",
+                    primary_output_name=NODE_POWER_BALANCE,
+                    dual=dual,
+                    n_periods=n_periods,
+                )
+            )
 
-        return {NODE_DEVICE_NODE: node_outputs}
+        return {NODE_DEVICE_NODE: cast("Mapping[NodeOutputName, OutputData]", node_outputs)}
 
 
 adapter = NodeAdapter()
