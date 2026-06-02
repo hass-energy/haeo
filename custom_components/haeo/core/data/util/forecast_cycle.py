@@ -20,7 +20,7 @@ def normalize_forecast_cycle(forecast_series: ForecastSeries, current_time: floa
     start_time = forecast[0]["timestamp"]
 
     forecast_remainder = (end_time - start_time) % _SECONDS_PER_DAY
-    forecast_required = _SECONDS_PER_DAY - forecast_remainder
+    forecast_required = (-forecast_remainder) % _SECONDS_PER_DAY
 
     # This is the time that is earliest in the forecast at the same time of day as the end time
     extra_start = start_time + forecast_remainder
