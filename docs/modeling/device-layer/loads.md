@@ -49,19 +49,19 @@ The adapter transforms user configuration into connection segments:
 
 ### Load Device
 
-| Sensor                            | Unit   | Update    | Description                                                                                                 |
-| --------------------------------- | ------ | --------- | ----------------------------------------------------------------------------------------------------------- |
-| `power`                           | kW     | Real-time | Power consumed by load                                                                                      |
-| `power_possible`                  | kW     | Real-time | Maximum possible load (forecast)                                                                            |
-| `forecast_limit_price`            | \$/kWh | Real-time | Marginal cost of serving this load                                                                          |
-| `horizon_energy`                  | kWh    | Per solve | Energy served over the full optimisation horizon; forecast attribute is the per-interval contribution       |
+| Sensor                            | Unit   | Update    | Description                                                                                                              |
+| --------------------------------- | ------ | --------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `power`                           | kW     | Real-time | Power consumed by load                                                                                                   |
+| `power_possible`                  | kW     | Real-time | Maximum possible load (forecast)                                                                                         |
+| `forecast_limit_price`            | \$/kWh | Real-time | Marginal cost of serving this load                                                                                       |
+| `horizon_energy`                  | kWh    | Per solve | Energy served over the full optimisation horizon; forecast attribute is the per-interval contribution                    |
 | `horizon_marginal_cost`           | \$     | Per solve | Incremental marginal cost over the full horizon (`Σ energy[t] × λ_marginal[t]`); forecast attribute is per-interval cost |
-| `horizon_runtime`                 | h      | Per solve | Total time the load is dispatched (power > 0) over the horizon; forecast attribute is per-interval runtime  |
-| `horizon_average_marginal_price`  | \$/kWh | Per solve | Energy-weighted average marginal price over the horizon; forecast attribute is the per-step \$/kWh          |
-| `next_24h_energy`                 | kWh    | Per solve | Energy forecast over the next 24 h, pro-rata clipped at the boundary                                        |
-| `next_24h_marginal_cost`          | \$     | Per solve | Incremental marginal cost forecast over the next 24 h, pro-rata clipped at the boundary                                 |
-| `next_24h_runtime`                | h      | Per solve | Time the load is forecast to be dispatched over the next 24 h                                               |
-| `next_24h_average_marginal_price` | \$/kWh | Per solve | Energy-weighted average marginal price forecast for the next 24 h (0 when no energy is served)              |
+| `horizon_runtime`                 | h      | Per solve | Total time the load is dispatched (power > 0) over the horizon; forecast attribute is per-interval runtime               |
+| `horizon_average_marginal_price`  | \$/kWh | Per solve | Energy-weighted average marginal price over the horizon; forecast attribute is the per-step \$/kWh                       |
+| `next_24h_energy`                 | kWh    | Per solve | Energy forecast over the next 24 h, pro-rata clipped at the boundary                                                     |
+| `next_24h_marginal_cost`          | \$     | Per solve | Incremental marginal cost forecast over the next 24 h, pro-rata clipped at the boundary                                  |
+| `next_24h_runtime`                | h      | Per solve | Time the load is forecast to be dispatched over the next 24 h                                                            |
+| `next_24h_average_marginal_price` | \$/kWh | Per solve | Energy-weighted average marginal price forecast for the next 24 h (0 when no energy is served)                           |
 
 Incremental marginal cost prices load energy at `λ_marginal[t]`, the cheapest source-node
 balance shadow price among VLAN tags that still have ranging headroom. When every tag is

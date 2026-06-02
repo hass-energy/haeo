@@ -82,9 +82,7 @@ class BatterySectionAdapter:
         **_kwargs: Any,
     ) -> Mapping[BatterySectionDeviceName, Mapping[BatterySectionOutputName, OutputData]]:
         """Map model outputs to battery section output names."""
-        battery_data = {
-            key: value for key, value in model_outputs[name].items() if isinstance(value, OutputData)
-        }
+        battery_data = {key: value for key, value in model_outputs[name].items() if isinstance(value, OutputData)}
 
         section_outputs: dict[BatterySectionOutputName, OutputData] = {}
 
