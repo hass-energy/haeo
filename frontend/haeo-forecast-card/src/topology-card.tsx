@@ -66,6 +66,10 @@ export class HaeoTopologyCard extends HTMLElement {
 
   connectedCallback(): void {
     this.isConnected_ = true;
+    if (this.controller) {
+      this.controller.connected();
+      return;
+    }
     void this.ensureController();
   }
 

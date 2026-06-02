@@ -312,4 +312,34 @@ describe("haeo-topology-card smoke", () => {
     });
     element.remove();
   });
+
+  it("reconnects the rendering controller after DOM detach and reattach", async () => {
+    const scenario = findScenarioTopologyState();
+    expect(scenario).not.toBeNull();
+    if (scenario === null) {
+      throw new Error("Expected scenario topology state");
+    }
+
+    const element = document.createElement("haeo-topology-card") as HaeoTopologyCardElement;
+    element.setConfig({
+      type: "custom:haeo-topology-card",
+      hub_entry_id: "hub-alpha",
+    });
+    element.hass = scenarioHass(scenario, "hub-alpha");
+    document.body.appendChild(element);
+    await waitForTopologyController();
+    await new Promise((resolve) => {
+      setTimeout(resolve, 500);
+    });
+    expect(element.shadowRoot?.querySelector("svg")).toBeTruthy();
+
+    element.remove();
+    document.body.appendChild(element);
+    await waitForTopologyController();
+    await new Promise((resolve) => {
+      setTimeout(resolve, 500);
+    });
+    expect(element.shadowRoot?.querySelector("svg")).toBeTruthy();
+    element.remove();
+  });
 });

@@ -316,4 +316,35 @@ describe("haeo-forecast-card smoke", () => {
     expect(element.getGridOptions().rows).toBeGreaterThan(5);
     element.remove();
   });
+
+  it("reconnects the rendering controller after DOM detach and reattach", async () => {
+    const element = document.createElement("haeo-forecast-card") as HaeoCardElement;
+    element.setConfig(smokeConfig);
+    element.hass = smokeHass({
+      "sensor.haeo_grid_import_power": {
+        entity_id: "sensor.haeo_grid_import_power",
+        attributes: {
+          field_type: "power",
+          output_name: "import_power",
+          direction: "-",
+          element_name: "Grid",
+          element_type: "grid",
+          unit_of_measurement: "kW",
+          forecast: [
+            { time: "2026-03-14T00:00:00Z", value: 1.0 },
+            { time: "2026-03-14T00:05:00Z", value: 2.0 },
+          ],
+        },
+      },
+    });
+    document.body.appendChild(element);
+    await waitForController();
+    expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeTruthy();
+
+    element.remove();
+    document.body.appendChild(element);
+    await waitForController();
+    expect(element.shadowRoot?.querySelector(".chartContainer svg")).toBeTruthy();
+    element.remove();
+  });
 });
