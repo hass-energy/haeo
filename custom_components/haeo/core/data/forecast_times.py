@@ -11,6 +11,11 @@ _PRESET_DAYS: dict[str, int] = {
 }
 
 
+def floor_timestamp(epoch_seconds: float, period_seconds: int) -> float:
+    """Round epoch seconds down to the nearest period boundary."""
+    return epoch_seconds // period_seconds * period_seconds
+
+
 def minutes_to_next_boundary(current_minute: int, boundary_interval: int) -> int:
     """Calculate minutes until the next boundary of the given interval.
 
@@ -94,7 +99,8 @@ def calculate_aligned_tier_counts(
     step is added to T4 to ensure the total duration exactly matches horizon_minutes.
 
     Args:
-        start_time: The optimization start time.
+        start_time: Optimization start time in the installation local timezone
+            (timezone-aware). Wall-clock minute within the hour drives alignment.
         tier_durations: Duration of each tier in minutes (1, 5, 30, 60).
         min_counts: Minimum step counts for tiers 1-3 (T4 count is computed).
         total_steps: Total number of steps to distribute across all tiers.
@@ -229,7 +235,9 @@ def tiers_to_periods_seconds(
     Args:
         config: Tier configuration dictionary with tier_N_count and tier_N_duration keys,
             plus optional horizon_preset key.
-        start_time: Optional start time for alignment. If None, uses current time.
+        start_time: Optional start time for preset alignment. Pass the installation
+            local timezone (timezone-aware) from Home Assistant. If None, uses
+            current UTC time (for tests and CLI only).
 
     Returns:
         List of period durations in seconds.
@@ -304,7 +312,7 @@ def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: flo
     if start_time is None:
         epoch_seconds = datetime.now(UTC).timestamp()
         smallest_period = min(periods_seconds) if periods_seconds else 60
-        start_time = epoch_seconds // smallest_period * smallest_period
+        start_time = floor_timestamp(epoch_seconds, smallest_period)
 
     timestamps: list[float] = [start_time]
     for period in periods_seconds:

@@ -32,7 +32,6 @@ from custom_components.haeo.const import (
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMENT_TYPE, DEFAULT_DEBOUNCE_SECONDS
 from custom_components.haeo.core.context import OptimizationContext
-from custom_components.haeo.core.data.forecast_times import tiers_to_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.core.model.topology import serialize_topology
@@ -360,7 +359,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             msg = "Runtime data not available"
             raise RuntimeError(msg)
 
-        periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
+        periods_seconds = runtime_data.horizon_manager.periods_seconds
         loaded_configs = self._load_from_input_stores()
 
         _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
@@ -468,7 +467,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         and segments, invalidating dependent constraints and costs.
         """
         # Update network periods with new horizon durations
-        periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
+        runtime_data = self._get_runtime_data()
+        if runtime_data is None:
+            return
+        periods_seconds = runtime_data.horizon_manager.periods_seconds
         periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
         network.update_periods(periods_hours)
 

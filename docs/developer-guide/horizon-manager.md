@@ -48,7 +48,7 @@ Each tier specifies a period duration and count:
 | 2    | 30 min | 6     | 3 hours  |
 | 3    | 1 hour | 20    | 20 hours |
 
-The HorizonManager computes period start times aligned to natural boundaries (for example, 12:00, 12:01, 12:02 for 1-minute periods).
+The HorizonManager computes period start times aligned to natural boundaries in the Home Assistant configured timezone (for example, 12:00, 12:01, 12:02 for 1-minute periods). This matters for UTC offsets with non-zero minutes (such as Australia/Adelaide at +10:30), where preset tier 4 hourly steps must align to local wall-clock hours rather than UTC hours.
 
 The `horizon` property returns the current forecast timestamps as a tuple of datetime objects.
 Components access this to align their data loading with the optimization time grid.

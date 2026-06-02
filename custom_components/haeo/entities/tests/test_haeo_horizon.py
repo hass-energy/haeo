@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 import logging
 from unittest.mock import Mock
+from zoneinfo import ZoneInfo
 
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -13,11 +14,21 @@ from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from freezegun import freeze_time
+
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.core.const import CONF_NAME
+from custom_components.haeo.core.const import CONF_HORIZON_PRESET, CONF_NAME
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.flows import (
+    HORIZON_PRESET_5_DAYS,
+    HUB_SECTION_ADVANCED,
+    HUB_SECTION_COMMON,
+    HUB_SECTION_TIERS,
+)
 from custom_components.haeo.horizon import HorizonManager
+
+ADELAIDE = ZoneInfo("Australia/Adelaide")
+T4_PERIOD_SECONDS = 3600
 
 # --- Fixtures ---
 
@@ -270,6 +281,57 @@ async def test_horizon_entity_updates_on_manager_change(
 
 
 # --- Tests for HorizonManager ---
+
+
+def _horizon_t4_boundary_local_minutes(
+    periods_seconds: list[int],
+    timestamps: tuple[float, ...],
+) -> list[int]:
+    """Return local minutes-of-hour for each T4 period end boundary."""
+    minutes: list[int] = []
+    for index, period in enumerate(periods_seconds):
+        if period == T4_PERIOD_SECONDS:
+            local_dt = datetime.fromtimestamp(timestamps[index + 1], tz=ADELAIDE)
+            minutes.append(local_dt.minute)
+    return minutes
+
+
+@pytest.fixture
+def adelaide_timezone(hass: HomeAssistant) -> None:
+    """Set Home Assistant default timezone to Adelaide for the test."""
+    original = dt_util.get_default_time_zone()
+    dt_util.set_default_time_zone(ADELAIDE)
+    yield
+    dt_util.set_default_time_zone(original)
+
+
+@freeze_time(datetime(2025, 6, 2, 12, 0, 0, tzinfo=ADELAIDE))
+def test_horizon_manager_adelaide_preset_aligns_t4_to_local_hour(
+    hass: HomeAssistant,
+    adelaide_timezone: None,
+) -> None:
+    """HorizonManager preset horizons align T4 boundaries to local :00 in Adelaide."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Adelaide Network",
+        data={
+            HUB_SECTION_COMMON: {CONF_NAME: "Adelaide Network", CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS},
+            HUB_SECTION_TIERS: {},
+            HUB_SECTION_ADVANCED: {},
+        },
+        entry_id="test_adelaide_horizon_entry",
+    )
+    entry.add_to_hass(hass)
+
+    manager = HorizonManager(hass, entry)
+    t4_minutes = _horizon_t4_boundary_local_minutes(
+        manager.periods_seconds,
+        manager.get_forecast_timestamps(),
+    )
+
+    assert t4_minutes, "expected at least one T4 boundary"
+    assert t4_minutes[0] == 0, "first T4 boundary should align to local hour (:00)"
+    assert all(minute == 0 for minute in t4_minutes), "all T4 boundaries should fall on local hour"
 
 
 def test_horizon_manager_current_start_time(
