@@ -77,17 +77,18 @@ After creating the Battery Section element, you must create Connection elements 
 
 A Battery Section element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                              | Unit   | Description                                 |
-| ------------------------------------------------------------------- | ------ | ------------------------------------------- |
-| [`sensor.{name}_battery_section_power_charge`](#power-charge)       | kW     | Power being charged into the battery        |
-| [`sensor.{name}_battery_section_power_discharge`](#power-discharge) | kW     | Power being discharged from the battery     |
-| [`sensor.{name}_battery_section_power_active`](#power-active)       | kW     | Net active power (discharge - charge)       |
-| [`sensor.{name}_battery_section_energy_stored`](#energy-stored)     | kWh    | Current energy stored in the battery        |
-| [`sensor.{name}_battery_section_power_balance`](#power-balance)     | \$/kWh | Shadow price of power at battery terminals  |
-| [`sensor.{name}_battery_section_energy_in_flow`](#energy-in-flow)   | \$/kWh | Shadow price of charging constraint         |
-| [`sensor.{name}_battery_section_energy_out_flow`](#energy-out-flow) | \$/kWh | Shadow price of discharging constraint      |
-| [`sensor.{name}_battery_section_soc_max`](#soc-max)                 | \$/kWh | Shadow price of maximum capacity constraint |
-| [`sensor.{name}_battery_section_soc_min`](#soc-min)                 | \$/kWh | Shadow price of minimum capacity constraint |
+| Sensor                                                                  | Unit   | Description                                         |
+| ----------------------------------------------------------------------- | ------ | --------------------------------------------------- |
+| [`sensor.{name}_battery_section_power_charge`](#power-charge)           | kW     | Power being charged into the battery                |
+| [`sensor.{name}_battery_section_power_discharge`](#power-discharge)     | kW     | Power being discharged from the battery             |
+| [`sensor.{name}_battery_section_power_active`](#power-active)           | kW     | Net active power (discharge - charge)               |
+| [`sensor.{name}_battery_section_energy_stored`](#energy-stored)         | kWh    | Current energy stored in the battery                |
+| [`sensor.{name}_battery_section_power_balance`](#power-balance)         | \$/kWh | Shadow price of power at battery terminals          |
+| [`sensor.{name}_battery_section_tag_{N}_power_balance`](#power-balance) | \$/kWh | Per-tag power balance shadow price (multi-tag only) |
+| [`sensor.{name}_battery_section_energy_in_flow`](#energy-in-flow)       | \$/kWh | Shadow price of charging constraint                 |
+| [`sensor.{name}_battery_section_energy_out_flow`](#energy-out-flow)     | \$/kWh | Shadow price of discharging constraint              |
+| [`sensor.{name}_battery_section_soc_max`](#soc-max)                     | \$/kWh | Shadow price of maximum capacity constraint         |
+| [`sensor.{name}_battery_section_soc_min`](#soc-min)                     | \$/kWh | Shadow price of minimum capacity constraint         |
 
 ### Power Charge
 
@@ -121,6 +122,12 @@ Values range from 0 to the configured capacity.
 
 The marginal value of power at the battery terminals.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+When power policies create multiple VLAN tags on the battery section's connections, HAEO also creates advanced per-tag diagnostic sensors (`sensor.{name}_battery_section_tag_{N}_power_balance` for each tag id *N*).
+These sensors are disabled by default and expose each tag's per-period power balance shadow price plus its ranging headroom.
+The primary `sensor.{name}_battery_section_power_balance` sensor collapses all tags into one marginal series; the per-tag sensors break that down.
+Single-tag configurations do not create these sensors.
+See [Per-tag diagnostic sensors](../../modeling/shadow-prices.md#per-tag-diagnostic-sensors) for the full breakdown.
 
 This shadow price shows how much the total system cost would change if you could inject or extract 1 kW of power at the battery terminals.
 

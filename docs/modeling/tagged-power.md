@@ -94,6 +94,25 @@ where $b_{n,v,t}$ is the node's net production on tag $v$.
 The node-role semantics above determine which tags carry which sign of $b$:
 source-only nodes have $b > 0$ only on their own tag, sink-only nodes have $b \le 0$ on any admitted tag, and junctions have $b = 0$ for every tag.
 
+### Decomposition constraint
+
+Tagged elements also carry a decomposition constraint that is not exposed as an output.
+Per-tag auxiliary production and consumption variables must sum to the element's totals:
+
+$$
+\sum_{v \in \text{Tags}(n)} p_{n,v,t} = P^{\text{prod}}_{n,t}, \quad
+\sum_{v \in \text{Tags}(n)} c_{n,v,t} = P^{\text{cons}}_{n,t}
+$$
+
+This is pure bookkeeping: an equality with no term in the objective.
+It is separate from the per-tag balance constraint whose duals are surfaced as shadow prices.
+Decomposition and balance were split deliberately so balance shadow prices contain only balance duals; when they were combined in one output, decomposition duals leaked into the balance shadow-price sensors and corrupted their sign and meaning.
+
+### Shadow-price outputs
+
+For Home Assistant sensors, per-tag balance duals are either collapsed to one forecast-aligned series on the primary sensor or exposed per tag on advanced diagnostic sensors.
+See [Shadow prices](shadow-prices.md) for the marginal-selection rule and sensor naming.
+
 ### Policy pricing
 
 Each policy contributes a pricing term summed over its *priced edges* — the minimum edge cut on the policy's tag subgraph separating the policy's sources from its destinations:

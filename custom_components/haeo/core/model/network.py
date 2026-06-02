@@ -16,7 +16,7 @@ from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import PolicyPricing, PolicyPricingElementConfig
-from .reactive.decorators import clear_ranging_cache
+from .reactive.decorators import clear_ranging, populate_ranging
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -301,7 +301,7 @@ class Network:
     def optimize(self) -> float:
         """Solve the optimization problem and return the primary objective value."""
         h = self._solver
-        clear_ranging_cache(h)
+        clear_ranging(h)
 
         # Assign deterministic priorities to connections based on sorted properties
         connections = sorted(
@@ -336,12 +336,16 @@ class Network:
         cost_vectors = _build_cost_vectors((primary, secondary), n_vars)
 
         if isinstance(self.options, BlendedOptions):
-            return self._solve_blended(h, all_col_indices, cost_vectors, self.options.blend_weight)
+            result = self._solve_blended(h, all_col_indices, cost_vectors, self.options.blend_weight)
+        elif isinstance(self.options, CalibratedOptions) and self._calibrated_weight is not None:
+            result = self._solve_blended(h, all_col_indices, cost_vectors, self._calibrated_weight)
+        else:
+            result = self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary)
 
-        if isinstance(self.options, CalibratedOptions) and self._calibrated_weight is not None:
-            return self._solve_blended(h, all_col_indices, cost_vectors, self._calibrated_weight)
-
-        return self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary)
+        # Compute ranging on the final optimal basis so its cost is part of the
+        # measured solve and output extraction only slices the cached arrays.
+        populate_ranging(h)
+        return result
 
     def _solve_lex(
         self,

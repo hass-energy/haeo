@@ -117,14 +117,15 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 An Inverter element creates 1 device in Home Assistant with the following sensors.
 Not all sensors are created for every inverter - only those relevant to the configuration.
 
-| Sensor                                                        | Unit   | Description                              |
-| ------------------------------------------------------------- | ------ | ---------------------------------------- |
-| [`sensor.{name}_power_dc_to_ac`](#dc-to-ac-power)             | kW     | Power flowing from DC to AC (inverting)  |
-| [`sensor.{name}_power_ac_to_dc`](#ac-to-dc-power)             | kW     | Power flowing from AC to DC (rectifying) |
-| [`sensor.{name}_power_active`](#active-power)                 | kW     | Net power (DC to AC - AC to DC)          |
-| [`sensor.{name}_dc_bus_power_balance`](#dc-bus-power-balance) | \$/kWh | DC bus power balance shadow price        |
-| [`sensor.{name}_max_power_dc_to_ac_price`](#shadow-prices)    | \$/kWh | Maximum DC to AC power shadow price      |
-| [`sensor.{name}_max_power_ac_to_dc_price`](#shadow-prices)    | \$/kWh | Maximum AC to DC power shadow price      |
+| Sensor                                                                | Unit   | Description                                                |
+| --------------------------------------------------------------------- | ------ | ---------------------------------------------------------- |
+| [`sensor.{name}_power_dc_to_ac`](#dc-to-ac-power)                     | kW     | Power flowing from DC to AC (inverting)                    |
+| [`sensor.{name}_power_ac_to_dc`](#ac-to-dc-power)                     | kW     | Power flowing from AC to DC (rectifying)                   |
+| [`sensor.{name}_power_active`](#active-power)                         | kW     | Net power (DC to AC - AC to DC)                            |
+| [`sensor.{name}_dc_bus_power_balance`](#dc-bus-power-balance)         | \$/kWh | DC bus power balance shadow price                          |
+| [`sensor.{name}_dc_bus_tag_{N}_power_balance`](#dc-bus-power-balance) | \$/kWh | Per-tag DC bus power balance shadow price (multi-tag only) |
+| [`sensor.{name}_max_power_dc_to_ac_price`](#shadow-prices)            | \$/kWh | Maximum DC to AC power shadow price                        |
+| [`sensor.{name}_max_power_ac_to_dc_price`](#shadow-prices)            | \$/kWh | Maximum AC to DC power shadow price                        |
 
 ### DC to AC Power
 
@@ -152,6 +153,12 @@ Negative values indicate net AC to DC conversion.
 
 The marginal value of power balance at the DC bus.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+When power policies create multiple VLAN tags on the inverter's DC bus connections, HAEO also creates advanced per-tag diagnostic sensors (`sensor.{name}_dc_bus_tag_{N}_power_balance` for each tag id *N*).
+These sensors are disabled by default and expose each tag's per-period DC bus power balance shadow price plus its ranging headroom.
+The primary `sensor.{name}_dc_bus_power_balance` sensor collapses all tags into one marginal series; the per-tag sensors break that down.
+Single-tag configurations do not create these sensors.
+See [Per-tag diagnostic sensors](../../modeling/shadow-prices.md#per-tag-diagnostic-sensors) for the full breakdown.
 
 This shadow price shows how much the total system cost would decrease if the DC bus power balance constraint were relaxed.
 

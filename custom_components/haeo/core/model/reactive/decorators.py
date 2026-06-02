@@ -1,41 +1,69 @@
 """Decorator classes for reactive caching of constraints and costs."""
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from functools import partial
 from typing import TypeVar, overload
 
-from highspy import Highs, HighsRanging, HighsSolution
+from highspy import Highs
 from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 
 from .protocols import ReactiveHost
 from .tracked_param import ensure_decorator_state, tracking_context
 
+_RANGING_ATTR = "_haeo_ranging"
 
-def _get_ranging(solver: Highs) -> tuple[HighsRanging, HighsSolution]:
-    """Get ranging and solution data, caching on the solver instance.
 
-    getRanging() is expensive (full basis factorization) and the result is
-    identical for all constraints in the same model.  Cache it on the solver
-    so that multiple get_output() calls after one solve share a single
-    computation.  Call clear_ranging_cache() after each solve to invalidate.
+@dataclass(frozen=True, slots=True)
+class RangingData:
+    """Precomputed row ranging arrays for a single solved model.
+
+    ``getRanging()`` is an expensive basis factorization and HiGHS exposes its
+    results as Python lists that are copied in full on every attribute access.
+    Converting them to numpy arrays once per solve lets output extraction slice
+    by row index in O(rows) instead of re-copying the whole vector for each row.
     """
-    cached: tuple[HighsRanging, HighsSolution] | None = getattr(solver, "_haeo_ranging_cache", None)
-    if cached is not None:
-        return cached
 
+    valid: bool
+    row_value: NDArray[np.float64]
+    row_bound_up: NDArray[np.float64]
+    row_bound_dn: NDArray[np.float64]
+
+
+def populate_ranging(solver: Highs) -> None:
+    """Compute row ranging once and cache numpy arrays on the solver instance.
+
+    Called at the end of ``Network.optimize()`` so the cost of ranging is part
+    of the measured solve step rather than incurred lazily during output
+    extraction.  The arrays are indexed by constraint row index.
+    """
     _status, rng = solver.getRanging()
     sol = solver.getSolution()
-    result = (rng, sol)
-    solver._haeo_ranging_cache = result  # type: ignore[attr-defined]  # noqa: SLF001 (intentional cache attribute)
-    return result
+    if rng.valid:
+        data = RangingData(
+            valid=True,
+            row_value=np.asarray(sol.row_value, dtype=float),
+            row_bound_up=np.asarray(rng.row_bound_up.value_, dtype=float),
+            row_bound_dn=np.asarray(rng.row_bound_dn.value_, dtype=float),
+        )
+    else:
+        empty = np.empty(0, dtype=float)
+        data = RangingData(valid=False, row_value=empty, row_bound_up=empty, row_bound_dn=empty)
+    setattr(solver, _RANGING_ATTR, data)
 
 
-def clear_ranging_cache(solver: Highs) -> None:
-    """Clear the cached ranging data after a solve cycle."""
-    solver._haeo_ranging_cache = None  # type: ignore[attr-defined]  # noqa: SLF001 (intentional cache attribute)
+def clear_ranging(solver: Highs) -> None:
+    """Clear cached ranging data at the start of a solve cycle."""
+    setattr(solver, _RANGING_ATTR, None)
+
+
+def read_ranging(solver: Highs) -> RangingData | None:
+    """Return cached ranging data, or None when ranging was not populated."""
+    return getattr(solver, _RANGING_ATTR, None)
 
 
 # Type variable for generic return types
@@ -164,20 +192,16 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         arr = np.asarray(cons, dtype=object)
         values = tuple(solver.constrDuals(arr).flat)
 
-        # Extract ranging (capacity at current shadow price)
-        rng, sol = _get_ranging(solver)
+        # Slice ranging (capacity at current shadow price) from the arrays
+        # populated once per solve. Vectorized by row index so this stays O(rows).
+        ranging = read_ranging(solver)
         range_up: tuple[float, ...] | None = None
         range_dn: tuple[float, ...] | None = None
-        if rng.valid:
-            up_vals: list[float] = []
-            dn_vals: list[float] = []
-            for c_obj in arr.flat:
-                idx = c_obj.index
-                row_val = sol.row_value[idx]
-                up_vals.append(float(rng.row_bound_up.value_[idx] - row_val))
-                dn_vals.append(float(row_val - rng.row_bound_dn.value_[idx]))
-            range_up = tuple(up_vals)
-            range_dn = tuple(dn_vals)
+        if ranging is not None and ranging.valid:
+            row_indices = np.fromiter((c.index for c in arr.flat), dtype=np.intp, count=arr.size)
+            row_val = ranging.row_value[row_indices]
+            range_up = tuple((ranging.row_bound_up[row_indices] - row_val).tolist())
+            range_dn = tuple((row_val - ranging.row_bound_dn[row_indices]).tolist())
 
         return OutputData(
             type=OutputType.SHADOW_PRICE,
