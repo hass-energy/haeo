@@ -287,14 +287,34 @@ The linear programming approach ensures reliable sub-second optimization even on
 
 ## Can you use both?
 
-Technically, yes.
-They have overlapping capabilities but could be complementary:
+Yes—and for some homes that is the best split of responsibilities.
 
-- **HAEO** for battery and solar optimization with flexible topology
-- **EMHASS** for discrete appliance scheduling
+HAEO and EMHASS overlap on battery and solar if you run full optimizations in both, which is usually redundant.
+A practical **complementary** setup keeps each tool focused on what it does best:
 
-However, in practice, most users will choose one or the other since both handle battery and solar optimization, which creates redundancy.
-The overlap is significant enough that running both adds complexity without major benefit for most systems.
+| Role                                                    | Tool       | What it does                                                 |
+| ------------------------------------------------------- | ---------- | ------------------------------------------------------------ |
+| Deferrable loads, thermal storage, ML load/PV forecasts | **EMHASS** | MILP scheduling for appliances, heat pumps, EV windows, etc. |
+| Battery, grid, solar, topology, provenance pricing      | **HAEO**   | Continuous LP over your network with **power policies**      |
+
+**Feeding EMHASS into HAEO**
+
+After EMHASS publishes optimization sensors (for example `sensor.p_deferrable0`, load forecasts, or price forecasts), point HAEO **Load** (or other) element inputs at those entities as **entity-driven** forecasts.
+HAEO auto-detects the [`emhass` forecast format](forecasts-and-sensors.md#supported-forecast-formats) and fuses the series onto its tiered horizon—same as Amber, Nordpool, or other supported integrations.
+
+Typical wiring:
+
+1. EMHASS runs `dayahead-optim` or `naive-mpc-optim` and `publish-data` for deferrable loads and optional load/PV forecasts.
+2. HAEO models the **aggregate** system (battery, grid, solar, inverter topology) and treats EMHASS-scheduled consumption as **known or forecast load** on a Load element.
+3. HAEO optimizes when to import, export, charge, or curtail given that load shape and your policies—not re-solving appliance on/off windows.
+
+!!! tip "Avoid double control"
+
+    Do not let HAEO and EMHASS both command the same battery or the same deferrable load without clear separation.
+    Use EMHASS for scheduled loads; use HAEO sensors for grid/battery/inverter automations (or the reverse scope per device).
+
+Many users still pick **one** optimizer for simplicity.
+If you need deferrable-load MILP **and** HAEO's policies or graph topology, combining them is a supported and documented path—not a hack.
 
 ## Making your choice
 
@@ -309,6 +329,7 @@ Consider these factors:
 7. **Forecasting**: Want built-in → EMHASS; happy using other integrations → HAEO
 8. **Project maturity**: Want longest track record → EMHASS; modern native integration → HAEO
 9. **Resource constraints**: Need separate machine → EMHASS; prefer integrated → HAEO
+10. **Combined stack**: Deferrable/thermal scheduling in EMHASS, network + policies in HAEO with EMHASS sensors as inputs
 
 ## Getting help
 
@@ -334,6 +355,7 @@ Both now use **HiGHS** as their default solver—the meaningful differences are 
 
 Neither is objectively "better."
 Choose based on whether you need **deferrable appliance scheduling** (EMHASS), **source→target policy economics** (HAEO), **complex topologies** (HAEO), and how you want to handle **volatile prices**—HAEO out of the box, or EMHASS with MPC automations you maintain yourself.
+You can also **combine** them: EMHASS schedules loads and publishes forecasts; HAEO ingests those sensors and optimizes the rest of the network.
 
 ## Next steps
 
