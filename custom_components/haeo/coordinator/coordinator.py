@@ -32,7 +32,6 @@ from custom_components.haeo.const import (
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMENT_TYPE, DEFAULT_DEBOUNCE_SECONDS
 from custom_components.haeo.core.context import OptimizationContext
-from custom_components.haeo.core.data.forecast_times import tiers_to_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.core.model.topology import serialize_topology
@@ -47,6 +46,7 @@ from custom_components.haeo.elements import (
     get_element_configs,
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
+from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 
 from . import network as network_module
@@ -55,7 +55,6 @@ if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
     from custom_components.haeo.core.data.input_store import InputStore
     from custom_components.haeo.elements import InputFieldPath
-    from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -236,7 +235,7 @@ def _build_optimization_context(
     hub_config: Mapping[str, Any],
     participant_configs: Mapping[str, ElementConfigSchema],
     input_stores: Mapping[Any, "InputStore"],
-    horizon_manager: "HorizonManager",
+    horizon_manager: HorizonManager,
 ) -> OptimizationContext:
     """Build an optimization context by pulling from existing sources."""
     source_states: dict[str, EntityState] = {}
@@ -364,7 +363,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             msg = "Runtime data not available"
             raise RuntimeError(msg)
 
-        periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
+        periods_seconds = runtime_data.horizon_manager.periods_seconds
         loaded_configs = self._load_from_input_stores()
 
         _LOGGER.debug("Initializing network with %d participants", len(loaded_configs))
@@ -411,12 +410,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Subscribe to horizon manager changes (requires full re-optimization)
         network = self.network
+        horizon_manager = runtime_data.horizon_manager
 
         @callback
         def _on_horizon_change() -> None:
-            self._handle_horizon_change(network)
+            self._handle_horizon_change(network, horizon_manager)
 
-        runtime_data.horizon_manager.subscribe(_on_horizon_change)
+        horizon_manager.subscribe(_on_horizon_change)
 
         # Subscribe to auto-optimize switch state changes
         if runtime_data.auto_optimize_switch is not None:
@@ -464,15 +464,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.signal_optimization_stale()
 
     @callback
-    def _handle_horizon_change(self, network: Network) -> None:
+    def _handle_horizon_change(self, network: Network, horizon_manager: HorizonManager) -> None:
         """Handle horizon manager changes.
 
         Updates network periods with new durations from the horizon manager,
         then triggers optimization. The period update propagates to all elements
         and segments, invalidating dependent constraints and costs.
         """
-        # Update network periods with new horizon durations
-        periods_seconds = tiers_to_periods_seconds(self.config_entry.data)
+        periods_seconds = horizon_manager.periods_seconds
         periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
         network.update_periods(periods_hours)
 
