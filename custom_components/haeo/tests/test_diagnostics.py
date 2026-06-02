@@ -246,7 +246,12 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     coordinator_data = _make_coordinator_data(participants={}, hub_config=hub_config)
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.data = coordinator_data
-    entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
+    horizon_manager = Mock()
+    horizon_manager.horizon_mode = "preset"
+    horizon_manager.horizon_preset = "5_days"
+    horizon_manager.horizon_entity_id = None
+    horizon_manager.period_count = 100
+    entry.runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager, coordinator=coordinator)
 
     # HA entry point returns a dict (via to_dict)
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
@@ -300,7 +305,12 @@ async def test_diagnostics_errors_when_coordinator_has_no_data(hass: HomeAssista
 
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.data = None
-    entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
+    horizon_manager = Mock()
+    horizon_manager.horizon_mode = "preset"
+    horizon_manager.horizon_preset = "5_days"
+    horizon_manager.horizon_entity_id = None
+    horizon_manager.period_count = 100
+    entry.runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager, coordinator=coordinator)
 
     with pytest.raises(RuntimeError, match="no optimization has completed"):
         await async_get_config_entry_diagnostics(hass, entry)
@@ -340,7 +350,12 @@ async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistan
     coordinator_data = _make_coordinator_data(context_participants, context_source_states)
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.data = coordinator_data
-    entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
+    horizon_manager = Mock()
+    horizon_manager.horizon_mode = "preset"
+    horizon_manager.horizon_preset = "5_days"
+    horizon_manager.horizon_entity_id = None
+    horizon_manager.period_count = 100
+    entry.runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager, coordinator=coordinator)
 
     result = await collect_diagnostics(hass, entry)
 
@@ -405,7 +420,12 @@ async def test_collect_diagnostics_unwraps_mappingproxy_participants(hass: HomeA
     coordinator_data = _make_coordinator_data(participants=participants)
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.data = coordinator_data
-    entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
+    horizon_manager = Mock()
+    horizon_manager.horizon_mode = "preset"
+    horizon_manager.horizon_preset = "5_days"
+    horizon_manager.horizon_entity_id = None
+    horizon_manager.period_count = 100
+    entry.runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager, coordinator=coordinator)
 
     result = await collect_diagnostics(hass, entry)
 
@@ -459,7 +479,12 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     coordinator_data = _make_coordinator_data(participants={})
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.data = coordinator_data
-    entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
+    horizon_manager = Mock()
+    horizon_manager.horizon_mode = "preset"
+    horizon_manager.horizon_preset = "5_days"
+    horizon_manager.horizon_entity_id = None
+    horizon_manager.period_count = 100
+    entry.runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager, coordinator=coordinator)
 
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
@@ -607,7 +632,12 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
     coordinator_data = _make_coordinator_data(context_participants)
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.data = coordinator_data
-    entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
+    horizon_manager = Mock()
+    horizon_manager.horizon_mode = "preset"
+    horizon_manager.horizon_preset = "5_days"
+    horizon_manager.horizon_entity_id = None
+    horizon_manager.period_count = 100
+    entry.runtime_data = HaeoRuntimeData(horizon_manager=horizon_manager, coordinator=coordinator)
 
     target_time = datetime(2024, 1, 1, tzinfo=UTC)
     run_completed = datetime(2024, 1, 1, 0, 0, tzinfo=UTC)

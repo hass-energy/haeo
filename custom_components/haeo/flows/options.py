@@ -29,9 +29,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             horizon_raw = user_input[HUB_SECTION_COMMON].get(CONF_HORIZON)
             horizon_processed = preprocess_horizon_input(horizon_raw)
             if is_horizon_entity_selection(horizon_processed):
-                entity_id = (
-                    horizon_processed[0] if isinstance(horizon_processed, list) else horizon_processed
-                )
+                entity_id = horizon_processed[0] if isinstance(horizon_processed, list) else horizon_processed
                 try:
                     validate_horizon_entity(self.hass, entity_id, config_entry=self.config_entry)
                 except vol.Invalid:

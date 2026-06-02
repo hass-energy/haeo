@@ -25,14 +25,17 @@ from custom_components.haeo.core.const import (
     HORIZON_PRESET_5_DAYS,
     HUB_SECTION_COMMON,
 )
-from custom_components.haeo.core.data.forecast_times import extract_haeo_forecast_timestamps
+from custom_components.haeo.core.data.forecast_times import extract_haeo_forecast_timestamps_from_attributes
 from custom_components.haeo.core.data.loader.extractors import haeo as haeo_extractor
 from custom_components.haeo.core.schema import (
+    EntityValue,
+    HorizonPresetValue,
     as_entity_value,
     as_horizon_preset_value,
     is_horizon_entity_value,
     is_horizon_preset_value,
 )
+from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.flows.field_schema import NormalizingChooseSelector
 from custom_components.haeo.horizon import _HassStateAdapter
 
@@ -139,7 +142,7 @@ def preprocess_horizon_input(value: Any) -> Any:
     return value
 
 
-def horizon_input_to_config(value: Any) -> dict[str, Any]:
+def horizon_input_to_config(value: Any) -> EntityValue | HorizonPresetValue:
     """Convert processed horizon form value to stored schema config."""
     if isinstance(value, list):
         if not value:
@@ -175,13 +178,17 @@ def validate_horizon_entity(
         msg = f"Entity {entity_id} is not available"
         raise vol.Invalid(msg)
 
-    adapter = _HassStateAdapter(state.entity_id, state.state, state.attributes)
+    adapter: EntityState = _HassStateAdapter(state.entity_id, state.state, state.attributes)
     if not haeo_extractor.Parser.detect(adapter):
         msg = f"Entity {entity_id} must provide a HAEO-format forecast attribute"
         raise vol.Invalid(msg)
 
     try:
-        extract_haeo_forecast_timestamps(adapter)
+        extract_haeo_forecast_timestamps_from_attributes(
+            state.entity_id,
+            state.attributes,
+            state=state.state,
+        )
     except ValueError as exc:
         raise vol.Invalid(str(exc)) from exc
 
@@ -206,7 +213,7 @@ def get_horizon_preset_from_input(user_input: Mapping[str, Any]) -> str | None:
     return None
 
 
-def stored_horizon_from_common(common: Mapping[str, Any]) -> dict[str, Any]:
+def stored_horizon_from_common(common: Mapping[str, Any]) -> EntityValue | HorizonPresetValue:
     """Return stored horizon schema value from common section input."""
     raw = common.get(CONF_HORIZON)
     processed = preprocess_horizon_input(raw)

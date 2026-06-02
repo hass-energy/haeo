@@ -32,7 +32,7 @@ from custom_components.haeo.core.const import (
     HUB_SECTION_COMMON,
     HUB_SECTION_TIERS,
 )
-from custom_components.haeo.core.schema import HORIZON_PRESET_CUSTOM, is_horizon_entity_value
+from custom_components.haeo.core.schema import HORIZON_PRESET_CUSTOM, is_horizon_entity_value, is_horizon_preset_value
 from custom_components.haeo.flows.field_schema import SectionDefinition, build_section_schema
 from custom_components.haeo.flows.horizon_schema import (
     build_horizon_choose_selector,
@@ -212,12 +212,14 @@ def build_hub_entry_data(
 
     if is_horizon_entity_value(horizon_value):
         tiers_section: dict[str, int] = {}
-    else:
+    elif is_horizon_preset_value(horizon_value):
         preset = horizon_value["value"]
         if preset == HORIZON_PRESET_CUSTOM:
             tiers_section = dict(base.get(HUB_SECTION_TIERS, {}))
         else:
             tiers_section = get_tier_config_for_preset(preset)
+    else:
+        tiers_section = get_tier_config_for_preset(HORIZON_PRESET_5_DAYS)
 
     return {
         **{key: value for key, value in base.items() if key not in (HUB_SECTION_COMMON, HUB_SECTION_TIERS)},

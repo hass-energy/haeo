@@ -6,7 +6,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from custom_components.haeo.core.const import CONF_HORIZON, CONF_HORIZON_PRESET, HUB_SECTION_COMMON
+from custom_components.haeo.core.const import (
+    CONF_HORIZON,
+    CONF_HORIZON_PRESET,
+    HORIZON_PRESET_5_DAYS,
+    HUB_SECTION_COMMON,
+    HUB_SECTION_TIERS,
+)
 from custom_components.haeo.core.schema.horizon_value import HORIZON_PRESET_CUSTOM, as_horizon_preset_value
 
 
@@ -42,7 +48,10 @@ def _migrate_horizon_to_choose_value(
 
     preset = common.get(CONF_HORIZON_PRESET) or options.get(CONF_HORIZON_PRESET)
     if not isinstance(preset, str) or not preset:
-        preset = "5_days"
+        if isinstance(data.get(HUB_SECTION_TIERS), dict) or data.get(CONF_HORIZON_PRESET) == HORIZON_PRESET_CUSTOM:
+            preset = HORIZON_PRESET_CUSTOM
+        else:
+            preset = HORIZON_PRESET_5_DAYS
 
     new_common = dict(common)
     new_common[CONF_HORIZON] = as_horizon_preset_value(preset)
@@ -57,4 +66,4 @@ HUB_MIGRATION_STEPS: tuple[HubMigrationStep, ...] = (
     HubMigrationStep(name="horizon_preset_to_choose_v1_4", transform=_migrate_horizon_to_choose_value),
 )
 
-__all__ = ["HUB_MIGRATION_STEPS", "HORIZON_PRESET_CUSTOM", "migrate_hub_config"]
+__all__ = ["HORIZON_PRESET_CUSTOM", "HUB_MIGRATION_STEPS", "migrate_hub_config"]

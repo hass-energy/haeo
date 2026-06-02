@@ -67,15 +67,15 @@ def _horizon_from_common(common: Mapping[str, Any]) -> Any | None:
     return common.get(CONF_HORIZON_PRESET)
 
 
-def parse_horizon_config(
-    config: Mapping[str, int | str | Mapping[str, int | str]],
-) -> ParsedHorizonConfig:
+def parse_horizon_config(config: Mapping[str, Any]) -> ParsedHorizonConfig:
     """Parse hub config into a resolved horizon mode.
 
     Supports new ``horizon`` schema values and legacy ``horizon_preset`` strings.
     """
-    common = config.get(HUB_SECTION_COMMON) if isinstance(config.get(HUB_SECTION_COMMON), Mapping) else None
-    tiers_section = config.get(HUB_SECTION_TIERS) if isinstance(config.get(HUB_SECTION_TIERS), Mapping) else None
+    common_raw = config.get(HUB_SECTION_COMMON)
+    common = common_raw if isinstance(common_raw, Mapping) else None
+    tiers_raw = config.get(HUB_SECTION_TIERS)
+    tiers_section = tiers_raw if isinstance(tiers_raw, Mapping) else None
 
     if common is None:
         legacy = config.get(CONF_HORIZON_PRESET)

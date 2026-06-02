@@ -248,14 +248,15 @@ def extract_haeo_forecast_timestamps(state: EntityState) -> tuple[float, ...]:
         ValueError: If the state is not a valid HAEO forecast or has fewer than two times.
 
     """
+    entity_id = state.entity_id
     if not haeo_extractor.Parser.detect(state):
-        msg = f"Entity {state.entity_id} does not provide a HAEO-format forecast"
+        msg = f"Entity {entity_id} does not provide a HAEO-format forecast"
         raise ValueError(msg)
 
     forecast = state.attributes["forecast"]
     timestamps = sorted({float(parse_datetime_to_timestamp(item["time"])) for item in forecast})
     if len(timestamps) < _MIN_BOUNDARY_TIMESTAMPS:
-        msg = f"Entity {state.entity_id} forecast must have at least two time points"
+        msg = f"Entity {entity_id} forecast must have at least two time points"
         raise ValueError(msg)
     return tuple(timestamps)
 

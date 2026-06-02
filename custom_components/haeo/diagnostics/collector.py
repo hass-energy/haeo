@@ -156,10 +156,10 @@ def _horizon_runtime_summary(runtime_data: HaeoRuntimeData) -> dict[str, Any]:
     """Summarize the active horizon for diagnostics."""
     manager = runtime_data.horizon_manager
     return {
-        "mode": manager.horizon_mode,
-        "preset": manager.horizon_preset,
-        "entity_id": manager.horizon_entity_id,
-        "period_count": manager.period_count,
+        "mode": getattr(manager, "horizon_mode", None),
+        "preset": getattr(manager, "horizon_preset", None),
+        "entity_id": getattr(manager, "horizon_entity_id", None),
+        "period_count": getattr(manager, "period_count", None),
     }
 
 
