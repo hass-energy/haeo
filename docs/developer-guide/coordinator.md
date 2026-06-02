@@ -80,7 +80,7 @@ See [Input Entities](inputs.md) for details on how data loading works.
 **3. Optimization**
 
 The network optimization runs in an executor thread via `hass.async_add_executor_job()` to avoid blocking the event loop.
-The coordinator extracts the solver name from configuration and passes it to `network.optimize()`.
+The coordinator calls `network.optimize()`, which uses the bundled HiGHS solver.
 This blocking operation is tracked for diagnostics timing.
 
 **Network building and warm start**:
