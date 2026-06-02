@@ -46,6 +46,7 @@ from custom_components.haeo.elements import (
     get_element_configs,
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
+from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 
 from . import network as network_module
@@ -54,7 +55,6 @@ if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
     from custom_components.haeo.core.data.input_store import InputStore
     from custom_components.haeo.elements import InputFieldPath
-    from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -231,7 +231,7 @@ def _build_optimization_context(
     hub_config: Mapping[str, Any],
     participant_configs: Mapping[str, ElementConfigSchema],
     input_stores: Mapping[Any, "InputStore"],
-    horizon_manager: "HorizonManager",
+    horizon_manager: HorizonManager,
 ) -> OptimizationContext:
     """Build an optimization context by pulling from existing sources."""
     source_states: dict[str, EntityState] = {}
@@ -460,7 +460,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self.signal_optimization_stale()
 
     @callback
-    def _handle_horizon_change(self, network: Network, horizon_manager: "HorizonManager") -> None:
+    def _handle_horizon_change(self, network: Network, horizon_manager: HorizonManager) -> None:
         """Handle horizon manager changes.
 
         Updates network periods with new durations from the horizon manager,
