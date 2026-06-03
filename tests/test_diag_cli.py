@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 import pytest
@@ -10,7 +10,9 @@ import pytest
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.schema import as_constant_value
-from custom_components.haeo.core.schema.elements import ElementConfigSchema, battery
+from custom_components.haeo.core.schema.elements import battery
+from custom_components.haeo.core.schema.elements.battery import is_battery_config_data
+from custom_components.haeo.elements import is_element_config_schema
 from tools import diag
 
 
@@ -31,6 +33,18 @@ def _base_battery_config() -> dict[str, Any]:
     }
 
 
+def _load_battery_config(
+    config: dict[str, Any],
+    provider: diag.DiagnosticsStateProvider,
+    forecast_times: tuple[float, ...],
+) -> battery.BatteryConfigData:
+    """Load a battery fixture after schema and result discriminators are verified."""
+    assert is_element_config_schema(config)
+    loaded = load_element_config("Battery", config, provider, forecast_times)
+    assert is_battery_config_data(loaded)
+    return loaded
+
+
 def test_load_element_config_unwraps_constant_wrappers() -> None:
     """Constant wrappers convert to loaded scalar/series values."""
     config = _base_battery_config()
@@ -39,15 +53,7 @@ def test_load_element_config_unwraps_constant_wrappers() -> None:
         "initial_charge_percentage": {"type": "constant", "value": 50.0},
     }
 
-    loaded = cast(
-        "battery.BatteryConfigData",
-        load_element_config(
-            "Battery",
-            cast("ElementConfigSchema", config),
-            diag.DiagnosticsStateProvider([]),
-            (0.0, 1800.0, 3600.0),
-        ),
-    )
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
 
     np.testing.assert_allclose(loaded["storage"]["capacity"], np.array([13.5, 13.5, 13.5]))
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.5)
@@ -83,15 +89,7 @@ def test_load_element_config_uses_present_value_for_scalar_entities(monkeypatch:
         lambda *_args, **_kwargs: pytest.fail("fuse_to_intervals should not run for scalar fields"),
     )
 
-    loaded = cast(
-        "battery.BatteryConfigData",
-        load_element_config(
-            "Battery",
-            cast("ElementConfigSchema", config),
-            diag.DiagnosticsStateProvider([]),
-            (0.0, 1800.0, 3600.0),
-        ),
-    )
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
 
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.75)
 
@@ -120,15 +118,7 @@ def test_load_element_config_unwraps_entity_wrappers_for_time_series(monkeypatch
         lambda *_args, **_kwargs: [13.5, 13.4, 13.3],
     )
 
-    loaded = cast(
-        "battery.BatteryConfigData",
-        load_element_config(
-            "Battery",
-            cast("ElementConfigSchema", config),
-            diag.DiagnosticsStateProvider([]),
-            (0.0, 1800.0, 3600.0),
-        ),
-    )
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
 
     np.testing.assert_allclose(loaded["storage"]["capacity"], np.array([13.5, 13.4, 13.3]))
 
@@ -144,15 +134,7 @@ def test_load_element_config_drops_none_wrappers() -> None:
         "salvage_value": {"type": "none"},
     }
 
-    loaded = cast(
-        "battery.BatteryConfigData",
-        load_element_config(
-            "Battery",
-            cast("ElementConfigSchema", config),
-            diag.DiagnosticsStateProvider([]),
-            (0.0, 1800.0, 3600.0),
-        ),
-    )
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
 
     assert "salvage_value" not in loaded["pricing"]
 

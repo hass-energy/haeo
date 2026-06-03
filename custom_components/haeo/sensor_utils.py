@@ -1,7 +1,8 @@
 """Utility functions for extracting and processing sensor data."""
 
+from collections.abc import Mapping
 import math
-from typing import Any, TypedDict, cast
+from typing import Any, TypedDict
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -40,6 +41,18 @@ class SensorStateDict(TypedDict):
     entity_id: str
     state: str
     attributes: SensorAttributes
+
+
+def _sensor_attributes(attributes: Mapping[str, Any]) -> SensorAttributes:
+    """Copy HA state attributes into the sensor snapshot shape."""
+    snapshot: SensorAttributes = {}
+    unit = attributes.get("unit_of_measurement")
+    if isinstance(unit, str):
+        snapshot["unit_of_measurement"] = unit
+    forecast = attributes.get("forecast")
+    if isinstance(forecast, list):
+        snapshot["forecast"] = forecast
+    return snapshot
 
 
 def _round_sig(value: float) -> float:
@@ -185,23 +198,14 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
         if state is None:
             continue
 
-        # Get complete state as dict and create mutable copy
-        state_dict = dict(state.as_dict())
+        attributes = dict(state.attributes)
+        attributes.pop("field_path", None)
 
-        # Make attributes dict mutable and remove unstable fields
-        if "attributes" in state_dict and isinstance(state_dict["attributes"], dict):
-            state_dict["attributes"] = dict(state_dict["attributes"])
-            # Drop internal-only attributes to keep snapshots stable.
-            state_dict["attributes"].pop("field_path", None)
-
-        # Remove timestamp-based fields that aren't relevant for functional comparison
-        state_dict.pop("last_changed", None)
-        state_dict.pop("last_updated", None)
-        state_dict.pop("last_reported", None)
-        state_dict.pop("context", None)
-
-        # Cast to SensorStateDict after cleaning (state.as_dict() has extra fields we removed)
-        output_sensors[entity_entry.entity_id] = cast("SensorStateDict", state_dict)
+        output_sensors[entity_entry.entity_id] = {
+            "entity_id": state.entity_id,
+            "state": state.state,
+            "attributes": _sensor_attributes(attributes),
+        }
 
     # Apply smart rounding to all numeric values
     _apply_smart_rounding(output_sensors)

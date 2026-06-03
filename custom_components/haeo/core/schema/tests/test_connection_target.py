@@ -1,6 +1,5 @@
 """Tests for connection target schema helpers."""
 
-from typing import Any, cast
 
 import pytest
 
@@ -31,7 +30,7 @@ def test_normalize_connection_target_handles_str_and_schema_value() -> None:
 def test_normalize_connection_target_rejects_invalid_type() -> None:
     """normalize_connection_target rejects unsupported input types."""
     with pytest.raises(TypeError, match="Unsupported connection target"):
-        normalize_connection_target(cast("Any", 123))
+        normalize_connection_target(123)  # type: ignore[arg-type]  # deliberate invalid input; TypeGuard would skip the runtime check under test
 
 
 def test_get_connection_target_name_handles_variants() -> None:
@@ -44,4 +43,4 @@ def test_get_connection_target_name_handles_variants() -> None:
 def test_get_connection_target_name_rejects_invalid_type() -> None:
     """get_connection_target_name rejects unsupported input types."""
     with pytest.raises(TypeError, match="Unsupported connection target"):
-        get_connection_target_name(cast("Any", 123))
+        get_connection_target_name(123)  # type: ignore[arg-type]  # deliberate invalid input; TypeGuard would skip the runtime check under test

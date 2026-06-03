@@ -2,9 +2,14 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import cast
+from typing import TypeGuard
 
 from custom_components.haeo.core.schema.util import UnitSpec
+
+
+def _is_unit_spec(value: UnitSpec | Sequence[UnitSpec]) -> TypeGuard[UnitSpec]:
+    """Narrow to a single spec (not a list of alternative specs)."""
+    return not isinstance(value, list)
 
 
 @dataclass(frozen=True)
@@ -25,4 +30,7 @@ class EntityMetadata:
         if isinstance(accepted_units, list):
             return any(matches_unit_spec(self.unit_of_measurement, spec) for spec in accepted_units)
 
-        return matches_unit_spec(self.unit_of_measurement, cast("UnitSpec", accepted_units))
+        if _is_unit_spec(accepted_units):
+            return matches_unit_spec(self.unit_of_measurement, accepted_units)
+
+        return False

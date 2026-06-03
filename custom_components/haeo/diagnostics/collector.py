@@ -3,10 +3,9 @@
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
-from homeassistant.components.recorder import history as recorder_history
 from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.recorder import get_instance as get_recorder_instance
@@ -19,6 +18,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
+from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
 from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.sensor_utils import (
     SensorStateDict,
@@ -204,7 +204,7 @@ async def _fetch_inputs_at(
     entity_id_list = sorted(all_entity_ids)
 
     def _query() -> dict[str, list[State]]:
-        result = recorder_history.get_significant_states(
+        return get_significant_states_full(
             hass,
             start_time=target_time,
             end_time=target_time,
@@ -213,7 +213,6 @@ async def _fetch_inputs_at(
             significant_changes_only=False,
             no_attributes=False,
         )
-        return cast("dict[str, list[State]]", result)
 
     states = await recorder.async_add_executor_job(_query)
     entity_states = {eid: slist[0] for eid, slist in states.items() if slist}
@@ -252,7 +251,7 @@ async def _get_last_run_before(
     recorder = get_recorder_instance(hass)
 
     def _query() -> dict[str, list[State]]:
-        result = recorder_history.get_significant_states(
+        return get_significant_states_full(
             hass,
             start_time=target_time,
             end_time=target_time,
@@ -261,7 +260,6 @@ async def _get_last_run_before(
             significant_changes_only=False,
             no_attributes=False,
         )
-        return cast("dict[str, list[State]]", result)
 
     states = await recorder.async_add_executor_job(_query)
 

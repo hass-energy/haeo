@@ -1,6 +1,6 @@
 """Model connection output tests covering reporting and validation helpers."""
 
-from typing import Any, TypeGuard, cast
+from typing import Any, TypeGuard
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression
@@ -90,6 +90,10 @@ def _is_expected_output(value: ExpectedOutputFixture) -> TypeGuard[ExpectedOutpu
     return {"type", "unit", "values"}.issubset(value.keys())
 
 
+def _is_nested_outputs(value: ExpectedOutputFixture) -> TypeGuard[ExpectedOutputs]:
+    return not _is_expected_output(value)
+
+
 def _assert_outputs_match(actual: ExpectedOutputFixture, expected: ExpectedOutputFixture) -> None:
     if _is_expected_output(expected):
         assert _is_expected_output(actual)
@@ -99,9 +103,10 @@ def _assert_outputs_match(actual: ExpectedOutputFixture, expected: ExpectedOutpu
         assert actual["values"] == pytest.approx(expected["values"], rel=tol[0], abs=tol[1])
         return
 
-    assert not _is_expected_output(actual)
-    actual_map = cast("ExpectedOutputs", actual)
-    expected_map = cast("ExpectedOutputs", expected)
+    assert _is_nested_outputs(actual)
+    assert _is_nested_outputs(expected)
+    actual_map = actual
+    expected_map = expected
     for output_name, expected_value in expected_map.items():
         assert output_name in actual_map, f"Missing expected key: {output_name}"
         _assert_outputs_match(actual_map[output_name], expected_value)
