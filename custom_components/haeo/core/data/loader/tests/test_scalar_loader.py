@@ -23,10 +23,13 @@ async def test_scalar_loader_available_empty_list() -> None:
 async def test_scalar_loader_available_invalid_entity_value() -> None:
     """Scalar loader is unavailable for invalid entity value types."""
     loader = ScalarLoader()
-    assert loader.available(
-        sm=FakeStateMachine({}),
-        value={"type": "entity", "value": 123},  # type: ignore[arg-type]  # invalid entity id type; must not satisfy EntityValue for this test
-    ) is False
+    assert (
+        loader.available(
+            sm=FakeStateMachine({}),
+            value={"type": "entity", "value": 123},  # type: ignore[arg-type]  # invalid entity id type; must not satisfy EntityValue for this test
+        )
+        is False
+    )
 
 
 async def test_scalar_loader_available_false_for_non_numeric_state() -> None:

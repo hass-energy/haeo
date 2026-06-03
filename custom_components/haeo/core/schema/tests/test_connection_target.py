@@ -1,6 +1,5 @@
 """Tests for connection target schema helpers."""
 
-
 import pytest
 
 from custom_components.haeo.core.schema.connection_target import (

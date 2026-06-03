@@ -19,7 +19,6 @@ This tests the model layer's tag infrastructure directly, without
 depending on the policy compilation adapter.
 """
 
-
 import numpy as np
 import pytest
 

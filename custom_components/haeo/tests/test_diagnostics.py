@@ -938,7 +938,7 @@ async def test_historical_state_provider_get_states_sync(hass: HomeAssistant) ->
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.historical_state_provider.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.historical_state_provider.get_significant_states_full",
             return_value={"sensor.test": [mock_state]},
         ) as mock_get_states,
     ):
@@ -1081,7 +1081,7 @@ async def test_fetch_inputs_at_returns_states(hass: HomeAssistant) -> None:
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={
                 "sensor.battery_capacity": [cap_state],
                 "sensor.battery_soc": [soc_state],
@@ -1133,7 +1133,7 @@ async def test_fetch_inputs_at_reports_missing_entities(hass: HomeAssistant) -> 
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={"sensor.battery_capacity": [cap_state]},
         ),
     ):
@@ -1194,7 +1194,7 @@ async def test_get_last_run_before_finds_run(hass: HomeAssistant) -> None:
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={
                 "sensor.haeo_optimization_duration": [duration_state],
                 "sensor.haeo_forecast_horizon": [horizon_state],
@@ -1278,7 +1278,7 @@ async def test_get_last_run_before_no_recorder_state(hass: HomeAssistant) -> Non
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={},
         ),
     ):
@@ -1315,7 +1315,7 @@ async def test_get_last_run_before_invalid_duration_state(hass: HomeAssistant) -
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={
                 "sensor.haeo_optimization_duration": [invalid_state],
                 "sensor.haeo_forecast_horizon": [State("sensor.haeo_forecast_horizon", "2024-01-01T00:00:00+00:00")],
@@ -1360,7 +1360,7 @@ async def test_get_last_run_before_no_horizon_state(hass: HomeAssistant) -> None
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={
                 "sensor.haeo_optimization_duration": [duration_state],
             },
