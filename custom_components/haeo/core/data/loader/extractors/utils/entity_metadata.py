@@ -1,13 +1,12 @@
 """Entity metadata utilities."""
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TypeGuard
 
 from custom_components.haeo.core.schema.util import UnitSpec
 
 
-def _is_unit_spec(value: UnitSpec | Sequence[UnitSpec]) -> TypeGuard[UnitSpec]:
+def _is_unit_spec(value: UnitSpec | list[UnitSpec]) -> TypeGuard[UnitSpec]:
     """Narrow to a single spec (not a list of alternative specs)."""
     return not isinstance(value, list)
 
@@ -19,7 +18,7 @@ class EntityMetadata:
     entity_id: str
     unit_of_measurement: str | None
 
-    def is_compatible_with(self, accepted_units: "UnitSpec | Sequence[UnitSpec]") -> bool:
+    def is_compatible_with(self, accepted_units: UnitSpec | list[UnitSpec]) -> bool:
         """Check if this entity's unit is compatible with the accepted units."""
         # Avoid circular import with schema module
         from custom_components.haeo.core.schema.util import matches_unit_spec  # noqa: PLC0415

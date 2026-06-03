@@ -25,10 +25,11 @@ class ForecastItem(TypedDict):
 
 
 class SensorAttributes(TypedDict, total=False):
-    """Attributes dict for HAEO sensors.
+    """Subset of Home Assistant sensor attributes kept in output snapshots.
 
-    Uses total=False since not all attributes are always present.
-    Other Home Assistant attributes pass through as additional keys.
+    Only ``unit_of_measurement`` and ``forecast`` are copied from live state
+    attributes so diagnostics and snapshot comparisons stay stable. Other HA
+    attributes are omitted intentionally.
     """
 
     unit_of_measurement: str | None
@@ -44,7 +45,7 @@ class SensorStateDict(TypedDict):
 
 
 def _sensor_attributes(attributes: Mapping[str, Any]) -> SensorAttributes:
-    """Copy HA state attributes into the sensor snapshot shape."""
+    """Extract unit and forecast from HA state attributes for snapshots."""
     snapshot: SensorAttributes = {}
     unit = attributes.get("unit_of_measurement")
     if isinstance(unit, str):
@@ -174,11 +175,9 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
     """Get all output sensors created by this config entry.
 
     Returns a dict mapping entity_id to a cleaned sensor state dict.
-    Uses State.as_dict() to get complete state information including:
-    - entity_id, state, attributes, last_changed, last_updated, context
-
-    Unstable fields that are removed:
-    - last_changed, last_updated, context (timestamp-based, not relevant for snapshot comparison)
+    Each entry includes entity_id, state, and a filtered attributes dict
+    (unit_of_measurement and forecast only). Timestamp and context fields from
+    live state are not included.
 
     Numeric values are rounded intelligently based on their unit's maximum absolute value
     to provide approximately 4 significant figures, reducing noise from floating-point precision.
