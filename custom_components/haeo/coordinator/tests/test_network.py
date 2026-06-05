@@ -28,6 +28,7 @@ from custom_components.haeo.core.model.elements.policy_pricing import (
     PolicyPricingTerm,
 )
 from custom_components.haeo.core.model.elements.segments import EfficiencySegment, PowerLimitSegment
+from custom_components.haeo.core.model.elements.segments.soc_pricing import SocPricingSegment
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.connection import (
@@ -354,6 +355,112 @@ def test_policy_updater_reenables_rule() -> None:
         }
     )
     assert elem.price == pytest.approx([0.07])
+
+
+# ---------------------------------------------------------------------------
+# soc_pricing TrackedParam discovery (issue #467)
+# ---------------------------------------------------------------------------
+
+
+def _battery_discharge_network() -> Network:
+    """Build a network with a Battery and a discharge connection that has soc_pricing."""
+    network = Network(name="test", periods=np.array([1.0, 1.0]))
+    network.add(
+        {
+            "element_type": "battery",
+            "name": "Battery",
+            "capacity": np.array([10.0, 10.0, 10.0]),
+            "initial_charge": 5.0,
+            "salvage_value": 0.0,
+        }
+    )
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "Grid", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "Battery:discharge",
+            "source": "Battery",
+            "target": "Grid",
+            "tags": {1},
+            "segments": {
+                "soc_pricing": {
+                    "segment_type": "soc_pricing",
+                    "discharge_energy_threshold": np.array([2.0, 2.0]),
+                    "discharge_energy_price": np.array([0.10, 0.10]),
+                },
+            },
+        }
+    )
+    return network
+
+
+def test_discover_setters_finds_soc_pricing_thresholds() -> None:
+    """_discover_setters captures soc_pricing threshold/price as TrackedParams.
+
+    Regression for issue #467: previously these were instance-only attributes
+    so the updater could not refresh them when min_charge_percentage changed
+    on the battery participant.
+    """
+    network = _battery_discharge_network()
+    conn = network.elements["Battery:discharge"]
+    model_config = {
+        "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+        "name": "Battery:discharge",
+        "source": "Battery",
+        "target": "Grid",
+        "tags": {1},
+        "segments": {
+            "soc_pricing": {
+                "segment_type": "soc_pricing",
+                "discharge_energy_threshold": np.array([2.0, 2.0]),
+                "discharge_energy_price": np.array([0.10, 0.10]),
+            },
+        },
+    }
+    setters = _discover_setters(conn, model_config)
+    paths = {path for path, _setter in setters}
+    assert ("segments", "soc_pricing", "discharge_energy_threshold") in paths
+    assert ("segments", "soc_pricing", "discharge_energy_price") in paths
+
+
+def test_soc_pricing_setters_write_fresh_threshold() -> None:
+    """Setters captured for soc_pricing write fresh values into the segment.
+
+    This is the regression for issue #467: when the user edits the battery
+    min_charge_percentage, the adapter recomputes discharge_energy_threshold
+    and the captured setter must propagate that to the live SocPricingSegment
+    so the LP sees the new floor.
+    """
+    network = _battery_discharge_network()
+    conn = network.elements["Battery:discharge"]
+    assert isinstance(conn, Connection)
+    seg = conn.segments["soc_pricing"]
+    assert isinstance(seg, SocPricingSegment)
+    assert seg.discharge_energy_threshold is not None
+    assert seg.discharge_energy_threshold[0] == pytest.approx(2.0)
+
+    model_config = {
+        "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+        "name": "Battery:discharge",
+        "source": "Battery",
+        "target": "Grid",
+        "tags": {1},
+        "segments": {
+            "soc_pricing": {
+                "segment_type": "soc_pricing",
+                "discharge_energy_threshold": np.array([2.0, 2.0]),
+                "discharge_energy_price": np.array([0.10, 0.10]),
+            },
+        },
+    }
+
+    setters = _discover_setters(conn, model_config)
+    setter_by_path = dict(setters)
+    threshold_setter = setter_by_path[("segments", "soc_pricing", "discharge_energy_threshold")]
+    threshold_setter(np.array([4.0, 4.0]))
+
+    assert seg.discharge_energy_threshold is not None
+    assert seg.discharge_energy_threshold[0] == pytest.approx(4.0)
 
 
 # ---------------------------------------------------------------------------
