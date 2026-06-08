@@ -1,7 +1,8 @@
 """Utility functions for extracting and processing sensor data."""
 
+from collections.abc import Mapping
 import math
-from typing import Any, TypedDict, cast
+from typing import Any, TypedDict
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -24,10 +25,11 @@ class ForecastItem(TypedDict):
 
 
 class SensorAttributes(TypedDict, total=False):
-    """Attributes dict for HAEO sensors.
+    """Subset of Home Assistant sensor attributes kept in output snapshots.
 
-    Uses total=False since not all attributes are always present.
-    Other Home Assistant attributes pass through as additional keys.
+    Only ``unit_of_measurement`` and ``forecast`` are copied from live state
+    attributes so diagnostics and snapshot comparisons stay stable. Other HA
+    attributes are omitted intentionally.
     """
 
     unit_of_measurement: str | None
@@ -40,6 +42,18 @@ class SensorStateDict(TypedDict):
     entity_id: str
     state: str
     attributes: SensorAttributes
+
+
+def _sensor_attributes(attributes: Mapping[str, Any]) -> SensorAttributes:
+    """Extract unit and forecast from HA state attributes for snapshots."""
+    snapshot: SensorAttributes = {}
+    unit = attributes.get("unit_of_measurement")
+    if isinstance(unit, str):
+        snapshot["unit_of_measurement"] = unit
+    forecast = attributes.get("forecast")
+    if isinstance(forecast, list):
+        snapshot["forecast"] = forecast
+    return snapshot
 
 
 def _round_sig(value: float) -> float:
@@ -161,11 +175,9 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
     """Get all output sensors created by this config entry.
 
     Returns a dict mapping entity_id to a cleaned sensor state dict.
-    Uses State.as_dict() to get complete state information including:
-    - entity_id, state, attributes, last_changed, last_updated, context
-
-    Unstable fields that are removed:
-    - last_changed, last_updated, context (timestamp-based, not relevant for snapshot comparison)
+    Each entry includes entity_id, state, and a filtered attributes dict
+    (unit_of_measurement and forecast only). Timestamp and context fields from
+    live state are not included.
 
     Numeric values are rounded intelligently based on their unit's maximum absolute value
     to provide approximately 4 significant figures, reducing noise from floating-point precision.
@@ -185,23 +197,14 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
         if state is None:
             continue
 
-        # Get complete state as dict and create mutable copy
-        state_dict = dict(state.as_dict())
+        attributes = dict(state.attributes)
+        attributes.pop("field_path", None)
 
-        # Make attributes dict mutable and remove unstable fields
-        if "attributes" in state_dict and isinstance(state_dict["attributes"], dict):
-            state_dict["attributes"] = dict(state_dict["attributes"])
-            # Drop internal-only attributes to keep snapshots stable.
-            state_dict["attributes"].pop("field_path", None)
-
-        # Remove timestamp-based fields that aren't relevant for functional comparison
-        state_dict.pop("last_changed", None)
-        state_dict.pop("last_updated", None)
-        state_dict.pop("last_reported", None)
-        state_dict.pop("context", None)
-
-        # Cast to SensorStateDict after cleaning (state.as_dict() has extra fields we removed)
-        output_sensors[entity_entry.entity_id] = cast("SensorStateDict", state_dict)
+        output_sensors[entity_entry.entity_id] = {
+            "entity_id": state.entity_id,
+            "state": state.state,
+            "attributes": _sensor_attributes(attributes),
+        }
 
     # Apply smart rounding to all numeric values
     _apply_smart_rounding(output_sensors)

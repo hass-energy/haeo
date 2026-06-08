@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from numbers import Real
-from typing import Any, cast
+from typing import Any
 
 from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
@@ -174,9 +174,9 @@ def _migrate_element_to_sectioned(data: Mapping[str, Any]) -> dict[str, Any] | N
             return data[key]
         for value in data.values():
             if isinstance(value, Mapping):
-                mapping_value = cast("Mapping[str, Any]", value)
-                if key in mapping_value:
-                    return mapping_value[key]
+                for mapping_key, mapping_value in value.items():
+                    if isinstance(mapping_key, str) and mapping_key == key:
+                        return mapping_value
         return None
 
     def to_schema_value(value: Any) -> SchemaValue:

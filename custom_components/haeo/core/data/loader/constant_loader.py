@@ -1,7 +1,9 @@
 """Loader for constant (scalar) configuration values."""
 
 from numbers import Real
-from typing import Any, TypeGuard, cast
+from typing import Any, TypeGuard, TypeVar, overload
+
+T = TypeVar("T")
 
 
 class ConstantLoader[T]:
@@ -12,10 +14,21 @@ class ConstantLoader[T]:
 
     """
 
-    def __init__(self, cls: type[T]) -> None:
+    @overload
+    def __new__(cls, loader_type: type[float]) -> "FloatConstantLoader": ...
+
+    @overload
+    def __new__(cls, loader_type: type[T]) -> "ConstantLoader[T]": ...
+
+    def __new__(cls, loader_type: type[Any]) -> "ConstantLoader[Any] | FloatConstantLoader":
+        """Return a float-specialized loader when ``loader_type`` is ``float``."""
+        if loader_type is float:
+            return object.__new__(FloatConstantLoader)
+        return super().__new__(cls)
+
+    def __init__(self, loader_type: type[T]) -> None:
         """Initialize with the expected constant type."""
-        super().__init__()
-        self._type = cls
+        self._type = loader_type
 
     def available(self, value: Any, **_kwargs: Any) -> bool:
         """Return True if the constant field is available."""
@@ -40,13 +53,26 @@ class ConstantLoader[T]:
 
     def _convert(self, value: Any) -> T | None:
         """Return the converted value when it matches the expected type."""
-
-        if self._type is float:
-            if isinstance(value, Real):
-                return cast("T", float(value))
-            return None
-
         if isinstance(value, self._type):
             return value
+
+        return None
+
+
+class FloatConstantLoader(ConstantLoader[float]):
+    """Constant loader that coerces numeric values to float."""
+
+    def __init__(self, loader_type: type[Any]) -> None:
+        """Initialize as a float constant loader.
+
+        ``loader_type`` must be ``float`` when created via ``ConstantLoader(float)``.
+        """
+        _ = loader_type
+        super().__init__(float)
+
+    def _convert(self, value: Any) -> float | None:
+        """Accept any Real value and normalize to float."""
+        if isinstance(value, Real):
+            return float(value)
 
         return None

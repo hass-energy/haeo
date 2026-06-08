@@ -1,6 +1,6 @@
 """Test hub options flow for network configuration."""
 
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -87,7 +87,7 @@ async def test_options_flow_init(hass: HomeAssistant) -> None:
     )
     entry.add_to_hass(hass)
 
-    result = cast("FlowResultDict", await hass.config_entries.options.async_init(entry.entry_id))
+    result: FlowResultDict = await hass.config_entries.options.async_init(entry.entry_id)  # type: ignore[assignment]  # HA returns ConfigFlowResult; tests index as dict[str, Any]
 
     assert result["type"] == FlowResultType.FORM
     assert result["step_id"] == "init"
@@ -127,18 +127,15 @@ async def test_options_flow_select_preset(hass: HomeAssistant) -> None:
     )
     entry.add_to_hass(hass)
 
-    result = cast("FlowResultDict", await hass.config_entries.options.async_init(entry.entry_id))
+    result: FlowResultDict = await hass.config_entries.options.async_init(entry.entry_id)  # type: ignore[assignment]  # HA returns ConfigFlowResult; tests index as dict[str, Any]
     assert result["type"] == FlowResultType.FORM
 
     # Select 3 days preset
-    result = cast(
-        "FlowResultDict",
-        await hass.config_entries.options.async_configure(
-            result["flow_id"],
-            user_input=_wrap_options_input(
-                {CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS},
-                {CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS},
-            ),
+    result: FlowResultDict = await hass.config_entries.options.async_configure(  # type: ignore[assignment]  # HA returns ConfigFlowResult; tests index as dict[str, Any]
+        result["flow_id"],
+        user_input=_wrap_options_input(
+            {CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS},
+            {CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS},
         ),
     )
 
@@ -177,18 +174,15 @@ async def test_options_flow_custom_tiers(hass: HomeAssistant) -> None:
     )
     entry.add_to_hass(hass)
 
-    result = cast("FlowResultDict", await hass.config_entries.options.async_init(entry.entry_id))
+    result: FlowResultDict = await hass.config_entries.options.async_init(entry.entry_id)  # type: ignore[assignment]  # HA returns ConfigFlowResult; tests index as dict[str, Any]
     assert result["type"] == FlowResultType.FORM
 
     # Select custom preset - should go to custom_tiers step
-    result = cast(
-        "FlowResultDict",
-        await hass.config_entries.options.async_configure(
-            result["flow_id"],
-            user_input=_wrap_options_input(
-                {CONF_HORIZON_PRESET: HORIZON_PRESET_CUSTOM},
-                {CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS},
-            ),
+    result: FlowResultDict = await hass.config_entries.options.async_configure(  # type: ignore[assignment]  # HA returns ConfigFlowResult; tests index as dict[str, Any]
+        result["flow_id"],
+        user_input=_wrap_options_input(
+            {CONF_HORIZON_PRESET: HORIZON_PRESET_CUSTOM},
+            {CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS},
         ),
     )
 
@@ -196,21 +190,18 @@ async def test_options_flow_custom_tiers(hass: HomeAssistant) -> None:
     assert result["step_id"] == "custom_tiers"
 
     # Configure custom tier values
-    result = cast(
-        "FlowResultDict",
-        await hass.config_entries.options.async_configure(
-            result["flow_id"],
-            user_input={
-                CONF_TIER_1_COUNT: 10,
-                CONF_TIER_1_DURATION: 2,
-                CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-                CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-                CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-                CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-                CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-                CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-            },
-        ),
+    result: FlowResultDict = await hass.config_entries.options.async_configure(  # type: ignore[assignment]  # HA returns ConfigFlowResult; tests index as dict[str, Any]
+        result["flow_id"],
+        user_input={
+            CONF_TIER_1_COUNT: 10,
+            CONF_TIER_1_DURATION: 2,
+            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
+            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
+            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
+            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
+            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
+            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+        },
     )
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
