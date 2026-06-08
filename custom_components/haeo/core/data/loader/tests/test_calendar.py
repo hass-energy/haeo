@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 
+from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader.calendar import (
     CalendarEventData,
     capture_calendar_events,
@@ -261,7 +262,7 @@ def test_load_from_captured_events() -> None:
         ],
     }
 
-    events = load_calendar_events(value, _NullSM())
+    events = load_calendar_events(value, FakeStateMachine({}))
     assert len(events) == 2
     assert events[0].summary == "Work"
     assert events[0].location == "50 km"
@@ -270,10 +271,12 @@ def test_load_from_captured_events() -> None:
 
 def test_load_from_entity_state() -> None:
     """Load events from entity state attributes (live path)."""
-    value = {"type": "calendar", "value": "calendar.ev", "events": None}
-    sm = _MockSM(
+    value: CalendarValue = {"type": "calendar", "value": "calendar.ev", "events": None}
+    sm = FakeStateMachine(
         {
-            "calendar.ev": _MockState(
+            "calendar.ev": FakeEntityState(
+                entity_id="calendar.ev",
+                state="on",
                 attributes={
                     "haeo_events": [
                         {
@@ -284,7 +287,7 @@ def test_load_from_entity_state() -> None:
                             "description": None,
                         },
                     ],
-                }
+                },
             ),
         }
     )
@@ -297,14 +300,22 @@ def test_load_from_entity_state() -> None:
 def test_load_missing_entity() -> None:
     """Return empty list when entity not found."""
     value: CalendarValue = {"type": "calendar", "value": "calendar.missing", "events": None}
-    events = load_calendar_events(value, _NullSM())
+    events = load_calendar_events(value, FakeStateMachine({}))
     assert events == []
 
 
 def test_load_no_haeo_events_attr() -> None:
     """Return empty list when entity has no haeo_events attribute."""
     value: CalendarValue = {"type": "calendar", "value": "calendar.plain", "events": None}
-    sm = _MockSM({"calendar.plain": _MockState(attributes={"friendly_name": "My Cal"})})
+    sm = FakeStateMachine(
+        {
+            "calendar.plain": FakeEntityState(
+                entity_id="calendar.plain",
+                state="on",
+                attributes={"friendly_name": "My Cal"},
+            ),
+        }
+    )
     events = load_calendar_events(value, sm)
     assert events == []
 
@@ -325,7 +336,7 @@ def test_capture_roundtrip() -> None:
 
     # Reload from captured data
     value: CalendarValue = {"type": "calendar", "value": "calendar.ev", "events": captured}
-    reloaded = load_calendar_events(value, _NullSM())
+    reloaded = load_calendar_events(value, FakeStateMachine({}))
     assert len(reloaded) == 2
     assert reloaded[0].summary == "Work"
     assert reloaded[0].location == "50 km"
@@ -363,38 +374,6 @@ def test_load_skips_invalid_event_dicts() -> None:
             },
         ],
     }
-    events = load_calendar_events(value, _NullSM())
+    events = load_calendar_events(value, FakeStateMachine({}))
     assert len(events) == 1
     assert events[0].summary == "Valid"
-
-
-# --- Test helpers ---
-
-
-class _MockState:
-    """_MockState helper."""
-
-    def __init__(self, attributes: dict | None = None) -> None:
-        self.entity_id = "calendar.mock"
-        self.state = "on"
-        self.attributes = attributes or {}
-
-    def as_dict(self) -> dict[str, object]:
-        return {"entity_id": self.entity_id, "state": self.state, "attributes": self.attributes}
-
-
-class _MockSM:
-    """_MockSM helper."""
-
-    def __init__(self, states: dict) -> None:
-        self._states = states
-
-    def get(self, entity_id: str) -> object | None:
-        return self._states.get(entity_id)
-
-
-class _NullSM:
-    """_NullSM helper."""
-
-    def get(self, _entity_id: str) -> None:
-        return None
