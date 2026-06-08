@@ -226,7 +226,7 @@ jobs:
 
       - name: Upload frontend coverage to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
         with:
           files: frontend/haeo-forecast-card/coverage/lcov.info
           flags: frontend
@@ -256,13 +256,13 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
         with:
           report_type: test_results
 
       - name: Upload coverage to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
         with:
           flags: python
           fail_ci_if_error: true
