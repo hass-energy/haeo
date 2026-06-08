@@ -112,6 +112,7 @@ class HaeoRuntimeData:
         auto_optimize_switch: Switch controlling automatic optimization.
         coordinator: Coordinator for network-level optimization (set after input platforms).
         value_update_in_progress: Flag to skip reload when updating entity values.
+        reload_pending: Flag to coalesce deferred reloads during an element config flow.
 
     """
 
