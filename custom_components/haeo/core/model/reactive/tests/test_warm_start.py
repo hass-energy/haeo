@@ -7,16 +7,17 @@ and the caching system automatically invalidates and rebuilds only the affected 
 import numpy as np
 import pytest
 
-from custom_components.haeo.coordinator.network import update_element
+from custom_components.haeo.coordinator.network import _build_element_updater
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
+    ModelElementConfig,
 )
 from custom_components.haeo.core.model.elements.battery import Battery
-from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.connection import Connection, ConnectionElementConfig
 from custom_components.haeo.core.model.elements.segments import PowerLimitSegment, PricingSegment
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -50,6 +51,7 @@ def test_battery_update_capacity_modifies_soc_constraints() -> None:
             "name": "battery_grid",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
@@ -102,6 +104,7 @@ def test_battery_update_initial_charge_modifies_constraint() -> None:
             "name": "battery_grid",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 10.0},
                 "pricing": {"segment_type": "pricing", "price": -0.10},
@@ -149,6 +152,7 @@ def test_battery_update_with_sequence_capacity() -> None:
             "name": "conn",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {"pricing": {"segment_type": "pricing", "price": 0.01}},
         }
     )
@@ -179,6 +183,7 @@ def test_connection_update_max_power_source_target() -> None:
             "name": "conn",
             "source": "source",
             "target": "sink",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
@@ -220,6 +225,7 @@ def test_connection_update_price_source_target() -> None:
             "name": "conn",
             "source": "source",
             "target": "sink",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
@@ -261,6 +267,7 @@ def test_connection_update_max_power_target_source() -> None:
             "name": "conn",
             "source": "source",
             "target": "sink",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
                 "pricing": {"segment_type": "pricing", "price": 0.01},
@@ -299,6 +306,7 @@ def test_connection_update_price_target_source() -> None:
             "name": "conn",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
@@ -345,6 +353,7 @@ def test_connection_update_with_sequence_values() -> None:
             "name": "conn",
             "source": "source",
             "target": "sink",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
@@ -389,6 +398,7 @@ def test_warm_start_produces_same_result() -> None:
             "name": "conn:discharge",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
                 "pricing": {"segment_type": "pricing", "price": -0.10},
@@ -401,6 +411,7 @@ def test_warm_start_produces_same_result() -> None:
             "name": "conn:charge",
             "source": "grid",
             "target": "battery",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
                 "pricing": {"segment_type": "pricing", "price": 0.15},
@@ -426,6 +437,7 @@ def test_warm_start_produces_same_result() -> None:
             "name": "conn:discharge",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 2.0},
                 "pricing": {"segment_type": "pricing", "price": -0.05},
@@ -438,6 +450,7 @@ def test_warm_start_produces_same_result() -> None:
             "name": "conn:charge",
             "source": "grid",
             "target": "battery",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 2.0},
                 "pricing": {"segment_type": "pricing", "price": 0.08},
@@ -489,6 +502,7 @@ def test_network_add_connection_updates_prices() -> None:
             "name": "conn",
             "source": "source",
             "target": "sink",
+            "tags": {1},
             "segments": {
                 "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
                 "pricing": {"segment_type": "pricing", "price": -0.10},
@@ -498,8 +512,22 @@ def test_network_add_connection_updates_prices() -> None:
 
     cost1 = network.optimize()
 
-    update_element(
-        network,
+    initial_model_configs: list[ModelElementConfig] = [
+        ConnectionElementConfig(
+            element_type="connection",
+            name="conn",
+            source="source",
+            target="sink",
+            tags={1},
+            segments={
+                "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
+                "pricing": {"segment_type": "pricing", "price": -0.10},
+            },
+        )
+    ]
+    updater = _build_element_updater(network, ElementType.CONNECTION, initial_model_configs)
+
+    updater(
         {
             CONF_ELEMENT_TYPE: ElementType.CONNECTION,
             "name": "conn",
@@ -541,6 +569,7 @@ def test_solver_structure_unchanged_after_update() -> None:
             "name": "conn",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",

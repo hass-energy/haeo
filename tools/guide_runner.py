@@ -23,7 +23,6 @@ import sys
 
 from playwright.sync_api import sync_playwright
 
-from tests.guides.ha_runner import LiveHomeAssistant, live_home_assistant
 from tests.guides.primitives import (
     ConstantInput,
     EntityInput,
@@ -39,18 +38,30 @@ from tests.guides.primitives import (
     login,
     pause_screenshots,
     reconfigure_policies,
+    save_diagnostics,
     screenshot_context,
     validate_policies,
     verify_setup,
 )
 from tools.guide_hashing import compute_content_hash, compute_page_hash, extract_sources
+from tools.live_hass import LiveHomeAssistant, live_home_assistant
 
 _LOGGER = logging.getLogger(__name__)
 
 # Project root for resolving relative paths
 PROJECT_ROOT = Path(__file__).parent.parent
 DOCS_DIR = PROJECT_ROOT / "docs"
-INPUTS_FILE = PROJECT_ROOT / "tests" / "scenarios" / "scenario1" / "inputs.json"
+SCENARIO_DIR = PROJECT_ROOT / "tests" / "scenarios" / "scenario1"
+INPUTS_FILE = SCENARIO_DIR / "inputs.json"
+ENVIRONMENT_FILE = SCENARIO_DIR / "environment.json"
+
+
+def load_scenario_environment() -> dict[str, object]:
+    """Load scenario environment used to bootstrap live Home Assistant."""
+    with ENVIRONMENT_FILE.open(encoding="utf-8") as environment_file:
+        environment: dict[str, object] = json.load(environment_file)
+    return environment
+
 
 # Regex to extract ```guide and ```guide-setup blocks from markdown
 _GUIDE_BLOCK_RE = re.compile(
@@ -201,7 +212,7 @@ def _run_guide_silently(page: HAPage, hass: LiveHomeAssistant, guide_name: str) 
     with pause_screenshots():
         for block in ref_blocks:
             if block.captures:
-                exec(compile(block.source, f"<{guide_name} block {block.index}>", "exec"), namespace)  # noqa: S102
+                exec(compile(block.source, f"<{guide_name} block {block.index}>", "exec"), namespace)  # noqa: S102 (guide runner must execute user-authored code blocks)
 
 
 def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, object]:
@@ -225,6 +236,8 @@ def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, obj
         "reconfigure_policies": reconfigure_policies,
         "validate_policies": validate_policies,
         "verify_setup": verify_setup,
+        # Developer Tools primitives
+        "save_diagnostics": save_diagnostics,
         # Guide chaining
         "run_guide": lambda guide_name: _run_guide_silently(page, hass, guide_name),
     }
@@ -259,53 +272,51 @@ def run_blocks_for_mode(
         shutil.rmtree(mode_dir)
     mode_dir.mkdir(parents=True)
 
-    with sync_playwright() as p:
-        browser = p.firefox.launch(headless=headless)
-        context = browser.new_context(
+    with (
+        sync_playwright() as playwright,
+        playwright.firefox.launch(headless=headless) as browser,
+        browser.new_context(
             viewport={"width": 1280, "height": 800},
             reduced_motion="reduce",
-        )
-        hass.inject_auth(context, dark_mode=dark_mode)
-        page_obj = context.new_page()
-        page_obj.set_default_timeout(5000)
+        ) as context,
+    ):
+        hass.configure_context(context, dark_mode=dark_mode)
+        with context.new_page() as page_obj:
+            page_obj.set_default_timeout(5000)
+            try:
+                page = HAPage(page=page_obj, url=hass.url, ha=hass)
+                namespace = build_exec_namespace(page, hass)
 
-        try:
-            page = HAPage(page=page_obj, url=hass.url)
-            namespace = build_exec_namespace(page, hass)
+                # All blocks share one screenshot context (continuous numbering)
+                # but we track per-block boundaries
+                with screenshot_context(mode_dir) as ctx:
+                    per_block: list[list[str]] = []
 
-            # All blocks share one screenshot context (continuous numbering)
-            # but we track per-block boundaries
-            with screenshot_context(mode_dir) as ctx:
-                per_block: list[list[str]] = []
+                    for block in blocks:
+                        if not block.captures:
+                            # Setup blocks run without screenshot capture
+                            with pause_screenshots():
+                                exec(compile(block.source, f"<guide-setup block {block.index}>", "exec"), namespace)  # noqa: S102 (guide runner must execute user-authored code blocks)
+                            continue
 
-                for block in blocks:
-                    if not block.captures:
-                        # Setup blocks run without screenshot capture
-                        with pause_screenshots():
-                            exec(compile(block.source, f"<guide-setup block {block.index}>", "exec"), namespace)  # noqa: S102
-                        continue
+                        # Record screenshots before this block
+                        before_count = len(ctx.screenshots)
 
-                    # Record screenshots before this block
-                    before_count = len(ctx.screenshots)
+                        # Execute the block in the shared namespace
+                        exec(compile(block.source, f"<guide block {block.index}>", "exec"), namespace)  # noqa: S102 (guide runner must execute user-authored code blocks)
 
-                    # Execute the block in the shared namespace
-                    exec(compile(block.source, f"<guide block {block.index}>", "exec"), namespace)  # noqa: S102
+                        # Collect screenshots produced by this block
+                        all_names = list(ctx.screenshots.keys())
+                        block_names = all_names[before_count:]
+                        per_block.append(block_names)
 
-                    # Collect screenshots produced by this block
-                    all_names = list(ctx.screenshots.keys())
-                    block_names = all_names[before_count:]
-                    per_block.append(block_names)
+                    return per_block
 
-                return per_block
-
-        except Exception:
-            _LOGGER.exception("Error running guide block")
-            error_path = mode_dir / "error_state.png"
-            page_obj.screenshot(path=str(error_path))
-            raise
-
-        finally:
-            browser.close()
+            except Exception:
+                _LOGGER.exception("Error running guide block")
+                error_path = mode_dir / "error_state.png"
+                page_obj.screenshot(path=str(error_path))
+                raise
 
 
 def run_guide_from_markdown(
@@ -350,7 +361,9 @@ def run_guide_from_markdown(
 
     viewport = {"width": 1280, "height": 800}
 
-    with live_home_assistant(timeout=120) as hass:
+    scenario_environment = load_scenario_environment()
+
+    with live_home_assistant(timeout=120, environment=scenario_environment) as hass:
         hass.load_states_from_file(INPUTS_FILE)
 
         # Run light mode
@@ -358,7 +371,7 @@ def run_guide_from_markdown(
         light_results = run_blocks_for_mode(hass, blocks, output_dir, "light", headless=headless)
 
     # Need a fresh HA instance for dark mode (different auth/theme state)
-    with live_home_assistant(timeout=120) as hass:
+    with live_home_assistant(timeout=120, environment=scenario_environment) as hass:
         hass.load_states_from_file(INPUTS_FILE)
 
         # Run dark mode
@@ -395,7 +408,7 @@ def main() -> None:
     """CLI entry point: run guide(s) from markdown files."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-    if len(sys.argv) < 2:  # noqa: PLR2004
+    if len(sys.argv) < 2:  # noqa: PLR2004 (CLI argument count check, not a meaningful constant)
         print("Usage: uv run python -m tools.guide_runner <markdown_file> [--force] [--headed]")
         sys.exit(1)
 

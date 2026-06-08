@@ -4,12 +4,13 @@ type TranslationDict = Record<string, TranslationValue>;
 
 const EN_TRANSLATIONS: TranslationDict = {
   "card.title.default": "HAEO forecast",
-  "card.empty.message":
-    "No forecast data found. Add forecast entities in card config or ensure HAEO output sensors are available.",
+  "card.empty.loading": "Loading HAEO forecast data…",
+  "card.empty.configure_hub": "Configure a HAEO hub in the card editor.",
+  "card.empty.hub_not_found": "The selected HAEO hub no longer exists. Open the card editor and choose a hub again.",
+  "card.empty.no_data": "No forecast data yet. Wait for HAEO to finish its first optimization run.",
   "header.horizon": "Horizon: {hours}",
   "axis.power": "Power (kW)",
   "axis.price": "Price",
-  "axis.soc": "SOC",
   "legend.mode": "Mode",
   "legend.mode.opposed": "Opposed",
   "legend.mode.overlay": "Overlay",
@@ -20,11 +21,8 @@ const EN_TRANSLATIONS: TranslationDict = {
   "tooltip.section.possible": "Possible",
   "tooltip.section.price": "Price",
   "tooltip.section.soc": "State of charge",
-  "tooltip.total.produced": "Produced supply",
-  "tooltip.total.available": "Available supply",
-  "tooltip.total.consumed": "Active load",
-  "tooltip.total.possible": "Possible load",
-  "tooltip.total.generic": "{lane} total",
+  "tooltip.visibility.hide": "Hide hover details",
+  "tooltip.visibility.show": "Show hover details",
   "legend.series.import_price": "{label} (import price)",
   "legend.series.export_price": "{label} (export price)",
   "legend.series.available": "{label} (available)",
@@ -38,12 +36,15 @@ const EN_TRANSLATIONS: TranslationDict = {
   "legend.group.battery_power": "Charge / discharge",
   "legend.group.battery_soc": "Min / max / charge %",
   "legend.group.toggle": "Toggle {element} {group}",
-  "editor.error.ws_unavailable": "Home Assistant websocket API unavailable in editor.",
-  "editor.title.label": "Title",
-  "editor.title.placeholder": "HAEO forecast",
-  "editor.discovery.loading": "Discovering HAEO hubs and forecast entities...",
-  "editor.discovery.count": "Discovered entities for selected hub: {count}",
-  "editor.elements.label": "Elements: {elements}",
+  "topology.card.title.default": "HAEO network topology",
+  "topology.card.empty.configure_hub": "Configure a HAEO hub in the card editor.",
+  "topology.card.empty.hub_not_found":
+    "The selected HAEO hub no longer exists. Open the card editor and choose a hub again.",
+  "topology.card.empty.no_entity":
+    "No optimization status sensor found for the selected hub. Wait for HAEO to finish its first optimization run.",
+  "topology.card.empty.waiting": "Waiting for topology data on {entity}.",
+  "topology.card.loading": "Computing layout…",
+  "topology.card.error.layout": "Layout error",
 };
 
 const TRANSLATIONS: Record<string, TranslationDict> = {

@@ -3,6 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "sideEffects": [
+    "**/*.css",
+    "src/index.ts",
+    "src/card.tsx",
+    "src/topology-card.tsx",
+    "src/topology-entry.ts"
+  ],
   "scripts": {
     "build": "node ./scripts/build.mjs",
     "dev": "node ./scripts/build.mjs --watch",
@@ -22,6 +29,7 @@
   },
   "dependencies": {
     "@mdi/js": "^7.4.47",
+    "elkjs": "^0.11.1",
     "mobx": "^6.15.0",
     "preact": "^10.27.2"
   },
@@ -40,6 +48,7 @@
     "playwright": "^1.59.1",
     "prettier": "^3.6.2",
     "prettier-plugin-sort-json": "^4.2.0",
+    "rolldown": "^1.0.3",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.46.1",
     "vitest": "^3.2.4"

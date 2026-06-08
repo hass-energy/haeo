@@ -40,12 +40,30 @@ function pickEntities(states) {
     .map((state) => state.entity_id);
 }
 
+const SCENARIO_EXPORT_HUB = "scenario-export";
+const SCENARIO_EXPORT_DEVICE = "dev-scenario-export";
+
+function withScenarioHubRegistry(states) {
+  const entities = {};
+  for (const entityId of Object.keys(states)) {
+    entities[entityId] = { platform: "haeo", device_id: SCENARIO_EXPORT_DEVICE };
+  }
+  return {
+    states,
+    entities,
+    devices: {
+      [SCENARIO_EXPORT_DEVICE]: { config_entries: [SCENARIO_EXPORT_HUB] },
+    },
+  };
+}
+
 async function main() {
   await mkdir(outputDir, { recursive: true });
 
   const outputsFile = await readFile(scenarioPath, "utf-8");
   const states = JSON.parse(outputsFile);
   const entities = pickEntities(states);
+  const hass = withScenarioHubRegistry(states);
 
   const dom = new JSDOM("<!doctype html><html><body></body></html>", {
     url: "http://localhost/",
@@ -61,6 +79,10 @@ async function main() {
     observe() {}
     disconnect() {}
   };
+  globalThis.IntersectionObserver = class {
+    observe() {}
+    disconnect() {}
+  };
   globalThis.requestAnimationFrame = (cb) => setTimeout(() => cb(Date.now()), 16);
   globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
 
@@ -70,11 +92,11 @@ async function main() {
   element.setConfig({
     type: "custom:haeo-forecast-card",
     title: "HAEO card preview",
+    hub_entry_id: SCENARIO_EXPORT_HUB,
     entities,
     height: 420,
-    animation_mode: "off",
   });
-  element.hass = { states };
+  element.hass = hass;
   window.document.body.appendChild(element);
 
   await new Promise((resolvePromise) => setTimeout(resolvePromise, 50));

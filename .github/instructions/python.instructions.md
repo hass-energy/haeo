@@ -117,6 +117,41 @@ See [typing philosophy](../../docs/developer-guide/typing.md) for detailed patte
 - American English for all code and comments
 - Sentence case for messages
 
+### Lint suppressions
+
+`# noqa` is a tool of last resort.
+Before adding one, try to restructure the code so the lint rule is satisfied naturally.
+Only suppress when there is genuinely no reasonable alternative.
+
+Every `# noqa` comment must include an explicit reason explaining why the suppression is necessary and why the code cannot be restructured to avoid it.
+The reason goes in parentheses after the rule code:
+
+```python
+# ✅ Good - genuine need with reason
+raise ValueError(msg)  # noqa: TRY004 (ValueError is appropriate here, not TypeError)
+
+# ❌ Bad - no reason
+raise ValueError(msg)  # noqa: TRY004
+
+# ❌ Bad - could have been avoided by restructuring
+from .foo import bar  # noqa: PLC0415 (only needed here)
+# ↑ If the import works at module level, just move it there
+```
+
+**Exception for deferred imports (PLC0415)**: Ruff's isort (`force-sort-within-sections`) strips inline reasons from import lines.
+For PLC0415, put the reason on the preceding comment line and keep the noqa bare.
+The reason must explain a genuine constraint (circular import, conditional availability, etc.) — not just preference:
+
+```python
+# ✅ Good - genuine circular import, reason on preceding line
+# Avoid circular import with parent package
+from .internals import _private  # noqa: PLC0415
+
+# ❌ Bad - no actual constraint, just move it to module level
+# Only used in one function
+from .internals import _private  # noqa: PLC0415
+```
+
 ## Docstrings
 
 - Required for all public functions and methods

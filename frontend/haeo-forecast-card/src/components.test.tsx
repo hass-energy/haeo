@@ -3,11 +3,12 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { ForecastCardView } from "./components/ForecastCardView";
 import { Legend } from "./components/Legend";
+import { loadScenarioHassState, withSingleHubRegistry } from "./fixtures/scenarioOutputs";
 import { normalizeSeries } from "./series";
 import { ForecastCardStore } from "./store";
 import type { HassLike } from "./series";
 
-const testFixture: HassLike = {
+const testFixture: HassLike = withSingleHubRegistry({
   states: {
     "sensor.grid_import_power": {
       entity_id: "sensor.grid_import_power",
@@ -56,6 +57,12 @@ const testFixture: HassLike = {
       },
     },
   },
+});
+
+const testCardConfig = {
+  type: "custom:haeo-forecast-card" as const,
+  hub_entry_id: "hub-alpha",
+  entities: ["sensor.grid_import_power", "sensor.grid_import_price", "sensor.battery_soc"],
 };
 
 describe("ForecastCardView components", () => {
@@ -68,7 +75,7 @@ describe("ForecastCardView components", () => {
 
   it("renders chart lanes and legend items", () => {
     const store = new ForecastCardStore();
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig(testCardConfig);
     store.setHass(testFixture);
     store.setSize(900, 380);
 
@@ -81,7 +88,7 @@ describe("ForecastCardView components", () => {
 
   it("renders tooltip when hover pointer is set", () => {
     const store = new ForecastCardStore();
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig(testCardConfig);
     store.setHass(testFixture);
     store.setSize(900, 380);
     store.setPointer(300, 110);
@@ -92,12 +99,43 @@ describe("ForecastCardView components", () => {
     expect(root.querySelectorAll(".tooltipRow").length).toBeGreaterThan(0);
   });
 
-  it("renders empty state when there is no data", () => {
+  it("hides tooltip details from the header toggle", async () => {
     const store = new ForecastCardStore();
-    store.setConfig({ type: "custom:haeo-forecast-card" });
+    store.setConfig(testCardConfig);
+    store.setHass(testFixture);
+    store.setSize(900, 380);
+    store.setPointer(300, 110);
+
+    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+
+    const tooltipButton = root.querySelector<HTMLButtonElement>(".tooltipToggleButton");
+    expect(tooltipButton).toBeTruthy();
+    expect(root.querySelector(".tooltip")).toBeTruthy();
+    tooltipButton?.click();
+    expect(store.tooltipVisible).toBe(false);
+    await Promise.resolve();
+    expect(root.querySelector(".tooltip")).toBeNull();
+  });
+
+  it("renders loading state before hass registry data is available", () => {
+    const store = new ForecastCardStore();
+    store.setConfig({ type: "custom:haeo-forecast-card", hub_entry_id: "hub-alpha" });
     store.setSize(800, 300);
     render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
-    expect(root.textContent).toContain("No forecast data found");
+    expect(root.textContent).toContain("Loading HAEO forecast data");
+  });
+
+  it("renders hub-not-found when registry data excludes the configured hub", () => {
+    const store = new ForecastCardStore();
+    store.setConfig({ type: "custom:haeo-forecast-card", hub_entry_id: "hub-deleted" });
+    store.setHass({
+      states: {},
+      entities: {},
+      devices: { "dev-alpha": { config_entries: ["hub-alpha"] } },
+    });
+    store.setSize(800, 300);
+    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+    expect(root.textContent).toContain("The selected HAEO hub no longer exists");
   });
 
   it("handles legend enter and leave callbacks", () => {
@@ -105,7 +143,7 @@ describe("ForecastCardView components", () => {
     const groups: Array<string | null> = [];
     const toggles: string[] = [];
     const elementToggles: string[] = [];
-    const series = normalizeSeries(testFixture, { type: "custom:haeo-forecast-card" });
+    const series = normalizeSeries(testFixture, testCardConfig);
     render(
       <Legend
         series={series}
@@ -152,24 +190,50 @@ describe("ForecastCardView components", () => {
 
   it("updates store state from forecast view interactions", () => {
     const store = new ForecastCardStore();
-    store.setConfig({ type: "custom:haeo-forecast-card", animation_mode: "off" });
+    store.setConfig({ ...testCardConfig });
     store.setHass(testFixture);
     store.setSize(900, 380);
     store.setPointer(300, 120);
     render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
 
-    const modeButton = root.querySelector<HTMLButtonElement>(".modeToggleButton");
+    const modeButton = root.querySelector<HTMLButtonElement>(".powerModeToggleButton");
     const gridElement = Array.from(root.querySelectorAll(".legendElement")).find((el) =>
       el.textContent.includes("Grid")
     );
     const firstLegendItem = (gridElement?.querySelector(".legendItem") as HTMLButtonElement | null) ?? null;
+    const gridElementLabel = gridElement?.querySelector<HTMLButtonElement>(".legendElementLabel") ?? null;
+    const horizonSlider = root.querySelector<HTMLInputElement>(".horizonSlider");
     expect(modeButton).toBeTruthy();
     expect(firstLegendItem).toBeTruthy();
+    expect(gridElementLabel).toBeTruthy();
+    expect(horizonSlider).toBeTruthy();
     modeButton?.click();
+    gridElementLabel?.click();
     firstLegendItem?.click();
     firstLegendItem?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
     expect(store.powerDisplayMode).toBe("overlay");
     expect(store.highlightedSeries).toBeTruthy();
     expect(root.querySelector(".tooltipRow.active") || root.querySelector(".tooltip")).toBeTruthy();
+  });
+
+  it("updates the horizon from the slider", async () => {
+    const store = new ForecastCardStore();
+    store.setConfig({ type: "custom:haeo-forecast-card", hub_entry_id: "hub-alpha" });
+    store.setHass(loadScenarioHassState("scenario2"));
+    store.setSize(900, 380);
+    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+
+    const horizonValue = root.querySelector(".horizonValue");
+    const horizonSlider = root.querySelector<HTMLInputElement>(".horizonSlider");
+    expect(horizonValue?.textContent).toMatch(/^3(\.0)?d$/);
+    expect(horizonSlider).toBeTruthy();
+    if (horizonSlider) {
+      horizonSlider.value = "4";
+      horizonSlider.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    }
+    await Promise.resolve();
+
+    expect(store.horizonDurationMs).toBe(4 * 3_600_000);
+    expect(root.querySelector(".horizonValue")?.textContent).toBe("4h");
   });
 });

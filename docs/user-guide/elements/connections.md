@@ -208,15 +208,15 @@ Not all sensors are created for every connection - only those relevant to the co
 The sensor display names use the actual source and target element names configured for the connection.
 For example, a connection between two elements would show their actual names in the sensor name instead of generic "Source to Target".
 
-| Sensor                                                                                     | Unit  | Description                             |
-| ------------------------------------------------------------------------------------------ | ----- | --------------------------------------- |
-| [`sensor.{name}_power_source_target`](#source-to-target-power)                             | kW    | Power flowing from source to target     |
-| [`sensor.{name}_power_target_source`](#target-to-source-power)                             | kW    | Power flowing from target to source     |
-| [`sensor.{name}_power_max_source_target`](#max-source-to-target-power)                     | kW    | Maximum forward power (when limited)    |
-| [`sensor.{name}_power_max_target_source`](#max-target-to-source-power)                     | kW    | Maximum reverse power (when limited)    |
-| [`sensor.{name}_shadow_power_max_source_target`](#max-source-to-target-power-shadow-price) | \$/kW | Value of additional forward capacity    |
-| [`sensor.{name}_shadow_power_max_target_source`](#max-target-to-source-power-shadow-price) | \$/kW | Value of additional reverse capacity    |
-| [`sensor.{name}_time_slice`](#time-slice-shadow-price)                                     | \$/kW | Value of relaxing time-slice constraint |
+| Sensor                                                                                     | Unit   | Description                             |
+| ------------------------------------------------------------------------------------------ | ------ | --------------------------------------- |
+| [`sensor.{name}_power_source_target`](#source-to-target-power)                             | kW     | Power flowing from source to target     |
+| [`sensor.{name}_power_target_source`](#target-to-source-power)                             | kW     | Power flowing from target to source     |
+| [`sensor.{name}_power_max_source_target`](#max-source-to-target-power)                     | kW     | Maximum forward power (when limited)    |
+| [`sensor.{name}_power_max_target_source`](#max-target-to-source-power)                     | kW     | Maximum reverse power (when limited)    |
+| [`sensor.{name}_shadow_power_max_source_target`](#max-source-to-target-power-shadow-price) | \$/kWh | Value of additional forward capacity    |
+| [`sensor.{name}_shadow_power_max_target_source`](#max-target-to-source-power-shadow-price) | \$/kWh | Value of additional reverse capacity    |
+| [`sensor.{name}_time_slice`](#time-slice-shadow-price)                                     | \$/kWh | Value of relaxing time-slice constraint |
 
 ### Source to Target Power
 
@@ -325,7 +325,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly) for connection issues.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

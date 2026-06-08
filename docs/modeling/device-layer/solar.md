@@ -46,10 +46,10 @@ The adapter transforms user configuration into connection segments:
 
 ### Solar Device
 
-| Sensor           | Unit  | Update    | Description                             |
-| ---------------- | ----- | --------- | --------------------------------------- |
-| `power`          | kW    | Real-time | Actual power generated                  |
-| `forecast_limit` | \$/kW | Real-time | Value of additional generation capacity |
+| Sensor           | Unit   | Update    | Description                             |
+| ---------------- | ------ | --------- | --------------------------------------- |
+| `power`          | kW     | Real-time | Actual power generated                  |
+| `forecast_limit` | \$/kWh | Real-time | Value of additional generation capacity |
 
 See [Solar Configuration](../../user-guide/elements/solar.md) for detailed sensor and configuration documentation.
 
@@ -103,7 +103,7 @@ Solar represents a solar generation system that produces power based on weather 
     generation equals forecast exactly.
     When enabled, generation can be reduced below forecast.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

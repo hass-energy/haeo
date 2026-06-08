@@ -17,7 +17,7 @@ This lets you model real-world scenarios like:
 ## Prerequisites
 
 This guide builds on the [Sigenergy System walkthrough](sigenergy-system.md).
-The setup block below replays that configuration automatically.
+Complete that walkthrough first — the steps here assume your system is already configured.
 
 ```guide-setup
 run_guide("sigenergy-system")
@@ -101,10 +101,14 @@ add_policies(
 
 ### Step 5: Verify and review
 
-Validate that all four policies were saved correctly, then open the reconfigure view to see them.
+Validate that all policies were saved correctly, then open the reconfigure view to see them.
+The first two rules were created automatically: the battery added charge and discharge cost rules.
+The load leaves its consumption cost unset by default, so no consumption cost rule is created.
 
 ```guide
 validate_policies(hass, expected_rules=[
+    "Battery charge cost",
+    "Battery discharge cost",
     "Solar to Grid",
     "Battery to Grid",
     "Battery to Load",
@@ -149,7 +153,7 @@ In practical terms:
 If you need to route policied flow through a junction, model the junction as a plain `Node` (with `is_source=false` and `is_sink=false`) and hang the real sink/source elements off it.
 See [Node roles and policy scope](../modeling/tagged-power.md#node-roles-and-policy-scope) for the full rules.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

@@ -4,7 +4,7 @@ from collections.abc import Callable
 from functools import partial
 from typing import TypeVar, overload
 
-from highspy import Highs
+from highspy import Highs, HighsRanging, HighsSolution
 from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 
@@ -12,6 +12,31 @@ from custom_components.haeo.core.model.output_data import ModelOutputValue, Outp
 
 from .protocols import ReactiveHost
 from .tracked_param import ensure_decorator_state, tracking_context
+
+
+def _get_ranging(solver: Highs) -> tuple[HighsRanging, HighsSolution]:
+    """Get ranging and solution data, caching on the solver instance.
+
+    getRanging() is expensive (full basis factorization) and the result is
+    identical for all constraints in the same model.  Cache it on the solver
+    so that multiple get_output() calls after one solve share a single
+    computation.  Call clear_ranging_cache() after each solve to invalidate.
+    """
+    cached: tuple[HighsRanging, HighsSolution] | None = getattr(solver, "_haeo_ranging_cache", None)
+    if cached is not None:
+        return cached
+
+    _status, rng = solver.getRanging()
+    sol = solver.getSolution()
+    result = (rng, sol)
+    solver._haeo_ranging_cache = result  # type: ignore[attr-defined]  # noqa: SLF001 (intentional cache attribute)
+    return result
+
+
+def clear_ranging_cache(solver: Highs) -> None:
+    """Clear the cached ranging data after a solve cycle."""
+    solver._haeo_ranging_cache = None  # type: ignore[attr-defined]  # noqa: SLF001 (intentional cache attribute)
+
 
 # Type variable for generic return types
 R = TypeVar("R")
@@ -134,13 +159,32 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             return None
 
         # Extract shadow prices from the constraint using the solver
+        solver: Highs = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
         cons = state["constraint"]
         arr = np.asarray(cons, dtype=object)
-        values = tuple(obj._solver.constrDuals(arr).flat)  # noqa: SLF001 # pyright: ignore[reportPrivateUsage]
+        values = tuple(solver.constrDuals(arr).flat)
+
+        # Extract ranging (capacity at current shadow price)
+        rng, sol = _get_ranging(solver)
+        range_up: tuple[float, ...] | None = None
+        range_dn: tuple[float, ...] | None = None
+        if rng.valid:
+            up_vals: list[float] = []
+            dn_vals: list[float] = []
+            for c_obj in arr.flat:
+                idx = c_obj.index
+                row_val = sol.row_value[idx]
+                up_vals.append(float(rng.row_bound_up.value_[idx] - row_val))
+                dn_vals.append(float(row_val - rng.row_bound_dn.value_[idx]))
+            range_up = tuple(up_vals)
+            range_dn = tuple(dn_vals)
+
         return OutputData(
             type=OutputType.SHADOW_PRICE,
             unit=self.unit,
             values=values,
+            range_up=range_up,
+            range_dn=range_dn,
         )
 
     def _call(self, obj: "ReactiveHost") -> R:
@@ -175,7 +219,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             return expr  # type: ignore[return-value]
 
         # Get solver from element
-        solver: Highs = obj._solver  # noqa: SLF001 # pyright: ignore[reportPrivateUsage] (tightly coupled reactive infrastructure)
+        solver: Highs = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
 
         # First call: create constraint(s) in solver
         if is_first_call:
@@ -204,12 +248,12 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         """
         if isinstance(existing, list):
             # Both existing and expr are lists - update element-wise
-            assert isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101
+            assert isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101 (runtime invariant check for constraint type consistency)
             for cons, exp in zip(existing, expr, strict=True):
                 self._update_single_constraint(solver, cons, exp)
         else:
             # Both existing and expr are single values
-            assert not isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101
+            assert not isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101 (runtime invariant check for constraint type consistency)
             self._update_single_constraint(solver, existing, expr)
 
     def _update_single_constraint(

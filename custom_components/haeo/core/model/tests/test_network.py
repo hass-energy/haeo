@@ -14,6 +14,8 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTER
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
+from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
 from custom_components.haeo.core.model.network import (
     BlendedOptions,
     CalibratedOptions,
@@ -82,6 +84,7 @@ def test_connect_entities() -> None:
             "name": "battery1_to_grid1",
             "source": "battery1",
             "target": "grid1",
+            "tags": {1},
             "segments": {
                 "power_limit": {
                     "segment_type": "power_limit",
@@ -118,6 +121,7 @@ def test_connect_nonexistent_entities() -> None:
                 "name": "bad_connection",
                 "source": "nonexistent",
                 "target": "also_nonexistent",
+                "tags": {1},
             }
         )
 
@@ -138,6 +142,7 @@ def test_connect_nonexistent_target_entity() -> None:
                 "name": "bad_connection",
                 "source": "battery1",
                 "target": "nonexistent",
+                "tags": {1},
             }
         )
 
@@ -151,7 +156,9 @@ def test_connect_source_is_connection() -> None:
     # Add entities and a connection
     network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid1", "is_sink": False, "is_source": True})
-    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"})
+    network.add(
+        {"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1", "tags": {1}}
+    )
 
     # Try to create another connection using the connection as source
     with pytest.raises(ValueError, match="Source element 'conn1' is not a network participant"):
@@ -161,6 +168,7 @@ def test_connect_source_is_connection() -> None:
                 "name": "bad_connection",
                 "source": "conn1",
                 "target": "battery1",
+                "tags": {1},
             }
         )
 
@@ -174,7 +182,9 @@ def test_connect_target_is_connection() -> None:
     # Add entities and a connection
     network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery1", "capacity": 10000, "initial_charge": 5000})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid1", "is_sink": False, "is_source": True})
-    network.add({"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1"})
+    network.add(
+        {"element_type": ELEMENT_TYPE_CONNECTION, "name": "conn1", "source": "battery1", "target": "grid1", "tags": {1}}
+    )
 
     # Try to create another connection using the connection as target
     with pytest.raises(ValueError, match="Target element 'conn1' is not a network participant"):
@@ -184,6 +194,7 @@ def test_connect_target_is_connection() -> None:
                 "name": "bad_connection",
                 "source": "battery1",
                 "target": "conn1",
+                "tags": {1},
             }
         )
 
@@ -258,6 +269,7 @@ def test_network_optimize_success_logs_solver_output(
             "name": "conn",
             "source": "src",
             "target": "dst",
+            "tags": {1},
             "segments": {"pricing": {"segment_type": "pricing", "price": 0.0}},
         }
     )
@@ -311,6 +323,7 @@ def test_network_optimize_raises_on_infeasible_network(
             "name": "conn",
             "source": "src",
             "target": "dst",
+            "tags": {1},
             "segments": {"pricing": {"segment_type": "pricing", "price": 0.10}},
         }
     )
@@ -353,6 +366,7 @@ def test_add_soc_pricing_connection() -> None:
             "name": "soc_pricing",
             "source": "battery",
             "target": "node",
+            "tags": {1},
             "segments": {
                 "soc": {
                     "segment_type": "soc_pricing",
@@ -382,6 +396,7 @@ def test_add_soc_pricing_connection_without_battery() -> None:
                 "name": "soc_pricing",
                 "source": "source",
                 "target": "target",
+                "tags": {1},
                 "segments": {
                     "soc": {
                         "segment_type": "soc_pricing",
@@ -408,6 +423,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "name": "conn1",
             "source": "source",
             "target": "target",
+            "tags": {1},
             "segments": {
                 "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
             },
@@ -418,6 +434,7 @@ def test_network_cost_with_multiple_elements() -> None:
             "element_type": ELEMENT_TYPE_CONNECTION,
             "name": "conn2",
             "source": "target",
+            "tags": {1},
             "target": "source",
             "segments": {
                 "pricing": {"segment_type": "pricing", "price": np.array([5.0, 10.0])},
@@ -478,6 +495,7 @@ def _build_priced_network(options: SolveOptions | None = None) -> Network:
             "name": "conn",
             "source": "source",
             "target": "sink",
+            "tags": {1},
             "segments": {
                 "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
             },
@@ -578,6 +596,7 @@ def test_lex_mode_with_secondary_objective() -> None:
             "name": "bat_grid",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
             },
@@ -611,6 +630,7 @@ def test_lex_mode_warm_resolve_with_duplicate_coefficients() -> None:
             "name": "bat_grid",
             "source": "battery",
             "target": "grid",
+            "tags": {1},
             "segments": {
                 "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
             },
@@ -670,6 +690,7 @@ def test_optimize_raises_no_primary_cost() -> None:
             "name": "conn",
             "source": "src",
             "target": "dst",
+            "tags": {1},
             "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 5.0}},
         }
     )
@@ -733,6 +754,7 @@ def test_calibrated_mode_zero_primary_cost_vector() -> None:
             "name": "conn",
             "source": "source",
             "target": "sink",
+            "tags": {1},
             "segments": {
                 "pricing": {"segment_type": "pricing", "price": np.array([0.0, 0.0])},
             },
@@ -741,3 +763,45 @@ def test_calibrated_mode_zero_primary_cost_vector() -> None:
     result = network.optimize()
     assert np.isfinite(result)
     assert network._calibrated_weight == pytest.approx(1e-3)
+
+
+def test_add_policy_pricing_unknown_connection() -> None:
+    """Adding PolicyPricing referencing a missing connection raises TypeError."""
+    network = Network(name="test", periods=np.array([1.0]))
+    with pytest.raises(TypeError, match="references unknown connection"):
+        network.add(
+            PolicyPricingElementConfig(
+                element_type=ELEMENT_TYPE_POLICY_PRICING,
+                name="pp",
+                price=0.05,
+                terms=[PolicyPricingTerm(connection="missing", tag=0)],
+            )
+        )
+
+
+def test_add_policy_pricing_unknown_tag() -> None:
+    """Adding PolicyPricing referencing a tag not on the connection raises ValueError."""
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "a", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "b", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "a",
+            "target": "b",
+            "tags": {0},
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0])},
+            },
+        }
+    )
+    with pytest.raises(ValueError, match="references tag 99"):
+        network.add(
+            PolicyPricingElementConfig(
+                element_type=ELEMENT_TYPE_POLICY_PRICING,
+                name="pp",
+                price=0.05,
+                terms=[PolicyPricingTerm(connection="conn", tag=99)],
+            )
+        )

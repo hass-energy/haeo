@@ -5,7 +5,7 @@
 #     "playwright>=1.40.0",
 # ]
 # ///
-# ruff: noqa: T201
+# ruff: noqa: T201 (CLI script that outputs progress to stdout)
 """Convert SVG files to PNG at various resolutions for Home Assistant brands repository."""
 
 import asyncio

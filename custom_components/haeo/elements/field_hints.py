@@ -6,7 +6,7 @@ based on OutputType, and a builder to instantiate them using declarative hints.
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Final
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
@@ -16,6 +16,11 @@ from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldH
 from custom_components.haeo.core.units import UnitOfMeasurement
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 
+# Home Assistant treats native_min/native_max of None as 0.0-100.0 on NumberEntity,
+# which blocked negative energy prices. Use explicit bounds (±1000) instead.
+PRICE_NATIVE_MIN_VALUE: Final[float] = -1000.0
+PRICE_NATIVE_MAX_VALUE: Final[float] = 1000.0
+
 
 @dataclass(frozen=True, slots=True)
 class OutputTypeMetadata:
@@ -23,8 +28,8 @@ class OutputTypeMetadata:
 
     unit: str | None
     device_class: NumberDeviceClass | None
-    min_value: float
-    max_value: float
+    min_value: float | None
+    max_value: float | None
     step: float
 
 
@@ -67,8 +72,15 @@ OUTPUT_TYPE_DEFAULTS: dict[OutputType, OutputTypeMetadata] = {
     OutputType.PRICE: OutputTypeMetadata(
         unit=None,
         device_class=None,
-        min_value=-1.0,
-        max_value=10.0,
+        min_value=PRICE_NATIVE_MIN_VALUE,
+        max_value=PRICE_NATIVE_MAX_VALUE,
+        step=0.001,
+    ),
+    OutputType.PRICE_RATE: OutputTypeMetadata(
+        unit=None,
+        device_class=None,
+        min_value=PRICE_NATIVE_MIN_VALUE,
+        max_value=PRICE_NATIVE_MAX_VALUE,
         step=0.001,
     ),
 }
@@ -84,7 +96,7 @@ def build_input_fields(
     for section_name, fields in field_hints.items():
         result[section_name] = {}
         for field_name, hint in fields.items():
-            translation_key = f"{element_type}_{field_name}"
+            translation_key = _build_translation_key(element_type, field_name, hint.device_type)
             result[section_name][field_name] = _build_field_info(field_name, hint, translation_key)
 
     return result
@@ -120,7 +132,7 @@ def build_list_input_fields(
             continue
         section: dict[str, InputFieldInfo[Any]] = {}
         for field_name, hint in list_hints.fields.items():
-            translation_key = f"{element_type}_{field_name}"
+            translation_key = _build_translation_key(element_type, field_name, hint.device_type)
             section[field_name] = _build_field_info(field_name, hint, translation_key)
 
         if section:
@@ -128,6 +140,22 @@ def build_list_input_fields(
             result[section_key] = section
 
     return result
+
+
+def _build_translation_key(element_type: str, field_name: str, device_type: str | None) -> str:
+    """Build a translation key, including ``device_type`` when present.
+
+    Fields that appear in multiple sections of the same element (for example,
+    ``cost`` and ``percentage`` under both the ``undercharge`` and ``overcharge``
+    partitions of a battery) would otherwise collide on a single translation key
+    such as ``battery_cost``. Including the schema-declared ``device_type`` keeps
+    each partition's translation key distinct, so users see unambiguous names
+    like "Undercharge Cost" and "Overcharge Cost" instead of two identical
+    "Cost" entries on the device card.
+    """
+    if device_type:
+        return f"{element_type}_{device_type}_{field_name}"
+    return f"{element_type}_{field_name}"
 
 
 def _build_field_info(

@@ -37,13 +37,11 @@ from custom_components.haeo.flows.field_schema import (
     convert_choose_data_to_config,
     convert_sectioned_choose_data_to_config,
     get_choose_default,
-    get_haeo_input_entity_ids,
     get_preferred_choice,
     is_valid_choose_value,
     number_selector_from_field,
     preprocess_choose_selector_input,
     preprocess_sectioned_choose_input,
-    resolve_haeo_input_entity_id,
     validate_choose_fields,
     validate_sectioned_choose_fields,
 )
@@ -305,68 +303,6 @@ def test_get_preferred_choice_uses_current_data_boolean_constant() -> None:
     current_data = {"enabled": as_constant_value(value=True)}
     result = get_preferred_choice(field, current_data, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert result == CHOICE_CONSTANT
-
-
-# --- Tests for get_haeo_input_entity_ids ---
-
-
-def test_get_haeo_input_entity_ids_returns_empty_for_no_haeo_entities(hass: HomeAssistant) -> None:
-    """get_haeo_input_entity_ids returns empty list when no HAEO input entities exist."""
-    registry = er.async_get(hass)
-    # Create non-HAEO entities only
-    registry.async_get_or_create(
-        domain="number",
-        platform="other_integration",
-        unique_id="external_number",
-        suggested_object_id="external",
-    )
-    result = get_haeo_input_entity_ids()
-    # Result should not include non-HAEO entities
-    assert "number.external" not in result
-
-
-def test_get_haeo_input_entity_ids_includes_haeo_number_and_switch(hass: HomeAssistant) -> None:
-    """get_haeo_input_entity_ids includes HAEO number and switch entities."""
-    registry = er.async_get(hass)
-    # Create HAEO number entity
-    number_entity = registry.async_get_or_create(
-        domain="number",
-        platform=DOMAIN,
-        unique_id="test_number",
-        suggested_object_id="haeo_number",
-    )
-    # Create HAEO switch entity
-    switch_entity = registry.async_get_or_create(
-        domain="switch",
-        platform=DOMAIN,
-        unique_id="test_switch",
-        suggested_object_id="haeo_switch",
-    )
-    # Create non-HAEO entity
-    registry.async_get_or_create(
-        domain="number",
-        platform="other_integration",
-        unique_id="external",
-        suggested_object_id="external_number",
-    )
-    result = get_haeo_input_entity_ids()
-    assert number_entity.entity_id in result
-    assert switch_entity.entity_id in result
-    assert "number.external_number" not in result
-
-
-def test_get_haeo_input_entity_ids_excludes_haeo_sensors(hass: HomeAssistant) -> None:
-    """get_haeo_input_entity_ids excludes HAEO sensor entities."""
-    registry = er.async_get(hass)
-    # Create HAEO sensor (not an input entity)
-    sensor_entity = registry.async_get_or_create(
-        domain="sensor",
-        platform=DOMAIN,
-        unique_id="test_sensor",
-        suggested_object_id="haeo_sensor",
-    )
-    result = get_haeo_input_entity_ids()
-    assert sensor_entity.entity_id not in result
 
 
 # --- Tests for get_choose_default ---
@@ -933,15 +869,6 @@ def test_get_preferred_choice_returns_none_when_no_choices() -> None:
     assert result == CHOICE_NONE
 
 
-# --- Tests for resolve_haeo_input_entity_id ---
-
-
-def test_resolve_haeo_input_entity_id_returns_none_when_not_found(hass: HomeAssistant) -> None:
-    """resolve_haeo_input_entity_id returns None when entity doesn't exist."""
-    result = resolve_haeo_input_entity_id("entry123", "subentry456", "test_field")
-    assert result is None
-
-
 # --- Tests for build_entity_selector ---
 
 
@@ -955,11 +882,29 @@ def test_build_entity_selector_with_include_entities(hass: HomeAssistant) -> Non
 
 
 def test_build_entity_selector_without_include_entities(hass: HomeAssistant) -> None:
-    """build_entity_selector with no include_entities still includes HAEO entities."""
+    """build_entity_selector with no include_entities does not restrict to a subset."""
     selector = build_entity_selector(include_entities=None)
     config = selector.config
-    # Even with None, HAEO input entities are added (if any exist)
     assert config["domain"] == [DOMAIN, "sensor", "input_number", "number", "switch"]
+    assert "include_entities" not in config
+
+
+def test_build_entity_selector_does_not_add_incompatible_haeo_entities(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """build_entity_selector only includes unit-compatible entities from include_entities."""
+    entity_registry.async_get_or_create(
+        domain="number",
+        platform=DOMAIN,
+        unique_id="grid_export_limit",
+        suggested_object_id="grid_export_limit",
+    )
+    selector = build_entity_selector(include_entities=["sensor.import_price"])
+    include_entities = selector.config.get("include_entities")
+
+    assert include_entities == ["sensor.import_price"]
+    assert "number.grid_export_limit" not in include_entities
 
 
 # --- Tests for preprocess_choose_selector_input ---

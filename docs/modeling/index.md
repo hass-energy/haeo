@@ -48,11 +48,13 @@ No quadratic terms ($x^2$), products ($xy$), or nonlinear functions ($\sin(x)$, 
 LP fits home energy systems because power balances, costs, and most device constraints are linear.
 It delivers a global optimum when a feasible solution exists and scales well as you extend the horizon or add elements.
 
-!!! info "Linear Programming Approximations"
+!!! info "Pure LP first; MILP as a last resort"
 
-    HAEO uses pure linear programming rather than Mixed-Integer Linear Programming (MILP).
-    While energy systems can include discrete decisions (binary on/off loads), HAEO models these using continuous LP approximations.
-    This keeps solve times fast, and forecast uncertainties typically dominate any approximation errors.
+    HAEO optimizes with **pure linear programming (LP)** wherever possible—fast solves over the tiered horizon, with power policies compiled into the LP.
+
+    **Mixed-integer programming (MILP) is a tool of last resort**: we look for linear encodings first (penalties, slacks, forecast-shaped loads) and add integers only when LP cannot deliver the same outcome.
+    **Deferrable loads are planned** along those lines: keep the network LP, and introduce a minimal integer part only if a discrete **run-now** decision cannot be modeled linearly; future intervals stay on the continuous time grid.
+    Details are not fixed yet; until deferrable support ships, discrete loads are fixed or forecast consumption, or scheduled externally (for example via EMHASS) and passed in as inputs.
 
 ## Mathematical Model Structure
 
@@ -282,7 +284,7 @@ HAEO uses consistent units for numerical stability:
 This keeps values in similar numerical ranges, improving solver performance.
 See [units documentation](../developer-guide/units.md) for details.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

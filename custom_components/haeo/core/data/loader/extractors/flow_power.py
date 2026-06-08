@@ -54,7 +54,7 @@ class Parser:
             return False
 
         forecast_dict = state.attributes["forecast_dict"]
-        if not isinstance(forecast_dict, Mapping) or len(forecast_dict) < 2:  # noqa: PLR2004
+        if not isinstance(forecast_dict, Mapping) or len(forecast_dict) < 2:  # noqa: PLR2004 (minimum 2 entries needed to determine period length)
             return False
 
         return all(

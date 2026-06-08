@@ -43,21 +43,20 @@ def extract_policy_rules(config: Mapping[str, Any]) -> list[CompiledPolicyRule]:
     Each rule becomes a dict with:
         sources: list of element names, or ["*"] for wildcard
         destinations: list of element names, or ["*"] for wildcard
-        price: float, NDArray, or None
+        price: float or NDArray
     """
     result: list[CompiledPolicyRule] = []
     for rule in config.get("rules", []):
-        if not rule[CONF_ENABLED]:
-            continue
         source = rule.get(CONF_SOURCE, [])
         target = rule.get(CONF_TARGET, [])
-        compiled = CompiledPolicyRule(
-            sources=source if source else [WILDCARD],
-            destinations=target if target else [WILDCARD],
+        result.append(
+            CompiledPolicyRule(
+                sources=source if source else [WILDCARD],
+                destinations=target if target else [WILDCARD],
+                enabled=rule[CONF_ENABLED],
+                price=rule[CONF_PRICE],
+            )
         )
-        price = rule[CONF_PRICE]
-        compiled["price"] = price
-        result.append(compiled)
     return result
 
 
@@ -70,14 +69,14 @@ class PolicyAdapter:
     can_source: bool = False
     can_sink: bool = False
 
-    def model_elements(self, config: PolicyConfigData) -> list[ModelElementConfig]:  # noqa: ARG002
+    def model_elements(self, config: PolicyConfigData) -> list[ModelElementConfig]:  # noqa: ARG002 (required by adapter protocol — policy has no model elements)
         """Policy does not create model elements — policies are compiled separately."""
         return []
 
     def outputs(
         self,
-        name: str,  # noqa: ARG002
-        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],  # noqa: ARG002
+        name: str,  # noqa: ARG002 (required by adapter protocol — policy has no model outputs)
+        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],  # noqa: ARG002 (required by adapter protocol — policy has no model outputs)
         **_kwargs: Any,
     ) -> Mapping[PolicyDeviceName, Mapping[PolicyOutputName, OutputData]]:
         """Map model outputs to policy-specific output names."""

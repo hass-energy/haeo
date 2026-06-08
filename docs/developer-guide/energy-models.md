@@ -97,7 +97,7 @@ def battery_soc_max(self) -> list[highs_linear_expression]:
 Parameters:
 
 - `output=True`: Expose constraint shadow prices as outputs (default `False`)
-- `unit`: Unit for shadow price outputs (default `"$/kW"`)
+- `unit`: Unit for shadow price outputs (default `"$/kWh"`)
 
 ### @cost decorator
 
@@ -147,9 +147,9 @@ Use `@output(name="...")` to expose a custom output name when the method name is
 
 The solver uses pure linear programming, so every constraint and cost must be linear in the decision variables.
 Approximate nonlinear behaviour with piecewise constants or external preprocessing when necessary.
-The default solvers also support mixed-integer linear programming, but treat binary or integer variables as a last resort because they increase solve time dramatically.
-Before you add discrete decisions, look for linear encodings such as mutually dependent constraints, large penalty weights, or auxiliary slack variables that approximate the choice without integer branching.
-If MILP is truly required, keep the integer variable count minimal and document the trade-offs so reviewers understand the performance impact.
+HiGHS also supports mixed-integer linear programming, but HAEO treats **MILP as a tool of last resort**: prefer pure LP for performance, and add integers only when no linear formulation can achieve the same outcome.
+Before introducing discrete variables, try linear encodings—mutually dependent constraints, large penalty weights, or auxiliary slack variables that approximate the behaviour without branching.
+If MILP is unavoidable, keep the integer count as small as possible and document why LP was insufficient so reviewers understand the performance trade-off.
 
 ### Keep units consistent
 

@@ -184,7 +184,7 @@ into the appropriate device-level outputs (e.g., grid import power, grid export 
 Use Connection for all power-flow paths.
 Select the segment chain that matches the physical behavior you need.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

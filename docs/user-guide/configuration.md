@@ -100,7 +100,7 @@ After creating your hub, add elements to represent your devices through the Home
 1. Navigate to **Settings** → **Devices & Services**
 2. Find your **HAEO** integration
 3. Click on the integration card to open the hub details page
-4. Click the **`:` menu button** (three vertical dots in top right)
+4. Click the **menu button** (three vertical dots, top right)
 5. Select **Add Entry** from the dropdown menu
 6. Choose the element type you want to add from the list
 7. Complete the configuration
@@ -236,7 +236,7 @@ Watch optimization duration in the sensor.
 If it takes too long, adjust interval tiers (increase durations or reduce counts).
 See [performance considerations](optimization.md#performance-considerations) for more details.
 
-## Next Steps
+## Next steps
 
 Use these resources to expand your configuration and understand the results.
 

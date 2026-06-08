@@ -226,11 +226,10 @@ jobs:
 
       - name: Upload frontend coverage to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
         with:
           files: frontend/haeo-forecast-card/coverage/lcov.info
           flags: frontend
-          token: ${{ secrets.CODECOV_TOKEN }}
   #endregion
   #region Tests
   # =============================================================================
@@ -257,18 +256,16 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
         with:
           report_type: test_results
-          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload coverage to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
         with:
           flags: python
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
 
   scenario:
     name: Scenario tests
@@ -282,6 +279,17 @@ jobs:
 
       - name: Install the project
         run: uv sync --locked --all-extras --dev
+
+      - name: Set up Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: 22
+
+      - name: Install card dependencies
+        run: npm --prefix frontend/haeo-forecast-card ci
+
+      - name: Build topology renderer
+        run: npm --prefix frontend/haeo-forecast-card run build
 
       - name: Run scenario tests
         run: uv run pytest -m scenario -vv
@@ -329,6 +337,9 @@ jobs:
   hacs:
     name: HACS
     runs-on: ubuntu-latest
+    # HACS publish requirements (issues enabled, repo topics, etc.) only apply
+    # to the canonical integration repo. Skip on forks so they don't show red.
+    if: github.repository == 'hass-energy/haeo'
     steps:
       - name: Run HACS validation
         uses: hacs/action@d556e736723344f83838d08488c983a15381059a # 22.5.0
@@ -382,6 +393,7 @@ jobs:
     steps:
       - name: Check all jobs passed
         run: |
+          # 'skipped' is allowed (e.g., hacs is gated to the upstream repo).
           if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
             echo "::error::One or more required jobs failed"
             exit 1

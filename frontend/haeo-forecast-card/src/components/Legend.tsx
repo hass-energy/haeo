@@ -1,5 +1,5 @@
 import type { JSX } from "preact";
-import * as mdi from "@mdi/js";
+import { mdiIcons } from "../mdi-icons";
 
 import { t } from "../i18n";
 import { legendSeriesOrder, seriesIconPath, seriesTooltip } from "../legend-helpers";
@@ -112,7 +112,7 @@ function LegendView(props: LegendProps): JSX.Element {
           const allHidden = hiddenCount === elementSeries.length;
           const active = props.hoveredElement === null || props.hoveredElement === elementName;
           const isBatteryElement = elementSeries.some((series) => series.elementType === "battery");
-          const icons = mdi as Record<string, string>;
+          const icons = mdiIcons;
           const batterySocSeriesGroup = isBatteryElement ? sortedSeries.filter((series) => series.lane === "soc") : [];
           const batteryNonSocSeries = isBatteryElement ? sortedSeries.filter((series) => series.lane !== "soc") : [];
           return (

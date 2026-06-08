@@ -18,8 +18,19 @@ CONF_RECORD_FORECASTS: Final = "record_forecasts"
 ELEMENT_TYPE_NETWORK: Final = "network"
 
 # Static frontend resources
-STATIC_FORECAST_CARD_URL_PATH: Final = "/haeo-static/haeo-forecast-card.min.js"
-STATIC_FORECAST_CARD_FILE_PATH: Final = "www/haeo-forecast-card.min.js"
+#
+# Each Lovelace card is served as its own fully self-contained bundle and
+# registered as a separate frontend resource. Keeping the cards independent
+# (no shared chunks or cross-file imports) ensures one card's bundle can never
+# break registration of another when browser or service-worker caches differ.
+STATIC_CARD_STATIC_PATH: Final = "/haeo-static"
+STATIC_CARD_STATIC_DIR: Final = "www"
+
+# (relative file path under the integration directory, served URL path)
+STATIC_CARD_BUNDLES: Final[tuple[tuple[str, str], ...]] = (
+    ("www/haeo-forecast-card.min.js", "/haeo-static/haeo-forecast-card.min.js"),
+    ("www/haeo-topology-card.min.js", "/haeo-static/haeo-topology-card.min.js"),
+)
 
 # Optimization statuses
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"

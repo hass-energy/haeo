@@ -113,7 +113,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,))
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,))
                     }
                 },
             }
@@ -121,7 +121,24 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "outputs": {
             LOAD_DEVICE_LOAD: {
                 LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-", fixed=True),
-                LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.01,)),
+                LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
+            }
+        },
+    },
+    {
+        "description": "Load connection pruned - load carries no flow",
+        "name": "load_main",
+        "config": LoadConfigData(
+            element_type=ElementType.LOAD,
+            name="load_main",
+            connection=as_connection_target("network"),
+            forecast={"forecast": np.array([1.0, 2.0])},
+            curtailment={},
+        ),
+        "model_outputs": {},
+        "outputs": {
+            LOAD_DEVICE_LOAD: {
+                LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(0.0, 0.0), direction="-", fixed=True),
             }
         },
     },

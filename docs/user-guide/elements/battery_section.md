@@ -83,7 +83,7 @@ A Battery Section element creates 1 device in Home Assistant with the following 
 | [`sensor.{name}_battery_section_power_discharge`](#power-discharge) | kW     | Power being discharged from the battery     |
 | [`sensor.{name}_battery_section_power_active`](#power-active)       | kW     | Net active power (discharge - charge)       |
 | [`sensor.{name}_battery_section_energy_stored`](#energy-stored)     | kWh    | Current energy stored in the battery        |
-| [`sensor.{name}_battery_section_power_balance`](#power-balance)     | \$/kW  | Shadow price of power at battery terminals  |
+| [`sensor.{name}_battery_section_power_balance`](#power-balance)     | \$/kWh | Shadow price of power at battery terminals  |
 | [`sensor.{name}_battery_section_energy_in_flow`](#energy-in-flow)   | \$/kWh | Shadow price of charging constraint         |
 | [`sensor.{name}_battery_section_energy_out_flow`](#energy-out-flow) | \$/kWh | Shadow price of discharging constraint      |
 | [`sensor.{name}_battery_section_soc_max`](#soc-max)                 | \$/kWh | Shadow price of maximum capacity constraint |
@@ -217,7 +217,7 @@ Battery Section does not create implicit connections like the standard Battery e
 **Solution**: Ensure the Battery Section name matches exactly in both the Connection source and target fields.
 Check that the Battery Section element exists before creating connections.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

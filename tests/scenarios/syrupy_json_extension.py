@@ -19,8 +19,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 def _prettier_format(file: Path) -> None:
     """Run prettier on a file to match committed formatting style."""
     try:
-        subprocess.run(  # noqa: S603
-            ["npx", "prettier", "--write", str(file)],  # noqa: S607
+        subprocess.run(  # noqa: S603 (invoking trusted npx/prettier tool)
+            ["npx", "prettier", "--write", str(file)],  # noqa: S607 (npx is a trusted first-party tool)
             cwd=_REPO_ROOT,
             capture_output=True,
             timeout=30,
@@ -192,7 +192,7 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
     def write_snapshot(
         cls,
         *,
-        snapshot_location: str,  # noqa: ARG003
+        snapshot_location: str,  # noqa: ARG003 (required by syrupy interface)
         snapshots: list[tuple[SerializedData, PyTestLocation, SnapshotIndex]],
     ) -> None:
         """Write snapshot data directly to outputs.json.
@@ -220,8 +220,8 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
     def read_snapshot(
         self,
         *,
-        index: SnapshotIndex = 0,  # noqa: ARG002
-        session_id: str,  # noqa: ARG002
+        index: SnapshotIndex = 0,  # noqa: ARG002 (required by syrupy interface)
+        session_id: str,  # noqa: ARG002 (required by syrupy interface)
         test_location: PyTestLocation,
     ) -> SerializableData:
         """Read snapshot data directly from outputs.json.

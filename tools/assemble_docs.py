@@ -75,8 +75,8 @@ def parse_tag(tag: str) -> Release | None:
 
 def fetch_releases(repo: str) -> list[Release]:
     """Return releases (newest first) that have a ``docs-<tag>.zip`` asset attached."""
-    result = subprocess.run(  # noqa: S603
-        ["gh", "api", f"repos/{repo}/releases", "--paginate"],  # noqa: S607
+    result = subprocess.run(  # noqa: S603 (invoking trusted gh CLI tool)
+        ["gh", "api", f"repos/{repo}/releases", "--paginate"],  # noqa: S607 (gh is a trusted first-party CLI tool)
         capture_output=True,
         text=True,
         check=True,
@@ -124,8 +124,8 @@ def download_docs(repo: str, tag: str, dest: Path) -> None:
     """Download the release's ``docs-<tag>.zip`` asset and extract it into ``dest``."""
     asset = docs_asset_name(tag)
     with tempfile.TemporaryDirectory() as td:
-        subprocess.run(  # noqa: S603
-            [  # noqa: S607
+        subprocess.run(  # noqa: S603 (invoking trusted gh CLI tool)
+            [  # noqa: S607 (gh is a trusted first-party CLI tool)
                 "gh",
                 "release",
                 "download",

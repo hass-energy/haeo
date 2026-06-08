@@ -69,13 +69,13 @@ def load_element_config(
     field_hints = extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
 
     loaded: dict[str, Any] = {
-        key: dict(value) if isinstance(value, dict) else value for key, value in element_config.items()
+        key: dict(value) if isinstance(value, Mapping) else value for key, value in element_config.items()
     }
     loaded[CONF_NAME] = element_name
 
     for section_name, section_fields in field_hints.items():
         section_config = element_config.get(section_name)
-        if not isinstance(section_config, dict):
+        if not isinstance(section_config, Mapping):
             continue
 
         for field_name, hint in section_fields.items():
@@ -85,7 +85,7 @@ def load_element_config(
                     loaded.setdefault(section_name, {})[field_name] = default
                 continue
 
-            resolved = _resolve_field(value, hint, sm, forecast_times)
+            resolved = resolve_field(value, hint, sm, forecast_times)
             if resolved is _REMOVE:
                 if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
                     loaded.setdefault(section_name, {})[field_name] = default
@@ -129,6 +129,90 @@ def load_element_configs(
     return {name: load_element_config(name, config, sm, forecast_times) for name, config in participants.items()}
 
 
+def load_element_config_from_values(
+    element_name: str,
+    element_config: ElementConfigSchema,
+    field_values: Mapping[tuple[str, ...], Any],
+    forecast_times: Sequence[float],
+) -> ElementConfigData:
+    """Assemble an element's loaded config from pre-resolved input field values.
+
+    This is the store-driven counterpart to :func:`load_element_config`. Instead
+    of resolving each field against a state machine, it substitutes values that
+    have already been resolved by ``InputStore`` instances, keyed by field path
+    (``(section, field)`` or ``(list_key, index, field)``). Fields without an
+    entry are treated as disabled and fall back to the same default/remove logic
+    as the state-machine loader. No state machine is consulted.
+
+    Args:
+        element_name: Display name for the element.
+        element_config: Raw element config dict (sectioned format).
+        field_values: Map of field path to its resolved value.
+        forecast_times: Boundary timestamps (used only for type-driven defaults).
+
+    Returns:
+        Loaded configuration with resolved time series and scalar values.
+
+    Raises:
+        ValueError: If element_type is unknown.
+
+    """
+    element_type = element_config.get(CONF_ELEMENT_TYPE)
+    if not is_element_type(element_type):
+        msg = f"Unknown element type: {element_type}"
+        raise ValueError(msg)
+
+    field_hints = extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
+
+    loaded: dict[str, Any] = {
+        key: dict(value) if isinstance(value, Mapping) else value for key, value in element_config.items()
+    }
+    loaded[CONF_NAME] = element_name
+
+    for section_name, section_fields in field_hints.items():
+        for field_name, hint in section_fields.items():
+            path = (section_name, field_name)
+            default = _default_for_hint(hint, forecast_times)
+
+            if path in field_values:
+                resolved = field_values[path]
+                if resolved is None and default is not _REMOVE:
+                    loaded.setdefault(section_name, {})[field_name] = default
+                else:
+                    loaded.setdefault(section_name, {})[field_name] = resolved
+                continue
+
+            # No store for this field: disabled/none or absent in config.
+            if default is not _REMOVE:
+                loaded.setdefault(section_name, {})[field_name] = default
+            else:
+                loaded_section = loaded.get(section_name)
+                if isinstance(loaded_section, dict):
+                    loaded_section.pop(field_name, None)
+
+    list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
+    for list_key, hints in list_hints.items():
+        items = element_config.get(list_key)
+        if not isinstance(items, (list, tuple)):
+            continue
+        loaded_items: list[Any] = []
+        for index, item in enumerate(items):
+            if not isinstance(item, Mapping):
+                loaded_items.append(item)
+                continue
+            loaded_item = dict(item)
+            for field_name in hints.fields:
+                path = (list_key, str(index), field_name)
+                if path in field_values:
+                    loaded_item[field_name] = field_values[path]
+                else:
+                    loaded_item.pop(field_name, None)
+            loaded_items.append(loaded_item)
+        loaded[list_key] = loaded_items
+
+    return loaded  # type: ignore[return-value]
+
+
 class _Sentinel:
     """Sentinel value indicating a field should be removed."""
 
@@ -143,13 +227,17 @@ def _default_for_hint(hint: FieldHint, forecast_times: Sequence[float]) -> _Sent
     return _resolve_numeric(100.0, hint, forecast_times, is_percent=True)
 
 
-def _resolve_field(
-    value: SchemaValue | bool,  # noqa: FBT001
+def resolve_field(
+    value: SchemaValue | bool,  # noqa: FBT001 (bool is a valid schema field value from config flow)
     hint: FieldHint,
     sm: StateMachine,
     forecast_times: Sequence[float],
 ) -> _Sentinel | bool | float | np.ndarray | None:
-    """Resolve a single field value based on its schema type and hint metadata."""
+    """Resolve a single field value based on its schema type and hint metadata.
+
+    Shared by the config loader (whole-element resolution) and ``InputStore``
+    (single-field resolution) so both paths produce identical values.
+    """
     if is_none_value(value):
         return _REMOVE
 
@@ -157,7 +245,7 @@ def _resolve_field(
         return value
 
     if is_constant_value(value):
-        unwrapped: float | bool | list[str] = value["value"]
+        unwrapped: float | bool | Sequence[str] = value["value"]
     elif is_entity_value(value):
         unwrapped = value["value"]
     else:
@@ -175,6 +263,27 @@ def _resolve_field(
         return None
 
     return _resolve_entities(unwrapped, hint, sm, forecast_times, is_percent=is_percent)
+
+
+def is_percent_field(hint: FieldHint) -> bool:
+    """Return True when a field's values are stored as percentages."""
+    return hint.output_type in _PERCENT_OUTPUT_TYPES
+
+
+def resolve_constant(
+    value: float | bool,  # noqa: FBT001 (bool is a valid constant field value)
+    hint: FieldHint,
+    forecast_times: Sequence[float],
+) -> bool | float | np.ndarray:
+    """Resolve a bare constant value into its optimization form.
+
+    Booleans pass through unchanged; numerics are percentage-converted and
+    expanded into a scalar or time series array per the field hint. Shared by
+    ``InputStore`` so editable values resolve identically to the config loader.
+    """
+    if isinstance(value, bool):
+        return value
+    return _resolve_numeric(float(value), hint, forecast_times, is_percent=is_percent_field(hint))
 
 
 def _resolve_numeric(
@@ -195,7 +304,7 @@ def _resolve_numeric(
 
 
 def _resolve_entities(
-    entity_ids: list[str],
+    entity_ids: Sequence[str],
     hint: FieldHint,
     sm: StateMachine,
     forecast_times: Sequence[float],
@@ -247,7 +356,7 @@ def _resolve_list_items(
             value = item.get(field_name)
             if value is None:
                 continue
-            resolved = _resolve_field(value, hint, sm, forecast_times)
+            resolved = resolve_field(value, hint, sm, forecast_times)
             if isinstance(resolved, _Sentinel):
                 loaded_item.pop(field_name, None)
             elif resolved is not None:
@@ -259,6 +368,10 @@ def _resolve_list_items(
 
 
 __all__ = [
+    "is_percent_field",
     "load_element_config",
+    "load_element_config_from_values",
     "load_element_configs",
+    "resolve_constant",
+    "resolve_field",
 ]

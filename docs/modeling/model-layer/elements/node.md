@@ -100,7 +100,7 @@ Consumption draws from `inbound_tags` for tagged power routing.
 **Junction behavior**: Represents an electrical bus or node where power must balance.
 Used to connect multiple elements at a common point (Kirchhoff's law).
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

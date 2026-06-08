@@ -47,6 +47,8 @@ def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[Un
             return [PERCENTAGE]
         case OutputType.PRICE:
             return PRICE_UNIT_SPEC
+        case OutputType.PRICE_RATE:
+            return None
         case _:
             # STATUS, COST, DURATION, SHADOW_PRICE - no unit filtering
             return None
@@ -173,6 +175,7 @@ class ElementFlowMixin:
             List of element names that can be used as connection targets.
 
         """
+        # Avoid circular import with adapter registry, core constants, and schema module
         from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES  # noqa: PLC0415
         from custom_components.haeo.core.const import ConnectivityLevel  # noqa: PLC0415
         from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415

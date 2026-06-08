@@ -33,10 +33,6 @@ export const Default: Story = {
           lane: "possible",
         },
       ]}
-      totals={[
-        { lane: "consumed", value: 2.1, unit: "kW" },
-        { lane: "possible", value: 2.8, unit: "kW" },
-      ]}
       emphasizedKeys={new Set(["load-actual"])}
     />
   ),

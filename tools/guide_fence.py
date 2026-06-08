@@ -110,13 +110,13 @@ def _get_page_hash(md: object) -> str:
     sources = extract_sources(markdown)
     page_hash = compute_page_hash(sources)
 
-    md._guide_page_hash = page_hash  # type: ignore[attr-defined]  # noqa: SLF001
+    md._guide_page_hash = page_hash  # type: ignore[attr-defined]  # noqa: SLF001 (stashing state on mkdocs Markdown instance, no public API available)
     return page_hash
 
 
 def _find_block(source: str, page_hash: str) -> dict[str, object] | None:
     """Find the manifest block matching this source code by content hash."""
-    global _manifest_cache  # noqa: PLW0603
+    global _manifest_cache  # noqa: PLW0603 (module-level cache requires global reassignment)
     if _manifest_cache is None or _manifests_changed():
         _manifest_cache = _load_manifests()
     content_hash = compute_content_hash(page_hash, source)

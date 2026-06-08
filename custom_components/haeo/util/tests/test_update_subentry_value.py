@@ -3,10 +3,13 @@
 from types import MappingProxyType
 from unittest.mock import Mock
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.schema.constant_value import as_constant_value
 from custom_components.haeo.util import async_update_subentry_value
 
 
@@ -84,3 +87,56 @@ async def test_flag_cleared_on_exception(
         )
 
     assert mock_runtime_data.value_update_in_progress is False
+
+
+async def test_nested_value_update_fires_listener(
+    hass: HomeAssistant,
+) -> None:
+    """Updating a nested field actually triggers the HA update listener.
+
+    A shallow copy of MappingProxyType shares nested containers, so
+    mutating via set_nested_config_value_by_path would silently modify
+    the original data.  async_update_subentry then sees no change and
+    skips the listener.
+    """
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="nested_test")
+    entry.add_to_hass(hass)
+    entry.runtime_data = Mock()
+    entry.runtime_data.value_update_in_progress = False
+
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                "rules": [
+                    {"name": "r1", "price": as_constant_value(0.02)},
+                ],
+            }
+        ),
+        subentry_type="policy",
+        title="Policies",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, subentry)
+
+    listener_called = False
+
+    async def _listener(_hass: HomeAssistant, _entry: ConfigEntry) -> None:
+        nonlocal listener_called
+        listener_called = True
+
+    entry.add_update_listener(_listener)
+
+    await async_update_subentry_value(
+        hass=hass,
+        entry=entry,
+        subentry=subentry,
+        field_path=("rules", "0", "price"),
+        value=as_constant_value(0.10),
+    )
+    await hass.async_block_till_done()
+
+    assert listener_called, (
+        "Update listener must fire when a nested field changes. "
+        "A shallow copy of MappingProxyType shares nested containers, "
+        "causing async_update_subentry to see no change."
+    )

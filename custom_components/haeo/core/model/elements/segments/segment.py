@@ -145,7 +145,7 @@ class Segment:
     def cost(self) -> highs_linear_expression | None:
         """Return aggregated primary cost expression from this segment."""
         # Access decorator's internal name to skip self in dir() loop
-        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001
+        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (_name is set by ReactiveCost.__set_name__, not part of public API)
 
         costs: list[highs_linear_expression] = []
         for name in dir(type(self)):

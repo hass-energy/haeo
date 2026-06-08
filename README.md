@@ -50,52 +50,60 @@ This focused approach means:
 
 - **Real-time Optimization**: Continuously optimizes energy flow across all connected devices
 - **Multi-device Support**: Batteries, solar panels, grid connection, loads, and energy flows
+- **Power Policies**: Source→destination pricing so the optimizer values solar, grid, and battery flows differently ([guide](https://hass-energy.github.io/haeo/walkthroughs/power-policies/))
 - **Price-based Optimization**: Minimizes costs using real-time and forecast electricity prices
 - **Solar Integration**: Optimizes solar generation with curtailment support
 - **Battery Management**: Smart charging/discharging based on prices and SOC constraints
 - **Flexible Configuration**: Easy-to-use UI configuration via Home Assistant
-- **Multiple Solver Support**: Choose from HiGHS, GLPK, CBC, and other linear programming solvers
+- **HiGHS Solver**: Fast, reliable linear programming via bundled `highspy` bindings
 - **Rich Sensors**: Power, energy, cost, and state of charge sensors for all devices
 
 ## 🎯 How It Works
 
-HAEO builds an energy network model from your configured devices.
-It uses linear programming to find the optimal power flow.
-This minimizes your total energy cost over a configurable time horizon (default 48 hours).
+HAEO builds an energy network model from your configured elements.
+It uses linear programming to find the optimal power flow that minimizes total energy cost over a **multi-tier planning horizon** (fine resolution near-term, coarser intervals further out).
+
+Optimization runs when input data changes (debounced) and when the horizon advances past each finest-tier period boundary, so recommendations stay current as prices and forecasts update.
+See the [configuration guide](https://hass-energy.github.io/haeo/user-guide/configuration/) and [data updates guide](https://hass-energy.github.io/haeo/user-guide/data-updates/) for details.
 
 ### The Optimization Process
 
 1. **Data Collection**: Gathers current state (battery SOC, prices) and forecasts (solar production, loads, price forecasts)
 2. **Network Modeling**: Builds a mathematical model representing your energy system with power flow constraints
 3. **Constraint Application**: Applies limits (battery capacity, charge rates, grid limits, etc.)
-4. **Cost Optimization**: Uses a linear programming solver to minimize total cost
-5. **Result Publishing**: Updates Home Assistant sensors with optimal power schedules
+4. **Cost Optimization**: Uses HiGHS to minimize total cost over the tiered horizon
+5. **Result Publishing**: Updates Home Assistant sensors with current optimal power and forecast attributes
 
-### Supported Devices
+### Supported Elements
+
+**Standard elements** (most setups):
 
 - **Battery**: Energy storage with configurable capacity, charge/discharge rates, and efficiency
 - **Grid**: Bi-directional grid with import/export limits and pricing
 - **Solar**: Solar generation with optional curtailment
-- **Constant Load**: Fixed power loads
-- **Forecast Load**: Variable loads with forecast data
-- **Node**: Virtual metering points for grouping energy flows
-- **Connection**: Power flow paths between devices with optional constraints
+- **Load**: Fixed or forecast-based consumption
+- **Inverter**: AC/DC conversion between elements
+
+**Advanced Mode** (optional, for custom topologies):
+
+- **Node**: Virtual power balance points
+- **Connection**: Explicit power flow paths between elements
+- **Battery Section**: Direct model-layer battery access
+
+Pricing and economic incentives use [**power policies**](https://hass-energy.github.io/haeo/walkthroughs/power-policies/)—rules that price energy by where it comes from and where it goes (for example, cheap solar→load vs paid solar→export).
+See the [elements documentation](https://hass-energy.github.io/haeo/user-guide/elements/) for full details.
 
 ## 📦 Installation
 
-### HACS Installation (Recommended)
+### HACS installation (recommended)
+
+HAEO is published in the [default HACS store](https://github.com/hacs/default).
+You do not need to [add a custom repository](https://hacs.xyz/docs/faq/custom_repositories/).
+See the [installation guide](https://hass-energy.github.io/haeo/user-guide/installation/) for step-by-step instructions.
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=hass-energy&repository=haeo&category=integration)
 
-1. Open HACS in your Home Assistant instance
-2. Click on "Integrations"
-3. Click the three dots in the top right corner
-4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/hass-energy/haeo`
-6. Select "Integration" as the category
-7. Click "Add"
-8. Search for "HAEO" and click "Download"
-9. Restart Home Assistant
+You can use the My Home Assistant link above to open HAEO directly in HACS, then download and restart Home Assistant.
 
 ### Manual Installation
 
@@ -110,15 +118,22 @@ This minimizes your total energy cost over a configurable time horizon (default 
 1. Go to **Settings** → **Devices & Services**
 2. Click **Add Integration**
 3. Search for **HAEO**
-4. Configure your network:
+4. Configure your hub:
     - **Name**: A unique name for your energy network
-    - **Horizon Hours**: Optimization time horizon (1-168 hours, default 48)
-    - **Period Minutes**: Time step for optimization (1-60 minutes, default 5)
-    - **Optimizer**: Choose your solver (HiGHS recommended)
+    - **Planning horizon**: Preset (2, 3, 5, or 7 days) or **Custom** tier configuration
+    - **Advanced settings** (optional): Debounce window, Advanced Mode, forecast recording
 
-### Adding Devices
+If you select **Custom**, configure up to four **tiers** (interval count and duration in minutes) for near-term precision and long-term lookahead.
 
-After creating your network, you can add devices through the integration's options:
+See the [configuration guide](https://hass-energy.github.io/haeo/user-guide/configuration/) for tier tuning advice.
+
+### Adding Elements
+
+After creating your hub, add elements from the hub integration card:
+
+1. Open your **HAEO** integration
+2. Click the **menu button** (three vertical dots, top right) → **Add Entry**
+3. Choose an element type and complete the configuration flow
 
 #### Battery Configuration
 
@@ -147,16 +162,15 @@ After creating your network, you can add devices through the integration's optio
 
 #### Load Configuration
 
-- **Constant Load**: Fixed power consumption in kW
-- **Forecast Load**: Variable load with forecast sensor entities
+- **Name**: Identifier for the load
+- **Power**: Fixed value or forecast sensor entities for variable consumption
 
-#### Connections
+#### Connections (Advanced Mode)
 
-Define how energy flows between devices:
+Define explicit power flow paths between elements:
 
-- **Source/Target**: Connect two devices
+- **Source/Target**: Connect two elements
 - **Min/Max Power**: Optional flow limits
-- Bidirectional flows use negative values
 
 ## 📊 Sensors
 
@@ -180,21 +194,24 @@ Each sensor includes forecast attributes with timestamped future values.
 
 ### Optimization Solver
 
-HAEO uses the **HiGHS** linear programming solver directly via the `highspy` Python bindings:
+HAEO uses the **HiGHS** linear programming solver via the `highspy` Python bindings.
+HiGHS is the only supported solver and is bundled with the integration (no external binaries required).
 
-- **Fast**: High-performance open-source solver
-- **Reliable**: Industry-standard optimization engine
-- **Integrated**: Direct Python bindings with no external dependencies
-- **Efficient**: Optimized for large-scale linear and mixed-integer programming
+### Planning Horizon and Tiers
 
-### Time Horizon and Resolution
+HAEO divides the planning horizon into up to four **tiers**, each with its own interval duration:
 
-- **Shorter horizons** (12-24h): Faster optimization, less lookahead
-- **Longer horizons** (48-168h): Better long-term decisions, slower solve
-- **Smaller periods** (5min): Higher resolution, more variables
-- **Larger periods** (15-60min): Faster solve, coarser control
+- **Near-term tiers** (for example, 1-minute intervals): Higher resolution for immediate decisions; match your fastest-updating price or forecast sensors
+- **Long-term tiers** (for example, 30–60 minute intervals): Coarser lookahead when distant forecasts are less reliable
 
-Balance these based on your hardware and use case.
+Tuning tips:
+
+- Use a **shorter preset** or reduce tier 4 count for faster solves
+- Use a **longer preset** for more multi-day lookahead
+- Disable a tier by setting its count to zero
+
+Balance tier counts and durations based on your hardware and use case.
+See the [custom tiers section](https://hass-energy.github.io/haeo/user-guide/configuration/#custom-tiers) in the documentation.
 
 ## 📈 Example Use Cases
 

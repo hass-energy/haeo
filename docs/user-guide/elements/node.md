@@ -178,9 +178,9 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Node element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                          | Unit  | Description                     |
-| ----------------------------------------------- | ----- | ------------------------------- |
-| [`sensor.{name}_power_balance`](#power-balance) | \$/kW | Local energy price at this node |
+| Sensor                                          | Unit   | Description                     |
+| ----------------------------------------------- | ------ | ------------------------------- |
+| [`sensor.{name}_power_balance`](#power-balance) | \$/kWh | Local energy price at this node |
 
 ### Power Balance
 
@@ -252,7 +252,7 @@ Set connection power limits to match the inverter rating.
 
 See [Connections](connections.md) for detailed configuration guidance.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

@@ -60,13 +60,13 @@ Set `mirror_segment_order` to use the same segment order for both flow direction
 
 ### Connection Device
 
-| Sensor                | Unit  | Update    | Description                                   |
-| --------------------- | ----- | --------- | --------------------------------------------- |
-| `power_source_target` | kW    | Real-time | Power flow from source to target              |
-| `power_target_source` | kW    | Real-time | Power flow from target to source              |
-| `power_active`        | kW    | Real-time | Net power (source→target minus target→source) |
-| `shadow_power_max_*`  | \$/kW | Real-time | Shadow prices for power limits                |
-| `time_slice`          | \$/kW | Real-time | Shadow price for time-slice coupling          |
+| Sensor                | Unit   | Update    | Description                                   |
+| --------------------- | ------ | --------- | --------------------------------------------- |
+| `power_source_target` | kW     | Real-time | Power flow from source to target              |
+| `power_target_source` | kW     | Real-time | Power flow from target to source              |
+| `power_active`        | kW     | Real-time | Net power (source→target minus target→source) |
+| `shadow_power_max_*`  | \$/kWh | Real-time | Shadow prices for power limits                |
+| `time_slice`          | \$/kWh | Real-time | Shadow price for time-slice coupling          |
 
 See [Connection Configuration](../../user-guide/elements/connections.md) for detailed sensor and configuration documentation.
 
@@ -139,7 +139,7 @@ Use explicit Connection devices when you need:
 - **Implicit Connections**:
     Don't create explicit connections that duplicate implicit ones—this creates parallel paths with potentially confusing results.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

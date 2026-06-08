@@ -42,13 +42,15 @@ This pattern—zero when slack, non-zero when binding—applies to all shadow pr
 
 ## Categories of shadow prices
 
-HAEO exposes shadow prices for various constraint types:
+All HAEO shadow-price sensors are reported in **\$/kWh** so they sit on the same axis as tariffs and other energy-priced quantities.
+The LP model formulates both power-balance and power-limit constraints in energy units (kWh) by multiplying by the period duration, so the solver produces \$/kWh duals natively.
+Individual elements document their specific shadow prices, but the interpretation is uniform: the value shows the marginal benefit of relaxing that constraint, per kWh of slack.
 
-- **Energy-coupled constraints** (reported in \$/kWh): These involve stored energy over time, such as battery state-of-charge limits or energy balance between periods.
-- **Instantaneous power constraints** (reported in \$/kW): These limit power flow at a single moment, such as inverter capacity, grid import limits, or connection ratings.
+## Diagnostic visibility
 
-Individual elements document their specific shadow prices.
-The interpretation pattern remains consistent: the value shows the marginal benefit of relaxing that particular constraint.
+Shadow-price sensors are tagged as `EntityCategory.DIAGNOSTIC`.
+They are diagnostic indicators of solver behavior, not setpoints to act on directly, so they are hidden by default in the Home Assistant UI.
+Templates and dashboards that reference them by entity ID continue to work; users who want them on a default dashboard can unhide them per entity.
 
 ## Practical interpretation
 
@@ -61,7 +63,7 @@ The optimizer has headroom, so relaxing the limit would not change its decisions
 **Non-zero values**: When a shadow price is non-zero, the constraint is binding.
 The magnitude indicates how valuable additional capacity would be at that point.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

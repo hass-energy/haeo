@@ -95,7 +95,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,))
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,))
                     }
                 },
             }
@@ -103,7 +103,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "outputs": {
             SOLAR_DEVICE_SOLAR: {
                 SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(2.0,), direction="+"),
-                SOLAR_FORECAST_LIMIT: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.02,)),
+                SOLAR_FORECAST_LIMIT: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.02,)),
             }
         },
     },
@@ -123,14 +123,33 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                     type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
-                    "power_limit": {"power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,))}
+                    "power_limit": {
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,))
+                    }
                 },
             }
         },
         "outputs": {
             SOLAR_DEVICE_SOLAR: {
                 SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.5,), direction="+"),
-                SOLAR_FORECAST_LIMIT: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=(0.0,)),
+                SOLAR_FORECAST_LIMIT: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
+            }
+        },
+    },
+    {
+        "description": "Solar connection pruned - solar carries no flow",
+        "name": "pv_main",
+        "config": SolarConfigData(
+            element_type=ElementType.SOLAR,
+            name="pv_main",
+            connection=as_connection_target("network"),
+            forecast={"forecast": np.array([2.0, 3.0])},
+            curtailment={"curtailment": True},
+        ),
+        "model_outputs": {},
+        "outputs": {
+            SOLAR_DEVICE_SOLAR: {
+                SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(0.0, 0.0), direction="+"),
             }
         },
     },

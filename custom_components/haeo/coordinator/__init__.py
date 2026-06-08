@@ -13,12 +13,13 @@ from .coordinator import (
     _localize_currency,  # pyright: ignore[reportPrivateUsage] (exported for testing)
     detect_currency_symbol,
 )
-from .network import create_network, evaluate_network_connectivity, update_element
+from .network import ElementUpdater, create_network, evaluate_network_connectivity
 
 __all__ = [
     "STATUS_OPTIONS",
     "CoordinatorData",
     "CoordinatorOutput",
+    "ElementUpdater",
     "ForecastPoint",
     "HaeoDataUpdateCoordinator",
     "OptimizationContext",
@@ -28,5 +29,4 @@ __all__ = [
     "create_network",
     "detect_currency_symbol",
     "evaluate_network_connectivity",
-    "update_element",
 ]

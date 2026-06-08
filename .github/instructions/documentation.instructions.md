@@ -53,7 +53,7 @@ Use mermaid for all diagrams:
 
 ## Next steps sections
 
-All user-facing pages must end with a **Next Steps** section using Material grid cards:
+All user-facing pages must end with a **Next steps** section (heading `## Next steps`) using Material grid cards:
 
 ```markdown
 ## Next steps

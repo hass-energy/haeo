@@ -47,9 +47,9 @@ When Advanced Mode is enabled, `is_source` and `is_sink` can be configured to cr
 
 ### Node Device
 
-| Sensor          | Unit  | Update    | Description                        |
-| --------------- | ----- | --------- | ---------------------------------- |
-| `power_balance` | \$/kW | Real-time | Shadow price of power at this node |
+| Sensor          | Unit   | Update    | Description                        |
+| --------------- | ------ | --------- | ---------------------------------- |
+| `power_balance` | \$/kWh | Real-time | Shadow price of power at this node |
 
 See [Node Configuration](../../user-guide/elements/node.md) for detailed sensor and configuration documentation.
 
@@ -97,7 +97,7 @@ Node represents an electrical bus where Kirchhoff's current law applies—total 
 - **No Storage**: Nodes have no capacity—power balance is instantaneous. Use Battery elements for energy storage.
 - **Connection Target**: All other elements (Grid, Battery, Solar, Loads) specify which node they connect to via their `connection.target` field.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

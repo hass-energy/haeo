@@ -26,11 +26,11 @@ export default defineConfig({
         "src/custom-elements.d.ts",
         "src/test-setup.ts",
         "src/types.ts",
+        "src/topology/**",
         "src/**/*.test.ts",
         "src/**/*.test.tsx",
         "src/**/*.stories.tsx",
         "src/fixtures/**",
-        "src/components/ResponsiveStoryFrame.tsx",
       ],
       thresholds: {
         lines: 83,

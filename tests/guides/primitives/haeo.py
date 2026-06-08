@@ -143,6 +143,7 @@ def _field_label(element_type: str, section_key: str, field_name: str) -> str:
 def _has_none_value(value_type: Any) -> bool:
     """Check if NoneValue is part of a union type annotation."""
     if isinstance(value_type, types.UnionType):
+        # Avoid circular import with schema module
         from custom_components.haeo.core.schema import NoneValue  # noqa: PLC0415
 
         return NoneValue in get_args(value_type)
@@ -220,6 +221,7 @@ def _fill_element_fields(
     Fields must be ordered by section (matching the form's top-to-bottom
     layout) to ensure correct section expansion behavior.
     """
+    # Avoid circular import with elements module
     from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields  # noqa: PLC0415
 
     input_fields = get_input_fields(element_type)
@@ -316,8 +318,9 @@ def add_inverter(
         },
     )
 
-    page.submit()
-    page.close_element_dialog()
+    with page.expect_config_reload():
+        page.submit()
+        page.close_element_dialog()
 
     _LOGGER.info("Inverter added: %s", name)
 
@@ -366,8 +369,9 @@ def add_battery(
         collapsed_sections=frozenset({"efficiency", "partitioning"}),
     )
 
-    page.submit()
-    page.close_element_dialog()
+    with page.expect_config_reload():
+        page.submit()
+        page.close_element_dialog()
 
     _LOGGER.info("Battery added: %s", name)
 
@@ -397,8 +401,9 @@ def add_solar(
         collapsed_sections=frozenset({"curtailment"}),
     )
 
-    page.submit()
-    page.close_element_dialog()
+    with page.expect_config_reload():
+        page.submit()
+        page.close_element_dialog()
 
     _LOGGER.info("Solar added: %s", name)
 
@@ -441,8 +446,9 @@ def add_grid(
         collapsed_sections=frozenset({"power_limits"}),
     )
 
-    page.submit()
-    page.close_element_dialog()
+    with page.expect_config_reload():
+        page.submit()
+        page.close_element_dialog()
 
     _LOGGER.info("Grid added: %s", name)
 
@@ -472,8 +478,9 @@ def add_load(
         collapsed_sections=frozenset({"pricing", "curtailment"}),
     )
 
-    page.submit()
-    page.close_element_dialog()
+    with page.expect_config_reload():
+        page.submit()
+        page.close_element_dialog()
 
     _LOGGER.info("Load added: %s", name)
 
@@ -489,8 +496,9 @@ def add_node(page: HAPage, *, name: str) -> None:
 
     page.fill_textbox(_name_label(et), name)
 
-    page.submit()
-    page.close_element_dialog()
+    with page.expect_config_reload():
+        page.submit()
+        page.close_element_dialog()
 
     _LOGGER.info("Node added: %s", name)
 
@@ -545,27 +553,28 @@ def add_policies(
         page.choose_select_option(step_data["price"], "Constant")
         page.choose_constant(step_data["price"], str(price))
 
-    page.submit()
+    with page.expect_config_reload():
+        page.submit()
 
-    # First add: async_create_entry shows a Finish dialog.
-    # Subsequent adds: async_update_and_abort shows an abort dialog
-    # with a close button in the header (Escape/scrim are disabled).
-    finish = page.page.get_by_role("button", name="Finish")
-    try:
-        finish.wait_for(state="visible", timeout=2000)
-    except PlaywrightTimeoutError:
-        # Close the abort dialog via the header X button
-        close_btn = page.page.locator(
-            "dialog-data-entry-flow ha-icon-button[dialogaction='close']",
-        )
-        close_btn.click(timeout=2000)
-        page.page.locator("dialog-data-entry-flow ha-dialog[open]").wait_for(
-            state="detached",
-            timeout=5000,
-        )
-        _LOGGER.info("Policy appended to existing subentry")
-    else:
-        page.close_element_dialog()
+        # First add: async_create_entry shows a Finish dialog.
+        # Subsequent adds: async_update_and_abort shows an abort dialog
+        # with a close button in the header (Escape/scrim are disabled).
+        finish = page.page.get_by_role("button", name="Finish")
+        try:
+            finish.wait_for(state="visible", timeout=2000)
+        except PlaywrightTimeoutError:
+            # Close the abort dialog via the header X button
+            close_btn = page.page.locator(
+                "dialog-data-entry-flow ha-icon-button[dialogaction='close']",
+            )
+            close_btn.click(timeout=2000)
+            page.page.locator("dialog-data-entry-flow ha-dialog[open]").wait_for(
+                state="detached",
+                timeout=5000,
+            )
+            _LOGGER.info("Policy appended to existing subentry")
+        else:
+            page.close_element_dialog()
 
     _LOGGER.info("Policy rule added: %s", name)
 

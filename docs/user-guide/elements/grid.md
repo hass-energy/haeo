@@ -161,17 +161,17 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Grid element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                                   | Unit  | Description                                 |
-| ------------------------------------------------------------------------ | ----- | ------------------------------------------- |
-| [`sensor.{name}_power_import`](#import-power)                            | kW    | Power imported from grid                    |
-| [`sensor.{name}_power_export`](#export-power)                            | kW    | Power exported to grid                      |
-| [`sensor.{name}_cost_import`](#import-cost)                              | \$    | Cost of importing electricity               |
-| [`sensor.{name}_cost_export`](#export-cost)                              | \$    | Revenue from exporting electricity          |
-| [`sensor.{name}_cost_net`](#net-cost)                                    | \$    | Net cost (import cost minus export revenue) |
-| [`sensor.{name}_power_max_import`](#max-import-power)                    | kW    | Maximum import power (when limited)         |
-| [`sensor.{name}_power_max_export`](#max-export-power)                    | kW    | Maximum export power (when limited)         |
-| [`sensor.{name}_power_max_import_price`](#max-import-power-shadow-price) | \$/kW | Value of additional import capacity         |
-| [`sensor.{name}_power_max_export_price`](#max-export-power-shadow-price) | \$/kW | Value of additional export capacity         |
+| Sensor                                                                   | Unit   | Description                                 |
+| ------------------------------------------------------------------------ | ------ | ------------------------------------------- |
+| [`sensor.{name}_power_import`](#import-power)                            | kW     | Power imported from grid                    |
+| [`sensor.{name}_power_export`](#export-power)                            | kW     | Power exported to grid                      |
+| [`sensor.{name}_cost_import`](#import-cost)                              | \$     | Cost of importing electricity               |
+| [`sensor.{name}_cost_export`](#export-cost)                              | \$     | Revenue from exporting electricity          |
+| [`sensor.{name}_cost_net`](#net-cost)                                    | \$     | Net cost (import cost minus export revenue) |
+| [`sensor.{name}_power_max_import`](#max-import-power)                    | kW     | Maximum import power (when limited)         |
+| [`sensor.{name}_power_max_export`](#max-export-power)                    | kW     | Maximum export power (when limited)         |
+| [`sensor.{name}_power_max_import_price`](#max-import-power-shadow-price) | \$/kWh | Value of additional import capacity         |
+| [`sensor.{name}_power_max_export_price`](#max-export-power-shadow-price) | \$/kWh | Value of additional export capacity         |
 
 The `power_max_*` sensors are only created when the corresponding limit is configured.
 The `cost_*` sensors are only created when the corresponding price is configured.
@@ -320,7 +320,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 - Review connections in network configuration
 - Check grid import limit vs total load
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

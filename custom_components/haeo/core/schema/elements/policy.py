@@ -1,8 +1,8 @@
 """Policy element schema definitions.
 
 A policy defines tagged directional pricing for power flow between nodes.
-When configured, its rules are compiled into tag_costs on existing connections
-rather than creating separate model elements.
+When configured, its rules are compiled into PolicyPricing model elements
+that apply costs to tagged power flows on connection min-cuts.
 """
 
 from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict

@@ -18,6 +18,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo import (
     HaeoRuntimeData,
     _async_register_static_frontend_resources,
+    _element_flow_in_progress,
     _ensure_required_subentries,
     async_remove_config_entry_device,
     async_setup,
@@ -29,8 +30,9 @@ from custom_components.haeo.const import (
     CONF_INTEGRATION_TYPE,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
-    STATIC_FORECAST_CARD_FILE_PATH,
-    STATIC_FORECAST_CARD_URL_PATH,
+    STATIC_CARD_BUNDLES,
+    STATIC_CARD_STATIC_DIR,
+    STATIC_CARD_STATIC_PATH,
 )
 from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
@@ -252,6 +254,9 @@ async def test_async_setup_entry_initializes_coordinator(
     forward_mock = AsyncMock()
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", forward_mock)
 
+    # No input stores to wait for in this test
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
+
     result = await async_setup_entry(hass, mock_hub_entry)
 
     assert result is True
@@ -371,38 +376,26 @@ async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
 async def test_async_update_listener(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test async_update_listener triggers reload."""
+    """Test async_update_listener schedules reload."""
     # Set up runtime_data (required by async_update_listener)
     mock_coordinator = Mock()
     mock_hub_entry.runtime_data = _create_mock_runtime_data(mock_coordinator)
 
-    # Mock the reload function
-    reload_called = False
-    ensure_called = False
+    # Mock the schedule_reload function
+    schedule_reload_called = False
 
-    async def mock_reload(entry_id: str) -> bool:
-        nonlocal reload_called
-        reload_called = True
-        return True
+    def mock_schedule_reload(entry_id: str) -> None:
+        nonlocal schedule_reload_called
+        schedule_reload_called = True
 
-    hass.config_entries.async_reload = mock_reload
-
-    async def mock_ensure(hass_arg: HomeAssistant, entry_arg: ConfigEntry) -> None:
-        nonlocal ensure_called
-        assert hass_arg is hass
-        assert entry_arg is mock_hub_entry
-        ensure_called = True
-
-    monkeypatch.setattr("custom_components.haeo._ensure_required_subentries", mock_ensure)
+    hass.config_entries.async_schedule_reload = mock_schedule_reload
 
     # Call update listener
     await async_update_listener(hass, mock_hub_entry)
 
-    # Verify reload was called
-    assert reload_called
-    assert ensure_called
+    # Verify reload was scheduled
+    assert schedule_reload_called
 
 
 async def test_async_remove_config_entry_device(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
@@ -449,22 +442,104 @@ async def test_async_update_listener_value_update_in_progress(
         value_update_in_progress=True,
     )
 
-    reload_called = False
+    schedule_reload_called = False
 
-    async def mock_reload(entry_id: str) -> bool:
-        nonlocal reload_called
-        reload_called = True
-        return True
+    def mock_schedule_reload(entry_id: str) -> None:
+        nonlocal schedule_reload_called
+        schedule_reload_called = True
 
-    hass.config_entries.async_reload = mock_reload
+    hass.config_entries.async_schedule_reload = mock_schedule_reload
 
     await async_update_listener(hass, mock_hub_entry)
 
     assert mock_hub_entry.runtime_data.value_update_in_progress is False
-    assert not reload_called
+    assert not schedule_reload_called
     if expect_signal:
         assert mock_coordinator is not None
         mock_coordinator.signal_optimization_stale.assert_called_once()
+
+
+def _mock_element_flow_in_progress(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    """Mark a subentry config flow as in progress for *entry*."""
+    hass.config_entries.subentries.async_progress = Mock(
+        return_value=[{"handler": (entry.entry_id, "battery")}],
+    )
+
+
+async def test_async_update_listener_defers_reload_during_element_flow(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Reload is deferred to the next loop iteration while an element flow commits subentries."""
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(Mock())
+    _mock_element_flow_in_progress(hass, mock_hub_entry)
+
+    schedule_reload_calls: list[str] = []
+    hass.config_entries.async_schedule_reload = lambda entry_id: schedule_reload_calls.append(entry_id)
+
+    await async_update_listener(hass, mock_hub_entry)
+
+    assert schedule_reload_calls == []
+    assert mock_hub_entry.runtime_data.reload_pending is True
+
+    await hass.async_block_till_done()
+
+    assert mock_hub_entry.runtime_data.reload_pending is False
+    assert schedule_reload_calls == [mock_hub_entry.entry_id]
+
+
+async def test_async_update_listener_coalesces_deferred_reload(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Further update events during a flow only schedule one deferred reload."""
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(Mock())
+    mock_hub_entry.runtime_data.reload_pending = True
+    _mock_element_flow_in_progress(hass, mock_hub_entry)
+
+    schedule_reload = Mock()
+    hass.config_entries.async_schedule_reload = schedule_reload
+
+    await async_update_listener(hass, mock_hub_entry)
+    await hass.async_block_till_done()
+
+    schedule_reload.assert_not_called()
+    assert mock_hub_entry.runtime_data.reload_pending is True
+
+
+async def test_async_update_listener_defers_reload_without_runtime_data(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Deferred reload still runs when runtime_data is not yet populated."""
+    mock_hub_entry.runtime_data = None
+    _mock_element_flow_in_progress(hass, mock_hub_entry)
+
+    schedule_reload_calls: list[str] = []
+    hass.config_entries.async_schedule_reload = lambda entry_id: schedule_reload_calls.append(entry_id)
+
+    await async_update_listener(hass, mock_hub_entry)
+
+    assert schedule_reload_calls == []
+
+    await hass.async_block_till_done()
+
+    assert schedule_reload_calls == [mock_hub_entry.entry_id]
+
+
+async def test_element_flow_in_progress(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Element flow detection matches subentry flows owned by the config entry."""
+    hass.config_entries.subentries.async_progress = Mock(
+        return_value=[{"handler": (mock_hub_entry.entry_id, "battery")}],
+    )
+
+    assert _element_flow_in_progress(hass, mock_hub_entry) is True
+
+    hass.config_entries.subentries.async_progress = Mock(return_value=[])
+    assert _element_flow_in_progress(hass, mock_hub_entry) is False
 
 
 async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
@@ -472,14 +547,14 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     mock_hub_entry: MockConfigEntry,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Setup raises ConfigEntryNotReady when input entities don't become ready in time.
+    """Setup raises ConfigEntryNotReady when input stores don't become ready in time.
 
     Verifies that ConfigEntryNotReady is raised with descriptive translation key.
     Cleanup is handled via async_on_unload callbacks registered during setup.
     """
 
-    # Create a mock input entity that never becomes ready
-    class NeverReadyEntity:
+    # Create a mock input store that never becomes ready
+    class NeverReadyStore:
         async def wait_ready(self) -> None:
             # Wait forever - will timeout
             await asyncio.sleep(100)
@@ -490,12 +565,12 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     # Create mock horizon manager
     mock_horizon = _create_mock_horizon_manager()
 
-    never_ready_entity = NeverReadyEntity()
+    never_ready_store = NeverReadyStore()
 
     class MockRuntimeData:
         def __init__(self) -> None:
             self.horizon_manager = mock_horizon
-            self.input_entities = {("Test Element", ("section", "field")): never_ready_entity}
+            self.input_stores: dict[object, object] = {}
             self.coordinator = None
             self.value_update_in_progress = False
 
@@ -506,9 +581,14 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     # Patch the module-level imports to bypass normal setup
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", create_mock_runtime_data)
 
-    # Patch forward_entry_setups to populate the mock input entities
+    # Patch store construction so the never-ready store is the one awaited
+    monkeypatch.setattr(
+        "custom_components.haeo.build_input_stores",
+        lambda *_args, **_kwargs: {("Test Element", ("section", "field")): never_ready_store},
+    )
+
+    # Patch forward_entry_setups to bypass real platform setup
     async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
-        # After input platform setup, entry should have mock runtime_data
         pass
 
     monkeypatch.setattr(hass.config_entries, "async_forward_entry_setups", mock_forward_setups)
@@ -566,8 +646,8 @@ async def test_setup_reentry_after_timeout_failure(
     """
     attempt_count = 0
 
-    # Create a mock input entity that fails first time, succeeds second time
-    class ConditionalReadyEntity:
+    # Create a mock input store that fails first time, succeeds second time
+    class ConditionalReadyStore:
         def __init__(self) -> None:
             self._ready = False
 
@@ -582,17 +662,24 @@ async def test_setup_reentry_after_timeout_failure(
         def is_ready(self) -> bool:
             return self._ready
 
-    # Create a runtime data factory that uses our conditional entity
-    entity = ConditionalReadyEntity()
+    # Create a runtime data factory that uses our conditional store
+    store = ConditionalReadyStore()
 
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {("Test Element", ("section", "field")): entity}
+            self.input_stores: dict[object, object] = {}
             self.coordinator = None
             self.value_update_in_progress = False
 
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
+
+    # Patch store construction so the conditional store is the one awaited
+    monkeypatch.setattr(
+        "custom_components.haeo.build_input_stores",
+        lambda *_args, **_kwargs: {("Test Element", ("section", "field")): store},
+    )
 
     # Mock horizon manager - use a real-like one that tracks state
     def create_horizon_manager(hass: HomeAssistant, config_entry: ConfigEntry) -> Mock:
@@ -662,11 +749,12 @@ async def test_setup_cleanup_on_coordinator_error(
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {}  # No entities to wait for
+            self.input_stores: dict[object, object] = {}  # No stores to wait for
             self.coordinator = None
             self.value_update_in_progress = False
 
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
 
     # Patch forward_entry_setups
     async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
@@ -713,11 +801,12 @@ async def test_async_setup_entry_raises_config_entry_error_on_permanent_failure(
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {}  # No entities to wait for
+            self.input_stores: dict[object, object] = {}  # No stores to wait for
             self.coordinator = None
             self.value_update_in_progress = False
 
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
 
     # Patch forward_entry_setups
     async def mock_forward_setups(entry: object, platforms: list[object]) -> None:
@@ -764,11 +853,12 @@ async def test_setup_preserves_config_entry_not_ready_exception(
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {}  # No entities to wait for
+            self.input_stores: dict[object, object] = {}  # No stores to wait for
             self.coordinator = None
             self.value_update_in_progress = False
 
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
 
     # Patch forward_entry_setups
     async def mock_forward_setups(entry: ConfigEntry, platforms: Iterable[Platform | str]) -> None:
@@ -826,11 +916,12 @@ async def test_setup_preserves_config_entry_error_exception(
     class MockRuntimeData:
         def __init__(self, horizon_manager: object) -> None:
             self.horizon_manager = horizon_manager
-            self.input_entities = {}  # No entities to wait for
+            self.input_stores: dict[object, object] = {}  # No stores to wait for
             self.coordinator = None
             self.value_update_in_progress = False
 
     monkeypatch.setattr("custom_components.haeo.HaeoRuntimeData", MockRuntimeData)
+    monkeypatch.setattr("custom_components.haeo.build_input_stores", lambda *_args, **_kwargs: {})
 
     # Patch forward_entry_setups
     async def mock_forward_setups(entry: ConfigEntry, platforms: Iterable[Platform | str]) -> None:
@@ -877,7 +968,7 @@ async def test_setup_preserves_config_entry_error_exception(
 
 
 async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistant) -> None:
-    """Test that async_setup registers the forecast card static path."""
+    """Test that async_setup registers each card bundle as its own resource."""
     mock_http = Mock()
     mock_http.async_register_static_paths = AsyncMock()
     hass.http = mock_http  # type: ignore[attr-defined]
@@ -889,9 +980,11 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     mock_http.async_register_static_paths.assert_called_once()
     configs: list[StaticPathConfig] = mock_http.async_register_static_paths.call_args[0][0]
     assert len(configs) == 1
-    assert configs[0].url_path == STATIC_FORECAST_CARD_URL_PATH
-    assert configs[0].path.endswith(STATIC_FORECAST_CARD_FILE_PATH)
-    assert STATIC_FORECAST_CARD_URL_PATH in hass.data[DATA_EXTRA_MODULE_URL].urls
+    assert configs[0].url_path == STATIC_CARD_STATIC_PATH
+    assert configs[0].path.endswith(STATIC_CARD_STATIC_DIR)
+    registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
+    for _file_path, url_path in STATIC_CARD_BUNDLES:
+        assert url_path in registered_urls
 
 
 async def test_async_register_static_skips_when_http_unavailable(

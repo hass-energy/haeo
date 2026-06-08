@@ -48,17 +48,17 @@ The adapter transforms user configuration into connection segments:
 
 ### Grid Device
 
-| Sensor                   | Unit    | Update    | Description                        |
-| ------------------------ | ------- | --------- | ---------------------------------- |
-| `power_import`           | kW      | Real-time | Import power                       |
-| `power_export`           | kW      | Real-time | Export power                       |
-| `cost_import`            | \$      | Real-time | Cost of imports (when priced)      |
-| `cost_export`            | \$      | Real-time | Revenue from exports (when priced) |
-| `cost_net`               | \$      | Real-time | Net cost (when any price exists)   |
-| `power_max_import`       | kW      | Real-time | Max import power (when limited)    |
-| `power_max_export`       | kW      | Real-time | Max export power (when limited)    |
-| `power_max_import_price` | \\\$/kW | Real-time | Max import power shadow price      |
-| `power_max_export_price` | \\\$/kW | Real-time | Max export power shadow price      |
+| Sensor                   | Unit     | Update    | Description                        |
+| ------------------------ | -------- | --------- | ---------------------------------- |
+| `power_import`           | kW       | Real-time | Import power                       |
+| `power_export`           | kW       | Real-time | Export power                       |
+| `cost_import`            | \$       | Real-time | Cost of imports (when priced)      |
+| `cost_export`            | \$       | Real-time | Revenue from exports (when priced) |
+| `cost_net`               | \$       | Real-time | Net cost (when any price exists)   |
+| `power_max_import`       | kW       | Real-time | Max import power (when limited)    |
+| `power_max_export`       | kW       | Real-time | Max export power (when limited)    |
+| `power_max_import_price` | \\\$/kWh | Real-time | Max import power shadow price      |
+| `power_max_export_price` | \\\$/kWh | Real-time | Max export power shadow price      |
 
 The `power_max_*` sensors are only created when the corresponding limit is configured.
 The `cost_*` sensors are only created when the corresponding price is configured.
@@ -109,7 +109,7 @@ Grid represents the utility connection that can supply power (import) when local
 - **Pricing Strategy**: Flat pricing provides limited optimization value (battery only useful for solar storage). Time-varying pricing enables full optimization benefits.
 - **Zero Prices**: Avoid setting both import and export prices to zero simultaneously—optimizer has no economic preference and may produce unexpected results.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

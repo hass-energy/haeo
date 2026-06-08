@@ -225,7 +225,7 @@ In the HAEO integration page, you should see:
 **Solar**:
 
 - `sensor.solar_power` - Optimal generation (kW)
-- `sensor.solar_forecast_limit` - Value of additional generation capacity (\$/kW)
+- `sensor.solar_forecast_limit` - Value of additional generation capacity (\$/kWh)
 
 **Grid**:
 
@@ -273,7 +273,7 @@ The Inverter element simplifies configuration compared to manual DC/AC nets with
 
 See [Node](../user-guide/elements/node.md) for more on hybrid inverter modeling.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 
