@@ -127,6 +127,11 @@ split-on-trailing-comma = false
     'PIE790', # Allow ... in stub classes
 ]
 
+"wasm/**/*.py" = [
+    'INP001',  # Standalone scripts, not a package
+    'S112',    # try-except-continue is intentional for skipping failed outputs
+]
+
 "tools/**/*.py" = [
     'T201',   # Allow print statements in CLI tools
     'FBT001', # Boolean positional argument - required by import-linter Contract interface
