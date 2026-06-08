@@ -18,6 +18,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo import (
     HaeoRuntimeData,
     _async_register_static_frontend_resources,
+    _element_flow_in_progress,
     _ensure_required_subentries,
     async_remove_config_entry_device,
     async_setup,
@@ -456,6 +457,89 @@ async def test_async_update_listener_value_update_in_progress(
     if expect_signal:
         assert mock_coordinator is not None
         mock_coordinator.signal_optimization_stale.assert_called_once()
+
+
+def _mock_element_flow_in_progress(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    """Mark a subentry config flow as in progress for *entry*."""
+    hass.config_entries.subentries.async_progress = Mock(
+        return_value=[{"handler": (entry.entry_id, "battery")}],
+    )
+
+
+async def test_async_update_listener_defers_reload_during_element_flow(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Reload is deferred to the next loop iteration while an element flow commits subentries."""
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(Mock())
+    _mock_element_flow_in_progress(hass, mock_hub_entry)
+
+    schedule_reload_calls: list[str] = []
+    hass.config_entries.async_schedule_reload = lambda entry_id: schedule_reload_calls.append(entry_id)
+
+    await async_update_listener(hass, mock_hub_entry)
+
+    assert schedule_reload_calls == []
+    assert mock_hub_entry.runtime_data.reload_pending is True
+
+    await hass.async_block_till_done()
+
+    assert mock_hub_entry.runtime_data.reload_pending is False
+    assert schedule_reload_calls == [mock_hub_entry.entry_id]
+
+
+async def test_async_update_listener_coalesces_deferred_reload(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Further update events during a flow only schedule one deferred reload."""
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(Mock())
+    mock_hub_entry.runtime_data.reload_pending = True
+    _mock_element_flow_in_progress(hass, mock_hub_entry)
+
+    schedule_reload = Mock()
+    hass.config_entries.async_schedule_reload = schedule_reload
+
+    await async_update_listener(hass, mock_hub_entry)
+    await hass.async_block_till_done()
+
+    schedule_reload.assert_not_called()
+    assert mock_hub_entry.runtime_data.reload_pending is True
+
+
+async def test_async_update_listener_defers_reload_without_runtime_data(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Deferred reload still runs when runtime_data is not yet populated."""
+    mock_hub_entry.runtime_data = None
+    _mock_element_flow_in_progress(hass, mock_hub_entry)
+
+    schedule_reload_calls: list[str] = []
+    hass.config_entries.async_schedule_reload = lambda entry_id: schedule_reload_calls.append(entry_id)
+
+    await async_update_listener(hass, mock_hub_entry)
+
+    assert schedule_reload_calls == []
+
+    await hass.async_block_till_done()
+
+    assert schedule_reload_calls == [mock_hub_entry.entry_id]
+
+
+async def test_element_flow_in_progress(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Element flow detection matches subentry flows owned by the config entry."""
+    hass.config_entries.subentries.async_progress = Mock(
+        return_value=[{"handler": (mock_hub_entry.entry_id, "battery")}],
+    )
+
+    assert _element_flow_in_progress(hass, mock_hub_entry) is True
+
+    hass.config_entries.subentries.async_progress = Mock(return_value=[])
+    assert _element_flow_in_progress(hass, mock_hub_entry) is False
 
 
 async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
