@@ -6,7 +6,12 @@ from typing import Any, Final, Literal
 
 import numpy as np
 
-from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
+from custom_components.haeo.core.adapters.output_utils import (
+    connection_power,
+    expect_output_data,
+    marginal_balance_dual_per_step,
+    split_balance_shadow_rows,
+)
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -134,73 +139,61 @@ class LoadAdapter:
             and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
             and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
         ):
-            load_outputs[LOAD_FORECAST_LIMIT_PRICE] = shadow
+            load_outputs[LOAD_FORECAST_LIMIT_PRICE] = replace(shadow, advanced=True)
 
-        # Cumulative + rolling-24h statistics. Marginal cost uses the source-node
-        # power-balance shadow price (node_dual, $/kWh, already period-integrated)
-        # so that cost = energy * node_dual is in $.
+        # Horizon + next-24h statistics. Cost uses incremental marginal pricing:
+        # energy[t] * lambda_marginal[t], where lambda_marginal is the cheapest source-node
+        # balance dual among VLAN tags with ranging headroom.
         source_name = extract_connection_target(config[CONF_CONNECTION])
-        node_dual = _node_dual_values(model_outputs, source_name, len(periods)) if len(periods) > 0 else None
-        if node_dual is not None:
-            power_values = tuple(float(v) for v in power.values)
-            period_values = tuple(float(v) for v in periods)
-            load_outputs.update(_stats_outputs(power_values, node_dual, period_values))
+        if len(periods) > 0 and connection is not None:
+            cost_per_step = _marginal_cost_per_step(connection, model_outputs, source_name, len(periods), periods)
+            if cost_per_step is not None:
+                load_outputs.update(_stats_outputs(power.values, cost_per_step, periods))
 
         return {LOAD_DEVICE_LOAD: load_outputs}
 
 
-def _node_dual_values(
+def _marginal_cost_per_step(
+    connection: Mapping[ModelOutputName, ModelOutputValue],
     model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
     source_name: str,
     n_periods: int,
-) -> tuple[float, ...] | None:
-    """Return the source-node power-balance shadow price ($/kWh).
-
-    Uses the first ``n_periods`` of ``element_power_balance``: the same series
-    that the node's canonical ``node_power_balance`` sensor exposes in Home
-    Assistant (the coordinator zips values with ``n_periods+1`` timestamps
-    using ``strict=False``, so trailing tag-balance / decomposition blocks are
-    already dropped from the published forecast). Multiplying load energy
-    (``power * dt``) by this $/kWh price gives the per-step cost in dollars.
-
-    Since PR #426 (DEFAULT_TAG removal), ``element_power_balance`` is a flat
-    list of per-period constraints. For a multi-tag node the layout is
-    ``[optional production-decomp block, optional consumption-decomp block,
-    one per-tag balance block per tag]``, each of length ``n_periods``. The
-    first block always carries a balance dual whose magnitude matches the
-    user-visible switchboard shadow price, which is the correct marginal
-    cost for an additional unit of load energy at this node.
-
-    Returns None when the source node has no ``element_power_balance`` output
-    (e.g. unconstrained pass-through nodes) or when the dual length is not a
-    whole multiple of ``n_periods`` (defensive: would indicate a layout bug).
-    """
+    periods: Sequence[float],
+) -> np.ndarray | None:
+    """Return per-timestep incremental marginal cost ($) from load energy and source duals."""
     source_outputs = model_outputs.get(source_name)
     if source_outputs is None:
         return None
     dual = expect_output_data(source_outputs.get(ELEMENT_POWER_BALANCE))
     if dual is None:
         return None
-    values = tuple(float(v) for v in dual.values)
-    if len(values) == 0 or len(values) % n_periods != 0:
+
+    split = split_balance_shadow_rows(dual, n_periods)
+    if split is None:
         return None
-    return values[:n_periods]
+    duals_by_tag, range_up_by_tag = split
+    marginal_dual = marginal_balance_dual_per_step(duals_by_tag, range_up_by_tag)
+
+    power = expect_output_data(connection.get(CONNECTION_POWER))
+    if power is None:
+        return None
+    power_values = np.asarray(power.values, dtype=float)
+    if len(power_values) != n_periods:
+        return None
+    return power_values * np.asarray(periods, dtype=float) * marginal_dual
 
 
 def _stats_outputs(
     power: Sequence[float],
-    node_dual: Sequence[float],
+    cost_per_step: np.ndarray,
     periods: Sequence[float],
 ) -> dict[LoadOutputName, OutputData]:
     """Build the 8 full-horizon + next-24h statistics outputs.
 
-    Cost is integrated as ``cost[t] = power[t] * periods[t] * node_dual[t]``
-    ($) where ``node_dual[t]`` is the source-node power-balance shadow price
-    in $/kWh (see ``Node.element_power_balance``: the LP balance is
-    formulated in energy units so the dual is independent of period width).
-    The ``power * periods`` factor is the per-step energy in kWh, so cost is
-    ``energy[t] * node_dual[t]`` and totals are correct for variable-width
-    horizons (1-60 min periods).
+    Cost is ``cost[t] = energy[t] * lambda_marginal[t]`` ($), where ``lambda_marginal`` is
+    the cheapest source-node balance dual among VLAN tags with ranging headroom.
+    When all tags are saturated, the most expensive dual is used. Single-tag
+    networks use the flat balance dual directly.
 
     Energy is ``power[t] * periods[t]`` (kWh) and runtime is ``periods[t]``
     for timesteps where ``power[t] > _RUNTIME_POWER_EPS`` (h).
@@ -217,55 +210,46 @@ def _stats_outputs(
     and falls back to 0.0 when the corresponding energy total is non-positive.
 
     """
-    energy_per_step = tuple(p * dt for p, dt in zip(power, periods, strict=True))
-    cost_per_step = tuple(e * d for e, d in zip(energy_per_step, node_dual, strict=True))
-    runtime_per_step = tuple(dt if abs(p) > _RUNTIME_POWER_EPS else 0.0 for p, dt in zip(power, periods, strict=True))
+    power_arr = np.asarray(power, dtype=float)
+    periods_arr = np.asarray(periods, dtype=float)
+    cost_arr = np.asarray(cost_per_step, dtype=float)
 
-    # Horizon totals (full-horizon sum across every step).
-    horizon_energy = sum(energy_per_step)
-    horizon_cost = sum(cost_per_step)
-    horizon_runtime = sum(runtime_per_step)
-    horizon_avg_cost = _safe_divide(horizon_cost, horizon_energy)
+    energy_per_step = power_arr * periods_arr
+    runtime_per_step = np.where(np.abs(power_arr) > _RUNTIME_POWER_EPS, periods_arr, 0.0)
 
-    # Per-interval instantaneous average cost: equals node_dual[t] whenever
-    # energy[t] > 0 (cost[t] / energy[t] = node_dual[t]) and 0 elsewhere.
-    # Exposed as the forecast attribute so the chart shows the marginal
-    # $/kWh price applied to each active step.
-    avg_cost_per_step = tuple(_safe_divide(c, e) for c, e in zip(cost_per_step, energy_per_step, strict=True))
+    horizon_energy = float(energy_per_step.sum())
+    horizon_cost = float(cost_arr.sum())
+    horizon_runtime = float(runtime_per_step.sum())
+    horizon_avg_cost = _weighted_average(cost_per_step, energy_per_step)
 
-    # Next-24h-forward window starting from t=0 (the present): each timestep
-    # contributes a fraction in [0.0, 1.0] of its duration that lies inside
-    # _NEXT_24H_WINDOW_HOURS. Steps fully outside contribute 0.0; steps fully
-    # inside contribute 1.0; the straddling step contributes the partial
-    # fraction so totals clip exactly to 24h. The same fractions weight the
-    # per-step forecast values so steps beyond 24h appear as 0 in the chart.
-    fractions = _next_24h_window_fractions(periods)
-    energy_24h_per_step = tuple(e * f for e, f in zip(energy_per_step, fractions, strict=True))
-    cost_24h_per_step = tuple(c * f for c, f in zip(cost_per_step, fractions, strict=True))
-    runtime_24h_per_step = tuple(r * f for r, f in zip(runtime_per_step, fractions, strict=True))
-    next_24h_energy = sum(energy_24h_per_step)
-    next_24h_cost = sum(cost_24h_per_step)
-    next_24h_runtime = sum(runtime_24h_per_step)
-    next_24h_avg_cost = _safe_divide(next_24h_cost, next_24h_energy)
-    # Per-step instantaneous $/kWh inside the 24h window, 0 outside.
-    avg_cost_24h_per_step = tuple(
-        _safe_divide(c, e) if e > 0 else 0.0 for c, e in zip(cost_24h_per_step, energy_24h_per_step, strict=True)
-    )
+    avg_cost_per_step = _weighted_average_per_step(cost_arr, energy_per_step)
+
+    fractions = _next_24h_window_fractions(periods_arr)
+    energy_24h_per_step = energy_per_step * fractions
+    cost_24h_per_step = cost_arr * fractions
+    runtime_24h_per_step = runtime_per_step * fractions
+
+    next_24h_energy = float(energy_24h_per_step.sum())
+    next_24h_cost = float(cost_24h_per_step.sum())
+    next_24h_runtime = float(runtime_24h_per_step.sum())
+    next_24h_avg_cost = _weighted_average(cost_24h_per_step, energy_24h_per_step)
+    avg_cost_24h_per_step = _weighted_average_per_step(cost_24h_per_step, energy_24h_per_step)
 
     return {
         LOAD_HORIZON_ENERGY: OutputData(
-            type=OutputType.ENERGY, unit="kWh", values=energy_per_step, state=horizon_energy
+            type=OutputType.ENERGY, unit="kWh", values=energy_per_step, state=horizon_energy, advanced=True
         ),
         LOAD_HORIZON_MARGINAL_COST: OutputData(
             type=OutputType.COST,
             unit="$",
-            values=cost_per_step,
+            values=cost_arr,
             direction="-",
             state=horizon_cost,
             display_precision=2,
+            advanced=True,
         ),
         LOAD_HORIZON_RUNTIME: OutputData(
-            type=OutputType.DURATION, unit="h", values=runtime_per_step, state=horizon_runtime
+            type=OutputType.DURATION, unit="h", values=runtime_per_step, state=horizon_runtime, advanced=True
         ),
         LOAD_HORIZON_AVERAGE_MARGINAL_PRICE: OutputData(
             type=OutputType.PRICE,
@@ -273,6 +257,7 @@ def _stats_outputs(
             values=avg_cost_per_step,
             state=horizon_avg_cost,
             display_precision=2,
+            advanced=True,
         ),
         LOAD_NEXT_24H_ENERGY: OutputData(
             type=OutputType.ENERGY, unit="kWh", values=energy_24h_per_step, state=next_24h_energy
@@ -286,7 +271,11 @@ def _stats_outputs(
             display_precision=2,
         ),
         LOAD_NEXT_24H_RUNTIME: OutputData(
-            type=OutputType.DURATION, unit="h", values=runtime_24h_per_step, state=next_24h_runtime
+            type=OutputType.DURATION,
+            unit="h",
+            values=runtime_24h_per_step,
+            state=next_24h_runtime,
+            advanced=True,
         ),
         LOAD_NEXT_24H_AVERAGE_MARGINAL_PRICE: OutputData(
             type=OutputType.PRICE,
@@ -294,18 +283,25 @@ def _stats_outputs(
             values=avg_cost_24h_per_step,
             state=next_24h_avg_cost,
             display_precision=2,
+            advanced=True,
         ),
     }
 
 
-def _safe_divide(numerator: float, denominator: float) -> float:
-    """Divide ``numerator`` by ``denominator``, returning 0.0 when denominator is non-positive."""
-    if denominator <= 0:
+def _weighted_average(numerator: np.ndarray, denominator: np.ndarray) -> float:
+    """Return energy-weighted average, or 0.0 when total energy is non-positive."""
+    total_energy = float(denominator.sum())
+    if total_energy <= 0:
         return 0.0
-    return numerator / denominator
+    return float(numerator.sum()) / total_energy
 
 
-def _next_24h_window_fractions(periods: Sequence[float]) -> tuple[float, ...]:
+def _weighted_average_per_step(numerator: np.ndarray, denominator: np.ndarray) -> np.ndarray:
+    """Return per-step ratio with zero where denominator is non-positive."""
+    return np.divide(numerator, denominator, out=np.zeros_like(numerator), where=denominator > 0)
+
+
+def _next_24h_window_fractions(periods: np.ndarray) -> np.ndarray:
     """Return the per-timestep inclusion fraction for the next-24h window.
 
     Each timestep is assigned a fraction in [0.0, 1.0] equal to the share of
@@ -316,18 +312,18 @@ def _next_24h_window_fractions(periods: Sequence[float]) -> tuple[float, ...]:
     multiplied by these fractions clip exactly to 24h.
 
     """
-    fractions: list[float] = []
-    elapsed = 0.0
-    for dt in periods:
-        remaining = _NEXT_24H_WINDOW_HOURS - elapsed
-        if remaining <= 0.0 or dt <= 0.0:
-            fractions.append(0.0)
-        elif remaining >= dt:
-            fractions.append(1.0)
-        else:
-            fractions.append(remaining / dt)
-        elapsed += dt
-    return tuple(fractions)
+    ends = np.cumsum(periods)
+    starts = ends - periods
+    return np.clip(
+        np.divide(
+            _NEXT_24H_WINDOW_HOURS - starts,
+            periods,
+            out=np.zeros_like(periods),
+            where=periods > 0,
+        ),
+        0.0,
+        1.0,
+    )
 
 
 adapter = LoadAdapter()

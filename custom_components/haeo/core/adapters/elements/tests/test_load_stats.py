@@ -4,8 +4,7 @@ The 8 statistics sensors (4 horizon, 4 next-24h) emitted by
 ``LoadAdapter.outputs`` are exercised end-to-end through the adapter so that
 any future change to the output contract is caught by the same suite.
 Internal helpers (``_stats_outputs``, ``_next_24h_window_fractions``,
-``_safe_divide``, ``_cumsum``) are covered indirectly via these adapter-level
-cases.
+``_weighted_average``) are covered indirectly via these adapter-level cases.
 """
 
 from __future__ import annotations
@@ -66,14 +65,44 @@ def _outputs_with_dual(
                 CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=power, direction="+"),
             },
             source: {
-                ELEMENT_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=dual),
+                ELEMENT_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=dual),
             },
         },
     )
 
 
-def test_horizon_sensors_are_cumulative_with_state_last_set() -> None:
-    """Horizon energy/cost/runtime/avg-cost emit cumulative time series with state_last=True."""
+def _outputs_with_ranging_dual(
+    *,
+    power: tuple[float, ...],
+    dual_by_tag: Mapping[str, tuple[float, ...]],
+    range_up_by_tag: Mapping[str, tuple[float, ...]],
+    periods: tuple[float, ...],
+    source: str = "main_bus",
+) -> Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]:
+    """Build model outputs with multi-block balance duals and ranging headroom."""
+    sorted_tags = sorted(dual_by_tag, key=int)
+    dual = tuple(v for tag in sorted_tags for v in dual_by_tag[tag])
+    range_up = tuple(v for tag in sorted_tags for v in range_up_by_tag[tag])
+    return cast(
+        "Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]",
+        {
+            "load:connection": {
+                CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=power, direction="+"),
+            },
+            source: {
+                ELEMENT_POWER_BALANCE: OutputData(
+                    type=OutputType.SHADOW_PRICE,
+                    unit="$/kWh",
+                    values=dual,
+                    range_up=range_up,
+                ),
+            },
+        },
+    )
+
+
+def test_horizon_sensors_use_per_interval_values_with_scalar_state() -> None:
+    """Horizon energy/cost/runtime/avg-cost emit per-interval series with a computed state scalar."""
     adapter = LoadAdapter()
     power = (1.0, 2.0, 0.0, 4.0)
     dual = (0.10, 0.20, 0.30, 0.40)
@@ -344,3 +373,88 @@ def test_fixed_load_also_emits_stats_when_source_dual_is_present() -> None:
     assert load_outputs[LOAD_HORIZON_MARGINAL_COST].state == pytest.approx(0.50)
     assert load_outputs[LOAD_HORIZON_ENERGY].state == pytest.approx(3.0)
     assert load_outputs[LOAD_HORIZON_AVERAGE_MARGINAL_PRICE].state == pytest.approx(0.50 / 3.0)
+
+
+def test_marginal_cost_uses_cheapest_tag_with_ranging_headroom() -> None:
+    """When one tag is saturated, cost uses the cheapest tag that still has headroom."""
+    adapter = LoadAdapter()
+    periods = (1.0, 1.0)
+    power = (1.0, 2.0)
+    model_outputs = _outputs_with_ranging_dual(
+        power=power,
+        dual_by_tag={"1": (0.10, 0.10), "2": (0.30, 0.40)},
+        range_up_by_tag={"1": (1.0, 0.0), "2": (0.0, 1.0)},
+        periods=periods,
+    )
+
+    result = adapter.outputs("load", model_outputs, config=_config(n=2), periods=periods)
+    load_outputs = result[LOAD_DEVICE_LOAD]
+
+    # t=0: tag1 has headroom -> 0.10; t=1: tag1 saturated, tag2 has headroom -> 0.40
+    assert load_outputs[LOAD_HORIZON_MARGINAL_COST].state == pytest.approx(0.10 + 0.80)
+    assert tuple(load_outputs[LOAD_HORIZON_MARGINAL_COST].values) == pytest.approx((0.10, 0.80))
+
+
+def test_marginal_cost_uses_max_dual_when_all_tags_saturated() -> None:
+    """When every tag is capacity-bound, cost uses the highest balance dual."""
+    adapter = LoadAdapter()
+    periods = (1.0,)
+    model_outputs = _outputs_with_ranging_dual(
+        power=(2.0,),
+        dual_by_tag={"1": (0.10,), "2": (0.30,)},
+        range_up_by_tag={"1": (0.0,), "2": (0.0,)},
+        periods=periods,
+    )
+
+    result = adapter.outputs("load", model_outputs, config=_config(n=1), periods=periods)
+    load_outputs = result[LOAD_DEVICE_LOAD]
+
+    assert load_outputs[LOAD_HORIZON_MARGINAL_COST].state == pytest.approx(2.0 * 0.30)
+
+
+def test_marginal_cost_uses_min_dual_without_ranging() -> None:
+    """Multi-block duals without ranging fall back to the cheapest tag dual."""
+    adapter = LoadAdapter()
+    periods = (1.0, 1.0)
+    model_outputs = cast(
+        "Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]",
+        {
+            "load:connection": {
+                CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0, 2.0), direction="+"),
+            },
+            "main_bus": {
+                ELEMENT_POWER_BALANCE: OutputData(
+                    type=OutputType.SHADOW_PRICE,
+                    unit="$/kWh",
+                    values=(0.10, 0.10, 0.30, 0.40),
+                ),
+            },
+        },
+    )
+
+    result = adapter.outputs("load", model_outputs, config=_config(n=2), periods=periods)
+    load_outputs = result[LOAD_DEVICE_LOAD]
+
+    # min dual per step: 0.10, 0.10 -> cost 0.10 + 0.20 = 0.30
+    assert load_outputs[LOAD_HORIZON_MARGINAL_COST].state == pytest.approx(0.30)
+
+
+def test_stats_use_balance_dual_not_decomposition_leak() -> None:
+    """Stats integrate against the n_periods balance dual, not a longer decomposition-polluted series."""
+    adapter = LoadAdapter()
+    power = (2.0, 1.0)
+    balance_dual = (0.50, 0.25)
+    periods = (1.0, 1.0)
+
+    result = adapter.outputs(
+        "load",
+        _outputs_with_dual(power=power, dual=balance_dual, periods=periods),
+        config=_config(n=2),
+        periods=periods,
+    )
+    load_outputs = result[LOAD_DEVICE_LOAD]
+
+    # cost = energy * dual: (2*0.50) + (1*0.25) = 1.25
+    assert load_outputs[LOAD_HORIZON_MARGINAL_COST].state == pytest.approx(1.25)
+    assert load_outputs[LOAD_HORIZON_ENERGY].state == pytest.approx(3.0)
+    assert load_outputs[LOAD_HORIZON_AVERAGE_MARGINAL_PRICE].state == pytest.approx(1.25 / 3.0)

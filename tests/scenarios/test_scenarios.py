@@ -14,6 +14,7 @@ import pytest
 from custom_components.haeo.const import OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.sensor_utils import get_output_sensors
 from tests.scenarios.conftest import ScenarioData
+from tests.scenarios.scenario_outputs import refresh_config_entry_output_entities
 from tests.scenarios.visualization import visualize_scenario_results
 from tools.sim_hass import setup_haeo_entry
 
@@ -127,6 +128,9 @@ async def test_scenarios(
 
         # Ensure all entities are registered (including background platform setup tasks)
         await hass.async_block_till_done(wait_background_tasks=True)
+
+        # Ensure all outputs are enabled so snapshots cover the full surface area
+        await refresh_config_entry_output_entities(hass, mock_config_entry)
 
         # Get output sensors using common utility function
         # This filters to entities created by this config entry and cleans unstable fields

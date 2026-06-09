@@ -39,6 +39,8 @@ class OutputData:
             preserves the existing smart-rounding behaviour.
         range_up: Upper capacity range (how much RHS can increase at same shadow price).
         range_dn: Lower capacity range (how much RHS can decrease at same shadow price).
+        balance_tags: VLAN tag ids for each block in a multi-tag balance shadow price.
+            Block ``i`` covers ``values[i * n_periods:(i + 1) * n_periods]``.
 
     """
 
@@ -48,12 +50,13 @@ class OutputData:
     direction: Literal["+", "-"] | None = None
     advanced: bool = False
     state_last: bool = False
-    state: Any | None = None
+    state: float | None = None
     priority: int | None = None
     fixed: bool = False
     display_precision: int | None = None
     range_up: Sequence[Any] | None = None
     range_dn: Sequence[Any] | None = None
+    balance_tags: Sequence[int] | None = None
 
     def __init__(
         self,
@@ -64,12 +67,13 @@ class OutputData:
         *,
         advanced: bool = False,
         state_last: bool = False,
-        state: Any | None = None,
+        state: float | None = None,
         priority: int | None = None,
         fixed: bool = False,
         display_precision: int | None = None,
         range_up: Sequence[Any] | None = None,
         range_dn: Sequence[Any] | None = None,
+        balance_tags: Sequence[int] | None = None,
     ) -> None:
         """Initialize OutputData.
 
@@ -88,6 +92,7 @@ class OutputData:
             display_precision: Optional suggested decimal places for the sensor UI.
             range_up: Upper capacity range (how much RHS can increase at same shadow price).
             range_dn: Lower capacity range (how much RHS can decrease at same shadow price).
+            balance_tags: VLAN tag ids for each block in a multi-tag balance shadow price.
 
         """
         self.type = type
@@ -101,6 +106,7 @@ class OutputData:
         self.display_precision = display_precision
         self.range_up = range_up
         self.range_dn = range_dn
+        self.balance_tags = None if balance_tags is None else tuple(balance_tags)
 
         # Normalize to a tuple
         if isinstance(values, np.ndarray):

@@ -178,14 +178,21 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Node element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                          | Unit   | Description                     |
-| ----------------------------------------------- | ------ | ------------------------------- |
-| [`sensor.{name}_power_balance`](#power-balance) | \$/kWh | Local energy price at this node |
+| Sensor                                                  | Unit   | Description                                 |
+| ------------------------------------------------------- | ------ | ------------------------------------------- |
+| [`sensor.{name}_power_balance`](#power-balance)         | \$/kWh | Local energy price at this node             |
+| [`sensor.{name}_tag_{N}_power_balance`](#power-balance) | \$/kWh | Per-tag local energy price (multi-tag only) |
 
 ### Power Balance
 
 The marginal cost or value of power at this specific node in the network.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+When power policies create multiple VLAN tags on this node's connections, HAEO also creates advanced per-tag diagnostic sensors (`sensor.{name}_tag_{N}_power_balance` for each tag id *N*).
+These sensors are disabled by default and expose each tag's per-period power balance shadow price plus its ranging headroom.
+The primary `sensor.{name}_power_balance` sensor collapses all tags into one marginal series; the per-tag sensors break that down.
+Single-tag configurations do not create these sensors.
+See [Per-tag diagnostic sensors](../../modeling/shadow-prices.md#per-tag-diagnostic-sensors) for the full breakdown.
 
 This shadow price represents the "local spot price" for energy at this connection point.
 It shows how much the total system cost would change if you could inject or extract 1 kW of power at this node.

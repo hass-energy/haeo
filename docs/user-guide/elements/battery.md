@@ -310,13 +310,14 @@ A Battery element creates a single device in Home Assistant:
 
 These sensors appear on the battery device:
 
-| Sensor                                                       | Unit   | Description                                  |
-| ------------------------------------------------------------ | ------ | -------------------------------------------- |
-| [`sensor.{name}_power_charge`](#charge-power)                | kW     | Charging power                               |
-| [`sensor.{name}_power_discharge`](#discharge-power)          | kW     | Discharging power                            |
-| [`sensor.{name}_energy_stored`](#energy-stored)              | kWh    | Current energy level                         |
-| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %      | State of charge percentage                   |
-| [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kWh | Marginal value of power at battery terminals |
+| Sensor                                                               | Unit   | Description                                         |
+| -------------------------------------------------------------------- | ------ | --------------------------------------------------- |
+| [`sensor.{name}_power_charge`](#charge-power)                        | kW     | Charging power                                      |
+| [`sensor.{name}_power_discharge`](#discharge-power)                  | kW     | Discharging power                                   |
+| [`sensor.{name}_energy_stored`](#energy-stored)                      | kWh    | Current energy level                                |
+| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)           | %      | State of charge percentage                          |
+| [`sensor.{name}_power_balance`](#power-balance-shadow-price)         | \$/kWh | Marginal value of power at battery terminals        |
+| [`sensor.{name}_tag_{N}_power_balance`](#power-balance-shadow-price) | \$/kWh | Per-tag power balance shadow price (multi-tag only) |
 
 ### Charge Power
 
@@ -360,6 +361,12 @@ Provides a convenient percentage view of the battery level.
 
 The marginal value of power at the battery terminals.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
+
+When power policies create multiple VLAN tags on the battery's connections, HAEO also creates advanced per-tag diagnostic sensors (`sensor.{name}_tag_{N}_power_balance` for each tag id *N*).
+These sensors are disabled by default and expose each tag's per-period power balance shadow price plus its ranging headroom.
+The primary `sensor.{name}_power_balance` sensor collapses all tags into one marginal series; the per-tag sensors break that down.
+Single-tag configurations do not create these sensors.
+See [Per-tag diagnostic sensors](../../modeling/shadow-prices.md#per-tag-diagnostic-sensors) for the full breakdown.
 
 This shadow price represents the economic value of 1 kW of additional power capacity at the battery.
 It reflects the cost of power flowing through the battery connection point.

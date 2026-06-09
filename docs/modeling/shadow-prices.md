@@ -63,6 +63,40 @@ The optimizer has headroom, so relaxing the limit would not change its decisions
 **Non-zero values**: When a shadow price is non-zero, the constraint is binding.
 The magnitude indicates how valuable additional capacity would be at that point.
 
+## Ranging
+
+Every shadow-price sensor also carries ranging metadata: `range_up` and `range_dn`.
+These values come from LP sensitivity analysis (HiGHS `getRanging()`) and describe how far a constraint's right-hand side can move before its shadow price changes.
+
+For an energy-balance constraint, `range_up` is the headroom (in kWh) by which the balance can increase before the marginal price at that timestep changes; `range_dn` is the corresponding headroom on the decrease side.
+A positive `range_up` means the current shadow price still applies if the balance shifts upward by that amount; once the headroom is exhausted, the dual may change.
+
+Ranging is computed once per solve at the end of `Network.optimize()`, not lazily when a sensor is read.
+Output extraction only slices the cached ranging arrays.
+This is deliberate: ranging cost is part of the measured solve, and the results feed multi-tag marginal pricing and future intent-signal analysis.
+
+Computing ranging is a substantial share of post-solve work and is kept always-on because it powers marginal dual selection for multi-tagged elements.
+Every shadow-price sensor exposes `range_up` and `range_dn` as diagnostic fields alongside the dual values.
+
+## Per-tag balance shadow prices
+
+When an element's connections carry more than one VLAN tag, the per-tag energy-balance constraint produces one block of shadow-price values per tag — one balance dual per tag per period.
+See [Power policies](tagged-power.md) for the tag formulation.
+
+Home Assistant exposes these duals in two ways:
+
+### Collapsed primary sensor
+
+Sensors such as `node_power_balance` and `battery_power_balance` collapse the per-tag dual blocks into a single series aligned with the element forecast.
+At each timestep, the marginal-selection rule chooses the cheapest tag dual among tags that still have ranging headroom (`range_up > 0`); if every tag is saturated, the most expensive (maximum) dual is used.
+Elements with only one tag pass their dual through unchanged.
+
+### Per-tag diagnostic sensors
+
+When more than one tag is present, HAEO also emits advanced per-tag diagnostic sensors: `{prefix}_tag_{N}_power_balance`, where `{prefix}` is one of `node`, `battery`, `battery_section`, or `inverter_dc_bus`, and `{N}` is the VLAN tag id.
+These sensors expose each tag's full per-period dual series and ranging metadata.
+They are disabled by default.
+
 ## Next steps
 
 <div class="grid cards" markdown>
