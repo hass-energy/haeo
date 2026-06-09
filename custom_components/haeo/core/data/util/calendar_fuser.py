@@ -10,8 +10,11 @@ from __future__ import annotations
 import bisect
 from collections.abc import Sequence
 from datetime import datetime
+from typing import Literal
 
 from custom_components.haeo.core.data.loader.calendar import CalendarWindow
+
+type WindowEdge = Literal["start", "end"]
 
 
 def fuse_windows_to_boundaries(
@@ -28,7 +31,8 @@ def fuse_windows_to_boundaries(
     - Window end snaps to the end of the containing period (ceiling)
     - This ensures clean period boundaries with no partial overlaps
 
-    When multiple windows overlap at a boundary, the last window's value wins.
+    When multiple windows cover the same boundary, their values are summed so
+    coarse horizons preserve total demand rather than dropping events.
 
     Args:
         windows: Sorted list of calendar windows (may overlap).
@@ -55,9 +59,54 @@ def fuse_windows_to_boundaries(
         end_idx = min(end_idx, n_boundaries)
 
         for i in range(start_idx, end_idx):
-            values[i] = window.value
+            _accumulate_value(values, i, window.value)
 
     return values
+
+
+def fuse_window_edges_to_boundaries(
+    windows: list[CalendarWindow],
+    horizon_times: Sequence[datetime],
+    edge: WindowEdge,
+) -> list[float | None]:
+    """Place each window's value at its start (floor) or end (ceil) boundary.
+
+    Use start edges to mark when a deferrable load resets (e.g. SOC to 0%).
+    Use end edges to mark deadline targets (e.g. required trip energy by end).
+    When multiple windows share a boundary, their values are summed.
+
+    Args:
+        windows: Calendar windows to fuse.
+        horizon_times: n+1 boundary timestamps defining n periods.
+        edge: ``"start"`` floors to the period containing window start;
+            ``"end"`` ceils to the period containing window end.
+
+    Returns:
+        List of n+1 values (float or None), one per boundary.
+
+    """
+    n_boundaries = len(horizon_times)
+    if n_boundaries == 0:
+        return []
+
+    values: list[float | None] = [None] * n_boundaries
+
+    for window in windows:
+        idx = (
+            _floor_boundary_index(window.start, horizon_times)
+            if edge == "start"
+            else _ceil_boundary_index(window.end, horizon_times)
+        )
+        if 0 <= idx < n_boundaries:
+            _accumulate_value(values, idx, window.value)
+
+    return values
+
+
+def _accumulate_value(values: list[float | None], index: int, amount: float) -> None:
+    """Add amount to values[index], treating None as zero."""
+    current = values[index]
+    values[index] = amount if current is None else current + amount
 
 
 def fill_none(

@@ -1,6 +1,7 @@
 """Tests for calendar event loading and value extraction."""
 
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader.calendar import (
@@ -9,9 +10,14 @@ from custom_components.haeo.core.data.loader.calendar import (
     extract_calendar_windows,
     load_calendar_events,
     make_distance_extractor,
+    make_field_fallback_extractor,
     make_presence_extractor,
     parse_distance,
     parse_number,
+)
+from custom_components.haeo.core.data.util.calendar_fuser import (
+    fuse_window_edges_to_boundaries,
+    fuse_windows_to_boundaries,
 )
 from custom_components.haeo.core.schema.calendar_value import CalendarValue, as_calendar_value, is_calendar_value
 
@@ -218,6 +224,50 @@ def test_extract_distance_mixed_units_no_converter() -> None:
     assert len(windows) == 0  # skipped because mi != km and no converter
 
 
+def test_field_fallback_uses_location() -> None:
+    """Field fallback parses distance from location first."""
+    events = [CalendarEventData(start=_dt(9), end=_dt(10), location="50 km")]
+    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
+    windows = extract_calendar_windows(events, extractor)
+    assert len(windows) == 1
+    assert windows[0].value == 10.0
+
+
+def test_field_fallback_uses_summary_when_location_empty() -> None:
+    """Field fallback tries summary when location is empty."""
+    events = [CalendarEventData(start=_dt(9), end=_dt(10), summary="30 km")]
+    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
+    windows = extract_calendar_windows(events, extractor)
+    assert len(windows) == 1
+    assert windows[0].value == 6.0
+
+
+def test_field_fallback_uses_description_last() -> None:
+    """Field fallback tries description after location and summary."""
+    events = [CalendarEventData(start=_dt(9), end=_dt(10), description="25 km")]
+    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
+    windows = extract_calendar_windows(events, extractor)
+    assert len(windows) == 1
+    assert windows[0].value == 5.0
+
+
+def test_field_fallback_skips_when_all_fields_empty() -> None:
+    """Field fallback skips events with no usable text fields."""
+    events = [CalendarEventData(start=_dt(9), end=_dt(10))]
+    extractor = make_field_fallback_extractor(parse_number)
+    windows = extract_calendar_windows(events, extractor)
+    assert len(windows) == 0
+
+
+def test_field_fallback_with_number_parser() -> None:
+    """Field fallback works with arbitrary parsers."""
+    events = [CalendarEventData(start=_dt(9), end=_dt(10), summary="42")]
+    extractor = make_field_fallback_extractor(parse_number)
+    windows = extract_calendar_windows(events, extractor)
+    assert len(windows) == 1
+    assert windows[0].value == 42.0
+
+
 def test_extract_custom_value_fn() -> None:
     """Test with a completely custom extraction function."""
     events = [
@@ -341,6 +391,79 @@ def test_capture_roundtrip() -> None:
     assert reloaded[0].summary == "Work"
     assert reloaded[0].location == "50 km"
     assert reloaded[1].start.hour == 17
+
+
+def test_load_naive_datetime_gets_default_tz() -> None:
+    """Naive ISO timestamps are normalized to the supplied default timezone."""
+    sydney = ZoneInfo("Australia/Sydney")
+    value: CalendarValue = {
+        "type": "calendar",
+        "value": "calendar.ev",
+        "events": [
+            {
+                "start": "2025-01-01T09:00:00",
+                "end": "2025-01-01T10:00:00",
+                "summary": "Trip",
+                "location": None,
+                "description": None,
+            },
+        ],
+    }
+
+    events = load_calendar_events(value, FakeStateMachine({}), default_tz=sydney)
+    assert len(events) == 1
+    assert events[0].start.tzinfo == sydney
+    assert events[0].end.tzinfo == sydney
+
+
+def test_load_offset_aware_datetime_preserved() -> None:
+    """Offset-aware timestamps keep their original timezone."""
+    value: CalendarValue = {
+        "type": "calendar",
+        "value": "calendar.ev",
+        "events": [
+            {
+                "start": "2025-01-01T09:00:00+00:00",
+                "end": "2025-01-01T10:00:00+00:00",
+                "summary": "Trip",
+                "location": None,
+                "description": None,
+            },
+        ],
+    }
+
+    events = load_calendar_events(value, FakeStateMachine({}), default_tz=ZoneInfo("Australia/Sydney"))
+    assert events[0].start.tzinfo == UTC
+
+
+def test_naive_and_aware_datetimes_fuse_without_error() -> None:
+    """Mixed naive/aware inputs no longer break horizon fusion after normalization."""
+    sydney = ZoneInfo("Australia/Sydney")
+    value: CalendarValue = {
+        "type": "calendar",
+        "value": "calendar.ev",
+        "events": [
+            {
+                "start": "2025-01-01T09:00:00",
+                "end": "2025-01-01T10:00:00",
+                "summary": None,
+                "location": "50 km",
+                "description": None,
+            },
+        ],
+    }
+    events = load_calendar_events(value, FakeStateMachine({}), default_tz=sydney)
+    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
+    windows = extract_calendar_windows(events, extractor)
+    boundaries = [datetime(2025, 1, 1, h, tzinfo=sydney) for h in (8, 9, 10, 11)]
+
+    active = fuse_windows_to_boundaries(windows, boundaries)
+    starts = fuse_window_edges_to_boundaries(windows, boundaries, edge="start")
+    ends = fuse_window_edges_to_boundaries(windows, boundaries, edge="end")
+
+    assert active == [None, 10.0, None, None]
+    assert starts == [None, 10.0, None, None]
+    assert ends == [None, None, 10.0, None]
 
 
 def test_load_skips_invalid_event_dicts() -> None:

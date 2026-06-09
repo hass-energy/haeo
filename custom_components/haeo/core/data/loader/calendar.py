@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, tzinfo
 import re
 from typing import TYPE_CHECKING, Any, Final
 
@@ -140,6 +140,36 @@ def extract_calendar_windows(
 
 # --- Pre-built value extractors ---
 
+_DEFAULT_TEXT_FIELDS: Final[tuple[str, ...]] = ("location", "summary", "description")
+
+
+def _first_non_empty_field(event: CalendarEventData, fields: Sequence[str]) -> str | None:
+    """Return the first non-empty text field from an event."""
+    for field in fields:
+        text = getattr(event, field, None)
+        if text:
+            return text
+    return None
+
+
+def make_field_fallback_extractor(
+    parser: Callable[[str], float | None],
+    fields: Sequence[str] = _DEFAULT_TEXT_FIELDS,
+) -> EventValueFn:
+    """Create an extractor that parses the first available text field.
+
+    Tries fields in order (default: location, summary, description).
+    Returns None when no field has text or the parser cannot extract a value.
+    """
+
+    def _extract(event: CalendarEventData) -> float | None:
+        text = _first_non_empty_field(event, fields)
+        if text is None:
+            return None
+        return parser(text)
+
+    return _extract
+
 
 def make_distance_extractor(
     energy_per_distance: float,
@@ -158,20 +188,18 @@ def make_distance_extractor(
 
     """
 
-    def _extract(event: CalendarEventData) -> float | None:
-        if not event.location:
-            return None
-        parsed = parse_distance(event.location)
+    def _parse_distance_energy(text: str) -> float | None:
+        parsed = parse_distance(text)
         if parsed is None:
             return None
         raw_distance, raw_unit = parsed
         if raw_unit != target_unit:
             if convert_distance is None:
-                return None  # can't convert, skip event
+                return None
             raw_distance = convert_distance(raw_distance, raw_unit, target_unit)
         return raw_distance * energy_per_distance
 
-    return _extract
+    return make_field_fallback_extractor(_parse_distance_energy)
 
 
 def make_presence_extractor(present_value: float = 1.0) -> EventValueFn:
@@ -186,9 +214,32 @@ def make_presence_extractor(present_value: float = 1.0) -> EventValueFn:
     return _extract
 
 
+def _default_local_timezone() -> tzinfo:
+    """Return the system local timezone for naive datetime normalization."""
+    local_tz = datetime.now().astimezone().tzinfo
+    if local_tz is None:
+        msg = "System local timezone is unavailable"
+        raise RuntimeError(msg)
+    return local_tz
+
+
+def _normalize_datetime(dt: datetime, default_tz: tzinfo) -> datetime:
+    """Attach default_tz to naive datetimes; preserve aware datetimes."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=default_tz)
+    return dt
+
+
+def _optional_str(value: Any) -> str | None:
+    """Coerce a value to str or None."""
+    return value if isinstance(value, str) else None
+
+
 def load_calendar_events(
     value: CalendarValue,
     sm: StateMachine,
+    *,
+    default_tz: tzinfo | None = None,
 ) -> list[CalendarEventData]:
     """Load calendar events from a CalendarValue schema field.
 
@@ -203,15 +254,19 @@ def load_calendar_events(
     Args:
         value: Calendar schema value with entity_id and optional captured events.
         sm: State machine for entity state lookup.
+        default_tz: Timezone assumed for naive event timestamps. Defaults to
+            the system local timezone.
 
     Returns:
         List of CalendarEventData objects.
 
     """
+    tz = default_tz if default_tz is not None else _default_local_timezone()
+
     # Path 1: Events already captured (diagnostic replay / scenario test)
     captured = value.get("events")
     if captured is not None:
-        return _parse_event_dicts(captured)
+        return _parse_event_dicts(captured, default_tz=tz)
 
     # Path 2: Load from entity state
     entity_id = value["value"]
@@ -225,7 +280,7 @@ def load_calendar_events(
     if not isinstance(raw_events, list):
         return []
 
-    return _parse_event_dicts(raw_events)
+    return _parse_event_dicts(raw_events, default_tz=tz)
 
 
 def capture_calendar_events(
@@ -250,6 +305,8 @@ def capture_calendar_events(
 
 def _parse_event_dicts(
     raw_events: Sequence[Any],
+    *,
+    default_tz: tzinfo,
 ) -> list[CalendarEventData]:
     """Parse a list of event dicts into CalendarEventData objects."""
     events: list[CalendarEventData] = []
@@ -261,17 +318,17 @@ def _parse_event_dicts(
         if not isinstance(start_str, str) or not isinstance(end_str, str):
             continue
         try:
-            start = datetime.fromisoformat(start_str)
-            end = datetime.fromisoformat(end_str)
+            start = _normalize_datetime(datetime.fromisoformat(start_str), default_tz)
+            end = _normalize_datetime(datetime.fromisoformat(end_str), default_tz)
         except (ValueError, TypeError):
             continue
         events.append(
             CalendarEventData(
                 start=start,
                 end=end,
-                summary=raw.get("summary"),
-                location=raw.get("location"),
-                description=raw.get("description"),
+                summary=_optional_str(raw.get("summary")),
+                location=_optional_str(raw.get("location")),
+                description=_optional_str(raw.get("description")),
             )
         )
     return events
