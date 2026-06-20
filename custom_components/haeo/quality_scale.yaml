@@ -1,7 +1,7 @@
 version: 1
 integration: haeo
 current_tier: silver
-target_tier: platinum
+target_tier: gold
 
 bronze:
   config-flow:
@@ -14,15 +14,15 @@ bronze:
 
   runtime-data:
     status: done
-    comment: async_setup_entry assigns HaeoDataUpdateCoordinator to ConfigEntry.runtime_data in custom_components/haeo/__init__.py
+    comment: async_setup_entry assigns HaeoRuntimeData (carrying the HaeoDataUpdateCoordinator) to ConfigEntry.runtime_data in custom_components/haeo/__init__.py
 
   entity-unique-id:
     status: done
-    comment: HaeoSensor unique IDs combine entry id, subentry id, and output name inside custom_components/haeo/sensors/__init__.py
+    comment: HaeoInputNumber, HaeoInputSwitch, HaeoSensor, and HaeoHorizonEntity all set _attr_unique_id derived from entry/subentry/output identifiers in custom_components/haeo/entities/
 
   has-entity-name:
     status: done
-    comment: HaeoSensor sets _attr_has_entity_name to True in custom_components/haeo/sensors/sensor.py
+    comment: _attr_has_entity_name = True is set on every entity base in custom_components/haeo/entities/ (haeo_sensor.py, haeo_number.py, haeo_switch.py, haeo_horizon.py, auto_optimize_switch.py)
 
   test-before-configure:
     status: exempt
@@ -30,7 +30,7 @@ bronze:
 
   test-before-setup:
     status: done
-    comment: async_setup_entry performs first refresh through HaeoDataUpdateCoordinator before forwarding platforms
+    comment: async_setup_entry waits for input stores to be ready and performs first refresh through HaeoDataUpdateCoordinator before forwarding platforms in custom_components/haeo/__init__.py
 
   unique-config-entry:
     status: done
@@ -53,12 +53,12 @@ bronze:
     comment: Event listeners register in HaeoDataUpdateCoordinator and unsubscribe via cleanup before unload
 
   brands:
-    status: external
-    comment: Branding assets must be contributed to the home-assistant/brands repository outside this project
+    status: done
+    comment: HAEO icon.png and logo.png are published in home-assistant/brands at custom_integrations/haeo/
 
   common-modules:
     status: done
-    comment: Integration split across const.py, coordinator.py, flows/, data/, and sensors/ following Home Assistant layout
+    comment: Integration split across const.py, coordinator/, flows/, entities/, sections/, sensor.py/number.py/switch.py platform shims, repairs.py, diagnostics/, and system_health.py following Home Assistant layout
 
   dependency-transparency:
     status: done
@@ -66,11 +66,11 @@ bronze:
 
   appropriate-polling:
     status: done
-    comment: HaeoDataUpdateCoordinator combines event driven refresh with a configurable minute-level interval
+    comment: HaeoDataUpdateCoordinator is fully event-driven via async_track_state_change_event with debounced async_call_later refresh (no update_interval) in custom_components/haeo/coordinator/coordinator.py
 
   action-setup:
-    status: not-applicable
-    comment: Integration exposes no Home Assistant services
+    status: done
+    comment: custom_components/haeo/services.py registers haeo.save_diagnostics and haeo.optimize via hass.services.async_register, both declared in services.yaml with config_entry selectors and translated in translations/en.json
 
 silver:
   integration-owner:
@@ -83,19 +83,19 @@ silver:
 
   entity-unavailable:
     status: done
-    comment: HaeoSensor.available checks CoordinatorEntity availability and coordinator.last_update_success
+    comment: HaeoSensor inherits CoordinatorEntity.available which honours coordinator.last_update_success in custom_components/haeo/entities/haeo_sensor.py
 
   log-when-unavailable:
     status: done
-    comment: DataUpdateCoordinator raises UpdateFailed from custom_components/haeo/data/__init__.py when inputs missing and Home Assistant logs availability transitions once
+    comment: HaeoDataUpdateCoordinator raises UpdateFailed when required inputs are missing in custom_components/haeo/coordinator/coordinator.py, and Home Assistant logs availability transitions once
 
   action-exceptions:
-    status: not-applicable
-    comment: Integration registers no service handlers
+    status: done
+    comment: Both service handlers in custom_components/haeo/services.py raise ServiceValidationError with translation_domain=haeo, translation_key, and translation_placeholders; translations live under exceptions in translations/en.json
 
   config-entry-unloading:
     status: done
-    comment: custom_components/haeo/__init__.py implements async_unload_entry, clears runtime_data, and unloads platforms
+    comment: async_unload_entry in custom_components/haeo/__init__.py unloads INPUT_PLATFORMS and OUTPUT_PLATFORMS, clears entry.runtime_data, and listener teardown is registered via entry.async_on_unload
 
   reauthentication-flow:
     status: exempt
@@ -111,16 +111,16 @@ silver:
 
   parallel-updates:
     status: done
-    comment: custom_components/haeo/sensor.py sets PARALLEL_UPDATES to 0 for coordinator managed sensors
+    comment: PARALLEL_UPDATES = 0 is declared in custom_components/haeo/sensor.py, number.py, and switch.py — sensors are coordinator-managed and number/switch entities are backed by local InputStore state
 
 gold:
   devices:
     status: done
-    comment: Sensors create device registry entries through async_get_or_create in custom_components/haeo/sensors/__init__.py
+    comment: get_or_create_network_device and get_or_create_element_device in custom_components/haeo/entities/device.py call device_registry.async_get_or_create for the hub device and one device per element subentry
 
   diagnostics:
     status: done
-    comment: custom_components/haeo/diagnostics.py exposes async_get_config_entry_diagnostics with redaction and topology data
+    comment: custom_components/haeo/diagnostics/__init__.py exposes async_get_config_entry_diagnostics with redaction and topology data
 
   discovery:
     status: exempt
@@ -132,7 +132,7 @@ gold:
 
   reconfiguration-flow:
     status: done
-    comment: HubOptionsFlow and element subentry flows provide async_step_reconfigure paths for runtime edits
+    comment: custom_components/haeo/flows/options.py and the element subentry flows in custom_components/haeo/flows/element_flow.py provide async_step_reconfigure paths for runtime edits
 
   dynamic-devices:
     status: done
@@ -140,15 +140,15 @@ gold:
 
   stale-devices:
     status: done
-    comment: async_remove_config_entry_device in custom_components/haeo/__init__.py authorises removal of orphaned element devices
+    comment: async_remove_config_entry_device in custom_components/haeo/__init__.py matches (DOMAIN, entry_id) and {entry_id}_{subentry_id}_* identifiers and authorises removal of orphaned element devices
 
   entity-category:
     status: done
-    comment: Coordinator assigns EntityCategory.DIAGNOSTIC metadata for duration outputs in custom_components/haeo/coordinator.py
+    comment: Coordinator assigns EntityCategory.DIAGNOSTIC metadata for duration outputs in custom_components/haeo/coordinator/coordinator.py
 
   entity-device-class:
     status: done
-    comment: Coordinator attaches SensorDeviceClass values to outputs in custom_components/haeo/coordinator.py
+    comment: Coordinator attaches SensorDeviceClass values to outputs in custom_components/haeo/coordinator/coordinator.py
 
   entity-disabled-by-default:
     status: todo
@@ -160,7 +160,7 @@ gold:
 
   exception-translations:
     status: done
-    comment: translations/en.json now defines exceptions.missing_sensors consumed by UpdateFailed in custom_components/haeo/data/__init__.py
+    comment: translations/en.json defines 11 keys under exceptions consumed by ServiceValidationError raises in custom_components/haeo/services.py and UpdateFailed raises in custom_components/haeo/coordinator/coordinator.py
 
   icon-translations:
     status: exempt
@@ -184,11 +184,11 @@ gold:
 
   docs-supported-functions:
     status: done
-    comment: docs/reference/sensors.md details every sensor output and attribute published by the integration
+    comment: docs/modeling/device-layer/ enumerates every published output per element (battery.md, grid.md, solar.md, loads.md, inverter.md, node.md, connection.md) and docs/user-guide/elements/ describes user-facing configuration
 
   docs-known-limitations:
     status: done
-    comment: docs/reference/limitations.md captures solver assumptions, data expectations, and control scope boundaries
+    comment: docs/user-guide/alternatives.md captures HAEO scope boundaries vs EMHASS (LP-only vs MILP, deferrable appliances out of scope, forecasting deferred to other integrations) and docs/modeling/ documents solver and data-shape assumptions
 
   docs-troubleshooting:
     status: done
@@ -213,22 +213,18 @@ platinum:
 
 summary:
   total_rules: 51
-  done: 37
+  done: 40
   exempt: 7
-  not_applicable: 2
-  external: 1
-  todo: 4
-  completion_percentage: 73
+  not_applicable: 0
+  external: 0
+  todo: 1
+  completion_percentage: 96
 
 blockers:
-  bronze:
-    - Branding assets remain external because the project has not submitted icons to home-assistant/brands
   gold:
-    - Diagnostic sensors stay enabled by default to keep optimisation visibility without manual enabling
-  platinum:
-    - Gold tier blockers must be resolved before Platinum status applies
+    - entity-disabled-by-default still under review — primary optimisation outputs (status, duration, power) intentionally remain enabled so users see results immediately, but a follow-up pass may flip purely diagnostic auxiliaries to disabled-by-default.
 
 notes: |
-  HAEO operates entirely on local Home Assistant state, so discovery and web session requirements are exempt.
-  Bronze and Silver rules are satisfied apart from the external brands submission.
-  Gold tier currently depends on adding sensor metadata and translation coverage for coordinator errors.
+  HAEO operates entirely on local Home Assistant state, so discovery, reauthentication, web sessions, and supported-device hardware lists are exempt.
+  Bronze and Silver rules are fully satisfied; brands assets are published in home-assistant/brands.
+  The only remaining Gold consideration is entity-disabled-by-default for diagnostic auxiliaries.
