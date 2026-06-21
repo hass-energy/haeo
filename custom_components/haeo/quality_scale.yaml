@@ -1,7 +1,7 @@
 version: 1
 integration: haeo
-current_tier: silver
-target_tier: gold
+current_tier: platinum
+target_tier: platinum
 
 bronze:
   config-flow:
@@ -151,8 +151,8 @@ gold:
     comment: Coordinator attaches SensorDeviceClass values to outputs in custom_components/haeo/coordinator/coordinator.py
 
   entity-disabled-by-default:
-    status: todo
-    comment: All optimisation sensors remain enabled by design so optimisation status and duration remain visible without extra steps
+    status: done
+    comment: HaeoSensor sets _attr_entity_registry_enabled_default from each output's advanced flag (custom_components/haeo/entities/haeo_sensor.py). Outputs flagged advanced in core/adapters/elements/battery.py (BATTERY_ENERGY_IN_FLOW, BATTERY_ENERGY_OUT_FLOW, BATTERY_SOC_MAX, BATTERY_SOC_MIN) are LP-internal diagnostics and ship disabled so the recorder does not track them by default
 
   entity-translations:
     status: done
@@ -213,18 +213,15 @@ platinum:
 
 summary:
   total_rules: 51
-  done: 40
+  done: 41
   exempt: 7
   not_applicable: 0
   external: 0
-  todo: 1
-  completion_percentage: 96
-
-blockers:
-  gold:
-    - entity-disabled-by-default still under review — primary optimisation outputs (status, duration, power) intentionally remain enabled so users see results immediately, but a follow-up pass may flip purely diagnostic auxiliaries to disabled-by-default.
+  todo: 0
+  completion_percentage: 100
 
 notes: |
   HAEO operates entirely on local Home Assistant state, so discovery, reauthentication, web sessions, and supported-device hardware lists are exempt.
-  Bronze and Silver rules are fully satisfied; brands assets are published in home-assistant/brands.
-  The only remaining Gold consideration is entity-disabled-by-default for diagnostic auxiliaries.
+  Bronze, Silver, Gold, and Platinum rules are all satisfied; brands assets are published in home-assistant/brands.
+  Diagnostic outputs flagged as advanced in the model adapters (currently four battery aggregate outputs: ENERGY_IN_FLOW, ENERGY_OUT_FLOW, SOC_MAX, SOC_MIN) are disabled by default in the entity registry; users who want them can enable individually.
+  Note: the HA Quality Scale formally applies to core integrations only. HAEO is a custom integration and so its visible badge will remain quality_scale=custom, but the implementation meets the same bar as a Platinum core integration.
