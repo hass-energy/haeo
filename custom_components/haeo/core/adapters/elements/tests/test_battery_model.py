@@ -120,8 +120,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "battery_main",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                 },
             },
         ],
@@ -179,8 +179,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "battery_normal",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                 },
             },
         ],
@@ -238,8 +238,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "battery_salvage",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [4.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                 },
             },
         ],
@@ -303,9 +303,15 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"
                 ),
+                connection.CONNECTION_POWER_OUT: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"
+                ),
             },
             "battery_no_balance:charge": {
                 connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"
+                ),
+                connection.CONNECTION_POWER_OUT: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"
                 ),
             },
@@ -382,6 +388,9 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             "battery_no_balance:discharge": {
                 connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"
+                ),
+                connection.CONNECTION_POWER_OUT: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"
                 ),
             },
@@ -466,9 +475,15 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"
                 ),
+                connection.CONNECTION_POWER_OUT: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.5,), direction="+"
+                ),
             },
             "battery_with_thresholds:charge": {
                 connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"
+                ),
+                connection.CONNECTION_POWER_OUT: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"
                 ),
             },

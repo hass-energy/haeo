@@ -30,13 +30,17 @@ ELEMENT_TYPE: Final[ConnectionElementTypeName] = "connection"
 
 type ConnectionOutputName = Literal[
     "connection_power",
+    "connection_power_out",
     "segments",
 ]
 
 CONNECTION_POWER: Final = "connection_power"
+CONNECTION_POWER_OUT: Final = "connection_power_out"
 CONNECTION_SEGMENTS: Final = "segments"
 
-CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset((CONNECTION_POWER, CONNECTION_SEGMENTS))
+CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
+    (CONNECTION_POWER, CONNECTION_POWER_OUT, CONNECTION_SEGMENTS)
+)
 
 
 class ConnectionElementConfig(TypedDict):
@@ -257,11 +261,32 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     @output(name=CONNECTION_POWER)
     def _connection_power_output(self) -> OutputData:
-        """Power flow through this connection."""
+        """Power flow at the source end of the connection (pre-segment-transforms).
+
+        For a connection with an efficiency segment, this is the flow before
+        efficiency is applied. Adapters that need the post-efficiency,
+        target-end flow should use ``CONNECTION_POWER_OUT`` instead.
+        """
         return OutputData(
             type=OutputType.POWER_FLOW,
             unit="kW",
             values=self.extract_values(self.total_power_in),
+            direction="+",
+            priority=self.priority,
+        )
+
+    @output(name=CONNECTION_POWER_OUT)
+    def _connection_power_out_output(self) -> OutputData:
+        """Power flow at the target end of the connection (post-segment-transforms).
+
+        For a connection with an efficiency segment, this is the flow after
+        efficiency has been applied. Equals ``CONNECTION_POWER`` when the
+        chain has no transforming segments (passthrough only).
+        """
+        return OutputData(
+            type=OutputType.POWER_FLOW,
+            unit="kW",
+            values=self.extract_values(self.total_power_out),
             direction="+",
             priority=self.priority,
         )
@@ -288,6 +313,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
 __all__ = [
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER",
+    "CONNECTION_POWER_OUT",
     "CONNECTION_SEGMENTS",
     "ELEMENT_TYPE",
     "Connection",
