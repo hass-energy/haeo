@@ -6,7 +6,7 @@ from typing import Any, Final, Literal
 
 import numpy as np
 
-from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
+from custom_components.haeo.core.adapters.output_utils import connection_power, connection_power_out, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as model_battery
@@ -194,6 +194,13 @@ class BatteryAdapter:
             }
         )
         # Charge: network -> battery
+        # Segment order [power_limit, efficiency] places the cap on the bus side
+        # (source-end of the connection, pre-efficiency), matching how
+        # OEM hybrid-inverter charging limits are specified
+        # (e.g. SigEnergy ``max_charging_limit``, Sungrow charging power limit
+        # — these are AC/bus-side caps, not electrochemical-side caps).
+        # Mirrors the discharge connection where [efficiency, power_limit]
+        # also lands the cap on the bus side per upstream PR #297.
         elements.append(
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -201,8 +208,8 @@ class BatteryAdapter:
                 "source": extract_connection_target(config[CONF_CONNECTION]),
                 "target": name,
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_target_source},
                     "power_limit": {"segment_type": "power_limit", "max_power": max_charge},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_target_source},
                 },
             }
         )
@@ -221,8 +228,30 @@ class BatteryAdapter:
         charge_conn = model_outputs.get(f"{name}:charge")
         period_count = len(expect_output_data(model_outputs[name][model_battery.BATTERY_POWER_CHARGE]).values)
 
-        power_discharge = replace(connection_power(discharge_conn, period_count), type=OutputType.POWER)
-        power_charge = replace(connection_power(charge_conn, period_count), type=OutputType.POWER, direction="-")
+        # Discharge/charge sensors report the electrochemical-side flow, i.e.
+        # the rate the cells are drawn down / refilled at. This is what the LP
+        # primal variable for stored-energy delta tracks, and it reconciles
+        # with SOC changes.
+        #
+        # Discharge connection: source = battery, target = bus, segments =
+        # [efficiency, power_limit]. So total_power_in is the battery-side
+        # (electrochemical) flow, and total_power_out is the bus-side flow.
+        #
+        # Charge connection: source = bus, target = battery, segments =
+        # [efficiency, power_limit]. So total_power_out is the battery-side
+        # (electrochemical) flow, and total_power_in is the bus-side flow.
+        power_discharge_electro = replace(connection_power(discharge_conn, period_count), type=OutputType.POWER)
+        power_charge_electro = replace(
+            connection_power_out(charge_conn, period_count), type=OutputType.POWER, direction="-"
+        )
+
+        # Active power is the bus-side net flow, matching what hybrid-inverter
+        # OEM monitoring sensors (Sungrow, SigEnergy, Victron) report and the
+        # bus-side max_active_power control surfaces (aligned with PR #297,
+        # which placed power_limit on the post-efficiency side).
+        # Signed: positive = battery exporting to bus (discharging).
+        discharge_bus = connection_power_out(discharge_conn, period_count)
+        charge_bus = connection_power(charge_conn, period_count)
 
         # Battery-internal outputs (energy, SOC, shadow prices)
         battery_outputs = {key: expect_output_data(value) for key, value in model_outputs[name].items()}
@@ -232,15 +261,15 @@ class BatteryAdapter:
         aggregate_soc = _calculate_soc(total_energy_stored, config)
 
         aggregate_outputs: dict[BatteryOutputName, OutputData] = {
-            BATTERY_POWER_CHARGE: power_charge,
-            BATTERY_POWER_DISCHARGE: power_discharge,
+            BATTERY_POWER_CHARGE: power_charge_electro,
+            BATTERY_POWER_DISCHARGE: power_discharge_electro,
             BATTERY_ENERGY_STORED: total_energy_stored,
             BATTERY_STATE_OF_CHARGE: aggregate_soc,
         }
 
         aggregate_outputs[BATTERY_POWER_ACTIVE] = replace(
-            power_discharge,
-            values=[d - c for d, c in zip(power_discharge.values, power_charge.values, strict=True)],
+            discharge_bus,
+            values=[d - c for d, c in zip(discharge_bus.values, charge_bus.values, strict=True)],
             direction=None,
             type=OutputType.POWER,
         )

@@ -82,8 +82,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "inverter_main",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                     "power_limit": {"segment_type": "power_limit", "max_power": [8.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                 },
             },
         ],
@@ -121,8 +121,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "inverter_simple",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                     "power_limit": {"segment_type": "power_limit", "max_power": [10.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                 },
             },
         ],
@@ -142,6 +142,9 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 connection.CONNECTION_POWER: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
                 ),
+                connection.CONNECTION_POWER_OUT: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
+                ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
                         "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
@@ -150,6 +153,9 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             "inverter_main:ac_to_dc": {
                 connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="-"
+                ),
+                connection.CONNECTION_POWER_OUT: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="-"
                 ),
                 connection.CONNECTION_SEGMENTS: {
@@ -187,6 +193,9 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             "inverter_main:dc_to_ac": {
                 connection.CONNECTION_POWER: OutputData(
+                    type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
+                ),
+                connection.CONNECTION_POWER_OUT: OutputData(
                     type=OutputType.POWER_FLOW, unit="kW", values=(5.0,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
