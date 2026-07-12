@@ -19,6 +19,9 @@ from .elements.connection import Connection as Connection
 from .elements.connection import ConnectionOutputName as ConnectionOutputName
 from .elements.node import Node as Node
 from .elements.node import NodeOutputName as NodeOutputName
+from .network import LexConstraintCreationError as LexConstraintCreationError
+from .network import LexConstraintError as LexConstraintError
+from .network import LexConstraintStateError as LexConstraintStateError
 from .network import Network as Network
 from .output_data import ModelOutputValue, OutputData
 from .output_names import ModelOutputName
@@ -33,6 +36,9 @@ __all__ = [
     "Connection",
     "ConnectionOutputName",
     "Element",
+    "LexConstraintCreationError",
+    "LexConstraintError",
+    "LexConstraintStateError",
     "ModelElementConfig",
     "ModelElementType",
     "ModelOutputName",

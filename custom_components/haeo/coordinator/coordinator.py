@@ -33,7 +33,7 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMENT_TYPE, DEFAULT_DEBOUNCE_SECONDS
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
-from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.core.model import LexConstraintStateError, ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.util import extract_unit_parts
@@ -409,12 +409,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             return
 
         # Subscribe to horizon manager changes (requires full re-optimization)
-        network = self.network
         horizon_manager = runtime_data.horizon_manager
 
         @callback
         def _on_horizon_change() -> None:
-            self._handle_horizon_change(network, horizon_manager)
+            self._handle_horizon_change(self.network, horizon_manager)
 
         horizon_manager.subscribe(_on_horizon_change)
 
@@ -769,7 +768,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._apply_pending_element_updates()
 
             # Perform the optimization
-            cost = await self.hass.async_add_executor_job(network.optimize)
+            try:
+                cost = await self.hass.async_add_executor_job(network.optimize)
+            except LexConstraintStateError:
+                _LOGGER.exception("Rebuilding network after unsafe lexicographic constraint rollback")
+                network, self._element_updaters = await network_module.create_network(
+                    self.config_entry,
+                    periods_seconds=runtime_data.horizon_manager.periods_seconds,
+                    participants=loaded_configs,
+                )
+                self.network = network
+                cost = await self.hass.async_add_executor_job(network.optimize)
 
             end_time = time.time()
             optimization_duration = end_time - start_time

@@ -3,9 +3,10 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 import logging
+import math
 from typing import Any, Final, Literal, overload
 
-from highspy import Highs, HighsModelStatus
+from highspy import Highs, HighsModelStatus, HighsStatus
 from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
@@ -23,6 +24,18 @@ _LOGGER = logging.getLogger(__name__)
 
 ObjectiveMode = Literal["lex", "blended", "calibrated"]
 OnOffChoose = Literal["on", "off", "choose"]
+
+
+class LexConstraintError(ValueError):
+    """Base error for lexicographic constraint handling."""
+
+
+class LexConstraintCreationError(LexConstraintError):
+    """The lexicographic constraint could not be created safely."""
+
+
+class LexConstraintStateError(LexConstraintError):
+    """The solver may contain an untracked lexicographic row."""
 
 
 # Calibration search bounds in log10 space.  The secondary objective can
@@ -496,12 +509,49 @@ class Network:
         optimal_value: float,
     ) -> None:
         """Set the single lex constraint to bound the given objective."""
-        constraint_expr = objective <= optimal_value
+        if not math.isfinite(optimal_value):
+            msg = "Lexicographic objective optimum must be finite"
+            raise LexConstraintCreationError(msg)
+
+        constraint_expr = _sanitize_constraint_expression(
+            self._solver,
+            objective <= optimal_value,
+        )
 
         if self._lex_constraint is None:
-            self._lex_constraint = self._solver.addConstr(constraint_expr)
+            self._lex_constraint = self._add_constraint_transactionally(constraint_expr)
         else:
             self._update_constraint(self._lex_constraint, constraint_expr)
+
+    def _add_constraint_transactionally(
+        self,
+        expr: highs_linear_expression,
+    ) -> highs_cons:
+        """Add a lex constraint, removing any row left behind after an error."""
+        solver = self._solver
+        initial_rows = solver.numConstrs
+
+        try:
+            return solver.addConstr(expr)
+        except Exception as err:
+            added_rows = solver.numConstrs - initial_rows
+
+            if added_rows > 0:
+                indices = np.arange(initial_rows, solver.numConstrs, dtype=np.int32)
+                try:
+                    status = solver.deleteRows(len(indices), indices.tolist())
+                except Exception as rollback_err:
+                    msg = "Failed to remove partially added lexicographic constraint"
+                    raise LexConstraintStateError(msg) from rollback_err
+                if status != HighsStatus.kOk:
+                    msg = "Failed to remove partially added lexicographic constraint"
+                    raise LexConstraintStateError(msg) from err
+
+            solver.clearSolver()
+            self.options.apply(solver)
+
+            msg = "Failed to add the lexicographic objective constraint"
+            raise LexConstraintCreationError(msg) from err
 
     def _relax_lex_constraint(self) -> None:
         """Relax the lex constraint bounds so it is inactive."""
@@ -558,6 +608,75 @@ class Network:
             if element_constraints := element.constraints():
                 result[element_name] = element_constraints
         return result
+
+
+def _sanitize_constraint_expression(
+    solver: Highs,
+    expr: highs_linear_expression,
+) -> highs_linear_expression:
+    """Return an equivalent expression safe to submit as a HiGHS matrix row."""
+    if expr.bounds is None:
+        msg = "Lexicographic constraint expression has no bounds"
+        raise LexConstraintCreationError(msg)
+
+    lower, upper = expr.bounds
+    if math.isnan(lower) or math.isnan(upper) or lower > upper:
+        msg = "Lexicographic constraint expression has invalid bounds"
+        raise LexConstraintCreationError(msg)
+
+    status, small_matrix_value_option = solver.getOptionValue("small_matrix_value")
+    if status != HighsStatus.kOk:
+        msg = "Unable to read HiGHS small_matrix_value"
+        raise LexConstraintCreationError(msg)
+    small_matrix_value = float(small_matrix_value_option)
+
+    indices, values = expr.unique_elements()
+    if not np.all(np.isfinite(values)):
+        msg = "Lexicographic constraint expression contains non-finite coefficients"
+        raise LexConstraintCreationError(msg)
+
+    # Exact zero terms carry no information and can be removed without changing
+    # the row.  Non-zero terms at HiGHS' matrix tolerance must instead be scaled
+    # with the bounds; dropping them would change the lexicographic constraint.
+    nonzero = values != 0.0
+    indices = indices[nonzero]
+    values = values[nonzero]
+
+    if values.size and float(np.min(np.abs(values))) <= small_matrix_value:
+        status, large_matrix_value_option = solver.getOptionValue("large_matrix_value")
+        if status != HighsStatus.kOk:
+            msg = "Unable to read HiGHS large_matrix_value"
+            raise LexConstraintCreationError(msg)
+
+        status, infinite_bound_option = solver.getOptionValue("infinite_bound")
+        if status != HighsStatus.kOk:
+            msg = "Unable to read HiGHS infinite_bound"
+            raise LexConstraintCreationError(msg)
+
+        min_abs_value = float(np.min(np.abs(values)))
+        max_abs_value = float(np.max(np.abs(values)))
+        scale = 2.0 * small_matrix_value / min_abs_value
+        large_matrix_value = float(large_matrix_value_option)
+        infinite_bound = float(infinite_bound_option)
+        finite_bounds = (bound for bound in (lower, upper) if math.isfinite(bound))
+
+        if (
+            not math.isfinite(scale)
+            or max_abs_value >= large_matrix_value / scale
+            or any(abs(bound) >= infinite_bound / scale for bound in finite_bounds)
+        ):
+            msg = "Lexicographic constraint cannot be normalized safely"
+            raise LexConstraintCreationError(msg)
+
+        values = values * scale
+        lower *= scale
+        upper *= scale
+
+    sanitized = highs_linear_expression()
+    sanitized.idxs = indices.tolist()
+    sanitized.vals = values.tolist()
+    sanitized.bounds = (lower, upper)
+    return sanitized
 
 
 def _bisect_boundary(
