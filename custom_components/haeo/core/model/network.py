@@ -25,6 +25,24 @@ ObjectiveMode = Literal["lex", "blended", "calibrated"]
 OnOffChoose = Literal["on", "off", "choose"]
 
 
+class OptimizationError(ValueError):
+    """Base error for a non-optimal HiGHS result."""
+
+    def __init__(
+        self,
+        status: HighsModelStatus,
+        status_text: str,
+    ) -> None:
+        """Initialize an optimization failure with structured solver context."""
+        self.status = status
+        self.status_text = status_text
+        super().__init__(f"Optimization failed with status: {status_text}")
+
+
+class OptimizationInfeasibleError(OptimizationError):
+    """The current model was reported infeasible."""
+
+
 # Calibration search bounds in log10 space.  The secondary objective can
 # be many orders of magnitude larger than the primary, so we need a wide
 # range.  1e-12 is effectively zero influence; 1e-1 would dominate.
@@ -336,10 +354,22 @@ class Network:
         cost_vectors = _build_cost_vectors((primary, secondary), n_vars)
 
         if isinstance(self.options, BlendedOptions):
-            return self._solve_blended(h, all_col_indices, cost_vectors, self.options.blend_weight)
+            return self._solve_blended(
+                h,
+                all_col_indices,
+                cost_vectors,
+                self.options.blend_weight,
+                retry_infeasible=False,
+            )
 
         if isinstance(self.options, CalibratedOptions) and self._calibrated_weight is not None:
-            return self._solve_blended(h, all_col_indices, cost_vectors, self._calibrated_weight)
+            return self._solve_blended(
+                h,
+                all_col_indices,
+                cost_vectors,
+                self._calibrated_weight,
+                retry_infeasible=True,
+            )
 
         return self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary)
 
@@ -392,6 +422,8 @@ class Network:
         all_col_indices: NDArray[np.int32],
         cost_vectors: list[NDArray[np.float64]],
         weight: float,
+        *,
+        retry_infeasible: bool,
     ) -> float:
         """Single-solve weighted sum: primary + weight * secondary."""
         h.clearLinearObjectives()
@@ -399,7 +431,18 @@ class Network:
         blended = cost_vectors[0] + weight * cost_vectors[1]
         _set_cost_vector(h, all_col_indices, blended)
         h.run()
+        cold_retried = False
+        if retry_infeasible and h.getModelStatus() == HighsModelStatus.kInfeasible:
+            _LOGGER.warning(
+                "Reused blended solve reported infeasible; clearing solver state and retrying once"
+            )
+            h.clearSolver()
+            self.options.apply(h)
+            h.run()
+            cold_retried = True
         _ensure_optimal(h)
+        if cold_retried:
+            _LOGGER.warning("Recovered infeasible reused blended solve after clearing solver state")
         return float(cost_vectors[0] @ np.asarray(h.allVariableValues()))
 
     def _calibrate_blend_weight(
@@ -622,7 +665,9 @@ def _set_cost_vector(
 def _ensure_optimal(solver: Highs) -> float:
     """Validate solver status and return the objective value."""
     status = solver.getModelStatus()
+    status_text = solver.modelStatusToString(status)
+    if status == HighsModelStatus.kInfeasible:
+        raise OptimizationInfeasibleError(status, status_text)
     if status != HighsModelStatus.kOptimal:
-        msg = f"Optimization failed with status: {solver.modelStatusToString(status)}"
-        raise ValueError(msg)
+        raise OptimizationError(status, status_text)
     return solver.getObjectiveValue()
