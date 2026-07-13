@@ -1,6 +1,6 @@
 """Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
@@ -33,7 +33,13 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMENT_TYPE, DEFAULT_DEBOUNCE_SECONDS
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
-from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.core.model import (
+    ModelOutputName,
+    Network,
+    OptimizationInfeasibleError,
+    OutputData,
+    OutputType,
+)
 from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.util import extract_unit_parts
@@ -704,6 +710,36 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 updater(element_config)
         self._pending_element_updates.clear()
 
+    async def _optimize_with_recovery(
+        self,
+        loaded_configs: Mapping[str, ElementConfigData],
+        periods_seconds: Sequence[int],
+    ) -> tuple[Network, float]:
+        """Optimize, rebuilding the network once if the live model is infeasible."""
+        network = self.network
+        try:
+            return network, await self.hass.async_add_executor_job(network.optimize)
+        except OptimizationInfeasibleError as reused_error:
+            rebuilt_network, rebuilt_updaters = await network_module.create_network(
+                self.config_entry,
+                periods_seconds=periods_seconds,
+                participants=loaded_configs,
+            )
+
+            try:
+                cost = await self.hass.async_add_executor_job(rebuilt_network.optimize)
+            except OptimizationInfeasibleError as rebuilt_error:
+                raise rebuilt_error from reused_error
+
+            element_types = {name: str(config[CONF_ELEMENT_TYPE]) for name, config in loaded_configs.items()}
+            rebuilt_topology = serialize_topology(rebuilt_network, element_types=element_types)
+
+            self.network = rebuilt_network
+            self._element_updaters = rebuilt_updaters
+            self.topology = rebuilt_topology
+            _LOGGER.warning("Recovered from infeasible reused model by rebuilding the HAEO network")
+            return rebuilt_network, cost
+
     async def _async_update_data(self) -> CoordinatorData:
         """Update data from input entities and run optimization."""
         # Check if optimization is already in progress
@@ -762,14 +798,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             _LOGGER.debug("Running optimization with %d participants", len(loaded_configs))
 
-            # Network should have been created in async_initialize() or set manually in tests.
-            network = self.network
-
             # Apply any pending element updates before optimization
             self._apply_pending_element_updates()
 
-            # Perform the optimization
-            cost = await self.hass.async_add_executor_job(network.optimize)
+            # Perform the optimization, replacing a stale live model once if needed.
+            network, cost = await self._optimize_with_recovery(
+                loaded_configs,
+                runtime_data.horizon_manager.periods_seconds,
+            )
 
             end_time = time.time()
             optimization_duration = end_time - start_time

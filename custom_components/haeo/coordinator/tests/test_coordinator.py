@@ -4,9 +4,10 @@ from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 import time
 from types import MappingProxyType
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from typing import Any, cast
+from unittest.mock import AsyncMock, MagicMock, Mock, call, patch
 
+from highspy import HighsModelStatus
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory, UnitOfEnergy
 from homeassistant.core import HomeAssistant, State
@@ -60,10 +61,10 @@ from custom_components.haeo.core.const import (
     DEFAULT_TIER_3_DURATION,
     DEFAULT_TIER_4_DURATION,
 )
-from custom_components.haeo.core.model import Network, OutputData, OutputType
+from custom_components.haeo.core.model import Network, OptimizationInfeasibleError, OutputData, OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -538,6 +539,103 @@ async def test_async_update_data_propagates_errors(
         pytest.raises(type(error), match=match),
     ):
         await coordinator._async_update_data()
+
+
+async def test_optimize_with_recovery_replaces_infeasible_network(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """An infeasible live network is atomically replaced after a successful rebuild."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    live_network = MagicMock(spec=Network)
+    rebuilt_network = MagicMock(spec=Network)
+    rebuilt_updaters = {"Load": MagicMock()}
+    loaded_configs = {"Load": cast("ElementConfigData", {CONF_ELEMENT_TYPE: ElementType.LOAD})}
+    periods_seconds = [1800]
+    reused_error = OptimizationInfeasibleError(
+        HighsModelStatus.kInfeasible,
+        "Infeasible",
+    )
+    coordinator.network = live_network
+
+    with (
+        patch.object(
+            hass,
+            "async_add_executor_job",
+            new_callable=AsyncMock,
+            side_effect=[reused_error, 12.5],
+        ) as executor,
+        patch(
+            "custom_components.haeo.coordinator.coordinator.network_module.create_network",
+            new_callable=AsyncMock,
+            return_value=(rebuilt_network, rebuilt_updaters),
+        ) as create_network,
+        patch(
+            "custom_components.haeo.coordinator.coordinator.serialize_topology",
+            return_value={"nodes": ["Load"]},
+        ),
+    ):
+        returned_network, cost = await coordinator._optimize_with_recovery(loaded_configs, periods_seconds)
+
+    assert returned_network is rebuilt_network
+    assert cost == 12.5
+    assert coordinator.network is rebuilt_network
+    assert coordinator._element_updaters is rebuilt_updaters
+    assert coordinator.topology == {"nodes": ["Load"]}
+    assert executor.await_args_list == [call(live_network.optimize), call(rebuilt_network.optimize)]
+    create_network.assert_awaited_once_with(
+        mock_hub_entry,
+        periods_seconds=periods_seconds,
+        participants=loaded_configs,
+    )
+
+
+async def test_optimize_with_recovery_reports_rebuilt_infeasible(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """A genuinely infeasible rebuilt network is surfaced without replacing live state."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    live_network = MagicMock(spec=Network)
+    rebuilt_network = MagicMock(spec=Network)
+    original_updaters = {"Load": MagicMock()}
+    original_topology = {"nodes": ["original"]}
+    loaded_configs = {"Load": cast("ElementConfigData", {CONF_ELEMENT_TYPE: ElementType.LOAD})}
+    periods_seconds = [1800]
+    reused_error = OptimizationInfeasibleError(
+        HighsModelStatus.kInfeasible,
+        "Infeasible",
+    )
+    rebuilt_error = OptimizationInfeasibleError(
+        HighsModelStatus.kInfeasible,
+        "Infeasible",
+    )
+    coordinator.network = live_network
+    coordinator._element_updaters = original_updaters
+    coordinator.topology = original_topology
+
+    with (
+        patch.object(
+            hass,
+            "async_add_executor_job",
+            new_callable=AsyncMock,
+            side_effect=[reused_error, rebuilt_error],
+        ),
+        patch(
+            "custom_components.haeo.coordinator.coordinator.network_module.create_network",
+            new_callable=AsyncMock,
+            return_value=(rebuilt_network, {"Load": MagicMock()}),
+        ) as create_network,
+        pytest.raises(OptimizationInfeasibleError) as exc_info,
+    ):
+        await coordinator._optimize_with_recovery(loaded_configs, periods_seconds)
+
+    assert exc_info.value is rebuilt_error
+    assert exc_info.value.__cause__ is reused_error
+    assert coordinator.network is live_network
+    assert coordinator._element_updaters is original_updaters
+    assert coordinator.topology is original_topology
+    create_network.assert_awaited_once()
 
 
 async def test_async_update_data_raises_on_missing_model_element(

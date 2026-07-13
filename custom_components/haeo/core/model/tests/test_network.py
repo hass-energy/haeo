@@ -20,6 +20,8 @@ from custom_components.haeo.core.model.network import (
     BlendedOptions,
     CalibratedOptions,
     LexOptions,
+    OptimizationError,
+    OptimizationInfeasibleError,
     SimplexTuning,
     SolveOptions,
     _bisect_boundary,
@@ -554,6 +556,97 @@ def test_blended_mode_reentrant() -> None:
     r1 = network.optimize()
     r2 = network.optimize()
     assert r1 == pytest.approx(r2)
+
+
+def test_calibrated_blended_infeasible_cold_retry_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A reused calibrated solve clears solver state and retries once."""
+    network = _build_priced_network(CalibratedOptions())
+    network._calibrated_weight = 1e-6
+    solver = network._solver
+    original_run = solver.run
+    original_clear_solver = solver.clearSolver
+    original_get_model_status = solver.getModelStatus
+    run_calls = 0
+    clear_calls = 0
+
+    def run() -> None:
+        nonlocal run_calls
+        run_calls += 1
+        if run_calls == 2:
+            original_run()
+
+    def clear_solver() -> None:
+        nonlocal clear_calls
+        clear_calls += 1
+        original_clear_solver()
+
+    def get_model_status() -> HighsModelStatus:
+        if run_calls == 1:
+            return HighsModelStatus.kInfeasible
+        return original_get_model_status()
+
+    monkeypatch.setattr(solver, "run", run)
+    monkeypatch.setattr(solver, "clearSolver", clear_solver)
+    monkeypatch.setattr(solver, "getModelStatus", get_model_status)
+
+    assert np.isfinite(network.optimize())
+    assert run_calls == 2
+    assert clear_calls == 1
+
+
+def test_calibrated_blended_infeasible_cold_retry_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A reused calibrated solve retries at most once."""
+    network = _build_priced_network(CalibratedOptions())
+    network._calibrated_weight = 1e-6
+    solver = network._solver
+    run_calls = 0
+    clear_calls = 0
+
+    def run() -> None:
+        nonlocal run_calls
+        run_calls += 1
+
+    def clear_solver() -> None:
+        nonlocal clear_calls
+        clear_calls += 1
+
+    monkeypatch.setattr(solver, "run", run)
+    monkeypatch.setattr(solver, "clearSolver", clear_solver)
+    monkeypatch.setattr(solver, "getModelStatus", lambda: HighsModelStatus.kInfeasible)
+
+    with pytest.raises(OptimizationInfeasibleError):
+        network.optimize()
+
+    assert run_calls == 2
+    assert clear_calls == 1
+
+
+def test_calibrated_blended_non_infeasible_failure_is_not_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A non-infeasible solver status is surfaced without a cold retry."""
+    network = _build_priced_network(CalibratedOptions())
+    network._calibrated_weight = 1e-6
+    solver = network._solver
+    run_calls = 0
+    clear_calls = 0
+
+    def run() -> None:
+        nonlocal run_calls
+        run_calls += 1
+
+    def clear_solver() -> None:
+        nonlocal clear_calls
+        clear_calls += 1
+
+    monkeypatch.setattr(solver, "run", run)
+    monkeypatch.setattr(solver, "clearSolver", clear_solver)
+    monkeypatch.setattr(solver, "getModelStatus", lambda: HighsModelStatus.kUnbounded)
+
+    with pytest.raises(OptimizationError) as exc_info:
+        network.optimize()
+
+    assert exc_info.value.status == HighsModelStatus.kUnbounded
+    assert run_calls == 1
+    assert clear_calls == 0
 
 
 # ---------------------------------------------------------------------------
