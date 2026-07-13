@@ -43,11 +43,13 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
         hub_key = entry_name
 
         # Get coordinator from runtime data
-        coordinator = entry.runtime_data
+        runtime_data = entry.runtime_data
 
-        if coordinator is None:
+        if runtime_data is None or runtime_data.coordinator is None:
             health_info[f"{prefix}status"] = "coordinator_not_initialized"
             continue
+
+        coordinator = runtime_data.coordinator
 
         # Coordinator status
         health_info[f"{prefix}status"] = "ok" if coordinator.last_update_success else "update_failed"
