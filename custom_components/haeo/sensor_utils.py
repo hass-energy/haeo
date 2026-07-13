@@ -1,6 +1,6 @@
 """Utility functions for extracting and processing sensor data."""
 
-from collections.abc import Mapping
+from datetime import datetime
 import math
 from typing import Any, TypedDict
 
@@ -20,20 +20,16 @@ _TARGET_SIG_FIGS = 3
 class ForecastItem(TypedDict):
     """Single forecast point in sensor attributes."""
 
-    time: str  # ISO format after as_dict() serialization
+    time: datetime | str  # datetime in live state; ISO string once JSON-serialized
     value: float | str  # Numeric or status string (e.g., "success")
 
 
-class SensorAttributes(TypedDict, total=False):
-    """Subset of Home Assistant sensor attributes kept in output snapshots.
-
-    Only ``unit_of_measurement`` and ``forecast`` are copied from live state
-    attributes so diagnostics and snapshot comparisons stay stable. Other HA
-    attributes are omitted intentionally.
-    """
-
-    unit_of_measurement: str | None
-    forecast: list[ForecastItem]
+# Live Home Assistant state attributes pass through to snapshots as-is (minus
+# internal-only keys), so arbitrary keys appear alongside well-known entries
+# such as "unit_of_measurement" and "forecast". Downstream consumers (the
+# forecast card, scenario snapshots) rely on that full set, which a closed
+# TypedDict cannot describe.
+SensorAttributes = dict[str, Any]
 
 
 class SensorStateDict(TypedDict):
@@ -42,18 +38,6 @@ class SensorStateDict(TypedDict):
     entity_id: str
     state: str
     attributes: SensorAttributes
-
-
-def _sensor_attributes(attributes: Mapping[str, Any]) -> SensorAttributes:
-    """Extract unit and forecast from HA state attributes for snapshots."""
-    snapshot: SensorAttributes = {}
-    unit = attributes.get("unit_of_measurement")
-    if isinstance(unit, str):
-        snapshot["unit_of_measurement"] = unit
-    forecast = attributes.get("forecast")
-    if isinstance(forecast, list):
-        snapshot["forecast"] = forecast
-    return snapshot
 
 
 def _round_sig(value: float) -> float:
@@ -124,7 +108,8 @@ def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
             state_rounded = _round_sig(state_val)
 
         forecast_rounded: list[tuple[ForecastItem, float]] = []
-        for item in entity_data["attributes"].get("forecast", []):
+        forecast_items: list[ForecastItem] = entity_data["attributes"].get("forecast", [])
+        for item in forecast_items:
             val = _try_parse_float(item.get("value"))
             if val is not None:
                 forecast_rounded.append((item, _round_sig(val)))
@@ -175,12 +160,12 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
     """Get all output sensors created by this config entry.
 
     Returns a dict mapping entity_id to a cleaned sensor state dict.
-    Each entry includes entity_id, state, and a filtered attributes dict
-    (unit_of_measurement and forecast only). Timestamp and context fields from
+    Each entry includes entity_id, state, and the live state attributes with
+    internal-only keys (field_path) removed. Timestamp and context fields from
     live state are not included.
 
     Numeric values are rounded intelligently based on their unit's maximum absolute value
-    to provide approximately 4 significant figures, reducing noise from floating-point precision.
+    to provide approximately 3 significant figures, reducing noise from floating-point precision.
     """
     entity_registry = er.async_get(hass)
 
@@ -197,13 +182,14 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
         if state is None:
             continue
 
-        attributes = dict(state.attributes)
+        attributes: SensorAttributes = dict(state.attributes)
+        # Drop internal-only attributes to keep snapshots stable.
         attributes.pop("field_path", None)
 
         output_sensors[entity_entry.entity_id] = {
             "entity_id": state.entity_id,
             "state": state.state,
-            "attributes": _sensor_attributes(attributes),
+            "attributes": attributes,
         }
 
     # Apply smart rounding to all numeric values
