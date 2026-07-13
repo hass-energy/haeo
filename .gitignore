@@ -38,4 +38,7 @@ docs/**/dark/
 # Node modules
 node_modules/
 
+# WASM build artifacts
+wasm/dist/
+
 custom_components/hacs/
