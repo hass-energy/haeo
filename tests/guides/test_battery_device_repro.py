@@ -19,7 +19,7 @@ Run with:
 from __future__ import annotations
 
 import logging
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
+from typing import TypedDict
 
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -43,10 +43,27 @@ from tools.live_hass import LiveHomeAssistant, live_home_assistant
 _LOGGER = logging.getLogger(__name__)
 
 
-def _registry_summary(live: LiveHomeAssistant) -> dict[str, Any]:
+class _SubentrySummary(TypedDict):
+    """Device/entity counts for a single config subentry."""
+
+    type: str
+    devices: int
+    entities: int
+    entity_ids: list[str]
+
+
+class _RegistrySummary(TypedDict):
+    """Summary of the HAEO config entry's registry state."""
+
+    state: str
+    reason: str | None
+    subentries: dict[str, _SubentrySummary]
+
+
+def _registry_summary(live: LiveHomeAssistant) -> _RegistrySummary:
     """Summarize, per element subentry, how many devices and entities exist."""
 
-    async def _collect() -> dict[str, Any]:
+    async def _collect() -> _RegistrySummary:
         entries = live.hass.config_entries.async_entries(DOMAIN)
         entry = entries[0]
         device_registry = dr.async_get(live.hass)
@@ -54,7 +71,7 @@ def _registry_summary(live: LiveHomeAssistant) -> dict[str, Any]:
 
         devices = dr.async_entries_for_config_entry(device_registry, entry.entry_id)
 
-        per_subentry: dict[str, dict[str, Any]] = {}
+        per_subentry: dict[str, _SubentrySummary] = {}
         for subentry_id, subentry in entry.subentries.items():
             subentry_devices = [
                 device

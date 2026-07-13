@@ -1,7 +1,6 @@
 """Tests for the core config loader."""
 
 from collections.abc import Sequence
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 import numpy as np
 import pytest
@@ -15,25 +14,50 @@ from custom_components.haeo.core.data.loader.config_loader import (
     load_element_configs,
 )
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import as_connection_target
+from custom_components.haeo.core.schema import ConstantValue, EntityValue, as_connection_target
 from custom_components.haeo.core.schema.elements.battery import CONF_CAPACITY, SECTION_STORAGE
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
 from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
 from custom_components.haeo.core.schema.sections import CONF_EFFICIENCY_SOURCE_TARGET, SECTION_EFFICIENCY
+from custom_components.haeo.core.state import StateMachine
 
 FORECAST_TIMES = (0.0, 3600.0, 7200.0, 10800.0)
 
-_DEFAULT_IMPORT_PRICE: Any = {"type": "constant", "value": 0.30}
-_DEFAULT_EXPORT_PRICE: Any = {"type": "constant", "value": 0.05}
-_DEFAULT_CAPACITY: Any = {"type": "constant", "value": 10.0}
-_DEFAULT_INITIAL_SOC: Any = {"type": "constant", "value": 50.0}
+_DEFAULT_IMPORT_PRICE: ConstantValue = {"type": "constant", "value": 0.30}
+_DEFAULT_EXPORT_PRICE: ConstantValue = {"type": "constant", "value": 0.05}
+_DEFAULT_CAPACITY: ConstantValue = {"type": "constant", "value": 10.0}
+_DEFAULT_INITIAL_SOC: ConstantValue = {"type": "constant", "value": 50.0}
+
+
+def _dict(value: object) -> dict[str, object]:
+    """Narrow a loaded config value to a dict for nested assertions."""
+    assert isinstance(value, dict)
+    return value
+
+
+def _list(value: object) -> list[object]:
+    """Narrow a loaded config value to a list for nested assertions."""
+    assert isinstance(value, list)
+    return value
+
+
+def _ndarray(value: object) -> np.ndarray:
+    """Narrow a loaded field value to an ndarray for array assertions."""
+    assert isinstance(value, np.ndarray)
+    return value
+
+
+def _numeric(value: object) -> np.ndarray | float:
+    """Narrow a loaded field value to array-or-scalar for numeric assertions."""
+    assert isinstance(value, np.ndarray | float)
+    return value
 
 
 def _grid_config(
     *,
-    import_price: Any = None,
-    export_price: Any = None,
-) -> dict[str, Any]:
+    import_price: object = None,
+    export_price: object = None,
+) -> dict[str, object]:
     return {
         "element_type": "grid",
         "name": "Grid",
@@ -51,9 +75,9 @@ def _grid_config(
 
 def _battery_config(
     *,
-    capacity: Any = None,
-    initial_soc: Any = None,
-) -> dict[str, Any]:
+    capacity: object = None,
+    initial_soc: object = None,
+) -> dict[str, object]:
     return {
         "element_type": "battery",
         "name": "Battery",
@@ -65,7 +89,9 @@ def _battery_config(
     }
 
 
-def _inverter_config(*, efficiency_source_target: Any = None, efficiency_target_source: Any = None) -> dict[str, Any]:
+def _inverter_config(
+    *, efficiency_source_target: object = None, efficiency_target_source: object = None
+) -> dict[str, object]:
     return {
         "element_type": "inverter",
         "name": "Inverter",
@@ -81,7 +107,9 @@ def _inverter_config(*, efficiency_source_target: Any = None, efficiency_target_
     }
 
 
-def _connection_config(*, efficiency_source_target: Any = None, efficiency_target_source: Any = None) -> dict[str, Any]:
+def _connection_config(
+    *, efficiency_source_target: object = None, efficiency_target_source: object = None
+) -> dict[str, object]:
     return {
         "element_type": "connection",
         "name": "Connection",
@@ -95,26 +123,32 @@ def _connection_config(*, efficiency_source_target: Any = None, efficiency_targe
     }
 
 
-def _load_config(name: str, config: Any) -> dict[str, Any]:
+def _load_config(name: str, config: dict[str, object]) -> dict[str, object]:
     """Load an element config and return as plain dict for assertion."""
-    result: Any = load_element_config(name, config, FakeStateMachine({}), FORECAST_TIMES)
-    return result
+    return _dict(
+        load_element_config(
+            name,
+            config,  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
+            FakeStateMachine({}),
+            FORECAST_TIMES,
+        )
+    )
 
 
-def _load_grid(config: dict[str, Any] | None = None) -> dict[str, Any]:
+def _load_grid(config: dict[str, object] | None = None) -> dict[str, object]:
     """Load a grid config and return as plain dict for easy assertion."""
     return _load_config("Grid", config or _grid_config())
 
 
-def _load_battery(config: dict[str, Any] | None = None) -> dict[str, Any]:
+def _load_battery(config: dict[str, object] | None = None) -> dict[str, object]:
     """Load a battery config and return as plain dict for easy assertion."""
     return _load_config("Battery", config or _battery_config())
 
 
-def _grid_config_without_export() -> dict[str, Any]:
+def _grid_config_without_export() -> dict[str, object]:
     """Grid config with the export price field removed entirely."""
     config = _grid_config()
-    config["pricing"].pop("price_target_source")
+    _dict(config["pricing"]).pop("price_target_source")
     return config
 
 
@@ -125,13 +159,13 @@ def test_constant_values_resolve_to_time_series() -> None:
     """Constant pricing values expand to arrays matching forecast intervals."""
     result = _load_grid()
 
-    pricing = result["pricing"]
-    assert isinstance(pricing["price_source_target"], np.ndarray)
-    assert len(pricing["price_source_target"]) == 3
-    np.testing.assert_array_equal(pricing["price_source_target"], [0.30, 0.30, 0.30])
+    pricing = _dict(result["pricing"])
+    price_source_target = _ndarray(pricing["price_source_target"])
+    assert len(price_source_target) == 3
+    np.testing.assert_array_equal(price_source_target, [0.30, 0.30, 0.30])
 
-    assert isinstance(pricing["price_target_source"], np.ndarray)
-    np.testing.assert_array_equal(pricing["price_target_source"], [0.05, 0.05, 0.05])
+    price_target_source = _ndarray(pricing["price_target_source"])
+    np.testing.assert_array_equal(price_target_source, [0.05, 0.05, 0.05])
 
 
 @pytest.mark.parametrize(
@@ -143,15 +177,15 @@ def test_constant_soc_percent_conversion(input_percent: float, expected: float) 
     """Constant SOC percentage values are divided by 100."""
     result = _load_battery(_battery_config(initial_soc={"type": "constant", "value": input_percent}))
 
-    assert result["storage"]["initial_charge_percentage"] == pytest.approx(expected)
+    storage = _dict(result["storage"])
+    assert storage["initial_charge_percentage"] == pytest.approx(expected)
 
 
 def test_constant_boundary_field_has_n_plus_1_values() -> None:
     """Boundary fields expand constants to n+1 values (one per boundary)."""
     result = _load_battery(_battery_config(capacity={"type": "constant", "value": 10.0}))
 
-    capacity = result["storage"]["capacity"]
-    assert isinstance(capacity, np.ndarray)
+    capacity = _ndarray(_dict(result["storage"])["capacity"])
     assert len(capacity) == 4  # n+1 boundaries
     np.testing.assert_array_equal(capacity, [10.0, 10.0, 10.0, 10.0])
 
@@ -163,11 +197,11 @@ def test_constant_boundary_field_has_n_plus_1_values() -> None:
         pytest.param(_grid_config_without_export(), id="field_missing"),
     ],
 )
-def test_optional_pricing_field_is_absent(config: dict[str, Any]) -> None:
+def test_optional_pricing_field_is_absent(config: dict[str, object]) -> None:
     """Optional pricing fields are absent when set to none or not provided."""
     result = _load_grid(config)
 
-    assert "price_target_source" not in result["pricing"]
+    assert "price_target_source" not in _dict(result["pricing"])
 
 
 @pytest.mark.parametrize(
@@ -201,18 +235,19 @@ def test_optional_pricing_field_is_absent(config: dict[str, Any]) -> None:
 )
 def test_efficiency_defaults_to_unity(
     element_name: str,
-    config: dict[str, Any],
+    config: dict[str, object],
 ) -> None:
     """Missing or none-typed efficiency fields default to 100%."""
     result = _load_config(element_name, config)
-    np.testing.assert_allclose(result["efficiency"]["efficiency_source_target"], [1.0, 1.0, 1.0])
-    np.testing.assert_allclose(result["efficiency"]["efficiency_target_source"], [1.0, 1.0, 1.0])
+    efficiency = _dict(result["efficiency"])
+    np.testing.assert_allclose(_numeric(efficiency["efficiency_source_target"]), [1.0, 1.0, 1.0])
+    np.testing.assert_allclose(_numeric(efficiency["efficiency_target_source"]), [1.0, 1.0, 1.0])
 
 
 def test_unavailable_efficiency_entity_defaults_to_unity(monkeypatch: pytest.MonkeyPatch) -> None:
     """Unavailable efficiency entity data falls back to 100% defaults."""
 
-    def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
         return {}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
@@ -222,8 +257,9 @@ def test_unavailable_efficiency_entity_defaults_to_unity(monkeypatch: pytest.Mon
         efficiency_target_source={"type": "entity", "value": ["sensor.missing_eff_ts"]},
     )
     result = _load_config("Inverter", config)
-    np.testing.assert_allclose(result["efficiency"]["efficiency_source_target"], [1.0, 1.0, 1.0])
-    np.testing.assert_allclose(result["efficiency"]["efficiency_target_source"], [1.0, 1.0, 1.0])
+    efficiency = _dict(result["efficiency"])
+    np.testing.assert_allclose(_numeric(efficiency["efficiency_source_target"]), [1.0, 1.0, 1.0])
+    np.testing.assert_allclose(_numeric(efficiency["efficiency_target_source"]), [1.0, 1.0, 1.0])
 
 
 @pytest.mark.parametrize(
@@ -250,11 +286,11 @@ def test_unavailable_efficiency_entity_defaults_to_unity(monkeypatch: pytest.Mon
 def test_entity_value_resolves_to_time_series(
     monkeypatch: pytest.MonkeyPatch,
     sensor_data: dict[str, object],
-    import_price_config: dict[str, Any],
+    import_price_config: EntityValue,
 ) -> None:
     """Entity values resolve to time series arrays regardless of sensor data shape."""
 
-    def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, object]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, object]:
         return sensor_data
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
@@ -262,9 +298,9 @@ def test_entity_value_resolves_to_time_series(
     config = _grid_config(import_price=import_price_config)
     result = _load_grid(config)
 
-    pricing = result["pricing"]
-    assert isinstance(pricing["price_source_target"], np.ndarray)
-    assert len(pricing["price_source_target"]) == 3
+    pricing = _dict(result["pricing"])
+    price_source_target = _ndarray(pricing["price_source_target"])
+    assert len(price_source_target) == 3
 
 
 @pytest.mark.parametrize(
@@ -277,11 +313,11 @@ def test_entity_value_resolves_to_time_series(
 )
 def test_price_field_resolves_to_none(
     monkeypatch: pytest.MonkeyPatch,
-    import_price: Any,
+    import_price: object,
 ) -> None:
     """Price field resolves to None for unavailable, empty, or unrecognized values."""
 
-    def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
         return {}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
@@ -289,7 +325,7 @@ def test_price_field_resolves_to_none(
     config = _grid_config(import_price=import_price)
     result = _load_grid(config)
 
-    assert result["pricing"]["price_source_target"] is None
+    assert _dict(result["pricing"])["price_source_target"] is None
 
 
 def test_element_name_set_on_result() -> None:
@@ -301,15 +337,20 @@ def test_element_name_set_on_result() -> None:
 
 def test_unknown_element_type_raises() -> None:
     """Unknown element types raise ValueError."""
-    config: Any = {"element_type": "unknown_type", "name": "X"}
+    config: dict[str, object] = {"element_type": "unknown_type", "name": "X"}
     with pytest.raises(ValueError, match="Unknown element type"):
-        load_element_config("X", config, FakeStateMachine({}), FORECAST_TIMES)
+        load_element_config(
+            "X",
+            config,  # type: ignore[arg-type]  # deliberately invalid input
+            FakeStateMachine({}),
+            FORECAST_TIMES,
+        )
 
 
 def test_entity_percent_scalar_converts(monkeypatch: pytest.MonkeyPatch) -> None:
     """Entity-backed SOC scalar values are divided by 100."""
 
-    def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
         return {"sensor.soc": 80.0}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
@@ -317,24 +358,26 @@ def test_entity_percent_scalar_converts(monkeypatch: pytest.MonkeyPatch) -> None
     config = _battery_config(initial_soc={"type": "entity", "value": ["sensor.soc"]})
     result = _load_battery(config)
 
-    assert result["storage"]["initial_charge_percentage"] == pytest.approx(0.8)
+    storage = _dict(result["storage"])
+    assert storage["initial_charge_percentage"] == pytest.approx(0.8)
 
 
 def test_entity_percent_time_series_converts(monkeypatch: pytest.MonkeyPatch) -> None:
     """Entity-backed SOC boundary values are divided by 100."""
 
-    def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
         return {"sensor.cap": 10.0}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
     monkeypatch.setattr(cl, "fuse_to_boundaries", lambda *_a, **_kw: [50.0, 60.0, 70.0, 80.0])
 
     config = _battery_config()
-    config["storage"]["capacity"] = {"type": "constant", "value": 10.0}
+    _dict(config["storage"])["capacity"] = {"type": "constant", "value": 10.0}
     config["limits"] = {"min_charge_percentage": {"type": "entity", "value": ["sensor.cap"]}}
     result = _load_battery(config)
 
-    np.testing.assert_allclose(result["limits"]["min_charge_percentage"], [0.5, 0.6, 0.7, 0.8])
+    limits = _dict(result["limits"])
+    np.testing.assert_allclose(_numeric(limits["min_charge_percentage"]), [0.5, 0.6, 0.7, 0.8])
 
 
 @pytest.mark.parametrize(
@@ -350,23 +393,24 @@ def test_entity_percent_time_series_converts(monkeypatch: pytest.MonkeyPatch) ->
         ),
     ],
 )
-def test_boolean_values_pass_through(role_input: dict[str, Any]) -> None:
+def test_boolean_values_pass_through(role_input: dict[str, object]) -> None:
     """Boolean fields pass through unchanged whether raw or constant-wrapped."""
-    config: dict[str, Any] = {
+    config: dict[str, object] = {
         "element_type": "node",
         "name": "Hub",
         "role": role_input,
     }
     result = _load_config("Hub", config)
 
-    assert result["role"]["is_source"] is True
-    assert result["role"]["is_sink"] is False
+    role = _dict(result["role"])
+    assert role["is_source"] is True
+    assert role["is_sink"] is False
 
 
 def test_entity_non_percent_scalar_resolves(monkeypatch: pytest.MonkeyPatch) -> None:
     """Non-percent scalar entity values resolve without division."""
 
-    def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
         return {"sensor.salvage": 0.05}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
@@ -375,7 +419,8 @@ def test_entity_non_percent_scalar_resolves(monkeypatch: pytest.MonkeyPatch) -> 
     config["pricing"] = {"salvage_value": {"type": "entity", "value": ["sensor.salvage"]}}
     result = _load_battery(config)
 
-    assert result["pricing"]["salvage_value"] == pytest.approx(0.05)
+    pricing = _dict(result["pricing"])
+    assert pricing["salvage_value"] == pytest.approx(0.05)
 
 
 def test_section_not_dict_is_skipped() -> None:
@@ -389,13 +434,18 @@ def test_section_not_dict_is_skipped() -> None:
 
 def test_original_config_not_mutated() -> None:
     """Loading creates a copy and does not mutate the original config."""
-    config: Any = _grid_config()
-    original_pricing = dict(config["pricing"])
+    config = _grid_config()
+    original_pricing = dict(_dict(config["pricing"]))
 
-    load_element_config("Grid", config, FakeStateMachine({}), FORECAST_TIMES)
+    load_element_config(
+        "Grid",
+        config,  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
+        FakeStateMachine({}),
+        FORECAST_TIMES,
+    )
 
     assert config["pricing"] == original_pricing
-    assert isinstance(config["pricing"]["price_source_target"], dict)
+    assert isinstance(_dict(config["pricing"])["price_source_target"], dict)
 
 
 # -- load_element_configs tests --
@@ -403,11 +453,15 @@ def test_original_config_not_mutated() -> None:
 
 def test_load_element_configs_loads_all_participants() -> None:
     """All participants are loaded and returned."""
-    participants: dict[str, Any] = {
+    participants: dict[str, object] = {
         "Grid": _grid_config(),
         "Battery": _battery_config(),
     }
-    result = load_element_configs(participants, FakeStateMachine({}), FORECAST_TIMES)
+    result = load_element_configs(
+        participants,  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
+        FakeStateMachine({}),
+        FORECAST_TIMES,
+    )
 
     assert set(result.keys()) == {"Grid", "Battery"}
     assert result["Grid"]["element_type"] == "grid"
@@ -416,11 +470,15 @@ def test_load_element_configs_loads_all_participants() -> None:
 
 def test_load_element_configs_element_names_match_keys() -> None:
     """Element names in loaded configs match the participant keys."""
-    participants: dict[str, Any] = {
+    participants: dict[str, object] = {
         "MyGrid": _grid_config(),
         "MyBattery": _battery_config(),
     }
-    result = load_element_configs(participants, FakeStateMachine({}), FORECAST_TIMES)
+    result = load_element_configs(
+        participants,  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
+        FakeStateMachine({}),
+        FORECAST_TIMES,
+    )
 
     assert result["MyGrid"]["name"] == "MyGrid"
     assert result["MyBattery"]["name"] == "MyBattery"
@@ -441,16 +499,17 @@ def test_resolve_list_items_constant_values() -> None:
     hints = ListFieldHints(
         fields={"price": FieldHint(output_type=OutputType.PRICE, time_series=True)},
     )
-    items: list[dict[str, Any]] = [
+    items: list[dict[str, object]] = [
         {"name": "rule1", "price": {"type": "constant", "value": 0.05}},
     ]
 
     result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
 
     assert len(result) == 1
-    assert result[0]["name"] == "rule1"
-    assert isinstance(result[0]["price"], np.ndarray)
-    np.testing.assert_array_equal(result[0]["price"], [0.05, 0.05, 0.05])
+    item0 = _dict(result[0])
+    assert item0["name"] == "rule1"
+    price = _ndarray(item0["price"])
+    np.testing.assert_array_equal(price, [0.05, 0.05, 0.05])
 
 
 @pytest.mark.parametrize(
@@ -461,7 +520,7 @@ def test_resolve_list_items_constant_values() -> None:
         ),
     ],
 )
-def test_resolve_list_items_zero_price_loads(items: list[dict[str, Any]]) -> None:
+def test_resolve_list_items_zero_price_loads(items: list[dict[str, object]]) -> None:
     """Zero-value constant price is loaded as array of zeros."""
     hints = ListFieldHints(
         fields={"price": FieldHint(output_type=OutputType.PRICE, time_series=True)},
@@ -469,14 +528,15 @@ def test_resolve_list_items_zero_price_loads(items: list[dict[str, Any]]) -> Non
 
     result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
 
-    assert "price" in result[0]
-    assert result[0]["name"] == "rule1"
+    item0 = _dict(result[0])
+    assert "price" in item0
+    assert item0["name"] == "rule1"
 
 
 def test_resolve_list_items_unavailable_entity_sets_none(monkeypatch: pytest.MonkeyPatch) -> None:
     """When entity resolution returns None, the field is set to None."""
 
-    def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
         return {}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
@@ -484,13 +544,13 @@ def test_resolve_list_items_unavailable_entity_sets_none(monkeypatch: pytest.Mon
     hints = ListFieldHints(
         fields={"price": FieldHint(output_type=OutputType.PRICE, time_series=True)},
     )
-    items: list[dict[str, Any]] = [
+    items: list[dict[str, object]] = [
         {"name": "rule1", "price": {"type": "entity", "value": ["sensor.missing"]}},
     ]
 
     result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
 
-    assert result[0]["price"] is None
+    assert _dict(result[0])["price"] is None
 
 
 def test_resolve_list_items_non_mapping_pass_through() -> None:
@@ -498,7 +558,7 @@ def test_resolve_list_items_non_mapping_pass_through() -> None:
     hints = ListFieldHints(
         fields={"price": FieldHint(output_type=OutputType.PRICE)},
     )
-    items: list[Any] = ["not_a_dict", 42]
+    items: list[object] = ["not_a_dict", 42]
 
     result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
 
@@ -513,7 +573,7 @@ def test_load_element_config_resolves_list_fields(monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr(cl, "extract_list_field_hints", lambda _cls: {"rules": hints})
 
-    config: dict[str, Any] = {
+    config: dict[str, object] = {
         "element_type": "grid",
         "name": "Grid",
         "common": {"connection": "node_a"},
@@ -531,9 +591,10 @@ def test_load_element_config_resolves_list_fields(monkeypatch: pytest.MonkeyPatc
     result = _load_config("Grid", config)
 
     assert "rules" in result
-    assert len(result["rules"]) == 1
-    assert isinstance(result["rules"][0]["price"], np.ndarray)
-    np.testing.assert_array_equal(result["rules"][0]["price"], [0.02, 0.02, 0.02])
+    rules = _list(result["rules"])
+    assert len(rules) == 1
+    price = _ndarray(_dict(rules[0])["price"])
+    np.testing.assert_array_equal(price, [0.02, 0.02, 0.02])
 
 
 # -- load_element_config_from_values tests --
@@ -541,17 +602,18 @@ def test_load_element_config_resolves_list_fields(monkeypatch: pytest.MonkeyPatc
 
 def _load_config_from_values(
     name: str,
-    config: dict[str, Any],
-    field_values: dict[tuple[str, ...], Any],
-) -> dict[str, Any]:
+    config: dict[str, object],
+    field_values: dict[tuple[str, ...], bool | float | np.ndarray | None],
+) -> dict[str, object]:
     """Load an element config from store values and return as a plain dict."""
-    result: Any = load_element_config_from_values(
-        name,
-        config,  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
-        field_values,
-        FORECAST_TIMES,
+    return _dict(
+        load_element_config_from_values(
+            name,
+            config,  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
+            field_values,
+            FORECAST_TIMES,
+        )
     )
-    return result
 
 
 def test_load_element_config_from_values_substitutes_store_values() -> None:
@@ -565,7 +627,7 @@ def test_load_element_config_from_values_substitutes_store_values() -> None:
         {(SECTION_STORAGE, CONF_CAPACITY): prices},
     )
 
-    np.testing.assert_array_equal(result["storage"]["capacity"], prices)
+    np.testing.assert_array_equal(_dict(result["storage"])["capacity"], prices)
 
 
 def test_load_element_config_from_values_none_uses_default() -> None:
@@ -578,7 +640,8 @@ def test_load_element_config_from_values_none_uses_default() -> None:
         {(SECTION_EFFICIENCY, CONF_EFFICIENCY_SOURCE_TARGET): None},
     )
 
-    np.testing.assert_allclose(result["efficiency"]["efficiency_source_target"], [1.0, 1.0, 1.0])
+    efficiency = _dict(result["efficiency"])
+    np.testing.assert_allclose(_numeric(efficiency["efficiency_source_target"]), [1.0, 1.0, 1.0])
 
 
 def test_load_element_config_from_values_missing_optional_field_is_removed() -> None:
@@ -587,7 +650,7 @@ def test_load_element_config_from_values_missing_optional_field_is_removed() -> 
 
     result = _load_config_from_values("Grid", config, {})
 
-    assert "price_target_source" not in result["pricing"]
+    assert "price_target_source" not in _dict(result["pricing"])
 
 
 def test_load_element_config_from_values_missing_field_uses_default() -> None:
@@ -596,12 +659,13 @@ def test_load_element_config_from_values_missing_field_uses_default() -> None:
 
     result = _load_config_from_values("Inverter", config, {})
 
-    np.testing.assert_allclose(result["efficiency"]["efficiency_source_target"], [1.0, 1.0, 1.0])
+    efficiency = _dict(result["efficiency"])
+    np.testing.assert_allclose(_numeric(efficiency["efficiency_source_target"]), [1.0, 1.0, 1.0])
 
 
 def test_load_element_config_from_values_applies_list_field_values() -> None:
     """List-backed fields (e.g. policy rules) accept pre-resolved store values."""
-    config: dict[str, Any] = {
+    config: dict[str, object] = {
         "element_type": "policy",
         "name": "Policies",
         "rules": [{"name": "solar", "enabled": True, "price": {"type": "constant", "value": 0.02}}],
@@ -614,12 +678,13 @@ def test_load_element_config_from_values_applies_list_field_values() -> None:
         {(CONF_RULES, "0", CONF_PRICE): resolved_price},
     )
 
-    np.testing.assert_array_equal(result["rules"][0]["price"], resolved_price)
+    rules = _list(result["rules"])
+    np.testing.assert_array_equal(_dict(rules[0])["price"], resolved_price)
 
 
 def test_load_element_config_from_values_skips_non_mapping_list_items() -> None:
     """Non-mapping list entries pass through unchanged."""
-    config: dict[str, Any] = {
+    config: dict[str, object] = {
         "element_type": "policy",
         "name": "Policies",
         "rules": ["literal-entry", {"name": "priced", "enabled": True, "price": {"type": "constant", "value": 0.01}}],
@@ -627,22 +692,24 @@ def test_load_element_config_from_values_skips_non_mapping_list_items() -> None:
 
     result = _load_config_from_values("Policies", config, {})
 
-    assert result["rules"][0] == "literal-entry"
+    assert _list(result["rules"])[0] == "literal-entry"
 
 
 def test_load_element_config_from_values_skips_invalid_list_container() -> None:
     """List field assembly is skipped when the config value is not a sequence."""
-    config: dict[str, Any] = {
+    config: dict[str, object] = {
         "element_type": "policy",
         "name": "Policies",
         "rules": "not-a-list",
     }
 
-    result: Any = load_element_config_from_values(
-        "Policies",
-        config,  # type: ignore[arg-type]  # rules is not a list; is_element_config_schema rejects this fixture
-        {},
-        FORECAST_TIMES,
+    result = _dict(
+        load_element_config_from_values(
+            "Policies",
+            config,  # type: ignore[arg-type]  # rules is not a list; is_element_config_schema rejects this fixture
+            {},
+            FORECAST_TIMES,
+        )
     )
 
     assert result["rules"] == "not-a-list"

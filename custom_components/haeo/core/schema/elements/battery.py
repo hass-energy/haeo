@@ -1,14 +1,6 @@
 """Battery element schema definitions."""
 
-from typing import (
-    Annotated,
-    Any,  # noqa: TID251  # legacy Any usage; migrate to precise types
-    Final,
-    Literal,
-    NotRequired,
-    TypedDict,
-    TypeGuard,
-)
+from typing import Annotated, Final, Literal, NotRequired, TypedDict, TypeGuard
 
 import numpy as np
 from numpy.typing import NDArray
@@ -329,7 +321,7 @@ class BatteryConfigData(ConnectedCommonData):
     overcharge: NotRequired[PartitionData]
 
 
-def is_battery_config_data(config: Any) -> TypeGuard[BatteryConfigData]:
+def is_battery_config_data(config: object) -> TypeGuard[BatteryConfigData]:
     """Narrow a loaded element config to battery data using the element_type discriminator."""
     return isinstance(config, dict) and config.get("element_type") == ELEMENT_TYPE
 

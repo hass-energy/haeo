@@ -9,7 +9,8 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
+
+from homeassistant.util.json import JsonValueType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ _SUBPROCESS_ENV = {
 
 
 def create_card_visualization(
-    output_sensors: Mapping[str, Mapping[str, Any]],
+    output_sensors: Mapping[str, Mapping[str, object]],
     output_path: str,
     *,
     anchor_time: str | None = None,
@@ -77,7 +78,7 @@ def create_card_visualization(
 
 
 def create_topology_visualization(
-    topology: dict[str, Any],
+    topology: dict[str, JsonValueType],
     output_path: str,
 ) -> None:
     """Render the network topology as SVG via the TypeScript renderer.
@@ -132,10 +133,10 @@ def create_topology_visualization(
 
 
 def visualize_scenario_results(
-    output_sensors: Mapping[str, Mapping[str, Any]],
+    output_sensors: Mapping[str, Mapping[str, object]],
     scenario_name: str,
     output_dir: Path,
-    topology: dict[str, Any],
+    topology: dict[str, JsonValueType],
     *,
     anchor_time: str | None = None,
 ) -> None:

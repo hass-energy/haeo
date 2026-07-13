@@ -5,11 +5,11 @@ import json
 from numbers import Real
 from pathlib import Path
 import subprocess
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
+from homeassistant.util.json import JsonValueType
 from syrupy.extensions.json import JSONSnapshotExtension
 from syrupy.location import PyTestLocation
-from syrupy.types import SerializableData, SerializedData, SnapshotIndex
+from syrupy.types import PropertyFilter, PropertyMatcher, SerializableData, SerializedData, SnapshotIndex
 
 from custom_components.haeo.core.model.const import OutputType
 
@@ -31,14 +31,14 @@ def _prettier_format(file: Path) -> None:
 
 
 def _collect_diffs(
-    received: Any,
-    snapshot: Any,
+    received: JsonValueType,
+    snapshot: JsonValueType,
     path: str = "",
     *,
     skip_keys: frozenset[str] | None = None,
-) -> list[tuple[str, Any, Any]]:
+) -> list[tuple[str, JsonValueType, JsonValueType]]:
     """Recursively collect paths where received and snapshot values differ."""
-    diffs: list[tuple[str, Any, Any]] = []
+    diffs: list[tuple[str, JsonValueType, JsonValueType]] = []
 
     if received is None and snapshot is None:
         return diffs
@@ -81,7 +81,7 @@ def _collect_diffs(
     return diffs
 
 
-def approx_equal(a: Any, b: Any, rel_tol: float = 1e-5, abs_tol: float = 1e-9) -> bool:
+def approx_equal(a: JsonValueType, b: JsonValueType, rel_tol: float = 1e-5, abs_tol: float = 1e-9) -> bool:
     """Compare two values with approximate equality for floats.
 
     For floats, uses relative and absolute tolerance.
@@ -131,9 +131,9 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
         self,
         data: SerializableData,
         *,
-        exclude: Any = None,
-        include: Any = None,
-        matcher: Any = None,
+        exclude: PropertyFilter | None = None,
+        include: PropertyFilter | None = None,
+        matcher: PropertyMatcher | None = None,
     ) -> SerializedData:
         """Serialize sensor data to Python dict for JSON storage.
 
@@ -279,7 +279,11 @@ class ScenarioJSONExtension(JSONSnapshotExtension):
     ) -> Iterator[str]:
         """Produce a structured diff showing only values that differ."""
         skip = self._unstable_output_keys(serialized_data, snapshot_data)
-        diffs = _collect_diffs(serialized_data, snapshot_data, skip_keys=skip)
+        # serialized_data/snapshot_data are typed SerializedData (str | bytes) to match the
+        # base class's ABC signature, but this extension's serialize()/read_snapshot()
+        # intentionally return/accept plain dicts (see serialize()'s docstring), so the
+        # runtime value here is always JSON-shaped data, not str/bytes.
+        diffs = _collect_diffs(serialized_data, snapshot_data, skip_keys=skip)  # type: ignore[arg-type]
         if not diffs:
             yield "No differences found (approx_equal passes but exact equality fails)"
             return

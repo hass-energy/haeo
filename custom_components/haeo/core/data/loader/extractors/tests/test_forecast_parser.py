@@ -1,7 +1,5 @@
 """Tests for data extractor functionality."""
 
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
-
 from homeassistant.core import HomeAssistant, State
 import pytest
 
@@ -12,7 +10,7 @@ from custom_components.haeo.core.data.loader.extractors.tests.test_data.sensors 
 )
 
 
-def _create_sensor_state(hass: HomeAssistant, entity_id: str, state_value: str, attributes: dict[str, Any]) -> State:
+def _create_sensor_state(hass: HomeAssistant, entity_id: str, state_value: str, attributes: dict[str, object]) -> State:
     """Create a sensor state and return it.
 
     Args:
@@ -38,21 +36,29 @@ def _create_sensor_state(hass: HomeAssistant, entity_id: str, state_value: str, 
     ALL_VALID_SENSORS,
     ids=lambda val: val.get("description", str(val)) if isinstance(val, dict) else str(val),
 )
-def test_extract_valid_sensors(hass: HomeAssistant, parser_type: str, sensor_data: dict[str, Any]) -> None:
+def test_extract_valid_sensors(hass: HomeAssistant, parser_type: str, sensor_data: dict[str, object]) -> None:
     """Test extraction of valid forecast data."""
-    state = _create_sensor_state(hass, sensor_data["entity_id"], sensor_data["state"], sensor_data["attributes"])
+    entity_id = sensor_data["entity_id"]
+    state_value = sensor_data["state"]
+    attributes = sensor_data["attributes"]
+    assert isinstance(entity_id, str)
+    assert isinstance(state_value, str)
+    assert isinstance(attributes, dict)
+    state = _create_sensor_state(hass, entity_id, state_value, attributes)
 
     result = extractors.extract(state)
 
     assert result is not None, f"Expected data for {parser_type}"
     assert isinstance(result.data, list), "Valid forecasts should return a list of time series entries"
 
-    expected_data: list[tuple[float, float]] = sensor_data["expected_data"]
+    expected_data = sensor_data["expected_data"]
+    assert isinstance(expected_data, list)
     assert len(result.data) == len(expected_data)
     for actual, expected in zip(result.data, expected_data, strict=True):
         assert actual == pytest.approx(expected, rel=1e-9)
 
-    expected_unit: str = sensor_data["expected_unit"]
+    expected_unit = sensor_data["expected_unit"]
+    assert isinstance(expected_unit, str)
     assert result.unit == expected_unit
 
 
@@ -61,10 +67,15 @@ def test_extract_valid_sensors(hass: HomeAssistant, parser_type: str, sensor_dat
     ALL_INVALID_SENSORS,
     ids=lambda val: val.get("description", str(val)) if isinstance(val, dict) else str(val),
 )
-def test_invalid_sensor_handling(hass: HomeAssistant, parser_type: str, sensor_data: dict[str, Any]) -> None:
+def test_invalid_sensor_handling(hass: HomeAssistant, parser_type: str, sensor_data: dict[str, object]) -> None:
     """Test handling of invalid sensor data."""
     entity_id = sensor_data["entity_id"]
-    state = _create_sensor_state(hass, entity_id, sensor_data["state"], sensor_data["attributes"])
+    state_value = sensor_data["state"]
+    attributes = sensor_data["attributes"]
+    assert isinstance(entity_id, str)
+    assert isinstance(state_value, str)
+    assert isinstance(attributes, dict)
+    state = _create_sensor_state(hass, entity_id, state_value, attributes)
 
     # Invalid sensors should fall back to simple value extraction
     result = extractors.extract(state)
@@ -90,7 +101,7 @@ def test_invalid_sensor_handling(hass: HomeAssistant, parser_type: str, sensor_d
 def test_extract_unknown_format_fallback(
     hass: HomeAssistant,
     state_value: str,
-    attributes: dict[str, Any],
+    attributes: dict[str, object],
     expected_value: float,
     expected_unit: str | None,
 ) -> None:
@@ -144,7 +155,7 @@ class TestInterpolationModeExtraction:
     )
     def test_linear_modes_leave_data_unchanged(self, hass: HomeAssistant, interpolation_mode: str | None) -> None:
         """Missing or explicit linear interpolation leaves data unchanged."""
-        attributes: dict[str, Any] = {
+        attributes: dict[str, object] = {
             "forecast": [
                 {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
                 {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},

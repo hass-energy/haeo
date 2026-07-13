@@ -1,13 +1,13 @@
 """Tests for the policy element config flow."""
 
 from types import MappingProxyType
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 from unittest.mock import Mock
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import ConfigSubentry, SubentryFlowResult
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.selector import ChooseSelectorConfig, Selector
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 import voluptuous as vol
@@ -107,7 +107,7 @@ def _make_policy_subentry(rules: list[PolicyRuleConfig]) -> ConfigSubentry:
     )
 
 
-def _get_suggested_value(result: Any, field_name: str) -> Any:
+def _get_suggested_value(result: SubentryFlowResult, field_name: str) -> object:
     """Extract the suggested_value for a field from a flow result's data_schema."""
     data_schema = result.get("data_schema")
     assert data_schema is not None
@@ -119,7 +119,7 @@ def _get_suggested_value(result: Any, field_name: str) -> Any:
     return None
 
 
-def _get_selector(result: Any, field_name: str) -> Any:
+def _get_selector(result: SubentryFlowResult, field_name: str) -> Selector[ChooseSelectorConfig] | None:
     """Extract selector instance for a field from a flow result's data_schema."""
     data_schema = result.get("data_schema")
     assert data_schema is not None
@@ -129,10 +129,12 @@ def _get_selector(result: Any, field_name: str) -> Any:
     return None
 
 
-def _get_entity_include_entities(selector: Any) -> list[str] | None:
+def _get_entity_include_entities(selector: Selector[ChooseSelectorConfig]) -> list[str] | None:
     """Extract include_entities from the entity branch of a choose selector."""
     entity_choice = selector.config["choices"][CHOICE_ENTITY]
-    entity_config = entity_choice["selector"]["entity"]
+    entity_selector = entity_choice["selector"]
+    assert isinstance(entity_selector, dict)
+    entity_config = entity_selector["entity"]
     included = entity_config.get("include_entities")
     return list(included) if included is not None else None
 
@@ -1421,7 +1423,7 @@ def test_parse_rule_input_stores_enabled() -> None:
         [],
     ],
 )
-def test_validate_rule_requires_non_empty_price(price_input: Any) -> None:
+def test_validate_rule_requires_non_empty_price(price_input: object) -> None:
     """Rule validation rejects missing or empty list price input."""
     flow = PolicySubentryFlowHandler()
     errors: dict[str, str] = {}

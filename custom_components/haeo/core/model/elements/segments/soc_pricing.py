@@ -1,6 +1,15 @@
 """SOC-based pricing segment — penalizes operation outside SOC thresholds."""
 
-from typing import Any, Literal, NotRequired  # noqa: TID251  # legacy Any usage; migrate to precise types
+from typing import (
+    Any,  # noqa: TID251  # source_element/target_element are the connection's endpoint elements,
+    # which can be any concrete NetworkElement subtype. Element is invariant in its output-name
+    # Literal (see element.py's outputs()), so no non-Any type expresses "an Element of some
+    # unknown output-name type" here; segments only use these via hasattr/isinstance duck typing.
+    Literal,
+    NotRequired,
+    Protocol,
+    runtime_checkable,
+)
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
@@ -13,6 +22,17 @@ from custom_components.haeo.core.model.reactive import TrackedParam, constraint,
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 from .segment import Segment
+
+
+@runtime_checkable
+class _BatteryLike(Protocol):
+    """Structural type for the battery endpoint SocPricingSegment penalizes.
+
+    Avoids importing Battery directly (elements/battery.py sits alongside this module and
+    importing it here would invert the intended dependency direction); duck-typed instead.
+    """
+
+    stored_energy: HighspyArray
 
 
 class SocPricingSegmentSpec(TypedDict):
@@ -90,10 +110,10 @@ class SocPricingSegment(Segment):
             out_array=True,
         )
 
-    def _get_battery(self) -> Any:
+    def _get_battery(self) -> _BatteryLike:
         """Find the battery element from the connection endpoints."""
         for element in (self.source_element, self.target_element):
-            if hasattr(element, "stored_energy"):
+            if isinstance(element, _BatteryLike):
                 return element
         msg = "SOC pricing segment requires a battery element endpoint"
         raise TypeError(msg)

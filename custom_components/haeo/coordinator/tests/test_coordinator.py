@@ -4,7 +4,7 @@ from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 import time
 from types import MappingProxyType
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
+from typing import Any  # noqa: TID251  # Mock-typed test doubles (MagicMock spec=) and monkeypatched callback stand-ins
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -1296,7 +1296,7 @@ def test_load_from_input_stores_delegates_to_config_loader(
     mock_store.value = 42.0
     mock_runtime_data.input_stores[("Test Battery", field_path)] = mock_store
 
-    loaded_config: dict[str, Any] = {"element_type": "battery", "name": "Test Battery"}
+    loaded_config: dict[str, str] = {"element_type": "battery", "name": "Test Battery"}
     with patch(
         "custom_components.haeo.coordinator.coordinator.load_element_config_from_values",
         return_value=loaded_config,
@@ -1718,14 +1718,15 @@ def test_build_optimization_context_collects_source_states() -> None:
     mock_horizon = MagicMock()
     mock_horizon.current_start_time = datetime.fromtimestamp(1000.0, tz=dt_util.UTC)
 
-    participant_configs: Any = {
+    participant_configs: dict[str, dict[str, object]] = {
         "Battery": {"element_type": "battery", "basic": {"capacity": 10.0}},
         "Solar": {"element_type": "solar", "basic": {"forecast": "sensor.solar"}},
     }
 
     context = _build_optimization_context(
         hub_config={"tier_1_count": 2, "tier_1_duration": 60},
-        participant_configs=participant_configs,
+        # Fixture configs omit required ElementConfigSchema keys; only source_states collection is under test.
+        participant_configs=participant_configs,  # type: ignore[arg-type]
         input_stores=input_stores,
         horizon_manager=mock_horizon,
     )

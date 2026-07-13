@@ -13,17 +13,18 @@ This tool loads a HAEO diagnostics export and either:
 from __future__ import annotations
 
 import argparse
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 import contextlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import json
 from pathlib import Path
 import sys
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 from zoneinfo import ZoneInfo
 
+from homeassistant.util.json import JsonValueType
 import numpy as np
+from numpy.typing import NDArray
 from tabulate import tabulate
 
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements, is_element_type
@@ -31,12 +32,13 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
-from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue, Network
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementConfigData
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config
 from custom_components.haeo.core.schema.sections import SECTION_PRICING
 from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
+from custom_components.haeo.elements import is_element_config_schema
 
 MIN_INTERVAL_POINTS = 2
 
@@ -47,9 +49,9 @@ class DiagEntityState:
 
     entity_id: str
     state: str
-    attributes: dict[str, Any]
+    attributes: dict[str, JsonValueType]
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> dict[str, JsonValueType]:
         """Return serialized state representation."""
         return {"entity_id": self.entity_id, "state": self.state, "attributes": self.attributes}
 
@@ -74,10 +76,10 @@ class RowData:
 class DiagnosticsData:
     """Parsed diagnostics data."""
 
-    config: dict[str, Any]
-    environment: dict[str, Any]
-    inputs: list[dict[str, Any]]
-    outputs: dict[str, Any]
+    config: dict[str, JsonValueType]
+    environment: dict[str, JsonValueType]
+    inputs: list[dict[str, JsonValueType]]
+    outputs: dict[str, JsonValueType]
 
     @classmethod
     def from_file(cls, path: Path) -> DiagnosticsData:
@@ -114,7 +116,7 @@ class DiagnosticsData:
         with inputs_file.open() as f:
             inputs = json.load(f)
 
-        outputs: dict[str, Any] = {}
+        outputs: dict[str, JsonValueType] = {}
         if outputs_file.exists():
             with outputs_file.open() as f:
                 outputs = json.load(f)
@@ -125,18 +127,18 @@ class DiagnosticsData:
 class DiagnosticsStateProvider:
     """StateMachine implementation backed by diagnostics input data."""
 
-    def __init__(self, inputs: list[dict[str, Any]]) -> None:
+    def __init__(self, inputs: list[dict[str, JsonValueType]]) -> None:
         """Initialize with inputs list from diagnostics."""
         self._states: dict[str, DiagEntityState] = {}
         for entity_state in inputs:
             entity_id = entity_state.get("entity_id")
-            if entity_id:
+            if isinstance(entity_id, str) and entity_id:
                 state_value = str(entity_state.get("state", "unknown"))
                 attributes = entity_state.get("attributes", {})
                 self._states[entity_id] = DiagEntityState(
                     entity_id=entity_id,
                     state=state_value,
-                    attributes=attributes,
+                    attributes=attributes if isinstance(attributes, dict) else {},
                 )
 
     def get(self, entity_id: str) -> DiagEntityState | None:
@@ -144,7 +146,7 @@ class DiagnosticsStateProvider:
         return self._states.get(entity_id)
 
 
-def _needs_subentry_migration(element_config: dict[str, Any]) -> bool:
+def _needs_subentry_migration(element_config: dict[str, object]) -> bool:
     """Return True when a participant config looks legacy or mixed."""
     if CONF_NAME not in element_config:
         return True
@@ -159,13 +161,36 @@ def _needs_subentry_migration(element_config: dict[str, Any]) -> bool:
     return False
 
 
-def normalize_participant_config_for_diag(element_config: dict[str, Any]) -> dict[str, Any]:
+def normalize_participant_config_for_diag(element_config: dict[str, object]) -> dict[str, object]:
     """Normalize a participant config to sectioned format for diagnostics CLI."""
     if not _needs_subentry_migration(element_config):
         return element_config
 
     migrated = migrate_element_config(element_config)
     return migrated if migrated is not None else element_config
+
+
+def _as_tier_config(config: Mapping[str, JsonValueType]) -> dict[str, int | str | Mapping[str, int | str]]:
+    """Narrow a diagnostics config dict to the shape ``tiers_to_periods_seconds`` expects.
+
+    Diagnostics config is genuinely-JSON-shaped and typed as such, but the tier
+    config helper only cares about tier_N_count/tier_N_duration/horizon_preset
+    fields, which are always plain ints/strings (optionally nested one level).
+    """
+    result: dict[str, int | str | Mapping[str, int | str]] = {}
+    for key, value in config.items():
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, int | str):
+            result[key] = value
+        elif isinstance(value, dict):
+            nested: dict[str, int | str] = {
+                nested_key: nested_value
+                for nested_key, nested_value in value.items()
+                if isinstance(nested_value, int | str) and not isinstance(nested_value, bool)
+            }
+            result[key] = nested
+    return result
 
 
 def format_currency(value: float) -> str:
@@ -175,7 +200,11 @@ def format_currency(value: float) -> str:
     return f"-${abs(value):.2f}"
 
 
-def find_output_entity(outputs: dict[str, Any], element_name: str, field_or_output_name: str) -> dict[str, Any] | None:
+def find_output_entity(
+    outputs: dict[str, JsonValueType],
+    element_name: str,
+    field_or_output_name: str,
+) -> dict[str, JsonValueType] | None:
     """Find an output entity by element_name and field_name or output_name attributes.
 
     Number entities (inputs) have field_name attribute:
@@ -194,7 +223,11 @@ def find_output_entity(outputs: dict[str, Any], element_name: str, field_or_outp
 
     """
     for entity in outputs.values():
+        if not isinstance(entity, dict):
+            continue
         attrs = entity.get("attributes", {})
+        if not isinstance(attrs, dict):
+            continue
         if attrs.get("element_name") != element_name:
             continue
         # Check field_name (for number.* entities)
@@ -206,17 +239,36 @@ def find_output_entity(outputs: dict[str, Any], element_name: str, field_or_outp
     return None
 
 
-def get_forecast_by_field(outputs: dict[str, Any], element_name: str, field_or_output_name: str) -> dict[str, float]:
-    """Extract forecast values by element_name and field/output name, keyed by time string."""
-    entity = find_output_entity(outputs, element_name, field_or_output_name)
+def _forecast_from_entity(entity: dict[str, JsonValueType] | None) -> dict[str, float]:
+    """Extract the time -> value forecast mapping from an output entity's attributes."""
     if entity is None:
         return {}
-    forecast = entity.get("attributes", {}).get("forecast", [])
-    return {item["time"]: item["value"] for item in forecast}
+    attributes = entity.get("attributes", {})
+    forecast = attributes.get("forecast", []) if isinstance(attributes, dict) else []
+    result: dict[str, float] = {}
+    if isinstance(forecast, list):
+        for item in forecast:
+            if not isinstance(item, dict):
+                continue
+            time_value = item.get("time")
+            value = item.get("value")
+            if isinstance(time_value, str) and isinstance(value, int | float) and not isinstance(value, bool):
+                result[time_value] = value
+    return result
+
+
+def get_forecast_by_field(
+    outputs: dict[str, JsonValueType],
+    element_name: str,
+    field_or_output_name: str,
+) -> dict[str, float]:
+    """Extract forecast values by element_name and field/output name, keyed by time string."""
+    entity = find_output_entity(outputs, element_name, field_or_output_name)
+    return _forecast_from_entity(entity)
 
 
 def get_forecast_by_fields(
-    outputs: dict[str, Any],
+    outputs: dict[str, JsonValueType],
     element_name: str,
     field_or_output_names: Sequence[str],
 ) -> dict[str, float]:
@@ -228,13 +280,25 @@ def get_forecast_by_fields(
     return {}
 
 
-def infer_interval_starts_from_outputs(outputs: dict[str, Any], config: dict[str, Any]) -> list[float]:
+def _find_element_name(participants: dict[str, JsonValueType], element_type: str, default: str) -> str:
+    """Find the participant name whose config has the given element_type, or default."""
+    for name, cfg in participants.items():
+        if isinstance(cfg, dict) and cfg.get("element_type") == element_type:
+            return name
+    return default
+
+
+def infer_interval_starts_from_outputs(
+    outputs: dict[str, JsonValueType],
+    config: dict[str, JsonValueType],
+) -> list[float]:
     """Infer interval start timestamps from diagnostics outputs."""
-    participants = config.get("participants", {})
-    grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
-    battery_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery")
-    load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
-    solar_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "solar"), "Solar")
+    participants_raw = config.get("participants", {})
+    participants = participants_raw if isinstance(participants_raw, dict) else {}
+    grid_name = _find_element_name(participants, "grid", "Grid")
+    battery_name = _find_element_name(participants, "battery", "Battery")
+    load_name = _find_element_name(participants, "load", "Load")
+    solar_name = _find_element_name(participants, "solar", "Solar")
 
     candidates = (
         get_forecast_by_field(outputs, grid_name, "grid_power_active"),
@@ -254,29 +318,32 @@ def infer_interval_starts_from_outputs(outputs: dict[str, Any], config: dict[str
     return []
 
 
-def get_forecast_values(outputs: dict[str, Any], entity_id: str) -> dict[str, float]:
+def get_forecast_values(outputs: dict[str, JsonValueType], entity_id: str) -> dict[str, float]:
     """Extract forecast values from a diagnostics output entity by entity_id.
 
     Falls back to exact entity_id match for backward compatibility.
     """
     entity = outputs.get(entity_id, {})
-    attributes = entity.get("attributes", {})
-    forecast = attributes.get("forecast", [])
-    return {item["time"]: item["value"] for item in forecast}
+    return _forecast_from_entity(entity if isinstance(entity, dict) else None)
 
 
-def format_output_table_from_diagnostics(outputs: dict[str, Any], timezone_str: str, config: dict[str, Any]) -> str:
+def format_output_table_from_diagnostics(
+    outputs: dict[str, JsonValueType],
+    timezone_str: str,
+    config: dict[str, JsonValueType],
+) -> str:
     """Format pre-computed outputs from diagnostics as a table.
 
     This reads the already-computed outputs stored in the diagnostics file.
     Uses element names from config to find output entities by their attributes.
     """
     # Find element names from config
-    participants = config.get("participants", {})
-    grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
-    battery_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery")
-    load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
-    solar_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "solar"), "Solar")
+    participants_raw = config.get("participants", {})
+    participants = participants_raw if isinstance(participants_raw, dict) else {}
+    grid_name = _find_element_name(participants, "grid", "Grid")
+    battery_name = _find_element_name(participants, "battery", "Battery")
+    load_name = _find_element_name(participants, "load", "Load")
+    solar_name = _find_element_name(participants, "solar", "Solar")
 
     # Extract forecast data using element_name and field_name/output_name attributes
     # Prices use field_name (number.* entities), sensors use output_name (sensor.* entities)
@@ -356,7 +423,7 @@ def format_output_table_from_network(
     tz = ZoneInfo(timezone_str)
 
     # Collect raw model outputs from all network elements
-    model_outputs: dict[str, Any] = {
+    model_outputs: dict[str, Mapping[ModelOutputName, ModelOutputValue]] = {
         element_name: element.outputs() for element_name, element in network.elements.items()
     }
 
@@ -385,8 +452,8 @@ def format_output_table_from_network(
             print(f"  Warning: Failed to get outputs for {element_name}: {e}")
 
     # Extract prices from Grid config (sectioned: pricing.price_source_target/price_target_source)
-    grid_import_price_array: np.ndarray | None = None
-    grid_export_price_array: np.ndarray | None = None
+    grid_import_price_array: NDArray[np.float64] | None = None
+    grid_export_price_array: NDArray[np.float64] | None = None
     for element_config in loaded_participants.values():
         if element_config.get(CONF_ELEMENT_TYPE) == "grid":
             pricing = element_config.get(SECTION_PRICING, {})
@@ -505,14 +572,19 @@ def format_output_table_from_network(
     return "\n".join(result_parts)
 
 
-def extract_rows_from_diagnostics(outputs: dict[str, Any], _timezone_str: str, config: dict[str, Any]) -> list[RowData]:
+def extract_rows_from_diagnostics(
+    outputs: dict[str, JsonValueType],
+    _timezone_str: str,
+    config: dict[str, JsonValueType],
+) -> list[RowData]:
     """Extract row data from pre-computed diagnostics outputs."""
     # Find element names from config
-    participants = config.get("participants", {})
-    grid_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "grid"), "Grid")
-    battery_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "battery"), "Battery")
-    load_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "load"), "Load")
-    solar_name = next((name for name, cfg in participants.items() if cfg.get("element_type") == "solar"), "Solar")
+    participants_raw = config.get("participants", {})
+    participants = participants_raw if isinstance(participants_raw, dict) else {}
+    grid_name = _find_element_name(participants, "grid", "Grid")
+    battery_name = _find_element_name(participants, "battery", "Battery")
+    load_name = _find_element_name(participants, "load", "Load")
+    solar_name = _find_element_name(participants, "solar", "Solar")
 
     # Extract forecast data using element_name and field_name/output_name attributes
     # Prices use field_name (number.* entities), sensors use output_name (sensor.* entities)
@@ -563,7 +635,7 @@ def extract_rows_from_network(
     tz = ZoneInfo(timezone_str)
 
     # Collect raw model outputs from all network elements
-    model_outputs: dict[str, Any] = {
+    model_outputs: dict[str, Mapping[ModelOutputName, ModelOutputValue]] = {
         element_name: element.outputs() for element_name, element in network.elements.items()
     }
 
@@ -587,8 +659,8 @@ def extract_rows_from_network(
                 adapter_outputs[f"{element_name}:{device_name}"] = dict(device_outputs)
 
     # Extract prices from Grid config (sectioned: pricing.price_source_target/price_target_source)
-    grid_import_price_array: np.ndarray | None = None
-    grid_export_price_array: np.ndarray | None = None
+    grid_import_price_array: NDArray[np.float64] | None = None
+    grid_export_price_array: NDArray[np.float64] | None = None
     for element_config in loaded_participants.values():
         if element_config.get(CONF_ELEMENT_TYPE) == "grid":
             pricing = element_config.get(SECTION_PRICING, {})
@@ -856,10 +928,15 @@ def run_diagnostics(
     # Extract configuration
     config = diag.config
     environment = diag.environment
-    participants_config = config.get("participants", {})
+    participants_config_raw = config.get("participants", {})
+    participants_config: dict[str, JsonValueType] = (
+        participants_config_raw if isinstance(participants_config_raw, dict) else {}
+    )
 
-    optimization_start_str = environment.get("optimization_start_time", "")
-    timezone_str = environment.get("timezone", "UTC")
+    optimization_start_raw = environment.get("optimization_start_time", "")
+    optimization_start_str = optimization_start_raw if isinstance(optimization_start_raw, str) else ""
+    timezone_raw = environment.get("timezone", "UTC")
+    timezone_str = timezone_raw if isinstance(timezone_raw, str) else "UTC"
 
     start_time = (
         parse_datetime_to_timestamp(optimization_start_str)
@@ -884,7 +961,8 @@ def run_diagnostics(
 
     # Determine the optimization start time for tier alignment.
     # Priority: environment.horizon_start > inferred from outputs > environment.optimization_start_time > now
-    horizon_start_str = environment.get("horizon_start")
+    horizon_start_raw = environment.get("horizon_start")
+    horizon_start_str = horizon_start_raw if isinstance(horizon_start_raw, str) else None
     if horizon_start_str:
         start_dt = datetime.fromisoformat(horizon_start_str)
         print(f"Horizon start: {horizon_start_str}")
@@ -893,9 +971,13 @@ def run_diagnostics(
         start_dt = None
         if diag.outputs:
             for entity in diag.outputs.values():
-                forecast = entity.get("attributes", {}).get("forecast", [])
-                if forecast and "time" in forecast[0]:
-                    first_time_str = forecast[0]["time"]
+                if not isinstance(entity, dict):
+                    continue
+                attributes = entity.get("attributes", {})
+                forecast = attributes.get("forecast", []) if isinstance(attributes, dict) else []
+                first_item = forecast[0] if isinstance(forecast, list) and forecast else None
+                first_time_str = first_item.get("time") if isinstance(first_item, dict) else None
+                if isinstance(first_time_str, str):
                     start_dt = datetime.fromisoformat(first_time_str)
                     print(f"Inferred start time from outputs: {first_time_str}")
                     break
@@ -910,8 +992,13 @@ def run_diagnostics(
     periods_seconds: list[int] = []
     forecast_times: tuple[float, ...] = ()
 
-    if "forecast_timestamps" in environment:
-        forecast_times = tuple(environment["forecast_timestamps"])
+    forecast_timestamps_raw = environment.get("forecast_timestamps")
+    if isinstance(forecast_timestamps_raw, list):
+        forecast_times = tuple(
+            float(value)
+            for value in forecast_timestamps_raw
+            if isinstance(value, int | float) and not isinstance(value, bool)
+        )
         # Derive periods_seconds from the actual forecast timestamps
         periods_seconds = [int(forecast_times[i + 1] - forecast_times[i]) for i in range(len(forecast_times) - 1)]
         print(f"Optimization periods: {len(periods_seconds)} intervals (from diagnostics)")
@@ -936,7 +1023,7 @@ def run_diagnostics(
         if len(interval_starts) < MIN_INTERVAL_POINTS:
             print("Warning: Could not infer output-aligned timeline, falling back to config tiers")
             # Apply preset override if provided via CLI
-            effective_config = dict(config)
+            effective_config = _as_tier_config(config)
             if preset:
                 effective_config["horizon_preset"] = preset
                 print(f"Using preset override: {preset}")
@@ -952,7 +1039,7 @@ def run_diagnostics(
             print(f"Forecast horizon: {len(forecast_times)} boundaries (generated)")
     else:
         # Apply preset override if provided via CLI
-        effective_config = dict(config)
+        effective_config = _as_tier_config(config)
         if preset:
             effective_config["horizon_preset"] = preset
             print(f"Using preset override: {preset}")
@@ -972,14 +1059,19 @@ def run_diagnostics(
         sys.exit(1)
 
     # Normalize participant config shape before loading values
-    for element_name, element_config in list(participants_config.items()):
-        participants_config[element_name] = normalize_participant_config_for_diag(element_config)
+    normalized_participants: dict[str, object] = {}
+    for element_name, element_config in participants_config.items():
+        element_config_obj: dict[str, object] = dict(element_config) if isinstance(element_config, dict) else {}
+        normalized_participants[element_name] = normalize_participant_config_for_diag(element_config_obj)
 
     state_provider = DiagnosticsStateProvider(diag.inputs)
 
     loaded_participants: dict[str, ElementConfigData] = {}
-    for element_name, element_config in participants_config.items():
+    for element_name, element_config in normalized_participants.items():
         try:
+            if not is_element_config_schema(element_config):
+                msg = f"{element_name} is not a valid element config"
+                raise TypeError(msg)
             loaded_participants[element_name] = load_element_config(
                 element_name, element_config, state_provider, forecast_times
             )

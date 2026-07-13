@@ -1,7 +1,7 @@
 """Tests for battery_section element config flow."""
 
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -22,7 +22,7 @@ from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.flows.conftest import create_flow
 
 
-def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_input(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat battery section input values into sectioned config."""
     if SECTION_STORAGE in flat:
         return dict(flat)
@@ -35,7 +35,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_config(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat battery section config values into sectioned config with element type."""
     if SECTION_STORAGE in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
@@ -85,8 +85,8 @@ def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
 async def test_reconfigure_defaults_handle_schema_values(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    config_values: dict[str, Any],
-    expected_defaults: dict[str, Any],
+    config_values: dict[str, object],
+    expected_defaults: dict[str, object],
 ) -> None:
     """Reconfigure defaults reflect schema values and missing fields."""
     existing_config = _wrap_config(config_values)

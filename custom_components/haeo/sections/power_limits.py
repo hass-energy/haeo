@@ -7,7 +7,11 @@ import voluptuous as vol
 from custom_components.haeo.core.schema.sections.power_limits import SECTION_POWER_LIMITS
 from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldSection
-from custom_components.haeo.flows.field_schema import SectionDefinition, build_choose_field_entries
+from custom_components.haeo.flows.field_schema import (
+    NormalizingChooseSelector,
+    SectionDefinition,
+    build_choose_field_entries,
+)
 
 
 def power_limits_section(
@@ -26,7 +30,7 @@ def build_power_limits_fields(
     field_schema: Mapping[str, FieldSchemaInfo],
     inclusion_map: dict[str, list[str]],
     current_data: Mapping[str, object] | None = None,
-) -> dict[str, tuple[vol.Marker, object]]:
+) -> dict[str, tuple[vol.Marker, NormalizingChooseSelector]]:
     """Build power limits field entries for config flows."""
     if not input_fields:
         return {}

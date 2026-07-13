@@ -4,7 +4,12 @@ from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, Literal, TypedDict  # noqa: TID251  # legacy Any usage; migrate to precise types
+
+# The synthetic test adapter below must accept ElementAdapter's own Any-typed protocol
+# methods (config: Any, **_kwargs: Any; core/adapters/registry.py) to satisfy that
+# Protocol, and `_create_flow`/flow-driving helpers here call per-element step methods
+# and monkeypatch async_create_entry, which a static flow base type cannot express.
+from typing import Any, Literal, TypedDict  # noqa: TID251
 from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult
@@ -37,10 +42,10 @@ from custom_components.haeo.core.const import (
     DEFAULT_TIER_4_DURATION,
     ConnectivityLevel,
 )
-from custom_components.haeo.core.model import OutputData
+from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, OutputData
 from custom_components.haeo.core.schema.elements import ElementType, battery, connection, grid, node
 from custom_components.haeo.elements import ElementOutputName
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import AnyInputFieldInfo
 from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS, get_element_flow_classes
 
 # Policy uses a multi-step menu-driven flow incompatible with the generic single-step tests
@@ -106,25 +111,28 @@ def _prepare_flow_context(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
     element_type: ElementType,
-    config: dict[str, Any],
+    config: Mapping[str, object],
 ) -> None:
     """Populate dependent participants required by connection flows."""
 
     if element_type == connection.ELEMENT_TYPE:
         endpoints = config.get(connection.SECTION_ENDPOINTS, {})
-        for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
-            endpoint = endpoints.get(key)
-            if isinstance(endpoint, str) and endpoint:
-                inferred_type: ElementType = grid.ELEMENT_TYPE if "grid" in endpoint.lower() else battery.ELEMENT_TYPE
-                _add_participant_subentry(hass, hub_entry, endpoint, inferred_type)
+        if isinstance(endpoints, dict):
+            for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
+                endpoint = endpoints.get(key)
+                if isinstance(endpoint, str) and endpoint:
+                    inferred_type: ElementType = (
+                        grid.ELEMENT_TYPE if "grid" in endpoint.lower() else battery.ELEMENT_TYPE
+                    )
+                    _add_participant_subentry(hass, hub_entry, endpoint, inferred_type)
 
 
-def _get_element_name(config: Mapping[str, Any], element_type: ElementType) -> str:
+def _get_element_name(config: Mapping[str, object], element_type: ElementType) -> str:
     """Return the element name from a config dict."""
     return str(config.get(CONF_NAME, element_type.title()))
 
 
-def _make_subentry(element_type: ElementType, config: dict[str, Any]) -> ConfigSubentry:
+def _make_subentry(element_type: ElementType, config: Mapping[str, object]) -> ConfigSubentry:
     """Create an immutable config subentry for the provided element data."""
 
     data = {CONF_ELEMENT_TYPE: element_type, **deepcopy(config)}
@@ -142,7 +150,7 @@ class FlowTestElementFactory:
 
     element_type: str = TEST_ELEMENT_TYPE
 
-    def create_config(self, *, name: str) -> dict[str, Any]:
+    def create_config(self, *, name: str) -> dict[str, object]:
         """Return a minimal configuration for a synthetic element."""
 
         return {CONF_NAME: name}
@@ -190,21 +198,21 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
         advanced: bool = False
         connectivity: str = ConnectivityLevel.ALWAYS.value
 
-        def available(self, config: Any, **_kwargs: Any) -> bool:
+        def available(self, config: object, **_kwargs: object) -> bool:
             _ = config  # Unused but required by protocol
             return True
 
-        def inputs(self, config: Any) -> dict[str, InputFieldInfo[Any]]:
+        def inputs(self, config: object) -> dict[str, AnyInputFieldInfo]:
             _ = config
             return {}
 
-        def model_elements(self, config: Any) -> list[dict[str, Any]]:  # noqa: ARG002 (required by adapter protocol)
+        def model_elements(self, config: Any) -> list[ModelElementConfig]:  # noqa: ARG002 (required by adapter protocol)
             return []
 
         def outputs(
             self,
             name: str,  # noqa: ARG002 (required by adapter protocol)
-            model_outputs: Mapping[str, Mapping[Any, OutputData]],  # noqa: ARG002 (required by adapter protocol)
+            model_outputs: Mapping[str, Mapping[ModelOutputName, OutputData]],  # noqa: ARG002 (required by adapter protocol)
             **_kwargs: Any,
         ) -> Mapping[str, Mapping[ElementOutputName, OutputData]]:
             return {}

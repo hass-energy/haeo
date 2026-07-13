@@ -1,6 +1,9 @@
 """Node element configuration flows."""
 
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
+from collections.abc import Mapping
+from typing import (
+    Any,  # noqa: TID251  # HA flow signatures upstream; voluptuous schema value types are heterogeneous by design
+)
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfig
@@ -19,6 +22,16 @@ _SUGGESTED_DEFAULTS = {
         CONF_IS_SINK: False,
     },
 }
+
+
+def _as_mapping(value: object) -> Mapping[str, object]:
+    """Narrow a stored dict value to a mapping, defaulting to empty."""
+    return value if isinstance(value, Mapping) else {}
+
+
+def _as_str(value: object) -> str | None:
+    """Narrow a stored dict value to a string, or None if absent/invalid."""
+    return value if isinstance(value, str) else None
 
 
 class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -66,16 +79,16 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Handle reconfiguring an existing node element."""
         return await self._async_step_user(user_input)
 
-    async def _async_step_user(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
+    async def _async_step_user(self, user_input: dict[str, object] | None) -> SubentryFlowResult:
         """Shared logic for user and reconfigure steps."""
         errors: dict[str, str] = {}
         subentry = self._get_subentry()
 
         if user_input is not None:
-            role_input = user_input.get(SECTION_ROLE, {})
-            name = user_input.get(CONF_NAME)
+            role_input = _as_mapping(user_input.get(SECTION_ROLE))
+            name = _as_str(user_input.get(CONF_NAME))
             if self._validate_name(name, errors):
-                config = {
+                config: dict[str, object] = {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                     CONF_NAME: name,
                     SECTION_ROLE: {
@@ -90,7 +103,7 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                         title=str(name),
                         data=config,
                     )
-                return self.async_create_entry(title=name, data=config)
+                return self.async_create_entry(title=str(name), data=config)
 
         schema = self._build_schema()
         defaults = dict(subentry.data) if subentry else _SUGGESTED_DEFAULTS

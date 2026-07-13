@@ -1,7 +1,7 @@
 """Tests for connection element config flow."""
 
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -29,7 +29,7 @@ from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.flows.conftest import create_flow
 
 
-def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_input(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat connection input values into sectioned config."""
     if SECTION_ENDPOINTS in flat:
         return dict(flat)
@@ -47,15 +47,17 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_config(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat connection config values into sectioned config with element type."""
     if SECTION_ENDPOINTS in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     config = _wrap_input(flat)
     endpoints = config.get(SECTION_ENDPOINTS, {})
-    for key in (CONF_SOURCE, CONF_TARGET):
-        if key in endpoints and isinstance(endpoints[key], str):
-            endpoints[key] = as_connection_target(endpoints[key])
+    if isinstance(endpoints, dict):
+        for key in (CONF_SOURCE, CONF_TARGET):
+            value = endpoints.get(key)
+            if isinstance(value, str):
+                endpoints[key] = as_connection_target(value)
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
 
@@ -179,8 +181,8 @@ async def test_reconfigure_defaults_handle_schema_values(
     source: str,
     target: str,
     add_source: bool,
-    config_values: dict[str, Any],
-    expected_defaults: dict[str, Any],
+    config_values: dict[str, object],
+    expected_defaults: dict[str, object],
 ) -> None:
     """Reconfigure defaults reflect schema values and tolerate missing endpoints."""
     if add_source:

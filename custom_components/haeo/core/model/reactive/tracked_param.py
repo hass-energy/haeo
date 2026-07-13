@@ -1,11 +1,28 @@
 """TrackedParam descriptor for automatic dependency tracking."""
 
 from contextvars import ContextVar
-from typing import Any, overload  # noqa: TID251  # legacy Any usage; migrate to precise types
+from typing import NotRequired, TypedDict, overload
 
+from highspy.highs import highs_cons
 import numpy as np
 
 from .protocols import ReactiveHost
+
+
+class DecoratorState(TypedDict):
+    """Reactive cache state stored per decorated method on a ReactiveHost instance.
+
+    ``result`` is typed ``object`` because it holds whatever the decorated method
+    returns (constraint expressions, cost expressions, ...); callers already narrow
+    or ``# type: ignore`` at the point they read it back out through the generic
+    ``ReactiveMethod[R]``/``ReactiveConstraint[R]`` machinery.
+    """
+
+    invalidated: bool
+    deps: set[str]
+    result: object
+    constraint: NotRequired[highs_cons | list[highs_cons]]
+
 
 # Context for tracking parameter access during constraint computation
 tracking_context: ContextVar[set[str] | None] = ContextVar("tracking", default=None)
@@ -185,7 +202,7 @@ def _propagate_method_invalidation(obj: ReactiveHost, invalidated_methods: set[s
         newly_invalidated = next_round
 
 
-def get_decorator_state(obj: ReactiveHost, method_name: str) -> dict[str, Any] | None:
+def get_decorator_state(obj: ReactiveHost, method_name: str) -> DecoratorState | None:
     """Get the state dictionary for a decorator method on an object.
 
     Args:
@@ -200,7 +217,7 @@ def get_decorator_state(obj: ReactiveHost, method_name: str) -> dict[str, Any] |
     return getattr(obj, state_attr, None)
 
 
-def ensure_decorator_state(obj: ReactiveHost, method_name: str) -> dict[str, Any]:
+def ensure_decorator_state(obj: ReactiveHost, method_name: str) -> DecoratorState:
     """Ensure a state dictionary exists for a decorator method on an object.
 
     Args:
@@ -219,6 +236,7 @@ def ensure_decorator_state(obj: ReactiveHost, method_name: str) -> dict[str, Any
 
 # Re-export tracking context for use by decorators
 __all__ = [
+    "DecoratorState",
     "TrackedParam",
     "ensure_decorator_state",
     "get_decorator_state",

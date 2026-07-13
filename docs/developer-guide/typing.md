@@ -185,8 +185,8 @@ assignment silently passes. Importing it is banned by Ruff (TID251), the same me
 1. **A precise type**: a TypedDict, dataclass, Protocol, or union that describes the actual shape
 2. **A generic `TypeVar`**: when the function relates its input and output types
 3. **`object`**: for values that are genuinely unknown at a boundary. Unlike `Any`, `object`
-   forces narrowing (isinstance, TypeGuard) before use — mistakes surface at the checker instead
-   of at runtime
+    forces narrowing (isinstance, TypeGuard) before use — mistakes surface at the checker instead
+    of at runtime
 
 ```python
 # ✅ Good: object forces narrowing before use
@@ -212,9 +212,9 @@ import line:
 - voluptuous schema dictionaries, which are heterogeneous by design
 - Home Assistant framework signatures that are `Any`-typed upstream
 
-Files that predate the ban carry `# noqa: TID251  # legacy Any usage` markers on their imports.
-That set must only shrink: remove the marker when you clean a file, and never add new `Any`
-usage to a file that still has one.
+Every remaining `# noqa: TID251` in the codebase carries a specific structural justification on
+the import line. Adding a new one requires the same: a short comment stating why no precise type
+can express the code. Remove the noqa when the last structural use in a file goes away.
 
 ## Assertion helpers
 

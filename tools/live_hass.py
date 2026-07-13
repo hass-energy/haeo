@@ -18,7 +18,7 @@ This avoids needing config files, YAML, or packages - just load states from JSON
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Coroutine, Generator
 from contextlib import closing, contextmanager
 from dataclasses import dataclass
 import json
@@ -27,7 +27,7 @@ from pathlib import Path
 import socket
 import tempfile
 import threading
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
+from typing import TYPE_CHECKING
 import warnings
 
 from homeassistant import loader
@@ -46,7 +46,11 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers import restore_state as rs
 from homeassistant.setup import async_setup_component
+from homeassistant.util.json import JsonValueType
 from playwright.sync_api import BrowserContext
+
+if TYPE_CHECKING:
+    from custom_components.haeo import HaeoConfigEntry
 
 PROJECT_ROOT = Path(__file__).parent.parent
 _LOGGER = logging.getLogger(__name__)
@@ -54,10 +58,10 @@ _LOGGER = logging.getLogger(__name__)
 # Loopback networks the trusted_networks auth provider auto-logs in from. Home
 # Assistant binds to all interfaces with a dual-stack socket, so IPv4 loopback
 # connections arrive as the IPv4-mapped form ``::ffff:127.0.0.1``.
-TRUSTED_LOOPBACK_NETWORKS = ["127.0.0.1/32", "::1/128", "::ffff:127.0.0.1/128"]
+TRUSTED_LOOPBACK_NETWORKS: list[JsonValueType] = ["127.0.0.1/32", "::1/128", "::ffff:127.0.0.1/128"]
 
 
-def auth_provider_configs() -> list[dict[str, Any]]:
+def auth_provider_configs() -> list[dict[str, JsonValueType]]:
     """Return the auth providers shared by the guide and sim runners.
 
     The trusted_networks provider auto-logs in the single dev user for any
@@ -123,7 +127,7 @@ def _find_free_port() -> int:
 async def _require_component(
     hass: HomeAssistant,
     domain: str,
-    hass_config: dict[str, Any],
+    hass_config: dict[str, JsonValueType],
 ) -> None:
     """Set up a core component, failing fast when programmatic bootstrap cannot continue."""
     if not await async_setup_component(hass, domain, hass_config):
@@ -171,7 +175,7 @@ class LiveHomeAssistant:
         self,
         entity_id: str,
         state: str,
-        attributes: dict[str, Any] | None = None,
+        attributes: dict[str, JsonValueType] | None = None,
     ) -> None:
         """Set an entity state."""
 
@@ -181,15 +185,21 @@ class LiveHomeAssistant:
         future = asyncio.run_coroutine_threadsafe(_set(), self.loop)
         future.result(timeout=5)
 
-    def set_states(self, states: list[dict[str, Any]]) -> None:
+    def set_states(self, states: list[dict[str, JsonValueType]]) -> None:
         """Set multiple entity states."""
 
         async def _set_all() -> None:
             for state_data in states:
+                entity_id = state_data["entity_id"]
+                state = state_data["state"]
+                if not isinstance(entity_id, str) or not isinstance(state, str):
+                    msg = f"State record entity_id/state must be strings: {state_data!r}"
+                    raise TypeError(msg)
+                attributes = state_data.get("attributes", {})
                 self.hass.states.async_set(
-                    state_data["entity_id"],
-                    state_data["state"],
-                    state_data.get("attributes", {}),
+                    entity_id,
+                    state,
+                    attributes if isinstance(attributes, dict) else {},
                 )
             await self.hass.async_block_till_done()
 
@@ -259,14 +269,14 @@ class LiveHomeAssistant:
         await self.hass.async_block_till_done()
 
     @staticmethod
-    def _entry_is_operational(entry: Any) -> bool:
+    def _entry_is_operational(entry: HaeoConfigEntry) -> bool:
         """Return True when the HAEO entry finished setup and has a coordinator."""
         if entry.state is not ConfigEntryState.LOADED:
             return False
         runtime_data = entry.runtime_data
         return runtime_data is not None and runtime_data.coordinator is not None
 
-    def run_coro(self, coro: Any, timeout: float | None = 30) -> Any:
+    def run_coro[T](self, coro: Coroutine[object, object, T], timeout: float | None = 30) -> T:
         """Run a coroutine on the HA event loop.
 
         Args:
@@ -307,7 +317,7 @@ class LiveHomeAssistant:
         self,
         domain: str,
         service: str,
-        service_data: dict[str, Any] | None = None,
+        service_data: dict[str, JsonValueType] | None = None,
         *,
         blocking: bool = True,
     ) -> None:
@@ -481,7 +491,7 @@ def _run_hass_thread(
 def live_home_assistant(
     timeout: float = 60.0,
     *,
-    environment: dict[str, Any] | None = None,
+    environment: dict[str, JsonValueType] | None = None,
 ) -> Generator[LiveHomeAssistant]:
     """Context manager for a live Home Assistant instance."""
     scenario_environment = environment or {}

@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
+from typing import Any  # noqa: TID251  # HA SwitchEntity.async_turn_on/off are Any-typed upstream
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigSubentry
@@ -34,7 +34,7 @@ SECTION_FIELD_PATH_LENGTH = 2
 
 
 def _field_name_is_reused_in_other_sections(
-    subentry_data: Mapping[str, Any],
+    subentry_data: Mapping[str, object],
     *,
     current_section: str,
     field_name: str,
@@ -113,7 +113,7 @@ class HaeoInputSwitch(SwitchEntity):
         # Translation placeholders
         placeholders: dict[str, str] = {}
 
-        def format_placeholder(value: Any) -> str:
+        def format_placeholder(value: object) -> str:
             if is_entity_value(value):
                 return ", ".join(value["value"])
             if is_constant_value(value):
@@ -146,7 +146,7 @@ class HaeoInputSwitch(SwitchEntity):
         self._attr_translation_placeholders = placeholders
 
         # Build base extra state attributes
-        self._base_extra_attrs: dict[str, Any] = {
+        self._base_extra_attrs: dict[str, object] = {
             "config_mode": self._store.mode.value,
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,

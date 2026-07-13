@@ -2,7 +2,10 @@
 
 from datetime import datetime
 import math
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
+
+if TYPE_CHECKING:
+    from _typeshed import ConvertibleToFloat
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -70,13 +73,11 @@ def _entity_decimal_places(max_abs: float) -> int:
     return max(0, _TARGET_SIG_FIGS - (magnitude + 1))
 
 
-def _try_parse_float(value: object) -> float | None:
+def _try_parse_float(value: "ConvertibleToFloat") -> float | None:
     """Try to parse a value as float, returning None if not possible."""
-    if not isinstance(value, int | float | str):
-        return None
     try:
         return float(value)
-    except ValueError:
+    except (ValueError, TypeError):
         return None
 
 

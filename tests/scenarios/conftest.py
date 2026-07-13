@@ -2,8 +2,9 @@
 
 import json
 from pathlib import Path
-from typing import Any, TypedDict, TypeGuard  # noqa: TID251  # legacy Any usage; migrate to precise types
+from typing import TypedDict, TypeGuard
 
+from homeassistant.util.json import JsonValueType
 import pytest
 
 from .syrupy_json_extension import ScenarioJSONExtension
@@ -60,13 +61,13 @@ def expand_diagnostics_scenario() -> None:
 class ScenarioData(TypedDict):
     """TypedDict for scenario data structure."""
 
-    config: dict[str, Any]
-    environment: dict[str, Any]
-    inputs: list[dict[str, Any]]
-    outputs: dict[str, dict[str, Any]]  # Dict with entity_id keys
+    config: dict[str, JsonValueType]
+    environment: dict[str, JsonValueType]
+    inputs: list[dict[str, JsonValueType]]
+    outputs: dict[str, dict[str, JsonValueType]]  # Dict with entity_id keys
 
 
-def is_scenario_data(value: Any) -> TypeGuard[ScenarioData]:
+def is_scenario_data(value: object) -> TypeGuard[ScenarioData]:
     """Type guard to validate scenario data structure."""
     if not isinstance(value, dict):
         return False

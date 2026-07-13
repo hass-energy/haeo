@@ -1,6 +1,12 @@
 """Passthrough segment — identity transform."""
 
-from typing import Any, Literal  # noqa: TID251  # legacy Any usage; migrate to precise types
+from typing import (
+    Any,  # noqa: TID251  # source_element/target_element are the connection's endpoint elements,
+    # which can be any concrete NetworkElement subtype. Element is invariant in its output-name
+    # Literal (see element.py's outputs()), so no non-Any type expresses "an Element of some
+    # unknown output-name type" here; segments only use these via hasattr/isinstance duck typing.
+    Literal,
+)
 
 from highspy import Highs
 from highspy.highs import HighspyArray

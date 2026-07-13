@@ -8,7 +8,12 @@ no time-series values.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
+from typing import (
+    Any,  # noqa: TID251  # Result is an untyped JSON blob consumed by callers (coordinator,
+    # frontend, and this module's own tests) that index into nested nodes/edges/policies without
+    # narrowing. A precise recursive JSON union type-checks at construction but breaks every such
+    # caller (outside this slice); core/ also cannot import homeassistant.util.json.JsonValueType.
+)
 
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.element import NetworkElement

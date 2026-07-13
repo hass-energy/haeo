@@ -3,7 +3,15 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 import logging
-from typing import Any, Final, Literal, overload  # noqa: TID251  # legacy Any usage; migrate to precise types
+from typing import (
+    Any,  # noqa: TID251  # Element is invariant in its output-name Literal (see outputs()'s
+    # Mapping[OutputNameT, ...] return), so a plain dict of heterogeneous concrete Element
+    # subtypes (Battery, Node, Connection, ...) cannot be typed Element[str] or a shared TypeVar;
+    # add()'s @overloads already give callers the precise concrete return type per element_type
+    Final,
+    Literal,
+    overload,
+)
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression

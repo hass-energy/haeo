@@ -10,7 +10,7 @@ Tests cover:
 - End-to-end network optimization with policies
 """
 
-from typing import Any, Literal, overload  # noqa: TID251  # legacy Any usage; migrate to precise types
+from typing import Literal, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -30,6 +30,7 @@ from custom_components.haeo.core.model.elements.battery import BatteryElementCon
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig
+from custom_components.haeo.core.model.elements.segments import SegmentSpec
 from custom_components.haeo.core.model.network import Network
 
 
@@ -41,7 +42,7 @@ def _junction(name: str) -> ModelElementConfig:
     return NodeElementConfig(element_type=MODEL_ELEMENT_TYPE_NODE, name=name, is_source=False, is_sink=False)
 
 
-def _conn(name: str, source: str, target: str, segments: dict[str, Any] | None = None) -> ModelElementConfig:
+def _conn(name: str, source: str, target: str, segments: dict[str, SegmentSpec] | None = None) -> ModelElementConfig:
     c = ConnectionElementConfig(
         element_type=MODEL_ELEMENT_TYPE_CONNECTION, name=name, source=source, target=target, tags={1}
     )
@@ -98,7 +99,7 @@ def _outbound_tag(result: CompilationResult, name: str) -> int:
     return next(iter(tags))
 
 
-def _network_element(network: Network, name: str) -> NetworkElement[Any]:
+def _network_element(network: Network, name: str) -> NetworkElement[str]:
     """Get a network element with proper type narrowing."""
     elem = network.elements[name]
     assert isinstance(elem, NetworkElement)

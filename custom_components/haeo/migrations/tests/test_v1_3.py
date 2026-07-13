@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 import json
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 from unittest.mock import AsyncMock
 
 from homeassistant.config_entries import ConfigSubentry
@@ -65,13 +65,15 @@ from custom_components.haeo.migrations import async_migrate_entry, v1_3
 V033_SCENARIO_FIXTURES_DIR = Path(__file__).parent / "test_data" / "v0_3_3" / "scenarios"
 
 
-def _load_v033_scenario_config(name: str) -> dict[str, Any]:
+def _load_v033_scenario_config(name: str) -> dict[str, object]:
     """Load a v0.3.3 scenario config fixture."""
     with (V033_SCENARIO_FIXTURES_DIR / f"{name}_config.json").open() as fixture:
-        return json.load(fixture)  # type: ignore[no-any-return]
+        loaded = json.load(fixture)
+        assert isinstance(loaded, dict)
+        return loaded
 
 
-def _create_subentry(data: dict[str, Any], *, subentry_type: str | None = None) -> ConfigSubentry:
+def _create_subentry(data: Mapping[str, object], *, subentry_type: str | None = None) -> ConfigSubentry:
     """Create a ConfigSubentry with the given data."""
     return ConfigSubentry(
         data=MappingProxyType(data),
@@ -81,15 +83,22 @@ def _create_subentry(data: dict[str, Any], *, subentry_type: str | None = None) 
     )
 
 
+def _section(config: Mapping[str, object], key: str) -> Mapping[str, object]:
+    """Narrow a nested section value from migrated config for assertions."""
+    section = config[key]
+    assert isinstance(section, Mapping)
+    return section
+
+
 def test_migrate_hub_data_moves_basic_and_builds_sections() -> None:
     """Hub migration should move basic data and build sectioned data."""
-    data: dict[str, Any] = {
+    data: dict[str, object] = {
         "basic": {CONF_NAME: "Custom Hub"},
         CONF_HORIZON_PRESET: "custom",
         CONF_TIER_1_COUNT: 4,
         CONF_TIER_1_DURATION: 10,
     }
-    options: dict[str, Any] = {
+    options: dict[str, object] = {
         CONF_DEBOUNCE_SECONDS: 12,
         CONF_ADVANCED_MODE: True,
         CONF_TIER_1_COUNT: 4,
@@ -101,12 +110,12 @@ def test_migrate_hub_data_moves_basic_and_builds_sections() -> None:
     assert HUB_SECTION_COMMON in migrated_data
     assert HUB_SECTION_TIERS in migrated_data
     assert HUB_SECTION_ADVANCED in migrated_data
-    assert migrated_data[HUB_SECTION_COMMON][CONF_NAME] == "Test Hub"
-    assert migrated_data[HUB_SECTION_COMMON][CONF_HORIZON_PRESET] == "custom"
-    assert migrated_data[HUB_SECTION_TIERS][CONF_TIER_1_COUNT] == 4
-    assert migrated_data[HUB_SECTION_TIERS][CONF_TIER_1_DURATION] == 10
-    assert migrated_data[HUB_SECTION_ADVANCED][CONF_DEBOUNCE_SECONDS] == 12
-    assert migrated_data[HUB_SECTION_ADVANCED][CONF_ADVANCED_MODE] is True
+    assert _section(migrated_data, HUB_SECTION_COMMON)[CONF_NAME] == "Test Hub"
+    assert _section(migrated_data, HUB_SECTION_COMMON)[CONF_HORIZON_PRESET] == "custom"
+    assert _section(migrated_data, HUB_SECTION_TIERS)[CONF_TIER_1_COUNT] == 4
+    assert _section(migrated_data, HUB_SECTION_TIERS)[CONF_TIER_1_DURATION] == 10
+    assert _section(migrated_data, HUB_SECTION_ADVANCED)[CONF_DEBOUNCE_SECONDS] == 12
+    assert _section(migrated_data, HUB_SECTION_ADVANCED)[CONF_ADVANCED_MODE] is True
     assert CONF_NAME not in migrated_data
     assert CONF_HORIZON_PRESET not in migrated_data
     assert migrated_options == {}
@@ -114,12 +123,12 @@ def test_migrate_hub_data_moves_basic_and_builds_sections() -> None:
 
 def test_migrate_hub_data_skips_when_sections_present() -> None:
     """Hub migration should skip when sections already exist."""
-    data: dict[str, Any] = {
+    data: dict[str, object] = {
         HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS},
         HUB_SECTION_TIERS: {CONF_TIER_1_COUNT: 2, CONF_TIER_1_DURATION: 5},
         HUB_SECTION_ADVANCED: {CONF_DEBOUNCE_SECONDS: 30, CONF_ADVANCED_MODE: False},
     }
-    options: dict[str, Any] = {"keep": "value"}
+    options: dict[str, object] = {"keep": "value"}
 
     migrated_data, migrated_options = migrate_hub_config(data, options, "Hub")
 
@@ -130,7 +139,7 @@ def test_migrate_hub_data_skips_when_sections_present() -> None:
 @pytest.mark.parametrize("element_type", [None, ELEMENT_TYPE_NETWORK])
 def test_migrate_subentry_returns_none_for_non_elements(element_type: str | None) -> None:
     """Subentry migration should skip missing or network element types."""
-    data: dict[str, Any] = {}
+    data: dict[str, object] = {}
     if element_type is not None:
         data[CONF_ELEMENT_TYPE] = element_type
 
@@ -169,14 +178,14 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
     assert migrated is not None
     assert migrated[CONF_NAME] == "Battery"
     assert migrated[CONF_CONNECTION] == as_connection_target("bus")
-    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(7.0)
-    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(4.2)
-    assert migrated[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.33)
-    assert migrated[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.15)
-    assert migrated[SECTION_EFFICIENCY][battery.CONF_EFFICIENCY_SOURCE_TARGET] == as_constant_value(0.85)
-    assert migrated[SECTION_EFFICIENCY][battery.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.88)
-    assert migrated[battery.SECTION_UNDERCHARGE][battery.CONF_PARTITION_PERCENTAGE] == as_constant_value(0.1)
-    assert migrated[battery.SECTION_OVERCHARGE][battery.CONF_PARTITION_COST] == as_constant_value(0.2)
+    assert _section(migrated, SECTION_POWER_LIMITS)[CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(7.0)
+    assert _section(migrated, SECTION_POWER_LIMITS)[CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(4.2)
+    assert _section(migrated, SECTION_PRICING)[CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.33)
+    assert _section(migrated, SECTION_PRICING)[CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.15)
+    assert _section(migrated, SECTION_EFFICIENCY)[battery.CONF_EFFICIENCY_SOURCE_TARGET] == as_constant_value(0.85)
+    assert _section(migrated, SECTION_EFFICIENCY)[battery.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.88)
+    assert _section(migrated, battery.SECTION_UNDERCHARGE)[battery.CONF_PARTITION_PERCENTAGE] == as_constant_value(0.1)
+    assert _section(migrated, battery.SECTION_OVERCHARGE)[battery.CONF_PARTITION_COST] == as_constant_value(0.2)
 
 
 def test_migrate_subentry_battery_without_salvage_value_stays_valid() -> None:
@@ -227,8 +236,10 @@ def test_migrate_subentry_battery_section() -> None:
 
     assert migrated is not None
     assert migrated[CONF_NAME] == "Battery Section"
-    assert migrated[battery_section.SECTION_STORAGE][battery_section.CONF_CAPACITY] == as_constant_value(5.0)
-    assert migrated[battery_section.SECTION_STORAGE][battery_section.CONF_INITIAL_CHARGE] == as_constant_value(2.5)
+    assert _section(migrated, battery_section.SECTION_STORAGE)[battery_section.CONF_CAPACITY] == as_constant_value(5.0)
+    assert _section(migrated, battery_section.SECTION_STORAGE)[
+        battery_section.CONF_INITIAL_CHARGE
+    ] == as_constant_value(2.5)
 
 
 def test_migrate_subentry_connection_fields() -> None:
@@ -256,10 +267,10 @@ def test_migrate_subentry_connection_fields() -> None:
 
     assert migrated is not None
     assert migrated[CONF_NAME] == "Connection"
-    assert migrated[connection.SECTION_ENDPOINTS][connection.CONF_SOURCE] == as_connection_target("node_a")
-    assert migrated[SECTION_POWER_LIMITS][connection.CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(4.0)
-    assert migrated[SECTION_PRICING][connection.CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.2)
-    assert migrated[SECTION_EFFICIENCY][connection.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.91)
+    assert _section(migrated, connection.SECTION_ENDPOINTS)[connection.CONF_SOURCE] == as_connection_target("node_a")
+    assert _section(migrated, SECTION_POWER_LIMITS)[connection.CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(4.0)
+    assert _section(migrated, SECTION_PRICING)[connection.CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.2)
+    assert _section(migrated, SECTION_EFFICIENCY)[connection.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.91)
 
 
 def test_migrate_subentry_grid_legacy_fields() -> None:
@@ -279,10 +290,10 @@ def test_migrate_subentry_grid_legacy_fields() -> None:
 
     assert migrated is not None
     assert migrated[CONF_CONNECTION] == as_connection_target("bus")
-    assert migrated[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.3)
-    assert migrated[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.1)
-    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(5.0)
-    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(4.0)
+    assert _section(migrated, SECTION_PRICING)[CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.3)
+    assert _section(migrated, SECTION_PRICING)[CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.1)
+    assert _section(migrated, SECTION_POWER_LIMITS)[CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(5.0)
+    assert _section(migrated, SECTION_POWER_LIMITS)[CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(4.0)
 
 
 def test_migrate_subentry_inverter_legacy_fields() -> None:
@@ -302,10 +313,10 @@ def test_migrate_subentry_inverter_legacy_fields() -> None:
 
     assert migrated is not None
     assert migrated[CONF_NAME] == "Inverter"
-    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(7.0)
-    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(6.0)
-    assert migrated[SECTION_EFFICIENCY][inverter.CONF_EFFICIENCY_SOURCE_TARGET] == as_constant_value(0.95)
-    assert migrated[SECTION_EFFICIENCY][inverter.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.94)
+    assert _section(migrated, SECTION_POWER_LIMITS)[CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(7.0)
+    assert _section(migrated, SECTION_POWER_LIMITS)[CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(6.0)
+    assert _section(migrated, SECTION_EFFICIENCY)[inverter.CONF_EFFICIENCY_SOURCE_TARGET] == as_constant_value(0.95)
+    assert _section(migrated, SECTION_EFFICIENCY)[inverter.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.94)
 
 
 def test_migrate_subentry_load_node_solar() -> None:
@@ -322,7 +333,7 @@ def test_migrate_subentry_load_node_solar() -> None:
     load_migrated = v1_3.migrate_subentry_data(load_subentry)
     assert load_migrated is not None
     assert load_migrated[CONF_CONNECTION] == as_connection_target("bus")
-    assert load_migrated[SECTION_FORECAST][CONF_FORECAST] == as_entity_value(["sensor.load"])
+    assert _section(load_migrated, SECTION_FORECAST)[CONF_FORECAST] == as_entity_value(["sensor.load"])
     assert load_migrated[SECTION_PRICING] == {}
     assert load_migrated[SECTION_CURTAILMENT] == {}
 
@@ -337,8 +348,8 @@ def test_migrate_subentry_load_node_solar() -> None:
     )
     node_migrated = v1_3.migrate_subentry_data(node_subentry)
     assert node_migrated is not None
-    assert node_migrated[node.SECTION_ROLE][node.CONF_IS_SOURCE] is True
-    assert node_migrated[node.SECTION_ROLE][node.CONF_IS_SINK] is False
+    assert _section(node_migrated, node.SECTION_ROLE)[node.CONF_IS_SOURCE] is True
+    assert _section(node_migrated, node.SECTION_ROLE)[node.CONF_IS_SINK] is False
 
     solar_subentry = _create_subentry(
         {
@@ -354,9 +365,9 @@ def test_migrate_subentry_load_node_solar() -> None:
     solar_migrated = v1_3.migrate_subentry_data(solar_subentry)
     assert solar_migrated is not None
     assert solar_migrated[CONF_CONNECTION] == as_connection_target("bus")
-    assert solar_migrated[SECTION_FORECAST][CONF_FORECAST] == as_entity_value(["sensor.solar"])
-    assert solar_migrated[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.12)
-    assert solar_migrated[solar.SECTION_CURTAILMENT][solar.CONF_CURTAILMENT] == as_constant_value(True)
+    assert _section(solar_migrated, SECTION_FORECAST)[CONF_FORECAST] == as_entity_value(["sensor.solar"])
+    assert _section(solar_migrated, SECTION_PRICING)[CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.12)
+    assert _section(solar_migrated, solar.SECTION_CURTAILMENT)[solar.CONF_CURTAILMENT] == as_constant_value(True)
 
 
 @pytest.mark.parametrize(
@@ -455,7 +466,7 @@ def test_migrate_subentry_load_node_solar() -> None:
 )
 def test_migrate_subentry_v033_legacy_shape_is_schema_valid(
     element_type: str,
-    legacy_data: dict[str, Any],
+    legacy_data: dict[str, object],
 ) -> None:
     """v0.3.3-style flat subentry data migrates to valid main-branch schema."""
     subentry = _create_subentry(
@@ -498,7 +509,7 @@ def test_migrate_v033_scenario_configs_to_current_schema(scenario_name: str) -> 
     assert HUB_SECTION_ADVANCED in migrated_hub
     assert migrated_options == {}
 
-    migrated_participants: dict[str, dict[str, Any]] = {}
+    migrated_participants: dict[str, dict[str, object]] = {}
     for participant_name, participant_data in participants.items():
         assert isinstance(participant_name, str)
         assert isinstance(participant_data, dict)
@@ -564,9 +575,9 @@ def test_migrate_element_config_returns_copy_when_no_steps(
         (solar.ELEMENT_TYPE, {CONF_FORECAST: ["sensor.solar"]}),
     ],
 )
-def test_migrate_subentry_without_connection(element_type: str, extra_data: dict[str, Any]) -> None:
+def test_migrate_subentry_without_connection(element_type: str, extra_data: dict[str, object]) -> None:
     """Elements without a connection should migrate without normalize_connection_target."""
-    data: dict[str, Any] = {CONF_ELEMENT_TYPE: element_type, CONF_NAME: "Test", **extra_data}
+    data: dict[str, object] = {CONF_ELEMENT_TYPE: element_type, CONF_NAME: "Test", **extra_data}
     subentry = _create_subentry(data, subentry_type=element_type)
 
     migrated = v1_3.migrate_subentry_data(subentry)
@@ -590,7 +601,7 @@ def test_migrate_subentry_load_maps_legacy_shedding() -> None:
     )
     migrated = v1_3.migrate_subentry_data(load_subentry)
     assert migrated is not None
-    assert migrated[SECTION_CURTAILMENT][CONF_CURTAILMENT] == as_constant_value(True)
+    assert _section(migrated, SECTION_CURTAILMENT)[CONF_CURTAILMENT] == as_constant_value(True)
 
 
 def test_extract_pricing_rules_ignores_non_pricing_elements() -> None:
@@ -1324,7 +1335,7 @@ async def test_async_migrate_entry_unique_id_callback_edge_cases(
     async def fake_migrate_entries(
         _hass: HomeAssistant,
         _entry_id: str,
-        entry_callback: Any,
+        entry_callback: Callable[[DummyRegistryEntry], dict[str, str] | None],
     ) -> None:
         assert entry_callback(candidates[0]) is None
         assert entry_callback(candidates[1]) is None

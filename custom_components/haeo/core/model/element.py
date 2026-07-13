@@ -3,10 +3,10 @@
 from collections.abc import Mapping, Sequence
 from functools import reduce
 import operator
-from typing import Any, Final, Literal  # noqa: TID251  # legacy Any usage; migrate to precise types
+from typing import Final, Literal, Protocol
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
+from highspy.highs import HighspyArray, highs_cons, highs_linear_expression, highs_var
 import numpy as np
 from numpy.typing import NDArray
 
@@ -14,6 +14,27 @@ from .output_data import OutputData
 from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, constraint, cost
 
 ELEMENT_POWER_BALANCE: Final = "element_power_balance"
+
+
+class _ConnectionLike(Protocol):
+    """Structural type for connection objects registered with a NetworkElement.
+
+    Describes only the members NetworkElement needs from a connection. Kept as a
+    Protocol (rather than importing Connection) to avoid a circular import between
+    element.py and elements/connection.py, which imports Element.
+    """
+
+    @property
+    def power_into_source(self) -> HighspyArray: ...
+
+    @property
+    def power_into_target(self) -> HighspyArray: ...
+
+    def connection_tags(self) -> set[int]: ...
+
+    def power_into_source_for_tag(self, tag: int) -> HighspyArray: ...
+
+    def power_into_target_for_tag(self, tag: int) -> HighspyArray: ...
 
 
 class Element[OutputNameT: str]:
@@ -54,7 +75,7 @@ class Element[OutputNameT: str]:
         self._solver = solver
         self._output_names = output_names
 
-    def __getitem__(self, key: str | int) -> Any:
+    def __getitem__(self, key: str | int) -> object:
         """Get a value by name or index.
 
         Args:
@@ -90,7 +111,7 @@ class Element[OutputNameT: str]:
         msg = f"{type(self).__name__!r} has no attribute {key!r}"
         raise KeyError(msg)
 
-    def __setitem__(self, key: str, value: Any) -> None:
+    def __setitem__(self, key: str, value: object) -> None:
         """Set a value by name.
 
         Setting a value triggers invalidation of dependent constraints/costs.
@@ -119,7 +140,10 @@ class Element[OutputNameT: str]:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def extract_values(self, sequence: Sequence[Any] | HighspyArray | NDArray[Any] | None) -> tuple[float, ...]:
+    def extract_values(
+        self,
+        sequence: Sequence[highs_var | highs_linear_expression | float] | HighspyArray | NDArray[np.float64] | None,
+    ) -> tuple[float, ...]:
         """Convert a sequence of HiGHS types to resolved values."""
         if sequence is None:
             return ()
@@ -248,7 +272,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         self.inbound_tags: set[int] | None = inbound_tags
 
         # Track connections for power balance
-        self._connections: list[tuple[Any, Literal["source", "target"]]] = []
+        self._connections: list[tuple[_ConnectionLike, Literal["source", "target"]]] = []
 
         # Lazily-created per-tag consumption decomposition variables
         self._consumed_by_tag: dict[int, HighspyArray] | None = None
@@ -256,7 +280,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         # Lazily-created per-tag production decomposition variables
         self._produced_by_tag: dict[int, HighspyArray] | None = None
 
-    def register_connection(self, connection: Any, end: Literal["source", "target"]) -> None:
+    def register_connection(self, connection: _ConnectionLike, end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
 
         Args:
@@ -268,7 +292,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
 
     # --- Element power protocol ---
 
-    def element_power_produced(self) -> HighspyArray | NDArray[Any] | None:
+    def element_power_produced(self) -> HighspyArray | NDArray[np.float64] | None:
         """Return this element's power production expression.
 
         Positive values represent power injected into the network.
@@ -277,7 +301,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         """
         return None
 
-    def element_power_consumed(self) -> HighspyArray | NDArray[Any] | None:
+    def element_power_consumed(self) -> HighspyArray | NDArray[np.float64] | None:
         """Return this element's power consumption expression.
 
         Positive values represent power absorbed from the network.
@@ -288,7 +312,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
 
     # --- Connection power queries ---
 
-    def connection_power(self) -> HighspyArray | NDArray[Any]:
+    def connection_power(self) -> HighspyArray | NDArray[np.float64]:
         """Return the net power from connections for all time periods.
 
         Positive means power flowing into this element from connections.
@@ -302,7 +326,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
             return np.zeros(self.n_periods)
 
         # Accumulate power flows from all connections
-        total_power: HighspyArray | NDArray[Any] = np.zeros(self.n_periods, dtype=object)
+        total_power: HighspyArray | NDArray[np.float64] = np.zeros(self.n_periods, dtype=object)
 
         for conn, end in self._connections:
             if end == "source":
@@ -312,9 +336,9 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
 
         return total_power
 
-    def connection_power_for_tag(self, tag: int) -> HighspyArray | NDArray[Any]:
+    def connection_power_for_tag(self, tag: int) -> HighspyArray | NDArray[np.float64]:
         """Return the net power from connections for a specific tag."""
-        total_power: HighspyArray | NDArray[Any] = np.zeros(self.n_periods, dtype=object)
+        total_power: HighspyArray | NDArray[np.float64] = np.zeros(self.n_periods, dtype=object)
         for conn, end in self._connections:
             if tag not in conn.connection_tags():
                 continue
