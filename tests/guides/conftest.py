@@ -15,6 +15,7 @@ import datetime
 
 from homeassistant.util import dt as dt_util
 import pytest
+from pytest_socket import enable_socket
 
 # Guide tests run a full HA instance in a background thread. The global
 # filterwarnings = ["error"] from pyproject.toml turns third-party
@@ -25,12 +26,28 @@ import pytest
 # HA's frontend static handler can emit unraisable ResourceWarnings when
 # the browser disconnects during shutdown on CI. Ignore pytest's wrapper so
 # guide screenshot assertions remain the signal.
+#
+# Note: pytestmark in a conftest does not propagate to collected tests under
+# pytest >= 9.0, so socket enablement is done via an autouse fixture below
+# rather than a usefixtures mark here.
 pytestmark = [
-    pytest.mark.usefixtures("socket_enabled"),
     pytest.mark.filterwarnings("default"),
     pytest.mark.filterwarnings("ignore::ResourceWarning"),
     pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning"),
 ]
+
+
+@pytest.fixture(autouse=True)
+def _enable_socket_for_guides() -> None:  # pyright: ignore[reportUnusedFunction]
+    """Re-enable real sockets for guide tests.
+
+    pytest-homeassistant-custom-component disables sockets globally; guide
+    tests need real sockets to find a free port and run a live HA HTTP
+    server for Playwright. The `socket_enabled` fixture from pytest-socket
+    used to be applied via a module-level `pytestmark` here, but pytest 9
+    no longer propagates conftest-level pytestmark to test items.
+    """
+    enable_socket()
 
 
 def pytest_configure(config: pytest.Config) -> None:
