@@ -6,14 +6,13 @@ and a tiny in-memory storage double so values resolve identically to the config
 loader (``resolve_field``/``resolve_constant``).
 """
 
-from typing import Any
 from unittest.mock import patch
 
 import numpy as np
 import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
-from custom_components.haeo.core.data.input_store import InputMode, create_input_store
+from custom_components.haeo.core.data.input_store import InputMode, InputStore, create_input_store
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.field_hints import FieldHint
@@ -29,26 +28,26 @@ def _timestamps() -> tuple[float, ...]:
 class _MemStorage:
     """In-memory storage double implementing the Storage protocol."""
 
-    def __init__(self, value: Any = None) -> None:
+    def __init__(self, value: object = None) -> None:
         self.value = value
-        self.written: list[Any] = []
+        self.written: list[object] = []
 
-    def read(self) -> Any:
+    def read(self) -> object:
         return self.value
 
-    async def write(self, value: Any) -> None:
+    async def write(self, value: object) -> None:
         self.written.append(value)
         self.value = value
 
 
 def _make_store(
     *,
-    storage_value: Any = None,
+    storage_value: object = None,
     output_type: OutputType = OutputType.ENERGY,
     time_series: bool = False,
     boundaries: bool = False,
     negate: bool = False,
-) -> Any:
+) -> InputStore:
     """Build an InputStore from an in-memory storage value and field hint."""
     storage = _MemStorage(storage_value)
     hint = FieldHint(output_type=output_type, time_series=time_series, boundaries=boundaries)

@@ -9,7 +9,8 @@ Flow design:
 - async_step_edit_rule: Edits a selected rule.
 """
 
-from typing import Any
+from collections.abc import Mapping
+from typing import Any  # noqa: TID251  # HA flow signatures upstream; ChooseSelector.__call__ is Any-typed upstream
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import (
@@ -45,7 +46,7 @@ from custom_components.haeo.core.schema.elements.policy import (
 )
 from custom_components.haeo.core.schema.entity_value import as_entity_value, is_entity_value
 from custom_components.haeo.elements import get_list_input_fields
-from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.elements.input_fields import AnyInputFieldInfo
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
@@ -73,7 +74,7 @@ class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]
     - "elements" choice (specific elements): normalizes to list[str]
     """
 
-    def __call__(self, data: Any) -> Any:
+    def __call__(self, data: Any) -> Any:  # matches upstream Selector.__call__(self, data: Any) -> Any signature
         """Normalize endpoint data before validation."""
         if isinstance(data, dict) and "active_choice" in data:
             choice = data.get("active_choice")
@@ -86,6 +87,13 @@ class _EndpointChooseSelector(ChooseSelector):  # type: ignore[type-arg]
                     raise vol.Invalid(msg)
                 return elements
         return super().__call__(data)  # type: ignore[misc]
+
+
+def _as_str_list(value: object) -> list[str] | None:
+    """Narrow a stored dict value to a non-empty list of strings, if valid."""
+    if isinstance(value, list) and value and all(isinstance(item, str) for item in value):
+        return value
+    return None
 
 
 class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -159,9 +167,9 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 return subentry
         return None
 
-    def _get_price_field_info(self) -> InputFieldInfo[Any]:
+    def _get_price_field_info(self) -> AnyInputFieldInfo:
         """Get the InputFieldInfo for the price field from list field hints."""
-        dummy_config: dict[str, Any] = {
+        dummy_config: dict[str, object] = {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             CONF_RULES: [{"name": "_", CONF_PRICE: {"type": "constant", "value": 0}}],
         }
@@ -218,7 +226,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             )
         )
 
-    def _get_preferred_endpoint_choice(self, value: Any) -> str:
+    def _get_preferred_endpoint_choice(self, value: object) -> str:
         """Return endpoint choice key to place first in selector ordering."""
         if isinstance(value, dict) and value.get("active_choice") == CHOICE_ELEMENTS:
             return CHOICE_ELEMENTS
@@ -281,30 +289,35 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             }
         )
 
-    def _parse_rule_input(self, user_input: dict[str, Any]) -> PolicyRuleConfig:
+    def _parse_rule_input(self, user_input: Mapping[str, object]) -> PolicyRuleConfig:
         """Convert form input into a PolicyRuleConfig."""
         price = user_input[CONF_PRICE]
-        price_value = as_entity_value(price) if isinstance(price, list) else as_constant_value(float(price))
+        price_value = (
+            as_entity_value(price)  # type: ignore[arg-type]  # ChooseSelector list values are entity IDs
+            if isinstance(price, list)
+            else as_constant_value(float(price))  # type: ignore[arg-type]  # ChooseSelector constant values are numeric
+        )
 
+        name = user_input[CONF_RULE_NAME]
         rule: PolicyRuleConfig = {
-            "name": user_input[CONF_RULE_NAME],
-            "enabled": user_input[CONF_ENABLED],
+            "name": name if isinstance(name, str) else str(name),
+            "enabled": bool(user_input[CONF_ENABLED]),
             "price": price_value,
         }
 
-        source = user_input.get(CONF_SOURCE)
-        if isinstance(source, list) and source:
+        source = _as_str_list(user_input.get(CONF_SOURCE))
+        if source:
             rule["source"] = source
 
-        target = user_input.get(CONF_TARGET)
-        if isinstance(target, list) and target:
+        target = _as_str_list(user_input.get(CONF_TARGET))
+        if target:
             rule["target"] = target
 
         return rule
 
-    def _rule_to_defaults(self, rule: PolicyRuleConfig) -> dict[str, Any]:
+    def _rule_to_defaults(self, rule: PolicyRuleConfig) -> dict[str, object]:
         """Convert a stored rule back to form defaults."""
-        defaults: dict[str, Any] = {
+        defaults: dict[str, object] = {
             CONF_RULE_NAME: rule["name"],
             CONF_ENABLED: rule.get(CONF_ENABLED, True),
         }
@@ -321,9 +334,9 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 defaults[CONF_PRICE] = price["value"]
         return defaults
 
-    def _rule_to_edit_input(self, rule: PolicyRuleConfig) -> dict[str, Any]:
+    def _rule_to_edit_input(self, rule: PolicyRuleConfig) -> dict[str, object]:
         """Convert a stored rule into parse-ready form input values."""
-        input_values: dict[str, Any] = {
+        input_values: dict[str, object] = {
             CONF_RULE_NAME: rule["name"],
             CONF_ENABLED: rule.get(CONF_ENABLED, True),
             CONF_SOURCE: rule.get(CONF_SOURCE, ""),
@@ -338,7 +351,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _validate_rule(
         self,
-        user_input: dict[str, Any],
+        user_input: Mapping[str, object],
         errors: dict[str, str],
         *,
         exclude_index: int | None = None,
@@ -387,7 +400,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         return True
 
-    def _build_entry_data(self) -> dict[str, Any]:
+    def _build_entry_data(self) -> dict[str, object]:
         """Build the subentry data dict from accumulated rules."""
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
@@ -498,7 +511,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         source_options = self._get_participant_options(can_source=True)
         target_options = self._get_participant_options(can_sink=True)
         idx = self._editing_index
-        existing_rule_input: dict[str, Any] = {}
+        existing_rule_input: dict[str, object] = {}
         if idx is not None and 0 <= idx < len(self._rules):
             existing_rule_input = self._rule_to_edit_input(self._rules[idx])
 

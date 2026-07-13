@@ -1,9 +1,12 @@
 """Tests for HAEO diagnostics utilities."""
 
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta, timezone
 import json
 from types import MappingProxyType
-from typing import Any
+from typing import (
+    Any,  # noqa: TID251  # deep chained subscripts into a JSON payload; narrowing would explode assertions
+)
 from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.config_entries import ConfigSubentry
@@ -99,12 +102,12 @@ def _battery_config(
     efficiency_source_target: float | None = None,
     efficiency_target_source: float | None = None,
     salvage_value: float = 0.0,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """Build a sectioned battery config dict for diagnostics tests."""
-    limits: dict[str, Any] = {}
-    power_limits: dict[str, Any] = {}
-    efficiency_section: dict[str, Any] = {}
-    pricing: dict[str, Any] = {CONF_SALVAGE_VALUE: as_constant_value(salvage_value)}
+    limits: dict[str, object] = {}
+    power_limits: dict[str, object] = {}
+    efficiency_section: dict[str, object] = {}
+    pricing: dict[str, object] = {CONF_SALVAGE_VALUE: as_constant_value(salvage_value)}
     if max_power_source_target is not None:
         power_limits[CONF_MAX_POWER_SOURCE_TARGET] = as_constant_value(max_power_source_target)
     if max_power_target_source is not None:
@@ -146,7 +149,7 @@ def _grid_config(
     connection: str,
     price_source_target: list[str] | str | float,
     price_target_source: list[str] | str | float,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """Build a sectioned grid config dict for diagnostics tests."""
     return {
         CONF_ELEMENT_TYPE: "grid",
@@ -172,7 +175,7 @@ def _grid_config(
     }
 
 
-def _hub_entry_data(name: str = "Test Hub") -> dict[str, Any]:
+def _hub_entry_data(name: str = "Test Hub") -> dict[str, object]:
     """Build hub entry data using the sectioned schema."""
     return {
         CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
@@ -188,6 +191,16 @@ def _hub_entry_data(name: str = "Test Hub") -> dict[str, Any]:
             CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         },
     }
+
+
+def _participants(config: Mapping[str, object]) -> Any:
+    """Return the config's ``participants`` section for exploratory test assertions.
+
+    ``DiagnosticsResult.config`` is honestly typed as ``dict[str, object]`` since its
+    shape is dynamic (redacted, arbitrary element schemas); tests need to chain
+    subscripts into it freely, which this narrow, well-named helper isolates.
+    """
+    return config["participants"]
 
 
 def test_extract_entity_ids_from_config_collects_nested_entities() -> None:
@@ -214,15 +227,17 @@ def test_extract_entity_ids_from_config_collects_nested_entities() -> None:
 
 
 def _make_coordinator_data(
-    participants: dict[str, Any],
+    participants: Mapping[str, object],
     source_states: dict[str, State] | None = None,
-    hub_config: dict[str, Any] | None = None,
+    hub_config: dict[str, object] | None = None,
 ) -> CoordinatorData:
     """Build a CoordinatorData with an OptimizationContext for testing."""
     context = OptimizationContext(
         hub_config=hub_config or _hub_entry_data(),
         horizon_start=datetime(2024, 1, 1, tzinfo=UTC),
-        participants=participants,
+        # Fixture participants are built by _battery_config/_grid_config and don't carry
+        # the full ElementConfigSchema shape; only the diagnostics plumbing is under test.
+        participants=participants,  # type: ignore[arg-type]
         source_states=source_states or {},
     )
     now = datetime(2024, 1, 1, 0, 5, tzinfo=UTC)
@@ -250,7 +265,7 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
 
     # HA entry point returns a dict (via to_dict)
-    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    diagnostics: dict[str, Any] = await async_get_config_entry_diagnostics(hass, entry)
 
     assert "schema_version" not in diagnostics
     assert "diagnostics_version" not in diagnostics
@@ -343,8 +358,8 @@ async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistan
     result = await collect_diagnostics(hass, entry)
 
     # Config comes from context
-    assert "Context Battery" in result.config["participants"]
-    assert result.config["participants"]["Context Battery"][SECTION_STORAGE][CONF_CAPACITY] == as_constant_value(20.0)
+    assert "Context Battery" in _participants(result.config)
+    assert _participants(result.config)["Context Battery"][SECTION_STORAGE][CONF_CAPACITY] == as_constant_value(20.0)
 
     # Inputs come from context source_states
     assert len(result.inputs) == 1
@@ -407,8 +422,8 @@ async def test_collect_diagnostics_unwraps_mappingproxy_participants(hass: HomeA
 
     result = await collect_diagnostics(hass, entry)
 
-    grid = result.config["participants"]["Grid"]
-    battery = result.config["participants"]["Battery"]
+    grid = _participants(result.config)["Grid"]
+    battery = _participants(result.config)["Battery"]
     assert type(grid) is dict
     assert type(battery) is dict
     assert grid[CONF_NAME] == "Grid"
@@ -459,7 +474,7 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     coordinator.data = coordinator_data
     entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
 
-    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    diagnostics: dict[str, Any] = await async_get_config_entry_diagnostics(hass, entry)
 
     outputs = diagnostics["outputs"]
     assert len(outputs) >= 1
@@ -533,7 +548,7 @@ async def test_historical_diagnostics_uses_last_run(hass: HomeAssistant) -> None
     mock_fetch_inputs.assert_called_once_with(hass, entry, run_started)
 
     # Config should be current config from the entry
-    assert "Battery" in result.config["participants"]
+    assert "Battery" in _participants(result.config)
 
     # Inputs come from recorder at the run's started_at
     assert len(result.inputs) == 1
@@ -623,7 +638,7 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
         result = await collect_diagnostics(hass, entry, target_time=target_time)
 
     # Should NOT use context — should use entry-based config
-    assert "Context Battery" not in result.config["participants"]
+    assert "Context Battery" not in _participants(result.config)
 
     assert result.environment.diagnostic_target_time is not None
 
@@ -684,7 +699,7 @@ async def test_historical_diagnostics_with_participants(hass: HomeAssistant) -> 
     ):
         result = await collect_diagnostics(hass, entry, target_time=target_time)
 
-    participants = result.config["participants"]
+    participants = _participants(result.config)
     assert "Battery One" in participants
     assert participants["Battery One"][CONF_ELEMENT_TYPE] == ElementType.BATTERY
     assert participants["Battery One"][CONF_NAME] == "Battery One"
@@ -754,8 +769,8 @@ async def test_historical_diagnostics_skips_network_subentry(hass: HomeAssistant
     ):
         result = await collect_diagnostics(hass, entry, target_time=datetime(2024, 1, 1, tzinfo=UTC))
 
-    assert "Network Config" not in result.config["participants"]
-    assert "Battery" in result.config["participants"]
+    assert "Network Config" not in _participants(result.config)
+    assert "Battery" in _participants(result.config)
 
 
 async def test_historical_diagnostics_invalid_element_config(hass: HomeAssistant) -> None:
@@ -795,7 +810,7 @@ async def test_historical_diagnostics_invalid_element_config(hass: HomeAssistant
     ):
         result = await collect_diagnostics(hass, entry, target_time=datetime(2024, 1, 1, tzinfo=UTC))
 
-    assert "Unknown Element" in result.config["participants"]
+    assert "Unknown Element" in _participants(result.config)
     assert result.inputs == []
 
 

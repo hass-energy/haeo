@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -118,8 +118,8 @@ class GridAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         *,
         config: GridConfigData,
-        periods: NDArray[np.floating[Any]],
-        **_kwargs: Any,
+        periods: NDArray[np.float64],
+        **_kwargs: object,
     ) -> Mapping[GridDeviceName, Mapping[GridOutputName, OutputData]]:
         """Map model outputs to grid-specific output names."""
         import_conn = model_outputs.get(f"{name}:import")

@@ -1,7 +1,8 @@
 """Options flow for HAEO hub management."""
 
+from collections.abc import Mapping
 import logging
-from typing import Any
+from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
 
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
@@ -22,12 +23,22 @@ from . import (
 _LOGGER = logging.getLogger(__name__)
 
 
+def _as_mapping(value: object) -> Mapping[str, object]:
+    """Narrow a stored dict value to a mapping, defaulting to empty."""
+    return value if isinstance(value, Mapping) else {}
+
+
+def _as_str(value: object) -> str | None:
+    """Narrow a stored dict value to a string, or None if absent/invalid."""
+    return value if isinstance(value, str) else None
+
+
 class HubOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for HAEO hub."""
 
     def __init__(self) -> None:
         """Initialize the options flow."""
-        self._user_input: dict[str, Any] = {}
+        self._user_input: dict[str, object] = {}
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Configure hub settings with simplified preset dropdown."""
@@ -60,9 +71,11 @@ class HubOptionsFlow(config_entries.OptionsFlow):
 
     async def _save_options(self) -> ConfigFlowResult:
         """Save the options with tier configuration."""
+        common = _as_mapping(self._user_input.get(HUB_SECTION_COMMON))
+        advanced = _as_mapping(self._user_input.get(HUB_SECTION_ADVANCED))
         tier_config, stored_preset = get_tier_config(
             self._user_input,
-            self._user_input[HUB_SECTION_COMMON].get(CONF_HORIZON_PRESET),
+            _as_str(common.get(CONF_HORIZON_PRESET)),
         )
 
         # Update config entry data with new values
@@ -75,10 +88,10 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             HUB_SECTION_TIERS: tier_config,
             HUB_SECTION_ADVANCED: {
                 **self.config_entry.data.get(HUB_SECTION_ADVANCED, {}),
-                CONF_DEBOUNCE_SECONDS: self._user_input[HUB_SECTION_ADVANCED][CONF_DEBOUNCE_SECONDS],
-                CONF_ADVANCED_MODE: self._user_input[HUB_SECTION_ADVANCED][CONF_ADVANCED_MODE],
+                CONF_DEBOUNCE_SECONDS: advanced.get(CONF_DEBOUNCE_SECONDS),
+                CONF_ADVANCED_MODE: advanced.get(CONF_ADVANCED_MODE),
             },
-            CONF_RECORD_FORECASTS: self._user_input[HUB_SECTION_ADVANCED].get(CONF_RECORD_FORECASTS, False),
+            CONF_RECORD_FORECASTS: advanced.get(CONF_RECORD_FORECASTS, False),
         }
 
         self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)

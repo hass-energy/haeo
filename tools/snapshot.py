@@ -23,7 +23,7 @@ import json
 from pathlib import Path
 import shutil
 import sys
-from typing import Any, Final
+from typing import Final
 
 REPO_ROOT: Final = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG_DIR: Final = REPO_ROOT / "config"
@@ -50,7 +50,7 @@ class SnapshotInfo:
     """In-memory representation of a snapshot on disk."""
 
     snapshot_dir: Path
-    meta: dict[str, Any]
+    meta: dict[str, object]
 
 
 def read_haeo_version() -> str:
@@ -90,7 +90,7 @@ def _atomic_replace(src: Path, dst: Path) -> None:
     src.replace(dst)
 
 
-def _read_meta(snapshot_dir: Path) -> dict[str, Any]:
+def _read_meta(snapshot_dir: Path) -> dict[str, object]:
     return json.loads((snapshot_dir / META_FILENAME).read_text())
 
 
@@ -129,7 +129,7 @@ def create_snapshot(
         ha_version_value = ha_version_src.read_text() if ha_version_src.exists() else ""
         (snapshot_dir / SNAPSHOT_HA_VERSION_FILENAME).write_text(ha_version_value)
 
-        meta = {
+        meta: dict[str, object] = {
             "haeo_version": haeo_version,
             "ha_version": ha_version_value,
             "created_at": timestamp.astimezone(UTC).isoformat(),

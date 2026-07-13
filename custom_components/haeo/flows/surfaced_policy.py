@@ -10,9 +10,8 @@ Surfaced rules follow a pattern where one side is always a wildcard:
 - source_is_wildcard=False: ``{element_name} → *``
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from types import MappingProxyType
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -30,12 +29,14 @@ from custom_components.haeo.core.schema.elements.policy import (
 )
 from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value, is_entity_value
 from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
+from custom_components.haeo.elements.input_fields import AnyInputFieldInfo
 from custom_components.haeo.flows.element_flow import build_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
     CHOICE_ENTITY,
     CHOICE_NONE,
+    NormalizingChooseSelector,
     build_choose_selector,
     get_choose_default,
     get_preferred_choice,
@@ -159,7 +160,7 @@ def _save_policy_rules(
     """Save policy rules to the policy subentry, creating it if needed."""
     subentry = find_policy_subentry(hub_entry)
 
-    data: dict[str, Any] = {
+    data: dict[str, object] = {
         CONF_ELEMENT_TYPE: str(ElementType.POLICY),
         CONF_NAME: POLICIES_TITLE,
         CONF_RULES: rules,
@@ -177,7 +178,7 @@ def _save_policy_rules(
         hass.config_entries.async_add_subentry(hub_entry, new_subentry)
 
 
-def _negate_form_value(value: Any) -> Any:
+def _negate_form_value(value: object) -> object:
     """Negate a numeric form value, leaving entity selections untouched.
 
     Only constant (numeric) values flip sign; entity references cannot be
@@ -197,7 +198,7 @@ def _negate_price(price: EntityValue | ConstantValue | None) -> EntityValue | Co
     return price
 
 
-def price_to_form_value(price: EntityValue | ConstantValue | None) -> Any:
+def price_to_form_value(price: EntityValue | ConstantValue | None) -> Sequence[str] | float | bool | None:
     """Convert a stored policy price to a form field value.
 
     Returns the raw value suitable for use with NormalizingChooseSelector defaults:
@@ -212,7 +213,7 @@ def price_to_form_value(price: EntityValue | ConstantValue | None) -> Any:
     return price["value"]
 
 
-def form_value_to_price(value: Any) -> EntityValue | ConstantValue | None:
+def form_value_to_price(value: object) -> EntityValue | ConstantValue | None:
     """Convert a form field value back to a policy price.
 
     Handles the output from NormalizingChooseSelector:
@@ -248,8 +249,8 @@ def build_surfaced_defaults(
     hub_entry: ConfigEntry,
     element_name: str | None,
     surfaced_hints: dict[str, SurfacedPriceHint],
-    surfaced_fields: Mapping[str, Any],
-) -> dict[str, Any]:
+    surfaced_fields: Mapping[str, AnyInputFieldInfo],
+) -> dict[str, object]:
     """Build default values for surfaced pricing fields.
 
     For new elements, uses the FieldHint defaults via get_choose_default.
@@ -257,7 +258,7 @@ def build_surfaced_defaults(
     If an existing element has no matching rule, no default is set so the
     form shows "none" (the rule was unlinked or never created).
     """
-    defaults: dict[str, Any] = {}
+    defaults: dict[str, object] = {}
     for field_name, hint in surfaced_hints.items():
         field_info = surfaced_fields.get(field_name)
         if field_info is None:
@@ -284,8 +285,8 @@ def build_surfaced_schema_entries(
     hub_entry: ConfigEntry,
     element_name: str | None,
     surfaced_hints: Mapping[str, SurfacedPriceHint],
-    surfaced_fields: Mapping[str, Any],
-) -> dict[str, tuple[Any, Any]]:
+    surfaced_fields: Mapping[str, AnyInputFieldInfo],
+) -> dict[str, tuple[vol.Marker, NormalizingChooseSelector]]:
     """Build vol.Schema entries for surfaced pricing fields.
 
     Uses the standard build_choose_selector to create selectors from the
@@ -295,10 +296,10 @@ def build_surfaced_schema_entries(
     """
     entity_metadata = extract_entity_metadata(hass, hub_entry)
     inclusion_map = build_inclusion_map(dict(surfaced_fields), entity_metadata)
-    entries: dict[str, tuple[Any, Any]] = {}
+    entries: dict[str, tuple[vol.Marker, NormalizingChooseSelector]] = {}
     for field_name, field_info in surfaced_fields.items():
         hint = surfaced_hints.get(field_name)
-        current_data: dict[str, Any] | None = None
+        current_data: dict[str, EntityValue | ConstantValue] | None = None
         if hint is not None and element_name is not None:
             source, target = resolve_surfaced_endpoints(hint, element_name)
             price = get_surfaced_rule_price(hub_entry, source=source, target=target)
@@ -322,7 +323,7 @@ def save_surfaced_rules_from_input(
     hass: HomeAssistant,
     hub_entry: ConfigEntry,
     element_name: str,
-    user_input: Mapping[str, Any],
+    user_input: Mapping[str, object],
     surfaced_hints: dict[str, SurfacedPriceHint],
     translations: Mapping[str, str],
     *,

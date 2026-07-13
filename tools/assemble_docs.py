@@ -34,8 +34,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from typing import Any
 import zipfile
+
+# Local alias so this standalone doc-assembly script stays importable without
+# Home Assistant installed. Shapes GitHub API release payloads and the
+# mike-format versions.json we write.
+type JsonValue = str | int | float | bool | None | dict[str, "JsonValue"] | list["JsonValue"]
 
 DEFAULT_CNAME = "haeo.io"
 TAG_RE = re.compile(r"^v(\d+)\.(\d+)\.(\d+)(?:rc(\d+))?$")
@@ -81,15 +85,16 @@ def fetch_releases(repo: str) -> list[Release]:
         text=True,
         check=True,
     )
-    payload: list[dict[str, Any]] = json.loads(result.stdout)
+    payload: list[dict[str, JsonValue]] = json.loads(result.stdout)
     releases: list[Release] = []
     for entry in payload:
         tag = str(entry.get("tag_name") or "")
         parsed = parse_tag(tag)
         if parsed is None:
             continue
-        assets = entry.get("assets") or []
-        names = {str(asset.get("name") or "") for asset in assets}
+        assets = entry.get("assets")
+        asset_list = assets if isinstance(assets, list) else []
+        names = {str(asset.get("name") or "") for asset in asset_list if isinstance(asset, dict)}
         expected = docs_asset_name(tag)
         if expected not in names:
             print(f"  skipping {tag}: no {expected} asset")
@@ -179,13 +184,13 @@ def build_version_entries(
     main_version: str,
     dev_alias: str,
     latest_alias: str,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, JsonValue]]:
     """Build the mike-format ``versions.json`` payload (newest first, ``main`` on top)."""
-    entries: list[dict[str, Any]] = [
+    entries: list[dict[str, JsonValue]] = [
         {"version": main_version, "title": main_version, "aliases": [dev_alias]},
     ]
     for release in releases:
-        aliases: list[str] = []
+        aliases: list[JsonValue] = []
         if latest is not None and release.tag == latest.tag:
             aliases.append(latest_alias)
         entries.append({"version": release.version, "title": release.version, "aliases": aliases})

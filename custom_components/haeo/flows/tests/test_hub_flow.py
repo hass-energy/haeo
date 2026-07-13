@@ -1,6 +1,11 @@
 """Test hub configuration flow - 100% coverage."""
 
-from typing import Any
+from collections.abc import Mapping
+
+# Element subentry flow classes are driven dynamically here (calling per-element step
+# methods that the shared ConfigSubentryFlow base class does not declare), which a
+# static type cannot express.
+from typing import Any  # noqa: TID251
 
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
@@ -48,9 +53,9 @@ from custom_components.haeo.flows.hub import HubConfigFlow
 
 
 def _wrap_hub_user_input(
-    common: dict[str, Any],
-    advanced: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+    common: Mapping[str, object],
+    advanced: Mapping[str, object] | None = None,
+) -> dict[str, object]:
     """Wrap hub input values into sectioned form data."""
     return {
         HUB_SECTION_COMMON: common,
@@ -58,7 +63,7 @@ def _wrap_hub_user_input(
     }
 
 
-def _get_section_schema(data_schema: Any, key: str) -> vol.Schema:
+def _get_section_schema(data_schema: vol.Schema, key: str) -> vol.Schema:
     """Return the schema for a specific section key."""
     section_map = {marker.schema: section for marker, section in data_schema.schema.items()}
     return section_map[key].schema

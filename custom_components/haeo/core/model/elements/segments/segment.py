@@ -12,7 +12,12 @@ each with its own segment chain.
 
 from functools import reduce
 import operator
-from typing import Any
+from typing import (
+    Any,  # noqa: TID251  # source_element/target_element are the connection's endpoint elements,
+    # which can be any concrete NetworkElement subtype. Element is invariant in its output-name
+    # Literal (see element.py's outputs()), so no non-Any type expresses "an Element of some
+    # unknown output-name type" here; segments only use these via hasattr/isinstance duck typing.
+)
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
@@ -38,13 +43,13 @@ class Segment:
     to transform the flow.
     """
 
-    periods: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
+    periods: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
         self,
         segment_id: str,
         n_periods: int,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         solver: Highs,
         *,
         source_element: Element[Any],

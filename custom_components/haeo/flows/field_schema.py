@@ -8,7 +8,7 @@ Home Assistant's ChooseSelector, allowing users to pick between "Entity"
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from numbers import Real
-from typing import Any
+from typing import Any, TypeGuard  # noqa: TID251  # voluptuous schema dicts and HA Selector overrides are Any by design
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.data_entry_flow import section
@@ -33,6 +33,7 @@ from custom_components.haeo.core.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
+    SchemaValue,
     as_constant_value,
     as_entity_value,
     as_none_value,
@@ -43,7 +44,7 @@ from custom_components.haeo.core.schema import (
     is_schema_value,
 )
 from custom_components.haeo.elements.field_schema import FieldSchemaInfo
-from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
+from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldGroups, InputFieldInfo
 
 # Choose selector choice keys (used for config flow data and translations)
 CHOICE_ENTITY = VALUE_TYPE_ENTITY
@@ -60,7 +61,7 @@ class SectionDefinition:
     collapsed: bool = False
 
 
-def _get_nested_value(data: Mapping[str, Any], field_name: str) -> Any | None:
+def _get_nested_value(data: Mapping[str, object], field_name: str) -> object | None:
     """Find a field value in a nested mapping."""
     if field_name in data:
         return data[field_name]
@@ -92,18 +93,18 @@ def number_selector_from_field(
     desc = field_info.entity_description
 
     # Build config, handling None values
-    config_kwargs: dict[str, Any] = {
+    config: NumberSelectorConfig = {
         "mode": NumberSelectorMode.BOX,
         "step": desc.native_step if desc.native_step else "any",
     }
     if desc.native_min_value is not None:
-        config_kwargs["min"] = desc.native_min_value
+        config["min"] = desc.native_min_value
     if desc.native_max_value is not None:
-        config_kwargs["max"] = desc.native_max_value
+        config["max"] = desc.native_max_value
     if desc.native_unit_of_measurement is not None:
-        config_kwargs["unit_of_measurement"] = desc.native_unit_of_measurement
+        config["unit_of_measurement"] = desc.native_unit_of_measurement
 
-    return NumberSelector(NumberSelectorConfig(**config_kwargs))
+    return NumberSelector(config)
 
 
 def boolean_selector_from_field() -> BooleanSelector:  # type: ignore[type-arg]
@@ -133,17 +134,17 @@ def build_entity_selector(
     """
     entities_to_include = list(include_entities or [])
 
-    config_kwargs: dict[str, Any] = {
+    config: EntitySelectorConfig = {
         "domain": [DOMAIN, "sensor", "input_number", "number", "switch"],
         "multiple": multiple,
     }
     if entities_to_include:
-        config_kwargs["include_entities"] = entities_to_include
+        config["include_entities"] = entities_to_include
 
-    return EntitySelector(EntitySelectorConfig(**config_kwargs))
+    return EntitySelector(config)
 
 
-def _get_allowed_choices(field_schema: FieldSchemaInfo, field_info: InputFieldInfo[Any]) -> frozenset[str]:
+def _get_allowed_choices(field_schema: FieldSchemaInfo, field_info: AnyInputFieldInfo) -> frozenset[str]:
     kinds = get_schema_value_kinds(field_schema.value_type)
     choices: set[str] = set()
     if VALUE_TYPE_ENTITY in kinds:
@@ -156,8 +157,8 @@ def _get_allowed_choices(field_schema: FieldSchemaInfo, field_info: InputFieldIn
 
 
 def get_preferred_choice(
-    field_info: InputFieldInfo[Any],
-    current_data: Mapping[str, Any] | None = None,
+    field_info: AnyInputFieldInfo,
+    current_data: Mapping[str, object] | None = None,
     *,
     allowed_choices: Collection[str],
 ) -> str:
@@ -206,12 +207,12 @@ class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]
     Converts to expected format before delegating to ChooseSelector.
     """
 
-    def __call__(self, data: Any) -> Any:
+    def __call__(self, data: Any) -> Any:  # matches upstream Selector.__call__(self, data: Any) -> Any signature
         """Normalize data before validation."""
         normalized = self._normalize(data)
         return super().__call__(normalized)  # type: ignore[misc]
 
-    def _normalize(self, value: Any) -> Any:
+    def _normalize(self, value: object) -> object:
         """Normalize raw dict format to expected value."""
         if isinstance(value, dict) and "active_choice" in value:
             choice = value.get("active_choice")
@@ -224,14 +225,25 @@ class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]
         return value
 
 
+def _is_number_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldInfo[NumberEntityDescription]]:
+    """Narrow a heterogeneous InputFieldInfo to the NumberEntityDescription variant.
+
+    Uses a class-name check rather than isinstance: Home Assistant's frozen
+    dataclass compatibility shim generates entity description classes at
+    runtime, so `isinstance(desc, NumberEntityDescription)` does not reliably
+    hold even for instances built from that description type.
+    """
+    return type(field_info.entity_description).__name__ != "SwitchEntityDescription"
+
+
 def build_choose_selector(
-    field_info: InputFieldInfo[Any],
+    field_info: AnyInputFieldInfo,
     *,
     allowed_choices: Collection[str],
     include_entities: list[str] | None = None,
     multiple: bool = True,
     preferred_choice: str = CHOICE_ENTITY,
-) -> Any:
+) -> NormalizingChooseSelector:
     """Build a ChooseSelector allowing user to pick Entity, Constant, or Disabled.
 
     Args:
@@ -255,10 +267,10 @@ def build_choose_selector(
     )
 
     # Build value selector for the "constant" choice based on field type
-    if type(field_info.entity_description).__name__ == "SwitchEntityDescription":
-        value_selector = boolean_selector_from_field()
+    if _is_number_field_info(field_info):
+        value_selector = number_selector_from_field(field_info)
     else:
-        value_selector = number_selector_from_field(field_info)  # type: ignore[arg-type]
+        value_selector = boolean_selector_from_field()
 
     # Build choice configs - must use serialized dict format for ChooseSelector validation
     # The ChooseSelector's __call__ uses selector() which expects a dict, not Selector object
@@ -301,14 +313,14 @@ def build_choose_selector(
 
 
 def build_choose_schema_entry(
-    field_info: InputFieldInfo[Any],
+    field_info: AnyInputFieldInfo,
     *,
     is_optional: bool,
     allowed_choices: Collection[str],
     include_entities: list[str] | None = None,
     multiple: bool = True,
     preferred_choice: str = CHOICE_ENTITY,
-) -> tuple[vol.Marker, Any]:
+) -> tuple[vol.Marker, NormalizingChooseSelector]:
     """Build a schema entry using NormalizingChooseSelector.
 
     Args:
@@ -338,12 +350,12 @@ def build_choose_schema_entry(
 
 
 def build_choose_field_entries(
-    input_fields: Mapping[str, InputFieldInfo[Any]],
+    input_fields: Mapping[str, AnyInputFieldInfo],
     *,
     field_schema: Mapping[str, FieldSchemaInfo],
     inclusion_map: dict[str, list[str]],
-    current_data: Mapping[str, Any] | None = None,
-) -> dict[str, tuple[vol.Marker, Any]]:
+    current_data: Mapping[str, object] | None = None,
+) -> dict[str, tuple[vol.Marker, NormalizingChooseSelector]]:
     """Build choose selector entries for input fields.
 
     Args:
@@ -356,7 +368,7 @@ def build_choose_field_entries(
         Mapping of field_name -> (marker, selector) for schema insertion.
 
     """
-    entries: dict[str, tuple[vol.Marker, Any]] = {}
+    entries: dict[str, tuple[vol.Marker, NormalizingChooseSelector]] = {}
 
     for field_info in input_fields.values():
         schema_info = field_schema.get(field_info.field_name)
@@ -425,7 +437,7 @@ def build_sectioned_choose_schema(
     field_schema: Mapping[str, Mapping[str, FieldSchemaInfo]],
     inclusion_map: Mapping[str, Mapping[str, list[str]]],
     *,
-    current_data: Mapping[str, Any] | None = None,
+    current_data: Mapping[str, Mapping[str, object]] | None = None,
     extra_field_entries: Mapping[str, Mapping[str, tuple[vol.Marker, Any]]] | None = None,
     top_level_entries: Mapping[str, tuple[vol.Marker, Any]] | None = None,
 ) -> vol.Schema:
@@ -454,12 +466,12 @@ def build_sectioned_choose_defaults(
     sections: Sequence[SectionDefinition],
     input_fields: InputFieldGroups,
     *,
-    current_data: Mapping[str, Any] | None = None,
-    base_defaults: Mapping[str, Mapping[str, Any]] | None = None,
+    current_data: Mapping[str, object] | None = None,
+    base_defaults: Mapping[str, Mapping[str, object]] | None = None,
     exclude_fields: tuple[str, ...] = (),
-) -> dict[str, Any]:
+) -> dict[str, dict[str, object]]:
     """Build sectioned defaults for choose selector fields."""
-    defaults: dict[str, dict[str, Any]] = {key: dict(values) for key, values in (base_defaults or {}).items()}
+    defaults: dict[str, dict[str, object]] = {key: dict(values) for key, values in (base_defaults or {}).items()}
 
     for section_def in sections:
         section_defaults = defaults.setdefault(section_def.key, {})
@@ -477,15 +489,15 @@ def build_sectioned_choose_defaults(
 
 
 def preprocess_sectioned_choose_input(
-    user_input: dict[str, Any] | None,
+    user_input: Mapping[str, object] | None,
     input_fields: InputFieldGroups,
     sections: Sequence[SectionDefinition],
-) -> dict[str, Any] | None:
+) -> dict[str, object] | None:
     """Preprocess sectioned input to normalize ChooseSelector data."""
     if user_input is None:
         return None
 
-    result: dict[str, Any] = dict(user_input)
+    result: dict[str, object] = dict(user_input)
     section_keys = {section.key for section in sections}
     if not section_keys.intersection(result):
         result = _nest_section_input(result, sections)
@@ -500,14 +512,15 @@ def preprocess_sectioned_choose_input(
     return result
 
 
-def _nest_section_input(user_input: Mapping[str, Any], sections: Sequence[SectionDefinition]) -> dict[str, Any]:
+def _nest_section_input(user_input: Mapping[str, object], sections: Sequence[SectionDefinition]) -> dict[str, object]:
     """Nest flat input into sectioned input based on section definitions."""
-    result: dict[str, Any] = {section_def.key: {} for section_def in sections}
+    sectioned: dict[str, dict[str, object]] = {section_def.key: {} for section_def in sections}
+    result: dict[str, object] = dict(sectioned)
     for key, value in user_input.items():
         matched = False
         for section_def in sections:
             if key in section_def.fields:
-                result[section_def.key][key] = value
+                sectioned[section_def.key][key] = value
                 matched = True
                 break
         if not matched:
@@ -516,7 +529,7 @@ def _nest_section_input(user_input: Mapping[str, Any], sections: Sequence[Sectio
 
 
 def validate_sectioned_choose_fields(
-    user_input: Mapping[str, Any],
+    user_input: Mapping[str, object],
     input_fields: InputFieldGroups,
     field_schema: Mapping[str, Mapping[str, FieldSchemaInfo]],
     sections: Sequence[SectionDefinition],
@@ -542,21 +555,21 @@ def validate_sectioned_choose_fields(
 
 
 def convert_sectioned_choose_data_to_config(
-    user_input: Mapping[str, Any],
+    user_input: Mapping[str, object],
     input_fields: InputFieldGroups,
     sections: Sequence[SectionDefinition],
     *,
     exclude_fields: tuple[str, ...] = (),
-) -> dict[str, Any]:
+) -> dict[str, dict[str, object]]:
     """Convert sectioned choose data into a sectioned config dict."""
-    config: dict[str, Any] = {}
+    config: dict[str, dict[str, object]] = {}
     for section_def in sections:
         section_input = user_input.get(section_def.key, {})
         if not isinstance(section_input, Mapping):
             config[section_def.key] = {}
             continue
         section_fields = input_fields.get(section_def.key, {})
-        section_config: dict[str, Any] = {
+        section_config: dict[str, object] = {
             key: value
             for key, value in section_input.items()
             if key not in section_fields and key not in exclude_fields
@@ -569,9 +582,9 @@ def convert_sectioned_choose_data_to_config(
 
 
 def get_choose_default(
-    field_info: InputFieldInfo[Any],
-    current_data: Mapping[str, Any] | None = None,
-) -> Any:
+    field_info: AnyInputFieldInfo,
+    current_data: Mapping[str, object] | None = None,
+) -> Sequence[str] | float | bool | None:
     """Get the default value for a choose selector field.
 
     Since ChooseSelector always selects the first choice (which we order
@@ -612,10 +625,10 @@ def get_choose_default(
 
 
 def convert_choose_data_to_config(
-    user_input: dict[str, Any],
-    input_fields: Mapping[str, InputFieldInfo[Any]],
+    user_input: Mapping[str, object],
+    input_fields: Mapping[str, AnyInputFieldInfo],
     exclude_keys: tuple[str, ...] = (),
-) -> dict[str, Any]:
+) -> dict[str, SchemaValue]:
     """Convert choose selector user input to final config format.
 
     After preprocessing, the user input contains:
@@ -635,7 +648,7 @@ def convert_choose_data_to_config(
         - Disabled fields: stored as {"type": "none"}
 
     """
-    config: dict[str, Any] = {}
+    config: dict[str, SchemaValue] = {}
     field_names = set(input_fields)
 
     for field_name, value in user_input.items():
@@ -676,9 +689,9 @@ def convert_choose_data_to_config(
 
 
 def preprocess_choose_selector_input(
-    user_input: dict[str, Any] | None,
-    input_fields: Mapping[str, InputFieldInfo[Any]],
-) -> dict[str, Any] | None:
+    user_input: Mapping[str, object] | None,
+    input_fields: Mapping[str, AnyInputFieldInfo],
+) -> dict[str, object] | None:
     """Preprocess user input to normalize ChooseSelector data.
 
     Handles the case where the frontend sends raw dict format like:
@@ -734,7 +747,7 @@ def preprocess_choose_selector_input(
     return result
 
 
-def is_valid_choose_value(value: Any) -> bool:
+def is_valid_choose_value(value: object) -> bool:
     """Check if a choose selector value is valid (has a selection).
 
     After schema validation, ChooseSelector returns the inner value directly
@@ -762,8 +775,8 @@ def is_valid_choose_value(value: Any) -> bool:
 
 
 def validate_choose_fields(
-    user_input: dict[str, Any],
-    input_fields: Mapping[str, InputFieldInfo[Any]],
+    user_input: Mapping[str, object],
+    input_fields: Mapping[str, AnyInputFieldInfo],
     field_schema: Mapping[str, FieldSchemaInfo],
     *,
     exclude_fields: Collection[str] = (),

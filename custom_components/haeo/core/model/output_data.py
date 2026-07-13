@@ -2,7 +2,11 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import (
+    Any,  # noqa: TID251  # values mixes float (most outputs) and str (STATUS); adapters outside
+    # core/ do float arithmetic on values without narrowing, so a precise union would break them
+    Literal,
+)
 
 import numpy as np
 
@@ -48,12 +52,12 @@ class OutputData:
     direction: Literal["+", "-"] | None = None
     advanced: bool = False
     state_last: bool = False
-    state: Any | None = None
+    state: float | None = None
     priority: int | None = None
     fixed: bool = False
     display_precision: int | None = None
-    range_up: Sequence[Any] | None = None
-    range_dn: Sequence[Any] | None = None
+    range_up: Sequence[float] | None = None
+    range_dn: Sequence[float] | None = None
 
     def __init__(
         self,
@@ -64,12 +68,12 @@ class OutputData:
         *,
         advanced: bool = False,
         state_last: bool = False,
-        state: Any | None = None,
+        state: float | None = None,
         priority: int | None = None,
         fixed: bool = False,
         display_precision: int | None = None,
-        range_up: Sequence[Any] | None = None,
-        range_dn: Sequence[Any] | None = None,
+        range_up: Sequence[float] | None = None,
+        range_dn: Sequence[float] | None = None,
     ) -> None:
         """Initialize OutputData.
 

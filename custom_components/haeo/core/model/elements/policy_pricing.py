@@ -6,7 +6,7 @@ Updating the price triggers reactive cost invalidation so the next
 optimization picks up the new value without rebuilding the network.
 """
 
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
@@ -36,7 +36,7 @@ class PolicyPricingElementConfig(TypedDict):
     element_type: PolicyPricingElementTypeName
     name: str
     label: NotRequired[str]
-    price: float | NDArray[np.floating[Any]]
+    price: float | NDArray[np.float64]
     terms: list[PolicyPricingTerm]
 
 
@@ -49,15 +49,15 @@ class PolicyPricing(Element[str]):
     their costs are summed by the network.
     """
 
-    price: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
+    price: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         solver: Highs,
-        price: float | NDArray[np.floating[Any]],
+        price: float | NDArray[np.float64],
         power_terms: list[HighspyArray],
         terms: list[PolicyPricingTerm] | None = None,
     ) -> None:

@@ -1,10 +1,8 @@
 """System health diagnostics for HAEO integration."""
 
-from collections.abc import Mapping
-from typing import Any
-
 from homeassistant.components import system_health
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.util.json import JsonValueType
 
 from .const import (
     DOMAIN,
@@ -25,9 +23,9 @@ def async_register(
     register.async_register_info(async_system_health_info)
 
 
-async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
+async def async_system_health_info(hass: HomeAssistant) -> dict[str, JsonValueType]:
     """Get system health information for HAEO integration."""
-    health_info: dict[str, Any] = {}
+    health_info: dict[str, JsonValueType] = {}
 
     # Get all HAEO config entries
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -52,7 +50,9 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, Any]:
         # Coordinator status
         health_info[f"{prefix}status"] = "ok" if coordinator.last_update_success else "update_failed"
 
-        hub_outputs: Mapping[str, Any] = coordinator.data.outputs.get(hub_key, {}) if coordinator.data else {}
+        # `coordinator` is untyped (Any) here since `hass.config_entries.async_entries` returns
+        # the generic `ConfigEntry` with its default `Any` runtime_data parameter.
+        hub_outputs = coordinator.data.outputs.get(hub_key, {}) if coordinator.data else {}
 
         status_output = hub_outputs.get(OUTPUT_NAME_OPTIMIZATION_STATUS)
         optimization_status = (

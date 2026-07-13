@@ -1,7 +1,5 @@
 """Simplified sensor implementation for HAEO outputs."""
 
-from typing import Any
-
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import callback
@@ -81,7 +79,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updates from the coordinator."""
 
-        attributes: dict[str, Any] = {
+        attributes: dict[str, object] = {
             "element_name": self._element_title,
             "element_type": self._element_type,
             "output_name": self._output_name,

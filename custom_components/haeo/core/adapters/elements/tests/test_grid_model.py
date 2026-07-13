@@ -1,7 +1,7 @@
 """Tests for grid element model mapping."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -38,7 +38,7 @@ class CreateCase(TypedDict):
 
     description: str
     data: GridConfigData
-    model: list[dict[str, Any]]
+    model: list[dict[str, object]]
 
 
 class OutputsCase(TypedDict):
@@ -48,7 +48,7 @@ class OutputsCase(TypedDict):
     name: str
     config: GridConfigData
     model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
-    periods: NDArray[np.floating[Any]]
+    periods: NDArray[np.float64]
     outputs: Mapping[str, Mapping[str, OutputData]]
 
 

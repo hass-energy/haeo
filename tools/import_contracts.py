@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-from typing import Any
 
 from grimp import ImportGraph
 from importlinter.application import output
@@ -36,7 +35,8 @@ class AllowlistContract(Contract):
             raise ValueError(_EXTERNAL_PACKAGES_MSG)
 
         source_module_names = self._resolve_source_modules(graph)
-        allowed: set[Any] = self.allow_modules  # type: ignore[assignment]
+        # SetField values are untyped at runtime; coerce to the strings they hold.
+        allowed: set[str] = {str(m) for m in self.allow_modules}  # type: ignore[attr-defined]
         disallowed: dict[str, list[dict[str, object]]] = {}
 
         for module_name in sorted(source_module_names):
@@ -53,7 +53,7 @@ class AllowlistContract(Contract):
 
         return ContractCheck(
             kept=not disallowed,
-            metadata={"disallowed": disallowed, "allowed": sorted(str(m) for m in allowed)},
+            metadata={"disallowed": disallowed, "allowed": sorted(allowed)},
         )
 
     def render_broken_contract(self, check: ContractCheck) -> None:

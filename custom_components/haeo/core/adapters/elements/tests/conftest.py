@@ -1,7 +1,7 @@
 """Shared fixtures for adapter element tests."""
 
 from collections.abc import Sequence
-from typing import Any, Final
+from typing import Final
 
 from homeassistant.core import HomeAssistant
 
@@ -17,7 +17,7 @@ def set_forecast_sensor(
     hass: HomeAssistant,
     entity_id: str,
     value: str,
-    forecast: list[dict[str, Any]],
+    forecast: list[dict[str, object]],
     unit: str = "kW",
 ) -> None:
     """Set a sensor state with forecast attribute in hass."""

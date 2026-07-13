@@ -6,7 +6,7 @@ and their associated metadata like output type, direction, and time series behav
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Literal, TypeGuard
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
@@ -72,14 +72,41 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     device_type: str | None = None
 
 
-type InputFieldSection = Mapping[str, InputFieldInfo[Any]]
+# Union of the two concrete field-info instantiations; use when handling
+# heterogeneous fields (the TypeVar is constrained to exactly these two).
+type AnyInputFieldInfo = InputFieldInfo[NumberEntityDescription] | InputFieldInfo[SwitchEntityDescription]
+
+type InputFieldSection = Mapping[str, AnyInputFieldInfo]
+
+
+def is_number_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldInfo[NumberEntityDescription]]:
+    """Narrow a heterogeneous InputFieldInfo to the NumberEntityDescription variant.
+
+    Uses a class-name check rather than isinstance: Home Assistant's frozen
+    dataclass compatibility shim generates entity description classes at
+    runtime, so isinstance against the imported class does not reliably hold.
+    """
+    return type(field_info.entity_description).__name__ == "NumberEntityDescription"
+
+
+def is_switch_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldInfo[SwitchEntityDescription]]:
+    """Narrow a heterogeneous InputFieldInfo to the SwitchEntityDescription variant.
+
+    See is_number_field_info for why this is a class-name check.
+    """
+    return type(field_info.entity_description).__name__ == "SwitchEntityDescription"
+
+
 type InputFieldGroups = Mapping[str, InputFieldSection]
 type InputFieldPath = tuple[str, ...]
 
 __all__ = [
+    "AnyInputFieldInfo",
     "InputFieldDefaults",
     "InputFieldGroups",
     "InputFieldInfo",
     "InputFieldPath",
     "InputFieldSection",
+    "is_number_field_info",
+    "is_switch_field_info",
 ]

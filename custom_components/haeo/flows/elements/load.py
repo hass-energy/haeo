@@ -1,6 +1,7 @@
 """Load element configuration flows."""
 
-from typing import Any
+from collections.abc import Mapping
+from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 import voluptuous as vol
@@ -38,6 +39,23 @@ from custom_components.haeo.sections import build_common_fields, forecast_sectio
 SURFACED_POLICY_FIELDS: frozenset[str] = frozenset({CONF_CONSUMPTION_COST})
 
 
+def _as_mapping(value: object) -> Mapping[str, object]:
+    """Narrow a stored dict value to a mapping, defaulting to empty."""
+    return value if isinstance(value, Mapping) else {}
+
+
+def _as_str(value: object) -> str | None:
+    """Narrow a stored dict value to a string, or None if absent/invalid."""
+    return value if isinstance(value, str) else None
+
+
+def _sectioned_view(data: Mapping[str, object] | None) -> Mapping[str, Mapping[str, object]] | None:
+    """Narrow stored subentry data to only its nested section mappings."""
+    if data is None:
+        return None
+    return {key: value for key, value in data.items() if isinstance(value, Mapping)}
+
+
 class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     """Handle load element configuration flows."""
 
@@ -58,12 +76,16 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Handle reconfigure step: name, connection, and input configuration."""
         return await self._async_step_user(user_input)
 
-    async def _async_step_user(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
+    async def _async_step_user(self, user_input: dict[str, object] | None) -> SubentryFlowResult:
         """Shared logic for user and reconfigure steps."""
         subentry = self._get_subentry()
-        subentry_data = dict(subentry.data) if subentry else None
+        subentry_data: dict[str, object] | None = dict(subentry.data) if subentry else None
         participants = self._get_participant_names()
-        current_connection = get_connection_target_name(subentry_data.get(CONF_CONNECTION)) if subentry_data else None
+        current_connection = (
+            get_connection_target_name(subentry_data.get(CONF_CONNECTION))  # type: ignore[arg-type]  # stored subentry data always matches LoadConfigSchema
+            if subentry_data
+            else None
+        )
         default_name = await self._async_get_default_name(ELEMENT_TYPE)
         if not isinstance(current_connection, str):
             current_connection = participants[0] if participants else ""
@@ -111,12 +133,12 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         input_fields: InputFieldGroups,
         section_inclusion_map: dict[str, dict[str, list[str]]],
         current_connection: str | None = None,
-        subentry_data: dict[str, Any] | None = None,
+        subentry_data: Mapping[str, object] | None = None,
     ) -> vol.Schema:
         """Build the schema with name, connection, and choose selectors for inputs."""
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
-        element_name = subentry_data.get(CONF_NAME) if subentry_data else None
+        element_name = _as_str(subentry_data.get(CONF_NAME)) if subentry_data else None
         surfaced_entries = build_surfaced_schema_entries(
             self.hass, self._get_entry(), element_name, SURFACED_PRICE_HINTS, surfaced_fields
         )
@@ -125,7 +147,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             field_schema,
             section_inclusion_map,
-            current_data=subentry_data,
+            current_data=_sectioned_view(subentry_data),
             top_level_entries=build_common_fields(
                 include_connection=True,
                 participants=participants,
@@ -140,19 +162,19 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         self,
         default_name: str,
         input_fields: InputFieldGroups,
-        subentry_data: dict[str, Any] | None = None,
+        subentry_data: Mapping[str, object] | None = None,
         connection_default: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, object]:
         """Build default values for the form."""
         connection_default = (
             connection_default
             if connection_default is not None
-            else get_connection_target_name(subentry_data.get(CONF_CONNECTION))
+            else get_connection_target_name(subentry_data.get(CONF_CONNECTION))  # type: ignore[arg-type]  # stored subentry data always matches LoadConfigSchema
             if subentry_data
             else None
         )
         hub_entry = self._get_entry()
-        element_name = subentry_data.get(CONF_NAME) if subentry_data else None
+        element_name = _as_str(subentry_data.get(CONF_NAME)) if subentry_data else None
         surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
         surfaced_defaults = build_surfaced_defaults(hub_entry, element_name, SURFACED_PRICE_HINTS, surfaced_fields)
         return {
@@ -170,14 +192,14 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _validate_user_input(
         self,
-        user_input: dict[str, Any] | None,
+        user_input: dict[str, object] | None,
         input_fields: InputFieldGroups,
     ) -> dict[str, str] | None:
         """Validate user input and return errors dict if any."""
         if user_input is None:
             return None
         errors: dict[str, str] = {}
-        self._validate_name(user_input.get(CONF_NAME), errors)
+        self._validate_name(_as_str(user_input.get(CONF_NAME)), errors)
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
@@ -190,7 +212,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
         return errors if errors else None
 
-    def _build_config(self, user_input: dict[str, Any]) -> dict[str, Any]:
+    def _build_config(self, user_input: Mapping[str, object]) -> dict[str, object]:
         """Build final config dict from user input."""
         input_fields = get_input_fields(ELEMENT_TYPE)
         config_dict = convert_sectioned_choose_data_to_config(
@@ -202,16 +224,16 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             CONF_NAME: user_input[CONF_NAME],
-            CONF_CONNECTION: normalize_connection_target(user_input[CONF_CONNECTION]),
+            CONF_CONNECTION: normalize_connection_target(user_input[CONF_CONNECTION]),  # type: ignore[arg-type]  # user input validated by choose selector against the connection schema
             **config_dict,
         }
 
-    def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
+    def _finalize(self, config: dict[str, object], user_input: Mapping[str, object]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry and saving surfaced rules."""
         name = str(user_input[CONF_NAME])
 
         # Save surfaced policy rules from the curtailment section input
-        curtailment_input = user_input.get(SECTION_CURTAILMENT, {})
+        curtailment_input = _as_mapping(user_input.get(SECTION_CURTAILMENT))
         hub_entry = self._get_entry()
         translations = {"consumption_cost": f"{name} consumption cost"}
         subentry = self._get_subentry()

@@ -115,7 +115,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
 
     Usage:
         class Battery(Element):
-            capacity = TrackedParam[NDArray[np.floating[Any]]]()
+            capacity = TrackedParam[NDArray[np.float64]]()
 
             @constraint(output=True, unit="$/kWh")
             def battery_soc_max(self) -> list[highs_linear_expression]:

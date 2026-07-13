@@ -11,7 +11,7 @@ reads their resolved values to feed the optimization.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
 
@@ -38,7 +38,7 @@ from custom_components.haeo.util import async_update_subentry_value
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry
-    from custom_components.haeo.elements.input_fields import InputFieldInfo
+    from custom_components.haeo.elements.input_fields import AnyInputFieldInfo
     from custom_components.haeo.horizon import HorizonManager
 
 type InputStoreKey = tuple[str, InputFieldPath]
@@ -66,14 +66,14 @@ class SubentryStorage:
         self._subentry_id = subentry_id
         self._field_path = field_path
 
-    def read(self) -> Any:
+    def read(self) -> object:
         """Return the currently persisted schema value, or None."""
         subentry = self._config_entry.subentries.get(self._subentry_id)
         if subentry is None:
             return None
         return get_nested_config_value_by_path(subentry.data, self._field_path)
 
-    async def write(self, value: Any) -> None:
+    async def write(self, value: object) -> None:
         """Persist a new schema value to the subentry."""
         subentry = self._config_entry.subentries[self._subentry_id]
         await async_update_subentry_value(
@@ -85,7 +85,7 @@ class SubentryStorage:
         )
 
 
-def _hint_from_field_info(field_info: InputFieldInfo[Any]) -> FieldHint:
+def _hint_from_field_info(field_info: AnyInputFieldInfo) -> FieldHint:
     """Build the resolver field hint from an input field's metadata."""
     return FieldHint(
         output_type=field_info.output_type,

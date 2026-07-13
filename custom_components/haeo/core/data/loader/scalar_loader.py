@@ -1,6 +1,6 @@
 """Loader for scalar (non-forecast) sensor values."""
 
-from typing import Any
+from collections.abc import Mapping
 
 from custom_components.haeo.core.schema import EntityValue
 from custom_components.haeo.core.state import StateMachine
@@ -12,7 +12,7 @@ from .sensor_loader import normalize_entity_ids
 class ScalarLoader:
     """Loader that reads current sensor state without forecasting."""
 
-    def available(self, *, sm: StateMachine, value: EntityValue, **_kwargs: Any) -> bool:
+    def available(self, *, sm: StateMachine, value: EntityValue, **_kwargs: object) -> bool:
         """Return True when every referenced sensor has a usable state."""
         entity_ids = value["value"]
         if not entity_ids:
@@ -30,8 +30,8 @@ class ScalarLoader:
             if (
                 _coerce_state_value(
                     state.state,
-                    state.attributes.get("unit_of_measurement"),
-                    state.attributes.get("device_class"),
+                    _str_attr(state.attributes, "unit_of_measurement"),
+                    _str_attr(state.attributes, "device_class"),
                 )
                 is None
             ):
@@ -39,7 +39,7 @@ class ScalarLoader:
 
         return True
 
-    async def load(self, *, sm: StateMachine, value: EntityValue, **_kwargs: Any) -> float:
+    async def load(self, *, sm: StateMachine, value: EntityValue, **_kwargs: object) -> float:
         """Load current scalar values and return the sum.
 
         Raises:
@@ -60,8 +60,8 @@ class ScalarLoader:
                 raise ValueError(msg)
             value_float = _coerce_state_value(
                 state.state,
-                state.attributes.get("unit_of_measurement"),
-                state.attributes.get("device_class"),
+                _str_attr(state.attributes, "unit_of_measurement"),
+                _str_attr(state.attributes, "device_class"),
             )
             if value_float is None:
                 msg = f"Sensor {entity_id} has no numeric state"
@@ -71,7 +71,13 @@ class ScalarLoader:
         return total
 
 
-def _coerce_state_value(state_value: Any, unit: str | None, device_class: str | None) -> float | None:
+def _str_attr(attributes: Mapping[str, object], key: str) -> str | None:
+    """Return a string attribute value, or None when missing or not a string."""
+    value = attributes.get(key)
+    return value if isinstance(value, str) else None
+
+
+def _coerce_state_value(state_value: str, unit: str | None, device_class: str | None) -> float | None:
     """Return the numeric state value converted to base units."""
     try:
         value = float(state_value)

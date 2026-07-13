@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -16,6 +16,7 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
+from homeassistant.util.json import JsonValueType
 import numpy as np
 
 from custom_components.haeo.const import (
@@ -55,6 +56,7 @@ if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
     from custom_components.haeo.core.data.input_store import InputStore
     from custom_components.haeo.elements import InputFieldPath
+    from custom_components.haeo.input_stores import InputStoreKey
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,7 +71,7 @@ class ForecastPoint(TypedDict):
     """
 
     time: datetime
-    value: Any
+    value: float | str
 
 
 @dataclass(frozen=True, slots=True)
@@ -232,9 +234,9 @@ def _build_coordinator_output(
 
 
 def _build_optimization_context(
-    hub_config: Mapping[str, Any],
+    hub_config: Mapping[str, object],
     participant_configs: Mapping[str, ElementConfigSchema],
-    input_stores: Mapping[Any, "InputStore"],
+    input_stores: Mapping["InputStoreKey", "InputStore"],
     horizon_manager: HorizonManager,
 ) -> OptimizationContext:
     """Build an optimization context by pulling from existing sources."""
@@ -299,7 +301,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Tests may set this manually before the first optimization.
         self.network: Network = None  # type: ignore[assignment]
         self._element_updaters: dict[str, network_module.ElementUpdater] = {}
-        self.topology: dict[str, Any] = {}  # Serialized topology for frontend
+        self.topology: dict[str, JsonValueType] = {}  # Serialized topology for frontend
 
         # Snapshot the participant structure (which elements exist and the shape
         # of each, including list fields like policy rules) taken from the same
@@ -614,7 +616,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         return True
 
-    def _field_values_for_element(self, element_name: str) -> dict["InputFieldPath", Any]:
+    def _field_values_for_element(self, element_name: str) -> dict["InputFieldPath", bool | float | np.ndarray | None]:
         """Collect resolved field values from the element's input stores."""
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
@@ -709,11 +711,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Check if optimization is already in progress
         # If so, skip this call - we'll use existing data or signal retry
         if self._optimization_in_progress:
-            # Return existing data if available (may be None before first refresh)
-            # The base class sets self.data to None initially (via type: ignore)
-            # so we need to get it as Any first to check for None
-            existing_data: Any = self.data
-            if existing_data is not None:
+            # Return existing data if available (may be None before first refresh).
+            # The base class sets self.data to None initially (via type: ignore) even
+            # though it's declared as CoordinatorData, so the check below is only
+            # "unnecessary" to the type checker — the base class's lie means it can
+            # genuinely be None here at runtime.
+            existing_data = self.data
+            if existing_data is not None:  # type: ignore[reportUnnecessaryComparison]
                 return existing_data
             # First run with concurrent call - raise to signal retry later
             msg = "Concurrent optimization during first refresh"

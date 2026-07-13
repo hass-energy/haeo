@@ -3,7 +3,6 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
 from custom_components.haeo.core.state import EntityState
@@ -22,7 +21,7 @@ class OptimizationContext:
     in CoordinatorData for diagnostics and reproducibility.
     """
 
-    hub_config: Mapping[str, Any]
+    hub_config: Mapping[str, object]
     """Hub configuration used to derive periods and timestamps."""
 
     horizon_start: datetime

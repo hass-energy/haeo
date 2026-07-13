@@ -18,6 +18,7 @@ from custom_components.haeo.elements import (
     is_element_config_schema,
     iter_input_field_paths,
 )
+from custom_components.haeo.elements.input_fields import is_number_field_info
 from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
 from custom_components.haeo.flows.surfaced_policy import (
@@ -62,7 +63,7 @@ def _build_surfaced_mirror_entities(
     entities: list[HaeoInputNumber] = []
     for field_name, hint in surfaced_hints.items():
         field_info = surfaced_fields.get(field_name)
-        if field_info is None:
+        if field_info is None or not is_number_field_info(field_info):
             continue
 
         source, target = resolve_surfaced_endpoints(hint, subentry.title)
@@ -131,7 +132,7 @@ async def async_setup_entry(
         number_fields = [
             (field_path, field_info)
             for field_path, field_info in iter_input_field_paths(all_fields)
-            if type(field_info.entity_description).__name__ == "NumberEntityDescription"
+            if is_number_field_info(field_info)
         ]
 
         surfaced_hints = get_surfaced_price_hints(element_type)

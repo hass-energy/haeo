@@ -19,8 +19,8 @@ class ElementTestCaseInputs(TypedDict):
     """Inputs for element optimization scenario."""
 
     power: NotRequired[Sequence[float | None]]
-    input_cost: NotRequired[NDArray[np.floating[Any]] | float]
-    output_cost: NotRequired[NDArray[np.floating[Any]] | float]
+    input_cost: NotRequired[NDArray[np.float64] | float]
+    output_cost: NotRequired[NDArray[np.float64] | float]
 
 
 class ElementTestCase(TypedDict):

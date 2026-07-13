@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 import numpy as np
 
@@ -214,7 +214,7 @@ class BatteryAdapter:
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         config: BatteryConfigData,
-        **_kwargs: Any,
+        **_kwargs: object,
     ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
         """Map model outputs to battery-specific output names."""
         discharge_conn = model_outputs.get(f"{name}:discharge")

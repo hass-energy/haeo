@@ -3,13 +3,13 @@
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any
 
 from freezegun import freeze_time
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import EventStateChangedData, async_track_state_change_event
 import pytest
+from syrupy.assertion import SnapshotAssertion
 
 from custom_components.haeo.const import OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.sensor_utils import get_output_sensors
@@ -47,12 +47,14 @@ async def test_scenarios(
     hass: HomeAssistant,
     scenario_path: Path,
     scenario_data: ScenarioData,
-    snapshot: Any,
+    snapshot: SnapshotAssertion,
 ) -> None:
     """Test that scenario sets up correctly and optimization matches expected outputs."""
     # Freeze time at the captured optimization start, in the captured zone.
     freeze_timestamp = scenario_data["environment"]["optimization_start_time"]
     timezone = scenario_data["environment"]["timezone"]
+    assert isinstance(freeze_timestamp, str)
+    assert isinstance(timezone, str)
 
     # Configure HA timezone from scenario environment
     await hass.config.async_set_time_zone(timezone)
@@ -61,7 +63,12 @@ async def test_scenarios(
     with freeze_time(freeze_timestamp):
         # Set up sensor states from scenario data and wait until they are loaded
         for state_data in scenario_data["inputs"]:
-            hass.states.async_set(state_data["entity_id"], state_data["state"], state_data.get("attributes", {}))
+            entity_id = state_data["entity_id"]
+            state = state_data["state"]
+            attributes = state_data.get("attributes", {})
+            assert isinstance(entity_id, str)
+            assert isinstance(state, str)
+            hass.states.async_set(entity_id, state, attributes if isinstance(attributes, dict) else {})
         await hass.async_block_till_done()
 
         # Create hub config entry and add to hass
@@ -78,13 +85,13 @@ async def test_scenarios(
 
         # Wait for the coordinator to complete its first update cycle
         # The optimization runs asynchronously in an executor job, so we need to wait for it
-        async def wait_for_sensor_change(hass: HomeAssistant, entity_id: str) -> Any:
+        async def wait_for_sensor_change(hass: HomeAssistant, entity_id: str) -> State | None:
             """Wait for a sensor state to change from its current value."""
             current_state = hass.states.get(entity_id)
             if current_state is None or current_state.state == "pending":
-                future = hass.loop.create_future()
+                future: asyncio.Future[State | None] = hass.loop.create_future()
 
-                def _changed(event: Any) -> None:
+                def _changed(event: Event[EventStateChangedData]) -> None:
                     if event.data.get("entity_id") == entity_id and not future.done():
                         future.set_result(event.data["new_state"])
 
@@ -140,7 +147,7 @@ async def test_scenarios(
             scenario_path.name,
             scenario_path / "visualizations",
             coordinator.topology,
-            anchor_time=scenario_data["environment"]["optimization_start_time"],
+            anchor_time=freeze_timestamp,
         )
 
         # Compare actual outputs with expected outputs using snapshot

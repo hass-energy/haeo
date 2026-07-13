@@ -3,7 +3,6 @@
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Any
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
@@ -37,7 +36,7 @@ SECTION_FIELD_PATH_LENGTH = 2
 
 
 def _field_name_is_reused_in_other_sections(
-    subentry_data: Mapping[str, Any],
+    subentry_data: Mapping[str, object],
     *,
     current_section: str,
     field_name: str,
@@ -124,7 +123,7 @@ class HaeoInputNumber(NumberEntity):
         # Translation placeholders
         placeholders: dict[str, str] = {}
 
-        def format_placeholder(value: Any) -> str:
+        def format_placeholder(value: object) -> str:
             if is_entity_value(value):
                 return ", ".join(value["value"])
             if is_constant_value(value):
@@ -159,7 +158,7 @@ class HaeoInputNumber(NumberEntity):
 
         # Build base extra state attributes
         source_role = classify_source_role(self._store.mode.value, field_info.field_name)
-        self._base_extra_attrs: dict[str, Any] = {
+        self._base_extra_attrs: dict[str, object] = {
             "config_mode": self._store.mode.value,
             SOURCE_ROLE_KEY: source_role,
             "element_name": subentry.title,
@@ -296,7 +295,7 @@ class HaeoInputNumber(NumberEntity):
             extra_attrs["forecast"] = self._build_forecast_attribute()
         self._attr_extra_state_attributes = extra_attrs
 
-    def _build_forecast_attribute(self) -> list[dict[str, Any]]:
+    def _build_forecast_attribute(self) -> list[dict[str, datetime | float | None]]:
         """Build the HA forecast attribute from store values.
 
         Uses the store's display values (percentage fields already scaled back

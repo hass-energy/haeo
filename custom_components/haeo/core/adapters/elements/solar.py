@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 import numpy as np
 
@@ -12,6 +12,7 @@ from custom_components.haeo.core.model import ModelElementConfig, ModelOutputNam
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER, CONNECTION_SEGMENTS
+from custom_components.haeo.core.model.elements.segments import SegmentSpec
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -53,7 +54,7 @@ class SolarAdapter:
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
-        segments: dict[str, Any] = {
+        segments: dict[str, SegmentSpec] = {
             "power_limit": {
                 "segment_type": "power_limit",
                 "max_power": config[SECTION_FORECAST][CONF_FORECAST],
@@ -83,7 +84,7 @@ class SolarAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         *,
         config: SolarConfigData,
-        **_kwargs: Any,
+        **_kwargs: object,
     ) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
         """Map model outputs to solar-specific output names."""
         connection = model_outputs.get(f"{name}:connection")

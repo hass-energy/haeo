@@ -27,7 +27,7 @@ from collections.abc import Mapping, MutableSequence, Sequence
 import logging
 import types
 from typing import (
-    Any,
+    Any,  # noqa: TID251  # reflection over typing constructs (get_origin/get_args on type hints)
     Final,
     Literal,
     NamedTuple,
@@ -137,7 +137,7 @@ from custom_components.haeo.core.schema.field_hints import (
 from custom_components.haeo.elements.field_hints import build_input_fields, build_list_input_fields
 
 from .field_schema import FieldSchemaInfo
-from .input_fields import InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
+from .input_fields import AnyInputFieldInfo, InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -298,7 +298,7 @@ def _unwrap_required_type(expected_type: Any) -> Any:
 
 
 def _conforms_to_typed_dict(
-    value: Mapping[str, Any],
+    value: Mapping[str, object],
     typed_dict_cls: type,
     *,
     check_optional: bool = False,
@@ -315,7 +315,7 @@ def _conforms_to_typed_dict(
     # Get type hints for the TypedDict
     hints = get_type_hints(typed_dict_cls)
 
-    def _matches_type(value_item: Any, expected_type: Any) -> bool:
+    def _matches_type(value_item: object, expected_type: Any) -> bool:
         expected_type = _unwrap_required_type(expected_type)
         if isinstance(expected_type, TypeAliasType):
             expected_type = expected_type.__value__
@@ -370,7 +370,7 @@ def _conforms_to_typed_dict(
     return True
 
 
-def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
+def is_element_config_schema(value: object) -> TypeGuard[ElementConfigSchema]:
     """Return True when value matches any ElementConfigSchema TypedDict.
 
     Performs structural validation using reflection - checks that:
@@ -392,7 +392,7 @@ def is_element_config_schema(value: Any) -> TypeGuard[ElementConfigSchema]:
     return _conforms_to_typed_dict(value, schema_cls)
 
 
-def is_element_config_data(value: Any) -> TypeGuard[ElementConfigData]:
+def is_element_config_data(value: object) -> TypeGuard[ElementConfigData]:
     """Return True when value matches any ElementConfigData TypedDict.
 
     Checks required keys and types, plus optional key types when present.
@@ -468,11 +468,14 @@ def get_element_configs(
     return configs
 
 
-def get_input_fields(element_type: str | ElementType | Mapping[str, Any] | None) -> InputFieldGroups:
+def get_input_fields(element_type: str | ElementType | Mapping[str, object] | None) -> InputFieldGroups:
     """Return input field definitions for an element type."""
     if isinstance(element_type, Mapping):
         if CONF_ELEMENT_TYPE in element_type:
-            element_type = element_type[CONF_ELEMENT_TYPE]
+            # Discriminator field value is genuinely str|ElementType at runtime (see the
+            # matching type: ignore[index] below); the Mapping overload only widens the
+            # value type to object at the boundary.
+            element_type = element_type[CONF_ELEMENT_TYPE]  # type: ignore[assignment]
         else:
             return {}
 
@@ -483,7 +486,7 @@ def get_input_fields(element_type: str | ElementType | Mapping[str, Any] | None)
     return build_input_fields(str(element_type), extract_field_hints(schema_cls))
 
 
-def get_list_input_fields(element_config: Mapping[str, Any]) -> InputFieldGroups:
+def get_list_input_fields(element_config: Mapping[str, object]) -> InputFieldGroups:
     """Return dynamic input fields for list-based config structures.
 
     Finds list fields annotated with ``ListFieldHints`` and generates
@@ -503,7 +506,7 @@ def get_list_input_fields(element_config: Mapping[str, Any]) -> InputFieldGroups
     if not list_hints:
         return {}
 
-    result: dict[str, dict[str, InputFieldInfo[Any]]] = {}
+    result: dict[str, dict[str, AnyInputFieldInfo]] = {}
     for list_key, hints in list_hints.items():
         items = element_config.get(list_key)
         if not isinstance(items, Sequence) or isinstance(items, str):
@@ -515,7 +518,7 @@ def get_list_input_fields(element_config: Mapping[str, Any]) -> InputFieldGroups
     return result
 
 
-def get_surfaced_input_fields(element_type: str | ElementType) -> dict[str, InputFieldInfo[Any]]:
+def get_surfaced_input_fields(element_type: str | ElementType) -> dict[str, AnyInputFieldInfo]:
     """Return InputFieldInfo objects for surfaced pricing fields.
 
     These fields appear on the element's config flow but are stored as
@@ -536,14 +539,14 @@ def get_surfaced_price_hints(element_type: str | ElementType) -> dict[str, Surfa
     return SURFACED_PRICE_HINTS_BY_TYPE.get(str(element_type), {})
 
 
-def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, InputFieldInfo[Any]]]:
+def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, AnyInputFieldInfo]]:
     """Return (field_path, InputFieldInfo) pairs from nested input fields.
 
     For section-based fields, paths are 2-tuples: ``(section_key, field_name)``.
     For list-based fields (section keys containing ``"."``), paths are expanded
     into 3-tuples: ``(list_key, index, field_name)``.
     """
-    results: list[tuple[InputFieldPath, InputFieldInfo[Any]]] = []
+    results: list[tuple[InputFieldPath, AnyInputFieldInfo]] = []
     for section_key, section_fields in input_fields.items():
         for field_name, field_info in section_fields.items():
             if "." in section_key:
@@ -554,7 +557,7 @@ def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFi
     return results
 
 
-def get_nested_config_value(config: Mapping[str, Any], field_name: str) -> Any | None:
+def get_nested_config_value(config: Mapping[str, object], field_name: str) -> object | None:
     """Find a field value in a nested element config."""
     for value in config.values():
         if isinstance(value, Mapping):
@@ -566,7 +569,7 @@ def get_nested_config_value(config: Mapping[str, Any], field_name: str) -> Any |
     return None
 
 
-def find_nested_config_path(config: Mapping[str, Any], field_name: str) -> InputFieldPath | None:
+def find_nested_config_path(config: Mapping[str, object], field_name: str) -> InputFieldPath | None:
     """Find the path to a field in a nested element config."""
     for key, value in config.items():
         if key == field_name:
@@ -578,14 +581,14 @@ def find_nested_config_path(config: Mapping[str, Any], field_name: str) -> Input
     return None
 
 
-def get_nested_config_value_by_path(config: Mapping[str, Any], field_path: InputFieldPath) -> Any | None:
+def get_nested_config_value_by_path(config: Mapping[str, object], field_path: InputFieldPath) -> object | None:
     """Find a field value in a nested element config using a path.
 
     Supports both mapping keys and integer indices for list traversal.
     A path like ``("rules", "0", "price")`` navigates into
     ``config["rules"][0]["price"]``.
     """
-    current: Any = config
+    current: object = config
     for key in field_path:
         if isinstance(current, Mapping):
             if key not in current:
@@ -601,7 +604,7 @@ def get_nested_config_value_by_path(config: Mapping[str, Any], field_path: Input
     return current
 
 
-def set_nested_config_value(config: dict[str, Any], field_name: str, value: Any) -> bool:
+def set_nested_config_value(config: dict[str, object], field_name: str, value: object) -> bool:
     """Set a field value in a nested element config."""
     for nested in config.values():
         if isinstance(nested, dict):
@@ -613,12 +616,12 @@ def set_nested_config_value(config: dict[str, Any], field_name: str, value: Any)
     return False
 
 
-def set_nested_config_value_by_path(config: dict[str, Any], field_path: InputFieldPath, value: Any) -> bool:
+def set_nested_config_value_by_path(config: dict[str, object], field_path: InputFieldPath, value: object) -> bool:
     """Set a field value in a nested element config using a path.
 
     Supports both mapping keys and integer indices for list traversal.
     """
-    current: Any = config
+    current: object = config
     for key in field_path[:-1]:
         if isinstance(current, dict):
             next_value = current.get(key)

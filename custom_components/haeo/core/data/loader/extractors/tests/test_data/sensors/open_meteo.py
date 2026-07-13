@@ -1,8 +1,6 @@
 """Test data for Open-Meteo Solar forecast sensors."""
 
-from typing import Any
-
-VALID: list[dict[str, Any]] = [
+VALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.open_meteo_forecast",
         "state": "175",
@@ -33,7 +31,7 @@ VALID: list[dict[str, Any]] = [
     },
 ]
 
-INVALID: list[dict[str, Any]] = [
+INVALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.open_meteo_no_watts",
         "state": "0",

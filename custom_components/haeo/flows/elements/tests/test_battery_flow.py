@@ -1,7 +1,7 @@
 """Tests for battery element config flow."""
 
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -42,7 +42,7 @@ from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.flows.conftest import create_flow
 
 
-def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> dict[str, Any]:
+def _wrap_main_input(user_input: Mapping[str, object], *, as_schema: bool = False) -> dict[str, object]:
     """Wrap battery user input into sectioned form data."""
     common = {
         key: user_input[key]
@@ -52,8 +52,9 @@ def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> 
         )
         if key in user_input
     }
-    if as_schema and isinstance(common.get(CONF_CONNECTION), str):
-        common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
+    connection = common.get(CONF_CONNECTION)
+    if as_schema and isinstance(connection, str):
+        common[CONF_CONNECTION] = as_connection_target(connection)
     pricing = {key: user_input[key] for key in (CONF_SALVAGE_VALUE,) if key in user_input}
     pricing.setdefault(CONF_SALVAGE_VALUE, 0.0)
 
@@ -94,9 +95,9 @@ def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> 
 
 
 def _wrap_partition_input(
-    undercharge_input: dict[str, Any],
-    overcharge_input: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+    undercharge_input: Mapping[str, object],
+    overcharge_input: Mapping[str, object] | None = None,
+) -> dict[str, object]:
     """Wrap partition inputs into sectioned form data."""
     overcharge_input = overcharge_input or {}
     return {
@@ -610,8 +611,8 @@ async def test_reconfigure_defaults_handle_schema_values(
     hub_entry: MockConfigEntry,
     connection: str,
     add_connection: bool,
-    config_values: dict[str, Any],
-    expected_defaults: dict[str, dict[str, Any]],
+    config_values: dict[str, object],
+    expected_defaults: dict[str, dict[str, object]],
 ) -> None:
     """Reconfigure defaults reflect schema values and tolerate missing connections."""
     if add_connection:

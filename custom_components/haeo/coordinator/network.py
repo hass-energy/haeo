@@ -10,7 +10,6 @@ any runtime path resolution.
 
 from collections.abc import Callable, Mapping, Sequence
 import logging
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -26,6 +25,7 @@ from custom_components.haeo.core.model.elements.policy_pricing import PolicyPric
 from custom_components.haeo.core.model.reactive import TrackedParam
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
+from custom_components.haeo.core.schema.elements.policy import is_policy_config_data
 from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
 from custom_components.haeo.validation import format_component_summary, validate_network_topology
 
@@ -42,9 +42,7 @@ def _collect_policy_rules(
     participants: Mapping[str, ElementConfigData],
 ) -> list[CompiledPolicyRule]:
     """Extract compiled policy rules from the single policy participant."""
-    policy_participants = [
-        config for config in participants.values() if config.get(CONF_ELEMENT_TYPE) == ElementType.POLICY
-    ]
+    policy_participants = [config for config in participants.values() if is_policy_config_data(config)]
     if not policy_participants:
         return []
     if len(policy_participants) > 1:
@@ -61,23 +59,28 @@ _SKIP_KEYS: frozenset[str] = frozenset({"element_type", "name", "segment_type"})
 
 
 def _discover_setters(
-    element: Any,
-    config: Mapping[str, Any],
+    element: object,
+    config: Mapping[str, object],
 ) -> list[tuple[tuple[str, ...], Callable[[object], None]]]:
     """Walk *config* in parallel with *element* to find TrackedParam targets.
 
     Returns ``(path, setter)`` pairs where *path* is the key sequence in
     the ``ModelElementConfig`` dict and *setter* writes directly to the
     descriptor on the live element.
+
+    *element* and the nested values discovered while walking *config* are
+    genuinely heterogeneous: model elements, their segments, and any other
+    nested attribute container can appear here, so ``object`` (narrowed via
+    isinstance/getattr below) rather than a fixed protocol is the honest type.
     """
     result: list[tuple[tuple[str, ...], Callable[[object], None]]] = []
 
-    def _navigate(obj: Any, key: str) -> Any:
+    def _navigate(obj: object, key: str) -> object:
         if isinstance(obj, Mapping):
             return obj.get(key)
         return getattr(obj, key, None)
 
-    def _walk(obj: Any, items: Mapping[str, Any], prefix: tuple[str, ...]) -> None:
+    def _walk(obj: object, items: Mapping[str, object], prefix: tuple[str, ...]) -> None:
         for key, value in items.items():
             if key in _SKIP_KEYS:
                 continue
@@ -97,9 +100,9 @@ def _discover_setters(
     return result
 
 
-def _extract_at_path(config: Mapping[str, Any], path: tuple[str, ...]) -> Any:
+def _extract_at_path(config: Mapping[str, object], path: tuple[str, ...]) -> object:
     """Extract a value from a nested dict, returning ``_MISSING`` on failure."""
-    current: Any = config
+    current: object = config
     for key in path:
         if isinstance(current, Mapping) and key in current:
             current = current[key]
@@ -170,6 +173,8 @@ def _build_policy_updater(
             resolved_map[rule_idx] = elements
 
     def update(config: ElementConfigData) -> None:
+        if not is_policy_config_data(config):
+            return
         rules = extract_policy_rules(config)
         n_periods = network.n_periods
         for rule_idx, pricing_elements in resolved_map.items():

@@ -2,7 +2,10 @@
 
 from datetime import datetime
 import math
-from typing import Any, TypedDict
+from typing import TYPE_CHECKING, TypedDict
+
+if TYPE_CHECKING:
+    from _typeshed import ConvertibleToFloat
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -29,7 +32,7 @@ class ForecastItem(TypedDict):
 # such as "unit_of_measurement" and "forecast". Downstream consumers (the
 # forecast card, scenario snapshots) rely on that full set, which a closed
 # TypedDict cannot describe.
-SensorAttributes = dict[str, Any]
+SensorAttributes = dict[str, object]
 
 
 class SensorStateDict(TypedDict):
@@ -70,7 +73,7 @@ def _entity_decimal_places(max_abs: float) -> int:
     return max(0, _TARGET_SIG_FIGS - (magnitude + 1))
 
 
-def _try_parse_float(value: Any) -> float | None:
+def _try_parse_float(value: "ConvertibleToFloat") -> float | None:
     """Try to parse a value as float, returning None if not possible."""
     try:
         return float(value)
@@ -108,7 +111,8 @@ def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
             state_rounded = _round_sig(state_val)
 
         forecast_rounded: list[tuple[ForecastItem, float]] = []
-        forecast_items: list[ForecastItem] = entity_data["attributes"].get("forecast", [])
+        forecast_attr = entity_data["attributes"].get("forecast")
+        forecast_items: list[ForecastItem] = forecast_attr if isinstance(forecast_attr, list) else []
         for item in forecast_items:
             val = _try_parse_float(item.get("value"))
             if val is not None:
