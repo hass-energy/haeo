@@ -5,10 +5,10 @@
       "user": {
         "title": "HAEO Setup",
         "description": "Configure your system and choose a planning horizon that matches your forecast data availability.",
-        "data": { "advanced_mode": "Advanced Mode", "horizon_preset": "Planning Horizon", "name": "System Name" },
-        "data_description": { "advanced_mode": "Reveals additional element types for complex energy systems." },
+        "data": { "advanced_mode": "Expose raw model elements", "horizon_preset": "Planning Horizon", "name": "System Name" },
+        "data_description": { "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself." },
         "sections": {
-          "advanced": { "data": { "advanced_mode": "Advanced Mode" }, "name": "Advanced settings" },
+          "advanced": { "data": { "advanced_mode": "Expose raw model elements" }, "name": "Advanced settings" },
           "common": {
             "data": { "horizon_preset": "Planning Horizon", "name": "System Name" },
             "name": "Common settings"
@@ -53,19 +53,19 @@
         "title": "HAEO Settings",
         "description": "Configure optimization settings. Choose a planning horizon that matches your forecast data availability.",
         "data": {
-          "advanced_mode": "Advanced Mode",
+          "advanced_mode": "Expose raw model elements",
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon_preset": "Planning Horizon",
           "record_forecasts": "Record forecast data"
         },
         "data_description": {
-          "advanced_mode": "Reveals additional element types for complex energy systems.",
+          "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
           "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
         },
         "sections": {
           "advanced": {
             "data": {
-              "advanced_mode": "Advanced Mode",
+              "advanced_mode": "Expose raw model elements",
               "debounce_seconds": "Debounce Window (seconds)",
               "record_forecasts": "Record forecast data"
             },

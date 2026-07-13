@@ -46,7 +46,7 @@ Walkthroughs are generated from a live Home Assistant instance, so the screensho
 
     ---
 
-    Detailed reference for hub configuration, tiers, and advanced mode.
+    Detailed reference for hub configuration, tiers, and exposing raw model elements.
 
     [:material-arrow-right: Configuration guide](../user-guide/configuration.md)
 

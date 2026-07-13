@@ -7,7 +7,7 @@ Internally, HAEO represents batteries as a single storage element and applies SO
 
 !!! note "Connection endpoints"
 
-    Battery elements appear in connection selectors only when Advanced Mode is enabled on your hub.
+    Battery elements appear in connection selectors only when **Expose raw model elements** is enabled on your hub.
 
 For mathematical details, see [Battery Modeling](../../modeling/device-layer/battery.md).
 

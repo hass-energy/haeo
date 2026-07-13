@@ -35,8 +35,8 @@ The adapter transforms user configuration into model parameters:
 | `is_source`        | Node          | `is_source`     | Whether node can produce power (default: false) |
 | `is_sink`          | Node          | `is_sink`       | Whether node can consume power (default: false) |
 
-In standard mode (Advanced Mode disabled), nodes are pure junctions (`is_source=false, is_sink=false`).
-When Advanced Mode is enabled, `is_source` and `is_sink` can be configured to create:
+In standard mode (with raw model elements not exposed), nodes are pure junctions (`is_source=false, is_sink=false`).
+When **Expose raw model elements** is enabled, `is_source` and `is_sink` can be configured to create:
 
 - **Grid-like nodes** (`is_source=true, is_sink=true`): Can import and export power
 - **Load-like nodes** (`is_source=false, is_sink=true`): Can only consume power

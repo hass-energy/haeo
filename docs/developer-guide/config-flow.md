@@ -165,13 +165,13 @@ The element flow mixin is in `custom_components/haeo/flows/element_flow.py`.
 ### Connection endpoint filtering
 
 Connection elements require selecting source and target endpoints from other configured elements.
-The element flow filters available elements based on connectivity level and Advanced Mode setting.
+The element flow filters available elements based on connectivity level and the **Expose raw model elements** hub setting.
 
 Each element type in the `ELEMENT_TYPES` registry defines a connectivity level that controls when it appears in connection selectors.
 The `ConnectivityLevel` enum has three values:
 
 - **`ALWAYS`**: Always shown in connection selectors
-- **`ADVANCED`**: Only shown when Advanced Mode is enabled
+- **`ADVANCED`**: Only shown when **Expose raw model elements** is enabled
 - **`NEVER`**: Never shown in connection selectors
 
 This filtering ensures connection endpoints are appropriate for the user's configuration level.
@@ -371,7 +371,7 @@ The options flow implementation is in `custom_components/haeo/flows/options.py`.
 
 ### Key points
 
-- Options flow edits hub-level optimization settings (planning horizon preset, tier configuration, debounce window, advanced mode, forecast recording)
+- Options flow edits hub-level optimization settings (planning horizon preset, tier configuration, debounce window, expose raw model elements, forecast recording)
 - Element configuration happens via separate config entries
 - Settings stored in `config_entry.data` under section keys
 - Changes trigger coordinator reload to apply new parameters

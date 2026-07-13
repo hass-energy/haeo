@@ -5,7 +5,7 @@ They provide a DC bus for connecting batteries and solar panels, with bidirectio
 
 !!! note "Connection endpoints"
 
-    Inverter elements always appear in connection selectors regardless of Advanced Mode setting.
+    Inverter elements always appear in connection selectors regardless of the hub setting.
 
 ## Configuration
 

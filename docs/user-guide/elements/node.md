@@ -5,23 +5,23 @@ Virtual balance points enforcing power conservation (Kirchhoff's law).
 !!! warning "Advanced Element"
 
     A switchboard node is created automatically when you set up a HAEO hub.
-    Creating **additional** nodes requires **Advanced Mode** to be enabled on your hub.
+    Creating **additional** nodes requires **Expose raw model elements** to be enabled on your hub.
     In standard mode, the automatic switchboard node is sufficient for most residential systems.
 
-    Advanced source/sink configuration (`is_source` and `is_sink` fields) is only available when Advanced Mode is enabled.
+    Source/sink configuration (`is_source` and `is_sink` fields) is only available when **Expose raw model elements** is enabled.
     In standard mode, nodes are pure junctions with no generation or consumption capability.
 
 !!! note "Connection endpoints"
 
-    Node elements always appear in connection selectors regardless of Advanced Mode setting.
+    Node elements always appear in connection selectors regardless of the hub setting.
 
 ## Configuration
 
 | Field                       | Type    | Required | Default | Description                                         |
 | --------------------------- | ------- | -------- | ------- | --------------------------------------------------- |
 | **[Name](#name)**           | String  | Yes      | -       | Unique identifier for this node                     |
-| **[Is Source](#is-source)** | Boolean | No       | false   | Whether node can produce power (Advanced Mode only) |
-| **[Is Sink](#is-sink)**     | Boolean | No       | false   | Whether node can consume power (Advanced Mode only) |
+| **[Is Source](#is-source)** | Boolean | No       | false   | Whether node can produce power (raw model elements exposed only) |
+| **[Is Sink](#is-sink)**     | Boolean | No       | false   | Whether node can consume power (raw model elements exposed only) |
 
 ## Name
 
@@ -37,7 +37,7 @@ When `true`, the node can generate power that flows out through connections.
 
 **Default**: `false` (node cannot produce power)
 
-**Available only when Advanced Mode is enabled**.
+**Available only when Expose raw model elements is enabled**.
 
 ## Is Sink
 
@@ -46,7 +46,7 @@ When `true`, the node can accept power that flows in through connections.
 
 **Default**: `false` (node cannot consume power)
 
-**Available only when Advanced Mode is enabled**.
+**Available only when Expose raw model elements is enabled**.
 
 ### Source and Sink Combinations
 
@@ -57,7 +57,7 @@ The combination of `is_source` and `is_sink` determines the node's behavior:
 - Power must balance: all power flowing in equals all power flowing out
 - No power generation or consumption at the node itself
 - Most common configuration for standard nodes
-- Available in standard mode (Advanced Mode not required)
+- Available in standard mode (raw model elements not required)
 
 **Source Only** (`is_source=true, is_sink=false`):
 
@@ -101,7 +101,7 @@ Nodes are not physical devices - they represent electrical junctions where Kirch
     This central connection point is sufficient for most residential energy systems.
     You only need to create additional nodes if you have complex multi-bus topologies (e.g., separate AC/DC buses).
 
-    If the switchboard node is accidentally deleted in non-advanced mode, HAEO will automatically recreate it on the next integration reload to maintain network connectivity.
+    If the switchboard node is accidentally deleted with raw model elements not exposed, HAEO will automatically recreate it on the next integration reload to maintain network connectivity.
 
 !!! tip "Key insight"
 
@@ -156,7 +156,7 @@ Then connect elements to "Main Node" via connections.
     If you delete a node element, you must update all connections that reference it.
     Connections cannot have endpoints that don't exist.
 
-    **In non-advanced mode**: If you delete the switchboard node, HAEO will automatically recreate it the next time the integration reloads (on restart or configuration change) to ensure network connectivity is maintained.
+    **In standard mode**: If you delete the switchboard node, HAEO will automatically recreate it the next time the integration reloads (on restart or configuration change) to ensure network connectivity is maintained.
 
 ### Input Entities
 
@@ -168,7 +168,7 @@ Input entities appear as Switch entities with the `config` entity category.
 | `switch.{name}_is_source` | Whether node can produce power |
 | `switch.{name}_is_sink`   | Whether node can consume power |
 
-These switch inputs are only created when Advanced Mode is enabled.
+These switch inputs are only created when **Expose raw model elements** is enabled.
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
 
@@ -225,7 +225,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 - Intermediate limits (inverter capacity, feeder constraints)
 - Hierarchical distribution (main panel and sub-panels)
 
-**Configuration**: Enable Advanced Mode on your hub, then create additional node elements and link them with connections.
+**Configuration**: Enable **Expose raw model elements** on your hub, then create additional node elements and link them with connections.
 
 **Complexity**: Requires more configuration and adds more constraints, but accurately models real system architecture.
 

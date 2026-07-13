@@ -52,21 +52,21 @@ When configuring elements:
 3. **Verify each step**: Check that optimization produces reasonable results
 4. **Use realistic values**: Base constraints on actual device specifications
 
-## Advanced Elements
+## Raw model elements
 
-Some elements are only available when **Advanced Mode** is enabled on your hub.
-These elements provide direct access to raw modeling components for advanced users who need fine-grained control.
+Some elements are only available when **Expose raw model elements** is enabled on your hub.
+These elements provide direct access to low-level model building blocks for deliberate model composition.
 
-Advanced elements include:
+Raw model elements include:
 
 - **Connection**: Explicit power flow paths between elements
-- **Node**: Virtual power balance points (with advanced source/sink configuration)
+- **Node**: Virtual power balance points (with source/sink configuration when exposed)
 - **Battery Section**: Direct access to model layer Battery element
 
 Most users should use the standard elements which provide automatic connections and optimized behavior.
-Advanced elements require manual connection configuration and are intended for users who understand the underlying model layer.
+Raw model elements require manual connection configuration.
 
-See the [Configuration guide](../configuration.md#advanced-mode) for details on enabling Advanced Mode.
+See the [Configuration guide](../configuration.md#expose-raw-model-elements) for details on when to enable this setting.
 
 ## Next steps
 
