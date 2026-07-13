@@ -3,7 +3,8 @@
 import logging
 from unittest.mock import Mock
 
-from highspy import Highs, HighsModelStatus
+from highspy import Highs, HighsModelStatus, HighsStatus
+from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 import pytest
 
@@ -13,12 +14,15 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.elements.battery import Battery
 from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
 from custom_components.haeo.core.model.network import (
     BlendedOptions,
     CalibratedOptions,
+    LexConstraintCreationError,
+    LexConstraintStateError,
     LexOptions,
     SimplexTuning,
     SolveOptions,
@@ -475,7 +479,11 @@ def test_network_constraints_empty_when_no_elements() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _build_priced_network(options: SolveOptions | None = None) -> Network:
+def _build_priced_network(
+    options: SolveOptions | None = None,
+    *,
+    price: np.ndarray[tuple[int], np.dtype[np.float64]] | None = None,
+) -> Network:
     """Build a small network with primary (cost) and secondary (time pref) objectives.
 
     Topology: source --[conn]--> sink
@@ -497,11 +505,65 @@ def _build_priced_network(options: SolveOptions | None = None) -> Network:
             "target": "sink",
             "tags": {1},
             "segments": {
-                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
+                "pricing": {
+                    "segment_type": "pricing",
+                    "price": price if price is not None else np.array([10.0, 20.0]),
+                },
             },
         }
     )
     return network
+
+
+class _FailingAfterRowHighs(Highs):
+    """HiGHS test double that fails once after successfully inserting a row."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.fail_after_add = True
+        self.rows_before_failed_add: int | None = None
+
+    def addConstr(  # noqa: N802 (third-party API override)
+        self,
+        constraint: highs_linear_expression,
+        name: str = "",
+    ) -> highs_cons:
+        """Insert the row, then simulate the highspy warning exception."""
+        initial_rows = self.numConstrs
+        result = super().addConstr(constraint, name)
+        if self.fail_after_add:
+            self.fail_after_add = False
+            self.rows_before_failed_add = initial_rows
+            msg = "simulated error after row insertion"
+            raise RuntimeError(msg)
+        return result
+
+
+class _RollbackFailingHighs(_FailingAfterRowHighs):
+    """HiGHS test double that cannot remove the partially inserted row."""
+
+    def deleteRows(  # noqa: N802 (third-party API override)
+        self,
+        num_rows: int,
+        row_indices: list[int],
+    ) -> HighsStatus:
+        """Simulate a failed row rollback."""
+        _ = num_rows, row_indices
+        return HighsStatus.kError
+
+
+class _RollbackRaisingHighs(_FailingAfterRowHighs):
+    """HiGHS test double whose row rollback raises unexpectedly."""
+
+    def deleteRows(  # noqa: N802 (third-party API override)
+        self,
+        num_rows: int,
+        row_indices: list[int],
+    ) -> HighsStatus:
+        """Simulate a row rollback that raises instead of returning a status."""
+        _ = num_rows, row_indices
+        msg = "simulated rollback exception"
+        raise RuntimeError(msg)
 
 
 # ---------------------------------------------------------------------------
@@ -668,6 +730,207 @@ def test_update_constraint_sums_duplicate_coefficients() -> None:
         coeffs[idx] = coeffs.get(idx, 0.0) + val
     assert coeffs[v0.index] == pytest.approx(3.0)
     assert coeffs[v1.index] == pytest.approx(9.0)
+
+
+def test_small_primary_coefficients_are_normalized_before_row_creation() -> None:
+    """Coefficients at HiGHS' matrix tolerance must not trigger row warnings."""
+    network = _build_priced_network(
+        CalibratedOptions(),
+        price=np.array([1e-9, 1e-9]),
+    )
+
+    result = network.optimize()
+
+    assert np.isfinite(result)
+    assert network._lex_constraint is not None
+
+
+@pytest.mark.parametrize(
+    ("coefficient", "optimal_value", "secondary_cost"),
+    [
+        (1e-9, 5e-4, -1.0),
+        (-1e-9, -5e-4, 1.0),
+    ],
+)
+def test_small_coefficient_normalization_preserves_constraint(
+    coefficient: float,
+    optimal_value: float,
+    secondary_cost: float,
+) -> None:
+    """Scaling tiny coefficients must preserve the original feasible boundary."""
+    network = Network(name="test", periods=np.array([1.0]))
+    solver = network._solver
+    variable = solver.addVariable(lb=0.0, ub=1_000_000.0)
+
+    network._constrain_objective(coefficient * variable, optimal_value)
+
+    assert network._lex_constraint is not None
+    stored = solver.getExpr(network._lex_constraint)
+    assert stored.bounds is not None
+    assert stored.vals[0] / coefficient == pytest.approx(stored.bounds[1] / optimal_value)
+    small_matrix_value = float(solver.getOptionValue("small_matrix_value")[1])
+    assert abs(stored.vals[0]) > small_matrix_value
+
+    solver.changeColCost(variable.index, secondary_cost)
+    solver.run()
+
+    assert solver.getModelStatus() == HighsModelStatus.kOptimal
+    assert solver.allVariableValues()[variable.index] == pytest.approx(500_000.0)
+
+
+def test_unsafe_small_coefficient_normalization_is_rejected() -> None:
+    """A row that cannot be normalized safely must fail before model mutation."""
+    network = Network(name="test", periods=np.array([1.0]))
+    solver = network._solver
+    tiny_variable = solver.addVariable(lb=0.0, ub=1.0)
+    large_variable = solver.addVariable(lb=0.0, ub=1.0)
+    objective = 1e-300 * tiny_variable + 1e14 * large_variable
+
+    with pytest.raises(LexConstraintCreationError, match="cannot be normalized safely"):
+        network._constrain_objective(objective, 0.0)
+
+    assert solver.numConstrs == 0
+
+
+def test_failed_row_creation_is_rolled_back_and_can_retry() -> None:
+    """A row inserted before addConstr raises must be removed before retrying."""
+    network = Network(name="test", periods=np.array([1.0, 1.0]), options=LexOptions())
+    solver = _FailingAfterRowHighs()
+    solver.fail_after_add = False
+    solver.setOptionValue("output_flag", False)
+    network.options.apply(solver)
+    network._solver = solver
+    battery = network.add(
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "battery",
+            "capacity": 10.0,
+            "initial_charge": 5.0,
+            "salvage_value": 1.0,
+        }
+    )
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "battery",
+            "target": "grid",
+            "tags": {1},
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
+            },
+        }
+    )
+    network.constraints()
+    solver.fail_after_add = True
+
+    with pytest.raises(LexConstraintCreationError, match="Failed to add"):
+        network.optimize()
+
+    assert solver.rows_before_failed_add is not None
+    assert solver.numConstrs == solver.rows_before_failed_add
+    assert network._lex_constraint is None
+
+    assert isinstance(battery, Battery)
+    battery.initial_charge = 4.0
+    result = network.optimize()
+
+    assert np.isfinite(result)
+    assert network._lex_constraint is not None
+    assert solver.numConstrs == solver.rows_before_failed_add + 1
+
+
+def test_failed_row_rollback_marks_solver_state_unsafe() -> None:
+    """A rollback failure must surface an error that triggers a model rebuild."""
+    network = Network(name="test", periods=np.array([1.0]))
+    solver = _RollbackFailingHighs()
+    solver.setOptionValue("output_flag", False)
+    network.options.apply(solver)
+    network._solver = solver
+    variable = solver.addVariable(lb=0.0, ub=1.0)
+
+    with pytest.raises(LexConstraintStateError, match="Failed to remove"):
+        network._constrain_objective(1.0 * variable, 0.0)
+
+    assert network._lex_constraint is None
+    assert solver.numConstrs == 1
+
+
+def test_raised_row_rollback_marks_solver_state_unsafe() -> None:
+    """An exception during rollback must trigger the same model rebuild path."""
+    network = Network(name="test", periods=np.array([1.0]))
+    solver = _RollbackRaisingHighs()
+    solver.setOptionValue("output_flag", False)
+    network.options.apply(solver)
+    network._solver = solver
+    variable = solver.addVariable(lb=0.0, ub=1.0)
+
+    with pytest.raises(LexConstraintStateError, match="Failed to remove"):
+        network._constrain_objective(1.0 * variable, 0.0)
+
+    assert network._lex_constraint is None
+    assert solver.numConstrs == 1
+
+
+@pytest.mark.parametrize("coefficient", [float("nan"), float("inf"), float("-inf")])
+def test_non_finite_objective_coefficient_is_rejected(coefficient: float) -> None:
+    """Invalid objective coefficients must fail before the solver is mutated."""
+    network = Network(name="test", periods=np.array([1.0]))
+    variable = network._solver.addVariable(lb=0.0, ub=1.0)
+
+    with pytest.raises(LexConstraintCreationError, match="non-finite coefficients"):
+        network._constrain_objective(coefficient * variable, 0.0)
+
+    assert network._solver.numConstrs == 0
+
+
+@pytest.mark.parametrize("optimal_value", [float("nan"), float("inf"), float("-inf")])
+def test_non_finite_objective_optimum_is_rejected(optimal_value: float) -> None:
+    """Invalid objective bounds must fail before the solver is mutated."""
+    network = Network(name="test", periods=np.array([1.0]))
+    variable = network._solver.addVariable(lb=0.0, ub=1.0)
+
+    with pytest.raises(LexConstraintCreationError, match="optimum must be finite"):
+        network._constrain_objective(1.0 * variable, optimal_value)
+
+    assert network._solver.numConstrs == 0
+
+
+def test_lex_mode_reoptimizes_after_battery_initial_charge_changes() -> None:
+    """A reused lex model must not retain the previous primary optimum bound."""
+    network = Network(name="test", periods=np.array([1.0, 1.0]), options=LexOptions())
+    battery = network.add(
+        {
+            "element_type": ELEMENT_TYPE_BATTERY,
+            "name": "battery",
+            "capacity": 10.0,
+            "initial_charge": 5.0,
+            "salvage_value": 1.0,
+        }
+    )
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "bat_grid",
+            "source": "battery",
+            "target": "grid",
+            "tags": {1},
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
+            },
+        }
+    )
+
+    first_result = network.optimize()
+    assert isinstance(battery, Battery)
+    battery.initial_charge = 4.0
+    second_result = network.optimize()
+
+    assert np.isfinite(first_result)
+    assert np.isfinite(second_result)
+    assert second_result != pytest.approx(first_result)
 
 
 def test_optimize_requires_objectives() -> None:

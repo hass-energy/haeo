@@ -60,7 +60,7 @@ from custom_components.haeo.core.const import (
     DEFAULT_TIER_3_DURATION,
     DEFAULT_TIER_4_DURATION,
 )
-from custom_components.haeo.core.model import Network, OutputData, OutputType
+from custom_components.haeo.core.model import LexConstraintStateError, Network, OutputData, OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
@@ -538,6 +538,58 @@ async def test_async_update_data_propagates_errors(
         pytest.raises(type(error), match=match),
     ):
         await coordinator._async_update_data()
+
+
+async def test_async_update_data_rebuilds_network_after_unsafe_lex_rollback(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_battery_subentry: ConfigSubentry,
+    mock_grid_subentry: ConfigSubentry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Coordinator replaces an untrusted solver model and retries once."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    unsafe_network = MagicMock()
+    replacement_network = MagicMock()
+    replacement_network.elements = {}
+    replacement_network.periods = np.array([1.0])
+    coordinator.network = unsafe_network
+    periods_seconds = (3600,)
+    _get_mock_horizon(mock_runtime_data).periods_seconds = periods_seconds
+
+    with (
+        patch.object(coordinator, "_get_participant_configs", return_value={}),
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(
+            hass,
+            "async_add_executor_job",
+            new_callable=AsyncMock,
+            side_effect=[LexConstraintStateError("unsafe solver"), 12.5],
+        ) as mock_executor,
+        patch(
+            "custom_components.haeo.coordinator.coordinator.network_module.create_network",
+            new_callable=AsyncMock,
+            return_value=(replacement_network, {}),
+        ) as mock_create_network,
+        patch(
+            "custom_components.haeo.coordinator.coordinator.async_get_translations",
+            new_callable=AsyncMock,
+            return_value={"component.haeo.common.network_subentry_name": "System"},
+        ),
+    ):
+        result = await coordinator._async_update_data()
+
+    assert coordinator.network is replacement_network
+    assert result.outputs["System"][ELEMENT_TYPE_NETWORK][OUTPUT_NAME_OPTIMIZATION_COST].state == 12.5
+    assert mock_executor.await_args_list == [
+        ((unsafe_network.optimize,), {}),
+        ((replacement_network.optimize,), {}),
+    ]
+    mock_create_network.assert_awaited_once_with(
+        mock_hub_entry,
+        periods_seconds=periods_seconds,
+        participants={},
+    )
 
 
 async def test_async_update_data_raises_on_missing_model_element(
