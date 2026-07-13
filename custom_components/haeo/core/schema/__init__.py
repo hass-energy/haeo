@@ -5,6 +5,10 @@ from __future__ import annotations
 import types as stdlib_types
 from typing import Any, Final, TypeAliasType, TypeGuard, Union, get_args, get_origin
 
+from .calendar_value import CalendarEventDict as CalendarEventDict
+from .calendar_value import CalendarValue as CalendarValue
+from .calendar_value import as_calendar_value as as_calendar_value
+from .calendar_value import is_calendar_value as is_calendar_value
 from .connection_target import (
     ConnectionTarget,
     ConnectionTargetValue,
@@ -23,6 +27,7 @@ from .util import UnitSpec, extract_unit_parts, matches_unit_spec
 VALUE_TYPE_ENTITY: Final = "entity"
 VALUE_TYPE_CONSTANT: Final = "constant"
 VALUE_TYPE_NONE: Final = "none"
+VALUE_TYPE_CALENDAR: Final = "calendar"
 VALUE_TYPE_CONNECTION_TARGET: Final = "connection_target"
 
 
