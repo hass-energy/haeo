@@ -20,9 +20,9 @@ from datetime import UTC, datetime
 import json
 from pathlib import Path
 import sys
+from typing import TypeGuard
 from zoneinfo import ZoneInfo
 
-from homeassistant.util.json import JsonValueType
 import numpy as np
 from numpy.typing import NDArray
 from tabulate import tabulate
@@ -34,13 +34,22 @@ from custom_components.haeo.core.data.loader.config_loader import load_element_c
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue, Network
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.schema.elements import ElementConfigData
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config
 from custom_components.haeo.core.schema.sections import SECTION_PRICING
 from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
-from custom_components.haeo.elements import is_element_config_schema
 
 MIN_INTERVAL_POINTS = 2
+
+# JSON value shape for diagnostics payloads. Local alias because this CLI is
+# restricted to core-only imports (see the import-linter contract) and must
+# not depend on homeassistant.
+type JsonValueType = str | int | float | bool | None | dict[str, "JsonValueType"] | list["JsonValueType"]
+
+
+def _is_element_config_schema(value: object) -> TypeGuard[ElementConfigSchema]:
+    """Structural pre-check before loading; load_element_config fully validates."""
+    return isinstance(value, Mapping) and is_element_type(value.get(CONF_ELEMENT_TYPE))
 
 
 @dataclass
@@ -1069,7 +1078,7 @@ def run_diagnostics(
     loaded_participants: dict[str, ElementConfigData] = {}
     for element_name, element_config in normalized_participants.items():
         try:
-            if not is_element_config_schema(element_config):
+            if not _is_element_config_schema(element_config):
                 msg = f"{element_name} is not a valid element config"
                 raise TypeError(msg)
             loaded_participants[element_name] = load_element_config(
