@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta, timezone
 import json
 from types import MappingProxyType
-from typing import Any, cast
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.config_entries import ConfigSubentry
@@ -204,7 +204,8 @@ def test_extract_entity_ids_from_config_collects_nested_entities() -> None:
         "ignored": {"type": "constant", "value": 2.0},
     }
 
-    entity_ids = _extract_entity_ids_from_config(cast("ElementConfigSchema", config))
+    # Fixture includes non-schema keys and invalid entity placeholders; structural guard would reject it.
+    entity_ids = _extract_entity_ids_from_config(config)  # type: ignore[arg-type]
 
     assert entity_ids == {"sensor.import", "sensor.export"}
 
@@ -317,21 +318,18 @@ async def test_diagnostics_uses_context_for_config_and_inputs(hass: HomeAssistan
     entry.add_to_hass(hass)
 
     context_participants = {
-        "Context Battery": cast(
-            "ElementConfigSchema",
-            _battery_config(
-                name="Context Battery",
-                connection="DC Bus",
-                capacity=20.0,
-                initial_charge_percentage=80.0,
-                max_power_source_target=10.0,
-                max_power_target_source=10.0,
-                min_charge_percentage=5.0,
-                max_charge_percentage=95.0,
-                efficiency_source_target=90.0,
-                efficiency_target_source=90.0,
-            ),
-        )
+        "Context Battery": _battery_config(
+            name="Context Battery",
+            connection="DC Bus",
+            capacity=20.0,
+            initial_charge_percentage=80.0,
+            max_power_source_target=10.0,
+            max_power_target_source=10.0,
+            min_charge_percentage=5.0,
+            max_charge_percentage=95.0,
+            efficiency_source_target=90.0,
+            efficiency_target_source=90.0,
+        ),
     }
     context_source_states = {
         "sensor.power": State("sensor.power", "100", {"unit_of_measurement": "W"}),
@@ -400,7 +398,7 @@ async def test_collect_diagnostics_unwraps_mappingproxy_participants(hass: HomeA
             initial_charge_percentage=50.0,
         )
     )
-    participants = cast("dict[str, ElementConfigSchema]", {"Grid": grid_config, "Battery": battery_config})
+    participants = {"Grid": grid_config, "Battery": battery_config}
 
     coordinator_data = _make_coordinator_data(participants=participants)
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
@@ -588,21 +586,18 @@ async def test_historical_diagnostics_ignores_context(hass: HomeAssistant) -> No
     entry.add_to_hass(hass)
 
     context_participants = {
-        "Context Battery": cast(
-            "ElementConfigSchema",
-            _battery_config(
-                name="Context Battery",
-                connection="DC Bus",
-                capacity=20.0,
-                initial_charge_percentage=80.0,
-                max_power_source_target=10.0,
-                max_power_target_source=10.0,
-                min_charge_percentage=5.0,
-                max_charge_percentage=95.0,
-                efficiency_source_target=90.0,
-                efficiency_target_source=90.0,
-            ),
-        )
+        "Context Battery": _battery_config(
+            name="Context Battery",
+            connection="DC Bus",
+            capacity=20.0,
+            initial_charge_percentage=80.0,
+            max_power_source_target=10.0,
+            max_power_target_source=10.0,
+            min_charge_percentage=5.0,
+            max_charge_percentage=95.0,
+            efficiency_source_target=90.0,
+            efficiency_target_source=90.0,
+        ),
     }
     coordinator_data = _make_coordinator_data(context_participants)
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
@@ -943,7 +938,7 @@ async def test_historical_state_provider_get_states_sync(hass: HomeAssistant) ->
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.historical_state_provider.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.historical_state_provider.get_significant_states_full",
             return_value={"sensor.test": [mock_state]},
         ) as mock_get_states,
     ):
@@ -968,14 +963,11 @@ async def test_historical_state_provider_get_states_sync(hass: HomeAssistant) ->
 
 def test_extract_entity_ids_handles_non_dict_values() -> None:
     """_extract_entity_ids_from_config ignores non-dict/non-schema values."""
-    config = cast(
-        "ElementConfigSchema",
-        {
-            CONF_ELEMENT_TYPE: "grid",
-            "plain_string": "not_a_schema_value",
-            "plain_number": 42,
-        },
-    )
+    config: ElementConfigSchema = {  # type: ignore[typeddict-item]  # non-schema keys must reach runtime filtering under test
+        CONF_ELEMENT_TYPE: "grid",
+        "plain_string": "not_a_schema_value",
+        "plain_number": 42,
+    }
     entity_ids = _extract_entity_ids_from_config(config)
     assert entity_ids == set()
 
@@ -1089,7 +1081,7 @@ async def test_fetch_inputs_at_returns_states(hass: HomeAssistant) -> None:
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={
                 "sensor.battery_capacity": [cap_state],
                 "sensor.battery_soc": [soc_state],
@@ -1141,7 +1133,7 @@ async def test_fetch_inputs_at_reports_missing_entities(hass: HomeAssistant) -> 
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={"sensor.battery_capacity": [cap_state]},
         ),
     ):
@@ -1202,7 +1194,7 @@ async def test_get_last_run_before_finds_run(hass: HomeAssistant) -> None:
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={
                 "sensor.haeo_optimization_duration": [duration_state],
                 "sensor.haeo_forecast_horizon": [horizon_state],
@@ -1286,7 +1278,7 @@ async def test_get_last_run_before_no_recorder_state(hass: HomeAssistant) -> Non
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={},
         ),
     ):
@@ -1323,7 +1315,7 @@ async def test_get_last_run_before_invalid_duration_state(hass: HomeAssistant) -
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={
                 "sensor.haeo_optimization_duration": [invalid_state],
                 "sensor.haeo_forecast_horizon": [State("sensor.haeo_forecast_horizon", "2024-01-01T00:00:00+00:00")],
@@ -1368,7 +1360,7 @@ async def test_get_last_run_before_no_horizon_state(hass: HomeAssistant) -> None
             return_value=mock_recorder,
         ),
         patch(
-            "custom_components.haeo.diagnostics.collector.recorder_history.get_significant_states",
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
             return_value={
                 "sensor.haeo_optimization_duration": [duration_state],
             },

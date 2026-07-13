@@ -1,7 +1,7 @@
 """Tests for connection element config flow."""
 
 from types import MappingProxyType
-from typing import Any, cast
+from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -205,7 +205,7 @@ async def test_reconfigure_defaults_handle_schema_values(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
+    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
     defaults = flow._build_defaults("Test Connection", input_fields, dict(existing_subentry.data))
 
     for key, expected in expected_defaults.items():

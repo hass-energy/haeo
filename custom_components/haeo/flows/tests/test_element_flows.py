@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, Literal, TypedDict, cast
+from typing import Any, Literal, TypedDict
 from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult
@@ -149,12 +149,15 @@ class FlowTestElementFactory:
 
     def create_subentry(self, *, name: str) -> ConfigSubentry:
         """Return a config subentry for the synthetic element."""
-        return _make_subentry(cast("ElementType", self.element_type), self.create_config(name=name))
+        return _make_subentry(
+            self.element_type,  # type: ignore[arg-type]  # synthetic id is not in ElementType; cannot register without monkeypatch
+            self.create_config(name=name),
+        )
 
     def element_type_for_flow(self) -> ElementType:
-        """Return the synthetic element type cast for flow construction."""
+        """Return the synthetic element type for flow construction."""
 
-        return cast("ElementType", self.element_type)
+        return self.element_type  # type: ignore[return-value]  # synthetic id is not in ElementType enum
 
 
 class FlowTestSubentryFlowHandler(ConfigSubentryFlow):
@@ -207,7 +210,11 @@ def flow_test_element_factory(monkeypatch: pytest.MonkeyPatch) -> FlowTestElemen
             return {}
 
     entry = FlowTestAdapter()
-    monkeypatch.setitem(ELEMENT_TYPES, cast("ElementType", TEST_ELEMENT_TYPE), entry)
+    monkeypatch.setitem(
+        ELEMENT_TYPES,
+        TEST_ELEMENT_TYPE,  # type: ignore[arg-type]  # synthetic id is not in ElementType; registry key type cannot be extended in tests
+        entry,
+    )
     return FlowTestElementFactory()
 
 
