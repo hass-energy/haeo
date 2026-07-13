@@ -62,6 +62,12 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         self._attr_unique_id = unique_id
         if translation_placeholders is not None:
             self._attr_translation_placeholders = translation_placeholders
+        # Outputs flagged advanced are LP-internal diagnostics (e.g. battery
+        # aggregate energy flows, SOC envelope bounds) that change at every
+        # optimisation tick. Disable them in the entity registry so the
+        # recorder doesn't track them by default; advanced users can enable
+        # individually if they want to see them.
+        self._attr_entity_registry_enabled_default = not output_data.advanced
         self._apply_output(output_data)
 
         self._record_forecasts = coordinator.config_entry.data.get(CONF_RECORD_FORECASTS, False)

@@ -1,12 +1,10 @@
 """Tests for ScalarLoader handling current sensor values."""
 
-from typing import cast
-
 import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader.scalar_loader import ScalarLoader
-from custom_components.haeo.core.schema import EntityValue, as_entity_value
+from custom_components.haeo.core.schema import as_entity_value
 
 
 async def test_scalar_loader_available_missing_sensor() -> None:
@@ -25,9 +23,13 @@ async def test_scalar_loader_available_empty_list() -> None:
 async def test_scalar_loader_available_invalid_entity_value() -> None:
     """Scalar loader is unavailable for invalid entity value types."""
     loader = ScalarLoader()
-    value = cast("EntityValue", {"type": "entity", "value": 123})
-
-    assert loader.available(sm=FakeStateMachine({}), value=value) is False
+    assert (
+        loader.available(
+            sm=FakeStateMachine({}),
+            value={"type": "entity", "value": 123},  # type: ignore[arg-type]  # invalid entity id type; must not satisfy EntityValue for this test
+        )
+        is False
+    )
 
 
 async def test_scalar_loader_available_false_for_non_numeric_state() -> None:
@@ -79,10 +81,11 @@ async def test_scalar_loader_load_raises_for_non_numeric_state() -> None:
 async def test_scalar_loader_load_raises_for_invalid_entity_value() -> None:
     """Scalar loader raises when entity value is invalid."""
     loader = ScalarLoader()
-    value = cast("EntityValue", {"type": "entity", "value": 123})
-
     with pytest.raises(TypeError, match="sensor entity ID"):
-        await loader.load(sm=FakeStateMachine({}), value=value)
+        await loader.load(
+            sm=FakeStateMachine({}),
+            value={"type": "entity", "value": 123},  # type: ignore[arg-type]  # invalid entity id type; must not satisfy EntityValue for this test
+        )
 
 
 async def test_scalar_loader_loads_and_converts_units() -> None:

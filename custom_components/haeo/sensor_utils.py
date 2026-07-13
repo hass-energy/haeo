@@ -1,7 +1,8 @@
 """Utility functions for extracting and processing sensor data."""
 
+from datetime import datetime
 import math
-from typing import Any, TypedDict, cast
+from typing import Any, TypedDict
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -19,19 +20,16 @@ _TARGET_SIG_FIGS = 3
 class ForecastItem(TypedDict):
     """Single forecast point in sensor attributes."""
 
-    time: str  # ISO format after as_dict() serialization
+    time: datetime | str  # datetime in live state; ISO string once JSON-serialized
     value: float | str  # Numeric or status string (e.g., "success")
 
 
-class SensorAttributes(TypedDict, total=False):
-    """Attributes dict for HAEO sensors.
-
-    Uses total=False since not all attributes are always present.
-    Other Home Assistant attributes pass through as additional keys.
-    """
-
-    unit_of_measurement: str | None
-    forecast: list[ForecastItem]
+# Live Home Assistant state attributes pass through to snapshots as-is (minus
+# internal-only keys), so arbitrary keys appear alongside well-known entries
+# such as "unit_of_measurement" and "forecast". Downstream consumers (the
+# forecast card, scenario snapshots) rely on that full set, which a closed
+# TypedDict cannot describe.
+SensorAttributes = dict[str, Any]
 
 
 class SensorStateDict(TypedDict):
@@ -110,7 +108,8 @@ def _apply_smart_rounding(output_sensors: dict[str, SensorStateDict]) -> None:
             state_rounded = _round_sig(state_val)
 
         forecast_rounded: list[tuple[ForecastItem, float]] = []
-        for item in entity_data["attributes"].get("forecast", []):
+        forecast_items: list[ForecastItem] = entity_data["attributes"].get("forecast", [])
+        for item in forecast_items:
             val = _try_parse_float(item.get("value"))
             if val is not None:
                 forecast_rounded.append((item, _round_sig(val)))
@@ -161,14 +160,12 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
     """Get all output sensors created by this config entry.
 
     Returns a dict mapping entity_id to a cleaned sensor state dict.
-    Uses State.as_dict() to get complete state information including:
-    - entity_id, state, attributes, last_changed, last_updated, context
-
-    Unstable fields that are removed:
-    - last_changed, last_updated, context (timestamp-based, not relevant for snapshot comparison)
+    Each entry includes entity_id, state, and the live state attributes with
+    internal-only keys (field_path) removed. Timestamp and context fields from
+    live state are not included.
 
     Numeric values are rounded intelligently based on their unit's maximum absolute value
-    to provide approximately 4 significant figures, reducing noise from floating-point precision.
+    to provide approximately 3 significant figures, reducing noise from floating-point precision.
     """
     entity_registry = er.async_get(hass)
 
@@ -185,23 +182,15 @@ def get_output_sensors(hass: HomeAssistant, config_entry: ConfigEntry) -> dict[s
         if state is None:
             continue
 
-        # Get complete state as dict and create mutable copy
-        state_dict = dict(state.as_dict())
+        attributes: SensorAttributes = dict(state.attributes)
+        # Drop internal-only attributes to keep snapshots stable.
+        attributes.pop("field_path", None)
 
-        # Make attributes dict mutable and remove unstable fields
-        if "attributes" in state_dict and isinstance(state_dict["attributes"], dict):
-            state_dict["attributes"] = dict(state_dict["attributes"])
-            # Drop internal-only attributes to keep snapshots stable.
-            state_dict["attributes"].pop("field_path", None)
-
-        # Remove timestamp-based fields that aren't relevant for functional comparison
-        state_dict.pop("last_changed", None)
-        state_dict.pop("last_updated", None)
-        state_dict.pop("last_reported", None)
-        state_dict.pop("context", None)
-
-        # Cast to SensorStateDict after cleaning (state.as_dict() has extra fields we removed)
-        output_sensors[entity_entry.entity_id] = cast("SensorStateDict", state_dict)
+        output_sensors[entity_entry.entity_id] = {
+            "entity_id": state.entity_id,
+            "state": state.state,
+            "attributes": attributes,
+        }
 
     # Apply smart rounding to all numeric values
     _apply_smart_rounding(output_sensors)

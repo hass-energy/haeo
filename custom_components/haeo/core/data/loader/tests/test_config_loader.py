@@ -1,7 +1,7 @@
 """Tests for the core config loader."""
 
 from collections.abc import Sequence
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 import pytest
@@ -20,7 +20,6 @@ from custom_components.haeo.core.schema.elements.battery import CONF_CAPACITY, S
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
 from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
 from custom_components.haeo.core.schema.sections import CONF_EFFICIENCY_SOURCE_TARGET, SECTION_EFFICIENCY
-from custom_components.haeo.elements import ElementConfigSchema
 
 FORECAST_TIMES = (0.0, 3600.0, 7200.0, 10800.0)
 
@@ -548,7 +547,7 @@ def _load_config_from_values(
     """Load an element config from store values and return as a plain dict."""
     result: Any = load_element_config_from_values(
         name,
-        cast("ElementConfigSchema", config),
+        config,  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
         field_values,
         FORECAST_TIMES,
     )
@@ -639,7 +638,12 @@ def test_load_element_config_from_values_skips_invalid_list_container() -> None:
         "rules": "not-a-list",
     }
 
-    result = _load_config_from_values("Policies", config, {})
+    result: Any = load_element_config_from_values(
+        "Policies",
+        config,  # type: ignore[arg-type]  # rules is not a list; is_element_config_schema rejects this fixture
+        {},
+        FORECAST_TIMES,
+    )
 
     assert result["rules"] == "not-a-list"
 
@@ -649,7 +653,7 @@ def test_load_element_config_from_values_unknown_element_type_raises() -> None:
     with pytest.raises(ValueError, match="Unknown element type"):
         load_element_config_from_values(
             "Bad",
-            cast("ElementConfigSchema", {"element_type": "not_real", "name": "Bad"}),
+            {"element_type": "not_real", "name": "Bad"},  # type: ignore[typeddict-item]  # invalid element_type must reach runtime validation
             {},
             FORECAST_TIMES,
         )

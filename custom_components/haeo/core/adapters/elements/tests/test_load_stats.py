@@ -11,7 +11,6 @@ cases.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import cast
 
 import numpy as np
 import pytest
@@ -39,16 +38,13 @@ from custom_components.haeo.core.schema.elements.load import LoadConfigData
 
 
 def _config(*, sheddable: bool = True, source: str = "main_bus", n: int = 4) -> LoadConfigData:
-    return cast(
-        "LoadConfigData",
-        {
-            "element_type": ElementType.LOAD,
-            "name": "load",
-            "connection": as_connection_target(source),
-            "forecast": {"forecast": np.array([1.0] * n)},
-            "curtailment": {"curtailment": sheddable},
-        },
-    )
+    return {
+        "element_type": ElementType.LOAD,
+        "name": "load",
+        "connection": as_connection_target(source),
+        "forecast": {"forecast": np.array([1.0] * n)},
+        "curtailment": {"curtailment": sheddable},
+    }
 
 
 def _outputs_with_dual(
@@ -59,17 +55,14 @@ def _outputs_with_dual(
     source: str = "main_bus",
 ) -> Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]:
     """Build a model_outputs mapping with a connection power output and a source node dual."""
-    return cast(
-        "Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]",
-        {
-            "load:connection": {
-                CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=power, direction="+"),
-            },
-            source: {
-                ELEMENT_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=dual),
-            },
+    return {
+        "load:connection": {
+            CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=power, direction="+"),
         },
-    )
+        source: {
+            ELEMENT_POWER_BALANCE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kW", values=dual),
+        },
+    }
 
 
 def test_horizon_sensors_are_cumulative_with_state_last_set() -> None:
@@ -298,16 +291,13 @@ def test_stats_omitted_when_source_node_has_no_dual() -> None:
     publishing a misleading zero-cost figure would be worse than omitting the sensor.
     """
     adapter = LoadAdapter()
-    model_outputs = cast(
-        "Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]",
-        {
-            "load:connection": {
-                CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0, 1.0), direction="+"),
-            },
-            # source node exists but has no element_power_balance entry
-            "main_bus": {},
+    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]] = {
+        "load:connection": {
+            CONNECTION_POWER: OutputData(type=OutputType.POWER_FLOW, unit="kW", values=(1.0, 1.0), direction="+"),
         },
-    )
+        # source node exists but has no element_power_balance entry
+        "main_bus": {},
+    }
 
     result = adapter.outputs("load", model_outputs, config=_config(n=2), periods=(1.0, 1.0))
     load_outputs = result[LOAD_DEVICE_LOAD]

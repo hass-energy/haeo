@@ -29,6 +29,9 @@ from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
 
+# Number entities are backed by InputStore state, not by external I/O, so unlimited parallel updates is safe
+PARALLEL_UPDATES = 0
+
 
 def _build_surfaced_mirror_entities(
     config_entry: HaeoConfigEntry,

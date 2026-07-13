@@ -173,8 +173,8 @@ typeCheckingMode = "strict"
 - All function parameters and return types must be annotated
 - All class attributes must have type annotations
 - Generic types must specify type parameters (`list[str]` not `list`)
-- Use `cast()` sparingly and only when type checker cannot infer
-- Prefer `assert` statements over `cast()` when narrowing types
+- Do not import `typing.cast` (banned by Ruff); prefer `TypeGuard`, boundary typing, or `assert` for narrowing
+- When the type checker cannot be satisfied otherwise, use `# type: ignore[...]` on the same line with a short comment explaining why a TypeGuard or other narrowing approach was not viable
 
 ## Assertion helpers
 
