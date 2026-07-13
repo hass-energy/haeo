@@ -238,16 +238,16 @@ def test_migrate_subentry_connection_fields() -> None:
         CONF_NAME: "Connection",
         connection.SECTION_ENDPOINTS: {connection.CONF_SOURCE: "node_a", connection.CONF_TARGET: "node_b"},
         SECTION_POWER_LIMITS: {
-            connection.CONF_MAX_POWER_SOURCE_TARGET: 4.0,
-            connection.CONF_MAX_POWER_TARGET_SOURCE: 3.5,
+            CONF_MAX_POWER_SOURCE_TARGET: 4.0,
+            CONF_MAX_POWER_TARGET_SOURCE: 3.5,
         },
         SECTION_PRICING: {
-            connection.CONF_PRICE_SOURCE_TARGET: 0.1,
-            connection.CONF_PRICE_TARGET_SOURCE: 0.2,
+            CONF_PRICE_SOURCE_TARGET: 0.1,
+            CONF_PRICE_TARGET_SOURCE: 0.2,
         },
         SECTION_EFFICIENCY: {
-            connection.CONF_EFFICIENCY_SOURCE_TARGET: 0.9,
-            connection.CONF_EFFICIENCY_TARGET_SOURCE: 0.91,
+            CONF_EFFICIENCY_SOURCE_TARGET: 0.9,
+            CONF_EFFICIENCY_TARGET_SOURCE: 0.91,
         },
     }
     subentry = _create_subentry(data, subentry_type=connection.ELEMENT_TYPE)
@@ -257,9 +257,9 @@ def test_migrate_subentry_connection_fields() -> None:
     assert migrated is not None
     assert migrated[CONF_NAME] == "Connection"
     assert migrated[connection.SECTION_ENDPOINTS][connection.CONF_SOURCE] == as_connection_target("node_a")
-    assert migrated[SECTION_POWER_LIMITS][connection.CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(4.0)
-    assert migrated[SECTION_PRICING][connection.CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.2)
-    assert migrated[SECTION_EFFICIENCY][connection.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.91)
+    assert migrated[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(4.0)
+    assert migrated[SECTION_PRICING][CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.2)
+    assert migrated[SECTION_EFFICIENCY][CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.91)
 
 
 def test_migrate_subentry_grid_legacy_fields() -> None:
@@ -390,10 +390,10 @@ def test_migrate_subentry_load_node_solar() -> None:
                 CONF_NAME: "Connection",
                 connection.CONF_SOURCE: "node_a",
                 connection.CONF_TARGET: "node_b",
-                connection.CONF_MAX_POWER_SOURCE_TARGET: 4.0,
-                connection.CONF_MAX_POWER_TARGET_SOURCE: 4.0,
-                connection.CONF_PRICE_SOURCE_TARGET: 0.1,
-                connection.CONF_PRICE_TARGET_SOURCE: 0.2,
+                CONF_MAX_POWER_SOURCE_TARGET: 4.0,
+                CONF_MAX_POWER_TARGET_SOURCE: 4.0,
+                CONF_PRICE_SOURCE_TARGET: 0.1,
+                CONF_PRICE_TARGET_SOURCE: 0.2,
             },
             id="connection-flat-v033",
         ),

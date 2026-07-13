@@ -16,7 +16,6 @@ from custom_components.haeo.core.schema import as_connection_target, as_constant
 from custom_components.haeo.core.schema.elements import battery, grid, node
 from custom_components.haeo.core.schema.elements.connection import (
     CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
     CONF_SOURCE,
     CONF_TARGET,
     ELEMENT_TYPE,
@@ -37,7 +36,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         CONF_SOURCE: flat[CONF_SOURCE],
         CONF_TARGET: flat[CONF_TARGET],
     }
-    limits = {key: flat[key] for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE) if key in flat}
+    limits = {key: flat[key] for key in (CONF_MAX_POWER_SOURCE_TARGET,) if key in flat}
     return {
         CONF_NAME: flat[CONF_NAME],
         SECTION_ENDPOINTS: endpoints,
@@ -146,11 +145,9 @@ def test_build_config_normalizes_endpoints(hass: HomeAssistant, hub_entry: MockC
                 CONF_SOURCE: "Battery1",
                 CONF_TARGET: "Grid1",
                 CONF_MAX_POWER_SOURCE_TARGET: as_entity_value(["sensor.max_power_st"]),
-                CONF_MAX_POWER_TARGET_SOURCE: as_entity_value(["sensor.max_power_ts"]),
             },
             {
                 CONF_MAX_POWER_SOURCE_TARGET: ["sensor.max_power_st"],
-                CONF_MAX_POWER_TARGET_SOURCE: ["sensor.max_power_ts"],
             },
             id="entity_values",
         ),
@@ -163,11 +160,9 @@ def test_build_config_normalizes_endpoints(hass: HomeAssistant, hub_entry: MockC
                 CONF_SOURCE: "DeletedBattery",
                 CONF_TARGET: "Grid1",
                 CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0),
-                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(10.0),
             },
             {
                 CONF_MAX_POWER_SOURCE_TARGET: 10.0,
-                CONF_MAX_POWER_TARGET_SOURCE: 10.0,
             },
             id="constant_values_deleted_source",
         ),
@@ -229,22 +224,18 @@ async def test_user_step_with_constant_creates_entry(
         }
     )
 
-    # Submit with constant values using choose selector format
     user_input = {
         CONF_NAME: "Test Connection",
         CONF_SOURCE: "Battery1",
         CONF_TARGET: "Grid1",
         CONF_MAX_POWER_SOURCE_TARGET: 10.0,
-        CONF_MAX_POWER_TARGET_SOURCE: 10.0,
     }
     result = await flow.async_step_user(user_input=user_input)
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
-    # Verify the config contains the constant values
     create_kwargs = flow.async_create_entry.call_args.kwargs
     assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(10.0)
-    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(10.0)
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -264,23 +255,17 @@ async def test_user_step_with_entity_creates_entry(
         }
     )
 
-    # Submit with entity selections
     user_input = {
         CONF_NAME: "Test Connection",
         CONF_SOURCE: "Battery1",
         CONF_TARGET: "Grid1",
         CONF_MAX_POWER_SOURCE_TARGET: ["sensor.power_st"],
-        CONF_MAX_POWER_TARGET_SOURCE: ["sensor.power_ts"],
     }
     result = await flow.async_step_user(user_input=user_input)
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
-    # Verify the config contains the entity schema values (single entity)
     create_kwargs = flow.async_create_entry.call_args.kwargs
     assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_entity_value(
         ["sensor.power_st"]
-    )
-    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_entity_value(
-        ["sensor.power_ts"]
     )

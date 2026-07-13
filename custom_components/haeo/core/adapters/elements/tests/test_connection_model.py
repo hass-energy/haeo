@@ -45,15 +45,12 @@ CREATE_CASES: Sequence[CreateCase] = [
             endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
             power_limits={
                 "max_power_source_target": np.array([4.0]),
-                "max_power_target_source": np.array([2.0]),
             },
             efficiency={
                 "efficiency_source_target": np.array([0.95]),
-                "efficiency_target_source": np.array([0.90]),
             },
             pricing={
                 "price_source_target": np.array([0.1]),
-                "price_target_source": np.array([0.05]),
             },
         ),
         "model": [

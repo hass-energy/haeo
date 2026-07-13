@@ -200,52 +200,35 @@
       "step": {
         "user": {
           "title": "Connection Configuration",
-          "description": "Configure connection parameters between devices",
+          "description": "Configure a unidirectional power path from source to target. For reverse flow, add a second connection with swapped endpoints.",
           "data": {
-            "efficiency_source_target": "Efficiency Source to Target",
-            "efficiency_target_source": "Efficiency Target to Source",
-            "max_power_source_target": "Max Power Source to Target",
-            "max_power_target_source": "Max Power Target to Source",
-            "mirror_segment_order": "Mirror segment order",
+            "efficiency_source_target": "Efficiency",
+            "max_power_source_target": "Max power",
             "name": "Connection Name",
-            "price_source_target": "Price Source to Target",
-            "price_target_source": "Price Target to Source",
+            "price_source_target": "Price",
             "source": "Source Device",
             "target": "Target Device"
           },
           "sections": {
             "common": { "data": { "name": "Connection Name" }, "name": "Common settings" },
             "efficiency": {
-              "data": {
-                "efficiency_source_target": "Efficiency Source to Target",
-                "efficiency_target_source": "Efficiency Target to Source"
-              },
+              "data": { "efficiency_source_target": "Efficiency" },
               "name": "Connection efficiency"
             },
             "endpoints": { "data": { "source": "Source Device", "target": "Target Device" }, "name": "Endpoints" },
             "power_limits": {
-              "data": {
-                "max_power_source_target": "Max Power Source to Target",
-                "max_power_target_source": "Max Power Target to Source"
-              },
+              "data": { "max_power_source_target": "Max power" },
               "name": "Power limits"
             },
             "pricing": {
-              "data": {
-                "price_source_target": "Price Source to Target",
-                "price_target_source": "Price Target to Source"
-              },
+              "data": { "price_source_target": "Price" },
               "name": "Pricing"
-            },
-            "segment_order": { "data": { "mirror_segment_order": "Mirror segment order" }, "name": "Segment order" }
+            }
           }
         }
       },
       "error": {
         "cannot_connect_to_self": "Cannot connect a device to itself",
-        "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
-        "min_power_negative_not_allowed_unidirectional": "Minimum power cannot be negative for unidirectional connections",
-        "min_power_too_high": "Minimum power must be less than or equal to maximum power",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
       },
@@ -484,12 +467,9 @@
       "battery_salvage_value": { "name": "Salvage value" },
       "battery_undercharge_partition_cost": { "name": "Undercharge cost" },
       "battery_undercharge_partition_percentage": { "name": "Undercharge percentage" },
-      "connection_efficiency_source_target": { "name": "Source to target efficiency" },
-      "connection_efficiency_target_source": { "name": "Target to source efficiency" },
-      "connection_max_power_source_target": { "name": "Max source to target power" },
-      "connection_max_power_target_source": { "name": "Max target to source power" },
-      "connection_price_source_target": { "name": "Source to target price" },
-      "connection_price_target_source": { "name": "Target to source price" },
+      "connection_efficiency_source_target": { "name": "Efficiency" },
+      "connection_max_power_source_target": { "name": "Max power" },
+      "connection_price_source_target": { "name": "Price" },
       "grid_max_power_source_target": { "name": "Import limit" },
       "grid_max_power_target_source": { "name": "Export limit" },
       "grid_price_source_target": { "name": "Import price" },
