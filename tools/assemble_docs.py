@@ -34,7 +34,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 import zipfile
 
 DEFAULT_CNAME = "haeo.io"

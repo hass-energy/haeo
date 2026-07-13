@@ -1,6 +1,6 @@
 """Tests for elements schema helper utilities."""
 
-from typing import Any, Literal, NotRequired, Required, TypeAliasType, TypedDict
+from typing import Literal, NotRequired, Required, TypeAliasType, TypedDict
 
 import pytest
 
@@ -71,7 +71,7 @@ def test_get_input_field_schema_info_type_alias(monkeypatch: pytest.MonkeyPatch)
     """get_input_field_schema_info unwraps TypeAliasType sections."""
     original_get_type_hints = elements_module.get_type_hints
 
-    def _fake_get_type_hints(schema_cls: type) -> dict[str, Any]:
+    def _fake_get_type_hints(schema_cls: type) -> dict[str, object]:
         if schema_cls is _DummySchema:
             return {"dummy": DummySectionAlias}
         if schema_cls is _DummySection:

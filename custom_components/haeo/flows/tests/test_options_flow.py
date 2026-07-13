@@ -1,6 +1,6 @@
 """Test hub options flow for network configuration."""
 
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType

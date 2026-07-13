@@ -4,7 +4,7 @@ from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 import time
 from types import MappingProxyType
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry

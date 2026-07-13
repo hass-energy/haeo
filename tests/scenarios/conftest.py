@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any, TypedDict, TypeGuard
+from typing import Any, TypedDict, TypeGuard  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 import pytest
 

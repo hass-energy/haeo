@@ -1,6 +1,6 @@
 """Efficiency segment — applies losses to power flow."""
 
-from typing import Any, Literal, NotRequired
+from typing import Any, Literal, NotRequired  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from highspy import Highs
 from highspy.highs import HighspyArray
@@ -22,10 +22,10 @@ class EfficiencySegmentSpec(TypedDict):
     """
 
     segment_type: Literal["efficiency"]
-    efficiency: NotRequired[NDArray[np.floating[Any]] | float | None]
+    efficiency: NotRequired[NDArray[np.float64] | float | None]
     # Directional aliases — resolved by Connection, not used by segment directly
-    efficiency_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
-    efficiency_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
+    efficiency_source_target: NotRequired[NDArray[np.float64] | float | None]
+    efficiency_target_source: NotRequired[NDArray[np.float64] | float | None]
 
 
 class EfficiencySegment(Segment):
@@ -37,7 +37,7 @@ class EfficiencySegment(Segment):
         self,
         segment_id: str,
         n_periods: int,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         solver: Highs,
         *,
         spec: EfficiencySegmentSpec,

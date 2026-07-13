@@ -1,6 +1,6 @@
 """Tests for data extractor functionality."""
 
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant.core import HomeAssistant, State
 import pytest

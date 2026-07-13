@@ -19,7 +19,7 @@ Run with:
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er

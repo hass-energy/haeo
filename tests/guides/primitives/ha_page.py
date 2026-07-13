@@ -16,7 +16,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from playwright.sync_api import Page
 

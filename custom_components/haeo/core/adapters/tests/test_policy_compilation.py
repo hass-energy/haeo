@@ -10,9 +10,10 @@ Tests cover:
 - End-to-end network optimization with policies
 """
 
-from typing import Any, Literal, overload
+from typing import Any, Literal, overload  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.core.adapters.policy_compilation import (
@@ -52,7 +53,7 @@ def _conn(name: str, source: str, target: str, segments: dict[str, Any] | None =
 def _policy(
     sources: list[str],
     destinations: list[str],
-    price: float | np.ndarray[Any, np.dtype[np.floating[Any]]] = 0.0,
+    price: float | NDArray[np.float64] = 0.0,
     *,
     enabled: bool = True,
 ) -> CompiledPolicyRule:

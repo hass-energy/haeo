@@ -11,7 +11,7 @@ reads their resolved values to feed the optimization.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant.core import HomeAssistant
 

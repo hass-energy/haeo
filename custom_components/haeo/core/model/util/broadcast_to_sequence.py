@@ -1,6 +1,6 @@
 """Utility functions for model elements."""
 
-from typing import Any, overload
+from typing import overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -11,11 +11,11 @@ def broadcast_to_sequence(value: None, n_periods: int) -> None: ...
 
 
 @overload
-def broadcast_to_sequence(value: float | NDArray[np.floating[Any]], n_periods: int) -> NDArray[np.float64]: ...
+def broadcast_to_sequence(value: float | NDArray[np.float64], n_periods: int) -> NDArray[np.float64]: ...
 
 
 def broadcast_to_sequence(
-    value: float | NDArray[np.floating[Any]] | None,
+    value: float | NDArray[np.float64] | None,
     n_periods: int,
 ) -> NDArray[np.float64] | None:
     """Broadcast a scalar or sequence to match n_periods.

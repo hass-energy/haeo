@@ -9,7 +9,7 @@ Flow design:
 - async_step_edit_rule: Edits a selected rule.
 """
 
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant.config_entries import ConfigSubentry, ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import (

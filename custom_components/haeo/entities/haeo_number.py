@@ -3,7 +3,7 @@
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry

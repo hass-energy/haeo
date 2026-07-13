@@ -16,7 +16,10 @@ from pathlib import Path
 import tempfile
 import threading
 from types import MappingProxyType
-from typing import Any
+
+# Scenario configs are ad-hoc nested JSON driving a dev-only simulator; typed
+# narrowing of every key access adds noise without safety here.
+from typing import Any  # noqa: TID251
 import warnings
 
 from homeassistant import loader

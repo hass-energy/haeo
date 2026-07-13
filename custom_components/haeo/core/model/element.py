@@ -3,7 +3,7 @@
 from collections.abc import Mapping, Sequence
 from functools import reduce
 import operator
-from typing import Any, Final, Literal
+from typing import Any, Final, Literal  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
@@ -30,12 +30,12 @@ class Element[OutputNameT: str]:
     """
 
     # TrackedParam for periods - enables reactive invalidation when periods change
-    periods: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
+    periods: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         solver: Highs,
         output_names: frozenset[OutputNameT],
@@ -220,7 +220,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         solver: Highs,
         output_names: frozenset[OutputNameT],

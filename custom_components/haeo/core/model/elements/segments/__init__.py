@@ -10,7 +10,7 @@ Each segment type applies a specific transformation or constraint to power flow:
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Final, Literal, TypeGuard
+from typing import Any, Final, Literal, TypeGuard  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from highspy import Highs
 from highspy.highs import HighspyArray
@@ -81,7 +81,7 @@ def create_segment(
     *,
     segment_id: str,
     n_periods: int,
-    periods: NDArray[np.floating[Any]],
+    periods: NDArray[np.float64],
     solver: Highs,
     spec: SegmentSpec,
     source_element: Element[Any],

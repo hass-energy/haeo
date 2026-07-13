@@ -1,6 +1,6 @@
 """Tests for flows/field_schema.py utilities."""
 
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import HomeAssistant

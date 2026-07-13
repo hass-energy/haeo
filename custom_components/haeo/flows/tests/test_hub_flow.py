@@ -1,6 +1,6 @@
 """Test hub configuration flow - 100% coverage."""
 
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant

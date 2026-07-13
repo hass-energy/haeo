@@ -27,7 +27,7 @@ from collections.abc import Mapping, MutableSequence, Sequence
 import logging
 import types
 from typing import (
-    Any,
+    Any,  # noqa: TID251  # legacy Any usage; migrate to precise types
     Final,
     Literal,
     NamedTuple,

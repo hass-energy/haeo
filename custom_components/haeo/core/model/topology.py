@@ -8,7 +8,7 @@ no time-series values.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.element import NetworkElement

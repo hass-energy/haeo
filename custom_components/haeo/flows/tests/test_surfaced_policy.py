@@ -1,7 +1,7 @@
 """Tests for surfaced policy rule management utilities."""
 
 from types import MappingProxyType
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry

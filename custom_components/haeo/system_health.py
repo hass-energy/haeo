@@ -1,7 +1,7 @@
 """System health diagnostics for HAEO integration."""
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant.components import system_health
 from homeassistant.core import HomeAssistant, callback

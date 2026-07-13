@@ -6,7 +6,7 @@ and a tiny in-memory storage double so values resolve identically to the config
 loader (``resolve_field``/``resolve_constant``).
 """
 
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 from unittest.mock import patch
 
 import numpy as np

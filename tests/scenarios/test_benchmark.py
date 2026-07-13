@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 import numpy as np
 import pytest
@@ -29,6 +29,7 @@ from custom_components.haeo.core.data.forecast_times import generate_forecast_ti
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model.network import CalibratedOptions, LexOptions, Network, SolveOptions
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema, ElementType
+from custom_components.haeo.core.schema.elements.policy import is_policy_config_data
 from custom_components.haeo.core.state import EntityState
 
 # ---------------------------------------------------------------------------
@@ -110,10 +111,7 @@ def _build_network(
 
     # Compile policy rules (same as coordinator/network.py)
     policy_rules = [
-        rule
-        for cfg in loaded_configs.values()
-        if cfg.get("element_type") == ElementType.POLICY
-        for rule in extract_policy_rules(cfg)
+        rule for cfg in loaded_configs.values() if is_policy_config_data(cfg) for rule in extract_policy_rules(cfg)
     ]
     compiled_elements = compile_policies(sorted_model_elements, policy_rules)
 

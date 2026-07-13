@@ -20,7 +20,7 @@ from pathlib import Path
 import signal
 import sys
 import time
-from typing import Any, TypedDict
+from typing import Any, TypedDict  # noqa: TID251  # legacy Any usage; migrate to precise types
 import webbrowser
 from zoneinfo import ZoneInfo
 

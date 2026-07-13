@@ -12,7 +12,7 @@ External data (API responses, sensor values, user input) should be validated and
 
 ```python
 # ✅ Good: Type at the boundary
-def load_config(raw_data: dict[str, Any]) -> BatteryConfigData:
+def load_config(raw_data: dict[str, object]) -> BatteryConfigData:
     """Validate and type external data immediately."""
     return BatteryConfigData(
         name=raw_data["name"],
@@ -22,7 +22,7 @@ def load_config(raw_data: dict[str, Any]) -> BatteryConfigData:
 
 
 # ❌ Bad: Pass untyped data through the system
-def process_config(raw_data: dict[str, Any]) -> None:
+def process_config(raw_data: dict[str, object]) -> None:
     """Delay typing until deep in the call stack."""
     # raw_data flows through multiple functions untyped
     capacity = raw_data.get("capacity")  # Unknown type
@@ -175,6 +175,46 @@ typeCheckingMode = "strict"
 - Generic types must specify type parameters (`list[str]` not `list`)
 - Do not import `typing.cast` (banned by Ruff); prefer `TypeGuard`, boundary typing, or `assert` for narrowing
 - When the type checker cannot be satisfied otherwise, use `# type: ignore[...]` on the same line with a short comment explaining why a TypeGuard or other narrowing approach was not viable
+
+## Avoiding Any
+
+`typing.Any` disables type checking entirely for a value — every attribute access, call, and
+assignment silently passes. Importing it is banned by Ruff (TID251), the same mechanism used for
+`typing.cast`. Prefer, in order:
+
+1. **A precise type**: a TypedDict, dataclass, Protocol, or union that describes the actual shape
+2. **A generic `TypeVar`**: when the function relates its input and output types
+3. **`object`**: for values that are genuinely unknown at a boundary. Unlike `Any`, `object`
+   forces narrowing (isinstance, TypeGuard) before use — mistakes surface at the checker instead
+   of at runtime
+
+```python
+# ✅ Good: object forces narrowing before use
+def coerce_float(value: object) -> float | None:
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return float(value)
+    return None
+
+
+# ❌ Bad: Any lets mistakes flow through silently
+def coerce_float(value: Any) -> float | None:
+    return value  # No checker error, wrong at runtime
+```
+
+For numpy arrays, use the concrete `NDArray[np.float64]` — every array in this codebase is
+created as float64, so the generic `np.floating[Any]` form is never needed.
+
+Some `Any` usage is structurally required and allowed with a justified `# noqa: TID251` on the
+import line:
+
+- dynamic test helpers that drive heterogeneous classes or monkeypatch methods (Mock-style)
+- reflection over typing constructs (`get_origin`/`get_args` introspection)
+- voluptuous schema dictionaries, which are heterogeneous by design
+- Home Assistant framework signatures that are `Any`-typed upstream
+
+Files that predate the ban carry `# noqa: TID251  # legacy Any usage` markers on their imports.
+That set must only shrink: remove the marker when you clean a file, and never add new `Any`
+usage to a file that still has one.
 
 ## Assertion helpers
 

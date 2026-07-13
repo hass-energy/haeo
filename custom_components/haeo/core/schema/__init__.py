@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 import types as stdlib_types
-from typing import Any, Final, TypeAliasType, TypeGuard, Union, get_args, get_origin
+from typing import (
+    Any,  # noqa: TID251  # legacy Any usage; migrate to precise types
+    Final,
+    TypeAliasType,
+    TypeGuard,
+    Union,
+    get_args,
+    get_origin,
+)
 
 from .connection_target import (
     ConnectionTarget,

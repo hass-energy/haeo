@@ -1,6 +1,6 @@
 """Model connection output tests covering reporting and validation helpers."""
 
-from typing import Any, TypeGuard
+from typing import TypeGuard
 
 from highspy import Highs
 from highspy.highs import highs_linear_expression
@@ -40,7 +40,7 @@ def _serialize_output_value(output_value: ModelOutputValue) -> ExpectedOutputFix
 class DummyElement(Element[str]):
     """Minimal element for connection endpoint wiring in tests."""
 
-    def __init__(self, name: str, periods: NDArray[np.floating[Any]], solver: Highs) -> None:
+    def __init__(self, name: str, periods: NDArray[np.float64], solver: Highs) -> None:
         """Create a dummy element with no outputs."""
         super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
 

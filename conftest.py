@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from importlib import import_module
 from logging import config as logging_config_module
 from types import MappingProxyType
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant

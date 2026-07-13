@@ -1,7 +1,7 @@
 """TrackedParam descriptor for automatic dependency tracking."""
 
 from contextvars import ContextVar
-from typing import Any, overload
+from typing import Any, overload  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 import numpy as np
 
@@ -21,7 +21,7 @@ class TrackedParam[T]:
 
     Usage:
         class Battery(Element):
-            capacity = TrackedParam[NDArray[np.floating[Any]]]()
+            capacity = TrackedParam[NDArray[np.float64]]()
 
             @constraint
             def soc_max_constraint(self) -> list[highs_linear_expression]:

@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import __version__ as ha_version
@@ -79,7 +79,7 @@ class DiagnosticsResult:
     environment: EnvironmentInfo
     """Runtime info plus per-snapshot timestamps."""
 
-    inputs: list[dict[str, Any]]
+    inputs: list[Mapping[str, object]]
     """Input sensor states used in optimization."""
 
     outputs: dict[str, SensorStateDict] | None
@@ -113,7 +113,7 @@ def _config_from_context(context: OptimizationContext) -> dict[str, Any]:
     }
 
 
-def _inputs_from_context(context: OptimizationContext) -> list[dict[str, Any]]:
+def _inputs_from_context(context: OptimizationContext) -> list[Mapping[str, object]]:
     """Build diagnostics inputs section from OptimizationContext.
 
     Uses the exact source states captured when entities loaded data,
@@ -189,7 +189,7 @@ async def _fetch_inputs_at(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
     target_time: datetime,
-) -> tuple[list[dict[str, Any]], list[str]]:
+) -> tuple[list[Mapping[str, object]], list[str]]:
     """Fetch input entity states from the recorder at a specific time.
 
     Returns:
@@ -218,7 +218,7 @@ async def _fetch_inputs_at(
     entity_states = {eid: slist[0] for eid, slist in states.items() if slist}
 
     missing_entity_ids = sorted(all_entity_ids - set(entity_states.keys()))
-    inputs: list[dict[str, Any]] = [
+    inputs: list[Mapping[str, object]] = [
         state.as_dict() for eid in entity_id_list if (state := entity_states.get(eid)) is not None
     ]
     return inputs, missing_entity_ids

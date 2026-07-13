@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 import numpy as np
 

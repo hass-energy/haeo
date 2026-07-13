@@ -27,7 +27,7 @@ from pathlib import Path
 import socket
 import tempfile
 import threading
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 import warnings
 
 from homeassistant import loader

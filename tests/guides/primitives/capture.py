@@ -13,7 +13,7 @@ from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from functools import wraps
 from pathlib import Path
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 # Block screenshot capture until the page has visually settled: web fonts loaded,
 # every <img> (including those inside shadow roots, which HA uses heavily) either

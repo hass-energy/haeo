@@ -1,11 +1,9 @@
 """Normalization helpers for test comparisons."""
 
-from typing import Any
-
 import numpy as np
 
 
-def normalize_for_compare(value: Any) -> Any:
+def normalize_for_compare(value: object) -> object:
     """Normalize numpy arrays to lists for equality checks."""
     if isinstance(value, np.ndarray):
         return value.tolist()

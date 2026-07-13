@@ -72,6 +72,8 @@ ignore = [
 ]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
+"typing.Any" = { msg = "Avoid Any: use a precise type, a TypedDict/Protocol, a generic TypeVar, or object (narrow before use). If Any is structurally required (e.g. numpy dtype parameters, voluptuous schemas, HA framework overrides), add # noqa: TID251 on the import with a comment saying why." }
+"typing_extensions.Any" = { msg = "Avoid Any: use a precise type, a TypedDict/Protocol, a generic TypeVar, or object (narrow before use). If Any is structurally required (e.g. numpy dtype parameters, voluptuous schemas, HA framework overrides), add # noqa: TID251 on the import with a comment saying why." }
 "typing.cast" = { msg = "Fix the types properly, or use a TypeGuard if needed, as a last resort use # type: ignore[...] with an explanation as to why there was no other viable option." }
 "typing_extensions.cast" = { msg = "Fix the types properly, or use a TypeGuard if needed, as a last resort use # type: ignore[...] with an explanation as to why there was no other viable option." }
 
@@ -129,6 +131,7 @@ split-on-trailing-comma = false
     'PYI',    # Stub-specific rules - we're matching external API
     'I',      # Import order doesn't matter in stubs
     'PIE790', # Allow ... in stub classes
+    'TID251', # Stubs mirror external APIs, which may genuinely be Any-typed
 ]
 
 "tools/**/*.py" = [

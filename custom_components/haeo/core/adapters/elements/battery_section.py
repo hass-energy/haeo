@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
@@ -80,7 +80,7 @@ class BatterySectionAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
-        **_kwargs: Any,
+        **_kwargs: object,
     ) -> Mapping[BatterySectionDeviceName, Mapping[BatterySectionOutputName, OutputData]]:
         """Map model outputs to battery section output names."""
         battery_data = {key: expect_output_data(value) for key, value in model_outputs[name].items()}

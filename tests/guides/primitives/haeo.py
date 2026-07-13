@@ -20,7 +20,7 @@ import json
 import logging
 from pathlib import Path
 import types
-from typing import TYPE_CHECKING, Any, get_args
+from typing import TYPE_CHECKING, Any, get_args  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 

@@ -1,7 +1,7 @@
 """Tests for the core config loader."""
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 import numpy as np
 import pytest

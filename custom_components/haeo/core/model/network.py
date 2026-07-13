@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 import logging
-from typing import Any, Final, Literal, overload
+from typing import Any, Final, Literal, overload  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
@@ -120,7 +120,7 @@ class Network:
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         options: SolveOptions | None = None,
     ) -> None:
@@ -155,7 +155,7 @@ class Network:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def update_periods(self, new_periods: NDArray[np.floating[Any]]) -> None:
+    def update_periods(self, new_periods: NDArray[np.float64]) -> None:
         """Update period durations across the network.
 
         Propagates the new periods to all elements and their segments,

@@ -6,7 +6,7 @@ based on OutputType, and a builder to instantiate them using declarative hints.
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import Any, Final  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription

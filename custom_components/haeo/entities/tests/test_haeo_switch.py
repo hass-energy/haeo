@@ -4,7 +4,7 @@ import asyncio
 from datetime import timedelta
 import logging
 from types import MappingProxyType
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 from unittest.mock import Mock
 
 from homeassistant.components.switch import SwitchEntityDescription

@@ -1,6 +1,6 @@
 """Passthrough segment — identity transform."""
 
-from typing import Any, Literal
+from typing import Any, Literal  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from highspy import Highs
 from highspy.highs import HighspyArray
@@ -26,7 +26,7 @@ class PassthroughSegment(Segment):
         self,
         segment_id: str,
         n_periods: int,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         solver: Highs,
         *,
         spec: PassthroughSegmentSpec,

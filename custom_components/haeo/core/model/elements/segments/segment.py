@@ -12,7 +12,7 @@ each with its own segment chain.
 
 from functools import reduce
 import operator
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
@@ -38,13 +38,13 @@ class Segment:
     to transform the flow.
     """
 
-    periods: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
+    periods: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
         self,
         segment_id: str,
         n_periods: int,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         solver: Highs,
         *,
         source_element: Element[Any],

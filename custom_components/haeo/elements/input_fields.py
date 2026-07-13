@@ -6,7 +6,7 @@ and their associated metadata like output type, direction, and time series behav
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Literal
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
@@ -72,11 +72,16 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     device_type: str | None = None
 
 
-type InputFieldSection = Mapping[str, InputFieldInfo[Any]]
+# Union of the two concrete field-info instantiations; use when handling
+# heterogeneous fields (the TypeVar is constrained to exactly these two).
+type AnyInputFieldInfo = InputFieldInfo[NumberEntityDescription] | InputFieldInfo[SwitchEntityDescription]
+
+type InputFieldSection = Mapping[str, AnyInputFieldInfo]
 type InputFieldGroups = Mapping[str, InputFieldSection]
 type InputFieldPath = tuple[str, ...]
 
 __all__ = [
+    "AnyInputFieldInfo",
     "InputFieldDefaults",
     "InputFieldGroups",
     "InputFieldInfo",

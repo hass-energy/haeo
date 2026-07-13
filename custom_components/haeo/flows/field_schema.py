@@ -8,7 +8,7 @@ Home Assistant's ChooseSelector, allowing users to pick between "Entity"
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from numbers import Real
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.data_entry_flow import section

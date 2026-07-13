@@ -7,7 +7,7 @@ compile_policies() pipeline in policy_compilation.py.
 """
 
 from collections.abc import Mapping
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 from custom_components.haeo.core.adapters.policy_compilation import CompiledPolicyRule
 from custom_components.haeo.core.const import ConnectivityLevel
@@ -17,6 +17,7 @@ from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_ENABLED,
     CONF_PRICE,
+    CONF_RULES,
     CONF_SOURCE,
     CONF_TARGET,
     ELEMENT_TYPE,
@@ -37,7 +38,7 @@ POLICY_DEVICE_NAMES: Final[frozenset[PolicyDeviceName]] = frozenset(
 )
 
 
-def extract_policy_rules(config: Mapping[str, Any]) -> list[CompiledPolicyRule]:
+def extract_policy_rules(config: PolicyConfigData) -> list[CompiledPolicyRule]:
     """Transform loaded policy rules into the format compile_policies() expects.
 
     Each rule becomes a dict with:
@@ -46,7 +47,7 @@ def extract_policy_rules(config: Mapping[str, Any]) -> list[CompiledPolicyRule]:
         price: float or NDArray
     """
     result: list[CompiledPolicyRule] = []
-    for rule in config.get("rules", []):
+    for rule in config[CONF_RULES]:
         source = rule.get(CONF_SOURCE, [])
         target = rule.get(CONF_TARGET, [])
         result.append(
@@ -54,7 +55,10 @@ def extract_policy_rules(config: Mapping[str, Any]) -> list[CompiledPolicyRule]:
                 sources=source if source else [WILDCARD],
                 destinations=target if target else [WILDCARD],
                 enabled=rule[CONF_ENABLED],
-                price=rule[CONF_PRICE],
+                # PolicyRuleData.price may be None for tagging-only rules; compilation
+                # trusts loaders to price enabled rules. Pre-existing behavior kept
+                # as-is (the previous Any typing hid this hole).
+                price=rule[CONF_PRICE],  # type: ignore[typeddict-item]
             )
         )
     return result
@@ -77,7 +81,7 @@ class PolicyAdapter:
         self,
         name: str,  # noqa: ARG002 (required by adapter protocol — policy has no model outputs)
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],  # noqa: ARG002 (required by adapter protocol — policy has no model outputs)
-        **_kwargs: Any,
+        **_kwargs: object,
     ) -> Mapping[PolicyDeviceName, Mapping[PolicyOutputName, OutputData]]:
         """Map model outputs to policy-specific output names."""
         return {POLICY_DEVICE_POLICY: {}}

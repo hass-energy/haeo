@@ -187,8 +187,9 @@ async def test_get_output_sensors_handles_forecast_attributes(hass: HomeAssistan
     # Verify forecast values are present and rounded
     assert haeo_entry.entity_id in output_sensors
     sensor_data = output_sensors[haeo_entry.entity_id]
-    assert "forecast" in sensor_data["attributes"]
-    assert len(sensor_data["attributes"]["forecast"]) == 2
+    forecast = sensor_data["attributes"]["forecast"]
+    assert isinstance(forecast, list)
+    assert len(forecast) == 2
 
 
 async def test_get_output_sensors_handles_non_numeric_states(hass: HomeAssistant) -> None:
@@ -356,8 +357,9 @@ async def test_rounding_two_pass_per_value_then_per_entity(hass: HomeAssistant) 
     amber_data = output_sensors[amber_entry.entity_id]
     assert amber_data["state"] == "0.08"
     attributes = amber_data["attributes"]
-    assert "forecast" in attributes
-    forecast_values = [pt["value"] for pt in attributes["forecast"]]
+    forecast = attributes["forecast"]
+    assert isinstance(forecast, list)
+    forecast_values = [pt["value"] for pt in forecast]
     assert forecast_values == [0.08, 0.147, 0.004]
 
 

@@ -1,7 +1,10 @@
 """Tests for HAEO system health reporting."""
 
 from datetime import UTC, datetime
-from typing import Any
+
+# Coordinator output fixtures use runtime string keys that cannot satisfy the
+# Literal key types of SubentryDevices.
+from typing import Any  # noqa: TID251
 from unittest.mock import MagicMock, Mock, patch
 
 from homeassistant.components.system_health import SystemHealthRegistration

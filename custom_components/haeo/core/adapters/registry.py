@@ -1,7 +1,12 @@
 """Element adapter registry and model element collection."""
 
 from collections.abc import Mapping
-from typing import Any, Protocol, TypeGuard, runtime_checkable
+from typing import (
+    Any,  # noqa: TID251  # legacy Any usage; migrate to precise types
+    Protocol,
+    TypeGuard,
+    runtime_checkable,
+)
 
 from custom_components.haeo.core.adapters.elements.battery import adapter as battery_adapter
 from custom_components.haeo.core.adapters.elements.battery_section import adapter as battery_section_adapter

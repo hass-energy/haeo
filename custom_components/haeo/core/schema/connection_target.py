@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Literal, TypedDict, TypeGuard
+from typing import Literal, TypedDict, TypeGuard
 
 VALUE_TYPE_CONNECTION_TARGET = "connection_target"
 
@@ -23,7 +23,7 @@ def as_connection_target(value: str) -> ConnectionTargetValue:
     return {"type": VALUE_TYPE_CONNECTION_TARGET, "value": value}
 
 
-def is_connection_target(value: Any) -> TypeGuard[ConnectionTargetValue]:
+def is_connection_target(value: object) -> TypeGuard[ConnectionTargetValue]:
     """Return True if value is a connection target schema value."""
     if not isinstance(value, Mapping):
         return False

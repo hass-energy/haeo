@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 
 def _shift_timestamp(value: str, delta: timedelta) -> str:
@@ -24,7 +23,7 @@ def _shift_timestamp(value: str, delta: timedelta) -> str:
     return shifted.isoformat()
 
 
-def shift_timestamps(data: Any, delta: timedelta) -> Any:
+def shift_timestamps(data: object, delta: timedelta) -> object:
     """Recursively shift ISO 8601 timestamps in nested data by delta.
 
     Dict keys that parse as timestamps are shifted as well as string values.

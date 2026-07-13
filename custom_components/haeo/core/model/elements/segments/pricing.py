@@ -1,6 +1,6 @@
 """Pricing segment — adds transfer cost proportional to power flow."""
 
-from typing import Any, Literal, NotRequired
+from typing import Any, Literal, NotRequired  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
@@ -23,10 +23,10 @@ class PricingSegmentSpec(TypedDict):
     """
 
     segment_type: Literal["pricing"]
-    price: NotRequired[NDArray[np.floating[Any]] | float | None]
+    price: NotRequired[NDArray[np.float64] | float | None]
     # Directional aliases — resolved by Connection, not used by segment directly
-    price_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
-    price_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
+    price_source_target: NotRequired[NDArray[np.float64] | float | None]
+    price_target_source: NotRequired[NDArray[np.float64] | float | None]
     tag_prices: NotRequired[list[dict[str, Any]]]
 
 
@@ -39,7 +39,7 @@ class PricingSegment(Segment):
         self,
         segment_id: str,
         n_periods: int,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         solver: Highs,
         *,
         spec: PricingSegmentSpec,

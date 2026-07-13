@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 import json
 from pathlib import Path
 import sys
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 from zoneinfo import ZoneInfo
 
 import numpy as np

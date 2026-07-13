@@ -1,7 +1,6 @@
 """Flow builders for forecast configuration sections."""
 
 from collections.abc import Mapping
-from typing import Any
 
 import voluptuous as vol
 
@@ -21,8 +20,8 @@ def build_forecast_fields(
     *,
     field_schema: Mapping[str, FieldSchemaInfo],
     inclusion_map: dict[str, list[str]],
-    current_data: Mapping[str, Any] | None = None,
-) -> dict[str, tuple[vol.Marker, Any]]:
+    current_data: Mapping[str, object] | None = None,
+) -> dict[str, tuple[vol.Marker, object]]:
     """Build forecast field entries for config flows."""
     if not input_fields:
         return {}

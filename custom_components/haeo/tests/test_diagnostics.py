@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta, timezone
 import json
 from types import MappingProxyType
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.config_entries import ConfigSubentry
@@ -250,7 +250,7 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
 
     # HA entry point returns a dict (via to_dict)
-    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    diagnostics: dict[str, Any] = await async_get_config_entry_diagnostics(hass, entry)
 
     assert "schema_version" not in diagnostics
     assert "diagnostics_version" not in diagnostics
@@ -459,7 +459,7 @@ async def test_diagnostics_with_outputs(hass: HomeAssistant) -> None:
     coordinator.data = coordinator_data
     entry.runtime_data = HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
 
-    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    diagnostics: dict[str, Any] = await async_get_config_entry_diagnostics(hass, entry)
 
     outputs = diagnostics["outputs"]
     assert len(outputs) >= 1

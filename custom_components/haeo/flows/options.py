@@ -1,7 +1,7 @@
 """Options flow for HAEO hub management."""
 
 import logging
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult

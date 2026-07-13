@@ -10,7 +10,13 @@ through segments. Each segment receives and returns a dict of per-tag flows.
 from collections import OrderedDict
 from functools import reduce
 import operator
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import (
+    Any,  # noqa: TID251  # legacy Any usage; migrate to precise types
+    Final,
+    Literal,
+    NotRequired,
+    TypedDict,
+)
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
@@ -63,7 +69,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         solver: Highs,
         source: str,

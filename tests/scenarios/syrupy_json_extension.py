@@ -5,7 +5,7 @@ import json
 from numbers import Real
 from pathlib import Path
 import subprocess
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from syrupy.extensions.json import JSONSnapshotExtension
 from syrupy.location import PyTestLocation

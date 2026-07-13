@@ -1,6 +1,6 @@
 """SOC-based pricing segment — penalizes operation outside SOC thresholds."""
 
-from typing import Any, Literal, NotRequired
+from typing import Any, Literal, NotRequired  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
@@ -19,10 +19,10 @@ class SocPricingSegmentSpec(TypedDict):
     """Specification for creating a SocPricingSegment."""
 
     segment_type: Literal["soc_pricing"]
-    discharge_energy_threshold: NotRequired[NDArray[np.floating[Any]] | float | None]
-    charge_capacity_threshold: NotRequired[NDArray[np.floating[Any]] | float | None]
-    discharge_energy_price: NotRequired[NDArray[np.floating[Any]] | float | None]
-    charge_capacity_price: NotRequired[NDArray[np.floating[Any]] | float | None]
+    discharge_energy_threshold: NotRequired[NDArray[np.float64] | float | None]
+    charge_capacity_threshold: NotRequired[NDArray[np.float64] | float | None]
+    discharge_energy_price: NotRequired[NDArray[np.float64] | float | None]
+    charge_capacity_price: NotRequired[NDArray[np.float64] | float | None]
 
 
 def _exposed_slack(
@@ -45,7 +45,7 @@ class SocPricingSegment(Segment):
         self,
         segment_id: str,
         n_periods: int,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         solver: Highs,
         *,
         spec: SocPricingSegmentSpec,

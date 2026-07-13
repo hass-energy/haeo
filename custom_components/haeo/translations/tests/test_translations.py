@@ -4,7 +4,10 @@ from collections.abc import Mapping
 import json
 from pathlib import Path
 import types
-from typing import Any, Union, get_args, get_origin, get_type_hints
+
+# Reflection over typing constructs (aliases, unions, generics); the typing
+# introspection API is inherently dynamic.
+from typing import Any, Union, get_args, get_origin, get_type_hints  # noqa: TID251
 
 import pytest
 

@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from types import MappingProxyType
-from typing import Any, TypedDict
+from typing import Any, TypedDict  # noqa: TID251  # legacy Any usage; migrate to precise types
 from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry

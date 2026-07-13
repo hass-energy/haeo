@@ -1,7 +1,7 @@
 """Loader for constant (scalar) configuration values."""
 
 from numbers import Real
-from typing import Any, TypeGuard, TypeVar, overload
+from typing import Any, TypeGuard, TypeVar, overload  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 T = TypeVar("T")
 

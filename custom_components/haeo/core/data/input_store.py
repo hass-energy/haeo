@@ -19,7 +19,6 @@ import asyncio
 from collections.abc import Callable
 from enum import Enum
 import logging
-from typing import Any
 
 import numpy as np
 
@@ -236,7 +235,7 @@ class InputStore:
         self._constant = value
         self._resolve_from_constant(mark_ready=True)
 
-    async def persist(self, schema_value: Any) -> None:
+    async def persist(self, schema_value: object) -> None:
         """Persist a schema value through the bound storage."""
         await self._storage.write(schema_value)
 

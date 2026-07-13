@@ -7,7 +7,7 @@ forecast fusion, and unit conversion -- all without HA dependencies.
 """
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 import numpy as np
 

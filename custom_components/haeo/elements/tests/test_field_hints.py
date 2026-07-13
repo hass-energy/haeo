@@ -1,7 +1,5 @@
 """Tests for elements.field_hints: list helpers and OutputType defaults."""
 
-from typing import Any
-
 from homeassistant.components.number.const import DEFAULT_MAX_VALUE, DEFAULT_MIN_VALUE
 
 from custom_components.haeo.core.model.const import OutputType
@@ -57,7 +55,7 @@ def test_build_list_input_fields_empty_list() -> None:
 def test_build_list_input_fields_skips_non_mapping_items() -> None:
     """Non-mapping items in the list are skipped."""
     hints = ListFieldHints(fields={"price": FieldHint(output_type=OutputType.PRICE)})
-    items: Any = ["not_a_dict", {"name": "grid", "price": 0.30}]
+    items: object = ["not_a_dict", {"name": "grid", "price": 0.30}]
 
     result = build_list_input_fields("policy", "rules", hints, items)
 

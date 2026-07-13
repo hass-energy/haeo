@@ -1,6 +1,14 @@
 """Battery element schema definitions."""
 
-from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict, TypeGuard
+from typing import (
+    Annotated,
+    Any,  # noqa: TID251  # legacy Any usage; migrate to precise types
+    Final,
+    Literal,
+    NotRequired,
+    TypedDict,
+    TypeGuard,
+)
 
 import numpy as np
 from numpy.typing import NDArray
@@ -101,7 +109,7 @@ class StorageSocConfig(TypedDict):
 class StorageSocData(TypedDict):
     """Loaded storage values with required SOC percentage."""
 
-    capacity: NDArray[np.floating[Any]]
+    capacity: NDArray[np.float64]
     initial_charge_percentage: float
 
 
@@ -115,8 +123,8 @@ class LimitsConfig(TypedDict, total=False):
 class LimitsData(TypedDict, total=False):
     """Loaded charge percentage limits."""
 
-    min_charge_percentage: NDArray[np.floating[Any]] | float
-    max_charge_percentage: NDArray[np.floating[Any]] | float
+    min_charge_percentage: NDArray[np.float64] | float
+    max_charge_percentage: NDArray[np.float64] | float
 
 
 class PartitioningConfig(TypedDict, total=False):
@@ -141,8 +149,8 @@ class PartitionConfig(TypedDict, total=False):
 class PartitionData(TypedDict, total=False):
     """Loaded partition values (undercharge/overcharge)."""
 
-    percentage: NDArray[np.floating[Any]] | float
-    cost: NDArray[np.floating[Any]] | float
+    percentage: NDArray[np.float64] | float
+    cost: NDArray[np.float64] | float
 
 
 class BatteryPricingConfig(TypedDict, total=False):

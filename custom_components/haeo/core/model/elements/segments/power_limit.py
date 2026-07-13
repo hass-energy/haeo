@@ -1,6 +1,6 @@
 """Power limit segment — constrains maximum power flow."""
 
-from typing import Any, Literal, NotRequired
+from typing import Any, Literal, NotRequired  # noqa: TID251  # legacy Any usage; migrate to precise types
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
@@ -22,11 +22,11 @@ class PowerLimitSegmentSpec(TypedDict):
     """
 
     segment_type: Literal["power_limit"]
-    max_power: NotRequired[NDArray[np.floating[Any]] | float | None]
+    max_power: NotRequired[NDArray[np.float64] | float | None]
     fixed: NotRequired[bool | None]
     # Directional aliases — resolved by Connection, not used by segment directly
-    max_power_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
-    max_power_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
+    max_power_source_target: NotRequired[NDArray[np.float64] | float | None]
+    max_power_target_source: NotRequired[NDArray[np.float64] | float | None]
 
 
 class PowerLimitSegment(Segment):
@@ -38,7 +38,7 @@ class PowerLimitSegment(Segment):
         self,
         segment_id: str,
         n_periods: int,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         solver: Highs,
         *,
         spec: PowerLimitSegmentSpec,

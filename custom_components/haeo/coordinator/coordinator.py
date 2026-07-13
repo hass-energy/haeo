@@ -5,7 +5,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import (
+    TYPE_CHECKING,
+    Any,  # noqa: TID251  # legacy Any usage; migrate to precise types
+    Literal,
+    TypedDict,
+)
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry

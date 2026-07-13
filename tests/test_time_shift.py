@@ -52,9 +52,11 @@ def test_shift_timestamps_nested_forecast_list() -> None:
         ]
     }
     shifted = shift_timestamps(data, timedelta(minutes=30))
-    assert shifted["forecasts"][0]["start_time"] == "2024-10-13T00:30:00Z"
-    assert shifted["forecasts"][0]["end_time"] == "2024-10-13T01:00:00Z"
-    assert shifted["forecasts"][0]["per_kwh"] == 10.5
+    assert isinstance(shifted, dict)
+    forecast = shifted["forecasts"][0]
+    assert forecast["start_time"] == "2024-10-13T00:30:00Z"
+    assert forecast["end_time"] == "2024-10-13T01:00:00Z"
+    assert forecast["per_kwh"] == 10.5
 
 
 def test_parse_anchor_timestamp() -> None:
