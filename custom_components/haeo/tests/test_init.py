@@ -987,6 +987,25 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
         assert url_path in registered_urls
 
 
+async def test_async_setup_skips_static_urls_when_frontend_not_ready(hass: HomeAssistant) -> None:
+    """Test that async_setup completes when the frontend module registry is not populated yet.
+
+    Regression test for the startup ordering race where HAEO is set up before the
+    frontend component creates hass.data[DATA_EXTRA_MODULE_URL]: registration must
+    be skipped instead of raising KeyError and failing the integration setup.
+    """
+    mock_http = Mock()
+    mock_http.async_register_static_paths = AsyncMock()
+    hass.http = mock_http  # type: ignore[attr-defined]
+    hass.data.pop(DATA_EXTRA_MODULE_URL, None)
+
+    result = await async_setup(hass, {})
+
+    assert result is True
+    mock_http.async_register_static_paths.assert_called_once()
+    assert DATA_EXTRA_MODULE_URL not in hass.data
+
+
 async def test_async_register_static_skips_when_http_unavailable(
     hass: HomeAssistant,
 ) -> None:
