@@ -30,6 +30,45 @@ function scenarioHass(scenario: { entityId: string; state: Record<string, unknow
   };
 }
 
+// Rendering the topology means loading the controller chunk and running an ELK layout,
+// which is slow enough that a fixed sleep races it — the same flake that was fixed in
+// topology-card.smoke.test.ts. Wait for the outcome instead. The timeouts are generous
+// because they are only reached when the test is genuinely failing.
+const RENDER_TIMEOUT_MS = 10_000;
+const RENDER_POLL_MS = 25;
+
+async function waitForTopologySvg(host: HTMLElement): Promise<void> {
+  await vi.waitFor(
+    () => {
+      expect(host.shadowRoot?.querySelector("svg")).toBeTruthy();
+    },
+    { timeout: RENDER_TIMEOUT_MS, interval: RENDER_POLL_MS }
+  );
+}
+
+/**
+ * Wait for the initial layout to finish dispatching, and report how many `ll-update`
+ * events it produced.
+ *
+ * The svg landing in the DOM is not the last thing to happen: `onLayoutSize` fires from
+ * an effect that runs after that commit, so a count read the moment the svg appears can
+ * still be one short. Wait until the count stops moving.
+ */
+async function waitForSettledUpdates(host: HTMLElement, updates: Event[]): Promise<number> {
+  await waitForTopologySvg(host);
+  let previous = -1;
+  await vi.waitFor(
+    () => {
+      const seen = updates.length;
+      const settled = seen === previous;
+      previous = seen;
+      expect(settled).toBe(true);
+    },
+    { timeout: RENDER_TIMEOUT_MS, interval: RENDER_POLL_MS }
+  );
+  return updates.length;
+}
+
 describe("TopologyCardController", () => {
   afterEach(() => {
     document.body.innerHTML = "";
@@ -53,11 +92,7 @@ describe("TopologyCardController", () => {
     controller.setHass(scenarioHass(scenario, "hub-alpha"));
     controller.connected();
 
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
-    });
-
-    expect(host.shadowRoot?.querySelector("svg")).toBeTruthy();
+    await waitForTopologySvg(host);
   });
 
   it("reports grid options from the current layout height", () => {
@@ -107,17 +142,15 @@ describe("TopologyCardController", () => {
     controller.setHass(scenarioHass(scenario, "hub-alpha"));
     controller.connected();
 
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
-    });
-
-    const initialCount = updates.length;
+    const initialCount = await waitForSettledUpdates(host, updates);
     controller.setConfig({
       type: "custom:haeo-topology-card",
       title: "Same card size",
       hub_entry_id: "hub-alpha",
     });
 
+    // Asserting a negative — nothing further is dispatched — so there is no outcome to
+    // wait for and this one stays a fixed sleep.
     await new Promise((resolve) => {
       setTimeout(resolve, 500);
     });
