@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import scenarioOutputs from "../../../tests/scenarios/scenario1/outputs.json";
 import type { HassLike } from "./series";
@@ -60,6 +60,31 @@ async function waitForTopologyController(): Promise<void> {
   });
 }
 
+// Rendering the topology means loading the controller chunk and running an ELK
+// layout, which is slow enough that a fixed sleep races it: measured at 600-700 ms
+// under full-suite parallel load, against sleeps of 500 ms. Wait for the outcome
+// instead. The timeout is generous because it is only reached when the test fails.
+const RENDER_TIMEOUT_MS = 10_000;
+const RENDER_POLL_MS = 25;
+
+async function waitForTopologySvg(element: HaeoTopologyCardElement): Promise<void> {
+  await vi.waitFor(
+    () => {
+      expect(element.shadowRoot?.querySelector("svg")).toBeTruthy();
+    },
+    { timeout: RENDER_TIMEOUT_MS, interval: RENDER_POLL_MS }
+  );
+}
+
+async function waitForShadowText(element: HaeoTopologyCardElement, text: string): Promise<void> {
+  await vi.waitFor(
+    () => {
+      expect(element.shadowRoot?.textContent).toContain(text);
+    },
+    { timeout: RENDER_TIMEOUT_MS, interval: RENDER_POLL_MS }
+  );
+}
+
 describe("haeo-topology-card smoke", () => {
   afterEach(() => {
     document.body.innerHTML = "";
@@ -91,12 +116,8 @@ describe("haeo-topology-card smoke", () => {
     });
     element.hass = scenarioHass(scenario, "hub-alpha");
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
-    });
 
-    const svg = element.shadowRoot?.querySelector("svg");
-    expect(svg).toBeTruthy();
+    await waitForTopologySvg(element);
     element.remove();
   });
 
@@ -106,10 +127,8 @@ describe("haeo-topology-card smoke", () => {
       type: "custom:haeo-topology-card",
     });
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
-    expect(element.shadowRoot?.textContent).toContain("Configure a HAEO hub in the card editor");
+
+    await waitForShadowText(element, "Configure a HAEO hub in the card editor");
     element.remove();
   });
 
@@ -159,16 +178,20 @@ describe("haeo-topology-card smoke", () => {
     });
     element.hass = scenarioHass(scenario, "hub-alpha");
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
-    });
 
-    expect(updates.length).toBeGreaterThan(0);
+    await vi.waitFor(
+      () => {
+        expect(updates.length).toBeGreaterThan(0);
+      },
+      { timeout: RENDER_TIMEOUT_MS, interval: RENDER_POLL_MS }
+    );
     const initialCount = updates.length;
     element.setConfig({
       type: "custom:haeo-topology-card",
       hub_entry_id: "hub-alpha",
     });
+    // Asserting that nothing further is dispatched, so this one has to be a settle
+    // delay: there is no outcome to wait for.
     await new Promise((resolve) => {
       setTimeout(resolve, 500);
     });
@@ -209,19 +232,14 @@ describe("haeo-topology-card smoke", () => {
       },
     };
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
-    });
+    await waitForTopologySvg(element);
 
     element.setConfig({
       type: "custom:haeo-topology-card",
       hub_entry_id: "hub-beta",
     });
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
-    });
 
-    expect(element.shadowRoot?.querySelector("svg")).toBeTruthy();
+    await waitForTopologySvg(element);
     element.remove();
   });
 
@@ -240,20 +258,15 @@ describe("haeo-topology-card smoke", () => {
     });
     element.hass = scenarioHass(scenario, "hub-alpha");
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
-    });
+    await waitForTopologySvg(element);
 
     element.setConfig({
       type: "custom:haeo-topology-card",
       title: "Second title",
       hub_entry_id: "hub-alpha",
     });
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
 
-    expect(element.shadowRoot?.textContent).toContain("Second title");
+    await waitForShadowText(element, "Second title");
     expect(element.shadowRoot?.querySelector("svg")).toBeTruthy();
     element.remove();
   });
@@ -271,11 +284,8 @@ describe("haeo-topology-card smoke", () => {
     });
     element.hass = scenarioHass(scenario, "hub-alpha");
     document.body.appendChild(element);
-    await new Promise((resolve) => {
-      setTimeout(resolve, 20);
-    });
 
-    expect(element.shadowRoot?.textContent).toContain("Configure a HAEO hub in the card editor");
+    await waitForShadowText(element, "Configure a HAEO hub in the card editor");
     expect(element.shadowRoot?.querySelector("svg")).toBeNull();
     element.remove();
   });
@@ -328,18 +338,12 @@ describe("haeo-topology-card smoke", () => {
     element.hass = scenarioHass(scenario, "hub-alpha");
     document.body.appendChild(element);
     await waitForTopologyController();
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
-    });
-    expect(element.shadowRoot?.querySelector("svg")).toBeTruthy();
+    await waitForTopologySvg(element);
 
     element.remove();
     document.body.appendChild(element);
     await waitForTopologyController();
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
-    });
-    expect(element.shadowRoot?.querySelector("svg")).toBeTruthy();
+    await waitForTopologySvg(element);
     element.remove();
   });
 });
