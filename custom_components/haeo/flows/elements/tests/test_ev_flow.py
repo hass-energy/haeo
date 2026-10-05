@@ -7,6 +7,7 @@ from unittest.mock import Mock
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
@@ -28,6 +29,8 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_MAX_CHARGE_RATE,
     CONF_ODOMETER,
     CONF_ODOMETER_AT_DISCONNECT,
+    CONF_PUBLIC_CHARGING_PRICE,
+    CONF_RESERVE_PRICE,
     CONF_TRIP_CALENDAR,
     ELEMENT_TYPE,
     SECTION_CHARGING,
@@ -177,3 +180,14 @@ def test_plugged_in_field_accepts_only_a_live_sensor() -> None:
     kinds = get_schema_value_kinds(schema_info[SECTION_TRIP][CONF_CONNECTED].value_type)
 
     assert kinds == frozenset({VALUE_TYPE_ENTITY, VALUE_TYPE_NONE})
+
+
+@pytest.mark.parametrize(
+    ("section", "field"),
+    [(SECTION_PUBLIC_CHARGING, CONF_PUBLIC_CHARGING_PRICE), (SECTION_TRIP, CONF_RESERVE_PRICE)],
+)
+def test_penalty_prices_cannot_be_negative(section: str, field: str) -> None:
+    """Penalty price inputs are bounded below by zero so the optimization stays bounded."""
+    field_info = get_input_fields(ELEMENT_TYPE)[section][field]
+
+    assert field_info.entity_description.native_min_value == 0.0

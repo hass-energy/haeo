@@ -342,7 +342,19 @@ def _public_price(config: EvConfigData) -> NDArray[np.floating[Any]] | float:
     price = public_charging.get(CONF_PUBLIC_CHARGING_PRICE)
     if price is None:
         return DEFAULT_PUBLIC_CHARGING_PRICE
-    return price
+    return _non_negative(price)
+
+
+def _non_negative(price: NDArray[np.floating[Any]] | float) -> NDArray[np.floating[Any]] | float:
+    """Clamp a penalty price at zero.
+
+    A negative price on a trip deficit or reserve shortfall would pay the
+    optimizer to miss the trip, and an entity can report one even though
+    the form cannot.
+    """
+    if isinstance(price, np.ndarray):
+        return np.maximum(price, 0.0)
+    return max(float(price), 0.0)
 
 
 def _combine_connected(
@@ -430,8 +442,7 @@ def _reserve_config(
     capacity = config[SECTION_VEHICLE][CONF_CAPACITY]
     reserve_ratio = min(max(float(reserve_soc), 0.0), 1.0)
     reserve_price = trip.get(CONF_RESERVE_PRICE)
-    if reserve_price is None:
-        reserve_price = _public_price(config)
+    reserve_price = _public_price(config) if reserve_price is None else _non_negative(reserve_price)
 
     return _ReserveConfig(
         level=reserve_ratio * np.asarray(capacity, dtype=np.float64),

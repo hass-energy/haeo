@@ -132,6 +132,39 @@ def test_interval_public_price_extends_to_boundaries() -> None:
     np.testing.assert_allclose(elements["ev:trip"]["deficit_price"], [0.4, 0.5, 0.6, 0.7, 0.7])
 
 
+@pytest.mark.parametrize(
+    ("public_charging", "trip_extra", "expected_deficit_price", "expected_reserve_price"),
+    [
+        pytest.param({"public_charging_price": -2.0}, {}, 0.0, 0.0, id="negative_public_price"),
+        pytest.param(
+            {"public_charging_price": np.array([-1.0, 0.5, -0.5, 0.7])},
+            {},
+            [0.0, 0.5, 0.0, 0.7, 0.7],
+            [0.0, 0.5, 0.0, 0.7, 0.7],
+            id="partly_negative_public_series",
+        ),
+        pytest.param(
+            {"public_charging_price": 0.6},
+            {"reserve_price": -3.0},
+            0.6,
+            0.0,
+            id="negative_reserve_price",
+        ),
+    ],
+)
+def test_negative_penalty_prices_are_clamped_to_zero(
+    public_charging: dict[str, Any],
+    trip_extra: dict[str, Any],
+    expected_deficit_price: float | list[float],
+    expected_reserve_price: float | list[float],
+) -> None:
+    """Negative public or reserve prices from an entity cannot pay the optimizer to miss a trip."""
+    elements = _elements_by_name(_ev_config(trip=_reserve_trip(**trip_extra), public_charging=public_charging))
+
+    np.testing.assert_allclose(elements["ev:trip"]["deficit_price"], expected_deficit_price)
+    np.testing.assert_allclose(elements["ev"]["reserve_price"], expected_reserve_price)
+
+
 def test_calendar_drives_trip_arrays_and_masks() -> None:
     """Calendar presence and edges become trip capacity, requirement, and masks."""
     config = _ev_config(

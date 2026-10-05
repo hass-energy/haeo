@@ -228,6 +228,7 @@ class EvConfigSchema(ConnectedCommonConfig):
                     CONF_RESERVE_PRICE: FieldHint(
                         output_type=OutputType.PRICE,
                         time_series=True,
+                        min_value=0.0,
                     ),
                 }
             ),
@@ -241,6 +242,7 @@ class EvConfigSchema(ConnectedCommonConfig):
                     CONF_PUBLIC_CHARGING_PRICE: FieldHint(
                         output_type=OutputType.PRICE,
                         time_series=True,
+                        min_value=0.0,
                     ),
                 }
             ),
