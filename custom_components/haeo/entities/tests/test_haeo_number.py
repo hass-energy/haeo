@@ -5,7 +5,7 @@ from datetime import timedelta
 import logging
 from types import MappingProxyType
 from typing import Any
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
@@ -20,6 +20,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.data.input_store import InputMode, create_input_store
+from custom_components.haeo.core.data.loader.last_off import LAST_OFF_ATTRIBUTE
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
@@ -1338,3 +1339,35 @@ async def test_unrecorded_attributes_based_on_config(
         assert entity._state_info["unrecorded_attributes"] == FORECAST_UNRECORDED_ATTRIBUTES
     else:
         assert entity._state_info["unrecorded_attributes"] == frozenset()
+
+
+async def test_driven_availability_captures_last_off(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """A driven availability input loads its source with the recorder's last off time injected."""
+    field_info = InputFieldInfo(
+        field_name="connected",
+        entity_description=NumberEntityDescription(
+            key="connected",
+            translation_key="connected",
+            native_min_value=0.0,
+            native_max_value=1.0,
+            native_step=1.0,
+        ),
+        output_type=OutputType.AVAILABILITY,
+        time_series=True,
+    )
+    hass.states.async_set("binary_sensor.plug", "on")
+    subentry = _create_subentry("Test EV", {"connected": ["binary_sensor.plug"]})
+    config_entry.runtime_data = None
+
+    entity = _make_entity(hass, config_entry, subentry, field_info, device_entry, horizon_manager)
+    with patch("custom_components.haeo.last_off_history.async_last_off", AsyncMock(return_value=1234.0)):
+        await _add_entity_to_hass(hass, entity)
+
+    assert entity.native_value == 1.0
+    captured = entity.store.captured_source_states["binary_sensor.plug"]
+    assert captured.attributes[LAST_OFF_ATTRIBUTE] == 1234.0

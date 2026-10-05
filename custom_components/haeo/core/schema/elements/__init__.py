@@ -13,6 +13,7 @@ from custom_components.haeo.core.schema.elements.deferrable_load import (
     DeferrableLoadConfigSchema,
 )
 from custom_components.haeo.core.schema.elements.element_type import ElementType
+from custom_components.haeo.core.schema.elements.ev import EvConfigData, EvConfigSchema
 from custom_components.haeo.core.schema.elements.grid import GridConfigData, GridConfigSchema
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData, InverterConfigSchema
 from custom_components.haeo.core.schema.elements.load import LoadConfigData, LoadConfigSchema
@@ -25,6 +26,7 @@ ElementConfigSchema = (
     | BatteryConfigSchema
     | BatterySectionConfigSchema
     | DeferrableLoadConfigSchema
+    | EvConfigSchema
     | GridConfigSchema
     | LoadConfigSchema
     | SolarConfigSchema
@@ -38,6 +40,7 @@ ElementConfigData = (
     | BatteryConfigData
     | BatterySectionConfigData
     | DeferrableLoadConfigData
+    | EvConfigData
     | GridConfigData
     | LoadConfigData
     | SolarConfigData
@@ -51,6 +54,7 @@ ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
     ElementType.BATTERY_SECTION: BatterySectionConfigSchema,
     ElementType.CONNECTION: ConnectionConfigSchema,
     ElementType.DEFERRABLE_LOAD: DeferrableLoadConfigSchema,
+    ElementType.EV: EvConfigSchema,
     ElementType.GRID: GridConfigSchema,
     ElementType.INVERTER: InverterConfigSchema,
     ElementType.LOAD: LoadConfigSchema,

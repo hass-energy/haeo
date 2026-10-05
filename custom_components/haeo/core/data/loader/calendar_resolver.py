@@ -9,7 +9,7 @@ horizon boundaries.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Final, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 import numpy as np
 
@@ -29,6 +29,7 @@ from custom_components.haeo.core.data.util.calendar_fuser import (
     fuse_window_edges_to_boundaries,
     fuse_windows_to_boundaries,
 )
+from custom_components.haeo.core.units import DeviceClass, convert_to_base_unit
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -38,16 +39,6 @@ if TYPE_CHECKING:
     from custom_components.haeo.core.schema.calendar_value import CalendarValue
     from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
     from custom_components.haeo.core.state import StateMachine
-
-# Kilometres per supported distance unit, used to normalize parsed distances
-# without importing Home Assistant's unit converters into the core layer.
-_KM_PER_UNIT: Final[dict[str, float]] = {
-    "km": 1.0,
-    "mi": 1.609344,
-    "m": 0.001,
-    "ft": 0.0003048,
-    "yd": 0.0009144,
-}
 
 
 class CalendarBoundaryData(TypedDict):
@@ -59,6 +50,10 @@ class CalendarBoundaryData(TypedDict):
     while still marking their window present.
 
     Attributes:
+        open_since: POSIX time the window open at the horizon start began, or
+            None when no window is open then. Only events with a positive
+            value count, and overlapping events chain into one window, so a
+            window that began before the horizon keeps its true start.
         presence: 1.0 at boundaries covered by any event window, else 0.0.
         value_span: Sum of active window values at each boundary, 0.0 outside.
         value_edge_start: Each window's value placed at its start boundary
@@ -72,6 +67,7 @@ class CalendarBoundaryData(TypedDict):
     value_span: NDArray[np.float64]
     value_edge_start: NDArray[np.float64]
     value_edge_end: NDArray[np.float64]
+    open_since: float | None
 
 
 def is_calendar_boundary_data(value: object) -> bool:
@@ -81,12 +77,15 @@ def is_calendar_boundary_data(value: object) -> bool:
         "value_span",
         "value_edge_start",
         "value_edge_end",
+        "open_since",
     }
 
 
 def _convert_distance(value: float, from_unit: str, to_unit: str) -> float:
-    """Convert a distance between supported units via the kilometre table."""
-    return value * _KM_PER_UNIT[from_unit] / _KM_PER_UNIT[to_unit]
+    """Convert a distance between length units via their kilometre factors."""
+    km, _, _ = convert_to_base_unit(value, from_unit, DeviceClass.DISTANCE)
+    km_per_target, _, _ = convert_to_base_unit(1.0, to_unit, DeviceClass.DISTANCE)
+    return km / km_per_target
 
 
 def _parser_for(hint: CalendarFieldHint) -> EventValueFn:
@@ -116,6 +115,22 @@ def _extractor_for(hint: CalendarFieldHint) -> EventValueFn:
         return 0.0 if value is None else value
 
     return _extract
+
+
+def _open_since(windows: Sequence[CalendarWindow], at: datetime) -> float | None:
+    """Return when the window open at *at* began, or None when none is open.
+
+    *windows* are sorted by start. Positive-valued events that overlap chain
+    into one window; events that only touch stay separate, matching how trip
+    windows are built.
+    """
+    groups: list[tuple[datetime, datetime]] = []
+    for window in (w for w in windows if w.value > 0.0):
+        if groups and window.start < groups[-1][1]:
+            groups[-1] = (groups[-1][0], max(groups[-1][1], window.end))
+        else:
+            groups.append((window.start, window.end))
+    return next((start.timestamp() for start, end in groups if start <= at < end), None)
 
 
 def resolve_calendar_field(
@@ -151,6 +166,7 @@ def resolve_calendar_field(
         value_span=_fused(fuse_windows_to_boundaries(windows, boundaries)),
         value_edge_start=_fused(fuse_window_edges_to_boundaries(windows, boundaries, "start")),
         value_edge_end=_fused(fuse_window_edges_to_boundaries(windows, boundaries, "end")),
+        open_since=_open_since(windows, boundaries[0]),
     )
 
 

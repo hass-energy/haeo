@@ -1,0 +1,647 @@
+"""EV element adapter for model layer integration."""
+
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
+from typing import Any, Final, Literal
+
+import numpy as np
+from numpy.typing import NDArray
+
+from custom_components.haeo.core.adapters.calendar_windows import CalendarWindows, calendar_windows
+from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
+from custom_components.haeo.core.const import ConnectivityLevel
+from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
+from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
+from custom_components.haeo.core.model import battery as model_battery
+from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_BATTERY,
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+)
+from custom_components.haeo.core.model.elements.battery import BATTERY_RESERVE_SHORTFALL, BatteryElementConfig
+from custom_components.haeo.core.model.elements.connection import CONNECTION_SEGMENTS
+from custom_components.haeo.core.model.elements.deferrable_load import (
+    DEFERRABLE_LOAD_ENERGY_DELIVERED,
+    DEFERRABLE_LOAD_ENERGY_SHORTFALL,
+    DeferrableLoadElementConfig,
+)
+from custom_components.haeo.core.model.output_data import OutputData
+from custom_components.haeo.core.schema import extract_connection_target
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.ev import (
+    CONF_CAPACITY,
+    CONF_CONNECTED,
+    CONF_CONNECTED_LAST_OFF,
+    CONF_CURRENT_SOC,
+    CONF_ENERGY_PER_DISTANCE,
+    CONF_MAX_CHARGE_RATE,
+    CONF_MAX_DISCHARGE_RATE,
+    CONF_ODOMETER,
+    CONF_ODOMETER_AT_DISCONNECT,
+    CONF_PUBLIC_CHARGING_PRICE,
+    CONF_RESERVE_PRICE,
+    CONF_RESERVE_SOC,
+    CONF_TRIP_CALENDAR,
+    ELEMENT_TYPE,
+    SECTION_CHARGING,
+    SECTION_PUBLIC_CHARGING,
+    SECTION_TRIP,
+    SECTION_VEHICLE,
+    EvConfigData,
+)
+from custom_components.haeo.core.schema.sections import (
+    CONF_CONNECTION,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
+    CONF_MAX_POWER_SOURCE_TARGET,
+    CONF_MAX_POWER_TARGET_SOURCE,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+)
+
+# Effectively unlimited power (kW) for trip/public flows that are only
+# gated by the away mask, not by a physical charger.
+_UNLIMITED_POWER: Final = 1.0e6
+
+# Threshold above which a connected flag counts as plugged in.
+_CONNECTED_THRESHOLD: Final = 0.5
+
+# Default public charging price ($/kWh) when none is configured. High enough
+# that home charging always wins when physically possible, but finite so the
+# trip energy requirement can never make the optimization infeasible.
+DEFAULT_PUBLIC_CHARGING_PRICE: Final = 10.0
+
+# EV-specific output names for translation/sensor mapping
+type EvOutputName = Literal[
+    "ev_power_charge",
+    "ev_power_discharge",
+    "ev_power_active",
+    "ev_state_of_charge",
+    "ev_energy_stored",
+    "ev_trip_energy_delivered",
+    "ev_trip_energy_shortfall",
+    "ev_reserve_shortfall",
+    "ev_power_max_charge_price",
+    "ev_power_max_discharge_price",
+]
+
+EV_OUTPUT_NAMES: Final[frozenset[EvOutputName]] = frozenset(
+    (
+        EV_POWER_CHARGE := "ev_power_charge",
+        EV_POWER_DISCHARGE := "ev_power_discharge",
+        EV_POWER_ACTIVE := "ev_power_active",
+        EV_STATE_OF_CHARGE := "ev_state_of_charge",
+        EV_ENERGY_STORED := "ev_energy_stored",
+        EV_TRIP_ENERGY_DELIVERED := "ev_trip_energy_delivered",
+        EV_TRIP_ENERGY_SHORTFALL := "ev_trip_energy_shortfall",
+        EV_RESERVE_SHORTFALL := "ev_reserve_shortfall",
+        EV_POWER_MAX_CHARGE_PRICE := "ev_power_max_charge_price",
+        EV_POWER_MAX_DISCHARGE_PRICE := "ev_power_max_discharge_price",
+    )
+)
+
+type EvDeviceName = Literal[ElementType.EV]
+
+EV_DEVICE_NAMES: Final[frozenset[EvDeviceName]] = frozenset(
+    (EV_DEVICE_EV := ElementType.EV,),
+)
+
+
+class EvAdapter:
+    """Adapter for EV elements."""
+
+    element_type: str = ELEMENT_TYPE
+    advanced: bool = False
+    connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
+    can_source: bool = True
+    can_sink: bool = True
+
+    def model_elements(self, config: EvConfigData) -> list[ModelElementConfig]:
+        """Create model elements for EV configuration.
+
+        Creates 5 model elements:
+        1. {name} - Battery (EV battery)
+        2. {name}:charge - Connection (network → EV, home charging)
+        3. {name}:discharge - Connection (EV → network, V2G)
+        4. {name}:trip - Deferrable load (trip energy requirement)
+        5. {name}:trip_connection - Connection (EV → trip load, away only)
+
+        Trip windows come from the trip calendar: while away the home
+        connections are masked off and each trip's energy (distance times
+        consumption) is due into the trip load by that trip's end. The trip
+        load cannot take more than a trip needs. The requirement is not hard —
+        any shortfall is priced at the public charging price, which models
+        topping up publicly during the trip and keeps the optimization
+        feasible when home charging cannot cover the trip in time.
+
+        When the plugged-in sensor reports the car at home while the calendar
+        says a trip is open, the car has not left yet: it is home for the
+        current interval and the trip still happens in the rest of its
+        window. Only when the sensor last read unplugged during the open trip
+        (and, with odometer readings, the car drove since disconnecting) did
+        the car leave and come back early; that trip is then over, its
+        remaining energy dropped and the car home until the trip's scheduled
+        end.
+        """
+        name = config["name"]
+        vehicle = config[SECTION_VEHICLE]
+        charging = config[SECTION_CHARGING]
+        power_limits = config[SECTION_POWER_LIMITS]
+        efficiency = config[SECTION_EFFICIENCY]
+        target_name = extract_connection_target(config[CONF_CONNECTION])
+
+        capacity = vehicle[CONF_CAPACITY]
+        capacity_first = float(capacity[0])
+        # current_soc is already a 0-1 ratio (the loader converts percent
+        # fields); clamp so a glitched sensor cannot make the model infeasible
+        initial_charge = min(max(vehicle[CONF_CURRENT_SOC], 0.0), 1.0) * capacity_first
+        energy_per_distance = float(vehicle[CONF_ENERGY_PER_DISTANCE])
+
+        max_charge = charging[CONF_MAX_CHARGE_RATE]
+        max_discharge = charging.get(CONF_MAX_DISCHARGE_RATE, 0.0)
+
+        trip = config.get(SECTION_TRIP, {})
+        calendar = trip.get(CONF_TRIP_CALENDAR)
+        connected_live = _plugged_in_flag(trip.get(CONF_CONNECTED))
+
+        # Trip windows from the calendar (distances in km), with a trip the
+        # car already came back from removed.
+        trip_windows = None if calendar is None else calendar_windows(calendar, scale=energy_per_distance)
+        ended_periods = _ended_trip_periods(trip_windows, calendar, trip)
+        if trip_windows is not None and ended_periods > 0:
+            trip_windows = _drop_open_trip(trip_windows, ended_periods)
+
+        connected_flag = _combine_connected(calendar, connected_live, ended_periods)
+        away_flag = _invert_flag(connected_flag)
+
+        trip_initial = _trip_progress_energy(trip, trip_windows, energy_per_distance, connected_flag)
+
+        # Home charging limits zeroed while away via connected_flag
+        home_max_charge = _apply_connected_mask(max_charge, connected_flag)
+        home_max_discharge = _apply_connected_mask(max_discharge, connected_flag)
+
+        # EV pack battery, with reserve demand pricing at trip window ends
+        pack: BatteryElementConfig = {
+            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "name": name,
+            "capacity": capacity,
+            "initial_charge": initial_charge,
+            "salvage_value": 0.0,
+        }
+        reserve = _reserve_config(config, calendar, ended_periods)
+        if reserve is not None:
+            pack["reserve_level"] = reserve.level
+            pack["reserve_mask"] = reserve.mask
+            pack["reserve_price"] = reserve.price
+
+        return [
+            # 1. EV Battery
+            pack,
+            # 2. Home charging: network → EV
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{name}:charge",
+                "source": target_name,
+                "target": name,
+                "segments": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency": efficiency.get(CONF_EFFICIENCY_TARGET_SOURCE),
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power": _combine_limits(
+                            home_max_charge,
+                            power_limits.get(CONF_MAX_POWER_TARGET_SOURCE),
+                        ),
+                    },
+                },
+            },
+            # 3. V2G discharge: EV → network
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{name}:discharge",
+                "source": name,
+                "target": target_name,
+                "segments": {
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency": efficiency.get(CONF_EFFICIENCY_SOURCE_TARGET),
+                    },
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power": _combine_limits(
+                            home_max_discharge,
+                            power_limits.get(CONF_MAX_POWER_SOURCE_TARGET),
+                        ),
+                    },
+                },
+            },
+            # 4. Trip requirement as a deferrable load: each trip window is
+            # settled at its end, any shortfall priced at the public charging
+            # price — the energy that would have to be bought publicly
+            # mid-trip — and no trip takes more than it needs.
+            _trip_load(f"{name}:trip", trip_windows, trip_initial, _public_price(config), len(capacity)),
+            # 5. Trip connection: EV → trip load. Driving power is not
+            # limited by the charger, only by being away.
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": f"{name}:trip_connection",
+                "source": name,
+                "target": f"{name}:trip",
+                "segments": {
+                    "power_limit": {
+                        "segment_type": "power_limit",
+                        "max_power": _mask_or_zero(away_flag, _UNLIMITED_POWER),
+                    },
+                },
+            },
+        ]
+
+    def outputs(
+        self,
+        name: str,
+        model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
+        *,
+        config: EvConfigData,
+        **_kwargs: Any,
+    ) -> Mapping[EvDeviceName, Mapping[EvOutputName, OutputData]]:
+        """Map model outputs to EV-specific output names."""
+        battery_outputs = model_outputs[name]
+        trip_outputs = model_outputs[f"{name}:trip"]
+        charge_conn = model_outputs.get(f"{name}:charge")
+        discharge_conn = model_outputs.get(f"{name}:discharge")
+
+        energy_stored = expect_output_data(battery_outputs[model_battery.BATTERY_ENERGY_STORED])
+        period_count = len(expect_output_data(battery_outputs[model_battery.BATTERY_POWER_CHARGE]).values)
+
+        power_charge = replace(connection_power(charge_conn, period_count), type=OutputType.POWER, direction="-")
+        power_discharge = replace(connection_power(discharge_conn, period_count), type=OutputType.POWER, direction="+")
+
+        ev_outputs: dict[EvOutputName, OutputData] = {
+            EV_POWER_CHARGE: power_charge,
+            EV_POWER_DISCHARGE: power_discharge,
+            EV_ENERGY_STORED: energy_stored,
+        }
+
+        # Active power (discharge - charge)
+        ev_outputs[EV_POWER_ACTIVE] = replace(
+            power_discharge,
+            values=[d - c for d, c in zip(power_discharge.values, power_charge.values, strict=True)],
+            direction=None,
+            type=OutputType.POWER,
+        )
+
+        # State of charge as a 0-1 ratio (display scales percent outputs).
+        # Capacity and stored energy are both boundary aligned, so each
+        # boundary divides by its own capacity; a zero capacity reads as 0.
+        capacity = np.asarray(config[SECTION_VEHICLE][CONF_CAPACITY], dtype=np.float64)
+        stored = np.asarray(energy_stored.values, dtype=np.float64)
+        soc_values = np.divide(stored, capacity, out=np.zeros_like(stored), where=capacity > 0)
+
+        ev_outputs[EV_STATE_OF_CHARGE] = OutputData(
+            type=OutputType.STATE_OF_CHARGE,
+            unit="%",
+            values=tuple(soc_values.tolist()),
+            direction=None,
+        )
+
+        # Trip energy delivered in the current trip and the shortfall each
+        # trip is expected to cover with public charging.
+        trip_energy = expect_output_data(trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED])
+        ev_outputs[EV_TRIP_ENERGY_DELIVERED] = replace(trip_energy, type=OutputType.ENERGY)
+        trip_shortfall = expect_output_data(trip_outputs[DEFERRABLE_LOAD_ENERGY_SHORTFALL])
+        ev_outputs[EV_TRIP_ENERGY_SHORTFALL] = replace(trip_shortfall, type=OutputType.ENERGY)
+
+        # Reserve shortfall, only when a reserve is configured
+        if config.get(SECTION_TRIP, {}).get(CONF_RESERVE_SOC) is not None:
+            reserve = expect_output_data(battery_outputs[BATTERY_RESERVE_SHORTFALL])
+            ev_outputs[EV_RESERVE_SHORTFALL] = replace(reserve, type=OutputType.ENERGY)
+
+        # Shadow prices for the home charge/discharge power limits
+        shadow_mappings: tuple[tuple[EvOutputName, Mapping[ModelOutputName, ModelOutputValue] | None], ...] = (
+            (EV_POWER_MAX_CHARGE_PRICE, charge_conn),
+            (EV_POWER_MAX_DISCHARGE_PRICE, discharge_conn),
+        )
+        for output_name, conn in shadow_mappings:
+            if (
+                conn is not None
+                and isinstance(segments_output := conn.get(CONNECTION_SEGMENTS), Mapping)
+                and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
+                and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
+            ):
+                ev_outputs[output_name] = shadow
+
+        return {EV_DEVICE_EV: ev_outputs}
+
+
+adapter = EvAdapter()
+
+
+def _public_price(config: EvConfigData) -> NDArray[np.floating[Any]] | float:
+    """Return the configured public charging price or the high default."""
+    public_charging = config.get(SECTION_PUBLIC_CHARGING, {})
+    price = public_charging.get(CONF_PUBLIC_CHARGING_PRICE)
+    if price is None:
+        return DEFAULT_PUBLIC_CHARGING_PRICE
+    return _non_negative(price)
+
+
+def _non_negative(price: NDArray[np.floating[Any]] | float) -> NDArray[np.floating[Any]] | float:
+    """Clamp a penalty price at zero.
+
+    A negative price on a trip deficit or reserve shortfall would pay the
+    optimizer to miss the trip, and an entity can report one even though
+    the form cannot.
+    """
+    if isinstance(price, np.ndarray):
+        return np.maximum(price, 0.0)
+    return max(float(price), 0.0)
+
+
+def _trip_load(
+    name: str,
+    windows: CalendarWindows | None,
+    initial_energy: float,
+    deficit_price: NDArray[np.floating[Any]] | float,
+    n_boundaries: int,
+) -> DeferrableLoadElementConfig:
+    """Build the trip deferrable load; without trip windows it requires nothing."""
+    if windows is None:
+        in_window: NDArray[np.float64] | float = 0.0
+        window_start: NDArray[np.float64] | float = 0.0
+        requirement: NDArray[np.float64] | float = 0.0
+    else:
+        in_window, window_start, requirement = windows
+    return {
+        "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+        "name": name,
+        "in_window": in_window,
+        "window_start": window_start,
+        "requirement": requirement,
+        "initial_energy": initial_energy,
+        "deficit_price": _to_boundaries(deficit_price, n_boundaries),
+    }
+
+
+def _plugged_in_flag(
+    connected_live: NDArray[np.floating[Any]] | float | None,
+) -> NDArray[np.float64] | float | None:
+    """Normalize the live plugged-in reading to a 0/1 flag.
+
+    Several plugged-in entities load as their sum, so a reading above 1 must
+    still mean plugged in exactly once for the home and away masks.
+    """
+    if connected_live is None:
+        return None
+    if isinstance(connected_live, np.ndarray):
+        return (connected_live >= _CONNECTED_THRESHOLD).astype(np.float64)
+    return 1.0 if connected_live >= _CONNECTED_THRESHOLD else 0.0
+
+
+def _is_plugged_in(connected_live: NDArray[np.floating[Any]] | float | None) -> bool:
+    """Return True when the live connected sensor reports the car plugged in now."""
+    return connected_live is not None and float(np.atleast_1d(connected_live)[0]) >= _CONNECTED_THRESHOLD
+
+
+def _returned_early(
+    windows: CalendarWindows | None,
+    calendar: CalendarBoundaryData | None,
+    trip: Mapping[str, Any],
+) -> bool:
+    """Return True when the car left during the open trip and is back already.
+
+    A car plugged in while a trip is open has either not left yet or come
+    back early. It came back early only when the plugged-in sensor last read
+    unplugged at or after the open trip's start, and, when odometer readings
+    are configured, the car drove since it disconnected; a brief unplug
+    without driving does not end the trip. Without that history the car has
+    not left yet.
+    """
+    if windows is None or calendar is None or windows.in_window[0] <= 0.0:
+        return False
+    if not _is_plugged_in(trip.get(CONF_CONNECTED)):
+        return False
+
+    open_since = calendar["open_since"]
+    last_off = trip.get(CONF_CONNECTED_LAST_OFF)
+    if open_since is None or last_off is None or last_off < open_since:
+        return False
+
+    odometer = trip.get(CONF_ODOMETER)
+    odometer_at_disconnect = trip.get(CONF_ODOMETER_AT_DISCONNECT)
+    if odometer is None or odometer_at_disconnect is None:
+        return True
+    driven = float(odometer) - float(odometer_at_disconnect)
+    return bool(np.isfinite(driven)) and driven > 0.0
+
+
+def _ended_trip_periods(
+    windows: CalendarWindows | None,
+    calendar: CalendarBoundaryData | None,
+    trip: Mapping[str, Any],
+) -> int:
+    """Return the periods of an open trip the car already came back from.
+
+    Returns the number of periods up to the open trip's scheduled end when
+    the car returned early, or 0 otherwise.
+    """
+    if windows is None or not _returned_early(windows, calendar, trip):
+        return 0
+    n_periods = len(windows.in_window)
+    for t in range(1, n_periods):
+        if windows.in_window[t] <= 0.0 or windows.window_start[t] > 0.0:
+            return t
+    return n_periods
+
+
+def _drop_open_trip(windows: CalendarWindows, ended_periods: int) -> CalendarWindows:
+    """Remove the trip open at the horizon start from the trip windows."""
+    in_window = windows.in_window.copy()
+    in_window[:ended_periods] = 0.0
+    requirement = windows.requirement.copy()
+    requirement[ended_periods] = 0.0
+    return CalendarWindows(in_window=in_window, window_start=windows.window_start, requirement=requirement)
+
+
+def _combine_connected(
+    calendar: CalendarBoundaryData | None,
+    connected_live: NDArray[np.floating[Any]] | float | None,
+    ended_periods: int,
+) -> NDArray[np.floating[Any]] | float | None:
+    """Combine calendar presence and the live connected sensor.
+
+    The calendar is authoritative for the future (away during trip windows);
+    the live sensor pins the present interval, and a trip the car already
+    came back from counts as home until its scheduled end. Without a calendar the live
+    sensor value applies across the whole horizon. Returns per-interval
+    values, a scalar, or None when neither source is configured.
+    """
+    if calendar is None:
+        return connected_live
+
+    # presence marks periods overlapping a trip window; drop the trailing
+    # boundary entry to get the n per-interval mask.
+    connected = 1.0 - np.asarray(calendar["presence"][:-1], dtype=np.float64)
+
+    if connected_live is not None:
+        connected = connected.copy()
+        connected[:ended_periods] = 1.0
+        connected[0] = float(np.atleast_1d(connected_live)[0])
+
+    return connected
+
+
+def _trip_progress_energy(
+    trip: Mapping[str, Any],
+    windows: CalendarWindows | None,
+    energy_per_distance: float,
+    connected_flag: NDArray[np.floating[Any]] | float | None,
+) -> float:
+    """Energy already consumed on the open trip, from odometer readings.
+
+    Only applies while the EV is away during a trip window that covers the
+    current interval: the distance driven since disconnect counts toward that
+    trip's requirement so the optimizer does not plan driving energy that was
+    already used. That energy already left the pack, which the live state of
+    charge reflects, so it is never drawn again. Driving further than planned
+    leaves the trip complete without being priced, and the credit never
+    reaches trips that have not started yet. A negative or non-finite
+    distance (a reset or stale sensor) credits nothing.
+    """
+    if windows is None or connected_flag is None or windows.in_window[0] <= 0.0:
+        return 0.0
+    if float(np.atleast_1d(connected_flag)[0]) >= _CONNECTED_THRESHOLD:
+        return 0.0
+
+    odometer = trip.get(CONF_ODOMETER)
+    odometer_at_disconnect = trip.get(CONF_ODOMETER_AT_DISCONNECT)
+    if odometer is None or odometer_at_disconnect is None:
+        return 0.0
+
+    driven = float(odometer) - float(odometer_at_disconnect)
+    if not np.isfinite(driven) or driven <= 0.0:
+        return 0.0
+    return driven * energy_per_distance
+
+
+@dataclass(frozen=True)
+class _ReserveConfig:
+    """Battery reserve parameters derived from the trip configuration."""
+
+    level: NDArray[np.float64]
+    mask: NDArray[np.float64]
+    price: NDArray[np.floating[Any]] | float
+
+
+def _reserve_config(
+    config: EvConfigData,
+    calendar: CalendarBoundaryData | None,
+    ended_periods: int,
+) -> _ReserveConfig | None:
+    """Battery reserve parameters from the trip reserve configuration.
+
+    The reserve is checked at each trip's end and at the end of every away
+    period on the calendar, whether or not its events held a distance —
+    because the pack can only drain while away, the level at an away
+    period's end is the lowest level hit during it, so one priced check per
+    period prices its minimum (demand-level pricing). The price defaults to
+    the public charging price: the cost of restoring the buffer away from
+    home. Ends within a trip the car already came back from are not checked.
+    """
+    trip = config.get(SECTION_TRIP, {})
+    reserve_soc = trip.get(CONF_RESERVE_SOC)
+    if reserve_soc is None or calendar is None:
+        return None
+
+    capacity = config[SECTION_VEHICLE][CONF_CAPACITY]
+    reserve_ratio = min(max(float(reserve_soc), 0.0), 1.0)
+    reserve_price = trip.get(CONF_RESERVE_PRICE)
+    reserve_price = _public_price(config) if reserve_price is None else _non_negative(reserve_price)
+
+    mask = _away_ends(calendar)
+    mask[1 : ended_periods + 1] = 0.0
+
+    return _ReserveConfig(
+        level=reserve_ratio * np.asarray(capacity, dtype=np.float64),
+        mask=mask,
+        price=_to_boundaries(reserve_price, len(capacity)),
+    )
+
+
+def _away_ends(calendar: CalendarBoundaryData) -> NDArray[np.float64]:
+    """Mark the boundaries where a trip or a calendar away period ends.
+
+    Trip ends come from positive event values, so touching trips each get
+    their own end. Away period ends come from presence alone, so events
+    without a parseable distance still end an away period.
+    """
+    presence = np.asarray(calendar["presence"], dtype=np.float64) > 0.0
+    away = presence[:-1]
+    away_end = np.zeros(len(presence), dtype=bool)
+    away_end[1:] = away & ~np.append(away[1:], False)
+    trip_end = np.asarray(calendar["value_edge_end"], dtype=np.float64) > 0.0
+    return (away_end | trip_end).astype(np.float64)
+
+
+def _to_boundaries(
+    value: NDArray[np.floating[Any]] | float,
+    n_boundaries: int,
+) -> NDArray[np.floating[Any]] | float:
+    """Extend an interval-shaped series to boundary length by repeating the end."""
+    if not isinstance(value, np.ndarray):
+        return value
+    if len(value) == n_boundaries - 1:
+        return np.append(value, value[-1])
+    return value
+
+
+def _apply_connected_mask(
+    value: NDArray[np.floating[Any]] | float | None,
+    connected_flag: NDArray[np.floating[Any]] | float | None,
+) -> NDArray[np.floating[Any]] | float | None:
+    """Apply connected flag as a mask to a power limit value.
+
+    When connected_flag is 0.0, the result is 0.0 (disabled).
+    When connected_flag is 1.0, the result is the original value.
+    """
+    if connected_flag is None:
+        return value
+    if value is None:
+        return None
+    return value * connected_flag
+
+
+def _invert_flag(
+    flag: NDArray[np.floating[Any]] | float | None,
+) -> NDArray[np.floating[Any]] | float | None:
+    """Invert a binary flag (1.0 → 0.0, 0.0 → 1.0)."""
+    if flag is None:
+        return None
+    return 1.0 - flag
+
+
+def _mask_or_zero(
+    flag: NDArray[np.floating[Any]] | float | None,
+    magnitude: float,
+) -> NDArray[np.floating[Any]] | float:
+    """Scale a binary mask to a power limit; no mask means no flow."""
+    if flag is None:
+        return 0.0
+    return flag * magnitude
+
+
+def _combine_limits(
+    *limits: NDArray[np.floating[Any]] | float | None,
+) -> NDArray[np.floating[Any]] | float | None:
+    """Combine multiple power limit values by taking the element-wise minimum.
+
+    None values are ignored. If all values are None, returns None.
+    """
+    result: NDArray[np.floating[Any]] | float | None = None
+    for limit in limits:
+        if limit is None:
+            continue
+        result = limit if result is None else np.minimum(result, limit)
+    return result
