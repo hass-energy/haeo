@@ -1,0 +1,145 @@
+# Deferrable Load
+
+Deferrable loads are appliances that must consume a set amount of energy within scheduled time windows, but are flexible about exactly when inside each window — pool pumps, hot water systems, irrigation, or an EV charger driven in energy mode.
+
+You schedule the windows with a Home Assistant calendar, and HAEO decides when inside each window to run the load so the energy lands in the cheapest periods.
+The requirement is not a hard rule: if a window physically cannot fit the energy, the shortfall is priced instead of breaking the optimization.
+
+For mathematical details, see [Deferrable Load Modeling](../../modeling/device-layer/deferrable_load.md).
+
+## Configuration
+
+### Overview
+
+A deferrable load in HAEO represents:
+
+- **Run window calendar** from a Home Assistant calendar entity, with the required energy in each event's text
+- **Optional delivered energy sensor** reporting how much the open window has already received
+- **Shortfall price** for energy the window fails to receive
+- **Optional overage price** that allows, and prices, delivering more than required
+- **Optional max power** for the physical device
+
+## Configuration fields
+
+| Field                                                             | Type   | Required | Default | Description                                   |
+| ----------------------------------------------------------------- | ------ | -------- | ------- | --------------------------------------------- |
+| **[Name](#name)**                                                 | String | Yes      | -       | Unique identifier (e.g., "Pool Pump")         |
+| **[Connection](#connection)**                                     | Select | Yes      | -       | Node to connect to in your energy network     |
+| **[Run window calendar](#run-windows)**                           | Entity | Yes      | -       | Calendar entity with run window events        |
+| **[Energy delivered this window](#energy-delivered-this-window)** | Energy | No       | -       | Energy the open window has already received   |
+| **[Shortfall price](#pricing)**                                   | Price  | Yes      | 10      | Cost per kWh the window fails to receive      |
+| **[Overage price](#pricing)**                                     | Price  | No       | -       | Cost per kWh delivered beyond the requirement |
+| **[Max power](#max-power)**                                       | Power  | No       | -       | Maximum power the device can draw             |
+
+### Name
+
+Choose a descriptive, friendly name.
+Home Assistant uses it for sensor names, so avoid symbols or abbreviations you would not want to see in the UI.
+
+### Connection
+
+Select the node in your energy network where the load is connected, typically your main switchboard.
+
+### Run windows
+
+Select a Home Assistant calendar entity that contains your run schedule.
+Each calendar event is one window:
+
+- **Start/end time**: When the load is allowed to run
+- **Event text**: The energy the window must receive, in kWh (e.g., `8`)
+
+The number is read from the first of the location, summary, or description fields that parses as a plain number.
+Events without a parsable number are ignored, as are zero, negative numbers, and values such as `nan` or `inf`.
+Power can only flow to the load while a window with energy to deliver is open.
+
+Overlapping events merge into one window that needs the sum of their energies.
+Events that only touch, with one ending exactly when the next starts, stay separate windows with their own requirements.
+A window that runs past the end of the planning horizon is planned as if it ended at the horizon end.
+If its energy cannot fit before then, the plan shows a shortfall that shrinks as the horizon moves forward.
+
+!!! tip "Recurring schedules"
+
+    Use recurring calendar events for daily or weekly routines — a pool pump
+    that needs 8 kWh every day is one repeating event with `8` in the location.
+
+### Energy delivered this window
+
+HAEO re-plans regularly, and each plan starts from the present.
+Without this sensor, a plan made halfway through a window asks for the window's full energy again, so the device runs longer than needed or a large shortfall is predicted near the window's end.
+
+Select a sensor that reports the energy (kWh) the device has used since the current window started.
+A simple way to build one is a [utility meter](https://www.home-assistant.io/integrations/utility_meter/) on the device's energy sensor, reset by an automation triggered when a calendar event starts:
+
+```yaml
+automation:
+  - alias: Reset pool pump window energy
+    triggers:
+      - trigger: calendar
+        event: start
+        entity_id: calendar.pool_pump
+    actions:
+      - action: utility_meter.reset
+        target:
+          entity_id: sensor.pool_pump_window_energy
+```
+
+HAEO credits the reading only to the window that is open when the plan starts.
+Readings outside a window are ignored, so the sensor does not need to reset at the window's end, but it must reset when a window starts.
+
+- **Below the window's energy**: only the remainder is planned.
+- **Above the window's energy**: the window is treated as complete.
+    The extra energy is already used, so it is never charged as overage and never makes the plan fail.
+- **Negative readings**: treated as zero.
+
+### Pricing
+
+- **Shortfall price**: the cost per kWh that a window fails to receive by its end.
+    The default of \$10/kWh effectively means "always run when physically possible" — lower it to let expensive periods win (e.g. a pool pump that may skip a day when energy costs more than the missed cleaning is worth).
+- **Overage price**: optional cost per kWh delivered beyond a window's requirement.
+    Without it, a window never takes more than its requirement.
+    Set it when running longer than needed is acceptable at a cost (wear, water use), for example to soak up energy you are paid to use.
+
+Both prices must be zero or more.
+A sensor that reports a negative price is treated as zero, since paying the optimizer to miss a window would make the plan meaningless.
+
+Each window is settled on its own at its end: a missed window stays priced even if a later window receives extra, and a later window starts from zero.
+
+### Max power
+
+Set the power the device draws while running (e.g. 1.5 kW for a pool pump).
+The optimizer spreads the window's energy across the window at up to this power.
+
+## Sensors created
+
+The deferrable load element creates one device with the following sensors:
+
+| Sensor           | Unit | Description                                                |
+| ---------------- | ---- | ---------------------------------------------------------- |
+| Power            | kW   | Power drawn by the load                                    |
+| Energy delivered | kWh  | Energy delivered in the current window, reset at its start |
+| Energy shortfall | kWh  | Requirement the optimizer expects each window to miss      |
+| Energy overage   | kWh  | Energy planned beyond each window's requirement            |
+
+All sensors include a `forecast` attribute with optimized future values — drive your appliance's switch from the power sensor's forecast.
+
+## Next steps
+
+<div class="grid cards" markdown>
+
+- :material-timer-outline:{ .lg .middle } **Deferrable load modeling**
+
+    ---
+
+    Mathematical formulation for deferrable loads.
+
+    [:material-arrow-right: Deferrable load modeling](../../modeling/device-layer/deferrable_load.md)
+
+- :material-home-lightning-bolt:{ .lg .middle } **Automation examples**
+
+    ---
+
+    Use optimization results to control your appliances.
+
+    [:material-arrow-right: Automations](../automations.md)
+
+</div>

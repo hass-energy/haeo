@@ -22,6 +22,7 @@ export type ElementType =
   | "battery"
   | "battery_section"
   | "connection"
+  | "deferrable_load"
   | "grid"
   | "inverter"
   | "load"

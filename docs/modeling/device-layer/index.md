@@ -46,6 +46,14 @@ This prevents naming collisions and groups related components visually in Home A
 
     [:material-arrow-right: Battery modeling](battery.md)
 
+- :material-timer-outline:{ .lg .middle } **Deferrable load**
+
+    ---
+
+    Calendar-scheduled energy requirements with priced shortfall.
+
+    [:material-arrow-right: Deferrable load modeling](deferrable_load.md)
+
 - :material-power-plug:{ .lg .middle } **Grid**
 
     ---

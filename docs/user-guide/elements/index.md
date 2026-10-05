@@ -80,6 +80,12 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Battery guide](battery.md)
 
+- :material-timer-outline:{ .lg .middle } __Deferrable load configuration__
+
+    Scheduled loads that must absorb set energy within calendar windows.
+
+    [:material-arrow-right: Deferrable load guide](deferrable_load.md)
+
 - :material-power-plug:{ .lg .middle } __Grid configuration__
 
     Import/export with dynamic or fixed pricing.

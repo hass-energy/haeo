@@ -251,6 +251,43 @@
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
+    "deferrable_load": {
+      "flow_title": "Deferrable Load",
+      "entry_type": "Deferrable Load",
+      "initiate_flow": { "user": "Deferrable Load", "reconfigure": "Deferrable Load" },
+      "step": {
+        "user": {
+          "title": "Deferrable Load Configuration",
+          "description": "Configure a load that must receive scheduled amounts of energy within calendar windows",
+          "data": {
+            "connection": "Connection",
+            "deficit_price": "Shortfall price",
+            "energy_delivered": "Energy delivered this window",
+            "max_power": "Max power",
+            "name": "Deferrable Load Name",
+            "overage_price": "Overage price",
+            "window_calendar": "Run window calendar"
+          },
+          "sections": {
+            "common": {
+              "data": { "connection": "Connection", "name": "Deferrable Load Name" },
+              "name": "Common settings"
+            },
+            "power": { "data": { "max_power": "Max power" }, "name": "Power" },
+            "pricing": {
+              "data": { "deficit_price": "Shortfall price", "overage_price": "Overage price" },
+              "name": "Pricing"
+            },
+            "schedule": {
+              "data": { "energy_delivered": "Energy delivered this window", "window_calendar": "Run window calendar" },
+              "name": "Schedule"
+            }
+          }
+        }
+      },
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
     "grid": {
       "flow_title": "Grid",
       "entry_type": "Grid",
@@ -457,6 +494,7 @@
     "battery": { "name": "{name}" },
     "battery_section": { "name": "{name}" },
     "connection": { "name": "{name}" },
+    "deferrable_load": { "name": "{name}" },
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
     "load": { "name": "{name}" },
@@ -490,6 +528,10 @@
       "connection_max_power_target_source": { "name": "Max target to source power" },
       "connection_price_source_target": { "name": "Source to target price" },
       "connection_price_target_source": { "name": "Target to source price" },
+      "deferrable_load_deficit_price": { "name": "Shortfall price" },
+      "deferrable_load_energy_delivered": { "name": "Energy delivered this window" },
+      "deferrable_load_max_power": { "name": "Max power" },
+      "deferrable_load_overage_price": { "name": "Overage price" },
       "grid_max_power_source_target": { "name": "Import limit" },
       "grid_max_power_target_source": { "name": "Export limit" },
       "grid_price_source_target": { "name": "Import price" },
@@ -526,6 +568,10 @@
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },
       "connection_power": { "name": "{source} to {target} power" },
+      "deferrable_load_energy_delivered": { "name": "Energy delivered" },
+      "deferrable_load_energy_overage": { "name": "Energy overage" },
+      "deferrable_load_energy_shortfall": { "name": "Energy shortfall" },
+      "deferrable_load_power": { "name": "Power" },
       "grid_cost_import": { "name": "Import cost" },
       "grid_cost_net": { "name": "Net cost" },
       "grid_power_active": { "name": "Active power" },

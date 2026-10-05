@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
+import math
 import re
 from typing import TYPE_CHECKING, Any, Final
 
@@ -83,11 +84,19 @@ def parse_distance(text: str) -> tuple[float, str] | None:
 
 
 def parse_number(text: str) -> float | None:
-    """Parse a plain numeric value from text."""
+    """Parse a plain non-negative, finite numeric value from text.
+
+    Calendar numbers are quantities (e.g. kWh to deliver), so negative,
+    NaN, and infinite values are treated as unparseable rather than being
+    passed on to the optimization.
+    """
     try:
-        return float(text.strip())
+        value = float(text.strip())
     except (ValueError, AttributeError):
         return None
+    if not math.isfinite(value) or value < 0:
+        return None
+    return value
 
 
 @dataclass(frozen=True)
