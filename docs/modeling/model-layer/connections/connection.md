@@ -114,7 +114,8 @@ The network solves this lexicographically: primary cost is minimized first, then
 
 Connection exposes power flow and segment outputs:
 
-- `connection_power` — power flow through this connection
+- `connection_power` — power entering at the source end, before any segment transforms
+- `connection_power_out` — power leaving at the target end, after all segment transforms
 - `segments` — nested map of segment names to constraint shadow outputs
 
 The `segments` output groups segment outputs using the segment names provided in the configuration.

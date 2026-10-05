@@ -92,6 +92,8 @@ A typical starting point is 10-90% unless your manufacturer recommends otherwise
 Enter separate charge and discharge efficiencies as percentages (0-100).
 Charge efficiency applies when power flows from the network into the battery.
 Discharge efficiency applies when power flows from the battery into the network.
+Efficiency is the loss between the battery terminals and the energy stored in the cells.
+Charging 10 kW at 95% efficiency stores 9.5 kWh per hour, and discharging 10 kW at 95% efficiency draws about 10.5 kWh per hour from storage.
 If you only have a round-trip figure, use the same value for both directions or approximate a symmetric value with $\sqrt{\text{round-trip}}$.
 Most modern lithium batteries have efficiencies in the 95-98% range, while older chemistries may be lower.
 Refer to your battery or inverter specifications for the most appropriate values.
@@ -100,6 +102,10 @@ Refer to your battery or inverter specifications for the most appropriate values
 
 Add limits based on your battery's charge/discharge rating.
 Leave the fields blank when no practical limit applies.
+
+Both limits are measured at the battery terminals, the same place your battery management system and the battery port of a hybrid inverter measure power.
+This matches how manufacturers rate charge and discharge power.
+A 5 kW discharge limit means at most 5 kW leaves the battery terminals, whatever the discharge efficiency.
 
 !!! note
 
@@ -322,9 +328,10 @@ These sensors appear on the battery device:
 
 The optimal charging power for this battery at each time period.
 
-Values represent the average power during the period.
+Values represent the average power during the period, measured at the battery terminals.
 Positive values indicate energy flowing into the battery.
 A value of 0 means the battery is not charging.
+The energy stored rises by this power less the charge efficiency loss.
 
 **Example**: A value of 3.2 kW means the battery is charging at an average rate of 3.2 kW during this period, limited by the configured max charge power or other system constraints.
 
@@ -332,9 +339,10 @@ A value of 0 means the battery is not charging.
 
 The optimal discharging power for this battery at each time period.
 
-Values represent the average power during the period.
+Values represent the average power during the period, measured at the battery terminals.
 Positive values indicate energy flowing out of the battery.
 A value of 0 means the battery is not discharging.
+The energy stored falls by this power plus the discharge efficiency loss.
 
 **Example**: A value of 2.5 kW means the battery is discharging at an average rate of 2.5 kW during this period, providing power to loads or exporting to the grid.
 
