@@ -258,7 +258,7 @@
       "step": {
         "user": {
           "title": "Deferrable Load Configuration",
-          "description": "Configure a load that must absorb scheduled amounts of energy within calendar windows",
+          "description": "Configure a load that must receive scheduled amounts of energy within calendar windows",
           "data": {
             "connection": "Connection",
             "deficit_price": "Shortfall price",
@@ -568,8 +568,9 @@
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },
       "connection_power": { "name": "{source} to {target} power" },
-      "deferrable_load_energy_absorbed": { "name": "Energy absorbed" },
-      "deferrable_load_energy_deficit": { "name": "Energy shortfall" },
+      "deferrable_load_energy_delivered": { "name": "Energy delivered" },
+      "deferrable_load_energy_overage": { "name": "Energy overage" },
+      "deferrable_load_energy_shortfall": { "name": "Energy shortfall" },
       "deferrable_load_power": { "name": "Power" },
       "grid_cost_import": { "name": "Import cost" },
       "grid_cost_net": { "name": "Net cost" },
