@@ -86,6 +86,10 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Deferrable load guide](deferrable_load.md)
 
+- :material-car-electric:{ .lg .middle } __EV configuration__
+    Electric vehicle with calendar-driven trip planning and V2G.
+    [:material-arrow-right: EV guide](ev.md)
+
 - :material-power-plug:{ .lg .middle } __Grid configuration__
 
     Import/export with dynamic or fixed pricing.

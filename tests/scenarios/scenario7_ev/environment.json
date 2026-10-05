@@ -1,0 +1,10 @@
+{
+  "diagnostic_request_time": "2026-08-01T00:00:00+00:00",
+  "diagnostic_target_time": null,
+  "ha_version": "2026.1.0",
+  "haeo_version": "0.4.0",
+  "horizon_start": "2026-08-01T00:00:00+00:00",
+  "optimization_end_time": "2026-08-01T00:00:00+00:00",
+  "optimization_start_time": "2026-08-01T00:00:00+00:00",
+  "timezone": "UTC"
+}

@@ -160,6 +160,7 @@ nav:
           - Battery: user-guide/elements/battery.md
           - Battery Section: user-guide/elements/battery_section.md
           - Deferrable Load: user-guide/elements/deferrable_load.md
+          - EV: user-guide/elements/ev.md
           - Grid: user-guide/elements/grid.md
           - Inverter: user-guide/elements/inverter.md
           - Load: user-guide/elements/load.md
@@ -196,6 +197,7 @@ nav:
           - Battery: modeling/device-layer/battery.md
           - Battery Section: modeling/device-layer/battery_section.md
           - Deferrable Load: modeling/device-layer/deferrable_load.md
+          - EV: modeling/device-layer/ev.md
           - Grid: modeling/device-layer/grid.md
           - Inverter: modeling/device-layer/inverter.md
           - Solar: modeling/device-layer/solar.md

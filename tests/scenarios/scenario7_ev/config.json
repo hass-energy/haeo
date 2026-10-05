@@ -1,0 +1,65 @@
+{
+  "minor_version": 3,
+  "tier_1_count": 5,
+  "tier_1_duration": 1,
+  "tier_2_count": 11,
+  "tier_2_duration": 5,
+  "tier_3_count": 46,
+  "tier_3_duration": 30,
+  "tier_4_count": 48,
+  "tier_4_duration": 60,
+  "version": 1,
+  "participants": {
+    "EV": {
+      "name": "EV",
+      "element_type": "ev",
+      "charging": { "max_charge_rate": { "type": "constant", "value": 7.4 }, "max_discharge_rate": { "type": "none" } },
+      "connection": { "type": "connection_target", "value": "Switchboard" },
+      "efficiency": {
+        "efficiency_source_target": { "type": "constant", "value": 95.0 },
+        "efficiency_target_source": { "type": "constant", "value": 95.0 }
+      },
+      "power_limits": {},
+      "public_charging": { "public_charging_price": { "type": "constant", "value": 0.9 } },
+      "trip": {
+        "connected": { "type": "entity", "value": ["binary_sensor.ev_plugged_in"] },
+        "odometer": { "type": "none" },
+        "odometer_at_disconnect": { "type": "none" },
+        "reserve_price": { "type": "none" },
+        "reserve_soc": { "type": "constant", "value": 20.0 },
+        "trip_calendar": {
+          "events": [
+            {
+              "description": null,
+              "end": "2026-08-01T17:00:00+00:00",
+              "location": "100 km",
+              "start": "2026-08-01T09:00:00+00:00",
+              "summary": "Day trip"
+            }
+          ],
+          "type": "calendar",
+          "value": "calendar.ev_trips"
+        }
+      },
+      "vehicle": {
+        "capacity": { "type": "constant", "value": 60.0 },
+        "current_soc": { "type": "entity", "value": ["sensor.ev_soc"] },
+        "energy_per_distance": { "type": "constant", "value": 0.18 }
+      }
+    },
+    "Grid": {
+      "name": "Grid",
+      "element_type": "grid",
+      "connection": { "type": "connection_target", "value": "Switchboard" },
+      "power_limits": {
+        "max_power_source_target": { "type": "constant", "value": 20.0 },
+        "max_power_target_source": { "type": "constant", "value": 20.0 }
+      },
+      "pricing": {
+        "price_source_target": { "type": "entity", "value": ["sensor.grid_import_price"] },
+        "price_target_source": { "type": "entity", "value": ["sensor.grid_export_price"] }
+      }
+    },
+    "Switchboard": { "name": "Switchboard", "element_type": "node", "role": { "is_sink": false, "is_source": false } }
+  }
+}
