@@ -9,7 +9,7 @@ horizon boundaries.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Final, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 import numpy as np
 
@@ -29,6 +29,7 @@ from custom_components.haeo.core.data.util.calendar_fuser import (
     fuse_window_edges_to_boundaries,
     fuse_windows_to_boundaries,
 )
+from custom_components.haeo.core.units import DeviceClass, convert_to_base_unit
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -38,16 +39,6 @@ if TYPE_CHECKING:
     from custom_components.haeo.core.schema.calendar_value import CalendarValue
     from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
     from custom_components.haeo.core.state import StateMachine
-
-# Kilometres per supported distance unit, used to normalize parsed distances
-# without importing Home Assistant's unit converters into the core layer.
-_KM_PER_UNIT: Final[dict[str, float]] = {
-    "km": 1.0,
-    "mi": 1.609344,
-    "m": 0.001,
-    "ft": 0.0003048,
-    "yd": 0.0009144,
-}
 
 
 class CalendarBoundaryData(TypedDict):
@@ -85,8 +76,10 @@ def is_calendar_boundary_data(value: object) -> bool:
 
 
 def _convert_distance(value: float, from_unit: str, to_unit: str) -> float:
-    """Convert a distance between supported units via the kilometre table."""
-    return value * _KM_PER_UNIT[from_unit] / _KM_PER_UNIT[to_unit]
+    """Convert a distance between length units via their kilometre factors."""
+    km, _, _ = convert_to_base_unit(value, from_unit, DeviceClass.DISTANCE)
+    km_per_target, _, _ = convert_to_base_unit(1.0, to_unit, DeviceClass.DISTANCE)
+    return km / km_per_target
 
 
 def _parser_for(hint: CalendarFieldHint) -> EventValueFn:
