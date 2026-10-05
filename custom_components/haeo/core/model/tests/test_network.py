@@ -4,6 +4,7 @@ import logging
 from unittest.mock import Mock
 
 from highspy import Highs, HighsModelStatus
+from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 import pytest
 
@@ -668,6 +669,36 @@ def test_update_constraint_sums_duplicate_coefficients() -> None:
         coeffs[idx] = coeffs.get(idx, 0.0) + val
     assert coeffs[v0.index] == pytest.approx(3.0)
     assert coeffs[v1.index] == pytest.approx(9.0)
+
+
+def test_failed_lex_row_addition_leaves_no_orphaned_row(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A lex row that highspy adds and then raises on is removed so later solves are unaffected.
+
+    highspy raises on a HiGHS warning, such as a dropped tiny coefficient, only
+    after the row is already in the model. An orphaned bound row would make
+    every later solve infeasible.
+    """
+    network = _build_priced_network(LexOptions())
+    solver = network._solver
+    add_constr = solver.addConstr
+
+    def add_then_raise(expr: highs_linear_expression) -> highs_cons:
+        add_constr(expr)
+        msg = "Error adding constraint to the model."
+        raise Exception(msg)  # noqa: TRY002 (highspy raises a bare Exception)
+
+    monkeypatch.setattr(solver, "addConstr", add_then_raise)
+    with pytest.raises(Exception, match="Error adding constraint"):
+        network.optimize()
+    monkeypatch.undo()
+
+    reference = _build_priced_network(LexOptions())
+    expected = reference.optimize()
+    assert network._lex_constraint is None
+    assert solver.numConstrs == reference._solver.numConstrs - 1
+
+    assert network.optimize() == pytest.approx(expected)
+    assert solver.numConstrs == reference._solver.numConstrs
 
 
 def test_optimize_requires_objectives() -> None:

@@ -499,9 +499,25 @@ class Network:
         constraint_expr = objective <= optimal_value
 
         if self._lex_constraint is None:
-            self._lex_constraint = self._solver.addConstr(constraint_expr)
+            self._lex_constraint = self._add_constraint(constraint_expr)
         else:
             self._update_constraint(self._lex_constraint, constraint_expr)
+
+    def _add_constraint(self, expr: highs_linear_expression) -> highs_cons:
+        """Add a constraint row, removing it again if highspy raises after adding it.
+
+        highspy raises on any HiGHS warning, such as a coefficient below
+        small_matrix_value being dropped, after the row is already in the model.
+        An untracked row would keep bounding every later solve.
+        """
+        rows_before = self._solver.numConstrs
+        try:
+            return self._solver.addConstr(expr)
+        except Exception:
+            added = list(range(rows_before, self._solver.numConstrs))
+            if added:
+                self._solver.deleteRows(len(added), added)
+            raise
 
     def _relax_lex_constraint(self) -> None:
         """Relax the lex constraint bounds so it is inactive."""
