@@ -12,19 +12,17 @@ async def test_available_returns_true(hass: HomeAssistant) -> None:
     config: node.NodeConfigSchema = {
         "element_type": ElementType.NODE,
         "name": "test_node",
-        node.SECTION_ROLE: {"is_source": False, "is_sink": False},
     }
 
     result = schema_config_available(config, sm=hass.states)
     assert result is True
 
 
-def test_model_elements_applies_default_flags() -> None:
-    """model_elements() should apply default is_source/is_sink flags."""
+def test_model_elements_creates_pure_junction() -> None:
+    """model_elements() should always create a node that neither sources nor sinks power."""
     config_data: node.NodeConfigData = {
         "element_type": ElementType.NODE,
         "name": "test_node",
-        node.SECTION_ROLE: {},
     }
 
     elements = node_adapter.model_elements(config_data)

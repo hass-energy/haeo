@@ -68,7 +68,6 @@ from custom_components.haeo.core.schema.elements.battery import (
     SECTION_STORAGE,
 )
 from custom_components.haeo.core.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
-from custom_components.haeo.core.schema.elements.node import SECTION_ROLE
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -339,10 +338,10 @@ async def test_ensure_required_subentries_switchboard_handling(
     assert node_count == 1
 
     node_subentry = next(sub for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
-    assert node_subentry.data[CONF_NAME] == ("Existing Node" if existing_node else "Switchboard")
-    if not existing_node:
-        assert node_subentry.data[SECTION_ROLE]["is_source"] is False
-        assert node_subentry.data[SECTION_ROLE]["is_sink"] is False
+    assert dict(node_subentry.data) == {
+        CONF_ELEMENT_TYPE: ElementType.NODE,
+        CONF_NAME: "Existing Node" if existing_node else "Switchboard",
+    }
 
 
 async def test_ensure_required_subentries_skips_switchboard_advanced_mode(

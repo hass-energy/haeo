@@ -380,10 +380,10 @@ def _migrate_element_to_sectioned(data: Mapping[str, Any]) -> dict[str, Any] | N
     if element_type == node.ELEMENT_TYPE:
         role: dict[str, Any] = {}
         add_if_present(migrated, CONF_NAME)
-        for key in (node.CONF_IS_SOURCE, node.CONF_IS_SINK):
+        for key in ("is_source", "is_sink"):
             add_if_present(role, key)
         migrated |= {
-            node.SECTION_ROLE: role,
+            "role": role,
         }
         return migrated
 

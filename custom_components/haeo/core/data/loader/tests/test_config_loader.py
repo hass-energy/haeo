@@ -338,29 +338,24 @@ def test_entity_percent_time_series_converts(monkeypatch: pytest.MonkeyPatch) ->
 
 
 @pytest.mark.parametrize(
-    "role_input",
+    "curtailment_input",
     [
-        pytest.param({"is_source": True, "is_sink": False}, id="raw_booleans"),
-        pytest.param(
-            {
-                "is_source": {"type": "constant", "value": True},
-                "is_sink": {"type": "constant", "value": False},
-            },
-            id="constant_wrapped",
-        ),
+        pytest.param({"curtailment": True}, id="raw_boolean"),
+        pytest.param({"curtailment": {"type": "constant", "value": True}}, id="constant_wrapped"),
     ],
 )
-def test_boolean_values_pass_through(role_input: dict[str, Any]) -> None:
+def test_boolean_values_pass_through(curtailment_input: dict[str, Any]) -> None:
     """Boolean fields pass through unchanged whether raw or constant-wrapped."""
     config: dict[str, Any] = {
-        "element_type": "node",
-        "name": "Hub",
-        "role": role_input,
+        "element_type": "solar",
+        "name": "Solar",
+        "connection": {"type": "connection_target", "value": "Hub"},
+        "forecast": {"forecast": {"type": "constant", "value": 1.0}},
+        "curtailment": curtailment_input,
     }
-    result = _load_config("Hub", config)
+    result = _load_config("Solar", config)
 
-    assert result["role"]["is_source"] is True
-    assert result["role"]["is_sink"] is False
+    assert result["curtailment"]["curtailment"] is True
 
 
 def test_entity_non_percent_scalar_resolves(monkeypatch: pytest.MonkeyPatch) -> None:

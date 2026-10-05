@@ -3,60 +3,20 @@
 from typing import Any
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
-from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfig
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, SECTION_ROLE
+from custom_components.haeo.core.schema.elements.node import ELEMENT_TYPE
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
-from custom_components.haeo.flows.field_schema import SectionDefinition, build_section_schema
 from custom_components.haeo.sections import build_common_fields
-
-# Suggested values for first setup (pure junction: no source or sink)
-_SUGGESTED_DEFAULTS = {
-    SECTION_ROLE: {
-        CONF_IS_SOURCE: False,
-        CONF_IS_SINK: False,
-    },
-}
 
 
 class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     """Handle node element configuration flows."""
 
-    def _get_sections(self) -> tuple[SectionDefinition, ...]:
-        """Return sections for the configuration step."""
-        return (SectionDefinition(key=SECTION_ROLE, fields=(CONF_IS_SOURCE, CONF_IS_SINK), collapsed=True),)
-
     def _build_schema(self) -> vol.Schema:
         """Build the voluptuous schema for node configuration."""
-        sections = self._get_sections()
-        field_entries: dict[str, dict[str, tuple[vol.Marker, Any]]] = {
-            SECTION_ROLE: {
-                CONF_IS_SOURCE: (
-                    vol.Optional(CONF_IS_SOURCE),
-                    vol.All(
-                        vol.Coerce(bool),
-                        BooleanSelector(BooleanSelectorConfig()),
-                    ),
-                ),
-                CONF_IS_SINK: (
-                    vol.Optional(CONF_IS_SINK),
-                    vol.All(
-                        vol.Coerce(bool),
-                        BooleanSelector(BooleanSelectorConfig()),
-                    ),
-                ),
-            },
-        }
-
-        return vol.Schema(
-            build_section_schema(
-                sections,
-                field_entries,
-                top_level_entries=build_common_fields(include_connection=False),
-            )
-        )
+        return vol.Schema(dict(build_common_fields(include_connection=False).values()))
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle adding a new node element."""
@@ -72,16 +32,11 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry = self._get_subentry()
 
         if user_input is not None:
-            role_input = user_input.get(SECTION_ROLE, {})
             name = user_input.get(CONF_NAME)
             if self._validate_name(name, errors):
                 config = {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                     CONF_NAME: name,
-                    SECTION_ROLE: {
-                        CONF_IS_SOURCE: bool(role_input.get(CONF_IS_SOURCE, False)),
-                        CONF_IS_SINK: bool(role_input.get(CONF_IS_SINK, False)),
-                    },
                 }
                 if subentry is not None:
                     return self.async_update_and_abort(
@@ -93,8 +48,8 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 return self.async_create_entry(title=name, data=config)
 
         schema = self._build_schema()
-        defaults = dict(subentry.data) if subentry else _SUGGESTED_DEFAULTS
-        schema = self.add_suggested_values_to_schema(schema, defaults)
+        if subentry is not None:
+            schema = self.add_suggested_values_to_schema(schema, dict(subentry.data))
 
         return self.async_show_form(
             step_id="user",

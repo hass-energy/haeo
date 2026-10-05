@@ -8,20 +8,15 @@ Virtual balance points enforcing power conservation (Kirchhoff's law).
     Creating **additional** nodes requires **Advanced Mode** to be enabled on your hub.
     In standard mode, the automatic switchboard node is sufficient for most residential systems.
 
-    Advanced source/sink configuration (`is_source` and `is_sink` fields) is only available when Advanced Mode is enabled.
-    In standard mode, nodes are pure junctions with no generation or consumption capability.
-
 !!! note "Connection endpoints"
 
     Node elements always appear in connection selectors regardless of Advanced Mode setting.
 
 ## Configuration
 
-| Field                       | Type    | Required | Default | Description                                         |
-| --------------------------- | ------- | -------- | ------- | --------------------------------------------------- |
-| **[Name](#name)**           | String  | Yes      | -       | Unique identifier for this node                     |
-| **[Is Source](#is-source)** | Boolean | No       | false   | Whether node can produce power (Advanced Mode only) |
-| **[Is Sink](#is-sink)**     | Boolean | No       | false   | Whether node can consume power (Advanced Mode only) |
+| Field             | Type   | Required | Default | Description                     |
+| ----------------- | ------ | -------- | ------- | ------------------------------- |
+| **[Name](#name)** | String | Yes      | -       | Unique identifier for this node |
 
 ## Name
 
@@ -30,60 +25,25 @@ Used to identify the node in connection endpoints.
 
 Choose descriptive names based on electrical location: "Main Node", "AC Panel", "DC Bus", "Home Circuit"
 
-## Is Source
+## Pure junctions
 
-Whether this node can produce power (act as a power source).
-When `true`, the node can generate power that flows out through connections.
+Every node is a pure junction: all power flowing in equals all power flowing out.
+A node cannot produce or consume power itself.
+Power enters and leaves the network only through elements that set a price and a limit on it, such as a [grid](grid.md), [solar](solar.md), [battery](battery.md), or [load](load.md).
 
-**Default**: `false` (node cannot produce power)
+!!! info "Nodes and power policies"
 
-**Available only when Advanced Mode is enabled**.
-
-## Is Sink
-
-Whether this node can consume power (act as a power sink).
-When `true`, the node can accept power that flows in through connections.
-
-**Default**: `false` (node cannot consume power)
-
-**Available only when Advanced Mode is enabled**.
-
-### Source and Sink Combinations
-
-The combination of `is_source` and `is_sink` determines the node's behavior:
-
-**Pure Junction** (`is_source=false, is_sink=false` - default):
-
-- Power must balance: all power flowing in equals all power flowing out
-- No power generation or consumption at the node itself
-- Most common configuration for standard nodes
-- Available in standard mode (Advanced Mode not required)
-
-**Source Only** (`is_source=true, is_sink=false`):
-
-- Node can produce power that flows out through connections
-- Cannot accept power from connections
-- Useful for modeling power sources without using dedicated generation or grid elements
-
-**Sink Only** (`is_source=false, is_sink=true`):
-
-- Node can accept power that flows in through connections
-- Cannot produce power
-- Useful for modeling power sinks without using dedicated consumption elements
-
-**Bidirectional** (`is_source=true, is_sink=true`):
-
-- Node can both produce and consume power
-- Useful for modeling bidirectional power sources or flexible power exchange points
-- Similar to bidirectional grid elements but without automatic connection creation
-
-!!! info "Node role and power policies"
-
-    Source/sink flags also determine how [power policies](../../modeling/tagged-power.md) follow energy through the node.
-    Sinks terminate a policy's provenance — a `source=X → destination=Y` rule cannot see past an intermediate sink.
-    Junctions (neither source nor sink) pass provenance through unchanged, which is what lets a `Solar → Grid` policy price the whole chain through your switchboard and inverter.
-    If you are placing a routing hub between policied sources and destinations, keep it a pure junction.
+    Nodes pass [power policy](../../modeling/tagged-power.md) provenance through unchanged.
+    This is what lets a `Solar → Grid` policy price the whole chain through your switchboard and inverter.
+    Nodes are not offered as policy sources or destinations, because power never starts or ends at a node.
     See [Node roles and policy scope](../../modeling/tagged-power.md#node-roles-and-policy-scope) for the full rules.
+
+!!! note "Source and sink nodes"
+
+    Earlier versions of HAEO let you mark a node as a power source or sink.
+    Such a node supplied or absorbed unlimited power at no cost, which let the optimizer invent free energy and sell it through a grid connection.
+    HAEO now removes these options from existing nodes automatically when it upgrades your configuration, and logs a warning for each node that had either option turned on.
+    If you used a source or sink node deliberately, replace it with a [grid](grid.md), [solar](solar.md), or [load](load.md) element so the power it supplies or absorbs is bounded and priced.
 
 ## Purpose
 
@@ -157,20 +117,6 @@ Then connect elements to "Main Node" via connections.
     Connections cannot have endpoints that don't exist.
 
     **In non-advanced mode**: If you delete the switchboard node, HAEO will automatically recreate it the next time the integration reloads (on restart or configuration change) to ensure network connectivity is maintained.
-
-### Input Entities
-
-Each configuration option creates a corresponding input entity in Home Assistant.
-Input entities appear as Switch entities with the `config` entity category.
-
-| Input                     | Description                    |
-| ------------------------- | ------------------------------ |
-| `switch.{name}_is_source` | Whether node can produce power |
-| `switch.{name}_is_sink`   | Whether node can consume power |
-
-These switch inputs are only created when Advanced Mode is enabled.
-Input entities include a `forecast` attribute showing values for each optimization period.
-See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
 
 ## Sensors Created
 

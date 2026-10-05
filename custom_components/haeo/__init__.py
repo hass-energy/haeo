@@ -145,11 +145,6 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     """
     # Avoid circular import with schema module
     from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
-    from custom_components.haeo.core.schema.elements.node import (  # noqa: PLC0415
-        CONF_IS_SINK,
-        CONF_IS_SOURCE,
-        SECTION_ROLE,
-    )
 
     # Check if Network subentry already exists
     has_network = False
@@ -190,10 +185,6 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
                 {
                     CONF_ELEMENT_TYPE: ElementType.NODE,
                     CONF_NAME: switchboard_name,
-                    SECTION_ROLE: {
-                        CONF_IS_SOURCE: False,
-                        CONF_IS_SINK: False,
-                    },
                 }
             ),
             subentry_type=ElementType.NODE,

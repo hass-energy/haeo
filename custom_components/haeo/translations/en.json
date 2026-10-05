@@ -363,22 +363,9 @@
       "step": {
         "user": {
           "title": "Node Configuration",
-          "description": "Add a node for power balance calculations or to source/sink unlimited power.",
-          "data": {
-            "is_sink": "Can consume unlimited power (Sink)",
-            "is_source": "Can produce unlimited power (Source)",
-            "name": "Node Name"
-          },
-          "sections": {
-            "common": { "data": { "name": "Node Name" }, "name": "Common settings" },
-            "role": {
-              "data": {
-                "is_sink": "Can consume unlimited power (Sink)",
-                "is_source": "Can produce unlimited power (Source)"
-              },
-              "name": "Node role"
-            }
-          }
+          "description": "Add a junction where connected power must balance, such as a separate AC or DC bus.",
+          "data": { "name": "Node Name" },
+          "sections": { "common": { "data": { "name": "Node Name" }, "name": "Common settings" } }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -561,8 +548,6 @@
     "switch": {
       "load_curtailment": { "name": "Shedding" },
       "network_auto_optimize": { "name": "Auto optimize" },
-      "node_is_sink": { "name": "Is sink" },
-      "node_is_source": { "name": "Is source" },
       "policy_enabled": { "name": "{rule_name} enabled" },
       "solar_curtailment": { "name": "Curtailment" }
     }

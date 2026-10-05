@@ -60,7 +60,7 @@ These elements provide direct access to raw modeling components for advanced use
 Advanced elements include:
 
 - **Connection**: Explicit power flow paths between elements
-- **Node**: Virtual power balance points (with advanced source/sink configuration)
+- **Node**: Virtual power balance points (junctions such as separate AC and DC buses)
 - **Battery Section**: Direct access to model layer Battery element
 
 Most users should use the standard elements which provide automatic connections and optimized behavior.

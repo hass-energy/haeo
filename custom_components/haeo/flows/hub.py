@@ -18,8 +18,6 @@ from custom_components.haeo.core.const import (
     DEFAULT_DEBOUNCE_SECONDS,
 )
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
-from custom_components.haeo.core.schema.elements.node import SECTION_ROLE as NODE_SECTION_ROLE
 
 from . import (
     HORIZON_PRESET_CUSTOM,
@@ -40,7 +38,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for HAEO hub creation."""
 
     VERSION = 1
-    MINOR_VERSION = 3
+    MINOR_VERSION = 4
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -144,10 +142,6 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                     "data": {
                         CONF_ELEMENT_TYPE: ElementType.NODE,
                         CONF_NAME: switchboard_name,
-                        NODE_SECTION_ROLE: {
-                            CONF_IS_SOURCE: False,
-                            CONF_IS_SINK: False,
-                        },
                     },
                     "subentry_type": ElementType.NODE,
                     "title": switchboard_name,

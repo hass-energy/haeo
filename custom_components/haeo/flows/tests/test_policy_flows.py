@@ -16,9 +16,10 @@ from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRAT
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.constant_value import as_constant_value
+from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements.grid import ELEMENT_TYPE as GRID_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.inverter import ELEMENT_TYPE as INVERTER_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE as LOAD_ELEMENT_TYPE
-from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE
 from custom_components.haeo.core.schema.elements.node import ELEMENT_TYPE as NODE_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_ENABLED,
@@ -56,22 +57,21 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     )
     entry.add_to_hass(hass)
 
-    nodes = [
-        ("Solar", True, False),
-        ("Grid", True, True),
-        ("Battery", True, True),
-        ("Load", False, True),
+    participants = [
+        ("Solar", SOLAR_ELEMENT_TYPE),
+        ("Grid", GRID_ELEMENT_TYPE),
+        ("Battery", BATTERY_ELEMENT_TYPE),
+        ("Load", LOAD_ELEMENT_TYPE),
     ]
-    for name, is_source, is_sink in nodes:
+    for name, element_type in participants:
         subentry = ConfigSubentry(
             data=MappingProxyType(
                 {
-                    CONF_ELEMENT_TYPE: NODE_ELEMENT_TYPE,
+                    CONF_ELEMENT_TYPE: element_type,
                     CONF_NAME: name,
-                    SECTION_ROLE: {CONF_IS_SOURCE: is_source, CONF_IS_SINK: is_sink},
                 }
             ),
-            subentry_type=NODE_ELEMENT_TYPE,
+            subentry_type=element_type,
             title=name,
             unique_id=None,
         )
@@ -985,13 +985,12 @@ def test_get_participant_options_excludes_junction_nodes(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
 ) -> None:
-    """Node elements with is_source=False and is_sink=False are excluded as junctions."""
+    """Node elements are pure junctions, so they are never offered as policy endpoints."""
     junction_subentry = ConfigSubentry(
         data=MappingProxyType(
             {
                 CONF_ELEMENT_TYPE: NODE_ELEMENT_TYPE,
                 CONF_NAME: "Switchboard",
-                SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
             }
         ),
         subentry_type=NODE_ELEMENT_TYPE,

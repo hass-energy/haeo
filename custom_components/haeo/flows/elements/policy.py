@@ -31,8 +31,6 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.constant_value import as_constant_value, is_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE
-from custom_components.haeo.core.schema.elements.node import ELEMENT_TYPE as NODE_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_ENABLED,
     CONF_PRICE,
@@ -107,8 +105,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         Filters by adapter capability: only elements whose adapter declares
         can_source (for source endpoints) or can_sink (for target endpoints)
-        are included. For Node elements, additionally checks instance-specific
-        role flags from the subentry data.
+        are included.
         """
         hub_entry = self._get_entry()
         current_id = self._get_current_subentry_id()
@@ -129,23 +126,10 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
             if not adapter.can_source and not adapter.can_sink:
                 continue
-
-            # Node elements have instance-specific capabilities via role flags
-            if element_type == NODE_ELEMENT_TYPE:
-                role = subentry.data.get(SECTION_ROLE, {})
-                node_can_source = role.get(CONF_IS_SOURCE, False)
-                node_can_sink = role.get(CONF_IS_SINK, False)
-                if can_source and not node_can_source:
-                    continue
-                if can_sink and not node_can_sink:
-                    continue
-                if not node_can_source and not node_can_sink:
-                    continue
-            else:
-                if can_source and not adapter.can_source:
-                    continue
-                if can_sink and not adapter.can_sink:
-                    continue
+            if can_source and not adapter.can_source:
+                continue
+            if can_sink and not adapter.can_sink:
+                continue
 
             result.append(subentry.title)
 

@@ -7,13 +7,13 @@ The Node device composes a [Node](../model-layer/elements/node.md) model element
 ```mermaid
 graph LR
     subgraph "Device"
-        NodeModel["Node<br/>(is_source, is_sink)"]
+        NodeModel["Node<br/>(is_source=false, is_sink=false)"]
     end
 ```
 
-| Model Element                           | Name     | Parameters From Configuration                |
-| --------------------------------------- | -------- | -------------------------------------------- |
-| [Node](../model-layer/elements/node.md) | `{name}` | is_source, is_sink (from user configuration) |
+| Model Element                           | Name     | Parameters From Configuration                  |
+| --------------------------------------- | -------- | ---------------------------------------------- |
+| [Node](../model-layer/elements/node.md) | `{name}` | is_source=false, is_sink=false (pure junction) |
 
 Node is unique among Device Layer elements: it creates only a Node model element with no implicit Connection.
 
@@ -29,19 +29,15 @@ Node creates 1 device in Home Assistant:
 
 The adapter transforms user configuration into model parameters:
 
-| User Configuration | Model Element | Model Parameter | Notes                                           |
-| ------------------ | ------------- | --------------- | ----------------------------------------------- |
-| `name`             | Node          | `name`          | Element name                                    |
-| `is_source`        | Node          | `is_source`     | Whether node can produce power (default: false) |
-| `is_sink`          | Node          | `is_sink`       | Whether node can consume power (default: false) |
+| User Configuration | Model Element | Model Parameter | Notes                                   |
+| ------------------ | ------------- | --------------- | --------------------------------------- |
+| `name`             | Node          | `name`          | Element name                            |
+| —                  | Node          | `is_source`     | Always `false`: a node cannot add power |
+| —                  | Node          | `is_sink`       | Always `false`: a node cannot remove it |
 
-In standard mode (Advanced Mode disabled), nodes are pure junctions (`is_source=false, is_sink=false`).
-When Advanced Mode is enabled, `is_source` and `is_sink` can be configured to create:
-
-- **Grid-like nodes** (`is_source=true, is_sink=true`): Can import and export power
-- **Load-like nodes** (`is_source=false, is_sink=true`): Can only consume power
-- **Source-like nodes** (`is_source=true, is_sink=false`): Can only produce power
-- **Pure junctions** (`is_source=false, is_sink=false`): Power must balance (default)
+A Node device is always a pure junction.
+The model-layer source and sink flags are reserved for device elements that bound and price the power they add or remove, such as [Grid](grid.md), [Solar](solar.md), and [Loads](loads.md).
+A node with either flag set would be an unpriced, unbounded source or sink, which the optimizer could exploit to fabricate energy or discard it for free.
 
 ## Sensors Created
 
