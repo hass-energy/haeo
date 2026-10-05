@@ -163,7 +163,7 @@ class EvAdapter:
 
         trip = config.get(SECTION_TRIP, {})
         calendar = trip.get(CONF_TRIP_CALENDAR)
-        connected_live = trip.get(CONF_CONNECTED)
+        connected_live = _plugged_in_flag(trip.get(CONF_CONNECTED))
 
         # Trip windows from the calendar (distances in km), with a trip the
         # car already came back from removed.
@@ -385,6 +385,21 @@ def _trip_load(
     }
 
 
+def _plugged_in_flag(
+    connected_live: NDArray[np.floating[Any]] | float | None,
+) -> NDArray[np.float64] | float | None:
+    """Normalize the live plugged-in reading to a 0/1 flag.
+
+    Several plugged-in entities load as their sum, so a reading above 1 must
+    still mean plugged in exactly once for the home and away masks.
+    """
+    if connected_live is None:
+        return None
+    if isinstance(connected_live, np.ndarray):
+        return (connected_live >= _CONNECTED_THRESHOLD).astype(np.float64)
+    return 1.0 if connected_live >= _CONNECTED_THRESHOLD else 0.0
+
+
 def _is_plugged_in(connected_live: NDArray[np.floating[Any]] | float | None) -> bool:
     """Return True when the live connected sensor reports the car plugged in now."""
     return connected_live is not None and float(np.atleast_1d(connected_live)[0]) >= _CONNECTED_THRESHOLD
@@ -527,12 +542,13 @@ def _reserve_config(
 ) -> _ReserveConfig | None:
     """Battery reserve parameters from the trip reserve configuration.
 
-    The reserve is checked at each trip window's end — because the pack can
-    only drain while away, the level at a window's end is the lowest level
-    hit during that window, so one priced check per window prices the
-    window minimum (demand-level pricing). The price defaults to the public
-    charging price: the cost of restoring the buffer away from home. Trip
-    ends within a trip the car already came back from are not checked.
+    The reserve is checked at each trip's end and at the end of every away
+    period on the calendar, whether or not its events held a distance —
+    because the pack can only drain while away, the level at an away
+    period's end is the lowest level hit during it, so one priced check per
+    period prices its minimum (demand-level pricing). The price defaults to
+    the public charging price: the cost of restoring the buffer away from
+    home. Ends within a trip the car already came back from are not checked.
     """
     trip = config.get(SECTION_TRIP, {})
     reserve_soc = trip.get(CONF_RESERVE_SOC)
@@ -544,7 +560,7 @@ def _reserve_config(
     reserve_price = trip.get(CONF_RESERVE_PRICE)
     reserve_price = _public_price(config) if reserve_price is None else _non_negative(reserve_price)
 
-    mask = (np.asarray(calendar["value_edge_end"], dtype=np.float64) > 0).astype(np.float64)
+    mask = _away_ends(calendar)
     mask[1 : ended_periods + 1] = 0.0
 
     return _ReserveConfig(
@@ -552,6 +568,21 @@ def _reserve_config(
         mask=mask,
         price=_to_boundaries(reserve_price, len(capacity)),
     )
+
+
+def _away_ends(calendar: CalendarBoundaryData) -> NDArray[np.float64]:
+    """Mark the boundaries where a trip or a calendar away period ends.
+
+    Trip ends come from positive event values, so touching trips each get
+    their own end. Away period ends come from presence alone, so events
+    without a parseable distance still end an away period.
+    """
+    presence = np.asarray(calendar["presence"], dtype=np.float64) > 0.0
+    away = presence[:-1]
+    away_end = np.zeros(len(presence), dtype=bool)
+    away_end[1:] = away & ~np.append(away[1:], False)
+    trip_end = np.asarray(calendar["value_edge_end"], dtype=np.float64) > 0.0
+    return (away_end | trip_end).astype(np.float64)
 
 
 def _to_boundaries(
