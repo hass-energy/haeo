@@ -3,6 +3,8 @@
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader.calendar import (
     CalendarEventData,
@@ -108,29 +110,24 @@ def test_parse_distance_integer() -> None:
 # --- parse_number ---
 
 
-def test_parse_number_integer() -> None:
-    """Parse number integer."""
-    assert parse_number("42") == 42.0
-
-
-def test_parse_number_decimal() -> None:
-    """Parse number decimal."""
-    assert parse_number("3.14") == 3.14
-
-
-def test_parse_number_whitespace() -> None:
-    """Parse number whitespace."""
-    assert parse_number("  7.5  ") == 7.5
-
-
-def test_parse_number_invalid() -> None:
-    """Parse number invalid."""
-    assert parse_number("abc") is None
-
-
-def test_parse_number_empty() -> None:
-    """Parse number empty."""
-    assert parse_number("") is None
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        pytest.param("42", 42.0, id="integer"),
+        pytest.param("3.14", 3.14, id="decimal"),
+        pytest.param("  7.5  ", 7.5, id="whitespace"),
+        pytest.param("0", 0.0, id="zero"),
+        pytest.param("abc", None, id="invalid"),
+        pytest.param("", None, id="empty"),
+        pytest.param("-5", None, id="negative"),
+        pytest.param("nan", None, id="nan"),
+        pytest.param("inf", None, id="infinity"),
+        pytest.param("-inf", None, id="negative_infinity"),
+    ],
+)
+def test_parse_number(text: str, expected: float | None) -> None:
+    """Parse a non-negative finite number, rejecting anything else."""
+    assert parse_number(text) == expected
 
 
 # --- extract_calendar_windows ---
