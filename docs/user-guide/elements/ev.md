@@ -15,7 +15,7 @@ For mathematical details, see [EV Modeling](../../modeling/device-layer/ev.md).
 
 An EV in HAEO represents:
 
-- **Energy storage** with a battery capacity (kWh+)
+- **Energy storage** with a battery capacity (kWh)
 - **Charge and discharge rates** for home charging (kW)
 - **Trip calendar** from a Home Assistant calendar entity with a distance in each event
 - **Connected sensor** indicating when the vehicle is plugged in at home
@@ -25,8 +25,13 @@ An EV in HAEO represents:
 ### Configuration process
 
 EV configuration uses a sectioned flow where you enter the name, connection, trip entity selectors, and configure each input field.
-For numeric fields, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields.
-The connected sensor offers only "Entity" or "None", since a constant would pin the current interval permanently.
+The choices offered depend on the field:
+
+- **Current state of charge** accepts only "Entity", since it must track the live battery level.
+- **Connected sensor**, **odometer**, and **odometer at disconnect** accept "Entity" or "None".
+    A constant connected state would pin the current interval permanently.
+- **Trip calendar** accepts a calendar entity or "None".
+- The remaining numeric fields accept "Entity" to link to a sensor or "Constant" to enter a fixed value, and optional ones also accept "None".
 
 Fields configured with "Constant" create input entities that you can adjust at runtime without reconfiguring.
 
@@ -147,7 +152,8 @@ Set the maximum charging and discharging rates for home charging:
 
 Set the cost per kWh for public charging away from home.
 Trip requirements are not hard constraints: any shortfall against a trip's energy requirement is priced at this rate, modeling a public top-up during the trip, so a trip can never make the optimization infeasible.
-When this field is not set, a deliberately high default of \$10/kWh is used so home charging always wins when physically possible.
+When this field is not set, a deliberately high default of \$10/kWh is used, which strongly discourages a shortfall.
+The optimizer still compares it against the effective cost of home charging, so if import prices or policy costs push that above \$10/kWh it can deliberately leave a shortfall rather than pre-charge.
 Set a realistic price to let the optimizer genuinely trade off pre-charging at home against topping up publicly; the expected top-up appears in the trip energy shortfall sensor.
 
 ### Power limits
