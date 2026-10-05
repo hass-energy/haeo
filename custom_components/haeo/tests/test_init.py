@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Iterable
 from types import MappingProxyType
+from typing import ClassVar
 from unittest.mock import AsyncMock, Mock
 
 from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL, UrlManager
@@ -57,6 +58,7 @@ from custom_components.haeo.core.const import (
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
 )
+from custom_components.haeo.core.data.util.input_values import NegativeInputError
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import (
@@ -544,19 +546,34 @@ async def test_element_flow_in_progress(
     assert _element_flow_in_progress(hass, mock_hub_entry) is False
 
 
+@pytest.mark.parametrize(
+    ("negative_input", "expected_translation_key"),
+    [
+        pytest.param(None, "input_entities_not_ready", id="not_ready"),
+        pytest.param(NegativeInputError(-4.5), "negative_input_value", id="negative_input"),
+    ],
+)
 async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     monkeypatch: pytest.MonkeyPatch,
+    negative_input: NegativeInputError | None,
+    expected_translation_key: str,
 ) -> None:
     """Setup raises ConfigEntryNotReady when input stores don't become ready in time.
 
-    Verifies that ConfigEntryNotReady is raised with descriptive translation key.
+    Verifies that ConfigEntryNotReady is raised with descriptive translation key,
+    naming a significantly negative source value when that is why a store is not ready.
     Cleanup is handled via async_on_unload callbacks registered during setup.
     """
 
     # Create a mock input store that never becomes ready
     class NeverReadyStore:
+        source_entity_ids: ClassVar[list[str]] = ["sensor.limit"]
+
+        def __init__(self) -> None:
+            self.negative_input = negative_input
+
         async def wait_ready(self) -> None:
             # Wait forever - will timeout
             await asyncio.sleep(100)
@@ -608,7 +625,7 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
         await async_setup_entry(hass, mock_hub_entry)
 
     # Verify the exception has the correct translation key
-    assert exc_info.value.translation_key == "input_entities_not_ready"
+    assert exc_info.value.translation_key == expected_translation_key
 
     # Note: Platform cleanup is handled via async_on_unload callbacks.
     # When testing directly (not via hass.config_entries.async_setup), the HA
@@ -650,6 +667,8 @@ async def test_setup_reentry_after_timeout_failure(
 
     # Create a mock input store that fails first time, succeeds second time
     class ConditionalReadyStore:
+        negative_input = None
+
         def __init__(self) -> None:
             self._ready = False
 

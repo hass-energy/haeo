@@ -25,6 +25,7 @@ import numpy as np
 
 from custom_components.haeo.core.data.loader.config_loader import is_percent_field, resolve_constant, resolve_field
 from custom_components.haeo.core.data.storage import Storage
+from custom_components.haeo.core.data.util.input_values import NegativeInputError
 from custom_components.haeo.core.schema import as_entity_value
 from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.state import EntityState, StateMachine
@@ -85,6 +86,7 @@ class InputStore:
         self._constant: float | bool | None = initial_value
         self._value: bool | float | np.ndarray | None = None
         self._available = False
+        self._negative_input: NegativeInputError | None = None
         self._loaded_timestamps: tuple[float, ...] = ()
         self._captured_source_states: dict[str, EntityState] = {}
         self._data_ready = asyncio.Event()
@@ -140,6 +142,11 @@ class InputStore:
         optimization should be skipped).
         """
         return self._available
+
+    @property
+    def negative_input(self) -> NegativeInputError | None:
+        """Return why the last load was rejected for a significantly negative value, if it was."""
+        return self._negative_input
 
     @property
     def native_value(self) -> float | bool | None:
@@ -260,6 +267,7 @@ class InputStore:
             return False
 
         forecast_timestamps = self._get_forecast_timestamps()
+        self._negative_input = None
         try:
             resolved = resolve_field(
                 as_entity_value(self._source_entity_ids),
@@ -267,6 +275,13 @@ class InputStore:
                 sm,
                 list(forecast_timestamps),
             )
+        except NegativeInputError as err:
+            # Notify so consumers run and report the rejected value rather than
+            # silently keeping the previous one.
+            self._negative_input = err
+            self._available = False
+            self._notify()
+            return False
         except Exception:
             _LOGGER.debug(
                 "Load failed from sources %s; keeping previous value",

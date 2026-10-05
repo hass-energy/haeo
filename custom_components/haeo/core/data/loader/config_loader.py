@@ -271,6 +271,11 @@ def is_percent_field(hint: FieldHint) -> bool:
     return hint.output_type in _PERCENT_OUTPUT_TYPES
 
 
+def _is_non_negative_field(hint: FieldHint) -> bool:
+    """Return True when a field's declared minimum rules out negative values."""
+    return hint.min_value is not None and hint.min_value >= 0.0
+
+
 def resolve_constant(
     value: float | bool,  # noqa: FBT001 (bool is a valid constant field value)
     hint: FieldHint,
@@ -326,7 +331,7 @@ def _resolve_entities(
     else:
         raw = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
 
-    values = clean_input_values(np.array(raw, dtype=np.float64))
+    values = clean_input_values(np.array(raw, dtype=np.float64), non_negative=_is_non_negative_field(hint))
 
     if is_percent:
         values = values / 100.0

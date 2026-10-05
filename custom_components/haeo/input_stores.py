@@ -17,6 +17,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import is_none_value
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
 from custom_components.haeo.core.schema.field_hints import FieldHint
@@ -86,13 +87,36 @@ class SubentryStorage:
 
 
 def _hint_from_field_info(field_info: InputFieldInfo[Any]) -> FieldHint:
-    """Build the resolver field hint from an input field's metadata."""
+    """Build the resolver field hint from an input field's metadata.
+
+    The hint carries the field's effective minimum, the same bound its number
+    entity enforces, so values resolved from source entities are held to it too.
+    """
+    is_switch = field_info.output_type == OutputType.STATUS
     return FieldHint(
         output_type=field_info.output_type,
         direction=field_info.direction,
         time_series=field_info.time_series,
         boundaries=field_info.boundaries,
+        min_value=None if is_switch else field_info.entity_description.native_min_value,
     )
+
+
+def negative_input_placeholders(key: InputStoreKey, store: InputStore) -> dict[str, str] | None:
+    """Describe a store whose source supplied a significantly negative value.
+
+    Returns translation placeholders naming the element, field, source entities,
+    and offending value, or None when the store did not reject a negative value.
+    """
+    if (error := store.negative_input) is None:
+        return None
+    element_name, field_path = key
+    return {
+        "element": element_name,
+        "field": ".".join(field_path),
+        "entities": ", ".join(store.source_entity_ids),
+        "value": f"{error.value:g}",
+    }
 
 
 def _negated_policy_price_fields(config_entry: HaeoConfigEntry) -> set[InputFieldPath]:
@@ -167,4 +191,4 @@ def build_input_stores(
     return stores
 
 
-__all__ = ["InputStoreKey", "InputStoreMap", "SubentryStorage", "build_input_stores"]
+__all__ = ["InputStoreKey", "InputStoreMap", "SubentryStorage", "build_input_stores", "negative_input_placeholders"]

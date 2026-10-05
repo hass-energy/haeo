@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
@@ -23,9 +24,10 @@ from custom_components.haeo.core.schema.elements.grid import (
 )
 from custom_components.haeo.core.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
+from custom_components.haeo.elements.field_hints import PRICE_NATIVE_MIN_VALUE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.input_stores import SubentryStorage, build_input_stores
+from custom_components.haeo.input_stores import SubentryStorage, build_input_stores, negative_input_placeholders
 
 
 @pytest.fixture
@@ -132,6 +134,62 @@ def test_build_input_stores_creates_stores_for_configured_fields(
     assert stores[constant_key].mode == InputMode.EDITABLE
     assert stores[driven_key].mode == InputMode.DRIVEN
     assert stores[driven_key].source_entity_ids == ["sensor.export_price"]
+
+
+def test_build_input_stores_carries_field_minimum(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """Store hints carry each field's effective minimum so loads can enforce non-negativity."""
+    _add_grid(hass, config_entry)
+
+    stores = build_input_stores(hass, config_entry, horizon_manager)
+
+    assert stores[("Main Grid", (SECTION_POWER_LIMITS, CONF_MAX_POWER_TARGET_SOURCE))].hint.min_value == 0.0
+    assert stores[("Main Grid", (SECTION_PRICING, CONF_PRICE_TARGET_SOURCE))].hint.min_value == PRICE_NATIVE_MIN_VALUE
+
+
+async def test_negative_input_placeholders_describe_rejected_store(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """Placeholders identify the element, field, source entities, and offending value."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: GRID_TYPE,
+                CONF_NAME: "Main Grid",
+                CONF_CONNECTION: as_connection_target("main_bus"),
+                SECTION_PRICING: {
+                    CONF_PRICE_SOURCE_TARGET: as_constant_value(0.30),
+                    CONF_PRICE_TARGET_SOURCE: as_constant_value(0.05),
+                },
+                SECTION_POWER_LIMITS: {
+                    CONF_MAX_POWER_SOURCE_TARGET: as_entity_value(["sensor.import_limit"]),
+                },
+            }
+        ),
+        subentry_type=GRID_TYPE,
+        title="Main Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, subentry)
+    key = ("Main Grid", (SECTION_POWER_LIMITS, CONF_MAX_POWER_SOURCE_TARGET))
+    store = build_input_stores(hass, config_entry, horizon_manager)[key]
+
+    assert negative_input_placeholders(key, store) is None
+
+    sm = FakeStateMachine({"sensor.import_limit": FakeEntityState("sensor.import_limit", "-4.5", {})})
+    assert await store.async_load(sm) is False
+
+    assert negative_input_placeholders(key, store) == {
+        "element": "Main Grid",
+        "field": f"{SECTION_POWER_LIMITS}.{CONF_MAX_POWER_SOURCE_TARGET}",
+        "entities": "sensor.import_limit",
+        "value": "-4.5",
+    }
 
 
 async def test_build_input_stores_negates_entity_surfaced_price(
