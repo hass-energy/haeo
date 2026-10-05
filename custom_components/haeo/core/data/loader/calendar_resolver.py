@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Final, TypedDict
 import numpy as np
 
 from custom_components.haeo.core.data.loader.calendar import (
+    CalendarEventData,
     CalendarWindow,
     EventValueFn,
     extract_calendar_windows,
@@ -54,7 +55,8 @@ class CalendarBoundaryData(TypedDict):
 
     All arrays have n+1 entries, one per horizon boundary. Values are the
     per-event numbers extracted by the field's calendar parser (distances are
-    normalized to kilometres).
+    normalized to kilometres); events without a parseable value contribute 0.0
+    while still marking their window present.
 
     Attributes:
         presence: 1.0 at boundaries covered by any event window, else 0.0.
@@ -87,7 +89,7 @@ def _convert_distance(value: float, from_unit: str, to_unit: str) -> float:
     return value * _KM_PER_UNIT[from_unit] / _KM_PER_UNIT[to_unit]
 
 
-def _extractor_for(hint: CalendarFieldHint) -> EventValueFn:
+def _parser_for(hint: CalendarFieldHint) -> EventValueFn:
     """Return the event value extractor selected by a calendar hint."""
     if hint.parser == "distance":
         return make_distance_extractor(
@@ -98,6 +100,22 @@ def _extractor_for(hint: CalendarFieldHint) -> EventValueFn:
     if hint.parser == "number":
         return make_field_fallback_extractor(parse_number)
     return make_presence_extractor()
+
+
+def _extractor_for(hint: CalendarFieldHint) -> EventValueFn:
+    """Return an extractor that keeps every event window.
+
+    An event's window is meaningful on its own (the vehicle is away, the load
+    may run), so an event whose text holds no parseable value still occupies
+    its window, contributing a value of 0.0.
+    """
+    parse = _parser_for(hint)
+
+    def _extract(event: CalendarEventData) -> float:
+        value = parse(event)
+        return 0.0 if value is None else value
+
+    return _extract
 
 
 def resolve_calendar_field(

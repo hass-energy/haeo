@@ -75,6 +75,18 @@ def test_number_parser_reads_plain_numbers() -> None:
     np.testing.assert_allclose(result["value_span"][0], 7.5)
 
 
+def test_unparseable_event_keeps_window_with_zero_value() -> None:
+    """An event whose text holds no parseable value still occupies its window."""
+    value = _calendar_value([_event(3600.0, 7200.0, location="Office")])
+    result = resolve_calendar_field(value, CalendarFieldHint(parser="distance"), FakeStateMachine({}), BOUNDARY_TIMES)
+
+    assert result is not None
+    np.testing.assert_allclose(result["presence"], [0.0, 1.0, 0.0, 0.0])
+    np.testing.assert_allclose(result["value_span"], np.zeros(4))
+    np.testing.assert_allclose(result["value_edge_start"], np.zeros(4))
+    np.testing.assert_allclose(result["value_edge_end"], np.zeros(4))
+
+
 def test_overlapping_events_clip_presence_and_sum_values() -> None:
     """Overlapping events sum their values but presence stays binary."""
     value = _calendar_value(

@@ -10,6 +10,7 @@ attribute — the exact format captured for diagnostics replay.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable, Mapping
 from datetime import UTC, date, datetime
 import logging
@@ -71,9 +72,13 @@ class _CalendarEventState:
 
 
 class CalendarStateMachine(StateMachine):
-    """State machine decorator that augments calendar entities with events."""
+    """State machine decorator that augments calendar entities with events.
 
-    def __init__(self, base: StateMachine, events_by_entity: Mapping[str, list[CalendarEventDict]]) -> None:
+    Calendars mapped to None had their events fetch fail, so they read as
+    unavailable rather than as an empty calendar.
+    """
+
+    def __init__(self, base: StateMachine, events_by_entity: Mapping[str, list[CalendarEventDict] | None]) -> None:
         """Initialize with a base state machine and per-entity event lists."""
         self._base = base
         self._events_by_entity = events_by_entity
@@ -81,11 +86,11 @@ class CalendarStateMachine(StateMachine):
     def get(self, entity_id: str) -> EntityState | None:
         """Return the entity state, with events merged for known calendars."""
         state = self._base.get(entity_id)
-        if state is None:
-            return None
-        events = self._events_by_entity.get(entity_id)
-        if events is None:
+        if state is None or entity_id not in self._events_by_entity:
             return state
+        events = self._events_by_entity[entity_id]
+        if events is None:
+            return None
         return _CalendarEventState(state, events)
 
 
@@ -132,25 +137,25 @@ class CalendarInputLoader:
         await self.async_load_all()
 
     async def async_load_all(self) -> None:
-        """Fetch events for every calendar store and reload it."""
-        for store in self._stores:
-            await self._async_load_store(store)
+        """Fetch events for every calendar, then reload all stores together.
 
-    async def _async_load_store(self, store: InputStore) -> None:
-        entity_id = store.source_entity_ids[0]
-        events = await self._async_fetch_events(entity_id)
-        sm = CalendarStateMachine(
-            HomeAssistantStateMachine(self._hass),
-            {entity_id: events} if events is not None else {},
-        )
-        await store.async_load(sm)
+        Every store resolves before any store notifies its listeners, so a
+        listener never runs while another store still holds stale events.
+        A calendar whose fetch fails reads as unavailable, so its stores keep
+        their previous value instead of loading an empty calendar.
+        """
+        entity_ids = sorted({store.source_entity_ids[0] for store in self._stores})
+        fetched = await asyncio.gather(*(self._async_fetch_events(entity_id) for entity_id in entity_ids))
+        sm = CalendarStateMachine(HomeAssistantStateMachine(self._hass), dict(zip(entity_ids, fetched, strict=True)))
+        loaded = [store for store in self._stores if store.resolve_from_sources(sm)]
+        for store in loaded:
+            store.notify_listeners()
 
     async def _async_fetch_events(self, entity_id: str) -> list[CalendarEventDict] | None:
         """Fetch upcoming events over the horizon, serialized for the core loader.
 
         Returns None when the calendar entity cannot be queried (integration not
-        loaded or entity missing), in which case no events are injected and the
-        core loader treats the calendar as empty.
+        loaded, entity missing, or the query failed).
         """
         timestamps = self._horizon_manager.get_forecast_timestamps()
         if not timestamps:

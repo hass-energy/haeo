@@ -14,7 +14,7 @@ def _build_network(
     drain: list[float],
     reserve_level: float | None = None,
     reserve_mask: np.ndarray | None = None,
-    reserve_price: float | None = None,
+    reserve_price: np.ndarray | float | None = None,
     import_price: list[float] | None = None,
 ) -> tuple[Network, Battery]:
     """Build a battery that is force-drained, with optional grid and reserve."""
@@ -144,3 +144,20 @@ def test_unmasked_boundaries_are_not_priced() -> None:
     shortfall = battery.outputs()[BATTERY_RESERVE_SHORTFALL].values
     np.testing.assert_allclose(shortfall, [0.0, 0.0, 3.0])
     assert cost == pytest.approx(3.0 * 2.0)
+
+
+def test_negative_reserve_price_stays_bounded() -> None:
+    """A negative reserve price cannot claim more shortfall than the reserve level."""
+    network, battery = _build_network(
+        initial_charge=10.0,
+        drain=[0.0, 8.0],
+        reserve_level=5.0,
+        reserve_mask=np.array([0.0, 0.0, 1.0]),
+        reserve_price=np.array([-1.0, -1.0, -1.0]),
+    )
+
+    cost = network.optimize()
+
+    shortfall = battery.outputs()[BATTERY_RESERVE_SHORTFALL].values
+    np.testing.assert_allclose(shortfall, [0.0, 0.0, 5.0])
+    assert cost == pytest.approx(-5.0)

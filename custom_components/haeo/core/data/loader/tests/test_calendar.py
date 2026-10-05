@@ -8,6 +8,7 @@ import pytest
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader.calendar import (
     CalendarEventData,
+    EventValueFn,
     capture_calendar_events,
     extract_calendar_windows,
     load_calendar_events,
@@ -246,6 +247,44 @@ def test_field_fallback_uses_description_last() -> None:
     windows = extract_calendar_windows(events, extractor)
     assert len(windows) == 1
     assert windows[0].value == 5.0
+
+
+@pytest.mark.parametrize(
+    ("event", "extractor", "expected"),
+    [
+        pytest.param(
+            CalendarEventData(start=_dt(9), end=_dt(10), location="Office", summary="50 km"),
+            make_distance_extractor(energy_per_distance=0.2, target_unit="km"),
+            10.0,
+            id="distance_in_summary_after_unparseable_location",
+        ),
+        pytest.param(
+            CalendarEventData(start=_dt(9), end=_dt(10), location="Office", summary="Commute", description="25 km"),
+            make_distance_extractor(energy_per_distance=0.2, target_unit="km"),
+            5.0,
+            id="distance_in_description_after_unparseable_fields",
+        ),
+        pytest.param(
+            CalendarEventData(start=_dt(9), end=_dt(10), location="Home", summary="42"),
+            make_field_fallback_extractor(parse_number),
+            42.0,
+            id="number_in_summary_after_unparseable_location",
+        ),
+        pytest.param(
+            CalendarEventData(start=_dt(9), end=_dt(10), location="Office", summary="Commute"),
+            make_distance_extractor(energy_per_distance=0.2, target_unit="km"),
+            None,
+            id="no_field_parses",
+        ),
+    ],
+)
+def test_field_fallback_uses_first_parseable_field(
+    event: CalendarEventData,
+    extractor: EventValueFn,
+    expected: float | None,
+) -> None:
+    """Field fallback skips fields whose text does not parse and uses the first that does."""
+    assert extractor(event) == expected
 
 
 def test_field_fallback_skips_when_all_fields_empty() -> None:
