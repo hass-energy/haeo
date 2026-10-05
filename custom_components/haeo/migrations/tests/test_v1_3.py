@@ -42,6 +42,8 @@ from custom_components.haeo.core.schema.migrations.v1_3 import ElementMigrationS
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_FORECAST,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,

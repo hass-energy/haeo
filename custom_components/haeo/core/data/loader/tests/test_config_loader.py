@@ -76,12 +76,11 @@ def _inverter_config(*, efficiency_source_target: Any = None, efficiency_target_
         },
         "efficiency": {
             **({"efficiency_source_target": efficiency_source_target} if efficiency_source_target is not None else {}),
-            **({"efficiency_target_source": efficiency_target_source} if efficiency_target_source is not None else {}),
         },
     }
 
 
-def _connection_config(*, efficiency_source_target: Any = None, efficiency_target_source: Any = None) -> dict[str, Any]:
+def _connection_config(*, efficiency_source_target: Any = None) -> dict[str, Any]:
     return {
         "element_type": "connection",
         "name": "Connection",
@@ -90,7 +89,6 @@ def _connection_config(*, efficiency_source_target: Any = None, efficiency_targe
         "power_limits": {},
         "efficiency": {
             **({"efficiency_source_target": efficiency_source_target} if efficiency_source_target is not None else {}),
-            **({"efficiency_target_source": efficiency_target_source} if efficiency_target_source is not None else {}),
         },
     }
 
@@ -170,25 +168,28 @@ def test_optional_pricing_field_is_absent(config: dict[str, Any]) -> None:
     assert "price_target_source" not in result["pricing"]
 
 
+_BIDIRECTIONAL_EFFICIENCY = ("efficiency_source_target", "efficiency_target_source")
+_UNIDIRECTIONAL_EFFICIENCY = ("efficiency_source_target",)
+
+
 @pytest.mark.parametrize(
-    ("element_name", "config"),
+    ("element_name", "config", "efficiency_fields"),
     [
-        ("Inverter", _inverter_config()),
-        ("Battery", {**_battery_config(), "efficiency": {}}),
-        ("Connection", _connection_config()),
+        ("Inverter", _inverter_config(), _BIDIRECTIONAL_EFFICIENCY),
+        ("Battery", {**_battery_config(), "efficiency": {}}, _BIDIRECTIONAL_EFFICIENCY),
+        ("Connection", _connection_config(), _UNIDIRECTIONAL_EFFICIENCY),
         (
             "Inverter",
             _inverter_config(
                 efficiency_source_target={"type": "none"},
                 efficiency_target_source={"type": "none"},
             ),
+            _BIDIRECTIONAL_EFFICIENCY,
         ),
         (
             "Connection",
-            _connection_config(
-                efficiency_source_target={"type": "none"},
-                efficiency_target_source={"type": "none"},
-            ),
+            _connection_config(efficiency_source_target={"type": "none"}),
+            _UNIDIRECTIONAL_EFFICIENCY,
         ),
     ],
     ids=(
@@ -202,11 +203,12 @@ def test_optional_pricing_field_is_absent(config: dict[str, Any]) -> None:
 def test_efficiency_defaults_to_unity(
     element_name: str,
     config: dict[str, Any],
+    efficiency_fields: tuple[str, ...],
 ) -> None:
     """Missing or none-typed efficiency fields default to 100%."""
     result = _load_config(element_name, config)
-    np.testing.assert_allclose(result["efficiency"]["efficiency_source_target"], [1.0, 1.0, 1.0])
-    np.testing.assert_allclose(result["efficiency"]["efficiency_target_source"], [1.0, 1.0, 1.0])
+    for field in efficiency_fields:
+        np.testing.assert_allclose(result["efficiency"][field], [1.0, 1.0, 1.0])
 
 
 def test_unavailable_efficiency_entity_defaults_to_unity(monkeypatch: pytest.MonkeyPatch) -> None:
