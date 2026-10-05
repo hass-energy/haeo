@@ -154,3 +154,24 @@ def test_outputs_mapping() -> None:
     assert outputs[DEFERRABLE_ENERGY_ABSORBED].values[-1] == pytest.approx(6.0)
     assert outputs[DEFERRABLE_ENERGY_DEFICIT].values[-1] == pytest.approx(0.0)
     np.testing.assert_allclose(outputs[DEFERRABLE_POWER].values, [0.0, 0.0, 6.0, 0.0])
+
+
+@pytest.mark.parametrize(
+    ("pricing", "expected_absorbed"),
+    [
+        # A clamped zero shortfall price leaves nothing worth buying grid energy for.
+        pytest.param({"deficit_price": np.array([-5.0, -5.0, -5.0, -5.0])}, 0.0, id="negative_deficit_price"),
+        # A clamped zero overage price still stops at the requirement.
+        pytest.param({"deficit_price": 10.0, "overage_price": -1.0}, 6.0, id="negative_overage_price"),
+    ],
+)
+def test_negative_prices_are_clamped_to_zero(pricing: dict[str, Any], expected_absorbed: float) -> None:
+    """Negative penalty prices from an entity cannot make the optimization unbounded."""
+    config = _config(power={"max_power": 10.0}, pricing=pricing)
+    network = _solve(config, grid_price=[0.1, 0.1, 0.1, 0.1])
+
+    load_outputs = network.elements["pump"].outputs()
+    absorbed = load_outputs[DEFERRABLE_LOAD_ENERGY_ABSORBED].values[-1]
+    deficit = load_outputs[DEFERRABLE_LOAD_ENERGY_DEFICIT].values[-1]
+    assert absorbed == pytest.approx(expected_absorbed)
+    assert deficit == pytest.approx(6.0 - expected_absorbed)

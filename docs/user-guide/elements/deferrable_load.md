@@ -62,6 +62,9 @@ Power can only flow to the load while a window is open.
 - **Overage price**: optional cost per kWh absorbed beyond the total requirement.
     Useful when running longer than needed carries a cost (wear, water use).
 
+Both prices must be zero or more.
+A sensor that reports a negative price is treated as zero, since paying the optimizer to miss a window would make the plan meaningless.
+
 A missed window stays priced even if a later window catches up — each window's requirement is due at its own deadline.
 
 ### Max power

@@ -96,10 +96,13 @@ class DeferrableLoadAdapter:
             max_power = _UNLIMITED_POWER
         gated_power = max_power * window_mask
 
-        deficit_price = pricing[CONF_DEFICIT_PRICE]
+        # Penalty prices are clamped at zero: a negative price on an unbounded
+        # shortfall or overage would make the optimization unbounded, and an
+        # entity can report one even though the form cannot.
+        deficit_price = np.maximum(pricing[CONF_DEFICIT_PRICE], 0.0)
         # Overage is a single end-of-horizon charge, so a series collapses
         # to its first value.
-        overage_price = float(np.atleast_1d(pricing.get(CONF_OVERAGE_PRICE, 0.0))[0])
+        overage_price = max(float(np.atleast_1d(pricing.get(CONF_OVERAGE_PRICE, 0.0))[0]), 0.0)
 
         load: DeferrableLoadElementConfig = {
             "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,

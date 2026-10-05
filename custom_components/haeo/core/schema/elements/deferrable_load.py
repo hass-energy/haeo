@@ -130,12 +130,14 @@ class DeferrableLoadConfigSchema(ConnectedCommonConfig):
                 CONF_DEFICIT_PRICE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=True,
+                    min_value=0.0,
                     default_mode="value",
                     default_value=DEFAULT_DEFICIT_PRICE,
                 ),
                 CONF_OVERAGE_PRICE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=False,
+                    min_value=0.0,
                 ),
             }
         ),
