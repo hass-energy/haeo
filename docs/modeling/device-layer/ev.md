@@ -44,6 +44,8 @@ The EV alternates between two states:
 
 The trip calendar is authoritative for the future: the away mask is derived from calendar event windows aligned to the horizon.
 The live plugged-in binary sensor overrides only the current interval, so early returns and unplanned absences are reflected immediately.
+The plugged-in field accepts only a sensor; without one the calendar governs the current interval as well.
+Without a calendar the sensor value applies across the whole horizon, and with neither source the EV is always connected.
 The masks multiply the connection power limits.
 
 ### Trip energy modeling
@@ -91,13 +93,15 @@ The price defaults to the public charging price.
 
 ### Mid-trip energy tracking
 
-When the car is mid-trip and the odometer updates, HAEO reduces the remaining trip energy requirement:
+When the car is away during a trip window that overlaps the current interval and the odometer updates, HAEO credits the distance already driven to that trip as the trip load's initial energy:
 
 $$
-E_{\text{remaining}} = E_{\text{trip}} - (o_{\text{current}} - o_{\text{disconnect}}) \cdot r
+E_{\text{initial}} = \min\left(\max(0,\ o_{\text{current}} - o_{\text{disconnect}}),\ d_{\text{open}}\right) \cdot r
 $$
 
-where $o_{\text{current}}$ is the current odometer reading and $o_{\text{disconnect}}$ is the odometer at disconnection.
+where $o_{\text{current}}$ is the current odometer reading, $o_{\text{disconnect}}$ is the odometer at disconnection, and $d_{\text{open}}$ is the distance of the trip window open now.
+The cap keeps overshoot from covering later trips that share the cumulative trip load, and no credit applies when no trip window is open.
+Odometer readings in any length unit are converted to kilometres first.
 
 If the odometer does not update while driving, HAEO conservatively assumes no progress and reserves the full trip energy.
 
@@ -132,7 +136,7 @@ The EV element creates a single Home Assistant device:
 | `max_discharge_rate`       | Connection `{name}:discharge` | Power limit segment    | Masked by connected flag                   |
 | `reserve_soc`              | Battery `{name}`              | `reserve_level`        | Fraction of capacity, checked at trip ends |
 | `reserve_price`            | Battery `{name}`              | `reserve_price`        | Defaults to the public charging price      |
-| `energy_per_distance`      | Trip energy calculation       | Multiplied by distance | kWh/km                                     |
+| `energy_per_distance`      | Trip energy calculation       | Multiplied by distance | Wh/km and kWh/100km converted to kWh/km    |
 | `odometer` pair            | Deferrable load `{name}:trip` | `initial_energy`       | Mid-trip progress credit                   |
 | `public_charging_price`    | Deferrable load `{name}:trip` | `deficit_price`        | Defaults to \$10/kWh                       |
 | `efficiency_source_target` | Connection `{name}:discharge` | Efficiency segment     | Discharge direction                        |

@@ -26,6 +26,7 @@ An EV in HAEO represents:
 
 EV configuration uses a sectioned flow where you enter the name, connection, trip entity selectors, and configure each input field.
 For numeric fields, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields.
+The connected sensor offers only "Entity" or "None", since a constant would pin the current interval permanently.
 
 Fields configured with "Constant" create input entities that you can adjust at runtime without reconfiguring.
 
@@ -42,7 +43,7 @@ Fields configured with "Constant" create input entities that you can adjust at r
 | **[Reserve state of charge](#reserve)**                  | Percentage | No       | -                     | Buffer to keep in the pack while away            |
 | **[Reserve shortfall price](#reserve)**                  | Price      | No       | Public charging price | Cost per kWh of dipping below the reserve        |
 | **[Battery capacity](#battery-capacity)**                | Energy     | Yes      | -                     | Total usable battery capacity                    |
-| **[Energy per distance](#energy-per-distance)**          | Ratio      | Yes      | -                     | Energy consumption rate (kWh/km)                 |
+| **[Energy per distance](#energy-per-distance)**          | Ratio      | Yes      | -                     | Energy consumption rate (e.g. kWh/km)            |
 | **[Current state of charge](#current-state-of-charge)**  | Percentage | Yes      | -                     | Sensor reporting current SOC (0–100%)            |
 | **[Max charge rate](#max-charge-and-discharge-rate)**    | Power      | Yes      | -                     | Maximum home charging power                      |
 | **[Max discharge rate](#max-charge-and-discharge-rate)** | Power      | No       | -                     | Maximum V2G discharge power                      |
@@ -83,15 +84,24 @@ Events whose text contains no parsable distance are ignored entirely.
 Select a binary sensor that reports `on` when the EV is plugged in at home and `off` when disconnected.
 The trip calendar is authoritative for future availability; this sensor pins the *current* state, so an early return or unplanned absence is reflected immediately.
 
+This field takes a sensor or nothing; there is no constant option.
+Without a connected sensor the trip calendar governs the current interval too: the car counts as away whenever a trip event overlaps the current interval and as plugged in otherwise.
+Without either a trip calendar or a connected sensor, the EV is treated as always plugged in.
+
 ### Odometer
 
 Select the sensor reporting the vehicle's current odometer reading.
 HAEO uses this to track how much energy the car has consumed mid-trip.
+Any length unit Home Assistant supports (for example `km`, `mi`, or `m`) is accepted and converted to kilometres.
 
 ### Odometer at disconnect
 
 Select the sensor reporting the odometer reading when the car was last disconnected.
 Combined with the current odometer, this lets HAEO calculate energy already consumed during an ongoing trip and reduce the remaining requirement.
+It uses the same length unit conversion as the odometer.
+
+The distance driven since disconnect is credited only to the trip whose calendar window is open now, and never more than that trip's distance.
+Distance driven outside any trip window, or beyond the planned distance, does not reduce the energy reserved for later trips.
 
 !!! note "Conservative mid-trip tracking"
 
@@ -116,7 +126,9 @@ The optimizer uses this value when calculating state of charge and trip energy r
 
 ### Energy per distance
 
-Enter the average energy consumption rate in kWh per distance unit (e.g., 0.15 kWh/km).
+Enter the average energy consumption rate, or select a sensor reporting it.
+Sensors in `Wh/km`, `kWh/km`, or `kWh/100km` are accepted and converted to kWh/km; constants are entered in kWh/km (e.g., 0.15 kWh/km).
+Distance-per-energy units such as `km/kWh` or `mi/kWh` are not supported.
 HAEO multiplies this by trip distance to determine how much energy each trip requires.
 
 ### Current state of charge
