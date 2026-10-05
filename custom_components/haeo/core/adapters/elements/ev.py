@@ -237,7 +237,7 @@ class EvAdapter:
                 "capacity": trip_capacity,
                 "required": trip_required,
                 "initial_energy": trip_initial,
-                "deficit_price": _public_price(config),
+                "deficit_price": _to_boundaries(_public_price(config), len(capacity)),
             },
             # 5. Trip connection: EV → trip load. Driving power is not
             # limited by the charger, only by being away.
