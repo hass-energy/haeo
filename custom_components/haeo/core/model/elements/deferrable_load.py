@@ -2,10 +2,11 @@
 
 A deferrable load absorbs a required amount of energy within scheduled
 windows (e.g. calendar events). Rather than enforcing the requirement as a
-hard constraint, any locked-in shortfall is priced at the end of the
-horizon, as is absorption beyond the total requirement. This keeps the
-optimization feasible when the requirement physically cannot be met while
-still making the optimizer work hard to meet it.
+hard constraint, a shortfall is priced at the boundary where the missed
+requirement falls due, and absorption beyond the total requirement is
+priced once at the end of the horizon. This keeps the optimization feasible
+when the requirement physically cannot be met while still making the
+optimizer work hard to meet it.
 """
 
 from typing import Any, Final, Literal, NotRequired, TypedDict
@@ -85,9 +86,14 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
 
     The deficit variable is non-decreasing, so a shortfall against the
     requirement at any boundary stays locked in even if absorption later
-    catches up. Each deficit increment is priced at ``deficit_price`` for
-    the boundary where it locks in (a scalar applies uniformly), and any
-    absorption beyond the final requirement is priced at ``overage_price``.
+    catches up. Each boundary's deficit increment is limited to the
+    requirement newly falling due there and priced at that boundary's
+    ``deficit_price`` (a scalar applies uniformly), so a shortfall is never
+    booked at a boundary before it is due. Absorption beyond the final
+    requirement is priced at ``overage_price``.
+
+    Both slacks are bounded above by what could physically fall short or
+    overshoot, so the optimization stays bounded whatever the prices.
     """
 
     # Parameters
@@ -194,6 +200,21 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         return list(self.deficit[1:] >= self.deficit[:-1])
 
     @constraint
+    def deferrable_load_deficit_due(self) -> list[highs_linear_expression]:
+        """Constraint: each deficit increment is at most the requirement falling due.
+
+        The due profile is the requirement not already covered by the
+        initial energy, made non-decreasing. Its increments sum to at least
+        the worst possible shortfall at every boundary, so the requirement
+        constraint always stays feasible, while a shortfall can only be
+        booked (and priced) at a boundary where requirement actually falls
+        due.
+        """
+        due = np.maximum.accumulate(np.maximum(self.required[1:] - self.initial_energy, 0.0))
+        due_increments = np.diff(due, prepend=0.0)
+        return list(self.deficit[1:] - self.deficit[:-1] <= due_increments)
+
+    @constraint
     def deferrable_load_overage(self) -> highs_linear_expression:
         """Constraint: overage covers absorption beyond the final requirement.
 
@@ -201,8 +222,17 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         overshoot reported by live telemetry is a fact, not a decision to
         price.
         """
-        baseline = np.maximum(self.required[-1], self.initial_energy)
-        return self.overage[0] >= self.energy[-1] - baseline
+        return self.overage[0] >= self.energy[-1] - self._overage_baseline()
+
+    @constraint
+    def deferrable_load_overage_limit(self) -> highs_linear_expression:
+        """Constraint: overage never exceeds the room absorbable past the requirement."""
+        final_capacity = max(float(self.capacity[-1]), self.initial_energy)
+        return self.overage[0] <= max(final_capacity - self._overage_baseline(), 0.0)
+
+    def _overage_baseline(self) -> float:
+        """Return the absorbed energy beyond which absorption is overage."""
+        return max(float(self.required[-1]), self.initial_energy)
 
     def element_power_produced(self) -> HighspyArray | None:
         """Deferrable loads never produce power."""
@@ -214,7 +244,7 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
 
     @cost
     def deferrable_load_deficit_cost(self) -> highs_linear_expression:
-        """Cost: each locked-in deficit increment priced at its boundary.
+        """Cost: each deficit increment priced at the boundary where it falls due.
 
         With a scalar price this telescopes to price times the final deficit.
         """

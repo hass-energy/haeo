@@ -13,6 +13,8 @@ class DeviceClass(StrEnum):
     ENERGY = "energy"
     ENERGY_STORAGE = "energy_storage"
     MONETARY = "monetary"
+    DISTANCE = "distance"
+    ENERGY_DISTANCE = "energy_distance"
 
     @classmethod
     def of(cls, value: object) -> "DeviceClass | None":
@@ -36,8 +38,18 @@ class UnitOfMeasurement(StrEnum):
     GIGA_WATT_HOUR = "GWh"
     DOLLAR_PER_KWH = "$/kWh"
     PERCENT = "%"
+    MILLIMETER = "mm"
+    CENTIMETER = "cm"
+    METER = "m"
     KILOMETER = "km"
+    INCH = "in"
+    FOOT = "ft"
+    YARD = "yd"
+    MILE = "mi"
+    NAUTICAL_MILE = "nmi"
+    WATT_HOUR_PER_KILOMETER = "Wh/km"
     KILO_WATT_HOUR_PER_KILOMETER = "kWh/km"
+    KILO_WATT_HOUR_PER_100_KILOMETER = "kWh/100km"
 
     @classmethod
     def of(cls, value: object) -> "UnitOfMeasurement | None":
@@ -52,6 +64,8 @@ BASE_UNITS: Final[dict[DeviceClass, UnitOfMeasurement]] = {
     DeviceClass.POWER: UnitOfMeasurement.KILO_WATT,
     DeviceClass.ENERGY: UnitOfMeasurement.KILO_WATT_HOUR,
     DeviceClass.ENERGY_STORAGE: UnitOfMeasurement.KILO_WATT_HOUR,
+    DeviceClass.DISTANCE: UnitOfMeasurement.KILOMETER,
+    DeviceClass.ENERGY_DISTANCE: UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER,
 }
 
 _POWER_TO_KW: Final[dict[UnitOfMeasurement, float]] = {
@@ -67,6 +81,28 @@ _ENERGY_TO_KWH: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.MEGA_WATT_HOUR: 1000.0,
     UnitOfMeasurement.GIGA_WATT_HOUR: 1_000_000.0,
 }
+
+_LENGTH_TO_KM: Final[dict[UnitOfMeasurement, float]] = {
+    UnitOfMeasurement.MILLIMETER: 0.000001,
+    UnitOfMeasurement.CENTIMETER: 0.00001,
+    UnitOfMeasurement.METER: 0.001,
+    UnitOfMeasurement.KILOMETER: 1.0,
+    UnitOfMeasurement.INCH: 0.0000254,
+    UnitOfMeasurement.FOOT: 0.0003048,
+    UnitOfMeasurement.YARD: 0.0009144,
+    UnitOfMeasurement.MILE: 1.609344,
+    UnitOfMeasurement.NAUTICAL_MILE: 1.852,
+}
+
+# Consumption units only: distance-per-energy units (km/kWh, mi/kWh) are
+# reciprocal and have no finite conversion for a zero reading.
+_ENERGY_DISTANCE_TO_KWH_PER_KM: Final[dict[UnitOfMeasurement, float]] = {
+    UnitOfMeasurement.WATT_HOUR_PER_KILOMETER: 0.001,
+    UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER: 1.0,
+    UnitOfMeasurement.KILO_WATT_HOUR_PER_100_KILOMETER: 0.01,
+}
+
+ENERGY_DISTANCE_UNITS: Final[tuple[UnitOfMeasurement, ...]] = tuple(_ENERGY_DISTANCE_TO_KWH_PER_KM)
 
 ENERGY_UNITS: Final[tuple[UnitOfMeasurement, ...]] = (
     UnitOfMeasurement.WATT_HOUR,
@@ -97,6 +133,12 @@ def _infer_device_class_from_unit(unit: UnitOfMeasurement | None) -> DeviceClass
     }:
         return DeviceClass.ENERGY
 
+    if unit in _LENGTH_TO_KM:
+        return DeviceClass.DISTANCE
+
+    if unit in _ENERGY_DISTANCE_TO_KWH_PER_KM:
+        return DeviceClass.ENERGY_DISTANCE
+
     return None
 
 
@@ -125,6 +167,14 @@ def _convert_value(
 
     if effective_device_class in {DeviceClass.ENERGY, DeviceClass.ENERGY_STORAGE}:
         factor = _ENERGY_TO_KWH.get(from_unit)
+        return value * factor if factor is not None else value
+
+    if effective_device_class == DeviceClass.DISTANCE:
+        factor = _LENGTH_TO_KM.get(from_unit)
+        return value * factor if factor is not None else value
+
+    if effective_device_class == DeviceClass.ENERGY_DISTANCE:
+        factor = _ENERGY_DISTANCE_TO_KWH_PER_KM.get(from_unit)
         return value * factor if factor is not None else value
 
     return value

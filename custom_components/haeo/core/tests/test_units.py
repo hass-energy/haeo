@@ -17,6 +17,8 @@ from custom_components.haeo.core.units import (
         (DeviceClass.POWER, "kW"),
         (DeviceClass.ENERGY, "kWh"),
         (DeviceClass.ENERGY_STORAGE, "kWh"),
+        (DeviceClass.DISTANCE, "km"),
+        (DeviceClass.ENERGY_DISTANCE, "kWh/km"),
         (None, None),
     ],
 )
@@ -39,6 +41,15 @@ def test_base_unit_for_device_class(device_class: DeviceClass | None, expected: 
         (5.0, UnitOfMeasurement.KILO_WATT_HOUR, DeviceClass.ENERGY, 5.0),
         # Energy storage uses same base unit as energy
         (1000.0, UnitOfMeasurement.WATT_HOUR, DeviceClass.ENERGY_STORAGE, 1.0),
+        # Distance conversions
+        (5.0, UnitOfMeasurement.MILE, DeviceClass.DISTANCE, 8.04672),
+        (1500.0, UnitOfMeasurement.METER, DeviceClass.DISTANCE, 1.5),
+        (12.0, UnitOfMeasurement.KILOMETER, DeviceClass.DISTANCE, 12.0),
+        (10.0, UnitOfMeasurement.MILE, None, 16.09344),
+        # Energy per distance conversions
+        (18.0, UnitOfMeasurement.KILO_WATT_HOUR_PER_100_KILOMETER, DeviceClass.ENERGY_DISTANCE, 0.18),
+        (180.0, UnitOfMeasurement.WATT_HOUR_PER_KILOMETER, None, 0.18),
+        (0.2, UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER, DeviceClass.ENERGY_DISTANCE, 0.2),
         # No conversion when already in base unit
         (5.0, UnitOfMeasurement.KILO_WATT, DeviceClass.POWER, 5.0),
         # Fallback conversion when device_class is missing but unit is informative
@@ -90,6 +101,18 @@ def test_convert_value(
             UnitOfMeasurement.PERCENT,
             None,
             (50.0, UnitOfMeasurement.PERCENT, None),
+        ),
+        (
+            5.0,
+            "mi",
+            "distance",
+            (8.04672, UnitOfMeasurement.KILOMETER, DeviceClass.DISTANCE),
+        ),
+        (
+            18.0,
+            "kWh/100km",
+            "energy_distance",
+            (0.18, UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER, DeviceClass.ENERGY_DISTANCE),
         ),
         (
             12.0,

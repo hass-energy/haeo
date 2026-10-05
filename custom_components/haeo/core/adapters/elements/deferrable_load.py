@@ -22,6 +22,7 @@ from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.deferrable_load import (
     CONF_DEFICIT_PRICE,
+    CONF_ENERGY_DELIVERED,
     CONF_MAX_POWER,
     CONF_OVERAGE_PRICE,
     CONF_WINDOW_CALENDAR,
@@ -79,6 +80,10 @@ class DeferrableLoadAdapter:
         energy (kWh) that window must absorb. Capacity opens at each window's
         start, the requirement is due by its end, and any locked-in shortfall
         is priced at the deficit price instead of being a hard constraint.
+
+        Energy the delivered sensor reports for a window already open at the
+        horizon start becomes the load's initial energy, so each
+        re-optimization only plans the remainder of that window.
         """
         name = config["name"]
         schedule = config[SECTION_SCHEDULE]
@@ -89,6 +94,13 @@ class DeferrableLoadAdapter:
         capacity = np.cumsum(calendar["value_edge_start"])
         required = np.cumsum(calendar["value_edge_end"])
 
+        # Windows open at the horizon start have all opened their capacity by
+        # the first boundary, so that capacity bounds what can already have
+        # been delivered. Clamping keeps a stale or unreset sensor from
+        # crediting energy to later windows or to no window at all.
+        delivered = schedule.get(CONF_ENERGY_DELIVERED, 0.0)
+        initial_energy = min(max(delivered, 0.0), float(capacity[0]))
+
         # Power may only flow while a window is open.
         window_mask = np.asarray(calendar["presence"][:-1], dtype=np.float64)
         max_power = power.get(CONF_MAX_POWER)
@@ -96,16 +108,20 @@ class DeferrableLoadAdapter:
             max_power = _UNLIMITED_POWER
         gated_power = max_power * window_mask
 
-        deficit_price = pricing[CONF_DEFICIT_PRICE]
+        # Penalty prices are clamped at zero: a negative price on an unbounded
+        # shortfall or overage would make the optimization unbounded, and an
+        # entity can report one even though the form cannot.
+        deficit_price = np.maximum(pricing[CONF_DEFICIT_PRICE], 0.0)
         # Overage is a single end-of-horizon charge, so a series collapses
         # to its first value.
-        overage_price = float(np.atleast_1d(pricing.get(CONF_OVERAGE_PRICE, 0.0))[0])
+        overage_price = max(float(np.atleast_1d(pricing.get(CONF_OVERAGE_PRICE, 0.0))[0]), 0.0)
 
         load: DeferrableLoadElementConfig = {
             "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
             "name": name,
             "capacity": capacity,
             "required": required,
+            "initial_energy": initial_energy,
             "deficit_price": _to_boundaries(deficit_price, len(capacity)),
             "overage_price": overage_price,
         }
