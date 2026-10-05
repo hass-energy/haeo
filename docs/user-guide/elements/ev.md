@@ -97,7 +97,7 @@ A trip done early counts the car as home until the event's scheduled end, and th
 Readings of `unavailable` or `unknown`, such as during a Home Assistant restart, never count as unplugged.
 
 This history comes from the [recorder](https://www.home-assistant.io/integrations/recorder/), which Home Assistant enables by default, and covers the last seven days.
-If the recorder is disabled or excludes the connected sensor, a car plugged in during a trip event is always treated as not yet departed.
+If the recorder is disabled or excludes the plugged in sensor, a car plugged in during a trip event is always treated as not yet departed.
 
 This field takes a sensor or nothing; there is no constant option.
 Without a plugged in sensor the trip calendar governs the current interval too: the car counts as away whenever a trip event overlaps the current interval and as plugged in otherwise.

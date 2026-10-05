@@ -55,6 +55,8 @@ In addition to the base system, you will need:
 - **EV battery SOC sensor**: A sensor reporting the EV's current state of charge
 - **Plugged-in sensor** (optional): A binary sensor reporting when the EV is connected to your charger.
     Without one, the trip calendar alone decides when the car is home.
+    With one, a car still plugged in after a trip's start has not left yet, so HAEO fits the trip into the rest of the event;
+    the trip only counts as done early once the sensor has shown the car unplugged since the event started (see [Plugged in](../user-guide/elements/ev.md#plugged-in)).
 
 !!! tip "Where do these sensors come from?"
 
