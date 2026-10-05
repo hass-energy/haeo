@@ -214,15 +214,26 @@ class Battery(NetworkElement[BatteryOutputName]):
     def battery_reserve_floor(self) -> list[highs_linear_expression] | None:
         """Constraint: shortfall covers the drop below reserve at masked boundaries.
 
-        At boundaries where the mask is zero, the shortfall is only bounded
-        below by zero; its value is meaningful at masked boundaries.
-
         Output: shadow price indicating the marginal cost of the reserve.
         """
         if self.reserve_shortfall is None:
             return None
         mask = self.reserve_mask[1:]
         return list(self.reserve_shortfall[1:] >= mask * self.reserve_level[1:] - mask * self.stored_energy[1:])
+
+    @constraint
+    def battery_reserve_shortfall_limit(self) -> list[highs_linear_expression] | None:
+        """Constraint: shortfall never exceeds the masked reserve level.
+
+        Stored energy is never negative, so the drop below reserve is at
+        most the reserve level itself. The limit also pins the shortfall to
+        zero at unmasked boundaries, keeping the cost bounded whatever the
+        reserve price.
+        """
+        if self.reserve_shortfall is None:
+            return None
+        limit = np.maximum(self.reserve_mask[1:] * self.reserve_level[1:], 0.0)
+        return list(self.reserve_shortfall[1:] <= limit)
 
     @cost
     def battery_salvage_value(self) -> highs_linear_expression:

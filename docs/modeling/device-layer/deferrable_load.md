@@ -34,6 +34,12 @@ For each window $i$ with start $s_i$, end $e_i$, and required energy $E_i$ (from
 
 The connection's power limit is masked by window presence, so power can only flow while a window is open, and is capped by the configured max power.
 
+### Energy already delivered
+
+Each optimization starts a fresh horizon, so a window that is already open at the horizon start would otherwise demand its full energy again.
+When a delivered energy sensor is configured, its reading $E_0$ becomes the load's initial absorbed energy $E(0)$, clamped to $0 \le E_0 \le C(0)$.
+The clamp means the reading can only count toward windows open at the horizon start: a sensor that has not reset yet cannot credit a later window, and no window open means no credit at all.
+
 ### Priced shortfall
 
 The requirement is not a hard constraint.
@@ -59,8 +65,9 @@ The deferrable load element creates a single Home Assistant device:
 | User configuration | Model element(s)               | Model parameter       | Notes                             |
 | ------------------ | ------------------------------ | --------------------- | --------------------------------- |
 | `window_calendar`  | Deferrable load `{name}`       | `capacity`/`required` | Cumulative window energy profiles |
-| `deficit_price`    | Deferrable load `{name}`       | `deficit_price`       | Defaults to \$10/kWh in the flow  |
-| `overage_price`    | Deferrable load `{name}`       | `overage_price`       | Optional                          |
+| `energy_delivered` | Deferrable load `{name}`       | `initial_energy`      | Clamped to the open window energy |
+| `deficit_price`    | Deferrable load `{name}`       | `deficit_price`       | Defaults to \$10/kWh, clamped ≥ 0 |
+| `overage_price`    | Deferrable load `{name}`       | `overage_price`       | Optional, clamped ≥ 0             |
 | `max_power`        | Connection `{name}:connection` | Power limit segment   | Masked by window presence         |
 
 ## Output mapping

@@ -59,12 +59,14 @@ async def async_setup_entry(
         list_input_fields = get_list_input_fields(element_config)
         all_fields = {**input_fields, **list_input_fields}
 
-        # Filter to only switch fields (by entity description class name)
-        # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
+        # Filter to only switch fields (by entity description class name).
+        # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper.
+        # Calendar-driven fields resolve to boundary arrays from calendar
+        # events, so they get no input entity.
         switch_fields = [
             (field_path, field_info)
             for field_path, field_info in iter_input_field_paths(all_fields)
-            if type(field_info.entity_description).__name__ == "SwitchEntityDescription"
+            if type(field_info.entity_description).__name__ == "SwitchEntityDescription" and field_info.calendar is None
         ]
 
         if not switch_fields:

@@ -164,7 +164,7 @@ class EvAdapter:
         connected_flag = _combine_connected(calendar, connected_live)
         away_flag = _invert_flag(connected_flag)
 
-        trip_initial = _trip_progress_energy(trip, energy_per_distance, connected_flag)
+        trip_initial = _trip_progress_energy(trip, calendar, energy_per_distance, connected_flag)
 
         # Home charging limits zeroed while away via connected_flag
         home_max_charge = _apply_connected_mask(max_charge, connected_flag)
@@ -237,7 +237,7 @@ class EvAdapter:
                 "capacity": trip_capacity,
                 "required": trip_required,
                 "initial_energy": trip_initial,
-                "deficit_price": _public_price(config),
+                "deficit_price": _to_boundaries(_public_price(config), len(capacity)),
             },
             # 5. Trip connection: EV → trip load. Driving power is not
             # limited by the charger, only by being away.
@@ -373,18 +373,20 @@ def _combine_connected(
 
 def _trip_progress_energy(
     trip: Mapping[str, Any],
+    calendar: CalendarBoundaryData | None,
     energy_per_distance: float,
     connected_flag: NDArray[np.floating[Any]] | float | None,
 ) -> float:
-    """Energy already consumed on the current trip, from odometer readings.
+    """Energy already consumed on the open trip, from odometer readings.
 
-    Only applies while the EV is away: the distance driven since disconnect
-    counts toward the current trip's requirement so the optimizer does not
-    double-charge for distance already covered. The value is deliberately not
-    clamped to the trip requirement — a car that drove further than planned
-    reports more, and the deferrable load tolerates the overshoot.
+    Only applies while the EV is away during a trip window that overlaps the
+    current interval: the distance driven since disconnect counts toward that
+    trip's requirement so the optimizer does not charge again for distance
+    already covered. The credit is capped at the open trip's distance, so
+    driving further than planned — or driving outside any trip window — never
+    counts toward trips that have not started yet.
     """
-    if connected_flag is None:
+    if calendar is None or connected_flag is None:
         return 0.0
     if float(np.atleast_1d(connected_flag)[0]) >= _CONNECTED_THRESHOLD:
         return 0.0
@@ -394,7 +396,9 @@ def _trip_progress_energy(
     if odometer is None or odometer_at_disconnect is None:
         return 0.0
 
-    return max(0.0, float(odometer) - float(odometer_at_disconnect)) * energy_per_distance
+    open_trip_distance = float(calendar["value_span"][0])
+    driven = max(0.0, float(odometer) - float(odometer_at_disconnect))
+    return min(driven, open_trip_distance) * energy_per_distance
 
 
 @dataclass(frozen=True)

@@ -36,10 +36,15 @@ def _boundary_data(
     value_edge_start: list[float],
     value_edge_end: list[float],
 ) -> CalendarBoundaryData:
-    """Build calendar boundary data with a derived value_span."""
+    """Build calendar boundary data with a derived value_span.
+
+    A window's value spans the boundaries from its start edge up to, but not
+    including, its end edge, matching the calendar fuser.
+    """
+    span = np.cumsum(value_edge_start) - np.cumsum(value_edge_end)
     return CalendarBoundaryData(
         presence=np.array(presence, dtype=np.float64),
-        value_span=np.array(presence, dtype=np.float64),
+        value_span=np.asarray(span, dtype=np.float64),
         value_edge_start=np.array(value_edge_start, dtype=np.float64),
         value_edge_end=np.array(value_edge_end, dtype=np.float64),
     )
@@ -120,6 +125,13 @@ def test_configured_public_price_is_used() -> None:
     assert elements["ev:trip"]["deficit_price"] == pytest.approx(0.6)
 
 
+def test_interval_public_price_extends_to_boundaries() -> None:
+    """A per-interval public price is extended to the trip load's boundaries."""
+    elements = _elements_by_name(_ev_config(public_charging={"public_charging_price": np.array([0.4, 0.5, 0.6, 0.7])}))
+
+    np.testing.assert_allclose(elements["ev:trip"]["deficit_price"], [0.4, 0.5, 0.6, 0.7, 0.7])
+
+
 def test_calendar_drives_trip_arrays_and_masks() -> None:
     """Calendar presence and edges become trip capacity, requirement, and masks."""
     config = _ev_config(
@@ -162,6 +174,23 @@ def test_live_connected_sensor_pins_first_interval() -> None:
     np.testing.assert_allclose(home_charge_limit, [0.0, 10.0, 0.0, 10.0])
 
 
+def test_calendar_governs_current_interval_without_plugged_in_sensor() -> None:
+    """With only a calendar, a trip window open now keeps the car away now."""
+    config = _ev_config(
+        trip={
+            "trip_calendar": _boundary_data(
+                presence=[1.0, 1.0, 0.0, 0.0, 0.0],
+                value_edge_start=[30.0, 0.0, 0.0, 0.0, 0.0],
+                value_edge_end=[0.0, 0.0, 30.0, 0.0, 0.0],
+            ),
+        },
+    )
+    elements = _elements_by_name(config)
+
+    home_charge_limit = elements["ev:charge"]["segments"]["power_limit"]["max_power"]
+    np.testing.assert_allclose(home_charge_limit, [0.0, 0.0, 10.0, 10.0])
+
+
 def test_odometer_progress_reduces_trip_requirement() -> None:
     """While away, distance already driven becomes trip battery initial charge."""
     config = _ev_config(
@@ -180,6 +209,45 @@ def test_odometer_progress_reduces_trip_requirement() -> None:
 
     # 10 km driven * 0.2 kWh/km = 2 kWh already consumed
     assert elements["ev:trip"]["initial_energy"] == pytest.approx(2.0)
+
+
+def test_odometer_progress_not_credited_outside_trip_window() -> None:
+    """Distance from a finished trip does not cover a future trip while unplugged."""
+    config = _ev_config(
+        trip={
+            "trip_calendar": _boundary_data(
+                presence=[0.0, 0.0, 1.0, 0.0, 0.0],
+                value_edge_start=[0.0, 0.0, 50.0, 0.0, 0.0],
+                value_edge_end=[0.0, 0.0, 0.0, 50.0, 0.0],
+            ),
+            "connected": 0.0,
+            "odometer": 10_300.0,
+            "odometer_at_disconnect": 10_000.0,
+        },
+    )
+    elements = _elements_by_name(config)
+
+    assert elements["ev:trip"]["initial_energy"] == 0.0
+
+
+def test_odometer_progress_credits_only_the_open_trip_window() -> None:
+    """Distance driven beyond the open trip does not spill into later trips."""
+    config = _ev_config(
+        trip={
+            "trip_calendar": _boundary_data(
+                presence=[1.0, 0.0, 0.0, 1.0, 0.0],
+                value_edge_start=[30.0, 0.0, 0.0, 50.0, 0.0],
+                value_edge_end=[0.0, 30.0, 0.0, 0.0, 50.0],
+            ),
+            "connected": 0.0,
+            "odometer": 10_100.0,
+            "odometer_at_disconnect": 10_000.0,
+        },
+    )
+    elements = _elements_by_name(config)
+
+    # Capped at the open 30 km trip: 30 km * 0.2 kWh/km
+    assert elements["ev:trip"]["initial_energy"] == pytest.approx(6.0)
 
 
 def test_odometer_progress_ignored_while_connected() -> None:
@@ -336,7 +404,7 @@ def test_odometer_overshoot_beyond_trip_stays_feasible() -> None:
         },
     )
     elements = _elements_by_name(config)
-    assert elements["ev:trip"]["initial_energy"] == pytest.approx(20.0)  # unclamped
+    assert elements["ev:trip"]["initial_energy"] == pytest.approx(6.0)  # capped at the 30 km trip
 
     network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
 

@@ -114,6 +114,24 @@ async def test_scalar_loader_loads_and_converts_units() -> None:
     assert result == pytest.approx(2.0)
 
 
+async def test_scalar_loader_converts_odometer_miles_to_kilometers() -> None:
+    """Distance sensors reporting miles load in kilometers."""
+    loader = ScalarLoader()
+    sm = FakeStateMachine(
+        {
+            "sensor.odometer": FakeEntityState(
+                entity_id="sensor.odometer",
+                state="100",
+                attributes={"device_class": "distance", "unit_of_measurement": "mi"},
+            ),
+        }
+    )
+
+    result = await loader.load(sm=sm, value=as_entity_value(["sensor.odometer"]))
+
+    assert result == pytest.approx(160.9344)
+
+
 async def test_scalar_loader_handles_invalid_device_class() -> None:
     """Scalar loader accepts numeric values with unknown device classes."""
     loader = ScalarLoader()

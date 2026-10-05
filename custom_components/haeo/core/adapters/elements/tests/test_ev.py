@@ -32,7 +32,6 @@ def _ev_schema(soc_entity: str, *, with_trip: bool = False) -> ev.EvConfigSchema
     if with_trip:
         config[ev.SECTION_TRIP] = {
             ev.CONF_TRIP_CALENDAR: as_calendar_value("calendar.ev_trips"),
-            ev.CONF_CONNECTED: as_constant_value(1.0),
         }
     return config  # type: ignore[return-value]  # constructed to match EvConfigSchema
 
