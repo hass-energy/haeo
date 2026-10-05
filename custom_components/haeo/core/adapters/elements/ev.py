@@ -32,6 +32,7 @@ from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.ev import (
     CONF_CAPACITY,
     CONF_CONNECTED,
+    CONF_CONNECTED_LAST_OFF,
     CONF_CURRENT_SOC,
     CONF_ENERGY_PER_DISTANCE,
     CONF_MAX_CHARGE_RATE,
@@ -135,9 +136,13 @@ class EvAdapter:
         feasible when home charging cannot cover the trip in time.
 
         When the plugged-in sensor reports the car at home while the calendar
-        says a trip is open, that trip is treated as over: its remaining
-        energy is dropped and the car counts as home until the trip's
-        scheduled end.
+        says a trip is open, the car has not left yet: it is home for the
+        current interval and the trip still happens in the rest of its
+        window. Only when the sensor last read unplugged during the open trip
+        (and, with odometer readings, the car drove since disconnecting) did
+        the car leave and come back early; that trip is then over, its
+        remaining energy dropped and the car home until the trip's scheduled
+        end.
         """
         name = config["name"]
         vehicle = config[SECTION_VEHICLE]
@@ -161,9 +166,9 @@ class EvAdapter:
         connected_live = trip.get(CONF_CONNECTED)
 
         # Trip windows from the calendar (distances in km), with a trip the
-        # live sensor says has already ended removed.
+        # car already came back from removed.
         trip_windows = None if calendar is None else calendar_windows(calendar, scale=energy_per_distance)
-        ended_periods = _ended_trip_periods(trip_windows, connected_live)
+        ended_periods = _ended_trip_periods(trip_windows, calendar, trip)
         if trip_windows is not None and ended_periods > 0:
             trip_windows = _drop_open_trip(trip_windows, ended_periods)
 
@@ -385,18 +390,49 @@ def _is_plugged_in(connected_live: NDArray[np.floating[Any]] | float | None) -> 
     return connected_live is not None and float(np.atleast_1d(connected_live)[0]) >= _CONNECTED_THRESHOLD
 
 
+def _returned_early(
+    windows: CalendarWindows | None,
+    calendar: CalendarBoundaryData | None,
+    trip: Mapping[str, Any],
+) -> bool:
+    """Return True when the car left during the open trip and is back already.
+
+    A car plugged in while a trip is open has either not left yet or come
+    back early. It came back early only when the plugged-in sensor last read
+    unplugged at or after the open trip's start, and, when odometer readings
+    are configured, the car drove since it disconnected; a brief unplug
+    without driving does not end the trip. Without that history the car has
+    not left yet.
+    """
+    if windows is None or calendar is None or windows.in_window[0] <= 0.0:
+        return False
+    if not _is_plugged_in(trip.get(CONF_CONNECTED)):
+        return False
+
+    open_since = calendar["open_since"]
+    last_off = trip.get(CONF_CONNECTED_LAST_OFF)
+    if open_since is None or last_off is None or last_off < open_since:
+        return False
+
+    odometer = trip.get(CONF_ODOMETER)
+    odometer_at_disconnect = trip.get(CONF_ODOMETER_AT_DISCONNECT)
+    if odometer is None or odometer_at_disconnect is None:
+        return True
+    driven = float(odometer) - float(odometer_at_disconnect)
+    return bool(np.isfinite(driven)) and driven > 0.0
+
+
 def _ended_trip_periods(
     windows: CalendarWindows | None,
-    connected_live: NDArray[np.floating[Any]] | float | None,
+    calendar: CalendarBoundaryData | None,
+    trip: Mapping[str, Any],
 ) -> int:
-    """Return the periods of an open trip the live sensor says has already ended.
+    """Return the periods of an open trip the car already came back from.
 
-    A car plugged in now while the calendar says a trip is open came home
-    early (or never left), so the rest of that trip will not happen. Returns
-    the number of periods up to the open trip's scheduled end, or 0 when no
-    trip is open or the car is away.
+    Returns the number of periods up to the open trip's scheduled end when
+    the car returned early, or 0 otherwise.
     """
-    if windows is None or windows.in_window[0] <= 0.0 or not _is_plugged_in(connected_live):
+    if windows is None or not _returned_early(windows, calendar, trip):
         return 0
     n_periods = len(windows.in_window)
     for t in range(1, n_periods):
@@ -422,8 +458,8 @@ def _combine_connected(
     """Combine calendar presence and the live connected sensor.
 
     The calendar is authoritative for the future (away during trip windows);
-    the live sensor pins the present interval, and a trip it shows has ended
-    counts as home until its scheduled end. Without a calendar the live
+    the live sensor pins the present interval, and a trip the car already
+    came back from counts as home until its scheduled end. Without a calendar the live
     sensor value applies across the whole horizon. Returns per-interval
     values, a scalar, or None when neither source is configured.
     """
@@ -496,7 +532,7 @@ def _reserve_config(
     hit during that window, so one priced check per window prices the
     window minimum (demand-level pricing). The price defaults to the public
     charging price: the cost of restoring the buffer away from home. Trip
-    ends within a trip the live sensor shows has ended are not checked.
+    ends within a trip the car already came back from are not checked.
     """
     trip = config.get(SECTION_TRIP, {})
     reserve_soc = trip.get(CONF_RESERVE_SOC)

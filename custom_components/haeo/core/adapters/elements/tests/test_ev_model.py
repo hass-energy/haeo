@@ -35,6 +35,7 @@ def _boundary_data(
     presence: list[float],
     value_edge_start: list[float],
     value_edge_end: list[float],
+    open_since: float | None = None,
 ) -> CalendarBoundaryData:
     """Build calendar boundary data with a derived value_span.
 
@@ -47,6 +48,7 @@ def _boundary_data(
         value_span=np.asarray(span, dtype=np.float64),
         value_edge_start=np.array(value_edge_start, dtype=np.float64),
         value_edge_end=np.array(value_edge_end, dtype=np.float64),
+        open_since=open_since,
     )
 
 
@@ -466,6 +468,10 @@ def test_odometer_overshoot_beyond_trip_stays_feasible() -> None:
     assert network.elements["ev:trip_connection"].outputs()["connection_power"].values[0] == pytest.approx(0.0)
 
 
+# The open trip in _open_trip_config began an hour before the horizon start.
+_OPEN_TRIP_START = -3600.0
+
+
 def _open_trip_config(**trip: Any) -> EvConfigData:
     """Build a config with a 30 km (6 kWh) trip open from before the horizon to boundary 2."""
     return _ev_config(
@@ -474,6 +480,7 @@ def _open_trip_config(**trip: Any) -> EvConfigData:
                 presence=[1.0, 1.0, 0.0, 0.0, 0.0],
                 value_edge_start=[30.0, 0.0, 0.0, 0.0, 0.0],
                 value_edge_end=[0.0, 0.0, 30.0, 0.0, 0.0],
+                open_since=_OPEN_TRIP_START,
             ),
             **trip,
         },
@@ -511,20 +518,58 @@ def test_odometer_garbage_credits_nothing(odometer: float | None, odometer_at_di
     assert _elements_by_name(config)["ev:trip"]["initial_energy"] == 0.0
 
 
-def test_plugged_in_during_open_trip_ends_the_trip() -> None:
-    """A car plugged in while the calendar says a trip is open is home: no trip energy or public charging."""
-    config = _open_trip_config(
-        connected=1.0,
-        reserve_soc=0.2,
-        odometer=10_010.0,
-        odometer_at_disconnect=10_000.0,
-    )
+@pytest.mark.parametrize(
+    "trip",
+    [
+        pytest.param({}, id="no_unplug_history"),
+        pytest.param({"connected_last_off": _OPEN_TRIP_START - 600.0}, id="unplugged_before_trip_start"),
+        pytest.param(
+            {"connected_last_off": 0.0, "odometer": 10_000.0, "odometer_at_disconnect": 10_000.0},
+            id="brief_unplug_without_driving",
+        ),
+    ],
+)
+def test_plugged_in_during_open_trip_has_not_left_yet(trip: dict[str, Any]) -> None:
+    """A car plugged in during an open trip without having left still makes the trip."""
+    config = _open_trip_config(connected=1.0, reserve_soc=0.1, **trip)
     elements = _elements_by_name(config)
 
-    trip = elements["ev:trip"]
-    np.testing.assert_allclose(trip["in_window"], [0.0, 0.0, 0.0, 0.0])
-    np.testing.assert_allclose(trip["requirement"], [0.0] * 5)
-    assert trip["initial_energy"] == 0.0
+    # Home now; the trip squeezes into the rest of its window, still due at its end.
+    trip_load = elements["ev:trip"]
+    np.testing.assert_allclose(trip_load["in_window"], [1.0, 1.0, 0.0, 0.0])
+    np.testing.assert_allclose(trip_load["requirement"], [0.0, 0.0, 6.0, 0.0, 0.0])
+    assert trip_load["initial_energy"] == 0.0
+    np.testing.assert_allclose(elements["ev:charge"]["segments"]["power_limit"]["max_power"], [10.0, 0.0, 10.0, 10.0])
+    np.testing.assert_allclose(elements["ev"]["reserve_mask"], [0.0, 0.0, 1.0, 0.0, 0.0])
+
+    network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
+
+    trip_outputs = network.elements["ev:trip"].outputs()
+    assert trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[2] == pytest.approx(6.0)
+    np.testing.assert_allclose(trip_outputs[DEFERRABLE_LOAD_ENERGY_SHORTFALL].values, [0.0] * 5, atol=1e-9)
+    assert network.elements["ev:trip_connection"].outputs()["connection_power"].values[0] == pytest.approx(0.0)
+
+
+@pytest.mark.parametrize(
+    "trip",
+    [
+        pytest.param({"connected_last_off": 0.0}, id="unplugged_during_trip"),
+        pytest.param({"connected_last_off": _OPEN_TRIP_START}, id="unplugged_at_trip_start"),
+        pytest.param(
+            {"connected_last_off": 0.0, "odometer": 10_010.0, "odometer_at_disconnect": 10_000.0},
+            id="unplugged_and_drove",
+        ),
+    ],
+)
+def test_plugged_in_after_leaving_during_open_trip_ends_the_trip(trip: dict[str, Any]) -> None:
+    """A car back home after leaving during an open trip is done with it: no trip energy or public charging."""
+    config = _open_trip_config(connected=1.0, reserve_soc=0.2, **trip)
+    elements = _elements_by_name(config)
+
+    trip_load = elements["ev:trip"]
+    np.testing.assert_allclose(trip_load["in_window"], [0.0, 0.0, 0.0, 0.0])
+    np.testing.assert_allclose(trip_load["requirement"], [0.0] * 5)
+    assert trip_load["initial_energy"] == 0.0
     # Home for the rest of the scheduled trip, and its end is not reserve checked.
     np.testing.assert_allclose(elements["ev:charge"]["segments"]["power_limit"]["max_power"], [10.0] * 4)
     np.testing.assert_allclose(elements["ev"]["reserve_mask"], [0.0] * 5)
@@ -536,7 +581,16 @@ def test_plugged_in_during_open_trip_ends_the_trip() -> None:
     np.testing.assert_allclose(trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values, [0.0] * 5)
 
 
-def test_plugged_in_keeps_later_trips() -> None:
+def test_unplug_history_ignored_while_unplugged() -> None:
+    """An unplugged car during an open trip is away whatever its unplug history says."""
+    config = _open_trip_config(connected=0.0, connected_last_off=0.0)
+    elements = _elements_by_name(config)
+
+    np.testing.assert_allclose(elements["ev:trip"]["requirement"], [0.0, 0.0, 6.0, 0.0, 0.0])
+    np.testing.assert_allclose(elements["ev:charge"]["segments"]["power_limit"]["max_power"], [0.0, 0.0, 10.0, 10.0])
+
+
+def test_returning_early_keeps_later_trips() -> None:
     """Ending the open trip leaves a touching later trip in place."""
     config = _ev_config(
         trip={
@@ -544,8 +598,10 @@ def test_plugged_in_keeps_later_trips() -> None:
                 presence=[1.0, 1.0, 1.0, 0.0, 0.0],
                 value_edge_start=[30.0, 20.0, 0.0, 0.0, 0.0],
                 value_edge_end=[0.0, 30.0, 0.0, 20.0, 0.0],
+                open_since=_OPEN_TRIP_START,
             ),
             "connected": 1.0,
+            "connected_last_off": 0.0,
         },
     )
     elements = _elements_by_name(config)

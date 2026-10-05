@@ -14,7 +14,7 @@ import asyncio
 from collections.abc import Callable, Mapping
 from datetime import UTC, date, datetime
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from homeassistant.components.calendar import CalendarEntity
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
@@ -25,7 +25,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.haeo.core.data.loader.calendar import CalendarEventData, capture_calendar_events
 from custom_components.haeo.core.state import EntityState, StateMachine
-from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
+from custom_components.haeo.ha_state_machine import AnnotatedState, HomeAssistantStateMachine
 
 if TYPE_CHECKING:
     from homeassistant.core import Event
@@ -39,36 +39,6 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 CALENDAR_EVENTS_ATTRIBUTE = "haeo_events"
-
-
-class _CalendarEventState:
-    """EntityState wrapper that injects fetched events into attributes."""
-
-    def __init__(self, base: EntityState, events: list[CalendarEventDict]) -> None:
-        self._base = base
-        self._events = events
-
-    @property
-    def entity_id(self) -> str:
-        """Entity identifier."""
-        return self._base.entity_id
-
-    @property
-    def state(self) -> str:
-        """Raw state string."""
-        return self._base.state
-
-    @property
-    def attributes(self) -> Mapping[str, Any]:
-        """Entity attributes with fetched events merged in."""
-        return {**self._base.attributes, CALENDAR_EVENTS_ATTRIBUTE: self._events}
-
-    def as_dict(self) -> dict[str, Any]:
-        """Return serialized state representation including the events."""
-        base = self._base.as_dict()
-        attributes = dict(base.get("attributes", {}))
-        attributes[CALENDAR_EVENTS_ATTRIBUTE] = self._events
-        return {**base, "attributes": attributes}
 
 
 class CalendarStateMachine(StateMachine):
@@ -91,7 +61,7 @@ class CalendarStateMachine(StateMachine):
         events = self._events_by_entity[entity_id]
         if events is None:
             return None
-        return _CalendarEventState(state, events)
+        return AnnotatedState(state, {CALENDAR_EVENTS_ATTRIBUTE: events})
 
 
 def _as_datetime(value: datetime | date) -> datetime:
