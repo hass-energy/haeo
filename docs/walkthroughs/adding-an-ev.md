@@ -8,7 +8,7 @@ It covers creating a trip calendar, scheduling a trip, and configuring the EV el
 After completing this walkthrough, your system will include:
 
 - **Base system**: Inverter, battery, solar, grid, and load (from the [Sigenergy System](sigenergy-system.md) guide)
-- **EV**: 60 kWh battery, 7.4 kW home charging, and a trip calendar that drives departure readiness
+- **EV**: 60 kWh battery starting at 10% charge, 7.4 kW home charging, and a trip calendar that drives departure readiness
 
 ```mermaid
 graph LR
@@ -34,7 +34,7 @@ This guide builds on that configuration and adds a trip calendar and an EV eleme
 run_guide("sigenergy-system")
 hass.set_state(
     "sensor.ev_battery_state_of_charge",
-    "40",
+    "10",
     {
         "unit_of_measurement": "%",
         "device_class": "battery",
@@ -125,6 +125,9 @@ add_ev(
     For example, 0.15 kWh/km means 15 kWh per 100 km.
     A consumption sensor in `Wh/km`, `kWh/km`, or `kWh/100km` also works and is converted automatically.
     Check your EV's trip computer for a realistic average.
+
+The 50 km commute at 0.15 kWh/km needs 7.5 kWh, more than the 6 kWh the EV holds at its starting 10% charge.
+HAEO must therefore charge the car before departure to avoid paying the public charging price for the difference.
 
 ## Step 4: Verify setup
 
