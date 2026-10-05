@@ -40,7 +40,7 @@ The adapter creates five model elements:
 The EV alternates between two states:
 
 - **Connected** (plugged in at home): The home charge/discharge connections are active, trip connections are zeroed
-- **Away** (on a trip): The home connections are zeroed, trip and public connections are active
+- **Away** (on a trip): The home connections are zeroed and the trip connection is active
 
 The trip calendar is authoritative for the future: the away mask is derived from calendar event windows aligned to the horizon.
 The live plugged-in binary sensor overrides only the current interval, so early returns and unplanned absences are reflected immediately.
@@ -55,7 +55,8 @@ $$
 E_{\text{trip}} = d \cdot r
 $$
 
-where $d$ is the trip distance (from the calendar event location field) and $r$ is the energy-per-distance rate.
+where $d$ is the trip distance and $r$ is the energy-per-distance rate.
+The distance is read from the first of the event's location, summary, or description fields that contains a parseable distance.
 
 Two boundary-aligned profiles drive the deferrable trip load:
 
@@ -122,36 +123,39 @@ The EV element creates a single Home Assistant device:
 
 ## Parameter mapping
 
-| User configuration         | Model element(s)                      | Model parameter         | Notes                           |
-| -------------------------- | ------------------------------------- | ----------------------- | ------------------------------- |
-| `capacity`                 | Battery `{name}`                      | `capacity`              | kWh, time-series boundary array |
-| `current_soc`              | Battery `{name}`                      | `initial_charge`        | SOC ratio × capacity            |
-| `trip_calendar`            | Battery `{name}:trip`                 | `capacity`/`min_charge` | Cumulative trip energy profiles |
-| `max_charge_rate`          | Connection `{name}:charge`            | Power limit segment     | Masked by connected flag        |
-| `max_discharge_rate`       | Connection `{name}:discharge`         | Power limit segment     | Masked by connected flag        |
-| `energy_per_distance`      | Trip energy calculation               | Multiplied by distance  | kWh/km                          |
-| `odometer` pair            | Battery `{name}:trip`                 | `initial_charge`        | Mid-trip progress credit        |
-| `public_charging_price`    | Connection `{name}:public_connection` | Pricing segment         | Defaults to \$10/kWh            |
-| `efficiency_source_target` | Connection `{name}:discharge`         | Efficiency segment      | Discharge direction             |
-| `efficiency_target_source` | Connection `{name}:charge`            | Efficiency segment      | Charge direction                |
-| `max_power_source_target`  | Connection `{name}:discharge`         | Power limit segment     | Combined with discharge rate    |
-| `max_power_target_source`  | Connection `{name}:charge`            | Power limit segment     | Combined with charge rate       |
+| User configuration         | Model element(s)              | Model parameter        | Notes                                      |
+| -------------------------- | ----------------------------- | ---------------------- | ------------------------------------------ |
+| `capacity`                 | Battery `{name}`              | `capacity`             | kWh, time-series boundary array            |
+| `current_soc`              | Battery `{name}`              | `initial_charge`       | SOC ratio × capacity                       |
+| `trip_calendar`            | Deferrable load `{name}:trip` | `capacity`/`required`  | Cumulative trip energy profiles            |
+| `max_charge_rate`          | Connection `{name}:charge`    | Power limit segment    | Masked by connected flag                   |
+| `max_discharge_rate`       | Connection `{name}:discharge` | Power limit segment    | Masked by connected flag                   |
+| `reserve_soc`              | Battery `{name}`              | `reserve_level`        | Fraction of capacity, checked at trip ends |
+| `reserve_price`            | Battery `{name}`              | `reserve_price`        | Defaults to the public charging price      |
+| `energy_per_distance`      | Trip energy calculation       | Multiplied by distance | kWh/km                                     |
+| `odometer` pair            | Deferrable load `{name}:trip` | `initial_energy`       | Mid-trip progress credit                   |
+| `public_charging_price`    | Deferrable load `{name}:trip` | `deficit_price`        | Defaults to \$10/kWh                       |
+| `efficiency_source_target` | Connection `{name}:discharge` | Efficiency segment     | Discharge direction                        |
+| `efficiency_target_source` | Connection `{name}:charge`    | Efficiency segment     | Charge direction                           |
+| `max_power_source_target`  | Connection `{name}:discharge` | Power limit segment    | Combined with discharge rate               |
+| `max_power_target_source`  | Connection `{name}:charge`    | Power limit segment    | Combined with charge rate                  |
 
 ## Output mapping
 
 The adapter maps model outputs to EV-specific sensor names:
 
-| Model output              | Sensor name                 | Description                    |
-| ------------------------- | --------------------------- | ------------------------------ |
-| `{name}:charge` power     | `power_charge`              | Home charge power              |
-| `{name}:discharge` power  | `power_discharge`           | V2G discharge power            |
-| Calculated                | `power_active`              | Net power (discharge − charge) |
-| `BATTERY_ENERGY_STORED`   | `energy_stored`             | Energy in EV battery           |
-| Calculated                | `state_of_charge`           | SOC ratio                      |
-| Trip load energy absorbed | `trip_energy_delivered`     | Trip energy delivered so far   |
-| Trip load energy deficit  | `trip_energy_deficit`       | Expected public top-up energy  |
-| Power limit shadow        | `power_max_charge_price`    | Charge limit shadow price      |
-| Power limit shadow        | `power_max_discharge_price` | Discharge limit shadow price   |
+| Model output              | Sensor name                 | Description                                                            |
+| ------------------------- | --------------------------- | ---------------------------------------------------------------------- |
+| `{name}:charge` power     | `power_charge`              | Home charge power                                                      |
+| `{name}:discharge` power  | `power_discharge`           | V2G discharge power                                                    |
+| Calculated                | `power_active`              | Net power (discharge − charge)                                         |
+| `BATTERY_ENERGY_STORED`   | `energy_stored`             | Energy in EV battery                                                   |
+| Calculated                | `state_of_charge`           | SOC ratio                                                              |
+| Trip load energy absorbed | `trip_energy_delivered`     | Trip energy delivered so far                                           |
+| Trip load energy deficit  | `trip_energy_deficit`       | Expected public top-up energy                                          |
+| Battery reserve shortfall | `reserve_shortfall`         | Dip below the reserve per trip (only when `reserve_soc` is configured) |
+| Power limit shadow        | `power_max_charge_price`    | Charge limit shadow price                                              |
+| Power limit shadow        | `power_max_discharge_price` | Discharge limit shadow price                                           |
 
 See [EV Configuration](../../user-guide/elements/ev.md#sensors-created) for complete sensor documentation.
 

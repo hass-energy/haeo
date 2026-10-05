@@ -17,7 +17,7 @@ An EV in HAEO represents:
 
 - **Energy storage** with a battery capacity (kWh+)
 - **Charge and discharge rates** for home charging (kW)
-- **Trip calendar** from a Home Assistant calendar entity with distance in the location field
+- **Trip calendar** from a Home Assistant calendar entity with a distance in each event
 - **Connected sensor** indicating when the vehicle is plugged in at home
 - **Odometer sensors** for mid-trip energy tracking
 - **Optional public charging price** for modeling away-from-home charging costs
@@ -31,26 +31,26 @@ Fields configured with "Constant" create input entities that you can adjust at r
 
 ## Configuration fields
 
-| Field                                                    | Type       | Required | Default | Description                                      |
-| -------------------------------------------------------- | ---------- | -------- | ------- | ------------------------------------------------ |
-| **[Name](#name)**                                        | String     | Yes      | -       | Unique identifier (e.g., "Tesla Model 3")        |
-| **[Connection](#connection)**                            | Select     | Yes      | -       | Node to connect to in your energy network        |
-| **[Trip calendar](#trip-calendar)**                      | Entity     | No       | -       | Calendar entity with trip events                 |
-| **[Connected sensor](#connected-sensor)**                | Entity     | No       | -       | Binary sensor reporting when plugged in          |
-| **[Odometer](#odometer)**                                | Entity     | No       | -       | Sensor reporting current odometer reading        |
-| **[Odometer at disconnect](#odometer-at-disconnect)**    | Entity     | No       | -       | Sensor reporting odometer when last disconnected |
-| **[Reserve state of charge](#reserve)**                  | Percentage | No       | -       | Buffer to keep in the pack while away            |
-| **[Reserve shortfall price](#reserve)**                  | Price      | No       | -       | Cost per kWh of dipping below the reserve        |
-| **[Battery capacity](#battery-capacity)**                | Energy     | Yes      | -       | Total usable battery capacity                    |
-| **[Energy per distance](#energy-per-distance)**          | Ratio      | Yes      | -       | Energy consumption rate (kWh/km)                 |
-| **[Current state of charge](#current-state-of-charge)**  | Percentage | Yes      | -       | Sensor reporting current SOC (0–100%)            |
-| **[Max charge rate](#max-charge-and-discharge-rate)**    | Power      | Yes      | -       | Maximum home charging power                      |
-| **[Max discharge rate](#max-charge-and-discharge-rate)** | Power      | No       | -       | Maximum V2G discharge power                      |
-| **[Public charging price](#public-charging-price)**      | Price      | No       | -       | Cost per kWh for public charging                 |
-| **[Max charge power](#power-limits)**                    | Power      | No       | -       | Overall max charge power limit                   |
-| **[Max discharge power](#power-limits)**                 | Power      | No       | -       | Overall max discharge power limit                |
-| **[Charge efficiency](#efficiency)**                     | Percentage | No       | -       | Efficiency when charging                         |
-| **[Discharge efficiency](#efficiency)**                  | Percentage | No       | -       | Efficiency when discharging                      |
+| Field                                                    | Type       | Required | Default               | Description                                      |
+| -------------------------------------------------------- | ---------- | -------- | --------------------- | ------------------------------------------------ |
+| **[Name](#name)**                                        | String     | Yes      | -                     | Unique identifier (e.g., "Tesla Model 3")        |
+| **[Connection](#connection)**                            | Select     | Yes      | -                     | Node to connect to in your energy network        |
+| **[Trip calendar](#trip-calendar)**                      | Entity     | No       | -                     | Calendar entity with trip events                 |
+| **[Connected sensor](#connected-sensor)**                | Entity     | No       | -                     | Binary sensor reporting when plugged in          |
+| **[Odometer](#odometer)**                                | Entity     | No       | -                     | Sensor reporting current odometer reading        |
+| **[Odometer at disconnect](#odometer-at-disconnect)**    | Entity     | No       | -                     | Sensor reporting odometer when last disconnected |
+| **[Reserve state of charge](#reserve)**                  | Percentage | No       | -                     | Buffer to keep in the pack while away            |
+| **[Reserve shortfall price](#reserve)**                  | Price      | No       | Public charging price | Cost per kWh of dipping below the reserve        |
+| **[Battery capacity](#battery-capacity)**                | Energy     | Yes      | -                     | Total usable battery capacity                    |
+| **[Energy per distance](#energy-per-distance)**          | Ratio      | Yes      | -                     | Energy consumption rate (kWh/km)                 |
+| **[Current state of charge](#current-state-of-charge)**  | Percentage | Yes      | -                     | Sensor reporting current SOC (0–100%)            |
+| **[Max charge rate](#max-charge-and-discharge-rate)**    | Power      | Yes      | -                     | Maximum home charging power                      |
+| **[Max discharge rate](#max-charge-and-discharge-rate)** | Power      | No       | -                     | Maximum V2G discharge power                      |
+| **[Public charging price](#public-charging-price)**      | Price      | No       | \$10/kWh              | Cost per kWh for public charging                 |
+| **[Max charge power](#power-limits)**                    | Power      | No       | -                     | Overall max charge power limit                   |
+| **[Max discharge power](#power-limits)**                 | Power      | No       | -                     | Overall max discharge power limit                |
+| **[Charge efficiency](#efficiency)**                     | Percentage | No       | 95%                   | Efficiency when charging                         |
+| **[Discharge efficiency](#efficiency)**                  | Percentage | No       | 95%                   | Efficiency when discharging                      |
 
 ### Name
 
@@ -68,7 +68,7 @@ Select a Home Assistant calendar entity that contains your trip schedule.
 Each calendar event represents a trip:
 
 - **Start/end time**: When the car leaves and returns home
-- **Location field**: Trip distance with unit, e.g., `50 km` or `30 mi`
+- **Distance**: Trip distance with unit in the location, summary, or description, e.g., `50 km` or `30 mi`
 
 Without a trip calendar, the EV behaves like a stationary battery that can only charge (or discharge) while plugged in — no trip requirements are modeled.
 Events whose text contains no parsable distance are ignored entirely.
@@ -162,11 +162,13 @@ The EV element creates one device with the following sensors:
 
 ### Energy sensors
 
-| Sensor                | Unit | Description                               |
-| --------------------- | ---- | ----------------------------------------- |
-| Energy stored         | kWh  | Total energy in the EV battery            |
-| State of charge       | %    | Battery percentage                        |
-| Trip energy delivered | kWh  | Trip energy delivered so far (cumulative) |
+| Sensor                | Unit | Description                                                                 |
+| --------------------- | ---- | --------------------------------------------------------------------------- |
+| Energy stored         | kWh  | Total energy in the EV battery                                              |
+| State of charge       | %    | Battery percentage                                                          |
+| Trip energy delivered | kWh  | Trip energy delivered so far (cumulative)                                   |
+| Trip energy shortfall | kWh  | Expected public top-up energy (cumulative)                                  |
+| Reserve shortfall     | kWh  | Expected dip below the reserve per trip (only when a reserve is configured) |
 
 ### Shadow price sensors
 
