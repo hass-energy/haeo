@@ -6,7 +6,7 @@ It handles schema value dispatch (none/constant/entity), sensor loading,
 forecast fusion, and unit conversion -- all without HA dependencies.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 import numpy as np
@@ -28,9 +28,10 @@ from custom_components.haeo.core.schema.field_hints import (
     extract_list_field_hints,
 )
 from custom_components.haeo.core.schema.none_value import is_none_value
-from custom_components.haeo.core.state import StateMachine
+from custom_components.haeo.core.state import EntityState, StateMachine
 
 from .calendar_resolver import CalendarBoundaryData, resolve_calendar_field
+from .last_off import last_off_field, read_last_off
 from .sensor_loader import load_sensors
 
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
@@ -100,6 +101,8 @@ def load_element_config(
             else:
                 loaded.setdefault(section_name, {})[field_name] = resolved
 
+            _load_last_off(loaded, section_name, field_name, value, hint, sm.get)
+
     # Resolve list-based input fields (e.g. policy rules with entity prices)
     list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
     for list_key, hints in list_hints.items():
@@ -136,6 +139,7 @@ def load_element_config_from_values(
     element_config: ElementConfigSchema,
     field_values: Mapping[tuple[str, ...], Any],
     forecast_times: Sequence[float],
+    source_states: Mapping[str, EntityState],
 ) -> ElementConfigData:
     """Assemble an element's loaded config from pre-resolved input field values.
 
@@ -151,6 +155,8 @@ def load_element_config_from_values(
         element_config: Raw element config dict (sectioned format).
         field_values: Map of field path to its resolved value.
         forecast_times: Boundary timestamps (used only for type-driven defaults).
+        source_states: Source entity states captured when the values resolved,
+            read for the last off time of availability fields.
 
     Returns:
         Loaded configuration with resolved time series and scalar values.
@@ -182,6 +188,11 @@ def load_element_config_from_values(
                     loaded.setdefault(section_name, {})[field_name] = default
                 else:
                     loaded.setdefault(section_name, {})[field_name] = resolved
+                section_config = element_config.get(section_name)
+                if isinstance(section_config, Mapping):
+                    _load_last_off(
+                        loaded, section_name, field_name, section_config.get(field_name), hint, source_states.get
+                    )
                 continue
 
             # No store for this field: disabled/none or absent in config.
@@ -213,6 +224,27 @@ def load_element_config_from_values(
         loaded[list_key] = loaded_items
 
     return loaded  # type: ignore[return-value]
+
+
+def _load_last_off(
+    loaded: dict[str, Any],
+    section_name: str,
+    field_name: str,
+    value: object,
+    hint: FieldHint,
+    get_state: Callable[[str], EntityState | None],
+) -> None:
+    """Load when an entity-driven availability field's source was last off.
+
+    The time comes from the source state's injected last off attribute and is
+    stored beside the field under :func:`last_off_field`; it is left out when
+    the state carries none.
+    """
+    if hint.output_type is not OutputType.AVAILABILITY or not is_entity_value(value) or not value["value"]:
+        return
+    last_off = read_last_off(get_state(value["value"][0]))
+    if last_off is not None:
+        loaded.setdefault(section_name, {})[last_off_field(field_name)] = last_off
 
 
 class _Sentinel:
