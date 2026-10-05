@@ -85,6 +85,29 @@ async function waitForShadowText(element: HaeoTopologyCardElement, text: string)
   );
 }
 
+/**
+ * Wait for the initial layout to finish dispatching, and report how many `ll-update`
+ * events it produced.
+ *
+ * The svg landing in the DOM is not the last thing to happen: `onLayoutSize` fires from
+ * an effect that runs after that commit, so a count read the moment the svg appears can
+ * still be one short. Wait until the count stops moving.
+ */
+async function waitForSettledUpdates(element: HaeoTopologyCardElement, updates: Event[]): Promise<number> {
+  await waitForTopologySvg(element);
+  let previous = -1;
+  await vi.waitFor(
+    () => {
+      const seen = updates.length;
+      const settled = seen === previous;
+      previous = seen;
+      expect(settled).toBe(true);
+    },
+    { timeout: RENDER_TIMEOUT_MS, interval: RENDER_POLL_MS }
+  );
+  return updates.length;
+}
+
 describe("haeo-topology-card smoke", () => {
   afterEach(() => {
     document.body.innerHTML = "";
@@ -179,13 +202,8 @@ describe("haeo-topology-card smoke", () => {
     element.hass = scenarioHass(scenario, "hub-alpha");
     document.body.appendChild(element);
 
-    await vi.waitFor(
-      () => {
-        expect(updates.length).toBeGreaterThan(0);
-      },
-      { timeout: RENDER_TIMEOUT_MS, interval: RENDER_POLL_MS }
-    );
-    const initialCount = updates.length;
+    const initialCount = await waitForSettledUpdates(element, updates);
+    expect(initialCount).toBeGreaterThan(0);
     element.setConfig({
       type: "custom:haeo-topology-card",
       hub_entry_id: "hub-alpha",
