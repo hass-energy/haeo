@@ -11,7 +11,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, NetworkElement
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
-from custom_components.haeo.core.model.util import broadcast_to_sequence
+from custom_components.haeo.core.model.util import broadcast_to_sequence, require_non_negative
 
 # Model element type for batteries
 ELEMENT_TYPE: Final = "battery"
@@ -227,8 +227,8 @@ class Battery(NetworkElement[BatteryOutputName]):
 
         Stored energy is never negative, so the drop below reserve is at
         most the reserve level itself. The limit also pins the shortfall to
-        zero at unmasked boundaries, keeping the cost bounded whatever the
-        reserve price.
+        zero at unmasked boundaries, keeping it bounded even where the
+        reserve is unpriced.
         """
         if self.reserve_shortfall is None:
             return None
@@ -246,10 +246,12 @@ class Battery(NetworkElement[BatteryOutputName]):
 
         This is demand-level pricing: the charge is on the lowest level hit
         by each masked boundary, not integrated over every interval below
-        the reserve.
+        the reserve. The price must be non-negative: a negative price would
+        reward booking a shortfall the battery never suffers.
         """
         if self.reserve_shortfall is None:
             return None
+        require_non_negative("reserve_price", self.reserve_price)
         return (self.reserve_price[1:] * self.reserve_shortfall[1:]).sum()
 
     # Output methods

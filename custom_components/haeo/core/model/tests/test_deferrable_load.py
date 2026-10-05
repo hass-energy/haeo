@@ -243,29 +243,42 @@ def test_shortfall_cannot_be_booked_where_nothing_falls_due() -> None:
     assert cost == pytest.approx(2.0 * 0.1 + 2.0 * 5.0)
 
 
-def test_negative_deficit_price_stays_bounded() -> None:
-    """A negative deficit price cannot book more deficit than falls due."""
-    network, load = _build_network(
-        capacity=np.array([4.0, 4.0, 4.0]),
+@pytest.mark.parametrize(
+    ("deficit_price", "overage_price", "param"),
+    [
+        pytest.param(np.array([10.0, 10.0, -1.0]), 0.0, "deficit_price", id="deficit"),
+        pytest.param(10.0, -1.0, "overage_price", id="overage"),
+    ],
+)
+def test_negative_price_is_rejected(deficit_price: np.ndarray | float, overage_price: float, param: str) -> None:
+    """A negative price would book slack that is never missed or absorbed, so it is rejected."""
+    network, _load = _build_network(
+        capacity=np.array([10.0, 10.0, 10.0]),
         required=np.array([0.0, 0.0, 4.0]),
-        deficit_price=-1.0,
+        deficit_price=deficit_price,
+        overage_price=overage_price,
     )
 
-    cost = network.optimize()
-
-    deficit = load.extract_values(load.deficit)
-    np.testing.assert_allclose(deficit, [0.0, 0.0, 4.0])
-    assert cost == pytest.approx(-4.0)
+    with pytest.raises(ValueError, match=f"{param} must be non-negative"):
+        network.optimize()
 
 
-def test_negative_overage_price_stays_bounded() -> None:
-    """A negative overage price cannot claim more overage than capacity allows."""
+@pytest.mark.parametrize(
+    ("param", "value"),
+    [
+        pytest.param("deficit_price", np.array([10.0, -1.0, 10.0]), id="deficit"),
+        pytest.param("overage_price", -1.0, id="overage"),
+    ],
+)
+def test_negative_price_update_is_rejected(param: str, value: np.ndarray | float) -> None:
+    """Updating a price to a negative value is rejected on the next optimization."""
     network, load = _build_network(
         capacity=np.array([10.0, 10.0, 10.0]),
         required=np.array([0.0, 0.0, 4.0]),
-        overage_price=-1.0,
     )
-
     network.optimize()
 
-    assert load.extract_values(load.overage)[0] <= 6.0 + 1e-9
+    load[param] = value
+
+    with pytest.raises(ValueError, match=f"{param} must be non-negative"):
+        network.optimize()

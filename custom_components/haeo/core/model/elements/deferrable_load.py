@@ -20,7 +20,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, NetworkElement
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
-from custom_components.haeo.core.model.util import broadcast_to_sequence
+from custom_components.haeo.core.model.util import broadcast_to_sequence, require_non_negative
 
 # Model element type for deferrable loads
 ELEMENT_TYPE: Final = "deferrable_load"
@@ -92,8 +92,10 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     booked at a boundary before it is due. Absorption beyond the final
     requirement is priced at ``overage_price``.
 
-    Both slacks are bounded above by what could physically fall short or
-    overshoot, so the optimization stays bounded whatever the prices.
+    Both prices must be non-negative: a negative price would reward booking
+    a shortfall or overshoot that never happens. Both slacks are also
+    bounded above by what could physically fall short or overshoot, so they
+    stay bounded even when unpriced.
     """
 
     # Parameters
@@ -248,12 +250,14 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
 
         With a scalar price this telescopes to price times the final deficit.
         """
+        require_non_negative("deficit_price", self.deficit_price)
         increments = self.deficit[1:] - self.deficit[:-1]
         return (self.deficit_price[1:] * increments).sum()
 
     @cost
     def deferrable_load_overage_cost(self) -> highs_linear_expression:
         """Cost: absorption beyond the final requirement priced at overage_price."""
+        require_non_negative("overage_price", self.overage_price)
         return self.overage_price * self.overage[0]
 
     # Output methods
