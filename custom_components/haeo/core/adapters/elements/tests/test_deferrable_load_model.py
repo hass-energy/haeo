@@ -175,3 +175,50 @@ def test_negative_prices_are_clamped_to_zero(pricing: dict[str, Any], expected_a
     deficit = load_outputs[DEFERRABLE_LOAD_ENERGY_DEFICIT].values[-1]
     assert absorbed == pytest.approx(expected_absorbed)
     assert deficit == pytest.approx(6.0 - expected_absorbed)
+
+
+def _open_window_config(**schedule: Any) -> DeferrableLoadConfigData:
+    """Build a config whose 6 kWh window is already open at the horizon start."""
+    return _config(
+        power={"max_power": 10.0},
+        schedule={
+            "window_calendar": _boundary_data(
+                presence=[1.0, 1.0, 1.0, 0.0, 0.0],
+                value_edge_start=[6.0, 0.0, 0.0, 0.0, 0.0],
+                value_edge_end=[0.0, 0.0, 6.0, 0.0, 0.0],
+            ),
+            **schedule,
+        },
+    )
+
+
+def test_energy_delivered_in_open_window_counts_toward_requirement() -> None:
+    """Energy already delivered in the open window is not demanded again."""
+    network = _solve(_open_window_config(energy_delivered=4.0), grid_price=[0.1, 0.1, 0.1, 0.1])
+
+    load_outputs = network.elements["pump"].outputs()
+    absorbed = load_outputs[DEFERRABLE_LOAD_ENERGY_ABSORBED].values
+    assert absorbed[0] == pytest.approx(4.0)
+    assert absorbed[-1] - absorbed[0] == pytest.approx(2.0)
+    assert load_outputs[DEFERRABLE_LOAD_ENERGY_DEFICIT].values[-1] == pytest.approx(0.0)
+
+
+@pytest.mark.parametrize(
+    ("config", "expected_initial"),
+    [
+        pytest.param(_open_window_config(), 0.0, id="unconfigured"),
+        pytest.param(_open_window_config(energy_delivered=4.0), 4.0, id="open_window"),
+        pytest.param(_open_window_config(energy_delivered=10.0), 6.0, id="clamped_to_open_window"),
+        pytest.param(_open_window_config(energy_delivered=-1.0), 0.0, id="negative_reading"),
+        pytest.param(
+            _config(schedule={**_config()["schedule"], "energy_delivered": 4.0}),
+            0.0,
+            id="no_open_window",
+        ),
+    ],
+)
+def test_energy_delivered_sets_initial_energy(config: DeferrableLoadConfigData, expected_initial: float) -> None:
+    """Delivered energy only applies to windows open at the horizon start."""
+    load = _elements_by_name(config)["pump"]
+
+    assert load["initial_energy"] == pytest.approx(expected_initial)

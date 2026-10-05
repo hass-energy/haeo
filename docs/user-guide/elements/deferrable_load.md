@@ -14,20 +14,22 @@ For mathematical details, see [Deferrable Load Modeling](../../modeling/device-l
 A deferrable load in HAEO represents:
 
 - **Run window calendar** from a Home Assistant calendar entity, with the required energy in each event's text
+- **Optional delivered energy sensor** reporting how much the open window has already absorbed
 - **Shortfall price** for energy the window fails to absorb
 - **Optional overage price** for absorbing more than required
 - **Optional max power** for the physical device
 
 ## Configuration fields
 
-| Field                                   | Type   | Required | Default | Description                                  |
-| --------------------------------------- | ------ | -------- | ------- | -------------------------------------------- |
-| **[Name](#name)**                       | String | Yes      | -       | Unique identifier (e.g., "Pool Pump")        |
-| **[Connection](#connection)**           | Select | Yes      | -       | Node to connect to in your energy network    |
-| **[Run window calendar](#run-windows)** | Entity | Yes      | -       | Calendar entity with run window events       |
-| **[Shortfall price](#pricing)**         | Price  | Yes      | 10      | Cost per kWh the window fails to absorb      |
-| **[Overage price](#pricing)**           | Price  | No       | -       | Cost per kWh absorbed beyond the requirement |
-| **[Max power](#max-power)**             | Power  | No       | -       | Maximum power the device can draw            |
+| Field                                                             | Type   | Required | Default | Description                                  |
+| ----------------------------------------------------------------- | ------ | -------- | ------- | -------------------------------------------- |
+| **[Name](#name)**                                                 | String | Yes      | -       | Unique identifier (e.g., "Pool Pump")        |
+| **[Connection](#connection)**                                     | Select | Yes      | -       | Node to connect to in your energy network    |
+| **[Run window calendar](#run-windows)**                           | Entity | Yes      | -       | Calendar entity with run window events       |
+| **[Energy delivered this window](#energy-delivered-this-window)** | Energy | No       | -       | Energy the open window has already absorbed  |
+| **[Shortfall price](#pricing)**                                   | Price  | Yes      | 10      | Cost per kWh the window fails to absorb      |
+| **[Overage price](#pricing)**                                     | Price  | No       | -       | Cost per kWh absorbed beyond the requirement |
+| **[Max power](#max-power)**                                       | Power  | No       | -       | Maximum power the device can draw            |
 
 ### Name
 
@@ -54,6 +56,30 @@ Power can only flow to the load while a window is open.
 
     Use recurring calendar events for daily or weekly routines — a pool pump
     that needs 8 kWh every day is one repeating event with `8` in the location.
+
+### Energy delivered this window
+
+HAEO re-plans regularly, and each plan starts from the present.
+Without this sensor, a plan made halfway through a window asks for the window's full energy again, so the device runs longer than needed or a large shortfall is predicted near the window's end.
+
+Select a sensor that reports the energy (kWh) the device has used since the current window started.
+A simple way to build one is a [utility meter](https://www.home-assistant.io/integrations/utility_meter/) on the device's energy sensor, reset by an automation triggered when a calendar event starts:
+
+```yaml
+automation:
+  - alias: Reset pool pump window energy
+    triggers:
+      - trigger: calendar
+        event: start
+        entity_id: calendar.pool_pump
+    actions:
+      - action: utility_meter.reset
+        target:
+          entity_id: sensor.pool_pump_window_energy
+```
+
+HAEO credits the reading only to a window that is open when the plan starts, up to that window's energy.
+Readings outside a window are ignored, so the sensor does not need to reset at the window's end.
 
 ### Pricing
 
