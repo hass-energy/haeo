@@ -12,8 +12,8 @@ Energy storage with state of charge tracking.
 Models capacity, charge/discharge flows, SOC constraints, and an optional priced reserve.
 
 **[Deferrable load](deferrable_load.md)**:
-Flexible consumption that absorbs a required amount of energy within scheduled windows.
-Prices any shortfall at the boundary where it falls due, so unmeetable requirements stay feasible.
+Flexible consumption that absorbs a required amount of energy within scheduled, non-overlapping windows.
+Settles each window at its end, pricing any shortfall so unmeetable requirements stay feasible.
 
 **[Node](node.md)**:
 Power sources, sinks, and junction points.
