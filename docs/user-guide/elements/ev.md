@@ -88,6 +88,7 @@ Events whose text contains no parsable distance are ignored entirely.
 
 Select a binary sensor that reports `on` when the EV is plugged in at home and `off` when disconnected.
 The trip calendar is authoritative for future availability; this sensor pins the *current* state, so an early return or unplanned absence is reflected immediately.
+If the sensor reports the car plugged in while a trip event is still open, HAEO treats that trip as over: the car counts as home until the event's scheduled end, and the rest of the trip asks for no energy or public charging.
 
 This field takes a sensor or nothing; there is no constant option.
 Without a plugged in sensor the trip calendar governs the current interval too: the car counts as away whenever a trip event overlaps the current interval and as plugged in otherwise.
@@ -105,8 +106,15 @@ Select the sensor reporting the odometer reading when the car was last disconnec
 Combined with the current odometer, this lets HAEO calculate energy already consumed during an ongoing trip and reduce the remaining requirement.
 It uses the same length unit conversion as the odometer.
 
-The distance driven since disconnect is credited only to the trip whose calendar window is open now, and never more than that trip's distance.
-Distance driven outside any trip window, or beyond the planned distance, does not reduce the energy reserved for later trips.
+The distance driven since disconnect is credited only to the trip whose calendar window is open now.
+That energy has already left the battery, which the current state of charge shows, so HAEO never draws it again.
+
+- **Less than planned**: the rest of the trip's energy stays reserved until the trip's end.
+- **More than planned**: the trip counts as complete; the extra distance is not charged as public charging and never makes the plan fail.
+- **Outside any trip window**: the distance is ignored.
+- **Negative, missing, or invalid readings** (for example a reset sensor): no distance is credited.
+
+Distance never carries over to later trips, so each later trip still reserves its full energy.
 
 !!! note "Conservative mid-trip tracking"
 
@@ -192,8 +200,8 @@ The EV element creates one device with the following sensors:
 | --------------------- | ---- | --------------------------------------------------------------------------- |
 | Energy stored         | kWh  | Total energy in the EV battery                                              |
 | State of charge       | %    | Battery percentage                                                          |
-| Trip energy delivered | kWh  | Trip energy delivered so far (cumulative)                                   |
-| Trip energy shortfall | kWh  | Expected public top-up energy (cumulative)                                  |
+| Trip energy delivered | kWh  | Energy used by the current trip, reset at each trip start                   |
+| Trip energy shortfall | kWh  | Expected public top-up energy for each trip, at the trip's end              |
 | Reserve shortfall     | kWh  | Expected dip below the reserve per trip (only when a reserve is configured) |
 
 ### Shadow price sensors

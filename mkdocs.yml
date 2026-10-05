@@ -181,6 +181,7 @@ nav:
           - Elements:
               - modeling/model-layer/elements/index.md
               - Battery: modeling/model-layer/elements/battery.md
+              - Deferrable load: modeling/model-layer/elements/deferrable_load.md
               - Node: modeling/model-layer/elements/node.md
           - Connections:
               - modeling/model-layer/connections/index.md

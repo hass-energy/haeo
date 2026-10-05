@@ -35,6 +35,10 @@ For each time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for ener
 - $E_{\text{in}}(0)$: Initial charge level (constant, not a variable)
 - $E_{\text{out}}(0) = 0$: Battery starts with zero cumulative discharge
 
+**Reserve variables** (only when a reserve is configured, see [reserve floor](#5-reserve-floor)):
+
+- $s_{\text{reserve}}(t) \geq 0$: Shortfall below the reserve level at boundary $t$ (kWh)
+
 ### Parameters
 
 **Required parameters**:
@@ -46,6 +50,9 @@ For each time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for ener
 **Optional parameters**:
 
 - $v_{\text{salvage}}$: Terminal value of stored energy (\$/kWh) - `salvage_value`
+- $L(t)$: Reserve level the stored energy should not drop below (kWh) - `reserve_level`, defaults to 0
+- $m(t)$: Reserve mask selecting the boundaries where the reserve applies (1 at masked boundaries, 0 elsewhere) - `reserve_mask`
+- $p_{\text{reserve}}(t) \geq 0$: Price per kWh of shortfall below the reserve (\$/kWh) - `reserve_price`
 - `outbound_tags`: Tags that discharged power can be placed on (see [Tagged Power](../../tagged-power.md))
 - `inbound_tags`: Tags this battery can consume (charge from) — None means all tags
 
@@ -101,6 +108,28 @@ The Element base class creates per-tag power balance constraints for all element
 Discharge power is placed on `outbound_tags`; charge power draws from `inbound_tags`.
 See the [tagged power formulation](../../tagged-power.md#per-tag-balance) for details.
 
+#### 5. Reserve floor
+
+When both `reserve_mask` and `reserve_price` are set, the battery tracks how far stored energy drops below the reserve level at masked boundaries (for example, the end of a trip window).
+The reserve is a soft constraint: dropping below it is priced rather than forbidden, so an unreachable reserve never makes the optimization infeasible.
+
+$$
+s_{\text{reserve}}(t) \geq m(t) \cdot L(t) - m(t) \cdot \left(E_{\text{in}}(t) - E_{\text{out}}(t)\right) \quad \forall t \in [1, T]
+$$
+
+Stored energy is never negative, so the shortfall is limited to the masked reserve level:
+
+$$
+s_{\text{reserve}}(t) \leq \max\left(m(t) \cdot L(t),\ 0\right) \quad \forall t \in [1, T]
+$$
+
+The limit also pins the shortfall to zero at unmasked boundaries.
+Reserve prices must be non-negative, and the model raises an error otherwise:
+a negative price would reward booking a shortfall the battery never suffers.
+
+**Shadow price**: The `reserve_floor` shadow price is the marginal cost of raising the reserve level at each masked boundary.
+It is zero where the battery comfortably holds the reserve.
+
 ### Cost Contribution
 
 The battery model can include an optional terminal salvage value.
@@ -110,7 +139,24 @@ $$
 -v_{\text{salvage}} \cdot \left(E_{\text{in}}(T) - E_{\text{out}}(T)\right)
 $$
 
+When a reserve is configured, each masked boundary's shortfall is priced once:
+
+$$
+\sum_{t=1}^{T} p_{\text{reserve}}(t) \cdot s_{\text{reserve}}(t)
+$$
+
+This is demand-level pricing.
+The charge is on the depth of the drop at each masked boundary, not integrated over every interval spent below the reserve.
+
 Other costs (efficiency losses, degradation penalties, SOC pricing) are applied through [Connection](../connections/index.md) elements in the device adapter layer.
+
+### Outputs
+
+- `battery_power_charge` and `battery_power_discharge`: Charge and discharge power (kW)
+- `battery_energy_stored`: Stored energy $E_{\text{in}}(t) - E_{\text{out}}(t)$ at each boundary (kWh)
+- `battery_reserve_shortfall`: Shortfall $m(t) \cdot s_{\text{reserve}}(t)$ at each boundary (kWh), all zeros when no reserve is configured
+
+The shadow prices named in the constraints above are also exposed as outputs.
 
 ## Physical Interpretation
 

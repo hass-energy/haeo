@@ -339,8 +339,9 @@ def test_wildcard_treats_deferrable_load_as_sink_only() -> None:
         DeferrableLoadElementConfig(
             element_type=MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
             name="ev",
-            capacity=5.0,
-            required=5.0,
+            in_window=1.0,
+            window_start=0.0,
+            requirement=5.0,
             deficit_price=1.0,
         ),
         _conn("grid_ev", "grid", "ev"),

@@ -86,7 +86,7 @@ This separation allows the same element types to be connected in different ways 
 
     ---
 
-    Battery and Node model elements.
+    Battery, deferrable load, and Node model elements.
 
     [:material-arrow-right: Element types](../elements/index.md)
 
