@@ -21,6 +21,13 @@ from .connection import Connection as Connection
 from .connection import ConnectionElementConfig as ConnectionElementConfig
 from .connection import ConnectionElementTypeName as ConnectionElementTypeName
 from .connection import ConnectionOutputName as ConnectionOutputName
+from .deferrable_load import DEFERRABLE_LOAD_OUTPUT_NAMES as DEFERRABLE_LOAD_OUTPUT_NAMES
+from .deferrable_load import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD
+from .deferrable_load import DeferrableLoad as DeferrableLoad
+from .deferrable_load import DeferrableLoadConstraintName as DeferrableLoadConstraintName
+from .deferrable_load import DeferrableLoadElementConfig as DeferrableLoadElementConfig
+from .deferrable_load import DeferrableLoadElementTypeName as DeferrableLoadElementTypeName
+from .deferrable_load import DeferrableLoadOutputName as DeferrableLoadOutputName
 from .node import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_NODE
 from .node import NODE_OUTPUT_NAMES
 from .node import Node as Node
@@ -45,11 +52,21 @@ from .segments import SocPricingSegmentSpec as SocPricingSegmentSpec
 
 # Type for all model element types
 ModelElementType = (
-    BatteryElementTypeName | NodeElementTypeName | ConnectionElementTypeName | PolicyPricingElementTypeName
+    BatteryElementTypeName
+    | DeferrableLoadElementTypeName
+    | NodeElementTypeName
+    | ConnectionElementTypeName
+    | PolicyPricingElementTypeName
 )
 
 # Typed configs for all model elements (discriminated by element_type)
-ModelElementConfig = BatteryElementConfig | NodeElementConfig | ConnectionElementConfig | PolicyPricingElementConfig
+ModelElementConfig = (
+    BatteryElementConfig
+    | DeferrableLoadElementConfig
+    | NodeElementConfig
+    | ConnectionElementConfig
+    | PolicyPricingElementConfig
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +84,10 @@ ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
         factory=Battery,
         output_names=BATTERY_OUTPUT_NAMES,
     ),
+    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD: ElementSpec(
+        factory=DeferrableLoad,
+        output_names=DEFERRABLE_LOAD_OUTPUT_NAMES,
+    ),
     MODEL_ELEMENT_TYPE_NODE: ElementSpec(
         factory=Node,
         output_names=NODE_OUTPUT_NAMES,
@@ -82,9 +103,11 @@ __all__ = [
     "BATTERY_POWER_CONSTRAINTS",
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER",
+    "DEFERRABLE_LOAD_OUTPUT_NAMES",
     "ELEMENTS",
     "MODEL_ELEMENT_TYPE_BATTERY",
     "MODEL_ELEMENT_TYPE_CONNECTION",
+    "MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD",
     "MODEL_ELEMENT_TYPE_NODE",
     "MODEL_ELEMENT_TYPE_POLICY_PRICING",
     "Battery",
@@ -95,6 +118,10 @@ __all__ = [
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
     "ConnectionOutputName",
+    "DeferrableLoad",
+    "DeferrableLoadConstraintName",
+    "DeferrableLoadElementConfig",
+    "DeferrableLoadOutputName",
     "EfficiencySegment",
     "ElementSpec",
     "ModelElementConfig",

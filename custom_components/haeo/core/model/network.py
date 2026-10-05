@@ -14,6 +14,7 @@ from .element import Element, NetworkElement
 from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
+from .elements.deferrable_load import DeferrableLoad, DeferrableLoadElementConfig
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import PolicyPricing, PolicyPricingElementConfig
 from .reactive.decorators import clear_ranging_cache
@@ -178,6 +179,9 @@ class Network:
 
     @overload
     def add(self, element_config: BatteryElementConfig) -> Battery: ...
+
+    @overload
+    def add(self, element_config: DeferrableLoadElementConfig) -> DeferrableLoad: ...
 
     @overload
     def add(self, element_config: NodeElementConfig) -> Node: ...
