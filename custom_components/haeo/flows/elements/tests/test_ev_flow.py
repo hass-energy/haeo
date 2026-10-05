@@ -41,6 +41,7 @@ from custom_components.haeo.core.schema.elements.ev import (
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY, SECTION_POWER_LIMITS
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.flows.conftest import create_flow
+from custom_components.haeo.flows.field_schema import CHOICE_ENTITY
 
 
 def _user_input(trip: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -191,3 +192,21 @@ def test_penalty_prices_cannot_be_negative(section: str, field: str) -> None:
     field_info = get_input_fields(ELEMENT_TYPE)[section][field]
 
     assert field_info.entity_description.native_min_value == 0.0
+
+
+async def test_plugged_in_entity_picker_offers_binary_sensors(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """The plugged-in picker offers binary sensors and input booleans alongside numeric entities."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    result = await flow.async_step_user(user_input=None)
+
+    sections = {marker.schema: section for marker, section in result["data_schema"].schema.items()}
+    trip_fields = {marker.schema: selector for marker, selector in sections[SECTION_TRIP].schema.schema.items()}
+    entity_choice = trip_fields[CONF_CONNECTED].config["choices"][CHOICE_ENTITY]
+    domains = entity_choice["selector"]["entity"]["domain"]
+
+    assert {"binary_sensor", "input_boolean"} <= set(domains)

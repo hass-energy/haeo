@@ -29,6 +29,7 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
@@ -122,12 +123,14 @@ def build_entity_selector(
     *,
     include_entities: list[str] | None = None,
     multiple: bool = True,
+    extra_domains: Sequence[str] = (),
 ) -> EntitySelector:  # type: ignore[type-arg]
     """Build an EntitySelector restricted to unit-compatible entities.
 
     Args:
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection (for chaining).
+        extra_domains: Additional entity domains to allow beyond the numeric defaults.
 
     Returns:
         EntitySelector configured with include_entities list.
@@ -136,7 +139,7 @@ def build_entity_selector(
     entities_to_include = list(include_entities or [])
 
     config_kwargs: dict[str, Any] = {
-        "domain": [DOMAIN, "sensor", "input_number", "number", "switch"],
+        "domain": [DOMAIN, "sensor", "input_number", "number", "switch", *extra_domains],
         "multiple": multiple,
     }
     if entities_to_include:
@@ -250,10 +253,14 @@ def build_choose_selector(
         RuntimeError: If ChooseSelector is not available (requires HA 2026.1+).
 
     """
-    # Build entity selector for the "entity" choice
+    # Build entity selector for the "entity" choice. Availability-style
+    # fields (e.g. an EV charger's plugged-in state) come from binary sensors,
+    # which the numeric default domains exclude.
+    availability = field_info.output_type is OutputType.AVAILABILITY
     entity_selector = build_entity_selector(
         include_entities=include_entities,
         multiple=multiple,
+        extra_domains=("binary_sensor", "input_boolean") if availability else (),
     )
 
     # Build value selector for the "constant" choice based on field type
