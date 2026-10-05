@@ -331,3 +331,22 @@ async def test_loader_reloads_all_stores_before_listeners_run(hass: HomeAssistan
     assert observed[0] is loads.value
     np.testing.assert_allclose(_presence(loads), [0.0, 1.0, 0.0])
     loader.cleanup()
+
+
+async def test_loader_reloads_on_horizon_change(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """The horizon subscription reloads stores against the new boundaries."""
+    await _add_stub_calendar(hass, [_trip(3600.0, 7200.0)])
+    store = _calendar_store(get_forecast_timestamps=horizon_manager.get_forecast_timestamps)
+    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    await loader.async_start()
+    np.testing.assert_allclose(_presence(store), [0.0, 1.0, 0.0])
+
+    new_timestamps = (3600.0, 7200.0, 10800.0)
+    horizon_manager.get_forecast_timestamps.return_value = new_timestamps
+    on_horizon_change = horizon_manager.subscribe.call_args.args[0]
+    on_horizon_change()
+    await hass.async_block_till_done()
+
+    assert store.forecast_timestamps == new_timestamps
+    np.testing.assert_allclose(_presence(store), [1.0, 0.0, 0.0])
+    loader.cleanup()
