@@ -36,10 +36,15 @@ def _boundary_data(
     value_edge_start: list[float],
     value_edge_end: list[float],
 ) -> CalendarBoundaryData:
-    """Build calendar boundary data with a derived value_span."""
+    """Build calendar boundary data with a derived value_span.
+
+    A window's value spans the boundaries from its start edge up to, but not
+    including, its end edge, matching the calendar fuser.
+    """
+    span = np.cumsum(value_edge_start) - np.cumsum(value_edge_end)
     return CalendarBoundaryData(
         presence=np.array(presence, dtype=np.float64),
-        value_span=np.array(presence, dtype=np.float64),
+        value_span=np.asarray(span, dtype=np.float64),
         value_edge_start=np.array(value_edge_start, dtype=np.float64),
         value_edge_end=np.array(value_edge_end, dtype=np.float64),
     )
@@ -199,6 +204,45 @@ def test_odometer_progress_reduces_trip_requirement() -> None:
     assert elements["ev:trip"]["initial_energy"] == pytest.approx(2.0)
 
 
+def test_odometer_progress_not_credited_outside_trip_window() -> None:
+    """Distance from a finished trip does not cover a future trip while unplugged."""
+    config = _ev_config(
+        trip={
+            "trip_calendar": _boundary_data(
+                presence=[0.0, 0.0, 1.0, 0.0, 0.0],
+                value_edge_start=[0.0, 0.0, 50.0, 0.0, 0.0],
+                value_edge_end=[0.0, 0.0, 0.0, 50.0, 0.0],
+            ),
+            "connected": 0.0,
+            "odometer": 10_300.0,
+            "odometer_at_disconnect": 10_000.0,
+        },
+    )
+    elements = _elements_by_name(config)
+
+    assert elements["ev:trip"]["initial_energy"] == 0.0
+
+
+def test_odometer_progress_credits_only_the_open_trip_window() -> None:
+    """Distance driven beyond the open trip does not spill into later trips."""
+    config = _ev_config(
+        trip={
+            "trip_calendar": _boundary_data(
+                presence=[1.0, 0.0, 0.0, 1.0, 0.0],
+                value_edge_start=[30.0, 0.0, 0.0, 50.0, 0.0],
+                value_edge_end=[0.0, 30.0, 0.0, 0.0, 50.0],
+            ),
+            "connected": 0.0,
+            "odometer": 10_100.0,
+            "odometer_at_disconnect": 10_000.0,
+        },
+    )
+    elements = _elements_by_name(config)
+
+    # Capped at the open 30 km trip: 30 km * 0.2 kWh/km
+    assert elements["ev:trip"]["initial_energy"] == pytest.approx(6.0)
+
+
 def test_odometer_progress_ignored_while_connected() -> None:
     """Stale odometer readings do not credit the trip battery when home."""
     config = _ev_config(
@@ -353,7 +397,7 @@ def test_odometer_overshoot_beyond_trip_stays_feasible() -> None:
         },
     )
     elements = _elements_by_name(config)
-    assert elements["ev:trip"]["initial_energy"] == pytest.approx(20.0)  # unclamped
+    assert elements["ev:trip"]["initial_energy"] == pytest.approx(6.0)  # capped at the 30 km trip
 
     network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
 
