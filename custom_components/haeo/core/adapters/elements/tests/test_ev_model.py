@@ -125,6 +125,13 @@ def test_configured_public_price_is_used() -> None:
     assert elements["ev:trip"]["deficit_price"] == pytest.approx(0.6)
 
 
+def test_interval_public_price_extends_to_boundaries() -> None:
+    """A per-interval public price is extended to the trip load's boundaries."""
+    elements = _elements_by_name(_ev_config(public_charging={"public_charging_price": np.array([0.4, 0.5, 0.6, 0.7])}))
+
+    np.testing.assert_allclose(elements["ev:trip"]["deficit_price"], [0.4, 0.5, 0.6, 0.7, 0.7])
+
+
 def test_calendar_drives_trip_arrays_and_masks() -> None:
     """Calendar presence and edges become trip capacity, requirement, and masks."""
     config = _ev_config(
