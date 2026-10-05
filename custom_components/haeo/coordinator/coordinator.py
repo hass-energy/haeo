@@ -625,6 +625,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             if name == element_name
         }
 
+    def _source_states_for_element(self, element_name: str) -> dict[str, EntityState]:
+        """Collect the source states the element's input stores last loaded from."""
+        runtime_data = self._get_runtime_data()
+        if runtime_data is None:
+            return {}
+        return {
+            entity_id: state
+            for (name, _field_path), store in runtime_data.input_stores.items()
+            if name == element_name
+            for entity_id, state in store.captured_source_states.items()
+        }
+
     def _load_element_config(self, element_name: str) -> ElementConfigData:
         """Assemble a single element's config from its input stores.
 
@@ -654,6 +666,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             participant_configs[element_name],
             self._field_values_for_element(element_name),
             forecast_times,
+            self._source_states_for_element(element_name),
         )
 
     def _load_from_input_stores(self) -> dict[str, ElementConfigData]:
@@ -674,6 +687,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 config,
                 self._field_values_for_element(name),
                 forecast_times,
+                self._source_states_for_element(name),
             )
             for name, config in self._get_participant_configs().items()
         }

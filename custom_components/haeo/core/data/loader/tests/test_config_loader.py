@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from conftest import FakeStateMachine
+from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import (
     _resolve_list_items,
@@ -550,6 +550,7 @@ def _load_config_from_values(
         config,  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
         field_values,
         FORECAST_TIMES,
+        {},
     )
     return result
 
@@ -643,6 +644,7 @@ def test_load_element_config_from_values_skips_invalid_list_container() -> None:
         config,  # type: ignore[arg-type]  # rules is not a list; is_element_config_schema rejects this fixture
         {},
         FORECAST_TIMES,
+        {},
     )
 
     assert result["rules"] == "not-a-list"
@@ -656,4 +658,43 @@ def test_load_element_config_from_values_unknown_element_type_raises() -> None:
             {"element_type": "not_real", "name": "Bad"},  # type: ignore[typeddict-item]  # invalid element_type must reach runtime validation
             {},
             FORECAST_TIMES,
+            {},
         )
+
+
+# -- availability last off tests --
+
+_PLUG = "binary_sensor.ev_plug"
+
+
+def _ev_trip_config(connected: Any) -> dict[str, Any]:
+    return {"element_type": "ev", "name": "EV", "trip": {"connected": connected}}
+
+
+@pytest.mark.parametrize(
+    ("connected", "attributes", "expected"),
+    [
+        pytest.param({"type": "entity", "value": [_PLUG]}, {"haeo_last_off": 1800.0}, 1800.0, id="injected"),
+        pytest.param({"type": "entity", "value": [_PLUG]}, {}, None, id="no_history"),
+        pytest.param({"type": "constant", "value": 1.0}, {"haeo_last_off": 1800.0}, None, id="constant_input"),
+    ],
+)
+def test_availability_field_loads_last_off_from_source_state(
+    connected: Any, attributes: dict[str, Any], expected: float | None
+) -> None:
+    """Both loaders read an availability source's injected last off time beside the field."""
+    states = {_PLUG: FakeEntityState(_PLUG, "on", attributes)}
+    config = _ev_trip_config(connected)
+
+    from_states: Any = load_element_config("EV", config, FakeStateMachine(states), FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts
+    from_values: Any = load_element_config_from_values(
+        "EV",
+        config,  # type: ignore[arg-type]  # fixtures use loose dicts
+        {("trip", "connected"): np.ones(3)},
+        FORECAST_TIMES,
+        states,
+    )
+
+    for result in (from_states, from_values):
+        assert result["trip"].get("connected_last_off") == expected
+        np.testing.assert_allclose(result["trip"]["connected"], [1.0, 1.0, 1.0])

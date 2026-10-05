@@ -88,7 +88,16 @@ Events whose text contains no parsable distance are ignored entirely.
 
 Select a binary sensor that reports `on` when the EV is plugged in at home and `off` when disconnected.
 The trip calendar is authoritative for future availability; this sensor pins the *current* state, so an early return or unplanned absence is reflected immediately.
-If the sensor reports the car plugged in while a trip event is still open, HAEO treats that trip as over: the car counts as home until the event's scheduled end, and the rest of the trip asks for no energy or public charging.
+If the sensor reports the car plugged in while a trip event is still open, HAEO assumes the car has not left yet.
+It is home for the current interval, and the trip still happens in the rest of the event, with its energy due by the event's end.
+
+HAEO treats the trip as done early only when Home Assistant's history shows the sensor unplugged at some point since the trip event started.
+When the [odometer](#odometer) and [odometer at disconnect](#odometer-at-disconnect) sensors are configured, the car must also have driven since it disconnected, so a brief unplug without driving does not count.
+A trip done early counts the car as home until the event's scheduled end, and the rest of the trip asks for no energy or public charging.
+Readings of `unavailable` or `unknown`, such as during a Home Assistant restart, never count as unplugged.
+
+This history comes from the [recorder](https://www.home-assistant.io/integrations/recorder/), which Home Assistant enables by default, and covers the last seven days.
+If the recorder is disabled or excludes the connected sensor, a car plugged in during a trip event is always treated as not yet departed.
 
 This field takes a sensor or nothing; there is no constant option.
 Without a plugged in sensor the trip calendar governs the current interval too: the car counts as away whenever a trip event overlaps the current interval and as plugged in otherwise.

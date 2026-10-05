@@ -16,6 +16,7 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.data.input_store import InputMode, InputStore
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import (
     as_constant_value,
     is_connection_target,
@@ -24,11 +25,13 @@ from custom_components.haeo.core.schema import (
     is_none_value,
     is_schema_value,
 )
+from custom_components.haeo.core.state import StateMachine
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.last_off_history import async_last_off_state_machine
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -279,7 +282,9 @@ class HaeoInputNumber(NumberEntity):
 
         Returns True if loading succeeded and state was synced.
         """
-        sm = HomeAssistantStateMachine(self.hass)
+        sm: StateMachine = HomeAssistantStateMachine(self.hass)
+        if self._store.hint.output_type is OutputType.AVAILABILITY:
+            sm = await async_last_off_state_machine(self.hass, sm, self._store.source_entity_ids)
         with self._suppress_self_notifications():
             loaded = await self._store.async_load(sm)
         if not loaded:

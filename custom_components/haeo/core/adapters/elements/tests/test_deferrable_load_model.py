@@ -41,6 +41,7 @@ def _boundary_data(n_periods: int, events: list[tuple[int, int, float]]) -> Cale
         value_span=span,
         value_edge_start=edge_start,
         value_edge_end=edge_end,
+        open_since=None,
     )
 
 

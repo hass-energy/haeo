@@ -1,6 +1,7 @@
 """Tests for resolving calendar schema values into boundary arrays."""
 
 import numpy as np
+import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader.calendar_resolver import is_calendar_boundary_data, resolve_calendar_field
@@ -142,3 +143,31 @@ def test_is_calendar_boundary_data_rejects_other_values() -> None:
     assert not is_calendar_boundary_data({"presence": []})
     assert not is_calendar_boundary_data(1.0)
     assert not is_calendar_boundary_data(None)
+
+
+@pytest.mark.parametrize(
+    ("events", "expected"),
+    [
+        pytest.param([(-3600.0, 3600.0, "10 km")], -3600.0, id="open_before_horizon"),
+        pytest.param([(0.0, 3600.0, "10 km")], 0.0, id="opens_at_horizon_start"),
+        pytest.param(
+            [(-7200.0, -1800.0, "10 km"), (-3600.0, 3600.0, "10 km")],
+            -7200.0,
+            id="overlapping_events_chain",
+        ),
+        pytest.param([(-3600.0, 0.0, "10 km"), (0.0, 3600.0, "10 km")], 0.0, id="touching_events_stay_separate"),
+        pytest.param([(-3600.0, 0.0, "10 km")], None, id="ended_at_horizon_start"),
+        pytest.param([(3600.0, 7200.0, "10 km")], None, id="starts_later"),
+        pytest.param([(-3600.0, 3600.0, "Office")], None, id="zero_value_event"),
+        pytest.param([], None, id="no_events"),
+    ],
+)
+def test_open_since_reports_start_of_window_open_at_horizon_start(
+    events: list[tuple[float, float, str]], expected: float | None
+) -> None:
+    """open_since is the true start of the window open at the horizon start."""
+    value = _calendar_value([_event(start, end, location=location) for start, end, location in events])
+    result = resolve_calendar_field(value, CalendarFieldHint(parser="distance"), FakeStateMachine({}), BOUNDARY_TIMES)
+
+    assert result is not None
+    assert result["open_since"] == expected
