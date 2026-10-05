@@ -5,7 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
+from custom_components.haeo.core.schema import (
+    get_connection_target_name,
+    is_constant_value,
+    normalize_connection_target,
+)
 from custom_components.haeo.core.schema.elements import connection
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -51,12 +55,16 @@ def _strip_reverse_from_section(section_data: dict[str, Any]) -> tuple[dict[str,
 
 
 def _swap_endpoints(endpoints: dict[str, Any]) -> dict[str, Any]:
-    source = endpoints.get(connection.CONF_SOURCE)
-    target = endpoints.get(connection.CONF_TARGET)
     return {
-        connection.CONF_SOURCE: normalize_connection_target(target),
-        connection.CONF_TARGET: normalize_connection_target(source),
+        connection.CONF_SOURCE: normalize_connection_target(endpoints[connection.CONF_TARGET]),
+        connection.CONF_TARGET: normalize_connection_target(endpoints[connection.CONF_SOURCE]),
     }
+
+
+def _blocks_reverse_flow(power_limits: dict[str, Any]) -> bool:
+    """Return True when the legacy reverse max power was the constant 0 used to block reverse flow."""
+    value = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
+    return is_constant_value(value) and value["value"] == 0
 
 
 def _reverse_connection_name(base_name: str, source_name: str, target_name: str) -> str:
@@ -79,32 +87,31 @@ def migrate_connection_config(
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
     """Migrate a connection config to unidirectional fields.
 
+    Legacy connections were bidirectional, and an unset reverse max power meant
+    unlimited reverse flow. Every legacy connection therefore yields a reverse
+    connection carrying the reverse-direction fields, unless the reverse max power
+    was the constant 0 that blocked reverse flow.
+
     Returns:
-        Tuple of forward connection data and optional reverse connection data
-        when reverse-direction fields were configured.
+        Tuple of forward connection data and reverse connection data, or None
+        when the legacy configuration blocked reverse flow.
 
     """
     migrated = dict(data)
     migrated.pop("segment_order", None)
 
-    reverse_power: dict[str, Any] = {}
-    reverse_pricing: dict[str, Any] = {}
-    reverse_efficiency: dict[str, Any] = {}
+    legacy_power_limits = _section_dict(migrated, SECTION_POWER_LIMITS)
+    blocks_reverse = _blocks_reverse_flow(legacy_power_limits)
 
-    power_limits, extracted_power = _strip_reverse_from_section(_section_dict(migrated, SECTION_POWER_LIMITS))
-    pricing, extracted_pricing = _strip_reverse_from_section(_section_dict(migrated, SECTION_PRICING))
-    efficiency, extracted_efficiency = _strip_reverse_from_section(_section_dict(migrated, SECTION_EFFICIENCY))
-
-    reverse_power.update(extracted_power)
-    reverse_pricing.update(extracted_pricing)
-    reverse_efficiency.update(extracted_efficiency)
+    power_limits, reverse_power = _strip_reverse_from_section(legacy_power_limits)
+    pricing, reverse_pricing = _strip_reverse_from_section(_section_dict(migrated, SECTION_PRICING))
+    efficiency, reverse_efficiency = _strip_reverse_from_section(_section_dict(migrated, SECTION_EFFICIENCY))
 
     migrated[SECTION_POWER_LIMITS] = power_limits
     migrated[SECTION_PRICING] = pricing
     migrated[SECTION_EFFICIENCY] = efficiency
 
-    has_reverse = bool(reverse_power or reverse_pricing or reverse_efficiency)
-    if not has_reverse:
+    if blocks_reverse:
         return migrated, None
 
     endpoints = _section_dict(migrated, connection.SECTION_ENDPOINTS)

@@ -1,17 +1,17 @@
 """Tests for v1.4 connection unidirectional schema migration."""
 
+import pytest
+
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import (
     as_connection_target,
     as_constant_value,
+    as_entity_value,
     as_none_value,
     get_connection_target_name,
 )
 from custom_components.haeo.core.schema.elements import connection
-from custom_components.haeo.core.schema.migrations.v1_4 import (
-    merge_reverse_into_existing,
-    migrate_connection_config,
-)
+from custom_components.haeo.core.schema.migrations.v1_4 import merge_reverse_into_existing, migrate_connection_config
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -37,8 +37,8 @@ def _connection_config(**sections: object) -> dict[str, object]:
     }
 
 
-def test_migrate_strips_segment_order_only() -> None:
-    """Segment order is removed without creating a reverse connection."""
+def test_migrate_strips_segment_order() -> None:
+    """Segment order is removed from the forward connection."""
     data = _connection_config(
         segment_order={"mirror_segment_order": True},
         power_limits={},
@@ -46,25 +46,70 @@ def test_migrate_strips_segment_order_only() -> None:
         efficiency={},
     )
 
-    forward, reverse = migrate_connection_config(data)
+    forward, _ = migrate_connection_config(data)
 
-    assert reverse is None
     assert "segment_order" not in forward
 
 
-def test_migrate_forward_only_unchanged() -> None:
-    """Forward-only configuration is unchanged aside from cleanup."""
+@pytest.mark.parametrize(
+    "reverse_power",
+    [
+        pytest.param({}, id="unset"),
+        pytest.param({CONF_MAX_POWER_TARGET_SOURCE: as_none_value()}, id="none"),
+    ],
+)
+def test_migrate_unset_reverse_power_creates_unlimited_reverse(reverse_power: dict[str, object]) -> None:
+    """An unset reverse max power meant unlimited reverse flow, so an unlimited reverse connection is created."""
     data = _connection_config(
-        power_limits={CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0)},
+        power_limits={CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0), **reverse_power},
         pricing={},
         efficiency={},
     )
 
     forward, reverse = migrate_connection_config(data)
 
+    assert forward[SECTION_POWER_LIMITS] == {CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0)}
+    assert reverse is not None
+    assert reverse[CONF_NAME] == "Inverter link (AC Bus to DC Bus)"
+    assert reverse[SECTION_POWER_LIMITS] == {}
+    assert reverse[SECTION_PRICING] == {}
+    assert reverse[SECTION_EFFICIENCY] == {}
+
+
+@pytest.mark.parametrize("zero", [0, 0.0], ids=["int", "float"])
+def test_migrate_zero_reverse_power_blocks_reverse(zero: float) -> None:
+    """A constant 0 reverse max power blocked reverse flow, so no reverse connection is created."""
+    data = _connection_config(
+        power_limits={
+            CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0),
+            CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(zero),
+        },
+        pricing={CONF_PRICE_TARGET_SOURCE: as_constant_value(0.2)},
+        efficiency={CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(0.9)},
+    )
+
+    forward, reverse = migrate_connection_config(data)
+
     assert reverse is None
-    assert forward[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(10.0)
-    assert CONF_MAX_POWER_TARGET_SOURCE not in forward[SECTION_POWER_LIMITS]
+    assert forward[SECTION_POWER_LIMITS] == {CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0)}
+    assert forward[SECTION_PRICING] == {}
+    assert forward[SECTION_EFFICIENCY] == {}
+
+
+def test_migrate_entity_reverse_power_creates_reverse() -> None:
+    """A sensor-driven reverse max power is carried to the reverse connection even if it may read 0."""
+    data = _connection_config(
+        power_limits={CONF_MAX_POWER_TARGET_SOURCE: as_entity_value(["sensor.reverse_limit"])},
+        pricing={},
+        efficiency={},
+    )
+
+    _, reverse = migrate_connection_config(data)
+
+    assert reverse is not None
+    assert reverse[SECTION_POWER_LIMITS] == {
+        CONF_MAX_POWER_SOURCE_TARGET: as_entity_value(["sensor.reverse_limit"]),
+    }
 
 
 def test_migrate_splits_reverse_fields() -> None:
@@ -97,23 +142,6 @@ def test_migrate_splits_reverse_fields() -> None:
     assert isinstance(reverse_endpoints, dict)
     assert get_connection_target_name(reverse_endpoints[connection.CONF_SOURCE]) == "AC Bus"
     assert get_connection_target_name(reverse_endpoints[connection.CONF_TARGET]) == "DC Bus"
-
-
-def test_migrate_ignores_none_reverse_values() -> None:
-    """Explicit none reverse values do not trigger a split."""
-    data = _connection_config(
-        power_limits={
-            CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0),
-            CONF_MAX_POWER_TARGET_SOURCE: as_none_value(),
-        },
-        pricing={},
-        efficiency={},
-    )
-
-    forward, reverse = migrate_connection_config(data)
-
-    assert reverse is None
-    assert CONF_MAX_POWER_TARGET_SOURCE not in forward[SECTION_POWER_LIMITS]
 
 
 def test_migrate_unique_reverse_name() -> None:
@@ -154,4 +182,3 @@ def test_merge_reverse_into_existing() -> None:
 
     assert merged[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(6.0)
     assert merged[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.2)
-
