@@ -44,7 +44,7 @@ The EV alternates between two states:
 
 The trip calendar is authoritative for the future: the away mask is derived from calendar event windows aligned to the horizon.
 The live plugged-in binary sensor overrides the current interval, so early returns and unplanned absences are reflected immediately.
-A car plugged in during an open trip also ends that trip (see [early return](#early-return)).
+A car plugged in during an open trip has not left yet: only the current interval is home, and the trip still happens in the rest of its window unless the car already came back (see [early return](#early-return)).
 The plugged-in field accepts only a sensor; without one the calendar governs the current interval as well.
 Without a calendar the sensor value applies across the whole horizon, and with neither source the EV is always connected.
 The masks multiply the connection power limits.
@@ -117,7 +117,24 @@ If the odometer does not update while driving, HAEO conservatively assumes no pr
 
 ### Early return
 
-When the plugged-in sensor reports the car at home while the calendar says a trip is open, the open trip is treated as over.
+A car plugged in while the calendar says a trip is open has either not left yet or come back early.
+HAEO keeps no state of its own to tell these apart.
+Instead, each time the plugged-in input loads, the integration asks the recorder when the sensor last read unplugged over the past seven days.
+`off`, `false`, and `0` count as unplugged; `unavailable` and `unknown` do not, so a restart leaves no unplug behind.
+The time the latest unplugged reading ended is injected into the sensor's state as the `haeo_last_off` attribute, so diagnostics capture it and replay the same decision.
+
+The car came back early when all of these hold:
+
+- the plugged-in sensor reports the car plugged in now,
+- a trip window is open at the horizon start,
+- the sensor last read unplugged at or after that window's start, which comes from the calendar event even when it began before the horizon,
+- and, when both odometer readings are configured, $o_{	ext{current}} - o_{	ext{disconnect}} > 0$.
+
+Otherwise the car has not left yet.
+The plugged-in sensor pins only the current interval as home, and the open window keeps its requirement, still due at the window's end, so the trip is squeezed into the rest of the window.
+Without the recorder, without history for the sensor, or when the lookup fails, this is always the outcome.
+
+When the car came back early, the open trip is over.
 Its requirement and reserve checks are dropped, and the car counts as home until the trip's scheduled end.
 This keeps a trip that ended early from demanding driving energy or pricing a phantom public top-up.
 Later trips are unaffected.
