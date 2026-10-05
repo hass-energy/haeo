@@ -85,6 +85,12 @@ def test_invalid_sensor_handling(hass: HomeAssistant, parser_type: str, sensor_d
             "test_unit",
             id="unknown_with_unit",
         ),
+        pytest.param("on", {}, 1.0, None, id="binary_on"),
+        pytest.param("off", {}, 0.0, None, id="binary_off"),
+        pytest.param("true", {}, 1.0, None, id="binary_true"),
+        pytest.param("false", {}, 0.0, None, id="binary_false"),
+        pytest.param("ON", {}, 1.0, None, id="binary_uppercase"),
+        pytest.param(" Off ", {}, 0.0, None, id="binary_mixed_case_whitespace"),
     ],
 )
 def test_extract_unknown_format_fallback(
