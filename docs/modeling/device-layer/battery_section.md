@@ -29,11 +29,11 @@ Battery Section creates 1 device in Home Assistant:
 
 The adapter passes user configuration directly to the Battery model element:
 
-| User Configuration | Model Element | Model Parameter  | Notes                       |
-| ------------------ | ------------- | ---------------- | --------------------------- |
-| `name`             | Battery       | `name`           | Element name                |
-| `capacity`         | Battery       | `capacity`       | Battery capacity (kWh)      |
-| `initial_charge`   | Battery       | `initial_charge` | Initial stored energy (kWh) |
+| User Configuration | Model Element | Model Parameter  | Notes                               |
+| ------------------ | ------------- | ---------------- | ----------------------------------- |
+| `name`             | Battery       | `name`           | Element name                        |
+| `capacity`         | Battery       | `capacity`       | Battery capacity (kWh)              |
+| `initial_charge`   | Battery       | `initial_charge` | Current value of the sensor, in kWh |
 
 ## Sensors Created
 
@@ -78,6 +78,7 @@ Access raw model layer Battery behavior for research, testing, or advanced optim
 
 Battery Section represents a single-section energy storage device with no implicit connections or internal routing.
 All power flow must be explicitly configured via Connection elements.
+Connections are unidirectional, so charging and discharging each need their own connection.
 
 ### Configuration Guidelines
 
