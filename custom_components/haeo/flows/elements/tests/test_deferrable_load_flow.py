@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
@@ -14,6 +15,7 @@ from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.deferrable_load import (
     CONF_DEFICIT_PRICE,
     CONF_MAX_POWER,
+    CONF_OVERAGE_PRICE,
     CONF_WINDOW_CALENDAR,
     ELEMENT_TYPE,
     SECTION_POWER,
@@ -21,6 +23,7 @@ from custom_components.haeo.core.schema.elements.deferrable_load import (
     SECTION_SCHEDULE,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
+from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.flows.conftest import create_flow
 
 
@@ -69,3 +72,11 @@ async def test_missing_calendar_is_an_error(
 
     assert result.get("type") == FlowResultType.FORM
     assert CONF_WINDOW_CALENDAR in result.get("errors", {})
+
+
+@pytest.mark.parametrize("field", [CONF_DEFICIT_PRICE, CONF_OVERAGE_PRICE])
+def test_penalty_prices_cannot_be_negative(field: str) -> None:
+    """Penalty price inputs are bounded below by zero so the optimization stays bounded."""
+    field_info = get_input_fields(ELEMENT_TYPE)[SECTION_PRICING][field]
+
+    assert field_info.entity_description.native_min_value == 0.0

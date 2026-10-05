@@ -36,7 +36,11 @@ from typing import Any, NotRequired, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, ModelElementConfig
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+    ModelElementConfig,
+)
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.elements.deferrable_load import DeferrableLoadElementConfig
@@ -44,7 +48,7 @@ from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
 
-# Non-connection element configs (nodes and batteries) that can carry tags
+# Non-connection element configs (nodes, batteries, deferrable loads) that can carry tags
 _TaggableConfig = NodeElementConfig | BatteryElementConfig | DeferrableLoadElementConfig
 
 # A rule grouping identifies a rule by its source/destination sets,
@@ -117,8 +121,13 @@ def compile_policies(
 
     # Capability sets for wildcard expansion: nodes that can only produce
     # should not appear as destinations, and nodes that can only consume
-    # should not appear as sources. Batteries default to both.
-    source_names = {name for name, elem in by_name.items() if elem.get("is_source", True)}
+    # should not appear as sources. Batteries default to both, and
+    # deferrable loads only ever absorb power.
+    source_names = {
+        name
+        for name, elem in by_name.items()
+        if elem["element_type"] != MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD and elem.get("is_source", True)
+    }
     sink_names = {name for name, elem in by_name.items() if elem.get("is_sink", True)}
 
     # Directed graph: edges follow connection direction (source → target)

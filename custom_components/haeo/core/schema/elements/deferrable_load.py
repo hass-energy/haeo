@@ -21,6 +21,7 @@ SECTION_PRICING: Final = "pricing"
 
 # Schedule section field names
 CONF_WINDOW_CALENDAR: Final = "window_calendar"
+CONF_ENERGY_DELIVERED: Final = "energy_delivered"
 
 # Power section field names
 CONF_MAX_POWER: Final = "max_power"
@@ -36,6 +37,7 @@ DEFAULT_DEFICIT_PRICE: Final = 10.0
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
+        CONF_ENERGY_DELIVERED,
         CONF_MAX_POWER,
         CONF_OVERAGE_PRICE,
     }
@@ -46,15 +48,23 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
 
 
 class ScheduleConfig(TypedDict):
-    """Run window schedule configuration."""
+    """Run window schedule configuration.
+
+    The calendar drives the run windows and their energy requirements; the
+    optional delivered energy sensor reports how much the currently open
+    window has already absorbed, so re-optimizing mid-window does not demand
+    that energy again.
+    """
 
     window_calendar: CalendarValue
+    energy_delivered: NotRequired[EntityValue | NoneValue]
 
 
 class ScheduleData(TypedDict):
     """Loaded run window schedule."""
 
     window_calendar: CalendarBoundaryData
+    energy_delivered: NotRequired[float]
 
 
 # --- Power section ---
@@ -106,6 +116,11 @@ class DeferrableLoadConfigSchema(ConnectedCommonConfig):
                     boundaries=True,
                     calendar=CalendarFieldHint(parser="number"),
                 ),
+                CONF_ENERGY_DELIVERED: FieldHint(
+                    output_type=OutputType.ENERGY,
+                    time_series=False,
+                    min_value=0.0,
+                ),
             }
         ),
     ]
@@ -130,12 +145,14 @@ class DeferrableLoadConfigSchema(ConnectedCommonConfig):
                 CONF_DEFICIT_PRICE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=True,
+                    min_value=0.0,
                     default_mode="value",
                     default_value=DEFAULT_DEFICIT_PRICE,
                 ),
                 CONF_OVERAGE_PRICE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=False,
+                    min_value=0.0,
                 ),
             }
         ),
@@ -153,6 +170,7 @@ class DeferrableLoadConfigData(ConnectedCommonData):
 
 __all__ = [
     "CONF_DEFICIT_PRICE",
+    "CONF_ENERGY_DELIVERED",
     "CONF_MAX_POWER",
     "CONF_OVERAGE_PRICE",
     "CONF_WINDOW_CALENDAR",
