@@ -74,7 +74,7 @@ class DeferrableLoadAdapter:
 
         Creates 2 model elements:
         1. {name} - Deferrable load (energy requirement per calendar window)
-        2. {name}:connection - Connection (network → load), open only during windows
+        2. {name}:connection - Connection (network → load), open only during windows with energy
 
         Calendar events define the run windows; each event's text carries the
         energy (kWh) that window must absorb. Capacity opens at each window's
@@ -101,8 +101,9 @@ class DeferrableLoadAdapter:
         delivered = schedule.get(CONF_ENERGY_DELIVERED, 0.0)
         initial_energy = min(max(delivered, 0.0), float(capacity[0]))
 
-        # Power may only flow while a window is open.
-        window_mask = np.asarray(calendar["presence"][:-1], dtype=np.float64)
+        # Power may only flow while a window with energy to absorb is open,
+        # so an event whose text held no usable number opens nothing.
+        window_mask = (calendar["value_span"][:-1] > 0.0).astype(np.float64)
         max_power = power.get(CONF_MAX_POWER)
         if max_power is None:
             max_power = _UNLIMITED_POWER

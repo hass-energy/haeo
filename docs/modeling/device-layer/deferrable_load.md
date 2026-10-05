@@ -32,7 +32,7 @@ For each window $i$ with start $s_i$, end $e_i$, and required energy $E_i$ (from
 - **Capacity** opens at each window's start: $C(t) = \sum_{i:\, s_i \le t} E_i$
 - **Requirement** is due by each window's end: $E_{\text{req}}(t) = \sum_{i:\, e_i \le t} E_i$
 
-The connection's power limit is masked by window presence, so power can only flow while a window is open, and is capped by the configured max power.
+The connection's power limit is masked by the windows with positive energy, so power can only flow while such a window is open, and is capped by the configured max power.
 
 ### Energy already delivered
 
@@ -68,7 +68,7 @@ The deferrable load element creates a single Home Assistant device:
 | `energy_delivered` | Deferrable load `{name}`       | `initial_energy`      | Clamped to the open window energy |
 | `deficit_price`    | Deferrable load `{name}`       | `deficit_price`       | Defaults to \$10/kWh, clamped ≥ 0 |
 | `overage_price`    | Deferrable load `{name}`       | `overage_price`       | Optional, clamped ≥ 0             |
-| `max_power`        | Connection `{name}:connection` | Power limit segment   | Masked by window presence         |
+| `max_power`        | Connection `{name}:connection` | Power limit segment   | Masked by windows with energy     |
 
 ## Output mapping
 

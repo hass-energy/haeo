@@ -28,11 +28,12 @@ def _boundary_data(
     presence: list[float],
     value_edge_start: list[float],
     value_edge_end: list[float],
+    value_span: list[float] | None = None,
 ) -> CalendarBoundaryData:
-    """Build calendar boundary data with a derived value_span."""
+    """Build calendar boundary data, deriving value_span from presence unless given."""
     return CalendarBoundaryData(
         presence=np.array(presence, dtype=np.float64),
-        value_span=np.array(presence, dtype=np.float64),
+        value_span=np.array(presence if value_span is None else value_span, dtype=np.float64),
         value_edge_start=np.array(value_edge_start, dtype=np.float64),
         value_edge_end=np.array(value_edge_end, dtype=np.float64),
     )
@@ -91,6 +92,29 @@ def test_unlimited_power_when_unconfigured() -> None:
     max_power = elements["pump:connection"]["segments"]["power_limit"]["max_power"]
     assert max_power[2] > 1e5
     np.testing.assert_allclose(max_power[[0, 1, 3]], [0.0, 0.0, 0.0])
+
+
+def test_window_without_energy_stays_closed() -> None:
+    """An event whose text did not parse keeps its window but opens no power.
+
+    Otherwise capacity left over from an earlier, missed window could be
+    absorbed during an event the user expects to be ignored.
+    """
+    config = _config(
+        power={"max_power": 2.0},
+        schedule={
+            "window_calendar": _boundary_data(
+                presence=[1.0, 0.0, 1.0, 0.0, 0.0],
+                value_edge_start=[6.0, 0.0, 0.0, 0.0, 0.0],
+                value_edge_end=[0.0, 6.0, 0.0, 0.0, 0.0],
+                value_span=[6.0, 0.0, 0.0, 0.0, 0.0],
+            ),
+        },
+    )
+
+    max_power = _elements_by_name(config)["pump:connection"]["segments"]["power_limit"]["max_power"]
+
+    np.testing.assert_allclose(max_power, [2.0, 0.0, 0.0, 0.0])
 
 
 def _solve(config: DeferrableLoadConfigData, grid_price: list[float]) -> Network:
