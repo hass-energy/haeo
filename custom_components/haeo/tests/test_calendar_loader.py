@@ -350,3 +350,50 @@ async def test_loader_reloads_on_horizon_change(hass: HomeAssistant, horizon_man
     assert store.forecast_timestamps == new_timestamps
     np.testing.assert_allclose(_presence(store), [1.0, 0.0, 0.0])
     loader.cleanup()
+
+
+class _GatedCalendar(_StubCalendar):
+    """Calendar double whose fetches each return their own events once their gate opens."""
+
+    def __init__(self) -> None:
+        super().__init__([])
+        self.responses: list[tuple[list[CalendarEvent], asyncio.Event]] = []
+
+    async def async_get_events(
+        self,
+        hass: HomeAssistant,  # noqa: ARG002 (signature fixed by CalendarEntity)
+        start_date: datetime,  # noqa: ARG002
+        end_date: datetime,  # noqa: ARG002
+    ) -> list[CalendarEvent]:
+        """Return the next queued events after waiting for that fetch's gate."""
+        events, gate = self.responses.pop(0)
+        await gate.wait()
+        return events
+
+
+async def test_loader_applies_overlapping_reloads_in_trigger_order(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """An older reload finishing after a newer one does not overwrite the store with stale events."""
+    calendar = _GatedCalendar()
+    await _add_stub_calendars(hass, calendar)
+    store = _calendar_store()
+    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    initial_gate = asyncio.Event()
+    initial_gate.set()
+    calendar.responses.append(([], initial_gate))
+    await loader.async_start()
+
+    stale_gate = asyncio.Event()
+    fresh_gate = asyncio.Event()
+    fresh_gate.set()
+    calendar.responses.append(([_trip(0.0, 3600.0)], stale_gate))
+    calendar.responses.append(([_trip(3600.0, 7200.0)], fresh_gate))
+    older = hass.async_create_task(loader.async_load_all())
+    await asyncio.sleep(0)
+    newer = hass.async_create_task(loader.async_load_all())
+    for _ in range(5):
+        await asyncio.sleep(0)
+    stale_gate.set()
+    await asyncio.gather(older, newer)
+
+    np.testing.assert_allclose(_presence(store), [0.0, 1.0, 0.0])
+    loader.cleanup()

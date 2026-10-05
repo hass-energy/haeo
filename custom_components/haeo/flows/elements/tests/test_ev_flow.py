@@ -7,6 +7,7 @@ from unittest.mock import Mock
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
@@ -28,6 +29,8 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_MAX_CHARGE_RATE,
     CONF_ODOMETER,
     CONF_ODOMETER_AT_DISCONNECT,
+    CONF_PUBLIC_CHARGING_PRICE,
+    CONF_RESERVE_PRICE,
     CONF_TRIP_CALENDAR,
     ELEMENT_TYPE,
     SECTION_CHARGING,
@@ -38,6 +41,7 @@ from custom_components.haeo.core.schema.elements.ev import (
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY, SECTION_POWER_LIMITS
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.flows.conftest import create_flow
+from custom_components.haeo.flows.field_schema import CHOICE_ENTITY
 
 
 def _user_input(trip: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -177,3 +181,32 @@ def test_plugged_in_field_accepts_only_a_live_sensor() -> None:
     kinds = get_schema_value_kinds(schema_info[SECTION_TRIP][CONF_CONNECTED].value_type)
 
     assert kinds == frozenset({VALUE_TYPE_ENTITY, VALUE_TYPE_NONE})
+
+
+@pytest.mark.parametrize(
+    ("section", "field"),
+    [(SECTION_PUBLIC_CHARGING, CONF_PUBLIC_CHARGING_PRICE), (SECTION_TRIP, CONF_RESERVE_PRICE)],
+)
+def test_penalty_prices_cannot_be_negative(section: str, field: str) -> None:
+    """Penalty price inputs are bounded below by zero so the optimization stays bounded."""
+    field_info = get_input_fields(ELEMENT_TYPE)[section][field]
+
+    assert field_info.entity_description.native_min_value == 0.0
+
+
+async def test_plugged_in_entity_picker_offers_binary_sensors(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """The plugged-in picker offers binary sensors and input booleans alongside numeric entities."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    result = await flow.async_step_user(user_input=None)
+
+    sections = {marker.schema: section for marker, section in result["data_schema"].schema.items()}
+    trip_fields = {marker.schema: selector for marker, selector in sections[SECTION_TRIP].schema.schema.items()}
+    entity_choice = trip_fields[CONF_CONNECTED].config["choices"][CHOICE_ENTITY]
+    domains = entity_choice["selector"]["entity"]["domain"]
+
+    assert {"binary_sensor", "input_boolean"} <= set(domains)
