@@ -146,18 +146,32 @@ def test_unmasked_boundaries_are_not_priced() -> None:
     assert cost == pytest.approx(3.0 * 2.0)
 
 
-def test_negative_reserve_price_stays_bounded() -> None:
-    """A negative reserve price cannot claim more shortfall than the reserve level."""
+def test_negative_reserve_price_is_rejected() -> None:
+    """A negative reserve price would book shortfall that never happens, so it is rejected."""
+    network, _battery = _build_network(
+        initial_charge=10.0,
+        drain=[0.0, 8.0],
+        reserve_level=5.0,
+        reserve_mask=np.array([0.0, 0.0, 1.0]),
+        reserve_price=np.array([1.0, 1.0, -1.0]),
+    )
+
+    with pytest.raises(ValueError, match="reserve_price must be non-negative"):
+        network.optimize()
+
+
+def test_negative_reserve_price_update_is_rejected() -> None:
+    """Updating the reserve price to a negative value is rejected on the next optimization."""
     network, battery = _build_network(
         initial_charge=10.0,
         drain=[0.0, 8.0],
         reserve_level=5.0,
         reserve_mask=np.array([0.0, 0.0, 1.0]),
-        reserve_price=np.array([-1.0, -1.0, -1.0]),
+        reserve_price=1.0,
     )
+    network.optimize()
 
-    cost = network.optimize()
+    battery["reserve_price"] = np.array([1.0, -1.0, 1.0])
 
-    shortfall = battery.outputs()[BATTERY_RESERVE_SHORTFALL].values
-    np.testing.assert_allclose(shortfall, [0.0, 0.0, 5.0])
-    assert cost == pytest.approx(-5.0)
+    with pytest.raises(ValueError, match="reserve_price must be non-negative"):
+        network.optimize()
