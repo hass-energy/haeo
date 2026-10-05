@@ -266,6 +266,7 @@ class InputStore:
                 self._hint,
                 sm,
                 list(forecast_timestamps),
+                negate=self._negate,
             )
         except Exception:
             _LOGGER.debug(
@@ -287,9 +288,6 @@ class InputStore:
         if isinstance(resolved, np.ndarray) and resolved.size == 0:
             self._available = False
             return False
-
-        if self._negate and not isinstance(resolved, bool):
-            resolved = -resolved
 
         self._value = resolved
         self._available = True

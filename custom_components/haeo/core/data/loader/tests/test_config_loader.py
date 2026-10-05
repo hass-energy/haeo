@@ -15,7 +15,7 @@ from custom_components.haeo.core.data.loader.config_loader import (
     load_element_configs,
 )
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import as_connection_target
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements.battery import CONF_CAPACITY, SECTION_STORAGE
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
 from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
@@ -433,6 +433,41 @@ def test_load_element_configs_empty_participants_returns_empty() -> None:
     assert result == {}
 
 
+def test_load_element_configs_negates_entity_surfaced_load_price(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Entity-driven load consumption prices are negated like the runtime input stores.
+
+    A load's consumption cost is stored as a ``* → load`` policy rule holding the
+    negated running value. Constants are stored already negated, but entity prices
+    must be negated on resolution or the load sees a cost instead of a value.
+    """
+
+    def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
+        return dict.fromkeys(entity_ids, 0.25)
+
+    monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
+
+    participants: dict[str, Any] = {
+        "Miner": {"element_type": "load", "name": "Miner", "common": {"connection": "node_a"}},
+        "Battery": _battery_config(),
+        "Policies": {
+            "element_type": "policy",
+            "name": "Policies",
+            CONF_RULES: [
+                {"name": "miner", "enabled": True, "target": ["Miner"], CONF_PRICE: as_entity_value(["sensor.doge"])},
+                {"name": "charge", "enabled": True, "target": ["Battery"], CONF_PRICE: as_entity_value(["sensor.b"])},
+                {"name": "fixed", "enabled": True, "source": ["Miner"], CONF_PRICE: as_constant_value(-0.1)},
+            ],
+        },
+    }
+
+    result: Any = load_element_configs(participants, FakeStateMachine({}), FORECAST_TIMES)
+
+    rules = result["Policies"][CONF_RULES]
+    np.testing.assert_array_equal(rules[0][CONF_PRICE], [-0.25, -0.25, -0.25])
+    np.testing.assert_array_equal(rules[1][CONF_PRICE], [0.25, 0.25, 0.25])
+    np.testing.assert_array_equal(rules[2][CONF_PRICE], [-0.1, -0.1, -0.1])
+
+
 # -- _resolve_list_items tests --
 
 
@@ -445,7 +480,7 @@ def test_resolve_list_items_constant_values() -> None:
         {"name": "rule1", "price": {"type": "constant", "value": 0.05}},
     ]
 
-    result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
+    result = _resolve_list_items("rules", items, hints, FakeStateMachine({}), FORECAST_TIMES, frozenset())
 
     assert len(result) == 1
     assert result[0]["name"] == "rule1"
@@ -467,7 +502,7 @@ def test_resolve_list_items_zero_price_loads(items: list[dict[str, Any]]) -> Non
         fields={"price": FieldHint(output_type=OutputType.PRICE, time_series=True)},
     )
 
-    result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
+    result = _resolve_list_items("rules", items, hints, FakeStateMachine({}), FORECAST_TIMES, frozenset())
 
     assert "price" in result[0]
     assert result[0]["name"] == "rule1"
@@ -488,7 +523,7 @@ def test_resolve_list_items_unavailable_entity_sets_none(monkeypatch: pytest.Mon
         {"name": "rule1", "price": {"type": "entity", "value": ["sensor.missing"]}},
     ]
 
-    result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
+    result = _resolve_list_items("rules", items, hints, FakeStateMachine({}), FORECAST_TIMES, frozenset())
 
     assert result[0]["price"] is None
 
@@ -500,7 +535,7 @@ def test_resolve_list_items_non_mapping_pass_through() -> None:
     )
     items: list[Any] = ["not_a_dict", 42]
 
-    result = _resolve_list_items(items, hints, FakeStateMachine({}), FORECAST_TIMES)
+    result = _resolve_list_items("rules", items, hints, FakeStateMachine({}), FORECAST_TIMES, frozenset())
 
     assert result == ["not_a_dict", 42]
 

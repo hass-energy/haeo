@@ -6,7 +6,7 @@ It handles schema value dispatch (none/constant/entity), sensor loading,
 forecast fusion, and unit conversion -- all without HA dependencies.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from typing import Any
 
 import numpy as np
@@ -27,6 +27,7 @@ from custom_components.haeo.core.schema.field_hints import (
     extract_list_field_hints,
 )
 from custom_components.haeo.core.schema.none_value import is_none_value
+from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 from custom_components.haeo.core.state import StateMachine
 
 from .sensor_loader import load_sensors
@@ -39,6 +40,8 @@ def load_element_config(
     element_config: ElementConfigSchema,
     sm: StateMachine,
     forecast_times: Sequence[float],
+    *,
+    negated_paths: Collection[tuple[str, ...]] = frozenset(),
 ) -> ElementConfigData:
     """Load a single element's config by resolving values against a state machine.
 
@@ -53,6 +56,8 @@ def load_element_config(
         element_config: Raw element config dict (sectioned format)
         sm: State machine providing entity states
         forecast_times: Boundary timestamps (n+1 values defining n intervals)
+        negated_paths: Field paths whose entity-driven values are negated, as
+            returned by ``negated_price_paths`` for this element
 
     Returns:
         Loaded configuration with resolved time series and scalar values.
@@ -85,7 +90,9 @@ def load_element_config(
                     loaded.setdefault(section_name, {})[field_name] = default
                 continue
 
-            resolved = resolve_field(value, hint, sm, forecast_times)
+            resolved = resolve_field(
+                value, hint, sm, forecast_times, negate=(section_name, field_name) in negated_paths
+            )
             if resolved is _REMOVE:
                 if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
                     loaded.setdefault(section_name, {})[field_name] = default
@@ -104,7 +111,7 @@ def load_element_config(
         items = element_config.get(list_key)
         if not isinstance(items, (list, tuple)):
             continue
-        loaded_items = _resolve_list_items(items, hints, sm, forecast_times)
+        loaded_items = _resolve_list_items(list_key, items, hints, sm, forecast_times, negated_paths)
         loaded[list_key] = loaded_items
 
     return loaded  # type: ignore[return-value]
@@ -117,6 +124,9 @@ def load_element_configs(
 ) -> dict[str, ElementConfigData]:
     """Load all element configs by resolving values against a state machine.
 
+    Entity-driven policy prices that surface a negated element price are
+    negated, matching the input stores used at runtime.
+
     Args:
         participants: Map of element name to raw config dict
         sm: State machine providing entity states
@@ -126,7 +136,11 @@ def load_element_configs(
         Map of element name to loaded configuration.
 
     """
-    return {name: load_element_config(name, config, sm, forecast_times) for name, config in participants.items()}
+    negated = negated_price_paths(participants)
+    return {
+        name: load_element_config(name, config, sm, forecast_times, negated_paths=negated.get(name, frozenset()))
+        for name, config in participants.items()
+    }
 
 
 def load_element_config_from_values(
@@ -232,11 +246,16 @@ def resolve_field(
     hint: FieldHint,
     sm: StateMachine,
     forecast_times: Sequence[float],
+    *,
+    negate: bool = False,
 ) -> _Sentinel | bool | float | np.ndarray | None:
     """Resolve a single field value based on its schema type and hint metadata.
 
     Shared by the config loader (whole-element resolution) and ``InputStore``
     (single-field resolution) so both paths produce identical values.
+
+    When ``negate`` is True, values resolved from entities are negated.
+    Constant values are already stored negated, so they pass through unchanged.
     """
     if is_none_value(value):
         return _REMOVE
@@ -262,7 +281,10 @@ def resolve_field(
     if not unwrapped:
         return None
 
-    return _resolve_entities(unwrapped, hint, sm, forecast_times, is_percent=is_percent)
+    resolved = _resolve_entities(unwrapped, hint, sm, forecast_times, is_percent=is_percent)
+    if negate and resolved is not None:
+        return -resolved
+    return resolved
 
 
 def is_percent_field(hint: FieldHint) -> bool:
@@ -336,10 +358,12 @@ def _resolve_entities(
 
 
 def _resolve_list_items(
+    list_key: str,
     items: Sequence[Any],
     hints: ListFieldHints,
     sm: StateMachine,
     forecast_times: Sequence[float],
+    negated_paths: Collection[tuple[str, ...]],
 ) -> list[Any]:
     """Resolve hinted fields within each item of a list config field.
 
@@ -347,7 +371,7 @@ def _resolve_list_items(
     ``list[Any]`` rather than ``list[dict[str, Any]]``.
     """
     loaded_items: list[Any] = []
-    for item in items:
+    for index, item in enumerate(items):
         if not isinstance(item, Mapping):
             loaded_items.append(item)
             continue
@@ -356,7 +380,8 @@ def _resolve_list_items(
             value = item.get(field_name)
             if value is None:
                 continue
-            resolved = resolve_field(value, hint, sm, forecast_times)
+            negate = (list_key, str(index), field_name) in negated_paths
+            resolved = resolve_field(value, hint, sm, forecast_times, negate=negate)
             if isinstance(resolved, _Sentinel):
                 loaded_item.pop(field_name, None)
             elif resolved is not None:

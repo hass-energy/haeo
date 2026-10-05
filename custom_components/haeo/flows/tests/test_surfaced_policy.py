@@ -66,7 +66,6 @@ from custom_components.haeo.flows.surfaced_policy import (
     build_surfaced_defaults,
     build_surfaced_schema_entries,
     find_policy_subentry,
-    find_surfaced_rule,
     form_value_to_price,
     get_policy_rules,
     price_to_form_value,
@@ -145,56 +144,6 @@ def test_get_policy_rules_returns_rules(
     result = get_policy_rules(hub_entry)
     assert len(result) == 1
     assert result[0]["name"] == "test"
-
-
-# --- find_surfaced_rule tests ---
-
-
-@pytest.mark.parametrize(
-    ("rules", "source", "target", "expected_index"),
-    [
-        pytest.param([], None, ["Battery"], None, id="empty_rules"),
-        pytest.param(
-            [{"name": "r1", "target": ["Battery"], "price": as_constant_value(0.1)}],
-            None,
-            ["Battery"],
-            0,
-            id="wildcard_to_element",
-        ),
-        pytest.param(
-            [{"name": "r1", "source": ["Battery"], "price": as_constant_value(0.1)}],
-            ["Battery"],
-            None,
-            0,
-            id="element_to_wildcard",
-        ),
-        pytest.param(
-            [
-                {"name": "r1", "source": ["Other"], "price": as_constant_value(0.1)},
-                {"name": "r2", "target": ["Battery"], "price": as_constant_value(0.2)},
-            ],
-            None,
-            ["Battery"],
-            1,
-            id="second_rule_matches",
-        ),
-        pytest.param(
-            [{"name": "r1", "source": ["A"], "target": ["B"], "price": as_constant_value(0.1)}],
-            None,
-            ["B"],
-            None,
-            id="both_sides_set_no_match",
-        ),
-    ],
-)
-def test_find_surfaced_rule(
-    rules: list[PolicyRuleConfig],
-    source: list[str] | None,
-    target: list[str] | None,
-    expected_index: int | None,
-) -> None:
-    """Finds the correct rule index by endpoint pattern."""
-    assert find_surfaced_rule(rules, source=source, target=target) == expected_index
 
 
 # --- price_to_form_value / form_value_to_price round-trip tests ---

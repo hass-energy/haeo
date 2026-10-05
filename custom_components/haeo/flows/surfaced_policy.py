@@ -21,15 +21,10 @@ import voluptuous as vol
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.constant_value import ConstantValue, as_constant_value, is_constant_value
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.elements.policy import (
-    CONF_PRICE,
-    CONF_RULES,
-    CONF_SOURCE,
-    CONF_TARGET,
-    PolicyRuleConfig,
-)
+from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES, PolicyRuleConfig
 from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value, is_entity_value
 from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
+from custom_components.haeo.core.schema.surfaced_policy import find_surfaced_rule, resolve_surfaced_endpoints
 from custom_components.haeo.flows.element_flow import build_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
@@ -61,38 +56,6 @@ def get_policy_rules(hub_entry: ConfigEntry) -> list[PolicyRuleConfig]:
     if subentry is None:
         return []
     return list(subentry.data.get(CONF_RULES, []))
-
-
-def find_surfaced_rule(
-    rules: list[PolicyRuleConfig],
-    *,
-    source: list[str] | None,
-    target: list[str] | None,
-) -> int | None:
-    """Find the index of a rule matching a surfaced pattern.
-
-    A surfaced pattern has one wildcard side (represented as absent/empty)
-    and one specific side (a single-element list).
-    """
-    for i, rule in enumerate(rules):
-        rule_source = rule.get(CONF_SOURCE)
-        rule_target = rule.get(CONF_TARGET)
-        if _endpoints_match(rule_source, source) and _endpoints_match(rule_target, target):
-            return i
-    return None
-
-
-def _endpoints_match(
-    rule_value: list[str] | None,
-    pattern: list[str] | None,
-) -> bool:
-    """Check if a rule endpoint matches a surfaced pattern endpoint.
-
-    Both None/absent and empty list mean wildcard (*).
-    """
-    rule_normalized = rule_value if rule_value else None
-    pattern_normalized = pattern if pattern else None
-    return rule_normalized == pattern_normalized
 
 
 def get_surfaced_rule_price(
@@ -232,16 +195,6 @@ def form_value_to_price(value: Any) -> EntityValue | ConstantValue | None:
 
 
 # --- Flow helpers ---
-
-
-def resolve_surfaced_endpoints(
-    hint: SurfacedPriceHint,
-    element_name: str,
-) -> tuple[list[str] | None, list[str] | None]:
-    """Resolve source and target for a surfaced price hint."""
-    if hint.source_is_wildcard:
-        return None, [element_name]
-    return [element_name], None
 
 
 def build_surfaced_defaults(
