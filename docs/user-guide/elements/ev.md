@@ -77,7 +77,7 @@ Each calendar event represents a trip:
 - **Distance**: Trip distance with unit in the location, summary, or description, e.g., `50 km` or `30 mi`
 
 Without a trip calendar, the EV behaves like a stationary battery that can only charge (or discharge) while plugged in — no trip requirements are modeled.
-Events whose text contains no parsable distance are ignored entirely.
+An event whose text contains no parsable distance, such as `School pickup`, still marks the car away for its duration but asks for no trip energy.
 
 !!! tip "Distance format"
 
@@ -100,6 +100,7 @@ This history comes from the [recorder](https://www.home-assistant.io/integration
 If the recorder is disabled or excludes the connected sensor, a car plugged in during a trip event is always treated as not yet departed.
 
 This field takes a sensor or nothing; there is no constant option.
+If you select more than one entity, the car counts as plugged in when any of them reports `on`.
 Without a connected sensor the trip calendar governs the current interval too: the car counts as away whenever a trip event overlaps the current interval and as plugged in otherwise.
 Without either a trip calendar or a connected sensor, the EV is treated as always plugged in.
 
@@ -138,6 +139,8 @@ Dropping 5 kWh below the reserve for one hour or for the whole trip costs the sa
 
 - **Reserve state of charge**: the buffer as a percentage of battery capacity (e.g. 20%)
 - **Reserve shortfall price**: the cost per kWh of dipping below the reserve; when unset, the public charging price applies (the cost of restoring the buffer away from home)
+
+The reserve also applies at the end of every away period on the calendar, including events without a distance, so a short errand cannot start below the reserve unpriced.
 
 When configured, a **Reserve shortfall** sensor shows the expected dip below the reserve for each trip.
 

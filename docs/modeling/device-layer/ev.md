@@ -85,7 +85,7 @@ The pack's initial charge clamps to $[0, C]$ so a glitched state-of-charge senso
 
 An optional reserve keeps a buffer in the pack while away.
 Because the home connections are masked off during trips, the pack can only drain while away — so the lowest level hit during a trip window equals the level at the window's end.
-The reserve is therefore priced with one check per trip end boundary $e$:
+The reserve is therefore priced with one check per end boundary $e$ of each trip and of each calendar away period, including away periods made only of events without a distance:
 
 $$
 \text{cost} = \sum_{e} p_{\text{reserve}}(e) \cdot \max\left(0,\ E_{\text{reserve}} - E_{\text{pack}}(e)\right)
@@ -169,7 +169,7 @@ The EV element creates a single Home Assistant device:
 | `trip_calendar`            | Deferrable load `{name}:trip` | Window masks, `requirement` | Trip energy due at each trip's end         |
 | `max_charge_rate`          | Connection `{name}:charge`    | Power limit segment         | Masked by connected flag                   |
 | `max_discharge_rate`       | Connection `{name}:discharge` | Power limit segment         | Masked by connected flag                   |
-| `reserve_soc`              | Battery `{name}`              | `reserve_level`             | Fraction of capacity, checked at trip ends |
+| `reserve_soc`              | Battery `{name}`              | `reserve_level`             | Fraction of capacity, checked at away ends |
 | `reserve_price`            | Battery `{name}`              | `reserve_price`             | Defaults to the public charging price      |
 | `energy_per_distance`      | Trip energy calculation       | Multiplied by distance      | Wh/km and kWh/100km converted to kWh/km    |
 | `odometer` pair            | Deferrable load `{name}:trip` | `initial_energy`            | Mid-trip progress credit                   |
