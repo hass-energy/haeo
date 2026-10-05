@@ -7,14 +7,20 @@ from typing import Any, Final, Literal
 import numpy as np
 from numpy.typing import NDArray
 
+from custom_components.haeo.core.adapters.calendar_windows import calendar_windows
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+    SegmentSpec,
+)
 from custom_components.haeo.core.model.elements.deferrable_load import (
-    DEFERRABLE_LOAD_ENERGY_ABSORBED,
-    DEFERRABLE_LOAD_ENERGY_DEFICIT,
+    DEFERRABLE_LOAD_ENERGY_DELIVERED,
+    DEFERRABLE_LOAD_ENERGY_OVERAGE,
+    DEFERRABLE_LOAD_ENERGY_SHORTFALL,
     DeferrableLoadElementConfig,
 )
 from custom_components.haeo.core.model.output_data import OutputData
@@ -34,22 +40,20 @@ from custom_components.haeo.core.schema.elements.deferrable_load import (
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 
-# Effectively unlimited power (kW) for window-gated flow when no physical
-# device power limit is configured.
-_UNLIMITED_POWER: Final = 1.0e6
-
 # Deferrable-load-specific output names for translation/sensor mapping
 type DeferrableLoadElementOutputName = Literal[
     "deferrable_load_power",
-    "deferrable_load_energy_absorbed",
-    "deferrable_load_energy_deficit",
+    "deferrable_load_energy_delivered",
+    "deferrable_load_energy_shortfall",
+    "deferrable_load_energy_overage",
 ]
 
 DEFERRABLE_LOAD_ELEMENT_OUTPUT_NAMES: Final[frozenset[DeferrableLoadElementOutputName]] = frozenset(
     (
         DEFERRABLE_POWER := "deferrable_load_power",
-        DEFERRABLE_ENERGY_ABSORBED := "deferrable_load_energy_absorbed",
-        DEFERRABLE_ENERGY_DEFICIT := "deferrable_load_energy_deficit",
+        DEFERRABLE_ENERGY_DELIVERED := "deferrable_load_energy_delivered",
+        DEFERRABLE_ENERGY_SHORTFALL := "deferrable_load_energy_shortfall",
+        DEFERRABLE_ENERGY_OVERAGE := "deferrable_load_energy_overage",
     )
 )
 
@@ -74,57 +78,52 @@ class DeferrableLoadAdapter:
 
         Creates 2 model elements:
         1. {name} - Deferrable load (energy requirement per calendar window)
-        2. {name}:connection - Connection (network → load), open only during windows
+        2. {name}:connection - Connection (network → load)
 
         Calendar events define the run windows; each event's text carries the
-        energy (kWh) that window must absorb. Capacity opens at each window's
-        start, the requirement is due by its end, and any locked-in shortfall
-        is priced at the deficit price instead of being a hard constraint.
+        energy (kWh) that window must receive. Overlapping events merge into
+        one window with their energy summed. Each window is settled at its
+        end: a shortfall is priced at the deficit price, and delivery beyond
+        the requirement is priced at the overage price, or forbidden when no
+        overage price is configured.
 
-        Energy the delivered sensor reports for a window already open at the
-        horizon start becomes the load's initial energy, so each
-        re-optimization only plans the remainder of that window.
+        Energy the delivered sensor reports becomes the initial energy of the
+        window open at the horizon start, so each re-optimization only plans
+        the remainder of that window. It never counts toward a later window.
         """
         name = config["name"]
         schedule = config[SECTION_SCHEDULE]
         pricing = config[SECTION_PRICING]
         power = config.get(SECTION_POWER, {})
 
-        calendar = schedule[CONF_WINDOW_CALENDAR]
-        capacity = np.cumsum(calendar["value_edge_start"])
-        required = np.cumsum(calendar["value_edge_end"])
+        windows = calendar_windows(schedule[CONF_WINDOW_CALENDAR])
+        n_boundaries = len(windows.requirement)
 
-        # Windows open at the horizon start have all opened their capacity by
-        # the first boundary, so that capacity bounds what can already have
-        # been delivered. Clamping keeps a stale or unreset sensor from
-        # crediting energy to later windows or to no window at all.
-        delivered = schedule.get(CONF_ENERGY_DELIVERED, 0.0)
-        initial_energy = min(max(delivered, 0.0), float(capacity[0]))
+        # A negative reading is a sensor fault, never energy taken back out.
+        initial_energy = max(schedule.get(CONF_ENERGY_DELIVERED, 0.0), 0.0)
 
-        # Power may only flow while a window is open.
-        window_mask = np.asarray(calendar["presence"][:-1], dtype=np.float64)
-        max_power = power.get(CONF_MAX_POWER)
-        if max_power is None:
-            max_power = _UNLIMITED_POWER
-        gated_power = max_power * window_mask
-
-        # Penalty prices are clamped at zero: a negative price on an unbounded
-        # shortfall or overage would make the optimization unbounded, and an
-        # entity can report one even though the form cannot.
+        # Penalty prices are clamped at zero: the model rejects negative
+        # prices, and an entity can report one even though the form cannot.
         deficit_price = np.maximum(pricing[CONF_DEFICIT_PRICE], 0.0)
-        # Overage is a single end-of-horizon charge, so a series collapses
-        # to its first value.
-        overage_price = max(float(np.atleast_1d(pricing.get(CONF_OVERAGE_PRICE, 0.0))[0]), 0.0)
+        overage_price = pricing.get(CONF_OVERAGE_PRICE)
 
         load: DeferrableLoadElementConfig = {
             "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
             "name": name,
-            "capacity": capacity,
-            "required": required,
+            "in_window": windows.in_window,
+            "window_start": windows.window_start,
+            "requirement": windows.requirement,
             "initial_energy": initial_energy,
-            "deficit_price": _to_boundaries(deficit_price, len(capacity)),
-            "overage_price": overage_price,
+            "deficit_price": _to_boundaries(deficit_price, n_boundaries),
+            "overage_price": (
+                None if overage_price is None else _to_boundaries(np.maximum(overage_price, 0.0), n_boundaries)
+            ),
         }
+
+        max_power = power.get(CONF_MAX_POWER)
+        segments: dict[str, SegmentSpec] = (
+            {} if max_power is None else {"power_limit": {"segment_type": "power_limit", "max_power": max_power}}
+        )
 
         return [
             load,
@@ -133,12 +132,7 @@ class DeferrableLoadAdapter:
                 "name": f"{name}:connection",
                 "source": extract_connection_target(config[CONF_CONNECTION]),
                 "target": name,
-                "segments": {
-                    "power_limit": {
-                        "segment_type": "power_limit",
-                        "max_power": gated_power,
-                    },
-                },
+                "segments": segments,
             },
         ]
 
@@ -154,17 +148,19 @@ class DeferrableLoadAdapter:
         load_outputs = model_outputs[name]
         connection = model_outputs.get(f"{name}:connection")
 
-        absorbed = expect_output_data(load_outputs[DEFERRABLE_LOAD_ENERGY_ABSORBED])
-        deficit = expect_output_data(load_outputs[DEFERRABLE_LOAD_ENERGY_DEFICIT])
-        period_count = len(absorbed.values) - 1
+        delivered = expect_output_data(load_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED])
+        shortfall = expect_output_data(load_outputs[DEFERRABLE_LOAD_ENERGY_SHORTFALL])
+        overage = expect_output_data(load_outputs[DEFERRABLE_LOAD_ENERGY_OVERAGE])
+        period_count = len(delivered.values) - 1
 
         power = replace(connection_power(connection, period_count), type=OutputType.POWER, direction="-")
 
         return {
             DEFERRABLE_LOAD_DEVICE: {
                 DEFERRABLE_POWER: power,
-                DEFERRABLE_ENERGY_ABSORBED: replace(absorbed, type=OutputType.ENERGY),
-                DEFERRABLE_ENERGY_DEFICIT: replace(deficit, type=OutputType.ENERGY),
+                DEFERRABLE_ENERGY_DELIVERED: replace(delivered, type=OutputType.ENERGY),
+                DEFERRABLE_ENERGY_SHORTFALL: replace(shortfall, type=OutputType.ENERGY),
+                DEFERRABLE_ENERGY_OVERAGE: replace(overage, type=OutputType.ENERGY),
             }
         }
 

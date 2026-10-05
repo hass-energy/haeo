@@ -5,11 +5,15 @@ They represent physical devices that produce, consume, store, or route power.
 
 ## Element types
 
-HAEO provides two element types that serve different roles in the network:
+HAEO provides three element types that serve different roles in the network:
 
 **[Battery](battery.md)**:
 Energy storage with state of charge tracking.
-Models capacity, charge/discharge flows, and SOC constraints.
+Models capacity, charge/discharge flows, SOC constraints, and an optional priced reserve.
+
+**[Deferrable load](deferrable_load.md)**:
+Flexible consumption that absorbs a required amount of energy within scheduled, non-overlapping windows.
+Settles each window at its end, pricing any shortfall so unmeetable requirements stay feasible.
 
 **[Node](node.md)**:
 Power sources, sinks, and junction points.
@@ -65,6 +69,14 @@ This separation keeps the Model Layer focused on optimization mathematics while 
     Energy storage with SOC tracking and capacity constraints.
 
     [:material-arrow-right: Battery formulation](battery.md)
+
+- :material-clock-outline:{ .lg .middle } **Deferrable load model**
+
+    ---
+
+    Flexible consumption with scheduled requirements and priced shortfall.
+
+    [:material-arrow-right: Deferrable load formulation](deferrable_load.md)
 
 - :material-power-plug:{ .lg .middle } **Node model**
 

@@ -115,6 +115,7 @@ class CalendarInputLoader:
         self._horizon_manager = horizon_manager
         self._stores: list[InputStore] = [store for store in stores.values() if store.source_kind == "calendar"]
         self._unsubs: list[Callable[[], None]] = []
+        self._load_lock = asyncio.Lock()
 
     async def async_start(self) -> None:
         """Subscribe to change sources and perform the initial load."""
@@ -143,13 +144,19 @@ class CalendarInputLoader:
         listener never runs while another store still holds stale events.
         A calendar whose fetch fails reads as unavailable, so its stores keep
         their previous value instead of loading an empty calendar.
+
+        Overlapping calls run one at a time in the order they were made, so
+        an older fetch never overwrites the stores after a newer one, and
+        events are always resolved against the horizon they were fetched for.
         """
-        entity_ids = sorted({store.source_entity_ids[0] for store in self._stores})
-        fetched = await asyncio.gather(*(self._async_fetch_events(entity_id) for entity_id in entity_ids))
-        sm = CalendarStateMachine(HomeAssistantStateMachine(self._hass), dict(zip(entity_ids, fetched, strict=True)))
-        loaded = [store for store in self._stores if store.resolve_from_sources(sm)]
-        for store in loaded:
-            store.notify_listeners()
+        async with self._load_lock:
+            entity_ids = sorted({store.source_entity_ids[0] for store in self._stores})
+            fetched = await asyncio.gather(*(self._async_fetch_events(entity_id) for entity_id in entity_ids))
+            states = dict(zip(entity_ids, fetched, strict=True))
+            sm = CalendarStateMachine(HomeAssistantStateMachine(self._hass), states)
+            loaded = [store for store in self._stores if store.resolve_from_sources(sm)]
+            for store in loaded:
+                store.notify_listeners()
 
     async def _async_fetch_events(self, entity_id: str) -> list[CalendarEventDict] | None:
         """Fetch upcoming events over the horizon, serialized for the core loader.

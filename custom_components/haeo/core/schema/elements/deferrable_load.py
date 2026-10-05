@@ -52,7 +52,7 @@ class ScheduleConfig(TypedDict):
 
     The calendar drives the run windows and their energy requirements; the
     optional delivered energy sensor reports how much the currently open
-    window has already absorbed, so re-optimizing mid-window does not demand
+    window has already received, so re-optimizing mid-window does not demand
     that energy again.
     """
 
@@ -96,7 +96,7 @@ class PricingData(TypedDict):
     """Loaded pricing values."""
 
     deficit_price: NDArray[np.floating[Any]] | float
-    overage_price: NotRequired[float]
+    overage_price: NotRequired[NDArray[np.floating[Any]] | float]
 
 
 # --- Main element schemas ---
@@ -151,7 +151,7 @@ class DeferrableLoadConfigSchema(ConnectedCommonConfig):
                 ),
                 CONF_OVERAGE_PRICE: FieldHint(
                     output_type=OutputType.PRICE,
-                    time_series=False,
+                    time_series=True,
                     min_value=0.0,
                 ),
             }
