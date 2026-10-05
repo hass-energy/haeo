@@ -1,4 +1,4 @@
-# Adding an EV to Your System
+# Adding an EV to your system
 
 This walkthrough demonstrates adding an Electric Vehicle (EV) to an existing home energy system.
 It covers creating a trip calendar, scheduling a trip, and configuring the EV element so HAEO charges the car ahead of departures.
