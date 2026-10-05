@@ -574,7 +574,7 @@ def add_ev(
     max_charge_rate: EntityInput | ConstantInput,
     max_discharge_rate: EntityInput | ConstantInput | None = None,
     trip_calendar: str | None = None,
-    connected: EntityInput | ConstantInput | None = None,
+    connected: EntityInput | None = None,
     public_charging_price: EntityInput | ConstantInput | None = None,
 ) -> None:
     """Add EV element to HAEO network.

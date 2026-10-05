@@ -53,7 +53,8 @@ hass.set_state(
 In addition to the base system, you will need:
 
 - **EV battery SOC sensor**: A sensor reporting the EV's current state of charge
-- **Plugged-in sensor** (optional): A binary sensor reporting when the EV is connected to your charger
+- **Plugged-in sensor** (optional): A binary sensor reporting when the EV is connected to your charger.
+    Without one, the trip calendar alone decides when the car is home.
 
 !!! tip "Where do these sensors come from?"
 
@@ -122,6 +123,7 @@ add_ev(
 
     Set this to your EV's average energy consumption in kWh/km.
     For example, 0.15 kWh/km means 15 kWh per 100 km.
+    A consumption sensor in `Wh/km`, `kWh/km`, or `kWh/100km` also works and is converted automatically.
     Check your EV's trip computer for a realistic average.
 
 ## Step 4: Verify setup

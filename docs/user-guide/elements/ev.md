@@ -26,7 +26,7 @@ An EV in HAEO represents:
 
 EV configuration uses a sectioned flow where you enter the name, connection, trip entity selectors, and configure each input field.
 For numeric fields, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields.
-The connected sensor offers only "Entity" or "None", since a constant would pin the current interval permanently.
+The plugged in sensor offers only "Entity" or "None", since a constant would pin the current interval permanently.
 
 Fields configured with "Constant" create input entities that you can adjust at runtime without reconfiguring.
 
@@ -85,8 +85,8 @@ Select a binary sensor that reports `on` when the EV is plugged in at home and `
 The trip calendar is authoritative for future availability; this sensor pins the *current* state, so an early return or unplanned absence is reflected immediately.
 
 This field takes a sensor or nothing; there is no constant option.
-Without a connected sensor the trip calendar governs the current interval too: the car counts as away whenever a trip event overlaps the current interval and as plugged in otherwise.
-Without either a trip calendar or a connected sensor, the EV is treated as always plugged in.
+Without a plugged in sensor the trip calendar governs the current interval too: the car counts as away whenever a trip event overlaps the current interval and as plugged in otherwise.
+Without either a trip calendar or a plugged in sensor, the EV is treated as always plugged in.
 
 ### Odometer
 
