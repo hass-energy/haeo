@@ -47,7 +47,7 @@ Each calendar event is one window:
 - **Event text**: The energy the window must absorb, in kWh (e.g., `8`)
 
 The number is read from the first of the location, summary, or description fields that parses as a plain number.
-Events without a parsable number are ignored.
+Events without a parsable number are ignored, as are negative numbers and values such as `nan` or `inf`.
 Power can only flow to the load while a window is open.
 
 !!! tip "Recurring schedules"
