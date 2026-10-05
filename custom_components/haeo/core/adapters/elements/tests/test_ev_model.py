@@ -212,6 +212,49 @@ def test_live_connected_sensor_pins_first_interval() -> None:
     np.testing.assert_allclose(home_charge_limit, [0.0, 10.0, 0.0, 10.0])
 
 
+@pytest.mark.parametrize(
+    ("trip", "expected_charge_limit", "expected_trip_limit"),
+    [
+        pytest.param({"connected": 2.0}, 10.0, 0.0, id="no_calendar_scalar"),
+        pytest.param(
+            {"connected": np.array([2.0, 0.3, 1.0, 0.0])},
+            [10.0, 0.0, 10.0, 0.0],
+            [0.0, 1.0e6, 0.0, 1.0e6],
+            id="no_calendar_series",
+        ),
+        pytest.param(
+            {
+                "trip_calendar": _boundary_data(
+                    presence=[0.0, 0.0, 1.0, 0.0, 0.0],
+                    value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
+                    value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
+                ),
+                "connected": 2.0,
+            },
+            [10.0, 10.0, 0.0, 10.0],
+            [0.0, 0.0, 1.0e6, 0.0],
+            id="with_calendar",
+        ),
+    ],
+)
+def test_summed_plugged_in_readings_count_as_plugged_in_once(
+    trip: dict[str, Any],
+    expected_charge_limit: float | list[float],
+    expected_trip_limit: float | list[float],
+) -> None:
+    """Several plugged-in entities summing above one still read as a single plugged-in car."""
+    config = _ev_config(trip=trip)
+    elements = _elements_by_name(config)
+
+    np.testing.assert_allclose(elements["ev:charge"]["segments"]["power_limit"]["max_power"], expected_charge_limit)
+    np.testing.assert_allclose(
+        elements["ev:trip_connection"]["segments"]["power_limit"]["max_power"], expected_trip_limit
+    )
+
+    # A negative trip limit would make the model infeasible.
+    _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
+
+
 def test_calendar_governs_current_interval_without_plugged_in_sensor() -> None:
     """With only a calendar, a trip window open now keeps the car away now."""
     config = _ev_config(
@@ -648,6 +691,30 @@ def test_reserve_config_masks_trip_window_ends() -> None:
     np.testing.assert_allclose(battery["reserve_level"], [10.0] * 5)  # 20% of 50 kWh
     np.testing.assert_allclose(battery["reserve_mask"], [0.0, 0.0, 0.0, 1.0, 0.0])
     assert battery["reserve_price"] == pytest.approx(0.5)
+
+
+def test_reserve_checked_at_end_of_away_event_without_distance() -> None:
+    """An away event with no parseable distance still has its end reserve checked."""
+    config = _ev_config(
+        trip={
+            "trip_calendar": _boundary_data(
+                presence=[0.0, 0.0, 1.0, 0.0, 0.0],
+                value_edge_start=[0.0] * 5,
+                value_edge_end=[0.0] * 5,
+            ),
+            "reserve_soc": 0.2,
+            "reserve_price": 1.0,
+        },
+        charging={"max_charge_rate": 0.5},  # can only add 1 kWh before leaving
+    )
+    elements = _elements_by_name(config)
+
+    np.testing.assert_allclose(elements["ev"]["reserve_mask"], [0.0, 0.0, 0.0, 1.0, 0.0])
+
+    network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
+    outputs = adapter.outputs("ev", {n: e.outputs() for n, e in network.elements.items()}, config=config)[EV_DEVICE_EV]
+    # The pack holds at most 6 kWh when the car leaves, short of the 10 kWh reserve.
+    assert outputs[EV_RESERVE_SHORTFALL].values[3] == pytest.approx(4.0, abs=1e-6)
 
 
 def test_reserve_price_defaults_to_public_price() -> None:
