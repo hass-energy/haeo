@@ -11,7 +11,14 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema import as_calendar_value, as_constant_value, as_entity_value
+from custom_components.haeo.core.schema import (
+    VALUE_TYPE_ENTITY,
+    VALUE_TYPE_NONE,
+    as_calendar_value,
+    as_constant_value,
+    as_entity_value,
+    get_schema_value_kinds,
+)
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.ev import (
     CONF_CAPACITY,
@@ -29,7 +36,7 @@ from custom_components.haeo.core.schema.elements.ev import (
     SECTION_VEHICLE,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY, SECTION_POWER_LIMITS
-from custom_components.haeo.elements import get_input_fields
+from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.flows.conftest import create_flow
 
 
@@ -146,3 +153,27 @@ async def test_reconfigure_defaults_surface_calendar_entity(
     defaults = flow._build_defaults("Test EV", input_fields, dict(existing_subentry.data))
     assert defaults[SECTION_TRIP][CONF_TRIP_CALENDAR] == "calendar.ev_trips"
     assert defaults[SECTION_TRIP][CONF_ODOMETER_AT_DISCONNECT] == ["sensor.odo_disc"]
+
+
+async def test_new_entry_leaves_plugged_in_sensor_unset(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """A new EV does not pre-fill a plugged-in state that would override the trip calendar."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+
+    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
+    defaults = flow._build_defaults("Test EV", input_fields)
+
+    assert CONF_CONNECTED not in defaults[SECTION_TRIP]
+
+
+def test_plugged_in_field_accepts_only_a_live_sensor() -> None:
+    """A constant plugged-in state would pin the current interval forever, so it is not offered."""
+    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
+    schema_info = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
+
+    kinds = get_schema_value_kinds(schema_info[SECTION_TRIP][CONF_CONNECTED].value_type)
+
+    assert kinds == frozenset({VALUE_TYPE_ENTITY, VALUE_TYPE_NONE})

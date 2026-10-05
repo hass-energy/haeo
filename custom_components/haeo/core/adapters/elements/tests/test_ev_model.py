@@ -162,6 +162,23 @@ def test_live_connected_sensor_pins_first_interval() -> None:
     np.testing.assert_allclose(home_charge_limit, [0.0, 10.0, 0.0, 10.0])
 
 
+def test_calendar_governs_current_interval_without_plugged_in_sensor() -> None:
+    """With only a calendar, a trip window open now keeps the car away now."""
+    config = _ev_config(
+        trip={
+            "trip_calendar": _boundary_data(
+                presence=[1.0, 1.0, 0.0, 0.0, 0.0],
+                value_edge_start=[30.0, 0.0, 0.0, 0.0, 0.0],
+                value_edge_end=[0.0, 0.0, 30.0, 0.0, 0.0],
+            ),
+        },
+    )
+    elements = _elements_by_name(config)
+
+    home_charge_limit = elements["ev:charge"]["segments"]["power_limit"]["max_power"]
+    np.testing.assert_allclose(home_charge_limit, [0.0, 0.0, 10.0, 10.0])
+
+
 def test_odometer_progress_reduces_trip_requirement() -> None:
     """While away, distance already driven becomes trip battery initial charge."""
     config = _ev_config(

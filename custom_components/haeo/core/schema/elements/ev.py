@@ -117,7 +117,7 @@ class TripConfig(TypedDict, total=False):
     """
 
     trip_calendar: CalendarValue | NoneValue
-    connected: EntityValue | ConstantValue | NoneValue
+    connected: EntityValue | NoneValue
     odometer: EntityValue | NoneValue
     odometer_at_disconnect: EntityValue | NoneValue
     reserve_soc: EntityValue | ConstantValue | NoneValue
@@ -211,8 +211,6 @@ class EvConfigSchema(ConnectedCommonConfig):
                     CONF_CONNECTED: FieldHint(
                         output_type=OutputType.AVAILABILITY,
                         time_series=True,
-                        default_mode="value",
-                        default_value=1.0,
                     ),
                     CONF_ODOMETER: FieldHint(
                         output_type=OutputType.DISTANCE,
