@@ -19,16 +19,23 @@ Connections define explicit, **unidirectional** power paths between elements, wi
     To model flow in both directions (for example between two buses), add **two** Connection elements with swapped endpoints and independent limits, efficiency, and pricing.
     For AC/DC conversion between a battery or solar and the grid, consider the [Inverter](inverter.md) element instead.
 
+!!! info "Upgrading from bidirectional connections"
+
+    Earlier versions configured both directions on a single connection.
+    On upgrade, each existing connection keeps its source-to-target settings and gains a second connection named `{name} ({target} to {source})` that carries the former reverse settings.
+    A reverse direction with no max power set becomes an unlimited connection, matching its previous behavior.
+    No reverse connection is created when the reverse max power was 0, and if a connection with swapped endpoints already exists, the reverse settings are merged into it instead.
+
 ## Configuration
 
-| Field           | Type                                     | Required | Default   | Description                                         |
-| --------------- | ---------------------------------------- | -------- | --------- | --------------------------------------------------- |
-| **Name**        | String                                   | Yes      | -         | Unique identifier for this connection               |
-| **Source**      | Element                                  | Yes      | -         | Element power flows from                            |
-| **Target**      | Element                                  | Yes      | -         | Element power flows to                              |
-| **Max power**   | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power along this path (kW)                  |
-| **Efficiency**  | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for this direction    |
-| **Price**       | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for power transferred along this path |
+| Field          | Type                                     | Required | Default   | Description                                      |
+| -------------- | ---------------------------------------- | -------- | --------- | ------------------------------------------------ |
+| **Name**       | String                                   | Yes      | -         | Unique identifier for this connection            |
+| **Source**     | Element                                  | Yes      | -         | Element power flows from                         |
+| **Target**     | Element                                  | Yes      | -         | Element power flows to                           |
+| **Max power**  | [sensor](../forecasts-and-sensors.md)    | No       | Unlimited | Maximum power arriving at the target (kW)        |
+| **Efficiency** | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for this direction |
+| **Price**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for power arriving at the target  |
 
 !!! tip "Configuration tips"
 
@@ -75,10 +82,10 @@ Each element's documentation describes its connectivity level and when it appear
 
 Create one connection for each direction when both paths need limits or different parameters:
 
-| Connection | Source  | Target  | **Max power**              |
-| ---------- | ------- | ------- | -------------------------- |
-| DC to AC   | DC Node | AC Node | input_number.dc_to_ac_max  |
-| AC to DC   | AC Node | DC Node | input_number.ac_to_dc_max  |
+| Connection | Source  | Target  | **Max power**             |
+| ---------- | ------- | ------- | ------------------------- |
+| DC to AC   | DC Node | AC Node | input_number.dc_to_ac_max |
+| AC to DC   | AC Node | DC Node | input_number.ac_to_dc_max |
 
 Use separate **Efficiency** and **Price** values on each connection when the directions differ.
 
@@ -92,10 +99,12 @@ Use separate **Efficiency** and **Price** values on each connection when the dir
 Power optimized on this connection always travels from source to target.
 Values are zero or positive in that direction.
 
-**Efficiency modeling:**
-Power leaving the source is measured before losses.
-Power arriving at the target is reduced by efficiency.
-Example: 10 kW leaves the source with 95% efficiency → 9.5 kW arrives at the target.
+**Where each setting applies:**
+Efficiency losses are applied first, as power leaves the source.
+**Max power** and **Price** then apply to the power remaining after losses, which is the power arriving at the target.
+The power sensor reports the power leaving the source, before losses.
+Example: with 95% efficiency, 10 kW leaves the source and 9.5 kW arrives at the target.
+The sensor reports 10 kW, a **Max power** of 9.5 kW is enough to allow this flow, and **Price** is charged on 9.5 kW.
 
 **Transmission costs:**
 Connection pricing models fees for using a power transfer path (wheeling charges, connection fees, peak demand charges).
@@ -106,11 +115,11 @@ Connection pricing models fees for using a power transfer path (wheeling charges
 
 Leave **Max power** unset for unlimited flow in the configured direction:
 
-| Field      | Value       |
-| ---------- | ----------- |
-| **Name**   | Bus A to B  |
-| **Source** | Bus A       |
-| **Target** | Bus B       |
+| Field      | Value      |
+| ---------- | ---------- |
+| **Name**   | Bus A to B |
+| **Source** | Bus A      |
+| **Target** | Bus B      |
 
 ### Conversion with efficiency
 
@@ -165,11 +174,11 @@ The optimizer will only schedule charging when the sensor value is non-zero.
 Each optional configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
 
-| Input                                   | Unit   | Description                        |
-| --------------------------------------- | ------ | ---------------------------------- |
-| `number.{name}_max_power_source_target` | kW     | Maximum power (if configured)      |
-| `number.{name}_efficiency_source_target`| %      | Efficiency (if configured)         |
-| `number.{name}_price_source_target`     | \$/kWh | Transfer price (if configured)     |
+| Input                                    | Unit   | Description                    |
+| ---------------------------------------- | ------ | ------------------------------ |
+| `number.{name}_max_power_source_target`  | kW     | Maximum power (if configured)  |
+| `number.{name}_efficiency_source_target` | %      | Efficiency (if configured)     |
+| `number.{name}_price_source_target`      | \$/kWh | Transfer price (if configured) |
 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
@@ -182,9 +191,9 @@ A Connection element creates one device in Home Assistant.
 
 The power sensor display name uses the configured source and target element names (for example, `{source} to {target} power`).
 
-| Sensor                         | Unit | Description                              |
-| ------------------------------ | ---- | ---------------------------------------- |
-| `{source} to {target} power`   | kW   | Optimized power from source to target    |
+| Sensor                       | Unit | Description                                                  |
+| ---------------------------- | ---- | ------------------------------------------------------------ |
+| `{source} to {target} power` | kW   | Optimized power leaving the source, before efficiency losses |
 
 Power values are zero or positive.
 A value of 0 means no power is flowing on this connection at that time period.

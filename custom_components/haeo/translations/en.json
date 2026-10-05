@@ -211,19 +211,10 @@
           },
           "sections": {
             "common": { "data": { "name": "Connection Name" }, "name": "Common settings" },
-            "efficiency": {
-              "data": { "efficiency_source_target": "Efficiency" },
-              "name": "Connection efficiency"
-            },
+            "efficiency": { "data": { "efficiency_source_target": "Efficiency" }, "name": "Connection efficiency" },
             "endpoints": { "data": { "source": "Source Device", "target": "Target Device" }, "name": "Endpoints" },
-            "power_limits": {
-              "data": { "max_power_source_target": "Max power" },
-              "name": "Power limits"
-            },
-            "pricing": {
-              "data": { "price_source_target": "Price" },
-              "name": "Pricing"
-            }
+            "power_limits": { "data": { "max_power_source_target": "Max power" }, "name": "Power limits" },
+            "pricing": { "data": { "price_source_target": "Price" }, "name": "Pricing" }
           }
         }
       },

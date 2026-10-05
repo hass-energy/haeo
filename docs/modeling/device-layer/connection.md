@@ -26,38 +26,42 @@ graph LR
 
 The Connection device creates one `Connection` model element with a segment chain.
 The adapter maps each configured field to a single forward segment.
+Segments are chained in the order efficiency → power limit → pricing, from source to target.
 
 ## Devices Created
 
 Connection creates 1 device in Home Assistant:
 
-| Device  | Name     | Created When | Purpose                    |
-| ------- | -------- | ------------ | -------------------------- |
-| Primary | `{name}` | Always       | Explicit power flow path   |
+| Device  | Name     | Created When | Purpose                  |
+| ------- | -------- | ------------ | ------------------------ |
+| Primary | `{name}` | Always       | Explicit power flow path |
 
 ## Parameter mapping
 
 The adapter maps configuration into connection segments:
 
-| User Configuration         | Segment           | Segment field | Notes                          |
-| -------------------------- | ----------------- | ------------- | ------------------------------ |
-| `source`                   | Connection        | `source`      | Source element name            |
-| `target`                   | Connection        | `target`      | Target element name            |
+| User Configuration         | Segment           | Segment field | Notes                        |
+| -------------------------- | ----------------- | ------------- | ---------------------------- |
+| `source`                   | Connection        | `source`      | Source element name          |
+| `target`                   | Connection        | `target`      | Target element name          |
 | `max_power_source_target`  | PowerLimitSegment | `max_power`   | Optional, unlimited if unset |
-| `efficiency_source_target` | EfficiencySegment | `efficiency`  | Percent converted to ratio     |
-| `price_source_target`      | PricingSegment    | `price`       | Optional, no cost if unset     |
+| `efficiency_source_target` | EfficiencySegment | `efficiency`  | Percent converted to ratio   |
+| `price_source_target`      | PricingSegment    | `price`       | Optional, no cost if unset   |
 
 If a field is omitted, the corresponding segment defaults apply.
 Power limits and pricing are skipped when values are `None`.
 Efficiency defaults to 100% via the efficiency segment.
 
+Because efficiency is the first segment, the power limit and price act on power after losses, which is the power delivered to the target.
+The reported connection power is the power entering the chain at the source, before losses.
+
 ## Sensors Created
 
 ### Connection Device
 
-| Sensor              | Unit | Update    | Description                        |
-| ------------------- | ---- | --------- | ---------------------------------- |
-| `connection_power`  | kW   | Real-time | Power flow from source to target   |
+| Sensor             | Unit | Update    | Description                                        |
+| ------------------ | ---- | --------- | -------------------------------------------------- |
+| `connection_power` | kW   | Real-time | Power leaving the source, before efficiency losses |
 
 See [Connection Configuration](../../user-guide/elements/connections.md) for detailed sensor and configuration documentation.
 
@@ -65,21 +69,21 @@ See [Connection Configuration](../../user-guide/elements/connections.md) for det
 
 ### One-way capacity limit
 
-| Field          | Value  |
-| -------------- | ------ |
-| **Name**       | Link   |
-| **Source**     | Zone A |
-| **Target**     | Zone B |
-| **Max power**  | 10.0   |
+| Field         | Value  |
+| ------------- | ------ |
+| **Name**      | Link   |
+| **Source**    | Zone A |
+| **Target**    | Zone B |
+| **Max power** | 10.0   |
 
 ### Wheeling charge
 
-| Field     | Value                  |
-| --------- | ---------------------- |
-| **Name**  | Grid transfer          |
-| **Source**| Zone A                 |
-| **Target**| Zone B                 |
-| **Price** | sensor.wheeling_charge |
+| Field      | Value                  |
+| ---------- | ---------------------- |
+| **Name**   | Grid transfer          |
+| **Source** | Zone A                 |
+| **Target** | Zone B                 |
+| **Price**  | sensor.wheeling_charge |
 
 ### Bidirectional path (two connections)
 
