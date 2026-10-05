@@ -87,14 +87,6 @@ See [Deferrable Load Configuration](../../user-guide/elements/deferrable_load.md
 
     [:material-arrow-right: Deferrable load configuration](../../user-guide/elements/deferrable_load.md)
 
-- :material-car-electric:{ .lg .middle } **EV modeling**
-
-    ---
-
-    The EV's trip sink uses the same deferrable load element.
-
-    [:material-arrow-right: EV modeling](ev.md)
-
 - :material-connection:{ .lg .middle } **Connection model**
 
     ---
