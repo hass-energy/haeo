@@ -12,8 +12,9 @@ from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.conftest import create_flow
 
 
@@ -58,3 +59,29 @@ async def test_participant_names_with_string_element_type(hass: HomeAssistant, h
     flow = create_flow(hass, hub_entry, ElementType.INVERTER)
     participants = flow._get_participant_names()
     assert "Switchboard" in participants
+
+
+@pytest.mark.parametrize(
+    ("advanced_mode", "expected"),
+    [
+        pytest.param(False, ["Inverter", "Node"], id="standard"),
+        pytest.param(True, ["Battery Section", "Inverter", "Node"], id="advanced"),
+    ],
+)
+async def test_participant_names_exclude_elements_with_own_connections(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    advanced_mode: bool,
+    expected: list[str],
+) -> None:
+    """Grid, battery, solar, and load are never endpoints, even in advanced mode."""
+    hass.config_entries.async_update_entry(
+        hub_entry,
+        data={**hub_entry.data, HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: advanced_mode}},
+    )
+    for element_type in ElementType:
+        _add_subentry(hass, hub_entry, element_type=element_type, title=element_type.replace("_", " ").title())
+
+    flow = create_flow(hass, hub_entry, ElementType.CONNECTION)
+
+    assert flow._get_participant_names() == expected

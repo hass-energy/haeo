@@ -5,7 +5,9 @@ It allows bidirectional power flow: importing (buying) and exporting (selling) e
 
 !!! note "Connection endpoints"
 
-    Grid elements appear in connection selectors only when Advanced Mode is enabled on your hub.
+    Grid elements never appear in connection selectors, even in Advanced Mode.
+    The grid applies its import and export prices and limits on its own connections to the node it is connected to.
+    A connection made directly to the grid would bypass those prices and limits, so connect other elements to that node instead.
 
 ## Configuration
 

@@ -182,7 +182,7 @@
       "step": {
         "user": {
           "title": "Battery Section Configuration",
-          "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
+          "description": "Configure a single battery section with explicit capacity and initial charge. Battery sections have no implicit connections. Connections carry power in one direction only, so add one connection into the section to charge it and another connection out of it to discharge it.",
           "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" },
           "sections": {
             "common": { "data": { "name": "Battery Section Name" }, "name": "Common settings" },
@@ -602,6 +602,10 @@
     "invalid_config": {
       "title": "Invalid configuration for {element_name}",
       "description": "Element {element_name} has an invalid configuration: {config_problem}\n\nTo fix this issue:\n1. Open the HAEO integration settings\n2. Navigate to the {element_name} element configuration\n3. Correct the configuration problem described above\n4. Save your changes and reload the integration"
+    },
+    "invalid_connection_endpoints": {
+      "title": "Elements connected directly to a grid, solar, load, or battery",
+      "description": "Some elements connect directly to a grid, solar, load, or battery element. A connection made directly to one of these elements bypasses its own prices, forecasts, power limits, and efficiencies, so the optimizer treats it as free, unlimited power.\n\nAffected connections (element → endpoint):\n{connection_summary}\n\nTo fix this issue:\n1. Open the HAEO integration configuration\n2. Reconfigure each affected element to connect to the node or inverter that the endpoint element is connected to\n3. Save your changes; this issue will clear automatically once no element connects directly to a grid, solar, load, or battery"
     },
     "missing_sensor": {
       "title": "Missing sensor data for {element_name}",

@@ -1,6 +1,6 @@
 """Repair helper for HAEO integration."""
 
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Mapping, Sequence
 import logging
 
 from homeassistant.core import HomeAssistant
@@ -62,6 +62,47 @@ def dismiss_disconnected_network_issue(
     issue_id = f"disconnected_network_{entry_id}"
     async_delete_issue(hass, DOMAIN, issue_id)
     _LOGGER.debug("Dismissed disconnected network issue for entry %s", entry_id)
+
+
+def create_invalid_connection_endpoints_issue(
+    hass: HomeAssistant,
+    entry_id: str,
+    invalid_endpoints: Mapping[str, Sequence[str]],
+) -> None:
+    """Create a repair issue for elements connected directly to closed endpoints."""
+
+    connection_summary = "\n".join(
+        f"{element} → {', '.join(endpoints)}" for element, endpoints in sorted(invalid_endpoints.items())
+    )
+    issue_id = f"invalid_connection_endpoints_{entry_id}"
+
+    async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=False,
+        is_persistent=True,
+        severity=IssueSeverity.WARNING,
+        translation_key="invalid_connection_endpoints",
+        translation_placeholders={"connection_summary": connection_summary},
+    )
+
+    _LOGGER.warning(
+        "Created repair issue for invalid connection endpoints on entry %s: %s",
+        entry_id,
+        connection_summary.replace("\n", "; "),
+    )
+
+
+def dismiss_invalid_connection_endpoints_issue(
+    hass: HomeAssistant,
+    entry_id: str,
+) -> None:
+    """Dismiss the invalid connection endpoints repair issue."""
+
+    issue_id = f"invalid_connection_endpoints_{entry_id}"
+    async_delete_issue(hass, DOMAIN, issue_id)
+    _LOGGER.debug("Dismissed invalid connection endpoints issue for entry %s", entry_id)
 
 
 def create_missing_sensor_issue(

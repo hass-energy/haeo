@@ -5,7 +5,9 @@ HAEO optimizes how generated power flows through your energy network.
 
 !!! note "Connection endpoints"
 
-    Solar elements appear in connection selectors only when Advanced Mode is enabled on your hub.
+    Solar elements never appear in connection selectors, even in Advanced Mode.
+    Solar applies its forecast limit on its own connection to the node or inverter it is connected to.
+    A connection made directly to the solar element would bypass the forecast, so connect other elements to that node or inverter instead.
 
 ## Configuration
 

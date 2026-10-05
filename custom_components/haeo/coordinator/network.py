@@ -26,8 +26,17 @@ from custom_components.haeo.core.model.elements.policy_pricing import PolicyPric
 from custom_components.haeo.core.model.reactive import TrackedParam
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
-from custom_components.haeo.repairs import create_disconnected_network_issue, dismiss_disconnected_network_issue
-from custom_components.haeo.validation import format_component_summary, validate_network_topology
+from custom_components.haeo.repairs import (
+    create_disconnected_network_issue,
+    create_invalid_connection_endpoints_issue,
+    dismiss_disconnected_network_issue,
+    dismiss_invalid_connection_endpoints_issue,
+)
+from custom_components.haeo.validation import (
+    find_invalid_connection_endpoints,
+    format_component_summary,
+    validate_network_topology,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -258,6 +267,12 @@ async def evaluate_network_connectivity(
     participants: Mapping[str, ElementConfigData],
 ) -> None:
     """Validate the network connectivity for an entry and manage repair issues."""
+    invalid_endpoints = find_invalid_connection_endpoints(participants)
+    if invalid_endpoints:
+        create_invalid_connection_endpoints_issue(hass, entry.entry_id, invalid_endpoints)
+    else:
+        dismiss_invalid_connection_endpoints_issue(hass, entry.entry_id)
+
     result = validate_network_topology(participants)
 
     if result.is_connected:

@@ -174,9 +174,14 @@ The `ConnectivityLevel` enum has three values:
 - **`ADVANCED`**: Only shown when Advanced Mode is enabled
 - **`NEVER`**: Never shown in connection selectors
 
-This filtering ensures connection endpoints are appropriate for the user's configuration level.
-It prevents invalid connection topologies by excluding elements that shouldn't be connection endpoints.
-See [`custom_components/haeo/elements/__init__.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/elements/__init__.py) for the connectivity level assigned to each element type.
+An element is an endpoint only if a connection to it goes through the same constraints as any other power flow.
+Nodes and inverter DC buses are plain balance points, so they are `ALWAYS`.
+Battery Section is a bare storage element wired by hand, so it is `ADVANCED`.
+Grid, Battery, Solar, and Load apply their prices, forecasts, limits, and efficiencies on the connection to their own target, so a connection made directly to them would bypass all of that; they are `NEVER`, as are Connection and Policy.
+Each adapter in `core/adapters/elements/` declares its level in its `connectivity` attribute.
+
+Existing configurations that already connect to a `NEVER` element are reported through the `invalid_connection_endpoints` repair issue.
+`find_invalid_connection_endpoints()` in `validation.py` reads endpoints from the model connections each adapter produces, so it checks every element type the same way.
 
 ### Element-specific implementations
 

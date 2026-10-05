@@ -7,7 +7,10 @@ Internally, HAEO represents batteries as a single storage element and applies SO
 
 !!! note "Connection endpoints"
 
-    Battery elements appear in connection selectors only when Advanced Mode is enabled on your hub.
+    Battery elements never appear in connection selectors, even in Advanced Mode.
+    The battery applies its efficiency, power limits, and SOC pricing on its own charge and discharge connections.
+    A connection made directly to the battery would bypass them, so connect other elements to the node or inverter the battery is connected to.
+    Use a [Battery Section](battery_section.md) when you need to wire storage manually.
 
 For mathematical details, see [Battery Modeling](../../modeling/device-layer/battery.md).
 
