@@ -16,9 +16,11 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 import logging
 from pathlib import Path
+import re
 from typing import Any
 
 from playwright.sync_api import Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from tools.live_hass import LiveHomeAssistant
 
@@ -916,8 +918,7 @@ class HAPage:
 
                 picker.click()
 
-                search_input = self.page.locator("vaadin-combo-box-overlay input").first
-                search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                search_input = self._entity_picker_search_input()
                 self._capture_with_indicator("search_box", search_input)
 
                 search_input.fill(search_term)
@@ -932,13 +933,26 @@ class HAPage:
                 self._capture("selected")
         else:
             picker.click()
-            search_input = self.page.locator("vaadin-combo-box-overlay input").first
-            search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            search_input = self._entity_picker_search_input()
             search_input.fill(search_term)
             result_item = self.page.locator(f"ha-combo-box-item:has-text('{entity_name}')").first
             result_item.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
             result_item.click(timeout=DEFAULT_TIMEOUT)
             self.page.wait_for_timeout(500)
+
+    def _entity_picker_search_input(self) -> Any:
+        """Return the visible search input of an open entity picker dropdown.
+
+        Newer frontends render the picker as an inline panel with a "Search"
+        textbox; older ones use a vaadin-combo-box-overlay input.
+        """
+        search_input = self.page.get_by_role("textbox", name="Search").first
+        try:
+            search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        except PlaywrightTimeoutError:
+            search_input = self.page.locator("vaadin-combo-box-overlay input").first
+            search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        return search_input
 
     # endregion
 
@@ -1222,7 +1236,7 @@ class HAPage:
                 self._capture("event_dialog")
 
                 # Fill title
-                title_input = dialog.get_by_role("textbox", name="Title")
+                title_input = dialog.get_by_role("textbox", name=re.compile("Title|Summary"))
                 title_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
                 self._capture_with_indicator("title_field", title_input)
                 title_input.fill(title)
@@ -1259,7 +1273,7 @@ class HAPage:
             add_btn.click()
             dialog = self.page.locator("ha-dialog[open]")
             dialog.wait_for(state="attached", timeout=DEFAULT_TIMEOUT)
-            title_input = dialog.get_by_role("textbox", name="Title")
+            title_input = dialog.get_by_role("textbox", name=re.compile("Title|Summary"))
             title_input.fill(title)
             if location:
                 location_input = dialog.get_by_role("textbox", name="Location")

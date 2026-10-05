@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.13.2, <3.14"
 
 [[package]]
@@ -1003,6 +1003,7 @@ dependencies = [
 dev = [
     { name = "freezegun" },
     { name = "home-assistant-frontend" },
+    { name = "ical" },
     { name = "import-linter" },
     { name = "mdformat" },
     { name = "mdformat-beautysh" },
@@ -1039,6 +1040,7 @@ requires-dist = [
 dev = [
     { name = "freezegun", specifier = ">=1.5.2" },
     { name = "home-assistant-frontend", specifier = ">=20260107.1" },
+    { name = "ical", specifier = ">=13.2.2" },
     { name = "import-linter", specifier = ">=2.10" },
     { name = "mdformat", specifier = ">=0.7.22" },
     { name = "mdformat-beautysh", specifier = ">=1.0.0" },
@@ -1264,6 +1266,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a7/c8/9cd2fcb670ba0e708bfdf95a1177b34ca62de2d3821df0773bc30559af80/huggingface_hub-1.2.3.tar.gz", hash = "sha256:4ba57f17004fd27bb176a6b7107df579865d4cde015112db59184c51f5602ba7", size = 614605, upload-time = "2025-12-12T15:31:42.161Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/df/8d/7ca723a884d55751b70479b8710f06a317296b1fa1c1dec01d0420d13e43/huggingface_hub-1.2.3-py3-none-any.whl", hash = "sha256:c9b7a91a9eedaa2149cdc12bdd8f5a11780e10de1f1024718becf9e41e5a4642", size = 520953, upload-time = "2025-12-12T15:31:40.339Z" },
+]
+
+[[package]]
+name = "ical"
+version = "14.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "python-dateutil" },
+    { name = "tzdata" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/05/0e/8cdeb5e10f5ab7290d8affe256d1373635d33856b98a27688795d3b0f314/ical-14.0.1.tar.gz", hash = "sha256:444df95a8eb710d87a196fd995b26f0ff7fcf8f779e9eeae898b4393a492be6d", size = 152807, upload-time = "2026-07-19T21:20:28.053Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/c6/3cc02d2bebf838126b4d3bed4800b108079a3e82cd39f2374bc6256733c6/ical-14.0.1-py3-none-any.whl", hash = "sha256:02ca21f76a7899dbc093b301d2fd2ce2a36c06a9a53e2cec442d80210724737f", size = 141213, upload-time = "2026-07-19T21:20:26.557Z" },
 ]
 
 [[package]]

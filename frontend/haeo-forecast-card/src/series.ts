@@ -132,6 +132,7 @@ const ELEMENT_TYPE_KEYS: Record<ElementType, true> = {
   battery_section: true,
   connection: true,
   deferrable_load: true,
+  ev: true,
   grid: true,
   inverter: true,
   load: true,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { legendSeriesOrder, seriesIconPath, seriesTooltip } from "./legend-helpers";
+import { mdiCarElectric, mdiCarElectricOutline } from "@mdi/js";
 import type { ForecastSeries } from "./types";
 
 function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
@@ -61,6 +62,21 @@ describe("seriesIconPath", () => {
       sourceRole: "forecast",
     });
     expect(seriesIconPath(series)).toBeTruthy();
+  });
+
+  it("returns an EV production icon for EV elements discharging", () => {
+    const series = makeSeries({ elementName: "Commuter EV", elementType: "ev", direction: "+" });
+    expect(seriesIconPath(series)).toBe(mdiCarElectric);
+  });
+
+  it("returns an EV consumption icon for EV elements charging", () => {
+    const series = makeSeries({ elementName: "Commuter EV", elementType: "ev", direction: "-" });
+    expect(seriesIconPath(series)).toBe(mdiCarElectricOutline);
+  });
+
+  it("returns an EV icon for car-named elements", () => {
+    const series = makeSeries({ elementName: "Sports Car", elementType: "load", direction: "+" });
+    expect(seriesIconPath(series)).toBe(mdiCarElectric);
   });
 
   it("returns a battery icon for battery elements", () => {

@@ -100,11 +100,9 @@ After creating your hub, add elements to represent your devices through the Home
 1. Navigate to **Settings** → **Devices & Services**
 2. Find your **HAEO** integration
 3. Click on the integration card to open the hub details page
-4. Click the **menu button** (three vertical dots, top right)
-5. Select **Add Entry** from the dropdown menu
-6. Choose the element type you want to add from the list
-7. Complete the configuration
-8. Click **Submit** to create the element
+4. Click the button for the element type you want to add (**Battery**, **Grid**, **Solar**, **Load**, **EV**, ...) at the top of the page
+5. Complete the configuration
+6. Click **Submit** to create the element
 
 **Editing existing elements**: Click the :material-cog: **cog icon** next to each element entry to modify its configuration.
 

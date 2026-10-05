@@ -31,6 +31,17 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
 )
 from custom_components.haeo.core.schema.elements.element_type import ElementType
+from custom_components.haeo.core.schema.elements.ev import (
+    CONF_CONNECTED,
+    CONF_CURRENT_SOC,
+    CONF_ENERGY_PER_DISTANCE,
+    CONF_MAX_CHARGE_RATE,
+    CONF_MAX_DISCHARGE_RATE,
+    CONF_PUBLIC_CHARGING_PRICE,
+    CONF_TRIP_CALENDAR,
+    SECTION_PUBLIC_CHARGING,
+    SECTION_TRIP,
+)
 from custom_components.haeo.core.schema.sections import (
     CONF_FORECAST,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -501,6 +512,120 @@ def add_node(page: HAPage, *, name: str) -> None:
         page.close_element_dialog()
 
     _LOGGER.info("Node added: %s", name)
+
+
+@guide_step
+def add_local_calendar(page: HAPage, *, calendar_name: str) -> None:
+    """Add a Local Calendar integration to Home Assistant.
+
+    Navigates to integrations, adds the Local Calendar integration,
+    and configures it with the given calendar name.
+    """
+    _LOGGER.info("Adding Local Calendar: %s", calendar_name)
+
+    page.navigate_to_settings()
+    page.navigate_to_integrations()
+    page.click_add_integration()
+    page.search_integration("Local calendar")
+
+    page.wait_for_dialog("Local calendar")
+    page.fill_textbox("Calendar name", calendar_name)
+    page.submit()
+
+    page.close_success_dialog()
+
+    _LOGGER.info("Local Calendar added: %s", calendar_name)
+
+
+@guide_step
+def create_calendar_event(
+    page: HAPage,
+    *,
+    title: str,
+    location: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    recurrence: str | None = None,
+) -> None:
+    """Create a calendar event via the HA calendar UI."""
+    _LOGGER.info("Creating calendar event: %s", title)
+
+    page.navigate_to_calendar()
+    page.create_calendar_event(
+        title=title,
+        location=location,
+        start_time=start_time,
+        end_time=end_time,
+        recurrence=recurrence,
+    )
+
+    _LOGGER.info("Calendar event created: %s", title)
+
+
+@guide_step
+def add_ev(
+    page: HAPage,
+    *,
+    name: str,
+    connection: str,
+    capacity: EntityInput | ConstantInput,
+    energy_per_distance: EntityInput | ConstantInput,
+    current_soc: EntityInput,
+    max_charge_rate: EntityInput | ConstantInput,
+    max_discharge_rate: EntityInput | ConstantInput | None = None,
+    trip_calendar: str | None = None,
+    connected: EntityInput | None = None,
+    public_charging_price: EntityInput | ConstantInput | None = None,
+) -> None:
+    """Add EV element to HAEO network.
+
+    The trip calendar is a plain calendar entity picker (not a choose
+    selector), so it is passed as the calendar's display name.
+    """
+    et = ElementType.EV
+    _LOGGER.info("Adding EV: %s", name)
+
+    page.click_button(_button_label(et))
+    page.wait_for_dialog(_dialog_title(et))
+
+    page.fill_textbox(_name_label(et), name)
+    page.select_combobox(_connection_label(et), connection)
+
+    # Vehicle and charging sections are expanded by default
+    fields: dict[str, FieldInput] = {
+        CONF_CAPACITY: capacity,
+        CONF_ENERGY_PER_DISTANCE: energy_per_distance,
+        CONF_CURRENT_SOC: current_soc,
+        CONF_MAX_CHARGE_RATE: max_charge_rate,
+    }
+    if max_discharge_rate is not None:
+        fields[CONF_MAX_DISCHARGE_RATE] = max_discharge_rate
+    _fill_element_fields(page, et, fields)
+
+    # Trip section: calendar picker plus choose-selector fields
+    trip_fields: dict[str, FieldInput] = {}
+    if connected is not None:
+        trip_fields[CONF_CONNECTED] = connected
+    if trip_calendar is not None or trip_fields:
+        page.expand_section(_section_name(et, SECTION_TRIP))
+    if trip_calendar is not None:
+        page.select_entity(_field_label(et, SECTION_TRIP, CONF_TRIP_CALENDAR), trip_calendar, trip_calendar)
+    if trip_fields:
+        _fill_element_fields(page, et, trip_fields)
+
+    if public_charging_price is not None:
+        _fill_element_fields(
+            page,
+            et,
+            {CONF_PUBLIC_CHARGING_PRICE: public_charging_price},
+            collapsed_sections=frozenset({SECTION_PUBLIC_CHARGING}),
+        )
+
+    with page.expect_config_reload():
+        page.submit()
+        page.close_element_dialog()
+
+    _LOGGER.info("EV added: %s", name)
 
 
 @guide_step

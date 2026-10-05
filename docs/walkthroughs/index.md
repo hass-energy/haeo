@@ -27,6 +27,14 @@ Walkthroughs are generated from a live Home Assistant instance, so the screensho
 
     [:material-arrow-right: Power Policies walkthrough](power-policies.md)
 
+- :material-car-electric:{ .lg .middle } **Adding an EV**
+
+    ---
+
+    Add an electric vehicle with a trip calendar so HAEO charges it ahead of departures.
+
+    [:material-arrow-right: EV walkthrough](adding-an-ev.md)
+
 - :material-history:{ .lg .middle } **Historic Diagnostics**
 
     ---

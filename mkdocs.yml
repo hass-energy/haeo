@@ -144,6 +144,7 @@ nav:
   - Walkthroughs:
       - walkthroughs/index.md
       - Sigenergy System: walkthroughs/sigenergy-system.md
+      - Adding an EV: walkthroughs/adding-an-ev.md
       - Power Policies: walkthroughs/power-policies.md
       - Historic Diagnostics: walkthroughs/historic-diagnostics.md
 

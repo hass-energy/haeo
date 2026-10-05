@@ -172,6 +172,47 @@ describe("normalizeSeries", () => {
     expect(output[0]!.lane).toBe("soc");
   });
 
+  it("ingests EV power and state of charge series", () => {
+    const hass = withSingleHubRegistry({
+      states: {
+        "sensor.car_charge_power": {
+          entity_id: "sensor.car_charge_power",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 7.4 },
+              { time: "2026-03-14T01:00:00Z", value: 0 },
+            ],
+            field_type: "power",
+            output_name: "ev_power_charge",
+            direction: "-",
+            element_type: "ev",
+            element_name: "Car",
+            unit_of_measurement: "kW",
+          },
+        },
+        "sensor.car_state_of_charge": {
+          entity_id: "sensor.car_state_of_charge",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 40 },
+              { time: "2026-03-14T01:00:00Z", value: 60 },
+            ],
+            field_type: "state_of_charge",
+            output_name: "ev_state_of_charge",
+            element_type: "ev",
+            element_name: "Car",
+            unit_of_measurement: "%",
+          },
+        },
+      },
+    });
+    const output = normalizeSeries(hass, testHubConfig);
+    expect(output).toHaveLength(2);
+    expect(output.every((series) => series.elementType === "ev")).toBe(true);
+    const lanes = output.map((series) => series.lane).sort();
+    expect(lanes).toEqual(["power", "soc"]);
+  });
+
   it("uses friendly_name as label when present", () => {
     const hass = withSingleHubRegistry({
       states: {
