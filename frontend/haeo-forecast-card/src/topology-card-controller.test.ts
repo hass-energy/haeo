@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import scenarioOutputs from "../../../tests/scenarios/scenario1/outputs.json";
+import { waitForSettledUpdates, waitForTopologySvg } from "./fixtures/topologyRender";
 import type { HassLike } from "./series";
 import { isTopologyData } from "./topology-card-utils";
 import { TopologyCardController } from "./topology-card-controller";
@@ -28,45 +29,6 @@ function scenarioHass(scenario: { entityId: string; state: Record<string, unknow
       "dev-alpha": { config_entries: [hubEntryId] },
     },
   };
-}
-
-// Rendering the topology means loading the controller chunk and running an ELK layout,
-// which is slow enough that a fixed sleep races it — the same flake that was fixed in
-// topology-card.smoke.test.ts. Wait for the outcome instead. The timeouts are generous
-// because they are only reached when the test is genuinely failing.
-const RENDER_TIMEOUT_MS = 10_000;
-const RENDER_POLL_MS = 25;
-
-async function waitForTopologySvg(host: HTMLElement): Promise<void> {
-  await vi.waitFor(
-    () => {
-      expect(host.shadowRoot?.querySelector("svg")).toBeTruthy();
-    },
-    { timeout: RENDER_TIMEOUT_MS, interval: RENDER_POLL_MS }
-  );
-}
-
-/**
- * Wait for the initial layout to finish dispatching, and report how many `ll-update`
- * events it produced.
- *
- * The svg landing in the DOM is not the last thing to happen: `onLayoutSize` fires from
- * an effect that runs after that commit, so a count read the moment the svg appears can
- * still be one short. Wait until the count stops moving.
- */
-async function waitForSettledUpdates(host: HTMLElement, updates: Event[]): Promise<number> {
-  await waitForTopologySvg(host);
-  let previous = -1;
-  await vi.waitFor(
-    () => {
-      const seen = updates.length;
-      const settled = seen === previous;
-      previous = seen;
-      expect(settled).toBe(true);
-    },
-    { timeout: RENDER_TIMEOUT_MS, interval: RENDER_POLL_MS }
-  );
-  return updates.length;
 }
 
 describe("TopologyCardController", () => {
