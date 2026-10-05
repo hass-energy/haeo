@@ -289,18 +289,17 @@ class EvAdapter:
             type=OutputType.POWER,
         )
 
-        # State of charge as a 0-1 ratio (display scales percent outputs)
-        vehicle = config[SECTION_VEHICLE]
-        capacity_first = float(vehicle[CONF_CAPACITY][0])
-        if capacity_first > 0:
-            soc_values = [float(e) / capacity_first for e in energy_stored.values]
-        else:
-            soc_values = [0.0] * len(energy_stored.values)
+        # State of charge as a 0-1 ratio (display scales percent outputs).
+        # Capacity and stored energy are both boundary aligned, so each
+        # boundary divides by its own capacity; a zero capacity reads as 0.
+        capacity = np.asarray(config[SECTION_VEHICLE][CONF_CAPACITY], dtype=np.float64)
+        stored = np.asarray(energy_stored.values, dtype=np.float64)
+        soc_values = np.divide(stored, capacity, out=np.zeros_like(stored), where=capacity > 0)
 
         ev_outputs[EV_STATE_OF_CHARGE] = OutputData(
             type=OutputType.STATE_OF_CHARGE,
             unit="%",
-            values=tuple(soc_values),
+            values=tuple(soc_values.tolist()),
             direction=None,
         )
 

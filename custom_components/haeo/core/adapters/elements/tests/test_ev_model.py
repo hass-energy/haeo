@@ -419,6 +419,20 @@ def test_outputs_mapping_from_solved_network() -> None:
     )
 
 
+def test_state_of_charge_uses_capacity_at_each_boundary() -> None:
+    """SOC divides each boundary's stored energy by that boundary's capacity."""
+    config = _ev_config()
+    config["vehicle"]["capacity"] = np.array([50.0, 50.0, 40.0, 25.0, 25.0])
+    network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
+    model_outputs = {name: element.outputs() for name, element in network.elements.items()}
+
+    outputs = adapter.outputs("ev", model_outputs, config=config)[EV_DEVICE_EV]
+
+    stored = np.asarray(outputs[EV_ENERGY_STORED].values)
+    assert stored[3] > 0.0
+    np.testing.assert_allclose(outputs[EV_STATE_OF_CHARGE].values, stored / config["vehicle"]["capacity"])
+
+
 # --- Telemetry robustness ---
 
 
