@@ -657,3 +657,33 @@ def test_load_element_config_from_values_unknown_element_type_raises() -> None:
             {},
             FORECAST_TIMES,
         )
+
+
+# -- resolve_field value cleaning --
+
+# A 0 -> 0.35 price step whose ramp starts at t=1000. A horizon boundary placed a
+# hair past the step start lands on the ramp and interpolates to float noise.
+_STEP_FORECAST: list[tuple[float, float]] = [(0.0, 0.0), (1000.0, 0.0), (1001.0, 0.35), (4000.0, 0.35)]
+_NOISE_FORECAST_TIMES: tuple[float, ...] = (0.0, 1000.0 + 1e-11, 2000.0, 3000.0)
+
+
+@pytest.mark.parametrize("boundaries", [True, False], ids=["boundaries", "intervals"])
+def test_entity_float_noise_resolves_to_exact_zero(monkeypatch: pytest.MonkeyPatch, *, boundaries: bool) -> None:
+    """Fused values within float noise of zero resolve to exactly zero (issue #501).
+
+    HiGHS drops matrix coefficients below its small_matrix_value with a warning,
+    which highspy raises while adding the lexicographic objective row.
+    """
+    monkeypatch.setattr(cl, "load_sensors", lambda *_a: {"sensor.price": _STEP_FORECAST})
+    hint = FieldHint(output_type=OutputType.PRICE, time_series=True, boundaries=boundaries)
+
+    result = cl.resolve_field(
+        {"type": "entity", "value": ["sensor.price"]},
+        hint,
+        FakeStateMachine({}),
+        _NOISE_FORECAST_TIMES,
+    )
+
+    assert isinstance(result, np.ndarray)
+    noise = (result != 0.0) & (np.abs(result) < 1e-9)
+    assert not noise.any(), result
