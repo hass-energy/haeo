@@ -24,7 +24,11 @@ PRICE_NATIVE_MAX_VALUE: Final[float] = 1000.0
 
 @dataclass(frozen=True, slots=True)
 class OutputTypeMetadata:
-    """Default metadata for creating NumberEntityDescription for an OutputType."""
+    """Default metadata for creating NumberEntityDescription for an OutputType.
+
+    Monetary units use ``$`` as a currency placeholder, which the number entity
+    and config flow selector replace with the Home Assistant currency.
+    """
 
     unit: str | None
     device_class: NumberDeviceClass | None
@@ -77,7 +81,7 @@ OUTPUT_TYPE_DEFAULTS: dict[OutputType, OutputTypeMetadata] = {
         step=0.001,
     ),
     OutputType.PRICE_RATE: OutputTypeMetadata(
-        unit=None,
+        unit=UnitOfMeasurement.DOLLAR_PER_KWH_PER_HOUR,
         device_class=None,
         min_value=PRICE_NATIVE_MIN_VALUE,
         max_value=PRICE_NATIVE_MAX_VALUE,

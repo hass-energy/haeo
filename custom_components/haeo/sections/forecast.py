@@ -22,6 +22,7 @@ def build_forecast_fields(
     field_schema: Mapping[str, FieldSchemaInfo],
     inclusion_map: dict[str, list[str]],
     current_data: Mapping[str, Any] | None = None,
+    currency: str,
 ) -> dict[str, tuple[vol.Marker, Any]]:
     """Build forecast field entries for config flows."""
     if not input_fields:
@@ -31,6 +32,7 @@ def build_forecast_fields(
         field_schema=field_schema,
         inclusion_map=inclusion_map,
         current_data=current_data,
+        currency=currency,
     )
 
 

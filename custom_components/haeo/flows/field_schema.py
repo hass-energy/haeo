@@ -43,6 +43,7 @@ from custom_components.haeo.core.schema import (
     is_none_value,
     is_schema_value,
 )
+from custom_components.haeo.core.units import localize_currency
 from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
 
@@ -77,6 +78,8 @@ def _get_nested_value(data: Mapping[str, Any], field_name: str) -> Any | None:
 
 def number_selector_from_field(
     field_info: InputFieldInfo[NumberEntityDescription],
+    *,
+    currency: str,
 ) -> NumberSelector:  # type: ignore[type-arg]
     """Build a NumberSelector from InputFieldInfo entity description.
 
@@ -85,6 +88,7 @@ def number_selector_from_field(
 
     Args:
         field_info: Input field metadata containing NumberEntityDescription.
+        currency: Currency that replaces the ``$`` placeholder in monetary units.
 
     Returns:
         NumberSelector configured with the same constraints as the entity.
@@ -101,8 +105,8 @@ def number_selector_from_field(
         config_kwargs["min"] = desc.native_min_value
     if desc.native_max_value is not None:
         config_kwargs["max"] = desc.native_max_value
-    if desc.native_unit_of_measurement is not None:
-        config_kwargs["unit_of_measurement"] = desc.native_unit_of_measurement
+    if (unit := localize_currency(desc.native_unit_of_measurement, currency)) is not None:
+        config_kwargs["unit_of_measurement"] = unit
 
     return NumberSelector(NumberSelectorConfig(**config_kwargs))
 
@@ -232,6 +236,7 @@ def build_choose_selector(
     include_entities: list[str] | None = None,
     multiple: bool = True,
     preferred_choice: str = CHOICE_ENTITY,
+    currency: str,
 ) -> Any:
     """Build a ChooseSelector allowing user to pick Entity, Constant, or Disabled.
 
@@ -241,6 +246,7 @@ def build_choose_selector(
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection (for chaining).
         preferred_choice: Which choice should appear first (will be pre-selected).
+        currency: Currency that replaces the ``$`` placeholder in monetary units.
 
     Returns:
         ChooseSelector with Entity and Constant options (and Disabled for optional fields).
@@ -259,7 +265,7 @@ def build_choose_selector(
     if type(field_info.entity_description).__name__ == "SwitchEntityDescription":
         value_selector = boolean_selector_from_field()
     else:
-        value_selector = number_selector_from_field(field_info)  # type: ignore[arg-type]
+        value_selector = number_selector_from_field(field_info, currency=currency)  # type: ignore[arg-type]
 
     # Build choice configs - must use serialized dict format for ChooseSelector validation
     # The ChooseSelector's __call__ uses selector() which expects a dict, not Selector object
@@ -309,6 +315,7 @@ def build_choose_schema_entry(
     include_entities: list[str] | None = None,
     multiple: bool = True,
     preferred_choice: str = CHOICE_ENTITY,
+    currency: str,
 ) -> tuple[vol.Marker, Any]:
     """Build a schema entry using NormalizingChooseSelector.
 
@@ -319,6 +326,7 @@ def build_choose_schema_entry(
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection.
         preferred_choice: Which choice should appear first (will be pre-selected).
+        currency: Currency that replaces the ``$`` placeholder in monetary units.
 
     Returns:
         Tuple of (vol.Required/Optional marker, NormalizingChooseSelector).
@@ -331,6 +339,7 @@ def build_choose_schema_entry(
         include_entities=include_entities,
         multiple=multiple,
         preferred_choice=preferred_choice,
+        currency=currency,
     )
 
     if is_optional:
@@ -344,6 +353,7 @@ def build_choose_field_entries(
     field_schema: Mapping[str, FieldSchemaInfo],
     inclusion_map: dict[str, list[str]],
     current_data: Mapping[str, Any] | None = None,
+    currency: str,
 ) -> dict[str, tuple[vol.Marker, Any]]:
     """Build choose selector entries for input fields.
 
@@ -352,6 +362,7 @@ def build_choose_field_entries(
         field_schema: Mapping of field names to schema metadata.
         inclusion_map: Mapping of field name -> compatible entity IDs.
         current_data: Current configuration data (for reconfigure).
+        currency: Currency that replaces the ``$`` placeholder in monetary units.
 
     Returns:
         Mapping of field_name -> (marker, selector) for schema insertion.
@@ -374,6 +385,7 @@ def build_choose_field_entries(
             allowed_choices=allowed_choices,
             include_entities=include_entities,
             preferred_choice=preferred,
+            currency=currency,
         )
         entries[field_info.field_name] = (marker, selector)
 
@@ -426,6 +438,7 @@ def build_sectioned_choose_schema(
     field_schema: Mapping[str, Mapping[str, FieldSchemaInfo]],
     inclusion_map: Mapping[str, Mapping[str, list[str]]],
     *,
+    currency: str,
     current_data: Mapping[str, Any] | None = None,
     extra_field_entries: Mapping[str, Mapping[str, tuple[vol.Marker, Any]]] | None = None,
     top_level_entries: Mapping[str, tuple[vol.Marker, Any]] | None = None,
@@ -445,6 +458,7 @@ def build_sectioned_choose_schema(
                 field_schema=field_schema.get(section_def.key, {}),
                 inclusion_map=dict(inclusion_map.get(section_def.key, {})),
                 current_data=current_data.get(section_def.key) if current_data else None,
+                currency=currency,
             )
         )
 

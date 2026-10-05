@@ -57,7 +57,7 @@ def test_efficiency_section_helpers(hass: HomeAssistant) -> None:
     assert section.fields == (CONF_EFFICIENCY_SOURCE_TARGET,)
     assert section.collapsed is False
 
-    assert build_efficiency_fields({}, field_schema={}, inclusion_map={}) == {}
+    assert build_efficiency_fields({}, field_schema={}, inclusion_map={}, currency="$") == {}
 
     field_info = _number_field(CONF_EFFICIENCY_SOURCE_TARGET)
     entries = build_efficiency_fields(
@@ -65,6 +65,7 @@ def test_efficiency_section_helpers(hass: HomeAssistant) -> None:
         field_schema=_field_schema(field_info),
         inclusion_map={},
         current_data={},
+        currency="$",
     )
     marker, _selector = entries[field_info.field_name]
     assert isinstance(marker, vol.Marker)
@@ -77,7 +78,7 @@ def test_forecast_section_helpers(hass: HomeAssistant) -> None:
     assert section.fields == (CONF_FORECAST,)
     assert section.collapsed is True
 
-    assert build_forecast_fields({}, field_schema={}, inclusion_map={}) == {}
+    assert build_forecast_fields({}, field_schema={}, inclusion_map={}, currency="$") == {}
 
     field_info = _number_field(CONF_FORECAST)
     entries = build_forecast_fields(
@@ -85,6 +86,7 @@ def test_forecast_section_helpers(hass: HomeAssistant) -> None:
         field_schema=_field_schema(field_info),
         inclusion_map={},
         current_data={},
+        currency="$",
     )
     marker, _selector = entries[field_info.field_name]
     assert isinstance(marker, vol.Marker)
@@ -97,7 +99,7 @@ def test_power_limits_section_helpers(hass: HomeAssistant) -> None:
     assert section.fields == (CONF_MAX_POWER_SOURCE_TARGET,)
     assert section.collapsed is True
 
-    assert build_power_limits_fields({}, field_schema={}, inclusion_map={}) == {}
+    assert build_power_limits_fields({}, field_schema={}, inclusion_map={}, currency="$") == {}
 
     field_info = _number_field(CONF_MAX_POWER_SOURCE_TARGET)
     entries = build_power_limits_fields(
@@ -105,6 +107,7 @@ def test_power_limits_section_helpers(hass: HomeAssistant) -> None:
         field_schema=_field_schema(field_info),
         inclusion_map={},
         current_data={},
+        currency="$",
     )
     marker, _selector = entries[field_info.field_name]
     assert isinstance(marker, vol.Marker)
@@ -117,7 +120,7 @@ def test_pricing_section_helpers(hass: HomeAssistant) -> None:
     assert section.fields == (CONF_PRICE_SOURCE_TARGET,)
     assert section.collapsed is True
 
-    assert build_pricing_fields({}, field_schema={}, inclusion_map={}) == {}
+    assert build_pricing_fields({}, field_schema={}, inclusion_map={}, currency="$") == {}
 
     field_info = _number_field(CONF_PRICE_SOURCE_TARGET)
     entries = build_pricing_fields(
@@ -125,6 +128,7 @@ def test_pricing_section_helpers(hass: HomeAssistant) -> None:
         field_schema=_field_schema(field_info),
         inclusion_map={},
         current_data={},
+        currency="$",
     )
     marker, _selector = entries[field_info.field_name]
     assert isinstance(marker, vol.Marker)
@@ -137,7 +141,7 @@ def test_curtailment_section_helpers(hass: HomeAssistant) -> None:
     assert section.fields == (CONF_CURTAILMENT,)
     assert section.collapsed is True
 
-    assert build_curtailment_fields({}, field_schema={}, inclusion_map={}) == {}
+    assert build_curtailment_fields({}, field_schema={}, inclusion_map={}, currency="$") == {}
 
     field_info = _number_field(CONF_CURTAILMENT)
     entries = build_curtailment_fields(
@@ -145,6 +149,7 @@ def test_curtailment_section_helpers(hass: HomeAssistant) -> None:
         field_schema=_field_schema(field_info),
         inclusion_map={},
         current_data={},
+        currency="$",
     )
     marker, _selector = entries[field_info.field_name]
     assert isinstance(marker, vol.Marker)

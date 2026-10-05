@@ -35,7 +35,6 @@ from custom_components.haeo.coordinator import (
     OptimizationContext,
     _build_coordinator_output,
     _build_optimization_context,
-    _localize_currency,
     detect_currency_symbol,
 )
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
@@ -720,26 +719,6 @@ def test_detect_currency_symbol_uses_first_price_entity() -> None:
     }
     # The first price entity is s2, so the detected symbol should be £
     assert detect_currency_symbol(states) == "£"
-
-
-def test_localize_currency_replaces_dollar_placeholder() -> None:
-    """The $ placeholder in units should be replaced with the detected currency symbol."""
-    assert _localize_currency("$/kWh", "£") == "£/kWh"
-    assert _localize_currency("$/kW", "€") == "€/kW"
-    assert _localize_currency("$", "A$") == "A$"
-    assert _localize_currency("$", "$") == "$"
-
-
-def test_localize_currency_passes_through_non_monetary_units() -> None:
-    """Units without $ should pass through unchanged."""
-    assert _localize_currency("kW", "£") == "kW"
-    assert _localize_currency("kWh", "€") == "kWh"
-    assert _localize_currency("%", "A$") == "%"
-
-
-def test_localize_currency_handles_none() -> None:
-    """None units should remain None."""
-    assert _localize_currency(None, "£") is None
 
 
 def test_build_coordinator_output_localizes_shadow_price_currency() -> None:

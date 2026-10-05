@@ -19,6 +19,7 @@ def build_curtailment_fields(
     field_schema: dict[str, FieldSchemaInfo],
     inclusion_map: dict[str, list[str]],
     current_data: dict[str, object] | None = None,
+    currency: str,
 ) -> dict[str, tuple[vol.Marker, object]]:
     """Build curtailment field entries for config flows."""
     if not input_fields:
@@ -28,6 +29,7 @@ def build_curtailment_fields(
         field_schema=field_schema,
         inclusion_map=inclusion_map,
         current_data=current_data,
+        currency=currency,
     )
 
 

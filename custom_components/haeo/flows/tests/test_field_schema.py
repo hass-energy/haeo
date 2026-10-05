@@ -92,7 +92,7 @@ def test_number_selector_from_field_creates_selector(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Number selector is created with correct config."""
-    selector = number_selector_from_field(number_field)
+    selector = number_selector_from_field(number_field, currency="$")
     assert isinstance(selector, NumberSelector)
 
 
@@ -109,7 +109,7 @@ def test_number_selector_from_field_without_min_max_values() -> None:
         ),
         output_type=OutputType.PRICE,
     )
-    selector = number_selector_from_field(field)
+    selector = number_selector_from_field(field, currency="$")
     assert isinstance(selector, NumberSelector)
     # Config should not include min/max when None
     config = selector.config
@@ -117,22 +117,33 @@ def test_number_selector_from_field_without_min_max_values() -> None:
     assert "max" not in config
 
 
-def test_number_selector_from_field_without_unit() -> None:
-    """Number selector is created without unit of measurement."""
+@pytest.mark.parametrize(
+    ("native_unit", "currency", "expected_unit"),
+    [
+        pytest.param(None, "EUR", None, id="no_unit"),
+        pytest.param("%", "EUR", "%", id="non_monetary"),
+        pytest.param("$/kWh/h", "EUR", "EUR/kWh/h", id="price_rate"),
+    ],
+)
+def test_number_selector_from_field_localizes_unit(
+    native_unit: str | None,
+    currency: str,
+    expected_unit: str | None,
+) -> None:
+    """The selector unit replaces the currency placeholder and omits missing units."""
     field = InputFieldInfo(
-        field_name="efficiency",
+        field_name="field",
         entity_description=NumberEntityDescription(
-            key="efficiency",
-            name="Efficiency",
+            key="field",
             native_min_value=0.0,
             native_max_value=100.0,
             native_step=1.0,
-            native_unit_of_measurement=None,
+            native_unit_of_measurement=native_unit,
         ),
         output_type=OutputType.EFFICIENCY,
     )
-    selector = number_selector_from_field(field)
-    assert isinstance(selector, NumberSelector)
+    selector = number_selector_from_field(field, currency=currency)
+    assert selector.config.get("unit_of_measurement") == expected_unit
 
 
 # --- Tests for build_choose_selector ---
@@ -142,7 +153,7 @@ def test_build_choose_selector_creates_normalizing_choose_selector(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """NormalizingChooseSelector is created with entity and constant choices."""
-    selector = build_choose_selector(number_field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
+    selector = build_choose_selector(number_field, allowed_choices=ALLOWED_CHOICES_REQUIRED, currency="$")
     assert isinstance(selector, NormalizingChooseSelector)
 
 
@@ -154,6 +165,7 @@ def test_build_choose_selector_entity_first_by_default(
         number_field,
         allowed_choices=ALLOWED_CHOICES_REQUIRED,
         preferred_choice=CHOICE_ENTITY,
+        currency="$",
     )
     config = selector.config
     choices_keys = list(config["choices"].keys())
@@ -169,6 +181,7 @@ def test_build_choose_selector_constant_first_when_preferred(
         number_field,
         allowed_choices=ALLOWED_CHOICES_REQUIRED,
         preferred_choice=CHOICE_CONSTANT,
+        currency="$",
     )
     config = selector.config
     choices_keys = list(config["choices"].keys())
@@ -629,7 +642,7 @@ def test_build_choose_selector_optional_has_none_choice(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Optional field selector includes none choice."""
-    selector = build_choose_selector(number_field, allowed_choices=ALLOWED_CHOICES_OPTIONAL)
+    selector = build_choose_selector(number_field, allowed_choices=ALLOWED_CHOICES_OPTIONAL, currency="$")
     config = selector.config
     assert CHOICE_NONE in config["choices"]
     assert CHOICE_ENTITY in config["choices"]
@@ -640,7 +653,7 @@ def test_build_choose_selector_required_has_no_none_choice(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Required field selector does not include none choice."""
-    selector = build_choose_selector(number_field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
+    selector = build_choose_selector(number_field, allowed_choices=ALLOWED_CHOICES_REQUIRED, currency="$")
     config = selector.config
     assert CHOICE_NONE not in config["choices"]
     assert CHOICE_ENTITY in config["choices"]
@@ -655,6 +668,7 @@ def test_build_choose_selector_none_first_when_preferred(
         number_field,
         allowed_choices=ALLOWED_CHOICES_OPTIONAL,
         preferred_choice=CHOICE_NONE,
+        currency="$",
     )
     config = selector.config
     choices_keys = list(config["choices"].keys())
@@ -665,7 +679,7 @@ def test_build_choose_selector_only_none_choice(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """build_choose_selector supports none-only allowed choices."""
-    selector = build_choose_selector(number_field, allowed_choices=frozenset({CHOICE_NONE}))
+    selector = build_choose_selector(number_field, allowed_choices=frozenset({CHOICE_NONE}), currency="$")
     choices_keys = list(selector.config["choices"].keys())
     assert choices_keys == [CHOICE_NONE]
 
@@ -675,7 +689,7 @@ def test_build_choose_selector_raises_when_no_allowed_choices(
 ) -> None:
     """build_choose_selector raises when allowed choices are empty."""
     with pytest.raises(RuntimeError, match="No allowed choices"):
-        build_choose_selector(number_field, allowed_choices=frozenset())
+        build_choose_selector(number_field, allowed_choices=frozenset(), currency="$")
 
 
 # --- Tests for build_choose_field_entries ---
@@ -690,6 +704,7 @@ def test_build_choose_field_entries_missing_schema_metadata(
             _field_map(number_field),
             field_schema={},
             inclusion_map={},
+            currency="$",
         )
 
 
@@ -704,6 +719,7 @@ def test_build_choose_field_entries_none_only_value_type() -> None:
         {"disabled": field},
         field_schema={"disabled": FieldSchemaInfo(value_type=NoneValue, is_optional=True)},
         inclusion_map={},
+        currency="$",
     )
     marker, _selector = entries["disabled"]
     assert marker.schema == "disabled"
@@ -1147,6 +1163,7 @@ def test_normalizing_choose_selector_call_with_none_choice(
         number_field,
         allowed_choices=ALLOWED_CHOICES_OPTIONAL,
         preferred_choice=CHOICE_NONE,
+        currency="$",
     )
     # The selector should normalize {"active_choice": "none", ...} to ""
     # and then validate it (ConstantSelector accepts "")
@@ -1162,6 +1179,7 @@ def test_normalizing_choose_selector_call_with_entity_choice(
         number_field,
         allowed_choices=ALLOWED_CHOICES_REQUIRED,
         preferred_choice=CHOICE_ENTITY,
+        currency="$",
     )
     # The selector should normalize {"active_choice": "entity", "entity": [...]} to the list
     result = selector({"active_choice": "entity", "entity": ["sensor.power"]})
@@ -1176,6 +1194,7 @@ def test_normalizing_choose_selector_call_with_constant_choice(
         number_field,
         allowed_choices=ALLOWED_CHOICES_REQUIRED,
         preferred_choice=CHOICE_CONSTANT,
+        currency="$",
     )
     # The selector should normalize {"active_choice": "constant", "constant": 42.0} to 42.0
     result = selector({"active_choice": "constant", "constant": 42.0})
@@ -1190,6 +1209,7 @@ def test_normalizing_choose_selector_call_passthrough_already_normalized(
         number_field,
         allowed_choices=ALLOWED_CHOICES_REQUIRED,
         preferred_choice=CHOICE_CONSTANT,
+        currency="$",
     )
     # Already normalized constant value should pass through
     result = selector(50.0)
@@ -1204,6 +1224,7 @@ def test_normalizing_choose_selector_normalize_unknown_choice(
         number_field,
         allowed_choices=ALLOWED_CHOICES_OPTIONAL,
         preferred_choice=CHOICE_ENTITY,
+        currency="$",
     )
     raw = {"active_choice": "unexpected", "constant": 10}
     assert selector._normalize(raw) == raw
@@ -1251,6 +1272,7 @@ def test_build_sectioned_choose_schema_merges_extra_entries(
         inclusion_map,
         current_data={"inputs": {"test_field": as_entity_value(["sensor.test"])}},
         extra_field_entries=extra_field_entries,
+        currency="$",
     )
 
     assert {key.schema for key in schema.schema} == {"inputs", "extra"}

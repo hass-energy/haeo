@@ -99,6 +99,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             field_schema,
             section_inclusion_map,
+            currency=self.hass.config.currency,
             current_data=subentry_data,
             top_level_entries=build_common_fields(
                 include_connection=True,
