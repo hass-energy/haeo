@@ -114,7 +114,8 @@ The optimizer chooses between:
 - Leaving a shortfall to be topped up publicly during the trip at the configured price
 
 The optimizer selects the cheaper option based on current and forecast prices.
-Without a configured price the default \$10/kWh applies, making the shortfall a pure feasibility relief valve.
+Without a configured price the default \$10/kWh applies, which strongly discourages a shortfall without forbidding it.
+The shortfall still keeps trips from making the optimization infeasible, and if effective home charging costs more than \$10/kWh the optimizer can deliberately leave one.
 The expected public top-up is exposed as the trip energy shortfall output.
 
 ## Devices created
