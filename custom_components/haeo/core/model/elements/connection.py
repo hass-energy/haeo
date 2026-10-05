@@ -30,13 +30,17 @@ ELEMENT_TYPE: Final[ConnectionElementTypeName] = "connection"
 
 type ConnectionOutputName = Literal[
     "connection_power",
+    "connection_power_out",
     "segments",
 ]
 
 CONNECTION_POWER: Final = "connection_power"
+CONNECTION_POWER_OUT: Final = "connection_power_out"
 CONNECTION_SEGMENTS: Final = "segments"
 
-CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset((CONNECTION_POWER, CONNECTION_SEGMENTS))
+CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
+    (CONNECTION_POWER, CONNECTION_POWER_OUT, CONNECTION_SEGMENTS)
+)
 
 
 class ConnectionElementConfig(TypedDict):
@@ -257,11 +261,22 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     @output(name=CONNECTION_POWER)
     def _connection_power_output(self) -> OutputData:
-        """Power flow through this connection."""
+        """Power entering the connection at the source end, before any segment transforms."""
         return OutputData(
             type=OutputType.POWER_FLOW,
             unit="kW",
             values=self.extract_values(self.total_power_in),
+            direction="+",
+            priority=self.priority,
+        )
+
+    @output(name=CONNECTION_POWER_OUT)
+    def _connection_power_out_output(self) -> OutputData:
+        """Power leaving the connection at the target end, after all segment transforms."""
+        return OutputData(
+            type=OutputType.POWER_FLOW,
+            unit="kW",
+            values=self.extract_values(self.total_power_out),
             direction="+",
             priority=self.priority,
         )
@@ -288,6 +303,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
 __all__ = [
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER",
+    "CONNECTION_POWER_OUT",
     "CONNECTION_SEGMENTS",
     "ELEMENT_TYPE",
     "Connection",

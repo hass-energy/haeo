@@ -6,7 +6,7 @@ from typing import Any, Final, Literal
 
 import numpy as np
 
-from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
+from custom_components.haeo.core.adapters.output_utils import connection_power, connection_power_out, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as model_battery
@@ -176,6 +176,8 @@ class BatteryAdapter:
                     "charge_capacity_price": overcharge_cost,
                 }
 
+        # Efficiency sits next to the battery and the power limit at the bus end,
+        # where the battery terminals are metered, in both directions.
         discharge_segments: dict[str, SegmentSpec] = {
             "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_source_target},
             "power_limit": {"segment_type": "power_limit", "max_power": max_discharge},
@@ -201,8 +203,8 @@ class BatteryAdapter:
                 "source": extract_connection_target(config[CONF_CONNECTION]),
                 "target": name,
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_target_source},
                     "power_limit": {"segment_type": "power_limit", "max_power": max_charge},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_target_source},
                 },
             }
         )
@@ -221,7 +223,9 @@ class BatteryAdapter:
         charge_conn = model_outputs.get(f"{name}:charge")
         period_count = len(expect_output_data(model_outputs[name][model_battery.BATTERY_POWER_CHARGE]).values)
 
-        power_discharge = replace(connection_power(discharge_conn, period_count), type=OutputType.POWER)
+        # Both power sensors report the bus end of their connection, which is where
+        # the battery terminals are metered.
+        power_discharge = replace(connection_power_out(discharge_conn, period_count), type=OutputType.POWER)
         power_charge = replace(connection_power(charge_conn, period_count), type=OutputType.POWER, direction="-")
 
         # Battery-internal outputs (energy, SOC, shadow prices)
