@@ -1,5 +1,7 @@
 """Tests for the calendar input loader and event-injecting state machine."""
 
+import asyncio
+from collections.abc import Callable
 from datetime import UTC, datetime
 import logging
 from typing import Any
@@ -8,13 +10,14 @@ from unittest.mock import Mock
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_component import EntityComponent
 import numpy as np
 import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.calendar_loader import CALENDAR_EVENTS_ATTRIBUTE, CalendarInputLoader, CalendarStateMachine
-from custom_components.haeo.core.data.input_store import create_input_store
+from custom_components.haeo.core.data.input_store import InputStore, create_input_store
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, FieldHint
 from custom_components.haeo.horizon import HorizonManager
@@ -39,17 +42,36 @@ class _MemStorage:
         self.value = value
 
 
-def _calendar_store() -> Any:
-    """Build a calendar-driven store for the test calendar entity."""
+def _calendar_store(
+    entity_id: str = ENTITY_ID,
+    get_forecast_timestamps: Callable[[], tuple[float, ...]] = lambda: FORECAST_TIMESTAMPS,
+) -> InputStore:
+    """Build a calendar-driven store for a calendar entity."""
     return create_input_store(
-        storage=_MemStorage({"type": "calendar", "value": ENTITY_ID}),
+        storage=_MemStorage({"type": "calendar", "value": entity_id}),
         hint=FieldHint(
             output_type=OutputType.ENERGY,
             time_series=True,
             boundaries=True,
             calendar=CalendarFieldHint(parser="presence"),
         ),
-        get_forecast_timestamps=lambda: FORECAST_TIMESTAMPS,
+        get_forecast_timestamps=get_forecast_timestamps,
+    )
+
+
+def _presence(store: InputStore) -> Any:
+    """Return the resolved presence array of a loaded calendar store."""
+    value = store.value
+    assert isinstance(value, dict)
+    return value["presence"]
+
+
+def _trip(start_ts: float, end_ts: float) -> CalendarEvent:
+    """Build a calendar event spanning the given epoch seconds."""
+    return CalendarEvent(
+        start=datetime.fromtimestamp(start_ts, tz=UTC),
+        end=datetime.fromtimestamp(end_ts, tz=UTC),
+        summary="Trip",
     )
 
 
@@ -65,11 +87,12 @@ def horizon_manager() -> Mock:
 class _StubCalendar(CalendarEntity):
     """Calendar entity double returning canned events."""
 
-    _attr_name = "Trips"
     _attr_has_entity_name = False
 
-    def __init__(self, events: list[CalendarEvent]) -> None:
+    def __init__(self, events: list[CalendarEvent], name: str = "Trips") -> None:
+        self._attr_name = name
         self._events = events
+        self.fail = False
 
     @property
     def event(self) -> CalendarEvent | None:
@@ -82,16 +105,27 @@ class _StubCalendar(CalendarEntity):
         start_date: datetime,  # noqa: ARG002
         end_date: datetime,  # noqa: ARG002
     ) -> list[CalendarEvent]:
-        """Return all canned events regardless of range."""
+        """Return all canned events regardless of range, yielding like a real fetch."""
+        await asyncio.sleep(0)
+        if self.fail:
+            msg = "Calendar backend unreachable"
+            raise HomeAssistantError(msg)
         return self._events
 
 
-async def _add_stub_calendar(hass: HomeAssistant, events: list[CalendarEvent]) -> None:
-    """Register a stub calendar entity under calendar.trips."""
+async def _add_stub_calendars(hass: HomeAssistant, *calendars: _StubCalendar) -> None:
+    """Register stub calendar entities with the calendar component."""
     component: EntityComponent[CalendarEntity] = EntityComponent(_LOGGER, CALENDAR_DOMAIN, hass)
     hass.data[CALENDAR_DOMAIN] = component
-    await component.async_add_entities([_StubCalendar(events)])
+    await component.async_add_entities(list(calendars))
     await hass.async_block_till_done()
+
+
+async def _add_stub_calendar(hass: HomeAssistant, events: list[CalendarEvent]) -> _StubCalendar:
+    """Register a stub calendar entity under calendar.trips."""
+    calendar = _StubCalendar(events)
+    await _add_stub_calendars(hass, calendar)
+    return calendar
 
 
 # --- CalendarStateMachine ---
@@ -202,4 +236,117 @@ async def test_loader_without_calendar_stores_is_inert(hass: HomeAssistant, hori
     await loader.async_start()
 
     horizon_manager.subscribe.assert_not_called()
+    loader.cleanup()
+
+
+async def test_loader_keeps_previous_value_when_reload_fetch_fails(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """A failed event fetch leaves the previously loaded events in place."""
+    calendar = await _add_stub_calendar(hass, [_trip(0.0, 3600.0)])
+    store = _calendar_store()
+    listener = Mock()
+    store.add_listener(listener)
+    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    await loader.async_start()
+    listener.reset_mock()
+
+    calendar.fail = True
+    await loader.async_load_all()
+
+    np.testing.assert_allclose(_presence(store), [1.0, 0.0, 0.0])
+    listener.assert_not_called()
+    loader.cleanup()
+
+
+async def test_loader_initial_fetch_failure_leaves_store_not_ready(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """A failed first fetch does not load the store as an empty calendar."""
+    calendar = await _add_stub_calendar(hass, [_trip(0.0, 3600.0)])
+    calendar.fail = True
+    store = _calendar_store()
+    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+
+    await loader.async_start()
+
+    assert not store.is_ready()
+    assert store.value is None
+    loader.cleanup()
+
+
+async def test_loader_replays_captured_events_without_calendar_entity(
+    hass: HomeAssistant,
+    horizon_manager: Mock,
+) -> None:
+    """Captured events in the persisted value resolve even when no calendar entity exists."""
+    store = create_input_store(
+        storage=_MemStorage(
+            {
+                "type": "calendar",
+                "value": ENTITY_ID,
+                "events": [
+                    {
+                        "start": "1970-01-01T00:00:00+00:00",
+                        "end": "1970-01-01T01:00:00+00:00",
+                        "summary": "Trip",
+                        "location": None,
+                        "description": None,
+                    }
+                ],
+            }
+        ),
+        hint=FieldHint(
+            output_type=OutputType.ENERGY,
+            time_series=True,
+            boundaries=True,
+            calendar=CalendarFieldHint(parser="presence"),
+        ),
+        get_forecast_timestamps=lambda: FORECAST_TIMESTAMPS,
+    )
+    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+
+    await loader.async_start()
+
+    np.testing.assert_allclose(_presence(store), [1.0, 0.0, 0.0])
+    loader.cleanup()
+
+
+async def test_loader_reloads_all_stores_before_listeners_run(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """A store's listener sees every other store already reloaded."""
+    await _add_stub_calendars(
+        hass,
+        _StubCalendar([_trip(0.0, 3600.0)], name="Trips"),
+        _StubCalendar([_trip(3600.0, 7200.0)], name="Loads"),
+    )
+    trips = _calendar_store(ENTITY_ID)
+    loads = _calendar_store("calendar.loads")
+    observed: list[object] = []
+    trips.add_listener(lambda: observed.append(loads.value))
+    loader = CalendarInputLoader(
+        hass,
+        {("EV", ("trip", "trip_calendar")): trips, ("Load", ("window", "window_calendar")): loads},
+        horizon_manager,
+    )
+
+    await loader.async_start()
+
+    assert len(observed) == 1
+    assert observed[0] is loads.value
+    np.testing.assert_allclose(_presence(loads), [0.0, 1.0, 0.0])
+    loader.cleanup()
+
+
+async def test_loader_reloads_on_horizon_change(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """The horizon subscription reloads stores against the new boundaries."""
+    await _add_stub_calendar(hass, [_trip(3600.0, 7200.0)])
+    store = _calendar_store(get_forecast_timestamps=horizon_manager.get_forecast_timestamps)
+    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    await loader.async_start()
+    np.testing.assert_allclose(_presence(store), [0.0, 1.0, 0.0])
+
+    new_timestamps = (3600.0, 7200.0, 10800.0)
+    horizon_manager.get_forecast_timestamps.return_value = new_timestamps
+    on_horizon_change = horizon_manager.subscribe.call_args.args[0]
+    on_horizon_change()
+    await hass.async_block_till_done()
+
+    assert store.forecast_timestamps == new_timestamps
+    np.testing.assert_allclose(_presence(store), [1.0, 0.0, 0.0])
     loader.cleanup()

@@ -143,30 +143,23 @@ def extract_calendar_windows(
 _DEFAULT_TEXT_FIELDS: Final[tuple[str, ...]] = ("location", "summary", "description")
 
 
-def _first_non_empty_field(event: CalendarEventData, fields: Sequence[str]) -> str | None:
-    """Return the first non-empty text field from an event."""
-    for field in fields:
-        text = getattr(event, field, None)
-        if text:
-            return text
-    return None
-
-
 def make_field_fallback_extractor(
     parser: Callable[[str], float | None],
     fields: Sequence[str] = _DEFAULT_TEXT_FIELDS,
 ) -> EventValueFn:
-    """Create an extractor that parses the first available text field.
+    """Create an extractor that parses the first text field holding a parseable value.
 
-    Tries fields in order (default: location, summary, description).
-    Returns None when no field has text or the parser cannot extract a value.
+    Tries fields in order (default: location, summary, description), skipping
+    empty fields and fields the parser cannot read. Returns None when no field
+    yields a value.
     """
 
     def _extract(event: CalendarEventData) -> float | None:
-        text = _first_non_empty_field(event, fields)
-        if text is None:
-            return None
-        return parser(text)
+        for field in fields:
+            text = getattr(event, field, None)
+            if text and (value := parser(text)) is not None:
+                return value
+        return None
 
     return _extract
 

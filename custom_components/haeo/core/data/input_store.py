@@ -234,7 +234,7 @@ class InputStore:
 
         return _unsub
 
-    def _notify(self) -> None:
+    def notify_listeners(self) -> None:
         """Fire all registered change listeners."""
         for listener in list(self._listeners):
             listener()
@@ -260,10 +260,23 @@ class InputStore:
             self._resolve_from_constant(mark_ready=True)
 
     async def async_load(self, sm: StateMachine) -> bool:
-        """Resolve data from source entities via the provided state machine.
+        """Resolve data from source entities and notify listeners on success.
 
         Returns True if data was successfully loaded, False otherwise. Does not
         modify state on failure (keeps previous values).
+        """
+        if not self.resolve_from_sources(sm):
+            return False
+        self.notify_listeners()
+        return True
+
+    def resolve_from_sources(self, sm: StateMachine) -> bool:
+        """Resolve data from source entities without notifying listeners.
+
+        Lets a caller reload several stores before any listener runs, then
+        notify each with :meth:`notify_listeners`. Returns True if data was
+        successfully loaded, False otherwise. Does not modify state on failure
+        (keeps previous values).
         """
         self._captured_source_states = {
             eid: state for eid in self._source_entity_ids if (state := sm.get(eid)) is not None
@@ -317,7 +330,6 @@ class InputStore:
         self._available = True
         self._loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
         self._data_ready.set()
-        self._notify()
         return True
 
     def _resolve_from_constant(self, *, mark_ready: bool) -> None:
@@ -334,7 +346,7 @@ class InputStore:
 
         if mark_ready:
             self._data_ready.set()
-            self._notify()
+            self.notify_listeners()
 
 
 def create_input_store(
