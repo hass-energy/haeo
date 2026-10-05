@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from enum import StrEnum
-from typing import NamedTuple
+from typing import Final, NamedTuple
 
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement, convert_to_base_unit
@@ -65,6 +65,19 @@ FORMATS: dict[ExtractorFormat, DataExtractor] = {
 }
 
 
+# Binary sensor states mapped to numeric values so availability-style
+# sources (e.g. an EV charger's "connected" binary sensor) load as 1/0.
+_BINARY_STATES: Final[dict[str, float]] = {"on": 1.0, "true": 1.0, "off": 0.0, "false": 0.0}
+
+
+def _parse_scalar_state(raw: str) -> float:
+    """Parse a state string as a float, mapping binary on/off states to 1/0."""
+    mapped = _BINARY_STATES.get(raw.strip().lower())
+    if mapped is not None:
+        return mapped
+    return float(raw)
+
+
 class ExtractedData(NamedTuple):
     """Container for extracted data and metadata."""
 
@@ -104,7 +117,7 @@ def extract(state: EntityState) -> ExtractedData:
         data, unit, device_class = volcast.Parser.extract(state)
     else:
         # If no extractor matched read the state as a single float value
-        data = float(state.state)
+        data = _parse_scalar_state(state.state)
         unit = state.attributes.get("unit_of_measurement")
         device_class_attr = state.attributes.get("device_class")
         device_class = DeviceClass.of(device_class_attr)

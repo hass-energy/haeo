@@ -185,6 +185,7 @@ def _build_field_info(
             defaults=input_defaults,
             force_required=hint.force_required,
             device_type=hint.device_type,
+            calendar=hint.calendar,
         )
 
     defaults = OUTPUT_TYPE_DEFAULTS[hint.output_type]
@@ -206,4 +207,5 @@ def _build_field_info(
         defaults=input_defaults,
         force_required=hint.force_required,
         device_type=hint.device_type,
+        calendar=hint.calendar,
     )

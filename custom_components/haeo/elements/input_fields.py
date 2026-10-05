@@ -12,6 +12,7 @@ from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +52,8 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         boundaries: Whether time series values are at boundaries (n+1 values) vs intervals (n values)
         defaults: Default pre-selection behavior for config flow fields
         device_type: Optional device type override for sub-device inputs
+        calendar: When set, the field is driven by a calendar entity and gets
+            no input entity of its own
 
     Note:
         Whether a field is optional (can be disabled in config flow) is determined
@@ -70,6 +73,7 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     force_required: bool | None = None
     # Optional device type for sub-device association
     device_type: str | None = None
+    calendar: CalendarFieldHint | None = None
 
 
 type InputFieldSection = Mapping[str, InputFieldInfo[Any]]

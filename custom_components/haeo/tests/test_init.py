@@ -557,6 +557,8 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
 
     # Create a mock input store that never becomes ready
     class NeverReadyStore:
+        source_kind = "entity"
+
         async def wait_ready(self) -> None:
             # Wait forever - will timeout
             await asyncio.sleep(100)
@@ -650,6 +652,8 @@ async def test_setup_reentry_after_timeout_failure(
 
     # Create a mock input store that fails first time, succeeds second time
     class ConditionalReadyStore:
+        source_kind = "entity"
+
         def __init__(self) -> None:
             self._ready = False
 

@@ -92,6 +92,7 @@ def _hint_from_field_info(field_info: InputFieldInfo[Any]) -> FieldHint:
         direction=field_info.direction,
         time_series=field_info.time_series,
         boundaries=field_info.boundaries,
+        calendar=field_info.calendar,
     )
 
 

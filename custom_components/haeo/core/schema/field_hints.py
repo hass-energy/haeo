@@ -12,6 +12,22 @@ from custom_components.haeo.core.model.const import OutputType
 
 
 @dataclass(frozen=True, slots=True)
+class CalendarFieldHint:
+    """Metadata for a config field driven by a calendar entity.
+
+    Attributes:
+        parser: How a numeric value is extracted from each calendar event:
+            - 'distance': parse a distance (e.g. "50 km") from the event text,
+              normalized to kilometres.
+            - 'number': parse a plain number from the event text.
+            - 'presence': value 1.0 for every event regardless of text.
+
+    """
+
+    parser: Literal["distance", "number", "presence"] = "presence"
+
+
+@dataclass(frozen=True, slots=True)
 class FieldHint:
     """Metadata for a config field that becomes an input entity.
 
@@ -28,6 +44,8 @@ class FieldHint:
         default_value: Value to pre-fill when default_mode='value'.
         force_required: Force value to be required, overriding schema optionality.
         device_type: Optional device type override for sub-device inputs.
+        calendar: When set, the field accepts a calendar entity whose events are
+            resolved into horizon-aligned arrays using this hint.
 
     """
 
@@ -42,6 +60,7 @@ class FieldHint:
     default_value: float | bool | None = None
     force_required: bool | None = None
     device_type: str | None = None
+    calendar: CalendarFieldHint | None = None
 
 
 @dataclass(frozen=True, slots=True)

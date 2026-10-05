@@ -1,6 +1,9 @@
 """Tests for the HAEO switch platform."""
 
+from collections.abc import Mapping
+from dataclasses import replace
 from types import MappingProxyType
+from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
@@ -34,7 +37,9 @@ from custom_components.haeo.core.schema.elements.solar import (
     SECTION_FORECAST,
 )
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
+from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
+from custom_components.haeo.elements import InputFieldGroups, get_input_fields
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
@@ -286,6 +291,43 @@ async def test_setup_creates_switch_entities_for_solar_curtailment(
         # Check if any switch entity was created for curtailment
         field_names = {e._field_info.field_name for e in input_switches}
         assert CONF_CURTAILMENT in field_names
+
+
+async def test_setup_skips_calendar_driven_switch_fields(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Calendar-driven status fields resolve from calendar events and get no switch entity."""
+    _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
+    _add_subentry(
+        hass,
+        config_entry,
+        SOLAR_TYPE,
+        "Rooftop Solar",
+        {
+            "connection": "main_bus",
+            "forecast": "sensor.solar_forecast",
+            CONF_CURTAILMENT: "input_boolean.curtail_solar",
+        },
+    )
+
+    def calendar_input_fields(element_config: Mapping[str, Any]) -> InputFieldGroups:
+        return {
+            section: {
+                name: replace(info, calendar=CalendarFieldHint()) if name == CONF_CURTAILMENT else info
+                for name, info in fields.items()
+            }
+            for section, fields in get_input_fields(element_config).items()
+        }
+
+    monkeypatch.setattr("custom_components.haeo.switch.get_input_fields", calendar_input_fields)
+
+    async_add_entities = Mock()
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    entities = list(async_add_entities.call_args.args[0])
+    assert [type(e) for e in entities] == [AutoOptimizeSwitch]
 
 
 async def test_setup_creates_switch_entities_for_policy_rule_enabled(

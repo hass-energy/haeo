@@ -126,12 +126,14 @@ async def async_setup_entry(
         # Combine all number fields from both sources
         all_fields = {**input_fields, **list_input_fields}
 
-        # Filter to only number fields (by entity description class name)
-        # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
+        # Filter to only number fields (by entity description class name).
+        # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper.
+        # Calendar-driven fields resolve to boundary arrays with no meaningful
+        # scalar value, so they get no input entity.
         number_fields = [
             (field_path, field_info)
             for field_path, field_info in iter_input_field_paths(all_fields)
-            if type(field_info.entity_description).__name__ == "NumberEntityDescription"
+            if type(field_info.entity_description).__name__ == "NumberEntityDescription" and field_info.calendar is None
         ]
 
         surfaced_hints = get_surfaced_price_hints(element_type)

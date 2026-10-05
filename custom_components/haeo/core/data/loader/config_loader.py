@@ -17,6 +17,7 @@ from custom_components.haeo.core.data.util.forecast_combiner import combine_sens
 from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import SchemaValue
+from custom_components.haeo.core.schema.calendar_value import is_calendar_value
 from custom_components.haeo.core.schema.constant_value import is_constant_value
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
@@ -29,6 +30,7 @@ from custom_components.haeo.core.schema.field_hints import (
 from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.core.state import StateMachine
 
+from .calendar_resolver import CalendarBoundaryData, resolve_calendar_field
 from .sensor_loader import load_sensors
 
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
@@ -232,7 +234,7 @@ def resolve_field(
     hint: FieldHint,
     sm: StateMachine,
     forecast_times: Sequence[float],
-) -> _Sentinel | bool | float | np.ndarray | None:
+) -> _Sentinel | bool | float | np.ndarray | CalendarBoundaryData | None:
     """Resolve a single field value based on its schema type and hint metadata.
 
     Shared by the config loader (whole-element resolution) and ``InputStore``
@@ -243,6 +245,11 @@ def resolve_field(
 
     if isinstance(value, bool):
         return value
+
+    if is_calendar_value(value):
+        if hint.calendar is None:
+            return None
+        return resolve_calendar_field(value, hint.calendar, sm, forecast_times)
 
     if is_constant_value(value):
         unwrapped: float | bool | Sequence[str] = value["value"]

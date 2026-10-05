@@ -33,6 +33,7 @@ from custom_components.haeo.core.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
+    as_calendar_value,
     as_constant_value,
     as_entity_value,
     as_none_value,
@@ -365,6 +366,15 @@ def build_choose_field_entries(
             msg = f"Missing schema metadata for field '{field_info.field_name}'"
             raise RuntimeError(msg)
         is_optional = schema_info.is_optional and not field_info.force_required
+
+        # Calendar-driven fields render as a plain calendar entity picker
+        # rather than a choose selector (no constant form exists).
+        if field_info.calendar is not None:
+            calendar_selector = EntitySelector(EntitySelectorConfig(domain="calendar", multiple=False))
+            marker = vol.Optional(field_info.field_name) if is_optional else vol.Required(field_info.field_name)
+            entries[field_info.field_name] = (marker, calendar_selector)
+            continue
+
         allowed_choices = _get_allowed_choices(schema_info, field_info)
         include_entities = inclusion_map.get(field_info.field_name)
         preferred = get_preferred_choice(field_info, current_data, allowed_choices=allowed_choices)
@@ -595,6 +605,8 @@ def get_choose_default(
 
     if is_entity_value(current_value):
         return current_value["value"]
+    if is_calendar_value(current_value):
+        return current_value["value"]
     if is_constant_value(current_value):
         return current_value["value"]
     if is_none_value(current_value):
@@ -643,6 +655,15 @@ def convert_choose_data_to_config(
         if field_name in exclude_keys:
             continue
         if field_name not in field_names:
+            continue
+
+        # Calendar fields store a calendar schema value from the entity picker
+        if input_fields[field_name].calendar is not None:
+            entity_id = value[0] if isinstance(value, list) and value else value
+            if isinstance(entity_id, str) and entity_id:
+                config[field_name] = as_calendar_value(entity_id)
+            else:
+                config[field_name] = as_none_value()
             continue
 
         # Disabled/none choice
