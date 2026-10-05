@@ -178,7 +178,7 @@ It indicates whether more solar generation would be beneficial or detrimental.
 - Verify forecast covers daytime hours
 - Review HAEO logs for format detection warnings
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

@@ -149,7 +149,7 @@ HAEO re-optimizes periodically. Balance:
 The optimization cost represents the total forecasted cost over the full horizon, not just the immediate step.
 Track changes in this value when you adjust configuration parameters to confirm the optimiser is producing the expected behaviour.
 
-## Next Steps
+## Next steps
 
 Explore these guides to act on the optimization outputs.
 

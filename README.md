@@ -95,19 +95,15 @@ See the [elements documentation](https://hass-energy.github.io/haeo/user-guide/e
 
 ## 📦 Installation
 
-### HACS Installation (Recommended)
+### HACS installation (recommended)
+
+HAEO is published in the [default HACS store](https://github.com/hacs/default).
+You do not need to [add a custom repository](https://hacs.xyz/docs/faq/custom_repositories/).
+See the [installation guide](https://hass-energy.github.io/haeo/user-guide/installation/) for step-by-step instructions.
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=hass-energy&repository=haeo&category=integration)
 
-1. Open HACS in your Home Assistant instance
-2. Click on "Integrations"
-3. Click the three dots in the top right corner
-4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/hass-energy/haeo`
-6. Select "Integration" as the category
-7. Click "Add"
-8. Search for "HAEO" and click "Download"
-9. Restart Home Assistant
+You can use the My Home Assistant link above to open HAEO directly in HACS, then download and restart Home Assistant.
 
 ### Manual Installation
 

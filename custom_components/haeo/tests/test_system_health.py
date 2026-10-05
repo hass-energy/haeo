@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 import pytest
 
+from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import (
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
@@ -58,6 +59,11 @@ def _make_coordinator_data(outputs: dict[str, Any]) -> CoordinatorData:
     )
 
 
+def _make_runtime_data(coordinator: HaeoDataUpdateCoordinator | None) -> HaeoRuntimeData:
+    """Create runtime data for system health tests."""
+    return HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
+
+
 async def test_async_register_callback(hass: HomeAssistant) -> None:
     """The system health callback is registered."""
 
@@ -79,6 +85,20 @@ async def test_system_health_coordinator_not_initialized(hass: HomeAssistant) ->
     entry = MagicMock()
     entry.title = "HAEO Hub"
     entry.runtime_data = None
+
+    with patch.object(hass.config_entries, "async_entries", return_value=[entry]):
+        info = await async_system_health_info(hass)
+    assert info["HAEO Hub_status"] == "coordinator_not_initialized"
+
+
+async def test_system_health_runtime_data_without_coordinator(
+    hass: HomeAssistant,
+) -> None:
+    """Runtime data without a coordinator is identified explicitly."""
+
+    entry = MagicMock()
+    entry.title = "HAEO Hub"
+    entry.runtime_data = _make_runtime_data(coordinator=None)
 
     with patch.object(hass.config_entries, "async_entries", return_value=[entry]):
         info = await async_system_health_info(hass)
@@ -120,7 +140,7 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
         CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
     }
-    entry.runtime_data = coordinator
+    entry.runtime_data = _make_runtime_data(coordinator)
 
     with patch.object(hass.config_entries, "async_entries", return_value=[entry]):
         info = await async_system_health_info(hass)
@@ -155,7 +175,7 @@ async def test_system_health_detects_failed_updates(hass: HomeAssistant) -> None
         CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
         CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
     }
-    entry.runtime_data = coordinator
+    entry.runtime_data = _make_runtime_data(coordinator)
 
     with patch.object(hass.config_entries, "async_entries", return_value=[entry]):
         info = await async_system_health_info(hass)

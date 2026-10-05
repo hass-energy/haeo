@@ -9,6 +9,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
+from homeassistant.components.frontend import DOMAIN as FRONTEND_DOMAIN
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -18,6 +19,7 @@ from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.setup import async_when_setup
 
 from custom_components.haeo.const import (
     DOMAIN,
@@ -98,8 +100,16 @@ async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None
     await http.async_register_static_paths(
         [StaticPathConfig(STATIC_CARD_STATIC_PATH, str(static_dir), cache_headers=False)]
     )
-    for url_path in available_bundles:
-        add_extra_js_url(hass, url_path)
+
+    async def _register_card_urls(hass: HomeAssistant, _component: str) -> None:
+        """Register each available card bundle as a Lovelace resource."""
+        for url_path in available_bundles:
+            add_extra_js_url(hass, url_path)
+
+    # add_extra_js_url writes to a registry the frontend component only creates during its
+    # own setup, so calling it here would race with startup ordering. Defer registration
+    # until frontend is up; the callback runs immediately when it already is.
+    async_when_setup(hass, FRONTEND_DOMAIN, _register_card_urls)
 
 
 @dataclass(slots=True)
@@ -112,6 +122,7 @@ class HaeoRuntimeData:
         auto_optimize_switch: Switch controlling automatic optimization.
         coordinator: Coordinator for network-level optimization (set after input platforms).
         value_update_in_progress: Flag to skip reload when updating entity values.
+        reload_pending: Flag to coalesce deferred reloads during an element config flow.
 
     """
 
@@ -120,6 +131,7 @@ class HaeoRuntimeData:
     auto_optimize_switch: AutoOptimizeSwitch | None = field(default=None)
     coordinator: HaeoDataUpdateCoordinator | None = field(default=None)
     value_update_in_progress: bool = field(default=False)
+    reload_pending: bool = field(default=False)
 
 
 type HaeoConfigEntry = ConfigEntry[HaeoRuntimeData | None]
@@ -219,11 +231,41 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     # writes the element's surfaced policy rules before that. Skip cleanup while
     # a subentry flow for this entry is active so those rules are not mistaken
     # for orphans; element deletions do not run a flow, so they still clean up.
-    if not _element_flow_in_progress(hass, entry):
+    flow_in_progress = _element_flow_in_progress(hass, entry)
+    if not flow_in_progress:
         _cleanup_policy_rules(hass, entry)
 
     _LOGGER.info("HAEO configuration changed, reloading integration")
-    hass.config_entries.async_schedule_reload(entry.entry_id)
+
+    if not flow_in_progress:
+        hass.config_entries.async_schedule_reload(entry.entry_id)
+        return
+
+    # A subentry flow may still be committing further subentries in the same
+    # synchronous step: the battery flow writes its surfaced policy rules before
+    # creating its own subentry. Home Assistant fires update listeners and runs
+    # reloads eagerly, so scheduling the reload now runs the unload phase
+    # synchronously from within this change callback, which removes this update
+    # listener before the later subentry commit fires it; that commit then never
+    # schedules a reload and the new element is left without a device or
+    # entities. Defer to the next event loop iteration so every commit in this
+    # step lands first, and coalesce the deferred reloads so the flow rebuilds
+    # the entry exactly once with all subentries present.
+    if runtime_data is None:
+        hass.loop.call_soon(hass.config_entries.async_schedule_reload, entry.entry_id)
+        return
+
+    if runtime_data.reload_pending:
+        return
+    runtime_data.reload_pending = True
+
+    def _deferred_reload() -> None:
+        # Clear the coalescing flag before scheduling so it cannot stick across
+        # synchronous steps; the reload recreates runtime_data regardless.
+        runtime_data.reload_pending = False
+        hass.config_entries.async_schedule_reload(entry.entry_id)
+
+    hass.loop.call_soon(_deferred_reload)
 
 
 def _element_flow_in_progress(hass: HomeAssistant, entry: ConfigEntry) -> bool:

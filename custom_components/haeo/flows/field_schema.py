@@ -37,6 +37,7 @@ from custom_components.haeo.core.schema import (
     as_entity_value,
     as_none_value,
     get_schema_value_kinds,
+    is_calendar_value,
     is_constant_value,
     is_entity_value,
     is_none_value,
@@ -723,7 +724,7 @@ def preprocess_choose_selector_input(
                 result[field_name] = value.get(CHOICE_CONSTANT)
         # Handle discriminated schema values
         elif is_schema_value(value):
-            if is_entity_value(value) or is_constant_value(value):
+            if is_entity_value(value) or is_constant_value(value) or is_calendar_value(value):
                 result[field_name] = value["value"]
             else:
                 result[field_name] = None

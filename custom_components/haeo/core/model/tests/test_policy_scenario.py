@@ -19,8 +19,6 @@ This tests the model layer's tag infrastructure directly, without
 depending on the policy compilation adapter.
 """
 
-from typing import Any, cast
-
 import numpy as np
 import pytest
 
@@ -45,7 +43,7 @@ def _build_tagged_system(
     battery_capacity: float = 5.0,
     battery_initial_kwh: float = 2.5,
     battery_max_power: float = 5.0,
-) -> list[dict[str, Any]]:
+) -> list[ModelElementConfig]:
     """Build model elements with pre-assigned tags."""
     n = len(periods)
     return [
@@ -192,7 +190,7 @@ def test_tagged_power_flow_scenario() -> None:
 
     network = Network(name="tagged_scenario", periods=periods)
     for elem in sorted(elements, key=lambda e: e.get("element_type") == "connection"):
-        network.add(cast("ModelElementConfig", elem))
+        network.add(elem)
 
     cost = network.optimize()
     h = network._solver

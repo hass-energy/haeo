@@ -4,7 +4,7 @@ from collections.abc import Mapping
 import json
 from pathlib import Path
 import types
-from typing import Any, Union, cast, get_args, get_origin, get_type_hints
+from typing import Any, Union, get_args, get_origin, get_type_hints
 
 import pytest
 
@@ -13,16 +13,16 @@ from custom_components.haeo.core.model.reactive import OutputMethod
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES, ELEMENT_OUTPUT_NAMES
 
 
-def _is_mapping_type(annotation: object) -> bool:
+def _is_mapping_type(annotation: Any) -> bool:
     try:
-        alias_value = cast("Any", annotation).__value__
+        alias_value = annotation.__value__
     except AttributeError:
         alias_value = None
     if alias_value is not None:
         return _is_mapping_type(alias_value)
-    origin = get_origin(cast("Any", annotation))
+    origin = get_origin(annotation)
     if origin is None:
-        return cast("Any", annotation) in (Mapping, dict)
+        return annotation in (Mapping, dict)
     if origin in (Mapping, dict):
         return True
     if origin in (types.UnionType, Union):
@@ -50,7 +50,7 @@ def _mapping_output_names() -> set[str]:
 
 
 def _sensor_output_names() -> set[str]:
-    output_names = cast("set[str]", set(ELEMENT_OUTPUT_NAMES))
+    output_names = {str(name) for name in ELEMENT_OUTPUT_NAMES}
     return output_names - _mapping_output_names()
 
 

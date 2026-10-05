@@ -8,16 +8,19 @@ from unittest.mock import AsyncMock, Mock
 from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL, UrlManager
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-from homeassistant.const import Platform
+from homeassistant.const import EVENT_COMPONENT_LOADED, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.loader import async_get_integration
+from homeassistant.setup import ATTR_COMPONENT
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import (
     HaeoRuntimeData,
     _async_register_static_frontend_resources,
+    _element_flow_in_progress,
     _ensure_required_subentries,
     async_remove_config_entry_device,
     async_setup,
@@ -458,6 +461,89 @@ async def test_async_update_listener_value_update_in_progress(
         mock_coordinator.signal_optimization_stale.assert_called_once()
 
 
+def _mock_element_flow_in_progress(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    """Mark a subentry config flow as in progress for *entry*."""
+    hass.config_entries.subentries.async_progress = Mock(
+        return_value=[{"handler": (entry.entry_id, "battery")}],
+    )
+
+
+async def test_async_update_listener_defers_reload_during_element_flow(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Reload is deferred to the next loop iteration while an element flow commits subentries."""
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(Mock())
+    _mock_element_flow_in_progress(hass, mock_hub_entry)
+
+    schedule_reload_calls: list[str] = []
+    hass.config_entries.async_schedule_reload = lambda entry_id: schedule_reload_calls.append(entry_id)
+
+    await async_update_listener(hass, mock_hub_entry)
+
+    assert schedule_reload_calls == []
+    assert mock_hub_entry.runtime_data.reload_pending is True
+
+    await hass.async_block_till_done()
+
+    assert mock_hub_entry.runtime_data.reload_pending is False
+    assert schedule_reload_calls == [mock_hub_entry.entry_id]
+
+
+async def test_async_update_listener_coalesces_deferred_reload(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Further update events during a flow only schedule one deferred reload."""
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(Mock())
+    mock_hub_entry.runtime_data.reload_pending = True
+    _mock_element_flow_in_progress(hass, mock_hub_entry)
+
+    schedule_reload = Mock()
+    hass.config_entries.async_schedule_reload = schedule_reload
+
+    await async_update_listener(hass, mock_hub_entry)
+    await hass.async_block_till_done()
+
+    schedule_reload.assert_not_called()
+    assert mock_hub_entry.runtime_data.reload_pending is True
+
+
+async def test_async_update_listener_defers_reload_without_runtime_data(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Deferred reload still runs when runtime_data is not yet populated."""
+    mock_hub_entry.runtime_data = None
+    _mock_element_flow_in_progress(hass, mock_hub_entry)
+
+    schedule_reload_calls: list[str] = []
+    hass.config_entries.async_schedule_reload = lambda entry_id: schedule_reload_calls.append(entry_id)
+
+    await async_update_listener(hass, mock_hub_entry)
+
+    assert schedule_reload_calls == []
+
+    await hass.async_block_till_done()
+
+    assert schedule_reload_calls == [mock_hub_entry.entry_id]
+
+
+async def test_element_flow_in_progress(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Element flow detection matches subentry flows owned by the config entry."""
+    hass.config_entries.subentries.async_progress = Mock(
+        return_value=[{"handler": (mock_hub_entry.entry_id, "battery")}],
+    )
+
+    assert _element_flow_in_progress(hass, mock_hub_entry) is True
+
+    hass.config_entries.subentries.async_progress = Mock(return_value=[])
+    assert _element_flow_in_progress(hass, mock_hub_entry) is False
+
+
 async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -888,9 +974,12 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     mock_http = Mock()
     mock_http.async_register_static_paths = AsyncMock()
     hass.http = mock_http  # type: ignore[attr-defined]
+    # Frontend has already completed its own setup, so its registry exists.
     hass.data[DATA_EXTRA_MODULE_URL] = UrlManager(lambda *_: None, [])
+    hass.config.components.add("frontend")
 
     result = await async_setup(hass, {})
+    await hass.async_block_till_done()
 
     assert result is True
     mock_http.async_register_static_paths.assert_called_once()
@@ -898,6 +987,37 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     assert len(configs) == 1
     assert configs[0].url_path == STATIC_CARD_STATIC_PATH
     assert configs[0].path.endswith(STATIC_CARD_STATIC_DIR)
+    registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
+    for _file_path, url_path in STATIC_CARD_BUNDLES:
+        assert url_path in registered_urls
+
+
+async def test_async_setup_registers_static_urls_when_frontend_sets_up_later(hass: HomeAssistant) -> None:
+    """Test that card URLs register even when HAEO's setup wins the race against frontend.
+
+    Regression test for the startup ordering race where HAEO is set up before the
+    frontend component creates hass.data[DATA_EXTRA_MODULE_URL]. Setup must not
+    raise KeyError, and the cards must still be registered once frontend appears
+    rather than being silently dropped until the next restart.
+    """
+    mock_http = Mock()
+    mock_http.async_register_static_paths = AsyncMock()
+    hass.http = mock_http  # type: ignore[attr-defined]
+    # The frontend component has not run its own setup yet, so its registry is absent.
+    assert DATA_EXTRA_MODULE_URL not in hass.data
+
+    result = await async_setup(hass, {})
+
+    assert result is True
+    mock_http.async_register_static_paths.assert_called_once()
+
+    # Frontend now finishes its setup: it creates the registry and announces itself.
+    await async_get_integration(hass, "frontend")
+    hass.data[DATA_EXTRA_MODULE_URL] = UrlManager(lambda *_: None, [])
+    hass.config.components.add("frontend")
+    hass.bus.async_fire(EVENT_COMPONENT_LOADED, {ATTR_COMPONENT: "frontend"})
+    await hass.async_block_till_done()
+
     registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
     for _file_path, url_path in STATIC_CARD_BUNDLES:
         assert url_path in registered_urls

@@ -102,7 +102,7 @@ The adapter maps model outputs directly from the battery element:
 
 See [Battery Configuration](../../user-guide/elements/battery.md#sensors-created) for complete sensor documentation.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

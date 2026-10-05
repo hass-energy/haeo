@@ -284,7 +284,7 @@ HAEO uses consistent units for numerical stability:
 This keeps values in similar numerical ranges, improving solver performance.
 See [units documentation](../developer-guide/units.md) for details.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

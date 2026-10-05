@@ -252,7 +252,7 @@ Set connection power limits to match the inverter rating.
 
 See [Connections](connections.md) for detailed configuration guidance.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

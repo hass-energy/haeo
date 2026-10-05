@@ -87,7 +87,7 @@ All power flow must be explicitly configured via Connection elements.
     For multi-section behavior, use the standard Battery element or compose multiple Battery Section elements manually.
 - **Direct Model Mapping**: All configuration parameters map directly to the model layer Battery element with no transformation.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

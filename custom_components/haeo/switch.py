@@ -21,6 +21,9 @@ from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
 
 _LOGGER = logging.getLogger(__name__)
 
+# Switch entities are backed by InputStore state, not by external I/O, so unlimited parallel updates is safe
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,

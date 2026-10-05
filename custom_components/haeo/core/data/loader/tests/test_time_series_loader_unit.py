@@ -8,7 +8,6 @@ Lower-level fusion and cycling logic is tested in:
 """
 
 from collections.abc import Sequence
-from typing import cast
 
 import pytest
 
@@ -16,7 +15,7 @@ from conftest import FakeStateMachine
 from custom_components.haeo.core.data.loader import time_series_loader as tsl
 from custom_components.haeo.core.data.loader.sensor_loader import normalize_entity_ids
 from custom_components.haeo.core.data.loader.time_series_loader import TimeSeriesLoader
-from custom_components.haeo.core.schema import EntityValue, as_entity_value
+from custom_components.haeo.core.schema import as_entity_value
 
 
 def test_normalize_entity_ids_rejects_invalid_type() -> None:
@@ -68,7 +67,7 @@ def test_time_series_loader_available_invalid_value(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(tsl, "load_sensors", fail_load_sensors)
 
     with pytest.raises(TypeError):
-        loader.available(sm=FakeStateMachine({}), value=cast(EntityValue, object()))  # noqa: TC006 (cast needed to test runtime behavior with invalid type)
+        loader.available(sm=FakeStateMachine({}), value=object())  # type: ignore[arg-type]  # deliberate non-EntityValue; TypeGuard would make the call ill-typed
 
 
 @pytest.mark.asyncio

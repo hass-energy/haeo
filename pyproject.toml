@@ -8,6 +8,7 @@ requires-python = ">=3.13.2,<3.14"
 dependencies = ["homeassistant>=2026.1.1", "numpy>=2.3.2", "highspy>=1.12.0"]
 
 [project.scripts]
+check = "tools.check:main"
 diag = "tools.diag:main"
 snapshot = "tools.snapshot:main"
 sim = "tools.sim:main"
@@ -70,6 +71,10 @@ ignore = [
     'TRY301',  # Abstract raise to inner function - overly pedantic, creates unnecessary indirection
     'PLR0911', # Too many return statements - something for code review not linting
 ]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"typing.cast" = { msg = "Fix the types properly, or use a TypeGuard if needed, as a last resort use # type: ignore[...] with an explanation as to why there was no other viable option." }
+"typing_extensions.cast" = { msg = "Fix the types properly, or use a TypeGuard if needed, as a last resort use # type: ignore[...] with an explanation as to why there was no other viable option." }
 
 [tool.ruff.lint.isort]
 known-first-party = ["haeo"]

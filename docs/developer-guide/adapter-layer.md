@@ -128,7 +128,7 @@ The adapter architecture supports future composite elements that group multiple 
 
 Composite adapters would create nested element structures and aggregate their outputs, presenting a unified interface to users while maintaining full optimization capability.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

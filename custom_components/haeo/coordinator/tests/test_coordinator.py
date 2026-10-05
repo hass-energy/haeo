@@ -858,7 +858,7 @@ def test_horizon_change_triggers_optimization(
     coordinator.network = Mock()
 
     with patch.object(coordinator, "signal_optimization_stale") as trigger_mock:
-        coordinator._handle_horizon_change(coordinator.network)
+        coordinator._handle_horizon_change(coordinator.network, mock_runtime_data.horizon_manager)
 
     trigger_mock.assert_called_once()
 

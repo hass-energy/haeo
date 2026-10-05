@@ -209,7 +209,7 @@ If you have questions or need help creating automations:
 - Review existing automation examples from the community
 - Ask in the Home Assistant Community forums with the `haeo` tag
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

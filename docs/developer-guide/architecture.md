@@ -68,7 +68,7 @@ See the Home Assistant documentation for the underlying patterns:
 - [Config Flow Handler](https://developers.home-assistant.io/docs/config_entries_config_flow_handler/)
 - [Data Entry Flow](https://developers.home-assistant.io/docs/data_entry_flow_index/)
 
-### HorizonManager (`inputs/horizon_manager.py`)
+### HorizonManager (`horizon.py`)
 
 Manages synchronized forecast time windows for all input entities.
 Created early in setup before any entity platforms load.
@@ -76,11 +76,12 @@ Computes period boundaries from tier configuration and notifies subscribers when
 
 See the [Horizon Manager guide](horizon-manager.md) for details.
 
-### Input Entities (`inputs/`)
+### Input entities (`input_stores.py`, `number.py`, `switch.py`)
 
 Intermediate layer between external sensors and the optimization model.
-Number and Switch entities load, transform, and expose configuration values with forecast attributes.
-Operate in two modes: EDITABLE (user-configurable constants) or DRIVEN (values from external sensors).
+`input_stores.py` turns element subentries into `InputStore` instances backed by subentry storage.
+The Number and Switch platforms wrap those stores as entities that load, transform, and expose configuration values with forecast attributes.
+Stores operate in two modes: EDITABLE (user-configurable constants) or DRIVEN (values from external sensors).
 
 See the [Input Entities guide](inputs.md) for details.
 
@@ -138,7 +139,7 @@ The default calibrated mode performs a two-phase lexicographic solve on the firs
 Elements use decorators to declare constraints and costs, which the network automatically aggregates.
 When parameters update (like forecast changes), only affected constraints are rebuilt (warm start optimization).
 
-### Sensors (`sensors/`)
+### Sensors (`sensor.py`, `entities/`)
 
 Sensor entities expose optimization outputs through standard Home Assistant constructs.
 Separate modules handle network-level metrics and per-element values, and every sensor carries a forecast attribute so downstream automations can look ahead.
@@ -178,13 +179,13 @@ Rather than documenting every file, focus on how the major areas collaborate:
 
 - **Entry points**: `__init__.py`, `config_flow.py`, and `coordinator/` bootstrap the integration, collect user input, and run optimizations.
 - **Flows (`flows/`)**: Houses hub, element, and options flows; each submodule owns the UI schema for a related group of entries.
-- **Input layer (`inputs/`)**: HorizonManager, Number platform, Switch platform, and InputFieldInfo for intermediate input entities.
+- **Input layer (`horizon.py`, `input_stores.py`, `number.py`, `switch.py`)**: HorizonManager, input stores, and the Number and Switch platforms that surface them.
 - **Data layer (`core/data/`)**: Loader modules turn Home Assistant sensors and forecasts into normalized time series. Called by input entities.
 - **Model (`core/model/`)**: Pure Python optimization layer with declarative constraints and costs.
     - `core/model/elements/`: Model element implementations (Battery, Node, Connection types)
     - `core/model/reactive/`: Parameter tracking and constraint caching infrastructure
 - **Metadata (`elements/` and `core/schema/`)**: Element registry, configuration defaults, validation, input field mapping, and runtime metadata for every element type.
-- **Presentation (`sensors/`)**: Builds sensor platforms that publish optimization results back to Home Assistant.
+- **Presentation (`sensor.py`, `entities/`)**: Builds the sensor platform and entity classes that publish optimization results back to Home Assistant.
 - **Translations (`translations/`)**: Provides user-facing strings for config flows and entity names.
 
 ## Extension Points
@@ -194,19 +195,19 @@ Rather than documenting every file, focus on how the major areas collaborate:
 1. **Define schema** in `core/schema/elements/{element_type}.py`:
 
     - `ConfigSchema` and `ConfigData` TypedDicts
-    - `DEFAULTS` dict for optional fields
+    - `FieldHint` metadata carrying units, direction, and defaults
 
 2. **Implement adapter** in `core/adapters/elements/{element_type}.py`:
 
-    - `available()`, `inputs()`, `model_elements()`, `outputs()`
+    - `model_elements()` and `outputs()`, plus the adapter capability attributes
 
 3. **Implement config flow** in `flows/elements/{element_type}.py`:
 
-    - Config flow with voluptuous schemas using DEFAULTS for suggested values
+    - `ConfigSubentryFlow` subclass using `ElementFlowMixin` and a sections tuple
 
-4. **Register element type** in `elements/__init__.py`:
+4. **Register element type** in `core/adapters/registry.py`:
 
-    - Add `ElementAdapter` to `ELEMENT_TYPES` mapping
+    - Add the adapter instance to the `ELEMENT_TYPES` mapping
 
 5. **Update translations** in `translations/en.json`:
 
@@ -225,11 +226,11 @@ Rather than documenting every file, focus on how the major areas collaborate:
 
 ### Custom Field Types
 
-Extend `core/schema/fields.py`:
+Extend `core/schema/field_schema.py` and `core/schema/field_hints.py`:
 
-- Create new Validator subclass with `create_schema()` method
-- Add LoaderMeta subclass if needed for custom loading behavior
-- Define field type aliases composing Validator, LoaderMeta, and optional Default
+- Create a new Validator subclass with a `create_schema()` method
+- Add a LoaderMeta subclass if the field needs custom loading behavior
+- Define field type aliases composing Validator, LoaderMeta, and the field hint
 
 ## Related Documentation
 

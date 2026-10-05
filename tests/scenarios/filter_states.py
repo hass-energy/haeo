@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 import re
 import sys
-from typing import Any, cast
+from typing import Any
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 from urllib.parse import quote, urljoin
@@ -56,7 +56,7 @@ def fetch_home_assistant_states(url: str, token: str) -> list[dict[str, Any]]:
             if not isinstance(item, dict):
                 msg = "Encountered non-object state entry"
                 raise TypeError(msg)
-            state_list.append(cast("dict[str, Any]", item))
+            state_list.append(item)
 
         return state_list
 

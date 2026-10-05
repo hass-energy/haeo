@@ -1,1 +1,0 @@
-../../.github/prompts/update-version.prompt.md

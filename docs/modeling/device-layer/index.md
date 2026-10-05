@@ -34,7 +34,7 @@ When adapters create multiple model elements or devices, they use a colon-separa
 
 This prevents naming collisions and groups related components visually in Home Assistant.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

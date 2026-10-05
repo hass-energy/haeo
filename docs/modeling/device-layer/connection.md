@@ -133,7 +133,7 @@ Use explicit Connection devices when you need:
 - **Price vs limit**: Use price to encourage or discourage flow; use max power for hard physical limits.
 - **Implicit connections**: Do not duplicate implicit paths—parallel connections can confuse results.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any, Literal, cast
+from typing import Any, Literal
 from unittest.mock import Mock
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
@@ -185,7 +185,7 @@ def device_entry() -> DeviceEntry:
     """Return a mocked device entry instance."""
     device = Mock(spec=DeviceEntry)
     device.id = "mock-device"
-    return cast("DeviceEntry", device)
+    return device  # type: ignore[return-value]  # Mock(spec=DeviceEntry) is not a DeviceEntry for the type checker
 
 
 async def test_async_setup_entry_creates_sensors_with_metadata(

@@ -16,6 +16,7 @@ from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import PolicyPricing, PolicyPricingElementConfig
+from .reactive.decorators import clear_ranging_cache
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -300,6 +301,7 @@ class Network:
     def optimize(self) -> float:
         """Solve the optimization problem and return the primary objective value."""
         h = self._solver
+        clear_ranging_cache(h)
 
         # Assign deterministic priorities to connections based on sorted properties
         connections = sorted(
