@@ -1,7 +1,7 @@
 """Tests for grid element config flow."""
 
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -34,7 +34,7 @@ CONF_EXPORT_LIMIT = CONF_MAX_POWER_TARGET_SOURCE
 SECTION_LIMITS = SECTION_POWER_LIMITS
 
 
-def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_input(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat grid input values into sectioned config."""
     if SECTION_PRICING in flat:
         return dict(flat)
@@ -53,13 +53,14 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_config(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat grid config values into sectioned config with element type."""
     if SECTION_PRICING in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     config = _wrap_input(flat)
-    if CONF_CONNECTION in config and isinstance(config[CONF_CONNECTION], str):
-        config[CONF_CONNECTION] = as_connection_target(config[CONF_CONNECTION])
+    connection = config.get(CONF_CONNECTION)
+    if isinstance(connection, str):
+        config[CONF_CONNECTION] = as_connection_target(connection)
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
 
@@ -269,7 +270,7 @@ async def test_reconfigure_with_constant_updates_entry(
 async def test_reconfigure_defaults_handle_schema_values(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    config_values: dict[str, Any],
+    config_values: dict[str, object],
     expected_defaults: dict[str, object],
 ) -> None:
     """Reconfigure defaults reflect schema values."""

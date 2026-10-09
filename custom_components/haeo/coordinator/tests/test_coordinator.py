@@ -4,7 +4,7 @@ from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 import time
 from types import MappingProxyType
-from typing import Any
+from typing import Any  # noqa: TID251  # Mock-typed test doubles (MagicMock spec=) and monkeypatched callback stand-ins
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -35,7 +35,6 @@ from custom_components.haeo.coordinator import (
     OptimizationContext,
     _build_coordinator_output,
     _build_optimization_context,
-    _localize_currency,
     detect_currency_symbol,
 )
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
@@ -94,6 +93,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION as CONF_CONNECTION_GRID
+from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import get_element_configs
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.input_stores import build_input_stores
@@ -453,7 +453,7 @@ async def test_async_update_data_returns_outputs(
     network_outputs = result.outputs["System"][ELEMENT_TYPE_NETWORK]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OutputType.COST
-    assert cost_output.unit == hass.config.currency
+    assert cost_output.unit == currency_symbol(hass.config.currency)
     assert cost_output.state == 123.45
     assert cost_output.forecast is None
 
@@ -721,26 +721,6 @@ def test_detect_currency_symbol_uses_first_price_entity() -> None:
     }
     # The first price entity is s2, so the detected symbol should be £
     assert detect_currency_symbol(states) == "£"
-
-
-def test_localize_currency_replaces_dollar_placeholder() -> None:
-    """The $ placeholder in units should be replaced with the detected currency symbol."""
-    assert _localize_currency("$/kWh", "£") == "£/kWh"
-    assert _localize_currency("$/kW", "€") == "€/kW"
-    assert _localize_currency("$", "A$") == "A$"
-    assert _localize_currency("$", "$") == "$"
-
-
-def test_localize_currency_passes_through_non_monetary_units() -> None:
-    """Units without $ should pass through unchanged."""
-    assert _localize_currency("kW", "£") == "kW"
-    assert _localize_currency("kWh", "€") == "kWh"
-    assert _localize_currency("%", "A$") == "%"
-
-
-def test_localize_currency_handles_none() -> None:
-    """None units should remain None."""
-    assert _localize_currency(None, "£") is None
 
 
 def test_build_coordinator_output_localizes_shadow_price_currency() -> None:
@@ -1359,7 +1339,7 @@ def test_load_from_input_stores_delegates_to_config_loader(
     mock_store.value = 42.0
     mock_runtime_data.input_stores[("Test Battery", field_path)] = mock_store
 
-    loaded_config: dict[str, Any] = {"element_type": "battery", "name": "Test Battery"}
+    loaded_config: dict[str, str] = {"element_type": "battery", "name": "Test Battery"}
     with patch(
         "custom_components.haeo.coordinator.coordinator.load_element_config_from_values",
         return_value=loaded_config,
@@ -1781,14 +1761,15 @@ def test_build_optimization_context_collects_source_states() -> None:
     mock_horizon = MagicMock()
     mock_horizon.current_start_time = datetime.fromtimestamp(1000.0, tz=dt_util.UTC)
 
-    participant_configs: Any = {
+    participant_configs: dict[str, dict[str, object]] = {
         "Battery": {"element_type": "battery", "basic": {"capacity": 10.0}},
         "Solar": {"element_type": "solar", "basic": {"forecast": "sensor.solar"}},
     }
 
     context = _build_optimization_context(
         hub_config={"tier_1_count": 2, "tier_1_duration": 60},
-        participant_configs=participant_configs,
+        # Fixture configs omit required ElementConfigSchema keys; only source_states collection is under test.
+        participant_configs=participant_configs,  # type: ignore[arg-type]
         input_stores=input_stores,
         horizon_manager=mock_horizon,
     )

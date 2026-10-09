@@ -15,6 +15,7 @@ from custom_components.haeo.elements import (
     is_element_config_schema,
     iter_input_field_paths,
 )
+from custom_components.haeo.elements.input_fields import is_switch_field_info
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
 from custom_components.haeo.entities.device import get_or_create_element_device, get_or_create_network_device
 from custom_components.haeo.entities.haeo_switch import HaeoInputSwitch
@@ -64,7 +65,7 @@ async def async_setup_entry(
         switch_fields = [
             (field_path, field_info)
             for field_path, field_info in iter_input_field_paths(all_fields)
-            if type(field_info.entity_description).__name__ == "SwitchEntityDescription"
+            if is_switch_field_info(field_info)
         ]
 
         if not switch_fields:

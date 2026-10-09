@@ -12,18 +12,43 @@ from highspy.highs import highs_cons, highs_linear_expression
 SMALL_MATRIX_VALUE: Final = 1e-9
 
 
+FREE_ROW_BOUNDS: Final = (float("-inf"), float("inf"))
+
+
 def row_expression(expr: highs_linear_expression) -> highs_linear_expression:
-    """Return the expression with repeated variables summed and negligible terms removed."""
+    """Return the expression with repeated variables summed and negligible terms removed.
+
+    An expression without bounds becomes a free row: it is in the LP but does not
+    bind, so a constraint that does not currently apply keeps its rows.
+    """
     simplified = expr.simplify()
     keep = [i for i, val in enumerate(simplified.vals) if abs(val) >= SMALL_MATRIX_VALUE]
     simplified.idxs = [simplified.idxs[i] for i in keep]
     simplified.vals = [simplified.vals[i] for i in keep]
+    if simplified.bounds is None:
+        simplified.bounds = FREE_ROW_BOUNDS
     return simplified
 
 
+def is_free_row(expr: highs_linear_expression) -> bool:
+    """Return whether a row expression has no bounds and so does not bind."""
+    return expr.bounds is None or tuple(expr.bounds) == FREE_ROW_BOUNDS
+
+
 def add_row(solver: Highs, expr: highs_linear_expression) -> highs_cons:
-    """Add a constraint row for the expression."""
-    return solver.addConstr(row_expression(expr))
+    """Add a constraint row for the expression.
+
+    highspy raises after adding the row when HiGHS returns any non-OK status,
+    and unlike addConstrs it does not roll back, so the row is removed again
+    before the error propagates and a later retry does not add a duplicate.
+    """
+    rows_before = solver.numConstrs
+    try:
+        return solver.addConstr(row_expression(expr))
+    except Exception:
+        added = list(range(rows_before, solver.numConstrs))
+        solver.deleteRows(len(added), added)
+        raise
 
 
 def add_rows(solver: Highs, exprs: list[highs_linear_expression]) -> list[highs_cons]:
@@ -32,33 +57,38 @@ def add_rows(solver: Highs, exprs: list[highs_linear_expression]) -> list[highs_
 
 
 def _row_coefficients(expr: highs_linear_expression) -> dict[int, float]:
-    """Return the expression's coefficients with repeated variables summed and negligible terms removed."""
+    """Return the expression's coefficients as HiGHS stores them.
+
+    Repeated variables are summed and negligible terms removed, matching what
+    ``row_expression`` writes when a row is added.
+    """
     coeffs: dict[int, float] = {}
     for idx, val in zip(expr.idxs, expr.vals, strict=True):
         coeffs[idx] = coeffs.get(idx, 0.0) + val
     return {idx: val for idx, val in coeffs.items() if abs(val) >= SMALL_MATRIX_VALUE}
 
 
-def update_row(solver: Highs, cons: highs_cons, expr: highs_linear_expression) -> None:
-    """Change an existing row's bounds and coefficients to match the expression.
+def update_row(
+    solver: Highs,
+    cons: highs_cons,
+    applied: highs_linear_expression,
+    expr: highs_linear_expression,
+) -> None:
+    """Change a row from the expression it holds to a new expression.
 
-    Rows are updated in place on every optimization, so this compares
-    coefficients directly instead of building a simplified expression.
+    The row is diffed against ``applied``, the expression last written to it,
+    rather than read back from the solver. HiGHS stores its matrix column-wise,
+    so reading a row scans the whole matrix, and every changeCoeff call discards
+    the simplex factorization, so only values that differ are written.
+    An expression without bounds leaves the row unbounded.
     """
-    old_row = solver.getExpr(cons)
-    old_bounds = old_row.bounds
-    new_bounds = expr.bounds
+    if applied.bounds != expr.bounds:
+        lower, upper = expr.bounds if expr.bounds is not None else (float("-inf"), float("inf"))
+        solver.changeRowBounds(cons.index, lower, upper)
 
-    if old_bounds != new_bounds:
-        if new_bounds is not None:
-            solver.changeRowBounds(cons.index, new_bounds[0], new_bounds[1])
-        elif old_bounds is not None:
-            solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
-
-    old_coeffs = dict(zip(old_row.idxs, old_row.vals, strict=True))
+    old_coeffs = _row_coefficients(applied)
     new_coeffs = _row_coefficients(expr)
-    for var_idx in set(old_coeffs) | set(new_coeffs):
-        old_val = old_coeffs.get(var_idx, 0.0)
+    for var_idx in old_coeffs.keys() | new_coeffs.keys():
         new_val = new_coeffs.get(var_idx, 0.0)
-        if old_val != new_val:
+        if old_coeffs.get(var_idx, 0.0) != new_val:
             solver.changeCoeff(cons.index, var_idx, new_val)

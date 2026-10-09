@@ -26,7 +26,8 @@ graph LR
 
 The Connection device creates one `Connection` model element with a segment chain.
 The adapter maps each configured field to a single forward segment.
-Segments are chained in the order efficiency → power limit → pricing, from source to target.
+Segments are chained in the order power limit → pricing → efficiency, from source to target.
+The limit and price therefore apply to the power entering the connection, before its losses, the same point the connection power output measures.
 
 ## Devices Created
 

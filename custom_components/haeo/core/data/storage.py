@@ -7,7 +7,7 @@ container; the integration layer supplies a concrete implementation backed by
 config subentries.
 """
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -19,11 +19,11 @@ class Storage(Protocol):
     ``write`` persists a new schema value.
     """
 
-    def read(self) -> Any:
+    def read(self) -> object:
         """Return the currently persisted schema value, or None."""
         ...
 
-    async def write(self, value: Any) -> None:
+    async def write(self, value: object) -> None:
         """Persist a new schema value."""
         ...
 

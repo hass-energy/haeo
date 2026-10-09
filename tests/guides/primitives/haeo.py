@@ -20,7 +20,7 @@ import json
 import logging
 from pathlib import Path
 import types
-from typing import TYPE_CHECKING, Any, get_args
+from typing import TYPE_CHECKING, get_args
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
@@ -42,7 +42,9 @@ from custom_components.haeo.core.schema.sections import (
 from .capture import guide_step
 
 if TYPE_CHECKING:
-    from custom_components.haeo.elements.input_fields import InputFieldGroups
+    from homeassistant.util.json import JsonObjectType, JsonValueType
+
+    from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldGroups
 
     from .ha_page import HAPage
 
@@ -86,52 +88,78 @@ type FieldInput = EntityInput | ConstantInput | list[EntityInput]
 # region: Translation helpers
 
 
+def _json_dict(value: JsonValueType) -> JsonObjectType:
+    """Narrow a JSON value to an object, asserting the expected translation shape."""
+    if not isinstance(value, dict):
+        msg = f"Expected a JSON object in translations, got {type(value).__name__}"
+        raise TypeError(msg)
+    return value
+
+
+def _json_str(value: JsonValueType) -> str:
+    """Narrow a JSON value to a string, asserting the expected translation shape."""
+    if not isinstance(value, str):
+        msg = f"Expected a JSON string in translations, got {type(value).__name__}"
+        raise TypeError(msg)
+    return value
+
+
 @functools.cache
-def _load_translations() -> dict[str, Any]:
+def _load_translations() -> JsonObjectType:
     """Load translations from en.json."""
     path = Path(__file__).parent.parent.parent.parent / "custom_components" / "haeo" / "translations" / "en.json"
     with path.open(encoding="utf-8") as f:
         return json.load(f)
 
 
-def _subentry(element_type: str) -> dict[str, Any]:
+def _subentry(element_type: str) -> JsonObjectType:
     """Get config subentry translations for an element type."""
-    return _load_translations()["config_subentries"][element_type]
+    subentries = _json_dict(_load_translations()["config_subentries"])
+    return _json_dict(subentries[element_type])
 
 
-def _step_user(element_type: str) -> dict[str, Any]:
+def _step_user(element_type: str) -> JsonObjectType:
     """Get the step user translations for an element type."""
-    return _subentry(element_type)["step"]["user"]
+    step = _json_dict(_subentry(element_type)["step"])
+    return _json_dict(step["user"])
 
 
 def _dialog_title(element_type: str) -> str:
     """Get the dialog title for an element type."""
-    return _step_user(element_type)["title"]
+    return _json_str(_step_user(element_type)["title"])
 
 
 def _button_label(element_type: str) -> str:
     """Get the button label to initiate an element flow."""
-    return _subentry(element_type)["initiate_flow"]["user"]
+    initiate_flow = _json_dict(_subentry(element_type)["initiate_flow"])
+    return _json_str(initiate_flow["user"])
 
 
 def _name_label(element_type: str) -> str:
     """Get the display label for the name field."""
-    return _step_user(element_type)["data"]["name"]
+    data = _json_dict(_step_user(element_type)["data"])
+    return _json_str(data["name"])
 
 
 def _connection_label(element_type: str) -> str:
     """Get the display label for the connection field."""
-    return _step_user(element_type)["data"]["connection"]
+    data = _json_dict(_step_user(element_type)["data"])
+    return _json_str(data["connection"])
 
 
 def _section_name(element_type: str, section_key: str) -> str:
     """Get the display name for a collapsible section."""
-    return _step_user(element_type)["sections"][section_key]["name"]
+    sections = _json_dict(_step_user(element_type)["sections"])
+    section = _json_dict(sections[section_key])
+    return _json_str(section["name"])
 
 
 def _field_label(element_type: str, section_key: str, field_name: str) -> str:
     """Get the display label for a field within a section."""
-    return _step_user(element_type)["sections"][section_key]["data"][field_name]
+    sections = _json_dict(_step_user(element_type)["sections"])
+    section = _json_dict(sections[section_key])
+    data = _json_dict(section["data"])
+    return _json_str(data[field_name])
 
 
 # endregion
@@ -140,7 +168,7 @@ def _field_label(element_type: str, section_key: str, field_name: str) -> str:
 # region: Schema-driven field filling
 
 
-def _has_none_value(value_type: Any) -> bool:
+def _has_none_value(value_type: object) -> bool:
     """Check if NoneValue is part of a union type annotation."""
     if isinstance(value_type, types.UnionType):
         # Avoid circular import with schema module
@@ -150,7 +178,7 @@ def _has_none_value(value_type: Any) -> bool:
     return False
 
 
-def _get_default_mode(field_info: Any, value_type: Any) -> str | None:
+def _get_default_mode(field_info: AnyInputFieldInfo, value_type: object) -> str | None:
     """Determine the ChooseSelector's default mode for a field.
 
     The default mode controls whether a mode switch is needed before
@@ -538,20 +566,20 @@ def add_policies(
     page.click_button(_button_label(et), first=True)
     page.wait_for_dialog(_dialog_title(et))
 
-    step_data = _step_user(et)["data"]
-    page.fill_textbox(step_data["name"], name)
+    step_data = _json_dict(_step_user(et)["data"])
+    page.fill_textbox(_json_str(step_data["name"]), name)
 
     if source is not None:
         nodes = [source] if isinstance(source, str) else source
-        page.choose_select_option(step_data["source"], "Elements")
-        page.choose_dropdown_multi(step_data["source"], nodes)
+        page.choose_select_option(_json_str(step_data["source"]), "Elements")
+        page.choose_dropdown_multi(_json_str(step_data["source"]), nodes)
     if target is not None:
         nodes = [target] if isinstance(target, str) else target
-        page.choose_select_option(step_data["target"], "Elements")
-        page.choose_dropdown_multi(step_data["target"], nodes)
+        page.choose_select_option(_json_str(step_data["target"]), "Elements")
+        page.choose_dropdown_multi(_json_str(step_data["target"]), nodes)
     if price is not None:
-        page.choose_select_option(step_data["price"], "Constant")
-        page.choose_constant(step_data["price"], str(price))
+        page.choose_select_option(_json_str(step_data["price"]), "Constant")
+        page.choose_constant(_json_str(step_data["price"]), str(price))
 
     with page.expect_config_reload():
         page.submit()
@@ -605,7 +633,8 @@ def reconfigure_policies(page: HAPage) -> None:
 
 def _step_title(element_type: str, step: str) -> str:
     """Get the title for a specific flow step."""
-    return _subentry(element_type)["step"][step]["title"]
+    steps = _json_dict(_subentry(element_type)["step"])
+    return _json_str(_json_dict(steps[step])["title"])
 
 
 # endregion

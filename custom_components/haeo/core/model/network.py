@@ -3,7 +3,15 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 import logging
-from typing import Any, Final, Literal, overload
+from typing import (
+    Any,  # noqa: TID251  # Element is invariant in its output-name Literal (see outputs()'s
+    # Mapping[OutputNameT, ...] return), so a plain dict of heterogeneous concrete Element
+    # subtypes (Battery, Node, Connection, ...) cannot be typed Element[str] or a shared TypeVar;
+    # add()'s @overloads already give callers the precise concrete return type per element_type
+    Final,
+    Literal,
+    overload,
+)
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
@@ -15,8 +23,7 @@ from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
-from .elements.policy_pricing import PolicyPricing, PolicyPricingElementConfig
-from .reactive.decorators import clear_ranging_cache
+from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
 from .util.solver_rows import add_row, update_row
 
 _LOGGER = logging.getLogger(__name__)
@@ -121,7 +128,7 @@ class Network:
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         options: SolveOptions | None = None,
     ) -> None:
@@ -131,7 +138,7 @@ class Network:
         self.elements: dict[str, Element[Any]] = {}
         self.options: SolveOptions = options or CalibratedOptions()
         self._solver = Highs()
-        self._lex_constraint: highs_cons | None = None
+        self._lex_row: tuple[highs_cons, highs_linear_expression] | None = None
         self._calibrated_weight: float | None = None
 
         # Redirect HiGHS logging to Python logger at debug level
@@ -156,7 +163,7 @@ class Network:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def update_periods(self, new_periods: NDArray[np.floating[Any]]) -> None:
+    def update_periods(self, new_periods: NDArray[np.float64]) -> None:
         """Update period durations across the network.
 
         Propagates the new periods to all elements and their segments,
@@ -244,7 +251,7 @@ class Network:
     def _add_policy_pricing(self, config: PolicyPricingElementConfig) -> PolicyPricing:
         """Create a PolicyPricing element by resolving connection/tag references."""
         name = config["name"]
-        power_terms = []
+        priced_flows: list[tuple[MeasuredFlows, int]] = []
         for term in config["terms"]:
             conn_name = term["connection"]
             tag = term["tag"]
@@ -252,17 +259,17 @@ class Network:
             if not isinstance(conn_element, Connection):
                 msg = f"PolicyPricing '{name}' references unknown connection '{conn_name}'"
                 raise TypeError(msg)
-            if tag not in conn_element.power_in:
+            if tag not in conn_element.measured_power:
                 msg = f"PolicyPricing '{name}' references tag {tag} not on connection '{conn_name}'"
                 raise ValueError(msg)
-            power_terms.append(conn_element.power_in[tag])
+            priced_flows.append((conn_element, tag))
 
         element = PolicyPricing(
             name=name,
             periods=self.periods,
             solver=self._solver,
             price=config["price"],
-            power_terms=power_terms,
+            priced_flows=priced_flows,
             terms=config["terms"],
         )
         element.label = config.get("label", "")
@@ -302,7 +309,6 @@ class Network:
     def optimize(self) -> float:
         """Solve the optimization problem and return the primary objective value."""
         h = self._solver
-        clear_ranging_cache(h)
 
         # Assign deterministic priorities to connections based on sorted properties
         connections = sorted(
@@ -497,17 +503,23 @@ class Network:
         optimal_value: float,
     ) -> None:
         """Set the single lex constraint to bound the given objective."""
-        constraint_expr = objective <= optimal_value
-
-        if self._lex_constraint is None:
-            self._lex_constraint = add_row(self._solver, constraint_expr)
-        else:
-            update_row(self._solver, self._lex_constraint, constraint_expr)
+        self._set_lex_row(objective <= optimal_value)
 
     def _relax_lex_constraint(self) -> None:
         """Relax the lex constraint bounds so it is inactive."""
-        if self._lex_constraint is not None:
-            self._solver.changeRowBounds(self._lex_constraint.index, float("-inf"), float("inf"))
+        if self._lex_row is not None:
+            unbounded = highs_linear_expression(self._lex_row[1])
+            unbounded.bounds = None
+            self._set_lex_row(unbounded)
+
+    def _set_lex_row(self, expr: highs_linear_expression) -> None:
+        """Write the expression to the lex constraint row, adding the row on first use."""
+        if self._lex_row is None:
+            cons = add_row(self._solver, expr)
+        else:
+            cons, applied = self._lex_row
+            update_row(self._solver, cons, applied, expr)
+        self._lex_row = (cons, expr)
 
     def constraints(self) -> dict[str, dict[str, highs_cons | list[highs_cons]]]:
         """Return all constraints from all elements in the network.

@@ -1,6 +1,5 @@
 """Test data for Flow Power HA forecast sensors."""
 
-from typing import Any
 
 # Timestamps for 2026-01-14 in Australia/Sydney (+1100)
 # 12:00:00+1100 = 01:00:00 UTC = 1768352400
@@ -9,7 +8,7 @@ from typing import Any
 # 17:30:00+1100 = 06:30:00 UTC = 1768372200
 # 18:00:00+1100 = 07:00:00 UTC = 1768374000
 
-VALID: list[dict[str, Any]] = [
+VALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.flow_power_export_price",
         "state": "0",
@@ -38,7 +37,7 @@ VALID: list[dict[str, Any]] = [
 ]
 
 # Invalid Flow Power sensor configurations
-INVALID: list[dict[str, Any]] = [
+INVALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.flow_power_no_forecast",
         "state": "0",

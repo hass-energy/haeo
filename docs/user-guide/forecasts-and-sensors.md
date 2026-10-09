@@ -417,7 +417,7 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 **Problem**: Error message "Input ... cannot be negative, but ... supplied ..."
 
 Power, energy, state of charge, and efficiency inputs cannot be negative.
-HAEO treats a sensor or forecast value slightly below zero (within 0.01 in the sensor's units, such as 10 W) as zero.
+HAEO treats a sensor or forecast value slightly below zero as zero: within 10 W for power, 10 Wh for energy, or 0.01 percentage points for state of charge and efficiency.
 A value further below zero stops optimization, and the error names the element, the input, the source sensors, and the value.
 
 **Solutions**:

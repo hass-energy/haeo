@@ -1,7 +1,6 @@
 """Fuse combined forecast data into horizon-aligned values."""
 
 from collections.abc import Sequence
-from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -18,7 +17,7 @@ def _build_extended_block(
     forecast_series: ForecastSeries,
     horizon_start: float,
     horizon_end: float,
-) -> NDArray[Any]:
+) -> NDArray[np.void]:
     """Build extended forecast block covering the horizon with cycling.
 
     Args:

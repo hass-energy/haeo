@@ -1,6 +1,9 @@
 """Connection element configuration flows."""
 
-from typing import Any
+from collections.abc import Mapping
+from typing import (
+    Any,  # noqa: TID251  # HA flow signatures upstream; voluptuous schema value types are heterogeneous by design
+)
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 import voluptuous as vol
@@ -16,7 +19,7 @@ from custom_components.haeo.core.schema.elements.connection import (
     ELEMENT_TYPE,
     SECTION_ENDPOINTS,
 )
-from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
+from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import (
     ElementFlowMixin,
@@ -26,10 +29,13 @@ from custom_components.haeo.flows.element_flow import (
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
+    as_mapping,
+    as_str,
     build_sectioned_choose_defaults,
     build_sectioned_choose_schema,
     convert_sectioned_choose_data_to_config,
     preprocess_sectioned_choose_input,
+    sectioned_view,
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.sections import (
@@ -78,18 +84,19 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Handle reconfigure step: name, source, target, and input configuration."""
         return await self._async_step_user(user_input)
 
-    async def _async_step_user(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
+    async def _async_step_user(self, user_input: dict[str, object] | None) -> SubentryFlowResult:
         """Shared logic for user and reconfigure steps."""
         subentry = self._get_subentry()
-        subentry_data = dict(subentry.data) if subentry else None
+        subentry_data: dict[str, object] | None = dict(subentry.data) if subentry else None
         participants = self._get_participant_names()
+        endpoints = as_mapping(subentry_data.get(SECTION_ENDPOINTS)) if subentry_data else {}
         current_source = (
-            get_connection_target_name(subentry_data.get(SECTION_ENDPOINTS, {}).get(CONF_SOURCE))
+            get_connection_target_name(endpoints.get(CONF_SOURCE))  # type: ignore[arg-type]  # stored subentry data always matches ConnectionConfigSchema
             if subentry_data
             else None
         )
         current_target = (
-            get_connection_target_name(subentry_data.get(SECTION_ENDPOINTS, {}).get(CONF_TARGET))
+            get_connection_target_name(endpoints.get(CONF_TARGET))  # type: ignore[arg-type]  # stored subentry data always matches ConnectionConfigSchema
             if subentry_data
             else None
         )
@@ -98,7 +105,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             current_source = participants[0] if participants else ""
         if not isinstance(current_target, str):
             current_target = participants[min(1, len(participants) - 1)] if participants else ""
-        input_fields = get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields(ELEMENT_TYPE)
 
         sections = self._get_sections()
         user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
@@ -140,7 +147,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         section_inclusion_map: dict[str, dict[str, list[str]]],
         current_source: str | None = None,
         current_target: str | None = None,
-        subentry_data: dict[str, Any] | None = None,
+        subentry_data: Mapping[str, object] | None = None,
     ) -> vol.Schema:
         """Build the schema with name, source, target, and choose selectors for inputs."""
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
@@ -149,7 +156,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             field_schema,
             section_inclusion_map,
-            current_data=subentry_data,
+            current_data=sectioned_view(subentry_data),
             top_level_entries=build_common_fields(include_connection=False),
             extra_field_entries={
                 SECTION_ENDPOINTS: _build_endpoints_fields(participants, current_source, current_target),
@@ -160,23 +167,23 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         self,
         default_name: str,
         input_fields: InputFieldGroups,
-        subentry_data: dict[str, Any] | None = None,
+        subentry_data: Mapping[str, object] | None = None,
         source_default: str | None = None,
         target_default: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, object]:
         """Build default values for the form."""
-        endpoints_data = subentry_data.get(SECTION_ENDPOINTS, {}) if subentry_data else {}
+        endpoints_data = as_mapping(subentry_data.get(SECTION_ENDPOINTS)) if subentry_data else {}
         source_default = (
             source_default
             if source_default is not None
-            else get_connection_target_name(endpoints_data.get(CONF_SOURCE))
+            else get_connection_target_name(endpoints_data.get(CONF_SOURCE))  # type: ignore[arg-type]  # stored subentry data always matches ConnectionConfigSchema
             if subentry_data
             else None
         )
         target_default = (
             target_default
             if target_default is not None
-            else get_connection_target_name(endpoints_data.get(CONF_TARGET))
+            else get_connection_target_name(endpoints_data.get(CONF_TARGET))  # type: ignore[arg-type]  # stored subentry data always matches ConnectionConfigSchema
             if subentry_data
             else None
         )
@@ -197,15 +204,15 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _validate_user_input(
         self,
-        user_input: dict[str, Any] | None,
+        user_input: dict[str, object] | None,
         input_fields: InputFieldGroups,
     ) -> dict[str, str] | None:
         """Validate user input and return errors dict if any."""
         if user_input is None:
             return None
         errors: dict[str, str] = {}
-        endpoints_input = user_input.get(SECTION_ENDPOINTS, {})
-        self._validate_name(user_input.get(CONF_NAME), errors)
+        endpoints_input = as_mapping(user_input.get(SECTION_ENDPOINTS))
+        self._validate_name(as_str(user_input.get(CONF_NAME)), errors)
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
@@ -218,15 +225,15 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         # Validate source != target
         source = endpoints_input.get(CONF_SOURCE)
         target = endpoints_input.get(CONF_TARGET)
-        source_name = get_connection_target_name(source)
-        target_name = get_connection_target_name(target)
+        source_name = get_connection_target_name(source)  # type: ignore[arg-type]  # user input validated by choose selector against the connection schema
+        target_name = get_connection_target_name(target)  # type: ignore[arg-type]  # user input validated by choose selector against the connection schema
         if source_name and target_name and source_name == target_name:
             errors[CONF_TARGET] = "cannot_connect_to_self"
         return errors if errors else None
 
-    def _build_config(self, user_input: dict[str, Any]) -> dict[str, Any]:
+    def _build_config(self, user_input: Mapping[str, object]) -> dict[str, object]:
         """Build final config dict from user input."""
-        input_fields = get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields(ELEMENT_TYPE)
         config_dict = convert_sectioned_choose_data_to_config(
             user_input,
             input_fields,
@@ -234,9 +241,9 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
         endpoints_config = config_dict.get(SECTION_ENDPOINTS, {})
         if CONF_SOURCE in endpoints_config:
-            endpoints_config[CONF_SOURCE] = normalize_connection_target(endpoints_config[CONF_SOURCE])
+            endpoints_config[CONF_SOURCE] = normalize_connection_target(endpoints_config[CONF_SOURCE])  # type: ignore[arg-type]  # user input validated by choose selector against the connection schema
         if CONF_TARGET in endpoints_config:
-            endpoints_config[CONF_TARGET] = normalize_connection_target(endpoints_config[CONF_TARGET])
+            endpoints_config[CONF_TARGET] = normalize_connection_target(endpoints_config[CONF_TARGET])  # type: ignore[arg-type]  # user input validated by choose selector against the connection schema
 
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
@@ -244,7 +251,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             **config_dict,
         }
 
-    def _finalize(self, config: dict[str, Any], user_input: dict[str, Any]) -> SubentryFlowResult:
+    def _finalize(self, config: dict[str, object], user_input: Mapping[str, object]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
         name = str(user_input[CONF_NAME])
         subentry = self._get_subentry()

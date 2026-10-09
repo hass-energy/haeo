@@ -1,14 +1,16 @@
 """Check values resolved from source entities before they reach the optimizer."""
 
 from collections.abc import Mapping
-from typing import Any, Final
+from typing import Final
 
 import numpy as np
 from numpy.typing import NDArray
 
-# How far below zero a value for a non-negative input may fall, in the source's
-# units, before it is rejected instead of clamped to zero. Sensors and forecasts
-# often report small negative readings (a few watts) where zero is meant.
+# How far below zero a value for a non-negative input may fall before it is
+# rejected instead of clamped to zero. It applies after conversion to HAEO's units
+# and before percentages are scaled, so it is 0.01 kW (10 W), 0.01 kWh, or 0.01
+# percentage points. Sensors and forecasts often report small negative readings
+# where zero is meant.
 NEGATIVE_TOLERANCE: Final = 0.01
 
 
@@ -27,7 +29,7 @@ class InputError(ValueError):
         self.translation_placeholders = dict(translation_placeholders)
 
 
-def enforce_non_negative(values: NDArray[Any]) -> NDArray[np.float64]:
+def enforce_non_negative(values: NDArray[np.float64]) -> NDArray[np.float64]:
     """Return values with readings just below zero clamped to zero.
 
     Raises:

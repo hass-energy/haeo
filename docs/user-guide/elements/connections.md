@@ -37,6 +37,8 @@ Connections define explicit, **unidirectional** power paths between elements, wi
 | **Efficiency** | [sensor](../forecasts-and-sensors.md)    | No       | 100%      | Efficiency percentage (0-100) for this direction |
 | **Price**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for power arriving at the target  |
 
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
+
 !!! tip "Configuration tips"
 
     **Leaving fields unset**: When a path should allow unlimited flow with no losses or costs, leave the optional fields empty rather than creating sensors with maximum or default values.
@@ -100,11 +102,9 @@ Power optimized on this connection always travels from source to target.
 Values are zero or positive in that direction.
 
 **Where each setting applies:**
-Efficiency losses are applied first, as power leaves the source.
-**Max power** and **Price** then apply to the power remaining after losses, which is the power arriving at the target.
-The power sensor reports the power leaving the source, before losses.
-Example: with 95% efficiency, 10 kW leaves the source and 9.5 kW arrives at the target.
-The sensor reports 10 kW, a **Max power** of 9.5 kW is enough to allow this flow, and **Price** is charged on 9.5 kW.
+**Max power**, **Price**, and the reported connection power all apply to the power entering the connection, before its losses.
+Efficiency losses are applied after them, so the power arriving at the target is reduced by the efficiency.
+Example: with 95% efficiency and a **Max power** of 10 kW, the connection reports 10 kW at its limit, 9.5 kW arrives at the target, and **Price** is charged on 10 kW.
 
 **Transmission costs:**
 Connection pricing models fees for using a power transfer path (wheeling charges, connection fees, peak demand charges).

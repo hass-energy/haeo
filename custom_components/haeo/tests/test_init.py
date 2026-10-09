@@ -578,9 +578,10 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
         def __init__(self) -> None:
             self.error = input_error
 
-        async def wait_ready(self) -> None:
-            # Wait forever - will timeout
-            await asyncio.sleep(100)
+        async def wait_settled(self) -> None:
+            # A store that rejected its value settles at once; one with no data never does
+            if self.error is None:
+                await asyncio.sleep(100)
 
         def is_ready(self) -> bool:
             return False
@@ -676,7 +677,7 @@ async def test_setup_reentry_after_timeout_failure(
         def __init__(self) -> None:
             self._ready = False
 
-        async def wait_ready(self) -> None:
+        async def wait_settled(self) -> None:
             if attempt_count == 1:
                 # First attempt: timeout
                 await asyncio.sleep(100)

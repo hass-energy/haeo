@@ -1,6 +1,8 @@
 """Fixtures for config flow tests."""
 
-from typing import Any
+# Tests drive element-specific flow classes dynamically (per-element step methods,
+# monkeypatched async_create_entry), which a static flow base type cannot express.
+from typing import Any  # noqa: TID251
 
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry

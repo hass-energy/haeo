@@ -1,7 +1,6 @@
 """Recorder history helpers with runtime State validation."""
 
 from datetime import datetime
-from typing import Any
 
 from homeassistant.components.recorder import history as recorder_history
 from homeassistant.core import HomeAssistant, State
@@ -36,7 +35,7 @@ def get_significant_states_full(
 
 
 def _states_only_history(
-    result: dict[str, list[State | dict[str, Any]]],
+    result: dict[str, list[State | dict[str, object]]],
 ) -> dict[str, list[State]]:
     """Drop minimal-response dict entries; keep full State objects only."""
     narrowed: dict[str, list[State]] = {}

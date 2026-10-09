@@ -310,7 +310,7 @@ def test_untagged_connection_uses_simple_balance(solver: Highs) -> None:
 
 
 def test_disconnected_element_returns_no_constraints(solver: Highs) -> None:
-    """A network element with no connections and no production/consumption returns None.
+    """A network element with no connections and no production/consumption has no balance rows.
 
     This exercises the early return in element_power_balance when there are no
     tags, no connections, and no external power.
@@ -325,7 +325,7 @@ def test_disconnected_element_returns_no_constraints(solver: Highs) -> None:
         solver=solver,
         output_names=frozenset(),
     )
-    assert element.element_power_balance() is None
+    assert element.element_power_balance() == []
 
 
 def test_passthrough_element_constrains_connection_to_zero(solver: Highs) -> None:
