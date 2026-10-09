@@ -1,9 +1,9 @@
 """Tests for coordinator network utilities."""
 
-from typing import Any
 from unittest.mock import MagicMock
 
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.coordinator.network import (
@@ -72,9 +72,9 @@ def _simple_network() -> Network:
 
 def _connection_config(
     *,
-    max_power: Any = None,
-    price: Any = None,
-    efficiency: Any = None,
+    max_power: NDArray[np.float64] | float | None = None,
+    price: NDArray[np.float64] | float | None = None,
+    efficiency: NDArray[np.float64] | float | None = None,
 ) -> ConnectionConfigData:
     """Build a connection ConnectionConfigData."""
     power_limits = PowerLimitsData()
@@ -112,7 +112,7 @@ def test_extract_at_path_returns_leaf_value() -> None:
 
 def test_extract_at_path_returns_missing_for_absent_key() -> None:
     """Missing intermediate key returns the _MISSING sentinel."""
-    config: dict[str, Any] = {"a": {"b": 1}}
+    config: dict[str, object] = {"a": {"b": 1}}
     assert _extract_at_path(config, ("a", "x", "y")) is _MISSING
 
 
@@ -299,6 +299,20 @@ def test_policy_updater_updates_price() -> None:
     assert elem.price == pytest.approx([0.10])
 
 
+def test_policy_updater_rejects_a_non_policy_config() -> None:
+    """The policy updater fails loudly when wired to a config that is not a policy."""
+    network = _policy_network()
+    updater = _build_policy_updater(network, {0: ["policy_pricing_r0_v1"]})
+
+    config: ElementConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.NODE,
+        CONF_NAME: "Bus",
+        "role": {"is_source": False, "is_sink": False},
+    }
+    with pytest.raises(TypeError, match="received a node config"):
+        updater(config)
+
+
 def test_policy_updater_zeros_disabled_rule() -> None:
     """Policy updater writes zero price for disabled rules."""
     network = _policy_network()
@@ -474,7 +488,7 @@ def test_soc_pricing_setters_write_fresh_threshold() -> None:
 
 def test_collect_policy_rules_merges_multiple_policy_participants() -> None:
     """Multiple policy participants are merged into one compiled rules list."""
-    participants: dict[str, Any] = {
+    participants: dict[str, dict[str, object]] = {
         "Policies A": {
             CONF_ELEMENT_TYPE: ElementType.POLICY,
             CONF_NAME: "Policies",
@@ -489,7 +503,8 @@ def test_collect_policy_rules_merges_multiple_policy_participants() -> None:
         },
     }
 
-    rules = _collect_policy_rules(participants)
+    # Fixture rules carry schema-mode (unloaded) prices, which the loaded ElementConfigData type does not allow.
+    rules = _collect_policy_rules(participants)  # type: ignore[arg-type]
     assert len(rules) == 2
 
 

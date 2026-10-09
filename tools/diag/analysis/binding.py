@@ -7,7 +7,7 @@ which limit — and "nothing was in the way, so it was economic".
 """
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Final
+from typing import Final
 
 from .series import forecast_series
 
@@ -43,7 +43,7 @@ def _summarize(times: Sequence[str]) -> str:
     return f"{shown}, +{len(times) - MAX_INTERVALS_SHOWN} more"
 
 
-def run(outputs: Mapping[str, Any], config: Mapping[str, Any], argument: str) -> str:  # noqa: ARG001 (config unused; the analysis interface is uniform across modules)
+def run(outputs: Mapping[str, object], config: Mapping[str, object], argument: str) -> str:  # noqa: ARG001 (config unused; the analysis interface is uniform across modules)
     """Return a summary of which constraints bind over the horizon."""
     try:
         tolerance = float(argument) if argument else DEFAULT_TOLERANCE

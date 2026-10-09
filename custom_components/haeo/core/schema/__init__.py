@@ -3,7 +3,16 @@
 from __future__ import annotations
 
 import types as stdlib_types
-from typing import Any, Final, TypeAliasType, TypeGuard, Union, get_args, get_origin
+from typing import (
+    Any,  # noqa: TID251  # reflection over typing constructs (get_origin/get_args): type
+    # expressions (e.g. TypeAliasType.__value__, Union members) have no precise static type
+    Final,
+    TypeAliasType,
+    TypeGuard,
+    Union,
+    get_args,
+    get_origin,
+)
 
 from .calendar_value import CalendarEventDict as CalendarEventDict
 from .calendar_value import CalendarValue as CalendarValue
@@ -31,7 +40,7 @@ VALUE_TYPE_CALENDAR: Final = "calendar"
 VALUE_TYPE_CONNECTION_TARGET: Final = "connection_target"
 
 
-def is_schema_value(value: Any) -> TypeGuard[SchemaValue]:
+def is_schema_value(value: object) -> TypeGuard[SchemaValue]:
     """Return True if value is a known schema value variant."""
     return is_entity_value(value) or is_constant_value(value) or is_none_value(value) or is_calendar_value(value)
 

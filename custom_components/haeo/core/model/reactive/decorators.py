@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 from functools import partial
-from typing import Any, TypeVar, overload
+from typing import TypeVar, overload
 
 from highspy import Highs
 from highspy.highs import highs_cons, highs_linear_expression
@@ -12,7 +12,14 @@ from custom_components.haeo.core.model.output_data import ModelOutputValue, Outp
 from custom_components.haeo.core.model.util.solver_rows import add_row, add_rows, is_free_row, update_row
 
 from .protocols import ReactiveHost
-from .tracked_param import Dependency, ensure_decorator_state, record_access, register_dependencies, tracking_context
+from .tracked_param import (
+    DecoratorState,
+    Dependency,
+    ensure_decorator_state,
+    record_access,
+    register_dependencies,
+    tracking_context,
+)
 
 # Type variable for generic return types
 R = TypeVar("R")
@@ -66,7 +73,7 @@ class ReactiveMethod[R]:
         state["result"] = result
         return result
 
-    def _compute(self, obj: "ReactiveHost", state: dict[str, Any]) -> R:
+    def _compute(self, obj: "ReactiveHost", state: DecoratorState) -> R:
         """Run the method, recording and registering everything it reads."""
         tracking: set[Dependency] = set()
         token = tracking_context.set(tracking)
@@ -92,7 +99,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
 
     Usage:
         class Battery(Element):
-            capacity = TrackedParam[NDArray[np.floating[Any]]]()
+            capacity = TrackedParam[NDArray[np.float64]]()
 
             @constraint(output=True, unit="$/kWh")
             def battery_soc_max(self) -> list[highs_linear_expression]:
@@ -156,54 +163,61 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             return state["result"]  # type: ignore[return-value]
 
         expr = self._compute(obj, state)
-        if expr is None:
+        if not isinstance(expr, highs_linear_expression | list):
             state["invalidated"] = True
             msg = (
-                f"Constraint {self._name} returned None; return free rows for parts that do not apply, "
-                "or an empty list for a constraint with no rows"
+                f"Constraint {self._name} returned {type(expr).__name__}; return its rows, using free rows for "
+                "parts that do not apply, or an empty list for a constraint with no rows"
             )
             raise TypeError(msg)
+        rows: _RowExpressions = expr
         solver: Highs = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
 
         # Rows are only recorded as applied once the solver has them, so a failed
         # write is retried on the next call instead of being cached as applied.
         try:
-            if "constraint" not in state:
-                state["constraint"] = add_rows(solver, expr) if isinstance(expr, list) else add_row(solver, expr)  # type: ignore[arg-type]
+            if "constraint" in state and "applied" in state:
+                _write_rows(solver, self._name, state["constraint"], state["applied"], rows)
             else:
-                _write_rows(solver, self._name, state, expr)  # type: ignore[arg-type]
+                state["constraint"] = add_rows(solver, rows) if isinstance(rows, list) else add_row(solver, rows)
         except Exception:
             state["invalidated"] = True
             raise
 
-        state["applied"] = expr
-        state["result"] = expr
+        state["applied"] = rows
+        state["result"] = rows
         return expr
 
 
 type _RowExpressions = highs_linear_expression | list[highs_linear_expression]
 
 
-def _write_rows(solver: Highs, name: str, state: dict[str, Any], expr: _RowExpressions) -> None:
+def _write_rows(
+    solver: Highs,
+    name: str,
+    existing: highs_cons | list[highs_cons],
+    applied: _RowExpressions,
+    expr: _RowExpressions,
+) -> None:
     """Update a constraint's existing rows from the expressions they hold to ``expr``.
 
     A constraint returns the same rows on every call, marking rows that do not
     currently apply as free, so the LP keeps its shape for warm starts.
     """
-    existing = state["constraint"]
-    applied = state["applied"]
-    if isinstance(existing, list):
-        if not isinstance(expr, list) or len(expr) != len(existing):
-            new_count = len(expr) if isinstance(expr, list) else 1
-            msg = (
-                f"Constraint {name} returned {new_count} rows after {len(existing)}; "
-                "return free rows for parts that do not apply so the row count stays the same"
-            )
-            raise ValueError(msg)
-        for cons, old, new in zip(existing, applied, expr, strict=True):
-            update_row(solver, cons, old, new)
-    else:
-        update_row(solver, existing, applied, expr)  # type: ignore[arg-type]
+    if isinstance(existing, list) != isinstance(expr, list):
+        msg = f"Constraint {name} switched between a single row and a list of rows; return the same shape on every call"
+        raise ValueError(msg)
+    existing_rows = existing if isinstance(existing, list) else [existing]
+    applied_rows = applied if isinstance(applied, list) else [applied]
+    new_rows = expr if isinstance(expr, list) else [expr]
+    if len(new_rows) != len(existing_rows):
+        msg = (
+            f"Constraint {name} returned {len(new_rows)} rows after {len(existing_rows)}; "
+            "return free rows for parts that do not apply so the row count stays the same"
+        )
+        raise ValueError(msg)
+    for cons, old, new in zip(existing_rows, applied_rows, new_rows, strict=True):
+        update_row(solver, cons, old, new)
 
 
 def applied_constraint(obj: "ReactiveHost", name: str) -> "highs_cons | list[highs_cons] | None":

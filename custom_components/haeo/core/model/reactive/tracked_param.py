@@ -1,14 +1,32 @@
 """TrackedParam descriptor for automatic dependency tracking."""
 
 from contextvars import ContextVar
-from typing import Any, overload
+from typing import NotRequired, TypedDict, overload
 
+from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 
 from .protocols import ReactiveHost
 
 type Dependency = tuple[ReactiveHost, str]
 """A value a reactive method read: its host and the parameter name or ``method:<name>`` key."""
+
+
+class DecoratorState(TypedDict):
+    """Reactive cache state stored per decorated method on a ReactiveHost instance.
+
+    ``result`` is typed ``object`` because it holds whatever the decorated method
+    returns (constraint expressions, cost expressions, ...); callers already narrow
+    or ``# type: ignore`` at the point they read it back out through the generic
+    ``ReactiveMethod[R]``/``ReactiveConstraint[R]`` machinery.
+    """
+
+    invalidated: bool
+    deps: set[Dependency]
+    result: object
+    constraint: NotRequired[highs_cons | list[highs_cons]]
+    applied: NotRequired[highs_linear_expression | list[highs_linear_expression]]
+
 
 # Context for tracking parameter access during constraint computation
 tracking_context: ContextVar[set[Dependency] | None] = ContextVar("tracking", default=None)
@@ -27,7 +45,7 @@ class TrackedParam[T]:
 
     Usage:
         class Battery(Element):
-            capacity = TrackedParam[NDArray[np.floating[Any]]]()
+            capacity = TrackedParam[NDArray[np.float64]]()
 
             @constraint
             def soc_max_constraint(self) -> list[highs_linear_expression]:
@@ -84,9 +102,10 @@ class TrackedParam[T]:
 
                 @constraint
                 def my_constraint(self) -> highs_linear_expression:
+                    row = 1.0 * self.energy
                     if not self.capacity.is_set(self):
-                        return self.energy  # A free row until capacity is set
-                    return self.energy <= self.capacity
+                        return row  # A free row until capacity is set
+                    return row <= self.capacity
 
         """
         record_access(obj, self._name)
@@ -180,7 +199,7 @@ def _invalidate_param_dependents(obj: ReactiveHost, param_name: str) -> None:
             pending.append((dependent, f"method:{method_name}"))
 
 
-def get_decorator_state(obj: ReactiveHost, method_name: str) -> dict[str, Any] | None:
+def get_decorator_state(obj: ReactiveHost, method_name: str) -> DecoratorState | None:
     """Get the state dictionary for a decorator method on an object.
 
     Args:
@@ -195,7 +214,7 @@ def get_decorator_state(obj: ReactiveHost, method_name: str) -> dict[str, Any] |
     return getattr(obj, state_attr, None)
 
 
-def ensure_decorator_state(obj: ReactiveHost, method_name: str) -> dict[str, Any]:
+def ensure_decorator_state(obj: ReactiveHost, method_name: str) -> DecoratorState:
     """Ensure a state dictionary exists for a decorator method on an object.
 
     Args:
@@ -214,6 +233,7 @@ def ensure_decorator_state(obj: ReactiveHost, method_name: str) -> dict[str, Any
 
 # Re-export tracking context for use by decorators
 __all__ = [
+    "DecoratorState",
     "Dependency",
     "TrackedParam",
     "ensure_decorator_state",

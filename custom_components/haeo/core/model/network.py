@@ -3,7 +3,15 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 import logging
-from typing import Any, Final, Literal, overload
+from typing import (
+    Any,  # noqa: TID251  # Element is invariant in its output-name Literal (see outputs()'s
+    # Mapping[OutputNameT, ...] return), so a plain dict of heterogeneous concrete Element
+    # subtypes (Battery, Node, Connection, ...) cannot be typed Element[str] or a shared TypeVar;
+    # add()'s @overloads already give callers the precise concrete return type per element_type
+    Final,
+    Literal,
+    overload,
+)
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
@@ -15,7 +23,7 @@ from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
-from .elements.policy_pricing import PolicyPricing, PolicyPricingElementConfig
+from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
 from .util.solver_rows import add_row, update_row
 
 _LOGGER = logging.getLogger(__name__)
@@ -120,7 +128,7 @@ class Network:
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         options: SolveOptions | None = None,
     ) -> None:
@@ -155,7 +163,7 @@ class Network:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def update_periods(self, new_periods: NDArray[np.floating[Any]]) -> None:
+    def update_periods(self, new_periods: NDArray[np.float64]) -> None:
         """Update period durations across the network.
 
         Propagates the new periods to all elements and their segments,
@@ -243,7 +251,7 @@ class Network:
     def _add_policy_pricing(self, config: PolicyPricingElementConfig) -> PolicyPricing:
         """Create a PolicyPricing element by resolving connection/tag references."""
         name = config["name"]
-        priced_flows: list[tuple[Connection[Any], int]] = []
+        priced_flows: list[tuple[MeasuredFlows, int]] = []
         for term in config["terms"]:
             conn_name = term["connection"]
             tag = term["tag"]

@@ -1,7 +1,5 @@
 """Tests for surfaced policy rule lookup and negated price paths."""
 
-from typing import Any
-
 import pytest
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
@@ -62,7 +60,7 @@ def test_find_surfaced_rule(
 
 def test_negated_price_paths_flags_load_consumption_rule() -> None:
     """A wildcard-to-load rule is flagged; a battery charge rule is not."""
-    participants: dict[str, dict[str, Any]] = {
+    participants: dict[str, dict[str, object]] = {
         "Miner": {CONF_ELEMENT_TYPE: ElementType.LOAD},
         "Battery": {CONF_ELEMENT_TYPE: ElementType.BATTERY},
         "Policies": {
@@ -71,6 +69,22 @@ def test_negated_price_paths_flags_load_consumption_rule() -> None:
                 {"name": "charge", "target": ["Battery"], "price": as_constant_value(0.1)},
                 {"name": "miner", "target": ["Miner"], "price": as_entity_value(["sensor.doge"])},
             ],
+        },
+    }
+
+    assert negated_price_paths(participants) == {"Policies": frozenset({(CONF_RULES, "1", CONF_PRICE)})}
+
+
+def test_negated_price_paths_keeps_stored_rule_indices() -> None:
+    """A rules entry that is not a mapping does not shift the index of the rules after it."""
+    participants: dict[str, dict[str, object]] = {
+        "Miner": {CONF_ELEMENT_TYPE: ElementType.LOAD},
+        "Policies": {
+            CONF_ELEMENT_TYPE: ElementType.POLICY,
+            CONF_RULES: (
+                "not a rule",
+                {"name": "miner", "target": ["Miner"], "price": as_entity_value(["sensor.doge"])},
+            ),
         },
     }
 

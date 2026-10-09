@@ -4,7 +4,7 @@ import asyncio
 from datetime import timedelta
 import logging
 from types import MappingProxyType
-from typing import Any
+from typing import Any  # noqa: TID251  # captures HA's Any-typed extra_state_attributes property for later assertions
 from unittest.mock import AsyncMock, Mock
 
 from homeassistant.components.number import NumberEntityDescription
@@ -21,7 +21,13 @@ from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.data.input_store import InputMode, create_input_store
 from custom_components.haeo.core.model import OutputType
-from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.core.schema import (
+    SchemaValue,
+    as_connection_target,
+    as_constant_value,
+    as_entity_value,
+    as_none_value,
+)
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
 from custom_components.haeo.core.schema.field_hints import FieldHint
@@ -173,10 +179,10 @@ def percent_field_info() -> InputFieldInfo[NumberEntityDescription]:
     )
 
 
-def _create_subentry(name: str, data: dict[str, Any]) -> ConfigSubentry:
+def _create_subentry(name: str, data: dict[str, object]) -> ConfigSubentry:
     """Create a ConfigSubentry with the given data."""
 
-    def schema_value(value: Any) -> Any:
+    def schema_value(value: object) -> SchemaValue:
         if value is None:
             return as_none_value()
         if isinstance(value, bool):
@@ -219,10 +225,10 @@ class _SubentryStorage:
         self._subentry = subentry
         self._field_path = field_path
 
-    def read(self) -> Any:
+    def read(self) -> object:
         return get_nested_config_value_by_path(self._subentry.data, self._field_path)
 
-    async def write(self, value: Any) -> None:
+    async def write(self, value: object) -> None:
         await async_update_subentry_value(
             self._hass,
             self._entry,
@@ -624,7 +630,7 @@ async def test_editable_set_value_updates_config_before_state_change(
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
 
     # When async_write_ha_state fires, capture what the subentry data says
-    captured_config_value: list[Any] = []
+    captured_config_value: list[SchemaValue] = []
 
     def _capture_config_on_state_write() -> None:
         live_subentry = config_entry.subentries[subentry.subentry_id]

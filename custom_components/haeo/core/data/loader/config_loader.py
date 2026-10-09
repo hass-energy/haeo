@@ -7,7 +7,6 @@ forecast fusion, and unit conversion -- all without HA dependencies.
 """
 
 from collections.abc import Collection, Mapping, Sequence
-from typing import Any
 
 import numpy as np
 
@@ -85,7 +84,7 @@ def load_element_config(
 
     field_hints = extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
 
-    loaded: dict[str, Any] = {
+    loaded: dict[str, object] = {
         key: dict(value) if isinstance(value, Mapping) else value for key, value in element_config.items()
     }
     loaded[CONF_NAME] = element_name
@@ -99,7 +98,7 @@ def load_element_config(
             value = section_config.get(field_name)
             if value is None:
                 if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                    loaded.setdefault(section_name, {})[field_name] = default
+                    _section_dict(loaded, section_name)[field_name] = default
                 continue
 
             resolved = resolve_field(
@@ -107,15 +106,15 @@ def load_element_config(
             )
             if resolved is _REMOVE:
                 if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                    loaded.setdefault(section_name, {})[field_name] = default
+                    _section_dict(loaded, section_name)[field_name] = default
                 else:
                     loaded_section = loaded.get(section_name)
                     if isinstance(loaded_section, dict):
                         loaded_section.pop(field_name, None)
             elif resolved is None and (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                loaded.setdefault(section_name, {})[field_name] = default
+                _section_dict(loaded, section_name)[field_name] = default
             else:
-                loaded.setdefault(section_name, {})[field_name] = resolved
+                _section_dict(loaded, section_name)[field_name] = resolved
 
     # Resolve list-based input fields (e.g. policy rules with entity prices)
     list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
@@ -158,7 +157,7 @@ def load_element_configs(
 def load_element_config_from_values(
     element_name: str,
     element_config: ElementConfigSchema,
-    field_values: Mapping[tuple[str, ...], Any],
+    field_values: Mapping[tuple[str, ...], bool | float | np.ndarray | None],
     forecast_times: Sequence[float],
 ) -> ElementConfigData:
     """Assemble an element's loaded config from pre-resolved input field values.
@@ -190,7 +189,7 @@ def load_element_config_from_values(
 
     field_hints = extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
 
-    loaded: dict[str, Any] = {
+    loaded: dict[str, object] = {
         key: dict(value) if isinstance(value, Mapping) else value for key, value in element_config.items()
     }
     loaded[CONF_NAME] = element_name
@@ -203,14 +202,14 @@ def load_element_config_from_values(
             if path in field_values:
                 resolved = field_values[path]
                 if resolved is None and default is not _REMOVE:
-                    loaded.setdefault(section_name, {})[field_name] = default
+                    _section_dict(loaded, section_name)[field_name] = default
                 else:
-                    loaded.setdefault(section_name, {})[field_name] = resolved
+                    _section_dict(loaded, section_name)[field_name] = resolved
                 continue
 
             # No store for this field: disabled/none or absent in config.
             if default is not _REMOVE:
-                loaded.setdefault(section_name, {})[field_name] = default
+                _section_dict(loaded, section_name)[field_name] = default
             else:
                 loaded_section = loaded.get(section_name)
                 if isinstance(loaded_section, dict):
@@ -221,7 +220,7 @@ def load_element_config_from_values(
         items = element_config.get(list_key)
         if not isinstance(items, (list, tuple)):
             continue
-        loaded_items: list[Any] = []
+        loaded_items: list[object] = []
         for index, item in enumerate(items):
             if not isinstance(item, Mapping):
                 loaded_items.append(item)
@@ -244,6 +243,20 @@ class _Sentinel:
 
 
 _REMOVE = _Sentinel()
+
+
+def _section_dict(loaded: dict[str, object], section_name: str) -> dict[str, object]:
+    """Return the mutable dict for a config section, creating an empty one if absent.
+
+    Sections already present in ``loaded`` are always dicts by construction --
+    mappings in the raw config are copied via ``dict()`` before this is called --
+    so the isinstance check only guards the first-write path for a new section.
+    """
+    section = loaded.setdefault(section_name, {})
+    if not isinstance(section, dict):
+        section = {}
+        loaded[section_name] = section
+    return section
 
 
 def _default_for_hint(hint: FieldHint, forecast_times: Sequence[float]) -> _Sentinel | float | np.ndarray:
@@ -380,18 +393,18 @@ def _resolve_entities(
 
 def _resolve_list_items(
     list_key: str,
-    items: Sequence[Any],
+    items: Sequence[object],
     hints: ListFieldHints,
     sm: StateMachine,
     forecast_times: Sequence[float],
     negated_paths: Collection[tuple[str, ...]],
-) -> list[Any]:
+) -> list[object]:
     """Resolve hinted fields within each item of a list config field.
 
     Non-mapping items are passed through unchanged, so the return type is
-    ``list[Any]`` rather than ``list[dict[str, Any]]``.
+    ``list[object]`` rather than ``list[dict[str, object]]``.
     """
-    loaded_items: list[Any] = []
+    loaded_items: list[object] = []
     for index, item in enumerate(items):
         if not isinstance(item, Mapping):
             loaded_items.append(item)

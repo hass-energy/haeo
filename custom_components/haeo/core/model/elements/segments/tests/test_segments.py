@@ -3,7 +3,12 @@
 from collections.abc import Sequence
 from functools import reduce
 import operator
-from typing import Any
+from typing import (
+    Any,  # noqa: TID251  # source_element/target_element are the connection's endpoint elements,
+    # which can be any concrete NetworkElement subtype. Element is invariant in its output-name
+    # Literal (see element.py's outputs()), so no non-Any type expresses "an Element of some
+    # unknown output-name type" here; DummySegment only forwards these to the base class.
+)
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
@@ -48,7 +53,7 @@ def create_solver() -> Highs:
 class DummyElement(Element[str]):
     """Minimal element for segment endpoint wiring in tests."""
 
-    def __init__(self, name: str, periods: NDArray[np.floating[Any]], solver: Highs) -> None:
+    def __init__(self, name: str, periods: NDArray[np.float64], solver: Highs) -> None:
         """Create a dummy element with no outputs."""
         super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
 
@@ -60,7 +65,7 @@ class DummySegment(Segment):
         self,
         segment_id: str,
         n_periods: int,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         solver: Highs,
         *,
         source_element: Element[Any],

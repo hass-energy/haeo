@@ -12,7 +12,16 @@ segment parameters.
 from collections import OrderedDict
 from functools import reduce
 import operator
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import (
+    Any,  # noqa: TID251  # source_element/target_element are the network's connection endpoints,
+    # which can be any concrete NetworkElement subtype (Battery, Node, ...). Element is invariant
+    # in its output-name Literal (see element.py's outputs()), so no non-Any type can express
+    # "an Element of some unknown output-name type" across this dynamically-typed registry.
+    Final,
+    Literal,
+    NotRequired,
+    TypedDict,
+)
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
@@ -67,7 +76,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         solver: Highs,
         source: str,
@@ -80,7 +89,9 @@ class Connection[TOutputName: str](Element[TOutputName]):
     ) -> None:
         """Initialize a unidirectional connection."""
 
-        actual_output_names: frozenset[Any] = output_names if output_names is not None else CONNECTION_OUTPUT_NAMES
+        actual_output_names: frozenset[TOutputName] = (
+            output_names if output_names is not None else CONNECTION_OUTPUT_NAMES  # type: ignore[assignment]  # default output names are only valid when TOutputName is (a superset of) ConnectionOutputName, which holds for every real construction path (Network.add()'s overload pins TOutputName=ConnectionOutputName)
+        )
         super().__init__(
             name=name,
             periods=periods,
@@ -297,7 +308,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         outputs = self._segment_outputs()
         return outputs or None
 
-    def __getitem__(self, key: str | int) -> Any:
+    def __getitem__(self, key: str | int) -> object:
         """Look up segments by name or index."""
         if isinstance(key, int):
             try:

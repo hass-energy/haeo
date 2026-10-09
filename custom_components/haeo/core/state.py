@@ -1,7 +1,7 @@
 """Core state interfaces used across the optimization pipeline."""
 
 from collections.abc import Mapping
-from typing import Any, Protocol
+from typing import Protocol
 
 
 class EntityState(Protocol):
@@ -18,11 +18,11 @@ class EntityState(Protocol):
         ...
 
     @property
-    def attributes(self) -> Mapping[str, Any]:
+    def attributes(self) -> Mapping[str, object]:
         """Entity attributes."""
         ...
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> Mapping[str, object]:
         """Return serialized state representation."""
         ...
 

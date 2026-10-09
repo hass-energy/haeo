@@ -9,19 +9,13 @@ Surfaced rules follow a pattern where one side is always a wildcard:
 """
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Final
+from typing import Final
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.battery import SURFACED_PRICE_HINTS as BATTERY_SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.load import SURFACED_PRICE_HINTS as LOAD_SURFACED_PRICE_HINTS
-from custom_components.haeo.core.schema.elements.policy import (
-    CONF_PRICE,
-    CONF_RULES,
-    CONF_SOURCE,
-    CONF_TARGET,
-    PolicyRuleConfig,
-)
+from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES, CONF_SOURCE, CONF_TARGET
 from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
 
 SURFACED_PRICE_HINTS_BY_TYPE: Final[dict[str, dict[str, SurfacedPriceHint]]] = {
@@ -46,7 +40,7 @@ def resolve_surfaced_endpoints(
 
 
 def find_surfaced_rule(
-    rules: Sequence[PolicyRuleConfig],
+    rules: Sequence[object],
     *,
     source: list[str] | None,
     target: list[str] | None,
@@ -57,6 +51,8 @@ def find_surfaced_rule(
     and one specific side (a single-element list).
     """
     for i, rule in enumerate(rules):
+        if not isinstance(rule, Mapping):
+            continue
         rule_source = rule.get(CONF_SOURCE)
         rule_target = rule.get(CONF_TARGET)
         if _endpoints_match(rule_source, source) and _endpoints_match(rule_target, target):
@@ -65,7 +61,7 @@ def find_surfaced_rule(
 
 
 def _endpoints_match(
-    rule_value: list[str] | None,
+    rule_value: object,
     pattern: list[str] | None,
 ) -> bool:
     """Check if a rule endpoint matches a surfaced pattern endpoint.
@@ -77,7 +73,7 @@ def _endpoints_match(
     return rule_normalized == pattern_normalized
 
 
-def negated_price_paths(participants: Mapping[str, Mapping[str, Any]]) -> dict[str, frozenset[tuple[str, ...]]]:
+def negated_price_paths(participants: Mapping[str, Mapping[str, object]]) -> dict[str, frozenset[tuple[str, ...]]]:
     """Map each policy element name to the rule price paths that surface a negated price.
 
     Negated surfaced prices (e.g. load consumption cost) show a positive running
@@ -96,7 +92,8 @@ def negated_price_paths(participants: Mapping[str, Mapping[str, Any]]) -> dict[s
     for policy_name, policy_config in participants.items():
         if policy_config.get(CONF_ELEMENT_TYPE) != ElementType.POLICY:
             continue
-        rules: list[PolicyRuleConfig] = list(policy_config.get(CONF_RULES, []))
+        configured_rules = policy_config.get(CONF_RULES)
+        rules = configured_rules if isinstance(configured_rules, list | tuple) else []
         paths: set[tuple[str, ...]] = set()
         for element_name, element_config in participants.items():
             for hint in get_surfaced_price_hints(str(element_config.get(CONF_ELEMENT_TYPE))).values():

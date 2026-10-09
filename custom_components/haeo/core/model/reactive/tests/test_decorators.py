@@ -433,6 +433,29 @@ def test_constraint_row_count_change_raises_clear_error() -> None:
         elem.my_constraint()
 
 
+def test_constraint_shape_change_raises_clear_error() -> None:
+    """A constraint cannot switch between a single row and a list of rows."""
+    solver = Highs()
+    solver.setOptionValue("output_flag", False)
+    x = solver.addVariable(lb=0.0, ub=10.0)
+
+    class TestElement(Element[str]):
+        as_list = TrackedParam[bool]()
+
+        @constraint
+        def my_constraint(self) -> highs_linear_expression | list[highs_linear_expression]:
+            row = x <= 1.0
+            return [row] if self.as_list else row
+
+    elem = TestElement(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
+    elem.as_list = False
+    elem.my_constraint()
+
+    elem.as_list = True
+    with pytest.raises(ValueError, match="switched between a single row and a list of rows"):
+        elem.my_constraint()
+
+
 def test_failed_row_write_is_retried() -> None:
     """A constraint whose rows fail to reach the solver is computed and written again on the next call."""
     solver = Highs()

@@ -1,7 +1,7 @@
 """Utility functions for HAEO."""
 
 import copy
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -17,7 +17,7 @@ async def async_update_subentry_value(
     entry: "HaeoConfigEntry",
     subentry: ConfigSubentry,
     field_path: InputFieldPath,
-    value: Any,
+    value: object,
 ) -> None:
     """Update a single field value in a subentry without triggering reload.
 

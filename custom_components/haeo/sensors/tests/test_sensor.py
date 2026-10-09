@@ -3,7 +3,10 @@
 from dataclasses import replace
 from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any, Literal
+
+# Coordinator output fixtures use runtime string keys that cannot satisfy the
+# Literal key types of SubentryDevices.
+from typing import Any, Literal  # noqa: TID251
 from unittest.mock import Mock
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass

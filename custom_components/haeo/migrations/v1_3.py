@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import logging
 from types import MappingProxyType
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -74,12 +74,12 @@ UNIQUE_ID_PART_COUNT = 3
 LIST_ITEM_PATH_PART_COUNT = 3
 
 
-def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, Any] | None:
+def migrate_subentry_data(subentry: ConfigSubentry) -> dict[str, object] | None:
     """Migrate a subentry's data to sectioned config if needed."""
     return migrate_element_config(dict(subentry.data))
 
 
-def _policy_subentry(*, rules: list[dict[str, Any]]) -> dict[str, Any]:
+def _policy_subentry(*, rules: list[dict[str, object]]) -> dict[str, object]:
     return {
         "element_type": _POLICY_TYPE,
         "name": _POLICIES_TITLE,
@@ -87,19 +87,23 @@ def _policy_subentry(*, rules: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _negate_price_value(price: dict[str, Any]) -> dict[str, Any]:
+def _negate_price_value(price: Mapping[str, object]) -> dict[str, object]:
     if price.get("type") == "constant":
-        return {**price, "value": -price["value"]}
+        value = price["value"]
+        if not isinstance(value, (int, float)):
+            msg = f"Cannot negate non-numeric constant price value {value!r}"
+            raise TypeError(msg)
+        return {**price, "value": -value}
     _LOGGER.warning(
         "Cannot negate non-constant charge price during migration; "
         "a positive entity price will behave as a cost in the new policy system. "
         "To preserve incentive semantics, use a template sensor that outputs a negated value: %s",
         price,
     )
-    return price
+    return dict(price)
 
 
-def _is_default_policy_price(element_type: str, field_name: str, price: Any) -> bool:
+def _is_default_policy_price(element_type: str, field_name: str, price: object) -> bool:
     """Return True when a constant price matches a legacy default value."""
     defaults = _DEFAULT_POLICY_PRICES.get((element_type, field_name))
     if defaults is None:
@@ -112,13 +116,12 @@ def _is_default_policy_price(element_type: str, field_name: str, price: Any) -> 
     return float(value) in defaults
 
 
-def _extract_pricing_rules(data: dict[str, Any], subentry: ConfigSubentry) -> list[dict[str, Any]]:
+def _extract_pricing_rules(data: dict[str, object], subentry: ConfigSubentry) -> list[dict[str, object]]:
     element_type = data.get("element_type")
     element_name = data.get("name", subentry.title)
-    pricing = data.get("pricing", {})
-    if not isinstance(pricing, dict):
-        pricing = {}
-    rules: list[dict[str, Any]] = []
+    pricing_value = data.get("pricing", {})
+    pricing = pricing_value if isinstance(pricing_value, dict) else {}
+    rules: list[dict[str, object]] = []
 
     if element_type == _BATTERY_TYPE:
         discharge_price = pricing.get(CONF_PRICE_SOURCE_TARGET)
@@ -142,6 +145,9 @@ def _extract_pricing_rules(data: dict[str, Any], subentry: ConfigSubentry) -> li
             CONF_PRICE_TARGET_SOURCE,
             charge_price,
         ):
+            if not isinstance(charge_price, Mapping):
+                msg = f"Unsupported charge price shape {charge_price!r}"
+                raise TypeError(msg)
             rules.append(
                 {
                     "name": f"{element_name} Charge",
@@ -169,20 +175,21 @@ def _extract_pricing_rules(data: dict[str, Any], subentry: ConfigSubentry) -> li
     return [rule for rule in rules if rule.get("price") != _NONE_VALUE]
 
 
-def _strip_pricing_from_battery(data: dict[str, Any]) -> dict[str, Any]:
-    pricing = dict(data.get("pricing", {})) if isinstance(data.get("pricing"), dict) else {}
+def _strip_pricing_from_battery(data: dict[str, object]) -> dict[str, object]:
+    pricing_value = data.get("pricing")
+    pricing: dict[str, object] = dict(pricing_value) if isinstance(pricing_value, dict) else {}
     pricing.pop(CONF_PRICE_SOURCE_TARGET, None)
     pricing.pop(CONF_PRICE_TARGET_SOURCE, None)
     data["pricing"] = pricing
     return data
 
 
-def _strip_pricing_from_solar(data: dict[str, Any]) -> dict[str, Any]:
+def _strip_pricing_from_solar(data: dict[str, object]) -> dict[str, object]:
     data.pop("pricing", None)
     return data
 
 
-def _strip_pricing_from_load(data: dict[str, Any]) -> dict[str, Any]:
+def _strip_pricing_from_load(data: dict[str, object]) -> dict[str, object]:
     data.pop("pricing", None)
     return data
 
@@ -220,7 +227,7 @@ async def _migrate_entity_unique_ids(hass: HomeAssistant, entry: ConfigEntry) ->
         candidate_unique_ids[entity_entry.entity_id] = new_uid
         candidate_counts[new_uid] = candidate_counts.get(new_uid, 0) + 1
 
-    def _migrate_unique_id(entity_entry: er.RegistryEntry) -> dict[str, Any] | None:
+    def _migrate_unique_id(entity_entry: er.RegistryEntry) -> dict[str, str] | None:
         new_uid = candidate_unique_ids.get(entity_entry.entity_id)
         if new_uid is None:
             return None
@@ -271,8 +278,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         options=new_options,
     )
 
-    new_rules: list[dict[str, Any]] = []
-    subentries_to_update: list[tuple[ConfigSubentry, dict[str, Any]]] = []
+    new_rules: list[dict[str, object]] = []
+    subentries_to_update: list[tuple[ConfigSubentry, dict[str, object]]] = []
     existing_policy_subentry: ConfigSubentry | None = None
 
     for subentry in entry.subentries.values():
@@ -299,7 +306,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.config_entries.async_update_subentry(entry, subentry, data=stripped_data)
 
     if new_rules:
-        existing_rules: list[dict[str, Any]] = []
+        existing_rules: list[dict[str, object]] = []
         if existing_policy_subentry is not None:
             existing_rules = list(existing_policy_subentry.data.get(CONF_RULES, []))
             hass.config_entries.async_update_subentry(

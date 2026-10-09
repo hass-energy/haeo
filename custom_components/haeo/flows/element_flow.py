@@ -9,7 +9,6 @@ This module provides:
 """
 
 from collections.abc import Mapping
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry, UnknownSubEntry
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
@@ -24,7 +23,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.util import UnitSpec
 from custom_components.haeo.core.units import PRICE_UNIT_SPEC, currency_symbol
 from custom_components.haeo.elements import get_input_fields
-from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo, localize_input_fields
+from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldGroups, localize_input_fields
 
 
 def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[UnitSpec] | None:
@@ -73,7 +72,7 @@ def filter_compatible_entities(
 
 
 def build_inclusion_map(
-    input_fields: Mapping[str, InputFieldInfo[Any]],
+    input_fields: Mapping[str, AnyInputFieldInfo],
     entity_metadata: list[EntityMetadata],
 ) -> dict[str, list[str]]:
     """Build field name → compatible entity IDs mapping from input fields.
@@ -219,7 +218,7 @@ class ElementFlowMixin:
             Subentry ID if reconfiguring, None otherwise.
 
         """
-        context: dict[str, Any] = getattr(self, "context", {})
+        context: dict[str, object] = getattr(self, "context", {})
         subentry_id = context.get("subentry_id")
         return subentry_id if isinstance(subentry_id, str) else None
 

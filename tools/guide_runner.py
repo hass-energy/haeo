@@ -21,6 +21,7 @@ import re
 import shutil
 import sys
 
+from homeassistant.util.json import JsonValueType
 from playwright.sync_api import sync_playwright
 
 from tests.guides.primitives import (
@@ -56,10 +57,10 @@ INPUTS_FILE = SCENARIO_DIR / "inputs.json"
 ENVIRONMENT_FILE = SCENARIO_DIR / "environment.json"
 
 
-def load_scenario_environment() -> dict[str, object]:
+def load_scenario_environment() -> dict[str, JsonValueType]:
     """Load scenario environment used to bootstrap live Home Assistant."""
     with ENVIRONMENT_FILE.open(encoding="utf-8") as environment_file:
-        environment: dict[str, object] = json.load(environment_file)
+        environment: dict[str, JsonValueType] = json.load(environment_file)
     return environment
 
 

@@ -6,10 +6,10 @@ Updating the price triggers reactive cost invalidation so the next
 optimization picks up the new value without rebuilding the network.
 """
 
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Final, Literal, NotRequired, Protocol, TypedDict
 
 from highspy import Highs
-from highspy.highs import highs_linear_expression
+from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
@@ -17,12 +17,19 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.reactive import TrackedParam, cost
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
-from .connection import Connection
-
 type PolicyPricingElementTypeName = Literal["policy_pricing"]
 ELEMENT_TYPE: Final[PolicyPricingElementTypeName] = "policy_pricing"
 
 POLICY_PRICING_OUTPUT_NAMES: Final[frozenset[str]] = frozenset()
+
+
+class MeasuredFlows(Protocol):
+    """A connection's per-tag power at its measured point, which a policy price applies to."""
+
+    @property
+    def measured_power(self) -> dict[int, HighspyArray]:
+        """Per-tag power at the measured point."""
+        ...
 
 
 class PolicyPricingTerm(TypedDict):
@@ -38,7 +45,7 @@ class PolicyPricingElementConfig(TypedDict):
     element_type: PolicyPricingElementTypeName
     name: str
     label: NotRequired[str]
-    price: float | NDArray[np.floating[Any]]
+    price: float | NDArray[np.float64]
     terms: list[PolicyPricingTerm]
 
 
@@ -51,16 +58,16 @@ class PolicyPricing(Element[str]):
     their costs are summed by the network.
     """
 
-    price: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
+    price: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         solver: Highs,
-        price: float | NDArray[np.floating[Any]],
-        priced_flows: list[tuple[Connection[Any], int]],
+        price: float | NDArray[np.float64],
+        priced_flows: list[tuple[MeasuredFlows, int]],
         terms: list[PolicyPricingTerm] | None = None,
     ) -> None:
         """Initialize with a price and the connection tags it applies to.

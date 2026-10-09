@@ -1,7 +1,5 @@
 """Tests for TrackedParam descriptor and dict-style parameter access."""
 
-from typing import Any
-
 from highspy import Highs
 import numpy as np
 import pytest
@@ -53,7 +51,7 @@ def test_tracked_param_change_value_invalidates_dependents() -> None:
         capacity = TrackedParam[float]()
 
         @constraint
-        def soc_constraint(self) -> list[Any]:
+        def soc_constraint(self) -> list[object]:
             _ = self.capacity  # Access to establish dependency
             return []
 
@@ -82,7 +80,7 @@ def test_tracked_param_same_value_does_not_invalidate() -> None:
         capacity = TrackedParam[float]()
 
         @constraint
-        def soc_constraint(self) -> list[Any]:
+        def soc_constraint(self) -> list[object]:
             _ = self.capacity
             return []
 
