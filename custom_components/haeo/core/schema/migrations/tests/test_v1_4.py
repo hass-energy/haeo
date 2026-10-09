@@ -1,5 +1,7 @@
 """Tests for v1.4 connection unidirectional schema migration."""
 
+from collections.abc import Mapping
+
 import pytest
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
@@ -23,6 +25,13 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
+
+
+def _section(config: Mapping[str, object], key: str) -> Mapping[str, object]:
+    """Narrow a nested section value from migrated config for assertions."""
+    section = config[key]
+    assert isinstance(section, Mapping)
+    return section
 
 
 def _connection_config(**sections: object) -> dict[str, object]:
@@ -68,12 +77,12 @@ def test_migrate_unset_reverse_power_creates_unlimited_reverse(reverse_power: di
 
     forward, reverse = migrate_connection_config(data)
 
-    assert forward[SECTION_POWER_LIMITS] == {CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0)}
+    assert _section(forward, SECTION_POWER_LIMITS) == {CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0)}
     assert reverse is not None
     assert reverse[CONF_NAME] == "Inverter link (AC Bus to DC Bus)"
-    assert reverse[SECTION_POWER_LIMITS] == {}
-    assert reverse[SECTION_PRICING] == {}
-    assert reverse[SECTION_EFFICIENCY] == {}
+    assert _section(reverse, SECTION_POWER_LIMITS) == {}
+    assert _section(reverse, SECTION_PRICING) == {}
+    assert _section(reverse, SECTION_EFFICIENCY) == {}
 
 
 @pytest.mark.parametrize("zero", [0, 0.0], ids=["int", "float"])
@@ -91,9 +100,9 @@ def test_migrate_zero_reverse_power_blocks_reverse(zero: float) -> None:
     forward, reverse = migrate_connection_config(data)
 
     assert reverse is None
-    assert forward[SECTION_POWER_LIMITS] == {CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0)}
-    assert forward[SECTION_PRICING] == {}
-    assert forward[SECTION_EFFICIENCY] == {}
+    assert _section(forward, SECTION_POWER_LIMITS) == {CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0)}
+    assert _section(forward, SECTION_PRICING) == {}
+    assert _section(forward, SECTION_EFFICIENCY) == {}
 
 
 def test_migrate_entity_reverse_power_creates_reverse() -> None:
@@ -107,7 +116,7 @@ def test_migrate_entity_reverse_power_creates_reverse() -> None:
     _, reverse = migrate_connection_config(data)
 
     assert reverse is not None
-    assert reverse[SECTION_POWER_LIMITS] == {
+    assert _section(reverse, SECTION_POWER_LIMITS) == {
         CONF_MAX_POWER_SOURCE_TARGET: as_entity_value(["sensor.reverse_limit"]),
     }
 
@@ -133,11 +142,11 @@ def test_migrate_splits_reverse_fields() -> None:
 
     assert reverse is not None
     assert forward[CONF_NAME] == "Inverter link"
-    assert CONF_MAX_POWER_TARGET_SOURCE not in forward[SECTION_POWER_LIMITS]
+    assert CONF_MAX_POWER_TARGET_SOURCE not in _section(forward, SECTION_POWER_LIMITS)
     assert reverse[CONF_NAME] == "Inverter link (AC Bus to DC Bus)"
-    assert reverse[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(8.0)
-    assert reverse[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.2)
-    assert reverse[SECTION_EFFICIENCY][CONF_EFFICIENCY_SOURCE_TARGET] == as_constant_value(0.90)
+    assert _section(reverse, SECTION_POWER_LIMITS)[CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(8.0)
+    assert _section(reverse, SECTION_PRICING)[CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.2)
+    assert _section(reverse, SECTION_EFFICIENCY)[CONF_EFFICIENCY_SOURCE_TARGET] == as_constant_value(0.90)
     reverse_endpoints = reverse[connection.SECTION_ENDPOINTS]
     assert isinstance(reverse_endpoints, dict)
     assert get_connection_target_name(reverse_endpoints[connection.CONF_SOURCE]) == "AC Bus"
@@ -180,5 +189,5 @@ def test_merge_reverse_into_existing() -> None:
 
     merged = merge_reverse_into_existing(existing, reverse_data)
 
-    assert merged[SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(6.0)
-    assert merged[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.2)
+    assert _section(merged, SECTION_POWER_LIMITS)[CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(6.0)
+    assert _section(merged, SECTION_PRICING)[CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.2)

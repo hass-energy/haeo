@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from types import MappingProxyType
-from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -26,7 +25,7 @@ from custom_components.haeo.core.schema.sections import (
 from custom_components.haeo.migrations import v1_4
 
 
-def _create_subentry(data: dict[str, Any], *, subentry_type: str | None = None) -> ConfigSubentry:
+def _create_subentry(data: dict[str, object], *, subentry_type: str | None = None) -> ConfigSubentry:
     return ConfigSubentry(
         data=MappingProxyType(data),
         subentry_type=subentry_type or str(data.get(CONF_ELEMENT_TYPE, "unknown")),
@@ -85,8 +84,8 @@ def _legacy_connection(
     source: str,
     target: str,
     *,
-    power_limits: dict[str, Any] | None = None,
-    pricing: dict[str, Any] | None = None,
+    power_limits: dict[str, object] | None = None,
+    pricing: dict[str, object] | None = None,
 ) -> ConfigSubentry:
     return _create_subentry(
         {

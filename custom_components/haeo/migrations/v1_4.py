@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from types import MappingProxyType
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -102,7 +101,7 @@ async def _migrate_connection_entity_unique_ids(
         _LOGGER.info("Removing %s because its connection blocked reverse flow", entity_id)
         registry.async_remove(entity_id)
 
-    def _migrate_unique_id(entity_entry: er.RegistryEntry) -> dict[str, Any] | None:
+    def _migrate_unique_id(entity_entry: er.RegistryEntry) -> dict[str, object] | None:
         new_uid = candidate_unique_ids.get(entity_entry.entity_id)
         if new_uid is None:
             return None

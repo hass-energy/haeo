@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import (
@@ -32,19 +32,19 @@ _REVERSE_TO_FORWARD: tuple[tuple[str, str], ...] = (
 _REVERSE_SECTIONS: tuple[str, ...] = (SECTION_POWER_LIMITS, SECTION_PRICING, SECTION_EFFICIENCY)
 
 
-def _is_configured_value(value: Any) -> bool:
+def _is_configured_value(value: object) -> bool:
     """Return True when a schema value represents an active configuration."""
     return value is not None and not (isinstance(value, dict) and value.get("type") == "none")
 
 
-def _section_dict(data: dict[str, Any], section: str) -> dict[str, Any]:
+def _section_dict(data: Mapping[str, object], section: str) -> dict[str, object]:
     section_data = data.get(section, {})
     return dict(section_data) if isinstance(section_data, dict) else {}
 
 
-def _strip_reverse_from_section(section_data: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+def _strip_reverse_from_section(section_data: dict[str, object]) -> tuple[dict[str, object], dict[str, object]]:
     """Remove reverse-direction keys and return extracted reverse values."""
-    reverse_values: dict[str, Any] = {}
+    reverse_values: dict[str, object] = {}
     cleaned = dict(section_data)
     for reverse_key, forward_key in _REVERSE_TO_FORWARD:
         if reverse_key in cleaned:
@@ -54,14 +54,14 @@ def _strip_reverse_from_section(section_data: dict[str, Any]) -> tuple[dict[str,
     return cleaned, reverse_values
 
 
-def _swap_endpoints(endpoints: dict[str, Any]) -> dict[str, Any]:
+def _swap_endpoints(endpoints: dict[str, object]) -> dict[str, object]:
     return {
         connection.CONF_SOURCE: normalize_connection_target(endpoints[connection.CONF_TARGET]),
         connection.CONF_TARGET: normalize_connection_target(endpoints[connection.CONF_SOURCE]),
     }
 
 
-def _blocks_reverse_flow(power_limits: dict[str, Any]) -> bool:
+def _blocks_reverse_flow(power_limits: dict[str, object]) -> bool:
     """Return True when the legacy reverse max power was the constant 0 used to block reverse flow."""
     value = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
     return is_constant_value(value) and value["value"] == 0
@@ -81,10 +81,10 @@ def _unique_connection_name(base_name: str, existing_names: set[str]) -> str:
 
 
 def migrate_connection_config(
-    data: dict[str, Any],
+    data: dict[str, object],
     *,
     existing_names: set[str] | None = None,
-) -> tuple[dict[str, Any], dict[str, Any] | None]:
+) -> tuple[dict[str, object], dict[str, object] | None]:
     """Migrate a connection config to unidirectional fields.
 
     Legacy connections were bidirectional, and an unset reverse max power meant
@@ -122,7 +122,7 @@ def migrate_connection_config(
     if existing_names is not None:
         reverse_name = _unique_connection_name(reverse_name, existing_names)
 
-    reverse_data: dict[str, Any] = {
+    reverse_data: dict[str, object] = {
         CONF_ELEMENT_TYPE: connection.ELEMENT_TYPE,
         CONF_NAME: reverse_name,
         connection.SECTION_ENDPOINTS: _swap_endpoints(endpoints),
@@ -134,7 +134,7 @@ def migrate_connection_config(
 
 
 def endpoints_match_reverse(
-    endpoints: dict[str, Any],
+    endpoints: dict[str, object],
     *,
     source_name: str,
     target_name: str,
@@ -147,9 +147,9 @@ def endpoints_match_reverse(
 
 
 def merge_reverse_into_existing(
-    existing: dict[str, Any],
-    reverse_data: dict[str, Any],
-) -> dict[str, Any]:
+    existing: Mapping[str, object],
+    reverse_data: Mapping[str, object],
+) -> dict[str, object]:
     """Merge reverse migration values into an existing reverse connection where unset."""
     merged = dict(existing)
     for section in _REVERSE_SECTIONS:
