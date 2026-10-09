@@ -88,9 +88,9 @@ class TrackedParam[T]:
                 capacity = TrackedParam[float]()
 
                 @constraint
-                def my_constraint(self) -> highs_linear_expression | None:
+                def my_constraint(self) -> highs_linear_expression:
                     if not self.capacity.is_set(self):
-                        return None  # Skip constraint until capacity is set
+                        return self.energy  # A free row until capacity is set
                     return self.energy <= self.capacity
 
         """

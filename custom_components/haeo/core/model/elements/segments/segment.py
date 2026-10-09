@@ -30,6 +30,7 @@ from custom_components.haeo.core.model.reactive import (
     ReactiveConstraint,
     ReactiveCost,
     TrackedParam,
+    applied_constraint,
     cost,
 )
 
@@ -125,10 +126,8 @@ class Segment:
             if isinstance(attr, ReactiveConstraint):
                 method = getattr(self, name)
                 method()
-                state_attr = f"_reactive_state_{name}"
-                state = getattr(self, state_attr, None)
-                if state is not None and "constraint" in state:
-                    result[name] = state["constraint"]
+                if (cons := applied_constraint(self, name)) is not None:
+                    result[name] = cons
         return result
 
     def outputs(self) -> dict[str, OutputData]:

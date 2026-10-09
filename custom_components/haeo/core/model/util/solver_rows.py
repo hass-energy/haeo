@@ -12,13 +12,27 @@ from highspy.highs import highs_cons, highs_linear_expression
 SMALL_MATRIX_VALUE: Final = 1e-9
 
 
+FREE_ROW_BOUNDS: Final = (float("-inf"), float("inf"))
+
+
 def row_expression(expr: highs_linear_expression) -> highs_linear_expression:
-    """Return the expression with repeated variables summed and negligible terms removed."""
+    """Return the expression with repeated variables summed and negligible terms removed.
+
+    An expression without bounds becomes a free row: it is in the LP but does not
+    bind, so a constraint that does not currently apply keeps its rows.
+    """
     simplified = expr.simplify()
     keep = [i for i, val in enumerate(simplified.vals) if abs(val) >= SMALL_MATRIX_VALUE]
     simplified.idxs = [simplified.idxs[i] for i in keep]
     simplified.vals = [simplified.vals[i] for i in keep]
+    if simplified.bounds is None:
+        simplified.bounds = FREE_ROW_BOUNDS
     return simplified
+
+
+def is_free_row(expr: highs_linear_expression) -> bool:
+    """Return whether a row expression has no bounds and so does not bind."""
+    return expr.bounds is None or tuple(expr.bounds) == FREE_ROW_BOUNDS
 
 
 def add_row(solver: Highs, expr: highs_linear_expression) -> highs_cons:

@@ -79,8 +79,12 @@ Dependencies are recorded per object, so a constraint that reads another element
 Use `@derived` for a cached value computed from parameters that constraints and costs build on, such as a segment's transformed flow.
 Anything that reads a `@derived` method depends on it and is rebuilt when it changes.
 
-A constraint that returns `None` after it has been added keeps its rows with free bounds,
-so the LP keeps its shape and later optimizations still warm start.
+A constraint returns the same rows on every call so the LP keeps its shape and later optimizations still warm start.
+When part of a constraint does not currently apply, such as a power limit with no maximum set,
+return those rows as expressions without a comparison.
+They are added as free rows that do not bind, and become binding later by changing only their bounds.
+A constraint whose rows are all free has no shadow price and is not listed by `constraints()`.
+A constraint with no rows at all returns an empty list; returning `None` is an error.
 
 ### @constraint decorator
 

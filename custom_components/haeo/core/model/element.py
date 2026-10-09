@@ -11,7 +11,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .output_data import OutputData
-from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, constraint, cost
+from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, applied_constraint, constraint, cost
 
 ELEMENT_POWER_BALANCE: Final = "element_power_balance"
 
@@ -169,12 +169,7 @@ class Element[OutputNameT: str]:
                 # Call the constraint method to trigger decorator lifecycle
                 method = getattr(self, name)
                 method()
-
-                # Get the state after calling to collect constraints
-                state_attr = f"_reactive_state_{name}"
-                state = getattr(self, state_attr, None)
-                if state is not None and "constraint" in state:
-                    cons = state["constraint"]
+                if (cons := applied_constraint(self, name)) is not None:
                     result[name] = cons
         return result
 
@@ -360,7 +355,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         return self._produced_by_tag
 
     @constraint(output=True, unit="$/kWh")
-    def element_power_balance(self) -> list[highs_linear_expression] | None:
+    def element_power_balance(self) -> list[highs_linear_expression]:
         """Per-tag energy balance: for each tag, (connection + produced - consumed) * dt == 0.
 
         Formulated in energy units (kWh) so that shadow prices are $/kWh,
@@ -372,7 +367,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         Tags outside both sets are blocked (each connection's per-tag flow == 0).
 
         Output: shadow price indicating the marginal value of energy at this element.
-        Skipped when there are no connections and no external power.
+        Has no rows when there are no connections and no external power.
         """
         dt = self.periods  # hours per period
         tags = self.connection_tags()
@@ -380,7 +375,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
             produced = self.element_power_produced()
             consumed = self.element_power_consumed()
             if not self._connections and produced is None and consumed is None:
-                return None
+                return []
             balance = self.connection_power()
             if produced is not None:
                 balance = balance + produced
@@ -431,4 +426,4 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
                     else:
                         constraints.extend(list(conn.power_into_target_for_tag(tag) * dt == 0))
 
-        return constraints if constraints else None
+        return constraints

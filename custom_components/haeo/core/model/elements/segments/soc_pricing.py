@@ -117,18 +117,27 @@ class SocPricingSegment(Segment):
         )
 
     @constraint
-    def soc_slack_bounds(self) -> list[highs_linear_expression] | None:
-        """Bound slack variables to SOC threshold violations when penalties apply."""
-        bounds: list[highs_linear_expression] = []
+    def soc_slack_bounds(self) -> list[highs_linear_expression]:
+        """Bound slack variables to SOC threshold violations when penalties apply.
+
+        Both sides always have rows. A side without a priced threshold has free
+        rows, so it can be priced later without changing the LP's shape.
+        """
         stored = np.asarray(self._battery.stored_energy, dtype=object)[1:]
+        below = self._discharge_energy_slack + stored
+        above = self._charge_capacity_slack - stored
 
         if self.discharge_energy_threshold is not None and self.discharge_energy_price is not None:
-            bounds.extend(list(self._discharge_energy_slack >= self.discharge_energy_threshold - stored))
+            below_rows = list(below >= self.discharge_energy_threshold)
+        else:
+            below_rows = list(below)
 
         if self.charge_capacity_threshold is not None and self.charge_capacity_price is not None:
-            bounds.extend(list(self._charge_capacity_slack >= stored - self.charge_capacity_threshold))
+            above_rows = list(above >= -self.charge_capacity_threshold)
+        else:
+            above_rows = list(above)
 
-        return bounds or None
+        return [*below_rows, *above_rows]
 
     @cost
     def soc_pricing_cost(self) -> highs_linear_expression | None:
