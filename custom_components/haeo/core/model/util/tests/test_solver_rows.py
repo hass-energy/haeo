@@ -4,7 +4,7 @@ from collections.abc import Callable
 from unittest.mock import MagicMock, call
 
 from highspy import Highs
-from highspy.highs import highs_linear_expression, highs_var
+from highspy.highs import highs_cons, highs_linear_expression, highs_var
 import pytest
 
 from custom_components.haeo.core.model.util.solver_rows import add_row, add_rows, row_expression, update_row
@@ -40,6 +40,28 @@ def test_add_row_accepts_negligible_coefficients(solver: Highs) -> None:
 
     assert solver.numConstrs == 1
     assert _coefficients(solver, cons) == {x[0].index: 1.0}
+
+
+def test_add_row_removes_the_row_when_highspy_raises_after_adding_it(
+    solver: Highs, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A row highspy adds before raising is removed, so retrying adds exactly one row."""
+    x = solver.addVariables(1)
+    add_constr = solver.addConstr
+
+    def add_then_raise(expr: highs_linear_expression) -> highs_cons:
+        add_constr(expr)
+        msg = "Error adding constraint to the model."
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(solver, "addConstr", add_then_raise)
+    with pytest.raises(RuntimeError, match="Error adding constraint"):
+        add_row(solver, x[0] <= 1)
+    assert solver.numConstrs == 0
+
+    monkeypatch.undo()
+    add_row(solver, x[0] <= 1)
+    assert solver.numConstrs == 1
 
 
 def test_add_rows_accepts_negligible_coefficients(solver: Highs) -> None:

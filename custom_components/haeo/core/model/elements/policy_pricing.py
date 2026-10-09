@@ -9,13 +9,15 @@ optimization picks up the new value without rebuilding the network.
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
+from highspy.highs import highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.reactive import TrackedParam, cost
 from custom_components.haeo.core.model.util import broadcast_to_sequence
+
+from .connection import Connection
 
 type PolicyPricingElementTypeName = Literal["policy_pricing"]
 ELEMENT_TYPE: Final[PolicyPricingElementTypeName] = "policy_pricing"
@@ -58,10 +60,14 @@ class PolicyPricing(Element[str]):
         *,
         solver: Highs,
         price: float | NDArray[np.floating[Any]],
-        power_terms: list[HighspyArray],
+        priced_flows: list[tuple[Connection[Any], int]],
         terms: list[PolicyPricingTerm] | None = None,
     ) -> None:
-        """Initialize with price and LP power flow variables."""
+        """Initialize with a price and the connection tags it applies to.
+
+        Each tag's power is read at the connection's measured point when the cost
+        is built, so a flow shaped by the connection's efficiency follows changes to it.
+        """
         super().__init__(
             name=name,
             periods=periods,
@@ -69,7 +75,7 @@ class PolicyPricing(Element[str]):
             output_names=POLICY_PRICING_OUTPUT_NAMES,
         )
         self.price = broadcast_to_sequence(price, self.n_periods)
-        self._power_terms = power_terms
+        self._priced_flows = priced_flows
         self.terms = terms or []
         self.label: str = ""
 
@@ -77,5 +83,7 @@ class PolicyPricing(Element[str]):
     def pricing_cost(self) -> highs_linear_expression | None:
         """Compute the pricing cost for this policy rule placement."""
         price = self.price
-        costs = [Highs.qsum(pt * price * self.periods) for pt in self._power_terms]
+        costs = [
+            Highs.qsum(connection.measured_power[tag] * price * self.periods) for connection, tag in self._priced_flows
+        ]
         return costs[0] if len(costs) == 1 else Highs.qsum(costs)

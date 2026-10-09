@@ -7,8 +7,14 @@ import numpy as np
 
 from .protocols import ReactiveHost
 
+type Dependency = tuple[ReactiveHost, str]
+"""A value a reactive method read: its host and the parameter name or ``method:<name>`` key."""
+
 # Context for tracking parameter access during constraint computation
-tracking_context: ContextVar[set[str] | None] = ContextVar("tracking", default=None)
+tracking_context: ContextVar[set[Dependency] | None] = ContextVar("tracking", default=None)
+
+# Attribute on each host holding the reverse index from its keys to dependent methods
+_DEPENDENTS_ATTR = "_reactive_dependents"
 
 
 class TrackedParam[T]:
@@ -48,27 +54,19 @@ class TrackedParam[T]:
         """Get the parameter value and record access if tracking is active."""
         if obj is None:
             return self
-        # Record access if tracking is active
-        tracking = tracking_context.get()
-        if tracking is not None:
-            tracking.add(self._name)
+        record_access(obj, self._name)
         # Raise AttributeError if never set (standard Python behavior)
         return getattr(obj, self._private)  # type: ignore[return-value]
 
     def __set__(self, obj: ReactiveHost, value: T) -> None:
-        """Set the parameter value and invalidate dependent decorators."""
-        # Check if this is the first time setting (no invalidation needed)
-        if not hasattr(obj, self._private):
-            setattr(obj, self._private, value)
-            return
+        """Set the parameter value and invalidate everything that read it, if it changed.
 
-        # Get old value and compare
-        old = getattr(obj, self._private)
+        A first assignment always counts as a change, so a method that checked
+        ``is_set`` before the parameter existed is rebuilt.
+        """
+        changed = not hasattr(obj, self._private) or not _values_equal(getattr(obj, self._private), value)
         setattr(obj, self._private, value)
-
-        # Only invalidate if value actually changed
-        if not _values_equal(old, value):
-            # Invalidate all reactive decorators that depend on this parameter
+        if changed:
             _invalidate_param_dependents(obj, self._name)
 
     def is_set(self, obj: ReactiveHost) -> bool:
@@ -85,12 +83,13 @@ class TrackedParam[T]:
                 capacity = TrackedParam[float]()
 
                 @constraint
-                def my_constraint(self) -> highs_linear_expression | None:
+                def my_constraint(self) -> highs_linear_expression:
                     if not self.capacity.is_set(self):
-                        return None  # Skip constraint until capacity is set
+                        return self.energy  # A free row until capacity is set
                     return self.energy <= self.capacity
 
         """
+        record_access(obj, self._name)
         return hasattr(obj, self._private)
 
 
@@ -118,71 +117,67 @@ def _values_equal(a: object, b: object) -> bool:
         return False
 
 
+def record_access(obj: ReactiveHost, key: str) -> None:
+    """Record that the computation being tracked read ``key`` on ``obj``.
+
+    The key is a parameter name, or ``method:<name>`` for a reactive method.
+    Recording the host alongside the key lets a method depend on parameters and
+    methods of other objects, such as a node balance reading a connection's flow.
+    """
+    tracking = tracking_context.get()
+    if tracking is not None:
+        tracking.add((obj, key))
+
+
+def register_dependencies(
+    obj: ReactiveHost,
+    method_name: str,
+    deps: set[Dependency],
+    previous_deps: set[Dependency],
+) -> None:
+    """Register ``method_name`` on ``obj`` as a dependent of exactly what it read.
+
+    Each host keeps a reverse index from its keys to the methods that read them,
+    so changing a value finds its dependents without scanning every object.
+    Keys the method read last time but not this time are removed from the index.
+    """
+    for host, key in previous_deps - deps:
+        _dependents_of(host)[key].discard((obj, method_name))
+    for host, key in deps - previous_deps:
+        _dependents_of(host).setdefault(key, set()).add((obj, method_name))
+
+
+def _dependents_of(host: ReactiveHost) -> dict[str, set[tuple[ReactiveHost, str]]]:
+    """Return the host's reverse index from its keys to the methods that read them."""
+    dependents: dict[str, set[tuple[ReactiveHost, str]]] | None = getattr(host, _DEPENDENTS_ATTR, None)
+    if dependents is None:
+        dependents = {}
+        setattr(host, _DEPENDENTS_ATTR, dependents)
+    return dependents
+
+
 def _invalidate_param_dependents(obj: ReactiveHost, param_name: str) -> None:
-    """Invalidate all reactive decorators on an object that depend on a parameter.
+    """Invalidate every reactive method, on any object, that depends on a parameter.
+
+    Invalidation propagates through methods that read invalidated methods, so a
+    constraint built from another object's derived expression is rebuilt too.
 
     Args:
         obj: The reactive host instance (Element or Segment)
         param_name: The parameter name that changed
 
     """
-    # Import here to avoid circular dependency at module load
-    from .decorators import ReactiveMethod  # noqa: PLC0415
-
-    # Track which methods were invalidated
-    invalidated_methods: set[str] = set()
-
-    # Iterate through all attributes on the object's class
-    for attr_name in dir(type(obj)):
-        # Get the descriptor from the class
-        descriptor = getattr(type(obj), attr_name, None)
-        if isinstance(descriptor, ReactiveMethod):
-            # Get the state for this decorator on this object instance
-            state = get_decorator_state(obj, attr_name)
-            if state is not None and param_name in state.get("deps", set()):
-                state["invalidated"] = True
-                invalidated_methods.add(attr_name)
-
-    # Propagate invalidation to methods that depend on invalidated methods
-    if invalidated_methods:
-        _propagate_method_invalidation(obj, invalidated_methods)
-
-
-def _propagate_method_invalidation(obj: ReactiveHost, invalidated_methods: set[str]) -> None:
-    """Propagate invalidation to methods that depend on invalidated methods.
-
-    Args:
-        obj: The reactive host instance (Element or Segment)
-        invalidated_methods: Set of method names that were invalidated
-
-    """
-    # Import here to avoid circular dependency at module load
-    from .decorators import ReactiveMethod  # noqa: PLC0415
-
-    # Keep propagating until no new invalidations occur
-    newly_invalidated = invalidated_methods.copy()
-    while newly_invalidated:
-        next_round: set[str] = set()
-
-        for attr_name in dir(type(obj)):
-            descriptor = getattr(type(obj), attr_name, None)
-            if isinstance(descriptor, ReactiveMethod):
-                state = get_decorator_state(obj, attr_name)
-                # Skip if already invalidated
-                if state is None or state.get("invalidated", True):
-                    continue
-
-                # Check if this method depends on any newly invalidated methods
-                deps = state.get("deps", set())
-                for dep in deps:
-                    if dep.startswith("method:"):
-                        method_name = dep[7:]  # Remove "method:" prefix
-                        if method_name in newly_invalidated:
-                            state["invalidated"] = True
-                            next_round.add(attr_name)
-                            break
-
-        newly_invalidated = next_round
+    pending: list[Dependency] = [(obj, param_name)]
+    while pending:
+        dependency = pending.pop()
+        host, key = dependency
+        for dependent, method_name in _dependents_of(host).get(key, ()):
+            # Every indexed method has state: it is registered after it computes
+            state = ensure_decorator_state(dependent, method_name)
+            if state["invalidated"]:
+                continue
+            state["invalidated"] = True
+            pending.append((dependent, f"method:{method_name}"))
 
 
 def get_decorator_state(obj: ReactiveHost, method_name: str) -> dict[str, Any] | None:
@@ -219,8 +214,11 @@ def ensure_decorator_state(obj: ReactiveHost, method_name: str) -> dict[str, Any
 
 # Re-export tracking context for use by decorators
 __all__ = [
+    "Dependency",
     "TrackedParam",
     "ensure_decorator_state",
     "get_decorator_state",
+    "record_access",
+    "register_dependencies",
     "tracking_context",
 ]

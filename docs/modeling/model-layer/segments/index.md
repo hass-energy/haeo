@@ -8,7 +8,11 @@ Each connection composes an ordered segment chain to apply limits, efficiency lo
 Segments are **functional transforms** on power flow expressions.
 The Connection creates LP variables for `power_in` and passes them through its segment chain.
 
-Each segment receives a `power_in` expression at construction time and exposes a `power_out` expression.
+Each segment holds a reference to its upstream, the segment before it, reads `power_in` from the upstream's `power_out`, and exposes its own `power_out` expression.
+The first segment's upstream is the connection's flow variables.
+Flows are read through the chain each time rather than captured when the chain is built,
+so a parameter that transforms the flow, such as an efficiency, can change between optimizations.
+Every constraint and cost that reads the flow downstream, including the target element's power balance, is rebuilt with the new coefficients.
 Most segments are **identity transforms** — they return the input unchanged and add constraints or costs as side effects:
 
 - **Identity segments**: `power_out = power_in`, add constraint/cost.
