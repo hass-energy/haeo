@@ -670,6 +670,35 @@ def test_update_constraint_sums_duplicate_coefficients() -> None:
     assert coeffs[v1.index] == pytest.approx(9.0)
 
 
+def test_lex_mode_solves_with_negligible_objective_coefficients() -> None:
+    """A primary objective term below HiGHS's small matrix value does not break the lex row.
+
+    Regression for #501: highspy raised after adding a lex row containing such a
+    term, leaving an untracked row that made every later solve infeasible.
+    """
+    network = Network(name="test", periods=np.array([1.0, 1.0]), options=LexOptions())
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "sink",
+            "tags": {1},
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 3e-10])},
+            },
+        }
+    )
+
+    first = network.optimize()
+    second = network.optimize()
+
+    assert np.isfinite(first)
+    assert second == pytest.approx(first)
+
+
 def test_optimize_requires_objectives() -> None:
     """Network without cost objectives raises ValueError."""
     network = Network(name="test", periods=np.array([1.0]))
