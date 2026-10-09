@@ -6,8 +6,8 @@ import pytest
 
 from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
 from custom_components.haeo.core.adapters.elements.connection import adapter as connection_adapter
-from custom_components.haeo.core.model.elements import connection as model_connection
-from custom_components.haeo.core.model.output_data import OutputData
+from custom_components.haeo.core.adapters.elements.grid import GRID_DEVICE_GRID, GRID_POWER_EXPORT
+from custom_components.haeo.core.adapters.elements.grid import adapter as grid_adapter
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType, connection
 from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
@@ -161,19 +161,19 @@ def test_connection_limit_binds_where_power_is_reported() -> None:
         efficiency={"efficiency_source_target": np.array([efficiency])},
         pricing={"price_source_target": np.array([0.01])},
     )
+    market = grid_at("market", "b", import_price=10.0, export_price=1.0)
     model_outputs = optimize_participants(
         {
             "a": bus_node("a"),
             "b": bus_node("b"),
             "link": link,
             "supply": grid_at("supply", "a", import_price=0.1, export_price=0.0),
-            "market": grid_at("market", "b", import_price=10.0, export_price=1.0),
+            "market": market,
         }
     )
 
     outputs = connection_adapter.outputs("link", model_outputs)[CONNECTION_DEVICE_CONNECTION]
 
     assert outputs[CONNECTION_POWER].values[0] == pytest.approx(cap)
-    delivered = model_outputs["link"][model_connection.CONNECTION_POWER_OUT]
-    assert isinstance(delivered, OutputData)
-    assert delivered.values[0] == pytest.approx(cap * efficiency)
+    market_outputs = grid_adapter.outputs("market", model_outputs, config=market, periods=np.array([1.0]))
+    assert market_outputs[GRID_DEVICE_GRID][GRID_POWER_EXPORT].values[0] == pytest.approx(cap * efficiency)

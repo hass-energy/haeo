@@ -11,9 +11,9 @@ Each [element page](elements/index.md) states the point its inputs and sensors r
 
 ## The convention
 
-**An element's power limit and the power HAEO reports for it refer to the same point.**
-When an element runs at its limit, its power sensor reads exactly the limit you configured.
-Prices on that element's flow are charged at the same point wherever possible.
+**An element's power limit, its prices, and the power HAEO reports for it all refer to the same point.**
+HAEO only limits and prices power at a point where it can be measured.
+When an element runs at its limit, its power sensor reads exactly the limit you configured, and a price of 0.10 \$/kWh costs 0.10 \$ for each kWh that sensor reports.
 
 That point is on the outside of the device, where it is usually rated and metered.
 For example, a battery's limits and power refer to its terminals, and an inverter's refer to its AC side.
@@ -59,17 +59,13 @@ Discharging at 5 kW with 95% efficiency for one hour draws 5.26 kWh from storage
 
 If HAEO's forecast state of charge drifts away from your battery's own state of charge while the reported power matches, your efficiency settings are the likely cause.
 
-## Known limitations
-
-A few prices do not yet sit at the same point as the power they apply to.
-Policy prices on a battery's discharge or an inverter's DC to AC path are charged on the device side of the efficiency loss.
-With 95% discharge efficiency, a 0.10 \$/kWh discharge cost works out to about 0.105 \$/kWh of power at the battery terminals.
-
 ## Changes from earlier versions
 
 Earlier versions of HAEO placed some limits and sensors on the device side of the efficiency loss, so a sensor could read more than its configured limit.
 If you set a battery charge limit, an inverter AC to DC limit, or a connection limit from a figure inside the device, re-check it against the convention above.
-Connection prices also moved: they now apply to the power entering the connection, before its losses, rather than to the power delivered after them.
+Prices moved to the same point.
+Connection prices now apply to the power entering the connection, before its losses.
+Policy prices on a battery's discharge or an inverter's DC to AC path, such as a battery discharge cost, now apply to the power at the battery terminals or the AC side, rather than to the power drawn from inside the device.
 
 ## Next steps
 

@@ -251,10 +251,10 @@ class Network:
             if not isinstance(conn_element, Connection):
                 msg = f"PolicyPricing '{name}' references unknown connection '{conn_name}'"
                 raise TypeError(msg)
-            if tag not in conn_element.power_in:
+            if tag not in conn_element.measured_power:
                 msg = f"PolicyPricing '{name}' references tag {tag} not on connection '{conn_name}'"
                 raise ValueError(msg)
-            power_terms.append(conn_element.power_in[tag])
+            power_terms.append(conn_element.measured_power[tag])
 
         element = PolicyPricing(
             name=name,

@@ -22,7 +22,7 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import output
 
-from .segments import Segment, SegmentSpec, create_segment
+from .segments import PowerLimitSegment, Segment, SegmentSpec, create_segment
 
 type ConnectionElementTypeName = Literal["connection"]
 # Model element type for connection strings
@@ -30,17 +30,13 @@ ELEMENT_TYPE: Final[ConnectionElementTypeName] = "connection"
 
 type ConnectionOutputName = Literal[
     "connection_power",
-    "connection_power_out",
     "segments",
 ]
 
 CONNECTION_POWER: Final = "connection_power"
-CONNECTION_POWER_OUT: Final = "connection_power_out"
 CONNECTION_SEGMENTS: Final = "segments"
 
-CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset(
-    (CONNECTION_POWER, CONNECTION_POWER_OUT, CONNECTION_SEGMENTS)
-)
+CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset((CONNECTION_POWER, CONNECTION_SEGMENTS))
 
 
 class ConnectionElementConfig(TypedDict):
@@ -62,6 +58,8 @@ class Connection[TOutputName: str](Element[TOutputName]):
     Creates per-tag LP variables for the flow and chains them through segments.
     power_in is the per-tag flow entering the connection at the source end.
     power_out is the per-tag flow exiting at the target end (after segment transforms).
+    measured_power is the per-tag flow at the connection's measured point, where its
+    power limit applies; prices and reported power refer to the same flow.
     """
 
     def __init__(
@@ -183,6 +181,26 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """Total power exiting the connection (sum of all tags)."""
         return reduce(operator.add, self._power_out.values())
 
+    @property
+    def measured_power(self) -> dict[int, HighspyArray]:
+        """Per-tag power at the connection's measured point.
+
+        The measured point is the flow entering the power limit segment, so the
+        limit, policy prices and reported power all refer to the same flow, and
+        efficiency losses fall on the other side of it. A connection without a
+        power limit has no losses to place it against and is measured where
+        power enters it.
+        """
+        for segment in self._segments.values():
+            if isinstance(segment, PowerLimitSegment):
+                return segment.power_in
+        return self._power_in
+
+    @property
+    def total_measured_power(self) -> HighspyArray:
+        """Total power at the measured point (sum of all tags)."""
+        return reduce(operator.add, self.measured_power.values())
+
     def connection_tags(self) -> set[int]:
         """Return the set of tags on this connection."""
         return self._tags
@@ -261,22 +279,11 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     @output(name=CONNECTION_POWER)
     def _connection_power_output(self) -> OutputData:
-        """Power entering the connection at the source end, before any segment transforms."""
+        """Power at the connection's measured point, where its power limit applies."""
         return OutputData(
             type=OutputType.POWER_FLOW,
             unit="kW",
-            values=self.extract_values(self.total_power_in),
-            direction="+",
-            priority=self.priority,
-        )
-
-    @output(name=CONNECTION_POWER_OUT)
-    def _connection_power_out_output(self) -> OutputData:
-        """Power leaving the connection at the target end, after all segment transforms."""
-        return OutputData(
-            type=OutputType.POWER_FLOW,
-            unit="kW",
-            values=self.extract_values(self.total_power_out),
+            values=self.extract_values(self.total_measured_power),
             direction="+",
             priority=self.priority,
         )
@@ -303,7 +310,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
 __all__ = [
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER",
-    "CONNECTION_POWER_OUT",
     "CONNECTION_SEGMENTS",
     "ELEMENT_TYPE",
     "Connection",

@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, Final, Literal
 
-from custom_components.haeo.core.adapters.output_utils import connection_power, connection_power_out, expect_output_data
+from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -121,8 +121,9 @@ class InverterAdapter:
         reverse_conn = model_outputs.get(f"{name}:ac_to_dc")
         dc_bus = model_outputs[name]
         period_count = len(expect_output_data(dc_bus[ELEMENT_POWER_BALANCE]).values)
-        # Both power sensors report the AC end of their connection
-        power_forward = connection_power_out(forward_conn, period_count)
+        # Each connection reports power at its measured point, where its power limit
+        # applies: the AC side.
+        power_forward = connection_power(forward_conn, period_count)
         power_reverse = connection_power(reverse_conn, period_count)
 
         inverter_outputs: dict[InverterOutputName, OutputData] = {}
