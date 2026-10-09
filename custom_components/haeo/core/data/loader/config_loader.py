@@ -15,6 +15,7 @@ from custom_components.haeo.core.adapters.registry import is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
+from custom_components.haeo.core.data.util.input_values import enforce_non_negative
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import SchemaValue
 from custom_components.haeo.core.schema.constant_value import is_constant_value
@@ -270,6 +271,11 @@ def is_percent_field(hint: FieldHint) -> bool:
     return hint.output_type in _PERCENT_OUTPUT_TYPES
 
 
+def _is_non_negative_field(hint: FieldHint) -> bool:
+    """Return True when a field's declared minimum rules out negative values."""
+    return hint.min_value is not None and hint.min_value >= 0.0
+
+
 def resolve_constant(
     value: float | bool,  # noqa: FBT001 (bool is a valid constant field value)
     hint: FieldHint,
@@ -319,20 +325,20 @@ def _resolve_entities(
     present_value, forecast_series = combine_sensor_payloads(payloads)
 
     if not hint.time_series:
-        scalar = present_value if present_value is not None else 0.0
-        if is_percent:
-            scalar /= 100.0
-        return scalar
-
-    if hint.boundaries:
-        values = fuse_to_boundaries(present_value, forecast_series, list(forecast_times))
+        raw = [present_value if present_value is not None else 0.0]
+    elif hint.boundaries:
+        raw = fuse_to_boundaries(present_value, forecast_series, list(forecast_times))
     else:
-        values = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
+        raw = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
+
+    values = np.array(raw, dtype=np.float64)
+    if _is_non_negative_field(hint):
+        values = enforce_non_negative(values)
 
     if is_percent:
-        values = [v / 100.0 for v in values]
+        values = values / 100.0
 
-    return np.array(values)
+    return values if hint.time_series else float(values[0])
 
 
 def _resolve_list_items(
