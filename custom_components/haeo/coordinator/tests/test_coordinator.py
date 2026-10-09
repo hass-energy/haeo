@@ -60,6 +60,7 @@ from custom_components.haeo.core.const import (
     DEFAULT_TIER_3_DURATION,
     DEFAULT_TIER_4_DURATION,
 )
+from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model import Network, OutputData, OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
@@ -1081,6 +1082,7 @@ def test_are_inputs_aligned_returns_false_with_none_horizon_start(
     # Add mock forecast store with None horizon_start
     mock_store = MagicMock()
     mock_store.time_series = True
+    mock_store.error = None
     mock_store.horizon_start = None
     mock_runtime_data.input_stores[("Test Battery", (SECTION_STORAGE, CONF_CAPACITY))] = mock_store
 
@@ -1104,6 +1106,7 @@ def test_are_inputs_aligned_returns_false_with_misaligned_horizon(
     # Add mock forecast store with misaligned horizon (more than 1.0 seconds off)
     mock_store = MagicMock()
     mock_store.time_series = True
+    mock_store.error = None
     mock_store.horizon_start = expected_start + 5.0  # 5 seconds off > 1.0 tolerance
     mock_runtime_data.input_stores[("Test Battery", (SECTION_STORAGE, CONF_CAPACITY))] = mock_store
 
@@ -1112,6 +1115,26 @@ def test_are_inputs_aligned_returns_false_with_misaligned_horizon(
     result = coordinator._are_inputs_aligned()
 
     assert result is False
+
+
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
+def test_are_inputs_aligned_ignores_store_that_rejected_its_value(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """A store holding a rejected value does not block the update that reports it."""
+    _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = (1000.0, 2000.0)
+
+    mock_store = MagicMock()
+    mock_store.time_series = True
+    mock_store.error = InputError(translation_key="negative_input_value", translation_placeholders={"value": "-4.5"})
+    mock_store.horizon_start = 500.0
+    mock_runtime_data.input_stores[("Test Battery", (SECTION_STORAGE, CONF_CAPACITY))] = mock_store
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    assert coordinator._are_inputs_aligned() is True
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
@@ -1127,6 +1150,7 @@ def test_are_inputs_aligned_returns_true_when_aligned(
     # Add mock forecast store with aligned horizon (within tolerance)
     mock_store = MagicMock()
     mock_store.time_series = True
+    mock_store.error = None
     mock_store.horizon_start = expected_start + 0.5  # Within 1.0 tolerance
     mock_runtime_data.input_stores[("Test Battery", (SECTION_STORAGE, CONF_CAPACITY))] = mock_store
 
@@ -1838,6 +1862,7 @@ async def test_async_update_data_raises_when_inputs_unavailable(
     """
     unavailable_store = MagicMock()
     unavailable_store.available = False
+    unavailable_store.error = None
     unavailable_store.captured_source_states = {}
     mock_runtime_data.input_stores[("Unavailable Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = (
         unavailable_store
@@ -1848,3 +1873,33 @@ async def test_async_update_data_raises_when_inputs_unavailable(
 
     with pytest.raises(UpdateFailed, match="unavailable"):
         await coordinator._async_update_data()
+
+
+async def test_async_update_data_raises_translated_input_error(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """A store that rejected its value fails the update with the error's translation and the input's context."""
+    rejected_store = MagicMock()
+    rejected_store.available = False
+    rejected_store.error = InputError(
+        translation_key="negative_input_value", translation_placeholders={"value": "-4.5"}
+    )
+    rejected_store.source_entity_ids = ["sensor.import_limit"]
+    rejected_store.captured_source_states = {}
+    mock_runtime_data.input_stores[("Main Grid", (SECTION_POWER_LIMITS, CONF_MAX_POWER_SOURCE_TARGET))] = rejected_store
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+
+    with pytest.raises(UpdateFailed) as exc_info:
+        await coordinator._async_update_data()
+
+    assert exc_info.value.translation_key == "negative_input_value"
+    assert exc_info.value.translation_placeholders == {
+        "element": "Main Grid",
+        "field": f"{SECTION_POWER_LIMITS}.{CONF_MAX_POWER_SOURCE_TARGET}",
+        "entities": "sensor.import_limit",
+        "value": "-4.5",
+    }

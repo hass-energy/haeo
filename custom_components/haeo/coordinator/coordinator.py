@@ -47,6 +47,7 @@ from custom_components.haeo.elements import (
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.input_stores import input_error_placeholders
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 
 from . import network as network_module
@@ -582,7 +583,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Check forecast input stores have values and matching horizon
         for store in runtime_data.input_stores.values():
-            if not store.time_series:
+            # A store that rejected its source's value keeps its previous horizon;
+            # the update reports the rejection instead of waiting on alignment.
+            if not store.time_series or store.error is not None:
                 continue
             store_horizon = store.horizon_start
             if store_horizon is None:
@@ -730,10 +733,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # When any input is unavailable the optimization is skipped, matching
             # the behaviour during initial setup where the integration stays in
             # the "not ready" state until every store can supply data.
-            for (name, _field_path), store in runtime_data.input_stores.items():
-                if not store.available:
-                    msg = f"Element '{name}' has unavailable inputs"
-                    raise UpdateFailed(msg)
+            for key, store in runtime_data.input_stores.items():
+                if store.available:
+                    continue
+                if (error := store.error) is not None:
+                    raise UpdateFailed(
+                        translation_domain=DOMAIN,
+                        translation_key=error.translation_key,
+                        translation_placeholders=input_error_placeholders(key, error, store),
+                    )
+                msg = f"Element '{key[0]}' has unavailable inputs"
+                raise UpdateFailed(msg)
 
             # Load element configurations from input stores
             # All input stores are guaranteed to be fully loaded by the time we get here
