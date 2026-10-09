@@ -127,12 +127,8 @@ from custom_components.haeo.core.schema.elements.node import NodeConfigData
 from custom_components.haeo.core.schema.elements.policy import PolicyConfigData
 from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData
-from custom_components.haeo.core.schema.field_hints import (
-    SurfacedPriceHint,
-    extract_field_hints,
-    extract_list_field_hints,
-)
-from custom_components.haeo.core.schema.surfaced_policy import SURFACED_PRICE_HINTS_BY_TYPE
+from custom_components.haeo.core.schema.field_hints import extract_field_hints, extract_list_field_hints
+from custom_components.haeo.core.schema.surfaced_policy import get_surfaced_price_hints
 from custom_components.haeo.elements.field_hints import build_input_fields, build_list_input_fields
 
 from .field_schema import FieldSchemaInfo
@@ -516,18 +512,13 @@ def get_surfaced_input_fields(element_type: str | ElementType) -> dict[str, Inpu
     policy rules. The InputFieldInfo objects drive selector construction
     and form defaults through the standard field system.
     """
-    hints = SURFACED_PRICE_HINTS_BY_TYPE.get(str(element_type), {})
+    hints = get_surfaced_price_hints(str(element_type))
     if not hints:
         return {}
     section_fields = build_input_fields(
         str(element_type), {"_surfaced": {name: hint.hint for name, hint in hints.items()}}
     )
     return section_fields.get("_surfaced", {})
-
-
-def get_surfaced_price_hints(element_type: str | ElementType) -> dict[str, SurfacedPriceHint]:
-    """Return SurfacedPriceHint definitions for an element type."""
-    return SURFACED_PRICE_HINTS_BY_TYPE.get(str(element_type), {})
 
 
 def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, InputFieldInfo[Any]]]:
@@ -661,7 +652,6 @@ __all__ = [
     "get_nested_config_value",
     "get_nested_config_value_by_path",
     "get_surfaced_input_fields",
-    "get_surfaced_price_hints",
     "is_element_config_data",
     "is_element_config_schema",
     "iter_input_field_paths",
