@@ -37,6 +37,7 @@ _scenarios = _discover_scenarios()
 
 @pytest.mark.scenario
 @pytest.mark.timeout(30)
+@pytest.mark.usefixtures("entity_registry_enabled_by_default")
 @pytest.mark.parametrize(
     "scenario_path",
     _scenarios,

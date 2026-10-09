@@ -28,6 +28,8 @@ Connections define how power flows between elements in your network with support
 | **Price Source→Target**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from source to target            |
 | **Price Target→Source**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from target to source            |
 
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
+
 !!! tip "Configuration tips"
 
     **Leaving fields unset**: When a direction should allow unlimited flow with no losses or costs, leave the corresponding fields empty rather than creating sensors with maximum or default values.
@@ -86,9 +88,9 @@ Both directions are available for optimization.
 The optimizer will choose the most cost-effective direction at each time step.
 
 **Efficiency modeling:**
-Power leaving a node is measured before losses.
-Power arriving at a node is reduced by efficiency.
-Example: 10kW leaves source with 95% efficiency → 9.5kW arrives at target.
+The power limit, the price, and the reported connection power all apply to the power entering the connection, before its losses.
+Power arriving at the target is reduced by efficiency.
+Example: a connection limited to 10 kW with 95% efficiency reports 10 kW at its limit, and 9.5 kW arrives at the target.
 
 **Asymmetric efficiency:**
 Configure different efficiencies for each direction to model real-world devices.

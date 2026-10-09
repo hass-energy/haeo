@@ -15,6 +15,8 @@ HAEO optimizes how generated power flows through your energy network.
 | **[Forecast](#forecast)**       | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Solar generation forecast sensor(s) providing power output (kW) |
 | **[Curtailment](#curtailment)** | Boolean                                  | No       | true    | Allow optimizer to reduce generation below forecast             |
 
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
+
 ## Name
 
 Unique identifier for this solar system within your HAEO configuration.

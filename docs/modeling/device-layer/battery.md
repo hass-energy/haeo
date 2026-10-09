@@ -1,7 +1,7 @@
 # Battery Modeling
 
-The Battery device composes a single [Battery model](../model-layer/elements/battery.md) element and a single [Connection](../model-layer/connections/connection.md).
-SOC preferences are encoded directly in the connection via the SOC pricing segment.
+The Battery device composes a single [Battery model](../model-layer/elements/battery.md) element and two [Connections](../model-layer/connections/connection.md), one for discharging and one for charging.
+SOC preferences are encoded directly in the discharge connection via the SOC pricing segment.
 
 ## Model Elements Created
 
@@ -9,20 +9,23 @@ SOC preferences are encoded directly in the connection via the SOC pricing segme
 graph LR
     subgraph deviceBattery["Device:battery_main"]
         Battery["Battery element"]
-        Conn["Connection battery_main:connection"]
+        Discharge["Connection battery_main:discharge"]
+        Charge["Connection battery_main:charge"]
     end
     Target[ConnectionTarget]
-    Battery --> Conn
-    Conn --> Target
+    Battery --> Discharge
+    Discharge --> Target
+    Target --> Charge
+    Charge --> Battery
 ```
 
-The adapter creates two model elements:
+The adapter creates three model elements:
 
 | Model Element                                          | Name               | Parameters From Configuration                    |
 | ------------------------------------------------------ | ------------------ | ------------------------------------------------ |
 | [Battery](../model-layer/elements/battery.md)          | `{name}`           | Capacity range, initial charge, salvage value    |
 | [Connection](../model-layer/connections/connection.md) | `{name}:discharge` | Efficiency, power limits, SOC pricing (optional) |
-| [Connection](../model-layer/connections/connection.md) | `{name}:charge`    | Efficiency, power limits                         |
+| [Connection](../model-layer/connections/connection.md) | `{name}:charge`    | Power limits, efficiency                         |
 
 ## Architecture Details
 
@@ -41,6 +44,31 @@ $$
 
 Stored energy is measured relative to the lower bound.
 User-facing energy and SOC add the lower bound offset back to the model values.
+
+### Metered terminal convention
+
+Battery management systems, hybrid inverter battery ports, and battery meters all measure power at the battery terminals.
+Manufacturers rate charge and discharge power at the same point.
+In the model the terminals are the bus end of the battery's connections, and efficiency is the loss between the terminals and the stored energy.
+
+Each connection therefore places its efficiency segment next to the battery and its power-limit segment at the bus end:
+
+| Connection         | Segment order                                 | Power limit applies to     |
+| ------------------ | --------------------------------------------- | -------------------------- |
+| `{name}:discharge` | efficiency, power limit, SOC pricing (if set) | Power delivered to the bus |
+| `{name}:charge`    | power limit, efficiency                       | Power drawn from the bus   |
+
+With discharge efficiency $\eta_d$, charge efficiency $\eta_c$, and terminal powers $P_d$ and $P_c$:
+
+$$
+P_d(t) \le P_d^{\max}(t), \qquad P_c(t) \le P_c^{\max}(t)
+$$
+
+$$
+E(t+1) = E(t) + \left(\eta_c P_c(t) - \frac{P_d(t)}{\eta_d}\right) \Delta t
+$$
+
+The charge, discharge, and active power sensors all report terminal power, so they match what a meter on the battery would read.
 
 ### SOC pricing segment
 
@@ -90,19 +118,20 @@ Battery creates a single Home Assistant device:
 
 ## Output Mapping
 
-The adapter maps model outputs directly from the battery element:
+Power sensors come from the bus end of the connections, and the remaining sensors from the battery element:
 
-| Model Output              | Sensor Name                         | Description                |
-| ------------------------- | ----------------------------------- | -------------------------- |
-| `BATTERY_POWER_CHARGE`    | `power_charge`                      | Charge power               |
-| `BATTERY_POWER_DISCHARGE` | `power_discharge`                   | Discharge power            |
-| `BATTERY_ENERGY_STORED`   | `energy_stored`                     | Total energy stored        |
-| Calculated SOC            | `state_of_charge`                   | State of charge            |
-| `BATTERY_POWER_BALANCE`   | `power_balance_shadow_energy_price` | Power balance shadow price |
-| `BATTERY_ENERGY_IN_FLOW`  | `energy_in_flow`                    | Energy-in shadow price     |
-| `BATTERY_ENERGY_OUT_FLOW` | `energy_out_flow`                   | Energy-out shadow price    |
-| `BATTERY_SOC_MAX`         | `soc_max`                           | Max SOC shadow price       |
-| `BATTERY_SOC_MIN`         | `soc_min`                           | Min SOC shadow price       |
+| Model Output                              | Sensor Name                         | Description                  |
+| ----------------------------------------- | ----------------------------------- | ---------------------------- |
+| `{name}:charge` `CONNECTION_POWER`        | `power_charge`                      | Charge power at terminals    |
+| `{name}:discharge` `CONNECTION_POWER_OUT` | `power_discharge`                   | Discharge power at terminals |
+| Calculated as discharge minus charge      | `power_active`                      | Net power at terminals       |
+| `BATTERY_ENERGY_STORED`                   | `energy_stored`                     | Total energy stored          |
+| Calculated SOC                            | `state_of_charge`                   | State of charge              |
+| `BATTERY_POWER_BALANCE`                   | `power_balance_shadow_energy_price` | Power balance shadow price   |
+| `BATTERY_ENERGY_IN_FLOW`                  | `energy_in_flow`                    | Energy-in shadow price       |
+| `BATTERY_ENERGY_OUT_FLOW`                 | `energy_out_flow`                   | Energy-out shadow price      |
+| `BATTERY_SOC_MAX`                         | `soc_max`                           | Max SOC shadow price         |
+| `BATTERY_SOC_MIN`                         | `soc_min`                           | Min SOC shadow price         |
 
 See [Battery Configuration](../../user-guide/elements/battery.md#sensors-created) for complete sensor documentation.
 

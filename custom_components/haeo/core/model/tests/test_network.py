@@ -814,6 +814,42 @@ def test_calibrated_mode_zero_primary_cost_vector() -> None:
     assert network._calibrated_weight == pytest.approx(1e-3)
 
 
+def test_policy_pricing_charges_the_measured_power() -> None:
+    """A policy price on a connection is charged on the power at its power limit, after efficiency losses.
+
+    The connection loses half its power before the limit, the way a battery's discharge
+    connection does, and delivering power earns 1 per kWh. With a limit of 5 the optimizer
+    draws 10 and delivers 5, so a policy price of 0.1 adds 0.1 x 5, not 0.1 x 10.
+    """
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "store", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "bus", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "discharge",
+            "source": "store",
+            "target": "bus",
+            "tags": {0},
+            "segments": {
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([0.5])},
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([5.0])},
+                "pricing": {"segment_type": "pricing", "price": np.array([-1.0])},
+            },
+        }
+    )
+    network.add(
+        PolicyPricingElementConfig(
+            element_type=ELEMENT_TYPE_POLICY_PRICING,
+            name="discharge_cost",
+            price=0.1,
+            terms=[PolicyPricingTerm(connection="discharge", tag=0)],
+        )
+    )
+
+    assert network.optimize() == pytest.approx(-5.0 + 0.1 * 5.0)
+
+
 def test_add_policy_pricing_unknown_connection() -> None:
     """Adding PolicyPricing referencing a missing connection raises TypeError."""
     network = Network(name="test", periods=np.array([1.0]))
