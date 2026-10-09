@@ -35,7 +35,7 @@ from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.input_stores import InputStoreMap, build_input_stores
+from custom_components.haeo.input_stores import InputStoreMap, build_input_stores, input_error_placeholders
 from custom_components.haeo.services import async_setup_services
 
 from . import migrations as _migrations
@@ -404,12 +404,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         async with asyncio.timeout(INPUT_ENTITY_READY_TIMEOUT):
             await asyncio.gather(*[store.wait_ready() for store in runtime_data.input_stores.values()])
     except TimeoutError:
-        not_ready = [key for key, store in runtime_data.input_stores.items() if not store.is_ready()]
+        not_ready = {key: store for key, store in runtime_data.input_stores.items() if not store.is_ready()}
+        for key, store in not_ready.items():
+            if (error := store.error) is not None:
+                raise ConfigEntryNotReady(
+                    translation_domain=DOMAIN,
+                    translation_key=error.translation_key,
+                    translation_placeholders=input_error_placeholders(key, error, store),
+                ) from None
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
             translation_key="input_entities_not_ready",
             translation_placeholders={
-                "not_ready": str(not_ready),
+                "not_ready": str(list(not_ready)),
                 "timeout": str(INPUT_ENTITY_READY_TIMEOUT),
             },
         ) from None
