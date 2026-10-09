@@ -22,10 +22,13 @@ from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_se
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
+    as_mapping,
+    as_str,
     build_sectioned_choose_defaults,
     build_sectioned_choose_schema,
     convert_sectioned_choose_data_to_config,
     preprocess_sectioned_choose_input,
+    sectioned_view,
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.flows.surfaced_policy import (
@@ -37,23 +40,6 @@ from custom_components.haeo.sections import build_common_fields, forecast_sectio
 
 # Surfaced policy field names (not stored in load config)
 SURFACED_POLICY_FIELDS: frozenset[str] = frozenset({CONF_CONSUMPTION_COST})
-
-
-def _as_mapping(value: object) -> Mapping[str, object]:
-    """Narrow a stored dict value to a mapping, defaulting to empty."""
-    return value if isinstance(value, Mapping) else {}
-
-
-def _as_str(value: object) -> str | None:
-    """Narrow a stored dict value to a string, or None if absent/invalid."""
-    return value if isinstance(value, str) else None
-
-
-def _sectioned_view(data: Mapping[str, object] | None) -> Mapping[str, Mapping[str, object]] | None:
-    """Narrow stored subentry data to only its nested section mappings."""
-    if data is None:
-        return None
-    return {key: value for key, value in data.items() if isinstance(value, Mapping)}
 
 
 class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -138,7 +124,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build the schema with name, connection, and choose selectors for inputs."""
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
-        element_name = _as_str(subentry_data.get(CONF_NAME)) if subentry_data else None
+        element_name = as_str(subentry_data.get(CONF_NAME)) if subentry_data else None
         surfaced_entries = build_surfaced_schema_entries(
             self.hass, self._get_entry(), element_name, SURFACED_PRICE_HINTS, surfaced_fields
         )
@@ -147,7 +133,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             field_schema,
             section_inclusion_map,
-            current_data=_sectioned_view(subentry_data),
+            current_data=sectioned_view(subentry_data),
             top_level_entries=build_common_fields(
                 include_connection=True,
                 participants=participants,
@@ -174,7 +160,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             else None
         )
         hub_entry = self._get_entry()
-        element_name = _as_str(subentry_data.get(CONF_NAME)) if subentry_data else None
+        element_name = as_str(subentry_data.get(CONF_NAME)) if subentry_data else None
         surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
         surfaced_defaults = build_surfaced_defaults(hub_entry, element_name, SURFACED_PRICE_HINTS, surfaced_fields)
         return {
@@ -199,7 +185,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is None:
             return None
         errors: dict[str, str] = {}
-        self._validate_name(_as_str(user_input.get(CONF_NAME)), errors)
+        self._validate_name(as_str(user_input.get(CONF_NAME)), errors)
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
@@ -233,7 +219,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         name = str(user_input[CONF_NAME])
 
         # Save surfaced policy rules from the curtailment section input
-        curtailment_input = _as_mapping(user_input.get(SECTION_CURTAILMENT))
+        curtailment_input = as_mapping(user_input.get(SECTION_CURTAILMENT))
         hub_entry = self._get_entry()
         translations = {"consumption_cost": f"{name} consumption cost"}
         subentry = self._get_subentry()

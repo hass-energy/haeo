@@ -102,9 +102,10 @@ class TrackedParam[T]:
 
                 @constraint
                 def my_constraint(self) -> highs_linear_expression:
+                    row = 1.0 * self.energy
                     if not self.capacity.is_set(self):
-                        return self.energy  # A free row until capacity is set
-                    return self.energy <= self.capacity
+                        return row  # A free row until capacity is set
+                    return row <= self.capacity
 
         """
         record_access(obj, self._name)

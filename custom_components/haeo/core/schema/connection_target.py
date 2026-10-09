@@ -37,7 +37,7 @@ def extract_connection_target(value: ConnectionTargetValue) -> str:
     return value["value"]
 
 
-def normalize_connection_target(value: ConnectionTargetValue | str) -> ConnectionTargetValue:
+def normalize_connection_target(value: object) -> ConnectionTargetValue:
     """Normalize a connection target input into a schema value."""
     if is_connection_target(value):
         return value

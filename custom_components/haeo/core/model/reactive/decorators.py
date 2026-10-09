@@ -204,6 +204,9 @@ def _write_rows(
     A constraint returns the same rows on every call, marking rows that do not
     currently apply as free, so the LP keeps its shape for warm starts.
     """
+    if isinstance(existing, list) != isinstance(expr, list):
+        msg = f"Constraint {name} switched between a single row and a list of rows; return the same shape on every call"
+        raise ValueError(msg)
     existing_rows = existing if isinstance(existing, list) else [existing]
     applied_rows = applied if isinstance(applied, list) else [applied]
     new_rows = expr if isinstance(expr, list) else [expr]

@@ -174,7 +174,8 @@ def _build_policy_updater(
 
     def update(config: ElementConfigData) -> None:
         if not is_policy_config_data(config):
-            return
+            msg = f"Policy updater for {config['name']} received a {config['element_type']} config"
+            raise TypeError(msg)
         rules = extract_policy_rules(config)
         n_periods = network.n_periods
         for rule_idx, pricing_elements in resolved_map.items():

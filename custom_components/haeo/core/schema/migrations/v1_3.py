@@ -35,11 +35,9 @@ from custom_components.haeo.core.const import (
     HUB_SECTION_TIERS,
 )
 from custom_components.haeo.core.schema import (
-    ConnectionTargetValue,
     SchemaValue,
     as_constant_value,
     as_entity_value,
-    is_connection_target,
     is_schema_value,
     normalize_connection_target,
 )
@@ -194,14 +192,6 @@ def _migrate_element_to_sectioned(data: Mapping[str, object]) -> dict[str, objec
         msg = f"Unsupported schema value {value!r}"
         raise TypeError(msg)
 
-    def to_connection_target(value: object) -> ConnectionTargetValue:
-        if is_connection_target(value):
-            return value
-        if isinstance(value, str):
-            return normalize_connection_target(value)
-        msg = f"Unsupported connection target {value!r}"
-        raise TypeError(msg)
-
     def add_if_present(target: dict[str, object], key: str, *, convert: bool = False) -> None:
         value = get_value(key)
         if value is not None:
@@ -226,7 +216,7 @@ def _migrate_element_to_sectioned(data: Mapping[str, object]) -> dict[str, objec
 
         add_if_present(migrated, CONF_NAME)
         if (connection_value := get_value(CONF_CONNECTION)) is not None:
-            migrated[CONF_CONNECTION] = to_connection_target(connection_value)
+            migrated[CONF_CONNECTION] = normalize_connection_target(connection_value)
         for key in (battery.CONF_CAPACITY, battery.CONF_INITIAL_CHARGE_PERCENTAGE):
             add_if_present(storage, key, convert=True)
         for key in (
@@ -291,7 +281,7 @@ def _migrate_element_to_sectioned(data: Mapping[str, object]) -> dict[str, objec
             add_if_present(endpoints, key)
         for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
             if (endpoint_value := endpoints.get(key)) is not None:
-                endpoints[key] = to_connection_target(endpoint_value)
+                endpoints[key] = normalize_connection_target(endpoint_value)
         for key in (connection.CONF_MAX_POWER_SOURCE_TARGET, connection.CONF_MAX_POWER_TARGET_SOURCE):
             add_if_present(power_limits, key, convert=True)
         for key in (connection.CONF_PRICE_SOURCE_TARGET, connection.CONF_PRICE_TARGET_SOURCE):
@@ -311,7 +301,7 @@ def _migrate_element_to_sectioned(data: Mapping[str, object]) -> dict[str, objec
         power_limits = {}
         add_if_present(migrated, CONF_NAME)
         if (connection_value := get_value(CONF_CONNECTION)) is not None:
-            migrated[CONF_CONNECTION] = to_connection_target(connection_value)
+            migrated[CONF_CONNECTION] = normalize_connection_target(connection_value)
         for key in (CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE):
             add_if_present(pricing, key, convert=True)
         if (legacy_import_price := get_value("import_price")) is not None:
@@ -335,7 +325,7 @@ def _migrate_element_to_sectioned(data: Mapping[str, object]) -> dict[str, objec
         efficiency = {}
         add_if_present(migrated, CONF_NAME)
         if (connection_value := get_value(CONF_CONNECTION)) is not None:
-            migrated[CONF_CONNECTION] = to_connection_target(connection_value)
+            migrated[CONF_CONNECTION] = normalize_connection_target(connection_value)
         for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE):
             add_if_present(power_limits, key, convert=True)
         if (legacy_dc_to_ac := get_value("max_power_dc_to_ac")) is not None:
@@ -360,7 +350,7 @@ def _migrate_element_to_sectioned(data: Mapping[str, object]) -> dict[str, objec
         curtailment: dict[str, object] = {}
         add_if_present(migrated, CONF_NAME)
         if (connection_value := get_value(CONF_CONNECTION)) is not None:
-            migrated[CONF_CONNECTION] = to_connection_target(connection_value)
+            migrated[CONF_CONNECTION] = normalize_connection_target(connection_value)
         add_if_present(forecast, CONF_FORECAST, convert=True)
 
         if isinstance(pricing_raw := data.get(SECTION_PRICING), dict):
@@ -400,7 +390,7 @@ def _migrate_element_to_sectioned(data: Mapping[str, object]) -> dict[str, objec
         curtailment = {}
         add_if_present(migrated, CONF_NAME)
         if (connection_value := get_value(CONF_CONNECTION)) is not None:
-            migrated[CONF_CONNECTION] = to_connection_target(connection_value)
+            migrated[CONF_CONNECTION] = normalize_connection_target(connection_value)
         add_if_present(forecast, CONF_FORECAST, convert=True)
         add_if_present(pricing, CONF_PRICE_SOURCE_TARGET, convert=True)
         if (legacy_production_price := get_value("price_production")) is not None:

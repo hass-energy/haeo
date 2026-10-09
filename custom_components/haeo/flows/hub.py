@@ -1,6 +1,5 @@
 """Hub configuration flow for HAEO integration."""
 
-from collections.abc import Mapping
 import logging
 from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
 
@@ -21,6 +20,7 @@ from custom_components.haeo.core.const import (
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 from custom_components.haeo.core.schema.elements.node import SECTION_ROLE as NODE_SECTION_ROLE
+from custom_components.haeo.flows.field_schema import as_mapping, as_str
 
 from . import (
     HORIZON_PRESET_CUSTOM,
@@ -35,16 +35,6 @@ from . import (
 from .options import HubOptionsFlow
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _as_mapping(value: object) -> Mapping[str, object]:
-    """Narrow a stored dict value to a mapping, defaulting to empty."""
-    return value if isinstance(value, Mapping) else {}
-
-
-def _as_str(value: object) -> str | None:
-    """Narrow a stored dict value to a string, or None if absent/invalid."""
-    return value if isinstance(value, str) else None
 
 
 class HubConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -111,12 +101,12 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def _create_hub_entry(self) -> ConfigFlowResult:
         """Create the hub entry with tier configuration."""
-        common = _as_mapping(self._user_input.get(HUB_SECTION_COMMON))
-        advanced = _as_mapping(self._user_input.get(HUB_SECTION_ADVANCED))
+        common = as_mapping(self._user_input.get(HUB_SECTION_COMMON))
+        advanced = as_mapping(self._user_input.get(HUB_SECTION_ADVANCED))
         hub_name = str(common[CONF_NAME])
         tier_config, stored_preset = get_tier_config(
             self._user_input,
-            _as_str(common.get(CONF_HORIZON_PRESET)),
+            as_str(common.get(CONF_HORIZON_PRESET)),
         )
 
         # Resolve the switchboard node name from translations
@@ -138,7 +128,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 HUB_SECTION_TIERS: tier_config,
                 HUB_SECTION_ADVANCED: {
                     CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
-                    CONF_ADVANCED_MODE: advanced.get(CONF_ADVANCED_MODE),
+                    CONF_ADVANCED_MODE: advanced[CONF_ADVANCED_MODE],
                 },
             },
             subentries=[

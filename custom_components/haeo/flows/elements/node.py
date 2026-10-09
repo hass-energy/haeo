@@ -1,6 +1,5 @@
 """Node element configuration flows."""
 
-from collections.abc import Mapping
 from typing import (
     Any,  # noqa: TID251  # HA flow signatures upstream; voluptuous schema value types are heterogeneous by design
 )
@@ -12,7 +11,7 @@ import voluptuous as vol
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, SECTION_ROLE
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
-from custom_components.haeo.flows.field_schema import SectionDefinition, build_section_schema
+from custom_components.haeo.flows.field_schema import SectionDefinition, as_mapping, as_str, build_section_schema
 from custom_components.haeo.sections import build_common_fields
 
 # Suggested values for first setup (pure junction: no source or sink)
@@ -22,16 +21,6 @@ _SUGGESTED_DEFAULTS = {
         CONF_IS_SINK: False,
     },
 }
-
-
-def _as_mapping(value: object) -> Mapping[str, object]:
-    """Narrow a stored dict value to a mapping, defaulting to empty."""
-    return value if isinstance(value, Mapping) else {}
-
-
-def _as_str(value: object) -> str | None:
-    """Narrow a stored dict value to a string, or None if absent/invalid."""
-    return value if isinstance(value, str) else None
 
 
 class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -85,8 +74,8 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry = self._get_subentry()
 
         if user_input is not None:
-            role_input = _as_mapping(user_input.get(SECTION_ROLE))
-            name = _as_str(user_input.get(CONF_NAME))
+            role_input = as_mapping(user_input.get(SECTION_ROLE))
+            name = as_str(user_input.get(CONF_NAME))
             if self._validate_name(name, errors):
                 config: dict[str, object] = {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE,

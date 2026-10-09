@@ -1,6 +1,5 @@
 """Options flow for HAEO hub management."""
 
-from collections.abc import Mapping
 import logging
 from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
 
@@ -9,6 +8,7 @@ from homeassistant.config_entries import ConfigFlowResult
 
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_DEBOUNCE_SECONDS, CONF_HORIZON_PRESET
+from custom_components.haeo.flows.field_schema import as_mapping, as_str
 
 from . import (
     HORIZON_PRESET_CUSTOM,
@@ -21,16 +21,6 @@ from . import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _as_mapping(value: object) -> Mapping[str, object]:
-    """Narrow a stored dict value to a mapping, defaulting to empty."""
-    return value if isinstance(value, Mapping) else {}
-
-
-def _as_str(value: object) -> str | None:
-    """Narrow a stored dict value to a string, or None if absent/invalid."""
-    return value if isinstance(value, str) else None
 
 
 class HubOptionsFlow(config_entries.OptionsFlow):
@@ -71,11 +61,11 @@ class HubOptionsFlow(config_entries.OptionsFlow):
 
     async def _save_options(self) -> ConfigFlowResult:
         """Save the options with tier configuration."""
-        common = _as_mapping(self._user_input.get(HUB_SECTION_COMMON))
-        advanced = _as_mapping(self._user_input.get(HUB_SECTION_ADVANCED))
+        common = as_mapping(self._user_input.get(HUB_SECTION_COMMON))
+        advanced = as_mapping(self._user_input.get(HUB_SECTION_ADVANCED))
         tier_config, stored_preset = get_tier_config(
             self._user_input,
-            _as_str(common.get(CONF_HORIZON_PRESET)),
+            as_str(common.get(CONF_HORIZON_PRESET)),
         )
 
         # Update config entry data with new values
@@ -88,8 +78,8 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             HUB_SECTION_TIERS: tier_config,
             HUB_SECTION_ADVANCED: {
                 **self.config_entry.data.get(HUB_SECTION_ADVANCED, {}),
-                CONF_DEBOUNCE_SECONDS: advanced.get(CONF_DEBOUNCE_SECONDS),
-                CONF_ADVANCED_MODE: advanced.get(CONF_ADVANCED_MODE),
+                CONF_DEBOUNCE_SECONDS: advanced[CONF_DEBOUNCE_SECONDS],
+                CONF_ADVANCED_MODE: advanced[CONF_ADVANCED_MODE],
             },
             CONF_RECORD_FORECASTS: advanced.get(CONF_RECORD_FORECASTS, False),
         }

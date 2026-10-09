@@ -22,25 +22,15 @@ from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_se
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
+    as_str,
     build_sectioned_choose_defaults,
     build_sectioned_choose_schema,
     convert_sectioned_choose_data_to_config,
     preprocess_sectioned_choose_input,
+    sectioned_view,
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.sections import build_common_fields, power_limits_section, pricing_section
-
-
-def _as_str(value: object) -> str | None:
-    """Narrow a stored dict value to a string, or None if absent/invalid."""
-    return value if isinstance(value, str) else None
-
-
-def _sectioned_view(data: Mapping[str, object] | None) -> Mapping[str, Mapping[str, object]] | None:
-    """Narrow stored subentry data to only its nested section mappings."""
-    if data is None:
-        return None
-    return {key: value for key, value in data.items() if isinstance(value, Mapping)}
 
 
 class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -125,7 +115,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             field_schema,
             section_inclusion_map,
-            current_data=_sectioned_view(subentry_data),
+            current_data=sectioned_view(subentry_data),
             top_level_entries=build_common_fields(
                 include_connection=True,
                 participants=participants,
@@ -167,7 +157,7 @@ class GridSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is None:
             return None
         errors: dict[str, str] = {}
-        self._validate_name(_as_str(user_input.get(CONF_NAME)), errors)
+        self._validate_name(as_str(user_input.get(CONF_NAME)), errors)
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
             validate_sectioned_choose_fields(

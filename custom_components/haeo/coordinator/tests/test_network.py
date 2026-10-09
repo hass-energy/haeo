@@ -299,6 +299,20 @@ def test_policy_updater_updates_price() -> None:
     assert elem.price == pytest.approx([0.10])
 
 
+def test_policy_updater_rejects_a_non_policy_config() -> None:
+    """The policy updater fails loudly when wired to a config that is not a policy."""
+    network = _policy_network()
+    updater = _build_policy_updater(network, {0: ["policy_pricing_r0_v1"]})
+
+    config: ElementConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.NODE,
+        CONF_NAME: "Bus",
+        "role": {"is_source": False, "is_sink": False},
+    }
+    with pytest.raises(TypeError, match="received a node config"):
+        updater(config)
+
+
 def test_policy_updater_zeros_disabled_rule() -> None:
     """Policy updater writes zero price for disabled rules."""
     network = _policy_network()
@@ -489,7 +503,7 @@ def test_collect_policy_rules_merges_multiple_policy_participants() -> None:
         },
     }
 
-    # Fixture rules carry schema-mode (unloaded) prices; the structural guard would reject them.
+    # Fixture rules carry schema-mode (unloaded) prices, which the loaded ElementConfigData type does not allow.
     rules = _collect_policy_rules(participants)  # type: ignore[arg-type]
     assert len(rules) == 2
 

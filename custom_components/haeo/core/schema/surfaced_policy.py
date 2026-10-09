@@ -40,7 +40,7 @@ def resolve_surfaced_endpoints(
 
 
 def find_surfaced_rule(
-    rules: Sequence[Mapping[str, object]],
+    rules: Sequence[object],
     *,
     source: list[str] | None,
     target: list[str] | None,
@@ -51,6 +51,8 @@ def find_surfaced_rule(
     and one specific side (a single-element list).
     """
     for i, rule in enumerate(rules):
+        if not isinstance(rule, Mapping):
+            continue
         rule_source = rule.get(CONF_SOURCE)
         rule_target = rule.get(CONF_TARGET)
         if _endpoints_match(rule_source, source) and _endpoints_match(rule_target, target):
@@ -91,11 +93,7 @@ def negated_price_paths(participants: Mapping[str, Mapping[str, object]]) -> dic
         if policy_config.get(CONF_ELEMENT_TYPE) != ElementType.POLICY:
             continue
         configured_rules = policy_config.get(CONF_RULES)
-        rules = (
-            [rule for rule in configured_rules if isinstance(rule, Mapping)]
-            if isinstance(configured_rules, list)
-            else []
-        )
+        rules = configured_rules if isinstance(configured_rules, list | tuple) else []
         paths: set[tuple[str, ...]] = set()
         for element_name, element_config in participants.items():
             for hint in get_surfaced_price_hints(str(element_config.get(CONF_ELEMENT_TYPE))).values():

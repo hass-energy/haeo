@@ -8,7 +8,7 @@ Home Assistant's ChooseSelector, allowing users to pick between "Entity"
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from numbers import Real
-from typing import Any, TypeGuard  # noqa: TID251  # voluptuous schema dicts and HA Selector overrides are Any by design
+from typing import Any  # noqa: TID251  # voluptuous schema dicts and HA Selector overrides are Any by design
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.data_entry_flow import section
@@ -45,7 +45,12 @@ from custom_components.haeo.core.schema import (
     is_schema_value,
 )
 from custom_components.haeo.elements.field_schema import FieldSchemaInfo
-from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldGroups, InputFieldInfo
+from custom_components.haeo.elements.input_fields import (
+    AnyInputFieldInfo,
+    InputFieldGroups,
+    InputFieldInfo,
+    is_number_field_info,
+)
 
 # Choose selector choice keys (used for config flow data and translations)
 CHOICE_ENTITY = VALUE_TYPE_ENTITY
@@ -226,17 +231,6 @@ class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]
         return value
 
 
-def _is_number_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldInfo[NumberEntityDescription]]:
-    """Narrow a heterogeneous InputFieldInfo to the NumberEntityDescription variant.
-
-    Uses a class-name check rather than isinstance: Home Assistant's frozen
-    dataclass compatibility shim generates entity description classes at
-    runtime, so `isinstance(desc, NumberEntityDescription)` does not reliably
-    hold even for instances built from that description type.
-    """
-    return type(field_info.entity_description).__name__ != "SwitchEntityDescription"
-
-
 def build_choose_selector(
     field_info: AnyInputFieldInfo,
     *,
@@ -268,7 +262,7 @@ def build_choose_selector(
     )
 
     # Build value selector for the "constant" choice based on field type
-    if _is_number_field_info(field_info):
+    if is_number_field_info(field_info):
         value_selector = number_selector_from_field(field_info)
     else:
         value_selector = boolean_selector_from_field()
@@ -815,12 +809,31 @@ def validate_choose_fields(
     return errors
 
 
+def as_mapping(value: object) -> Mapping[str, object]:
+    """Narrow a stored dict value to a mapping, defaulting to empty."""
+    return value if isinstance(value, Mapping) else {}
+
+
+def as_str(value: object) -> str | None:
+    """Narrow a stored dict value to a string, or None if absent/invalid."""
+    return value if isinstance(value, str) else None
+
+
+def sectioned_view(data: Mapping[str, object] | None) -> Mapping[str, Mapping[str, object]] | None:
+    """Narrow stored subentry data to only its nested section mappings."""
+    if data is None:
+        return None
+    return {key: value for key, value in data.items() if isinstance(value, Mapping)}
+
+
 __all__ = [
     "CHOICE_CONSTANT",
     "CHOICE_ENTITY",
     "CHOICE_NONE",
     "NormalizingChooseSelector",
     "SectionDefinition",
+    "as_mapping",
+    "as_str",
     "boolean_selector_from_field",
     "build_choose_field_entries",
     "build_choose_schema_entry",
@@ -837,6 +850,7 @@ __all__ = [
     "number_selector_from_field",
     "preprocess_choose_selector_input",
     "preprocess_sectioned_choose_input",
+    "sectioned_view",
     "validate_choose_fields",
     "validate_sectioned_choose_fields",
 ]

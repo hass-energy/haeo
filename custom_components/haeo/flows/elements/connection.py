@@ -35,10 +35,13 @@ from custom_components.haeo.flows.element_flow import (
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
+    as_mapping,
+    as_str,
     build_sectioned_choose_defaults,
     build_sectioned_choose_schema,
     convert_sectioned_choose_data_to_config,
     preprocess_sectioned_choose_input,
+    sectioned_view,
     validate_sectioned_choose_fields,
 )
 from custom_components.haeo.sections import (
@@ -80,23 +83,6 @@ def _build_segment_order_fields() -> dict[str, tuple[vol.Marker, Any]]:
     }
 
 
-def _as_mapping(value: object) -> Mapping[str, object]:
-    """Narrow a stored dict value to a mapping, defaulting to empty."""
-    return value if isinstance(value, Mapping) else {}
-
-
-def _as_str(value: object) -> str | None:
-    """Narrow a stored dict value to a string, or None if absent/invalid."""
-    return value if isinstance(value, str) else None
-
-
-def _sectioned_view(data: Mapping[str, object] | None) -> Mapping[str, Mapping[str, object]] | None:
-    """Narrow stored subentry data to only its nested section mappings."""
-    if data is None:
-        return None
-    return {key: value for key, value in data.items() if isinstance(value, Mapping)}
-
-
 class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     """Handle connection element configuration flows."""
 
@@ -123,7 +109,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         subentry = self._get_subentry()
         subentry_data: dict[str, object] | None = dict(subentry.data) if subentry else None
         participants = self._get_participant_names()
-        endpoints = _as_mapping(subentry_data.get(SECTION_ENDPOINTS)) if subentry_data else {}
+        endpoints = as_mapping(subentry_data.get(SECTION_ENDPOINTS)) if subentry_data else {}
         current_source = (
             get_connection_target_name(endpoints.get(CONF_SOURCE))  # type: ignore[arg-type]  # stored subentry data always matches ConnectionConfigSchema
             if subentry_data
@@ -190,7 +176,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             field_schema,
             section_inclusion_map,
-            current_data=_sectioned_view(subentry_data),
+            current_data=sectioned_view(subentry_data),
             top_level_entries=build_common_fields(include_connection=False),
             extra_field_entries={
                 SECTION_ENDPOINTS: _build_endpoints_fields(participants, current_source, current_target),
@@ -207,8 +193,8 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         target_default: str | None = None,
     ) -> dict[str, object]:
         """Build default values for the form."""
-        endpoints_data = _as_mapping(subentry_data.get(SECTION_ENDPOINTS)) if subentry_data else {}
-        segment_order_data = _as_mapping(subentry_data.get(SECTION_SEGMENT_ORDER)) if subentry_data else {}
+        endpoints_data = as_mapping(subentry_data.get(SECTION_ENDPOINTS)) if subentry_data else {}
+        segment_order_data = as_mapping(subentry_data.get(SECTION_SEGMENT_ORDER)) if subentry_data else {}
         source_default = (
             source_default
             if source_default is not None
@@ -250,8 +236,8 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is None:
             return None
         errors: dict[str, str] = {}
-        endpoints_input = _as_mapping(user_input.get(SECTION_ENDPOINTS))
-        self._validate_name(_as_str(user_input.get(CONF_NAME)), errors)
+        endpoints_input = as_mapping(user_input.get(SECTION_ENDPOINTS))
+        self._validate_name(as_str(user_input.get(CONF_NAME)), errors)
         field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
         errors.update(
             validate_sectioned_choose_fields(
