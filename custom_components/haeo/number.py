@@ -10,6 +10,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
+from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import (
     get_input_fields,
     get_list_input_fields,
@@ -18,6 +19,7 @@ from custom_components.haeo.elements import (
     is_element_config_schema,
     iter_input_field_paths,
 )
+from custom_components.haeo.elements.input_fields import localize_input_field
 from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
 from custom_components.haeo.flows.surfaced_policy import (
@@ -108,6 +110,7 @@ async def async_setup_entry(
 
     runtime_data = config_entry.runtime_data
     horizon_manager = runtime_data.horizon_manager
+    currency = currency_symbol(hass.config.currency)
 
     entities: list[HaeoInputNumber] = []
 
@@ -152,7 +155,7 @@ async def async_setup_entry(
             entity = HaeoInputNumber(
                 config_entry=config_entry,
                 subentry=subentry,
-                field_info=field_info,
+                field_info=localize_input_field(field_info, currency),
                 field_path=field_path,
                 device_entry=device_entry,
                 horizon_manager=horizon_manager,

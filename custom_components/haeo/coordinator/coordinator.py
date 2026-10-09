@@ -38,7 +38,7 @@ from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.util import extract_unit_parts
 from custom_components.haeo.core.state import EntityState
-from custom_components.haeo.core.units import PRICE_UNIT_SPEC, localize_currency
+from custom_components.haeo.core.units import PRICE_UNIT_SPEC, currency_symbol, localize_currency
 from custom_components.haeo.elements import (
     ElementDeviceName,
     ElementOutputName,
@@ -779,7 +779,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             currency_sym = detect_currency_symbol(
                 context.source_states,
-                fallback_currency=self.hass.config.currency,
+                fallback_currency=currency_symbol(self.hass.config.currency),
             )
 
             outputs: dict[str, SubentryDevices] = {

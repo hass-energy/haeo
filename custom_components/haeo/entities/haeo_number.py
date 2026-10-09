@@ -24,7 +24,6 @@ from custom_components.haeo.core.schema import (
     is_none_value,
     is_schema_value,
 )
-from custom_components.haeo.core.units import localize_currency
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
@@ -210,9 +209,6 @@ class HaeoInputNumber(NumberEntity):
 
     async def async_added_to_hass(self) -> None:
         """Set up state tracking and load initial data."""
-        self._attr_native_unit_of_measurement = localize_currency(
-            self.entity_description.native_unit_of_measurement, self.hass.config.currency
-        )
         await super().async_added_to_hass()
         self._apply_recorder_attribute_filtering()
 

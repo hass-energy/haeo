@@ -180,7 +180,6 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             include_entities=inclusion_map.get(CONF_PRICE),
             multiple=True,
             preferred_choice=CHOICE_CONSTANT,
-            currency=self.hass.config.currency,
         )
 
     def _build_endpoint_selector(

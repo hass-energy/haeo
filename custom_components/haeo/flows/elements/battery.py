@@ -36,7 +36,7 @@ from custom_components.haeo.core.schema.sections import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
 )
-from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields, get_surfaced_input_fields
+from custom_components.haeo.elements import get_input_field_schema_info, get_surfaced_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
@@ -127,7 +127,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if not isinstance(current_connection, str):
             current_connection = participants[0] if participants else ""
 
-        input_fields = get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields(ELEMENT_TYPE)
 
         sections = self._get_sections()
         user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
@@ -175,7 +175,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             config = self._build_config(self._step1_data, user_input)
             return self._finalize(config)
 
-        input_fields = get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields(ELEMENT_TYPE)
         entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
 
@@ -205,7 +205,6 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             field_schema,
             section_inclusion_map,
-            currency=self.hass.config.currency,
             current_data=subentry_data,
             top_level_entries=build_common_fields(
                 include_connection=True,
@@ -236,7 +235,6 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             field_schema,
             section_inclusion_map,
-            currency=self.hass.config.currency,
             current_data=subentry_data,
         )
 
@@ -339,7 +337,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         partition_input: dict[str, Any],
     ) -> dict[str, Any]:
         """Build final config dict from user input."""
-        input_fields = get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields(ELEMENT_TYPE)
         sections = self._get_sections()
         config_dict = convert_sectioned_choose_data_to_config(
             main_input,

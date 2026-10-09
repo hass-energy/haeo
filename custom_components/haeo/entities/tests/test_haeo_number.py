@@ -284,40 +284,6 @@ async def _add_entity_to_hass(hass: HomeAssistant, entity: Entity) -> None:
     await hass.async_block_till_done()
 
 
-async def test_currency_placeholder_unit_uses_configured_currency(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    horizon_manager: Mock,
-) -> None:
-    """A monetary unit's currency placeholder is replaced with the Home Assistant currency."""
-    hass.config.currency = "EUR"
-    field_info = InputFieldInfo(
-        field_name="cost",
-        entity_description=NumberEntityDescription(
-            key="cost",
-            translation_key="cost",
-            native_unit_of_measurement="$/kWh/h",
-            native_min_value=0.0,
-            native_max_value=10.0,
-            native_step=0.001,
-        ),
-        output_type=OutputType.PRICE_RATE,
-        direction="-",
-        time_series=True,
-    )
-    subentry = _create_subentry("Test Battery", {"cost": 0.02})
-    config_entry.runtime_data = None
-    entity = _make_entity(hass, config_entry, subentry, field_info, device_entry, horizon_manager)
-
-    await _add_entity_to_hass(hass, entity)
-
-    assert entity.native_unit_of_measurement == "EUR/kWh/h"
-    state = hass.states.get(entity.entity_id)
-    assert state is not None
-    assert state.attributes["unit_of_measurement"] == "EUR/kWh/h"
-
-
 # --- Tests for EDITABLE mode ---
 
 

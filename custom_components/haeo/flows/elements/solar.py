@@ -9,7 +9,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
 from custom_components.haeo.core.schema.elements.solar import CONF_CURTAILMENT, ELEMENT_TYPE, SECTION_CURTAILMENT
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, CONF_FORECAST
-from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
+from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
@@ -51,7 +51,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         default_name = await self._async_get_default_name(ELEMENT_TYPE)
         if not isinstance(current_connection, str):
             current_connection = participants[0] if participants else ""
-        input_fields = get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields(ELEMENT_TYPE)
 
         sections = self._get_sections()
         user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
@@ -99,7 +99,6 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             input_fields,
             field_schema,
             section_inclusion_map,
-            currency=self.hass.config.currency,
             current_data=subentry_data,
             top_level_entries=build_common_fields(
                 include_connection=True,
@@ -156,7 +155,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _build_config(self, user_input: dict[str, Any]) -> dict[str, Any]:
         """Build final config dict from user input."""
-        input_fields = get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields(ELEMENT_TYPE)
         config_dict = convert_sectioned_choose_data_to_config(
             user_input,
             input_fields,

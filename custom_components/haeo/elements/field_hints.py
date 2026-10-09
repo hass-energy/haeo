@@ -26,8 +26,8 @@ PRICE_NATIVE_MAX_VALUE: Final[float] = 1000.0
 class OutputTypeMetadata:
     """Default metadata for creating NumberEntityDescription for an OutputType.
 
-    Monetary units use ``$`` as a currency placeholder, which the number entity
-    and config flow selector replace with the Home Assistant currency.
+    Monetary units use ``$`` as a currency placeholder, which ``localize_input_fields``
+    replaces with the symbol for the Home Assistant currency.
     """
 
     unit: str | None

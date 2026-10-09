@@ -8,6 +8,7 @@ from custom_components.haeo.core.units import (
     _convert_value,
     base_unit_for_device_class,
     convert_to_base_unit,
+    currency_symbol,
     localize_currency,
 )
 
@@ -118,6 +119,7 @@ def test_convert_to_base_unit(
     ("unit", "currency", "expected"),
     [
         ("$/kWh", "£", "£/kWh"),
+        ("$/kWh", "$", "$/kWh"),
         ("$/kWh/h", "EUR", "EUR/kWh/h"),
         ("$/kW", "€", "€/kW"),
         ("$", "A$", "A$"),
@@ -129,3 +131,18 @@ def test_convert_to_base_unit(
 def test_localize_currency(unit: str | None, currency: str, expected: str | None) -> None:
     """The $ placeholder is replaced with the currency and other units pass through."""
     assert localize_currency(unit, currency) == expected
+
+
+@pytest.mark.parametrize(
+    ("currency", "expected"),
+    [
+        ("AUD", "$"),
+        ("USD", "$"),
+        ("EUR", "€"),
+        ("GBP", "£"),
+        ("XYZ", "XYZ"),
+    ],
+)
+def test_currency_symbol(currency: str, expected: str) -> None:
+    """Known currency codes map to their symbol and unknown codes are shown as the code."""
+    assert currency_symbol(currency) == expected

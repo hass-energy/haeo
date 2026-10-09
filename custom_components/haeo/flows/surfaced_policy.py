@@ -313,7 +313,6 @@ def build_surfaced_schema_entries(
                 include_entities=inclusion_map.get(field_name),
                 multiple=True,
                 preferred_choice=preferred,
-                currency=hass.config.currency,
             ),
         )
     return entries

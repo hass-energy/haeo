@@ -93,6 +93,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION as CONF_CONNECTION_GRID
+from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import get_element_configs
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.input_stores import build_input_stores
@@ -452,7 +453,7 @@ async def test_async_update_data_returns_outputs(
     network_outputs = result.outputs["System"][ELEMENT_TYPE_NETWORK]
     cost_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_COST]
     assert cost_output.type == OutputType.COST
-    assert cost_output.unit == hass.config.currency
+    assert cost_output.unit == currency_symbol(hass.config.currency)
     assert cost_output.state == 123.45
     assert cost_output.forecast is None
 
