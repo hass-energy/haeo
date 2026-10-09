@@ -1,10 +1,21 @@
 """Tests for connection adapter availability checks."""
 
 from homeassistant.core import HomeAssistant
+import numpy as np
+import pytest
 
+from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
+from custom_components.haeo.core.adapters.elements.connection import adapter as connection_adapter
+from custom_components.haeo.core.model.elements import connection as model_connection
+from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType, connection
+from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
+from custom_components.haeo.core.schema.elements.grid import GridConfigData
+from custom_components.haeo.core.schema.elements.node import NodeConfigData
 from custom_components.haeo.elements.availability import schema_config_available
+
+from .conftest import optimize_participants
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -133,3 +144,49 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
 
     result = schema_config_available(config, sm=hass.states)
     assert result is True
+
+
+def test_connection_limit_binds_where_power_is_reported() -> None:
+    """A connection at its limit reports the limit, with the efficiency loss after it.
+
+    Importing at bus a and exporting at bus b is profitable, so the optimizer runs the
+    connection at its limit. The connection power sensor reads the limit and bus b
+    receives the limit times the efficiency.
+    """
+    efficiency = 0.9
+    cap = 5.0
+    link = ConnectionConfigData(
+        element_type=ElementType.CONNECTION,
+        name="link",
+        endpoints={"source": as_connection_target("a"), "target": as_connection_target("b")},
+        power_limits={"max_power_source_target": np.array([cap])},
+        efficiency={"efficiency_source_target": np.array([efficiency])},
+        pricing={"price_source_target": np.array([0.01])},
+    )
+    model_outputs = optimize_participants(
+        {
+            "a": NodeConfigData(element_type=ElementType.NODE, name="a", role={"is_source": False, "is_sink": False}),
+            "b": NodeConfigData(element_type=ElementType.NODE, name="b", role={"is_source": False, "is_sink": False}),
+            "link": link,
+            "supply": _grid("supply", "a", import_price=0.1, export_price=0.0),
+            "market": _grid("market", "b", import_price=10.0, export_price=1.0),
+        }
+    )
+
+    outputs = connection_adapter.outputs("link", model_outputs)[CONNECTION_DEVICE_CONNECTION]
+
+    assert outputs[CONNECTION_POWER].values[0] == pytest.approx(cap)
+    delivered = model_outputs["link"][model_connection.CONNECTION_POWER_OUT]
+    assert isinstance(delivered, OutputData)
+    assert delivered.values[0] == pytest.approx(cap * efficiency)
+
+
+def _grid(name: str, bus: str, *, import_price: float, export_price: float) -> GridConfigData:
+    """Return an unconstrained grid on the given bus."""
+    return GridConfigData(
+        element_type=ElementType.GRID,
+        name=name,
+        connection=as_connection_target(bus),
+        pricing={"price_source_target": np.array([import_price]), "price_target_source": np.array([export_price])},
+        power_limits={},
+    )

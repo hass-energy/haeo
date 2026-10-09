@@ -118,14 +118,15 @@ Every battery section value therefore sits on the stored-energy side of those co
 | Energy stored                         | Stored energy                                                                                         |
 | Power balance and other shadow prices | Stored energy                                                                                         |
 
-Because a connection applies efficiency first and then its power limit and price, where those land depends on the direction of the connection you build:
+A connection applies its power limit and price at its source end, where its power sensor also measures, and its efficiency after them.
+Where that lands depends on the direction of the connection you build:
 
-| Connection you build   | Power limit and price apply at  | Connection power sensor reports |
-| ---------------------- | ------------------------------- | ------------------------------- |
-| Bus to battery section | Section side, after efficiency  | Bus side, the terminal-like end |
-| Battery section to bus | Bus side, the terminal-like end | Section side, before efficiency |
+| Connection you build   | Power limit, price, and connection power sensor | Efficiency loss                 |
+| ---------------------- | ----------------------------------------------- | ------------------------------- |
+| Bus to battery section | Bus side, the terminal-like end                 | Between the bus and the section |
+| Battery section to bus | Section side                                    | Between the section and the bus |
 
-This differs from the [Battery](#battery) element, which applies both limits at the terminals.
+To match the [Battery](#battery) element, which limits both directions at its terminals, limit the charging connection rather than the discharging one, or read the discharging connection's limit as a section-side figure.
 If your connections have an efficiency below 100%, the battery section power sensors will not match a meter on the battery terminals.
 
 ### Inverter
@@ -219,13 +220,14 @@ Read power from the elements and connections attached to it.
 
 ### Connection
 
-A connection applies its segments in a fixed order from source to target: efficiency, then power limit, then price.
+A connection applies its segments in a fixed order from source to target: power limit, then price, then efficiency.
+The power limit, the price, and the connection power sensor all sit at the source end, so a connection running at its limit reads exactly the limit.
 
-| Input                       | Applies at                               |
-| --------------------------- | ---------------------------------------- |
-| Efficiency source to target | Between the source and the target        |
-| Max power source to target  | Target end: power arriving at the target |
-| Price source to target      | Target end: power arriving at the target |
+| Input                       | Applies at                           |
+| --------------------------- | ------------------------------------ |
+| Efficiency source to target | Between the source and the target    |
+| Max power source to target  | Source end: power leaving the source |
+| Price source to target      | Source end: power leaving the source |
 
 | Sensor                       | Measured at                                             |
 | ---------------------------- | ------------------------------------------------------- |
@@ -259,8 +261,10 @@ They now sit at the metered terminal:
 | Battery discharge power sensor | Energy leaving storage, before losses        | Battery terminals, after losses  |
 | Inverter max power AC to DC    | DC bus, after rectifying losses              | AC side, before losses           |
 | Inverter DC to AC power sensor | DC bus, before inverting losses              | AC side, after losses            |
+| Connection max power and price | Target end, after the connection's losses    | Source end, before losses        |
 
 If you set the battery max charge power from a cell-side figure, or the inverter max AC to DC power from a DC-side figure, re-check them against your hardware's terminal or AC rating.
+A connection's max power now limits the power its sensor reports, so it no longer allows slightly more than the configured value to leave the source.
 With efficiency below 100%, the same number now allows slightly less energy into storage or onto the DC bus than before.
 
 ## Known limitations
@@ -270,8 +274,6 @@ A few values do not yet sit at a metered terminal:
 - **Battery discharge cost** and any policy placed on a battery's discharge connection are charged on energy drawn from storage, before the discharge efficiency.
     With 95% discharge efficiency, a 0.10 \$/kWh discharge cost works out to about 0.105 \$/kWh at the battery terminals.
 - **Policies placed on an inverter's DC to AC path** are charged on the DC side, before the inverting efficiency.
-- **Connections** apply the power limit and price at the target end but report power at the source end.
-    With an efficiency below 100%, the reported power can exceed the configured limit: with 95% efficiency and a 5 kW limit, the sensor can show up to about 5.26 kW.
 - **Battery section** power sensors report the change in stored energy, not the terminals, because the efficiency lives on separate connections.
 
 ## Comparing HAEO with your own sensors
