@@ -10,6 +10,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
+from custom_components.haeo.core.schema.surfaced_policy import find_surfaced_rule, resolve_surfaced_endpoints
 from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import (
     get_input_fields,
@@ -22,11 +23,7 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.elements.input_fields import localize_input_field
 from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
-from custom_components.haeo.flows.surfaced_policy import (
-    find_policy_subentry,
-    find_surfaced_rule,
-    resolve_surfaced_endpoints,
-)
+from custom_components.haeo.flows.surfaced_policy import find_policy_subentry
 from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)

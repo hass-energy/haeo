@@ -107,7 +107,6 @@ from custom_components.haeo.core.schema.elements import (
     ElementType,
 )
 from custom_components.haeo.core.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.battery import SURFACED_PRICE_HINTS as BATTERY_SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
 from custom_components.haeo.core.schema.elements.battery_section import (
     OPTIONAL_INPUT_FIELDS as BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
@@ -122,7 +121,6 @@ from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
 from custom_components.haeo.core.schema.elements.load import OPTIONAL_INPUT_FIELDS as LOAD_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.load import SURFACED_PRICE_HINTS as LOAD_SURFACED_PRICE_HINTS
 from custom_components.haeo.core.schema.elements.load import LoadConfigData
 from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.node import NodeConfigData
@@ -134,6 +132,7 @@ from custom_components.haeo.core.schema.field_hints import (
     extract_field_hints,
     extract_list_field_hints,
 )
+from custom_components.haeo.core.schema.surfaced_policy import SURFACED_PRICE_HINTS_BY_TYPE
 from custom_components.haeo.elements.field_hints import build_input_fields, build_list_input_fields
 
 from .field_schema import FieldSchemaInfo
@@ -238,11 +237,6 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.LOAD: LOAD_OPTIONAL_INPUT_FIELDS,
     ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
     ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
-}
-
-SURFACED_PRICE_HINTS_BY_TYPE: Final[dict[str, dict[str, SurfacedPriceHint]]] = {
-    str(ElementType.BATTERY): BATTERY_SURFACED_PRICE_HINTS,
-    str(ElementType.LOAD): LOAD_SURFACED_PRICE_HINTS,
 }
 
 
@@ -650,7 +644,6 @@ __all__ = [
     "ELEMENT_DEVICE_NAMES",
     "ELEMENT_DEVICE_NAMES_BY_TYPE",
     "ELEMENT_OPTIONAL_INPUT_FIELDS",
-    "SURFACED_PRICE_HINTS_BY_TYPE",
     "ElementDeviceName",
     "ElementOutputName",
     "FieldSchemaInfo",

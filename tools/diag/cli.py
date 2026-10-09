@@ -31,7 +31,7 @@ from custom_components.haeo.core.adapters.policy_compilation import CompiledPoli
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
-from custom_components.haeo.core.data.loader.config_loader import load_element_config
+from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.output_data import OutputData
@@ -1015,15 +1015,9 @@ def run_diagnostics(
 
     state_provider = DiagnosticsStateProvider(diag.inputs)
 
-    loaded_participants: dict[str, ElementConfigData] = {}
+    loaded_participants = load_element_configs(participants_config, state_provider, forecast_times)
     for element_name, element_config in participants_config.items():
-        try:
-            loaded_participants[element_name] = load_element_config(
-                element_name, element_config, state_provider, forecast_times
-            )
-            print(f"  Loaded: {element_name} ({element_config.get(CONF_ELEMENT_TYPE)})")
-        except Exception as e:
-            print(f"  Warning: Failed to load {element_name}: {e}")
+        print(f"  Loaded: {element_name} ({element_config.get(CONF_ELEMENT_TYPE)})")
 
     if not loaded_participants:
         print("Error: No elements loaded")
