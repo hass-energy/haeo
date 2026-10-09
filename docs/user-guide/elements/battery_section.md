@@ -42,6 +42,8 @@ You must manually create Connection elements to connect the Battery Section to y
 | **[Capacity](#capacity)**             | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Battery capacity in kWh (can vary over time)  |
 | **[Initial Charge](#initial-charge)** | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Initial energy stored in battery (kWh)        |
 
+See [Where values are measured](../measurement-points.md#battery-section) for where each input and sensor applies in your system.
+
 ### Name
 
 Choose a descriptive, friendly name.
@@ -83,7 +85,7 @@ A Battery Section element creates 1 device in Home Assistant with the following 
 | [`sensor.{name}_battery_section_power_discharge`](#power-discharge) | kW     | Power being discharged from the battery     |
 | [`sensor.{name}_battery_section_power_active`](#power-active)       | kW     | Net active power (discharge - charge)       |
 | [`sensor.{name}_battery_section_energy_stored`](#energy-stored)     | kWh    | Current energy stored in the battery        |
-| [`sensor.{name}_battery_section_power_balance`](#power-balance)     | \$/kWh | Shadow price of power at battery terminals  |
+| [`sensor.{name}_battery_section_power_balance`](#power-balance)     | \$/kWh | Shadow price of energy at the section       |
 | [`sensor.{name}_battery_section_energy_in_flow`](#energy-in-flow)   | \$/kWh | Shadow price of charging constraint         |
 | [`sensor.{name}_battery_section_energy_out_flow`](#energy-out-flow) | \$/kWh | Shadow price of discharging constraint      |
 | [`sensor.{name}_battery_section_soc_max`](#soc-max)                 | \$/kWh | Shadow price of maximum capacity constraint |
@@ -93,6 +95,7 @@ A Battery Section element creates 1 device in Home Assistant with the following 
 
 The optimal power being charged into the battery at each time period.
 Values are always positive or zero.
+This is the rate the stored energy rises, after any efficiency on the connection that feeds the section.
 
 **Example**: A value of 3.5 kW means the battery is charging at 3.5 kW at this time period.
 
@@ -100,6 +103,7 @@ Values are always positive or zero.
 
 The optimal power being discharged from the battery at each time period.
 Values are always positive or zero.
+This is the rate the stored energy falls, before any efficiency on the connection that carries it away.
 
 **Example**: A value of 2.0 kW means the battery is discharging at 2.0 kW at this time period.
 
@@ -119,10 +123,10 @@ Values range from 0 to the configured capacity.
 
 ### Power Balance
 
-The marginal value of power at the battery terminals.
+The marginal value of energy at the battery section, on the storage side of any connection efficiency.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
-This shadow price shows how much the total system cost would change if you could inject or extract 1 kW of power at the battery terminals.
+This shadow price shows how much the total system cost would change if you could inject or extract 1 kW of power at the battery section.
 
 **Interpretation**:
 

@@ -52,6 +52,8 @@ Optional fields set to "None" are omitted from the optimization entirely.
 | **[Max Discharge Power](#max-charge-and-discharge-power)**        | Power      | No       | -       | Maximum discharging power                                  |
 | **[Salvage Value](#salvage-value)**                               | Price      | No       | 0       | Value assigned to stored energy at the horizon end         |
 
+See [Where values are measured](../measurement-points.md#battery) for where each input and sensor applies in your system.
+
 !!! tip "Charge and discharge pricing"
 
     To apply a per-kWh cost or incentive for charging or discharging, use a [Power Policy](../../walkthroughs/power-policies.md).
@@ -103,8 +105,7 @@ Refer to your battery or inverter specifications for the most appropriate values
 Add limits based on your battery's charge/discharge rating.
 Leave the fields blank when no practical limit applies.
 
-Both limits are measured at the battery terminals, the same place your battery management system and the battery port of a hybrid inverter measure power.
-This matches how manufacturers rate charge and discharge power.
+Both limits apply at the battery terminals, where your battery management system measures power.
 A 5 kW discharge limit means at most 5 kW leaves the battery terminals, whatever the discharge efficiency.
 
 !!! note
@@ -340,13 +341,13 @@ A Battery element creates a single device in Home Assistant:
 
 These sensors appear on the battery device:
 
-| Sensor                                                       | Unit   | Description                                  |
-| ------------------------------------------------------------ | ------ | -------------------------------------------- |
-| [`sensor.{name}_power_charge`](#charge-power)                | kW     | Charging power                               |
-| [`sensor.{name}_power_discharge`](#discharge-power)          | kW     | Discharging power                            |
-| [`sensor.{name}_energy_stored`](#energy-stored)              | kWh    | Current energy level                         |
-| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %      | State of charge percentage                   |
-| [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kWh | Marginal value of power at battery terminals |
+| Sensor                                                       | Unit   | Description                     |
+| ------------------------------------------------------------ | ------ | ------------------------------- |
+| [`sensor.{name}_power_charge`](#charge-power)                | kW     | Charging power                  |
+| [`sensor.{name}_power_discharge`](#discharge-power)          | kW     | Discharging power               |
+| [`sensor.{name}_energy_stored`](#energy-stored)              | kWh    | Current energy level            |
+| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %      | State of charge percentage      |
+| [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kWh | Marginal value of energy stored |
 
 ### Charge Power
 
@@ -390,7 +391,7 @@ Provides a convenient percentage view of the battery level.
 
 ### Power Balance Shadow Price
 
-The marginal value of power at the battery terminals.
+The marginal value of energy stored in the battery, measured inside the charge and discharge efficiency.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
 This shadow price represents the economic value of 1 kW of additional power capacity at the battery.
@@ -398,7 +399,7 @@ It reflects the cost of power flowing through the battery connection point.
 
 **Interpretation**:
 
-- **Positive value**: Power at the battery terminals has value (usually during discharge periods)
+- **Positive value**: Energy in the battery has value (usually during discharge periods)
 - **Negative value**: Additional power would increase costs (usually during charging periods)
 - **Magnitude**: Higher absolute values indicate the battery connection is more valuable to the system
 

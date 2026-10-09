@@ -28,6 +28,8 @@ Connections define how power flows between elements in your network with support
 | **Price Source→Target**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from source to target            |
 | **Price Target→Source**      | [sensor(s)](../forecasts-and-sensors.md) | No       | 0         | Price (\$/kWh) for transferring power from target to source            |
 
+See [Where values are measured](../measurement-points.md#connection) for where each input and sensor applies in your system.
+
 !!! tip "Configuration tips"
 
     **Leaving fields unset**: When a direction should allow unlimited flow with no losses or costs, leave the corresponding fields empty rather than creating sensors with maximum or default values.

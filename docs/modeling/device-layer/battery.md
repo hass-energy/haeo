@@ -25,7 +25,7 @@ The adapter creates three model elements:
 | ------------------------------------------------------ | ------------------ | ------------------------------------------------ |
 | [Battery](../model-layer/elements/battery.md)          | `{name}`           | Capacity range, initial charge, salvage value    |
 | [Connection](../model-layer/connections/connection.md) | `{name}:discharge` | Efficiency, power limits, SOC pricing (optional) |
-| [Connection](../model-layer/connections/connection.md) | `{name}:charge`    | Efficiency, power limits                         |
+| [Connection](../model-layer/connections/connection.md) | `{name}:charge`    | Power limits, efficiency                         |
 
 ## Architecture Details
 
@@ -50,6 +50,7 @@ User-facing energy and SOC add the lower bound offset back to the model values.
 Battery management systems, hybrid inverter battery ports, and battery meters all measure power at the battery terminals.
 Manufacturers rate charge and discharge power at the same point.
 In the model the terminals are the bus end of the battery's connections, and efficiency is the loss between the terminals and the stored energy.
+See [Where values are measured](../../user-guide/measurement-points.md) for how this convention applies across every element.
 
 Each connection therefore places its efficiency segment next to the battery and its power-limit segment at the bus end:
 

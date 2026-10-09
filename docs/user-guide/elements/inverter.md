@@ -18,6 +18,8 @@ They provide a DC bus for connecting batteries and solar panels, with bidirectio
 | **Efficiency DC to AC**                       | Number (%)                            | No       | 100     | Efficiency percentage when inverting DC to AC (0-100)  |
 | **Efficiency AC to DC**                       | Number (%)                            | No       | 100     | Efficiency percentage when rectifying AC to DC (0-100) |
 
+See [Where values are measured](../measurement-points.md#inverter) for where each input and sensor applies in your system.
+
 ## Name
 
 Unique identifier for this inverter within your HAEO configuration.
