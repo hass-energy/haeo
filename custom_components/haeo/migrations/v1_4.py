@@ -12,6 +12,7 @@ from types import MappingProxyType
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, HUB_SECTION_ADVANCED
@@ -25,6 +26,7 @@ from custom_components.haeo.core.schema.migrations.v1_4 import (
     migrate_connection_config,
     node_is_junction,
 )
+from custom_components.haeo.repairs import create_node_replaced_by_junction_issue
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,26 +80,31 @@ def _remove_reverse_field_entities(hass: HomeAssistant, entry: ConfigEntry, conn
             registry.async_remove(entity_entry.entity_id)
 
 
-def _replace_nodes_with_junctions(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Replace nodes that neither source nor sink power with junctions.
+async def _replace_nodes_with_junctions(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Replace nodes with junctions where they should only pass power through.
 
-    Outside advanced mode a node cannot be configured, so its source and sink
-    switches could only have been turned on by mistake, and every node becomes a
-    junction. A junction has no switches to turn on.
+    The Switchboard is always a junction. Outside advanced mode a node cannot be
+    configured, so every node becomes a junction. In advanced mode, other nodes
+    become junctions only when neither their source nor sink switch is on. A
+    junction has no switches to turn on, and a node whose switch was on gets a
+    repair issue saying it no longer produces or consumes power.
     """
+    translations = await async_get_translations(hass, hass.config.language, "common", integrations=[DOMAIN])
+    switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
     advanced_mode = entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
     registry = er.async_get(hass)
     for subentry in list(entry.subentries.values()):
         if subentry.subentry_type != node.ELEMENT_TYPE:
             continue
         if not node_is_junction(subentry.data):
-            if advanced_mode:
+            if advanced_mode and subentry.title != switchboard_name:
                 continue
             _LOGGER.warning(
-                "Node %s had its source or sink switch turned on or driven by an entity outside advanced mode; "
+                "Node %s had its source or sink switch turned on or driven by an entity; "
                 "it is now a junction that only passes power through",
                 subentry.title,
             )
+            create_node_replaced_by_junction_issue(hass, entry.entry_id, subentry.title)
 
         prefix = f"{entry.entry_id}_{subentry.subentry_id}_"
         for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
@@ -185,7 +192,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     _remove_reverse_field_entities(hass, entry, connection_ids)
-    _replace_nodes_with_junctions(hass, entry)
+    await _replace_nodes_with_junctions(hass, entry)
 
     hass.config_entries.async_update_entry(entry, minor_version=MINOR_VERSION)
     _LOGGER.info("Migration complete for %s entry %s", DOMAIN, entry.entry_id)

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from types import MappingProxyType
-from unittest.mock import patch
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -343,23 +343,35 @@ async def test_async_migrate_entry_replaces_junction_node(hass: HomeAssistant, a
     registry = er.async_get(hass)
     assert registry.async_get(switch_entity_id) is None
     assert registry.async_get(sensor_entity_id) is None
+    assert not ir.async_get(hass).issues
 
 
-async def test_async_migrate_entry_replaces_source_node_outside_advanced_mode(hass: HomeAssistant) -> None:
-    """Outside advanced mode a node's source switch can only be on by mistake, so it becomes a junction."""
-    entry = _add_hub_in_mode(hass, advanced_mode=False)
-    hass.config_entries.async_add_subentry(entry, _node("Switchboard", is_source=as_constant_value(True)))
+@pytest.mark.parametrize(
+    ("advanced_mode", "name"),
+    [
+        pytest.param(False, "Sub board", id="standard_mode_node"),
+        pytest.param(False, "Switchboard", id="standard_mode_switchboard"),
+        pytest.param(True, "Switchboard", id="advanced_mode_switchboard"),
+    ],
+)
+async def test_async_migrate_entry_replaces_source_node_with_repair_issue(
+    hass: HomeAssistant, advanced_mode: bool, name: str
+) -> None:
+    """The Switchboard, and any node outside advanced mode, becomes a junction even with its source switch on."""
+    entry = _add_hub_in_mode(hass, advanced_mode=advanced_mode)
+    hass.config_entries.async_add_subentry(entry, _node(name, is_source=as_constant_value(True)))
 
-    with patch.object(v1_4._LOGGER, "warning") as warning:
-        assert await v1_4.async_migrate_entry(hass, entry)
+    assert await v1_4.async_migrate_entry(hass, entry)
 
     (replacement,) = entry.subentries.values()
     assert replacement.subentry_type == junction.ELEMENT_TYPE
-    warning.assert_called_once()
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, f"node_replaced_by_junction_{entry.entry_id}_{name}")
+    assert issue is not None
+    assert issue.translation_placeholders == {"element_name": name}
 
 
 async def test_async_migrate_entry_keeps_source_node_in_advanced_mode(hass: HomeAssistant) -> None:
-    """In advanced mode a node that sources or sinks power stays a node with its role."""
+    """In advanced mode a node other than the Switchboard that sources or sinks power stays a node."""
     entry = _add_hub_in_mode(hass, advanced_mode=True)
     grid_node = _node("Grid point", is_source=True, is_sink=True)
     hass.config_entries.async_add_subentry(entry, grid_node)

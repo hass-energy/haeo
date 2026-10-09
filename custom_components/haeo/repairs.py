@@ -53,6 +53,20 @@ def create_disconnected_network_issue(
     )
 
 
+def create_node_replaced_by_junction_issue(hass: HomeAssistant, entry_id: str, element_name: str) -> None:
+    """Create a repair issue for a node whose source or sink role was removed by becoming a junction."""
+    async_create_issue(
+        hass,
+        DOMAIN,
+        f"node_replaced_by_junction_{entry_id}_{element_name}",
+        is_fixable=False,
+        is_persistent=True,
+        severity=IssueSeverity.WARNING,
+        translation_key="node_replaced_by_junction",
+        translation_placeholders={"element_name": element_name},
+    )
+
+
 def dismiss_disconnected_network_issue(
     hass: HomeAssistant,
     entry_id: str,

@@ -63,9 +63,10 @@ If you need a point that produces or consumes unlimited power, use a [node](node
 !!! note "Upgrading from earlier versions"
 
     Earlier versions used a node for the switchboard and for every other connection point.
-    When you upgrade, every node that neither produces nor consumes power becomes a junction with the same name.
-    Outside Advanced Mode, every node becomes a junction, and HAEO logs a warning for any node that had its source or sink switch turned on.
-    In Advanced Mode, a node that can produce or consume power, or whose switch is driven by an entity, stays a node.
+    When you upgrade, the Switchboard and every node that neither produces nor consumes power become junctions with the same name.
+    Outside Advanced Mode, every node becomes a junction.
+    In Advanced Mode, any other node that can produce or consume power, or whose switch is driven by an entity, stays a node.
+    When a node that had its source or sink switch turned on becomes a junction, HAEO raises a repair issue for it.
 
 ## Use Cases
 

@@ -603,6 +603,10 @@
       "title": "Missing sensor data for {element_name}",
       "description": "The HAEO integration cannot find sensor data for element {element_name}. The sensor entity {sensor_entity_id} may not exist or may be unavailable.\n\nTo fix this issue:\n1. Check that the sensor entity exists in Home Assistant\n2. Verify the sensor is available and reporting data\n3. If the sensor was removed, reconfigure the element to use a different sensor\n4. If the sensor is temporarily unavailable, this issue will automatically dismiss when the sensor becomes available again"
     },
+    "node_replaced_by_junction": {
+      "title": "{element_name} is now a junction",
+      "description": "{element_name} was a node with its source or sink switch turned on or driven by an entity. A node like this produces or consumes unlimited power at no cost, which let the optimizer plan with power that does not exist.\n\n{element_name} is now a junction, which only passes power between the elements connected to it. Its source and sink switches have been removed.\n\nIf you need an element that produces or consumes power, use a grid, solar, or load element, or in advanced mode a node attached through a connection that limits and prices it. You can ignore this issue once you have read it."
+    },
     "optimization_failure": {
       "title": "Optimization failed",
       "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. An infeasible or numerically difficult optimization problem\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your system configuration for conflicting constraints\n4. Adjust interval tiers or simplify the network if solves are slow or failing\n5. This issue will automatically dismiss when optimization succeeds"
