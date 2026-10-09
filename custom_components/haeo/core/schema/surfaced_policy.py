@@ -30,6 +30,11 @@ SURFACED_PRICE_HINTS_BY_TYPE: Final[dict[str, dict[str, SurfacedPriceHint]]] = {
 }
 
 
+def get_surfaced_price_hints(element_type: str) -> dict[str, SurfacedPriceHint]:
+    """Return the surfaced price hints for an element type."""
+    return SURFACED_PRICE_HINTS_BY_TYPE.get(str(element_type), {})
+
+
 def resolve_surfaced_endpoints(
     hint: SurfacedPriceHint,
     element_name: str,
@@ -94,8 +99,7 @@ def negated_price_paths(participants: Mapping[str, Mapping[str, Any]]) -> dict[s
         rules: list[PolicyRuleConfig] = list(policy_config.get(CONF_RULES, []))
         paths: set[tuple[str, ...]] = set()
         for element_name, element_config in participants.items():
-            hints = SURFACED_PRICE_HINTS_BY_TYPE.get(str(element_config.get(CONF_ELEMENT_TYPE)), {})
-            for hint in hints.values():
+            for hint in get_surfaced_price_hints(str(element_config.get(CONF_ELEMENT_TYPE))).values():
                 if not hint.negate:
                     continue
                 source, target = resolve_surfaced_endpoints(hint, element_name)
@@ -109,6 +113,7 @@ def negated_price_paths(participants: Mapping[str, Mapping[str, Any]]) -> dict[s
 __all__ = [
     "SURFACED_PRICE_HINTS_BY_TYPE",
     "find_surfaced_rule",
+    "get_surfaced_price_hints",
     "negated_price_paths",
     "resolve_surfaced_endpoints",
 ]
