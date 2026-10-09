@@ -108,7 +108,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             as_str(common.get(CONF_HORIZON_PRESET)),
         )
 
-        # Resolve the switchboard node name from translations
+        # Resolve the switchboard name from translations
         translations = await async_get_translations(
             self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
         )
@@ -141,13 +141,13 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                     "title": network_subentry_name,
                     "unique_id": None,
                 },
-                # Switchboard node as central connection point
+                # Switchboard junction as central connection point
                 {
                     "data": {
-                        CONF_ELEMENT_TYPE: ElementType.NODE,
+                        CONF_ELEMENT_TYPE: ElementType.JUNCTION,
                         CONF_NAME: switchboard_name,
                     },
-                    "subentry_type": ElementType.NODE,
+                    "subentry_type": ElementType.JUNCTION,
                     "title": switchboard_name,
                     "unique_id": None,
                 },

@@ -148,14 +148,14 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
 
     # Check if Network subentry already exists
     has_network = False
-    has_node = False
+    has_switchboard = False
 
     for subentry in hub_entry.subentries.values():
         if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
             has_network = True
-        elif subentry.subentry_type == ElementType.NODE:
-            has_node = True
-        if has_network and has_node:
+        elif subentry.subentry_type in (ElementType.JUNCTION, ElementType.NODE):
+            has_switchboard = True
+        if has_network and has_switchboard:
             break
 
     # Load translations for subentry names
@@ -174,25 +174,25 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         hass.config_entries.async_add_subentry(hub_entry, network_subentry)
         _LOGGER.debug("Network subentry created successfully")
 
-    # In non-advanced mode, ensure switchboard node exists
+    # In non-advanced mode, ensure the switchboard junction exists
     advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
-    if not advanced_mode and not has_node:
-        _LOGGER.info("Creating Switchboard node for hub %s (non-advanced mode)", hub_entry.entry_id)
+    if not advanced_mode and not has_switchboard:
+        _LOGGER.info("Creating Switchboard junction for hub %s (non-advanced mode)", hub_entry.entry_id)
         switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
 
         switchboard_subentry = ConfigSubentry(
             data=MappingProxyType(
                 {
-                    CONF_ELEMENT_TYPE: ElementType.NODE,
+                    CONF_ELEMENT_TYPE: ElementType.JUNCTION,
                     CONF_NAME: switchboard_name,
                 }
             ),
-            subentry_type=ElementType.NODE,
+            subentry_type=ElementType.JUNCTION,
             title=switchboard_name,
             unique_id=None,
         )
         hass.config_entries.async_add_subentry(hub_entry, switchboard_subentry)
-        _LOGGER.debug("Switchboard node created successfully")
+        _LOGGER.debug("Switchboard junction created successfully")
 
 
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:

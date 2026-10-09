@@ -1,4 +1,7 @@
-"""Migration helpers for config entry version 1.4."""
+"""Migration helpers for config entry version 1.4.
+
+Splits bidirectional connections and turns pure-junction nodes into junctions.
+"""
 
 from __future__ import annotations
 
@@ -11,14 +14,16 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema.elements import connection
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, HUB_SECTION_ADVANCED
+from custom_components.haeo.core.schema.elements import connection, junction, node
 from custom_components.haeo.core.schema.migrations.v1_4 import (
     REVERSE_TO_FORWARD,
     endpoint_name,
     endpoints_match_reverse,
+    junction_config,
     merge_reverse_into_existing,
     migrate_connection_config,
+    node_is_junction,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -71,6 +76,49 @@ def _remove_reverse_field_entities(hass: HomeAssistant, entry: ConfigEntry, conn
                 "Removing %s because connections no longer have reverse-direction fields", entity_entry.entity_id
             )
             registry.async_remove(entity_entry.entity_id)
+
+
+def _advanced_mode(entry: ConfigEntry) -> bool:
+    advanced = entry.data.get(HUB_SECTION_ADVANCED)
+    return isinstance(advanced, Mapping) and bool(advanced.get(CONF_ADVANCED_MODE, False))
+
+
+def _replace_nodes_with_junctions(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Replace nodes that neither source nor sink power with junctions.
+
+    Outside advanced mode a node cannot be configured, so its source and sink
+    switches could only have been turned on by mistake, and every node becomes a
+    junction. A junction has no switches to turn on.
+    """
+    advanced_mode = _advanced_mode(entry)
+    registry = er.async_get(hass)
+    for subentry in list(entry.subentries.values()):
+        if subentry.subentry_type != node.ELEMENT_TYPE:
+            continue
+        if not node_is_junction(subentry.data):
+            if advanced_mode:
+                continue
+            _LOGGER.warning(
+                "Node %s was set to produce or consume unlimited power outside advanced mode; "
+                "it is now a junction that only passes power through",
+                subentry.title,
+            )
+
+        prefix = f"{entry.entry_id}_{subentry.subentry_id}_"
+        for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+            if entity_entry.unique_id.startswith(prefix):
+                registry.async_remove(entity_entry.entity_id)
+        hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)
+        hass.config_entries.async_add_subentry(
+            entry,
+            ConfigSubentry(
+                data=MappingProxyType(junction_config(subentry.data)),
+                subentry_type=junction.ELEMENT_TYPE,
+                title=subentry.title,
+                unique_id=None,
+            ),
+        )
+        _LOGGER.info("Replaced node %s with a junction", subentry.title)
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -142,6 +190,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     _remove_reverse_field_entities(hass, entry, connection_ids)
+    _replace_nodes_with_junctions(hass, entry)
 
     hass.config_entries.async_update_entry(entry, minor_version=MINOR_VERSION)
     _LOGGER.info("Migration complete for %s entry %s", DOMAIN, entry.entry_id)

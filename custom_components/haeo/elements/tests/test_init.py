@@ -18,6 +18,7 @@ from custom_components.haeo.elements import (
     is_element_config_schema,
 )
 from custom_components.haeo.core.schema.elements import battery, battery_section, connection, grid, inverter, load, solar
+from custom_components.haeo.core.schema.elements import node as node_schema
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 
 
@@ -61,6 +62,17 @@ def test_is_element_config_schema_valid_node() -> None:
     valid_config = {
         "element_type": "node",
         "name": "test_node",
+        node_schema.SECTION_ROLE: {"is_source": False, "is_sink": False},
+    }
+    assert is_element_config_schema(valid_config) is True
+
+
+def test_is_element_config_schema_valid_node_minimal() -> None:
+    """Test is_element_config_schema with minimal node config (optional fields omitted)."""
+    valid_config = {
+        "element_type": "node",
+        "name": "test_node",
+        node_schema.SECTION_ROLE: {},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -258,22 +270,25 @@ def test_is_element_config_data_valid_node() -> None:
     valid_config = {
         "element_type": "node",
         "name": "test_node",
+        node_schema.SECTION_ROLE: {},
     }
     assert is_element_config_data(valid_config) is True
 
 
 def test_is_element_config_data_optional_type_validation() -> None:
     """Test is_element_config_data validates optional key types."""
-    base_config = {
-        "element_type": solar.ELEMENT_TYPE,
-        "name": "test_solar",
-        "connection": as_connection_target("main_bus"),
-        solar.SECTION_FORECAST: {solar.CONF_FORECAST: 1.0},
+    invalid_config = {
+        "element_type": node_schema.ELEMENT_TYPE,
+        "name": "test_node",
+        node_schema.SECTION_ROLE: {"is_source": "yes"},
     }
-    invalid_config = {**base_config, solar.SECTION_CURTAILMENT: {solar.CONF_CURTAILMENT: "yes"}}
     assert is_element_config_data(invalid_config) is False
 
-    valid_config = {**base_config, solar.SECTION_CURTAILMENT: {solar.CONF_CURTAILMENT: True}}
+    valid_config = {
+        "element_type": node_schema.ELEMENT_TYPE,
+        "name": "test_node",
+        node_schema.SECTION_ROLE: {"is_source": True},
+    }
     assert is_element_config_data(valid_config) is True
 
 

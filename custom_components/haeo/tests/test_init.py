@@ -310,47 +310,44 @@ async def test_ensure_required_subentries_creates_network(hass: HomeAssistant, m
 
 
 @pytest.mark.parametrize(
-    "existing_node",
-    [False, True],
-    ids=["creates_switchboard", "skips_existing"],
+    "existing_type",
+    [None, ElementType.JUNCTION, ElementType.NODE],
+    ids=["creates_switchboard", "skips_existing_junction", "skips_existing_node"],
 )
 async def test_ensure_required_subentries_switchboard_handling(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    existing_node: bool,
+    existing_type: ElementType | None,
 ) -> None:
-    """_ensure_required_subentries creates a switchboard only when missing."""
-    if existing_node:
-        node_subentry = ConfigSubentry(
-            data=MappingProxyType(
-                {
-                    CONF_ELEMENT_TYPE: ElementType.NODE,
-                    CONF_NAME: "Existing Node",
-                }
+    """_ensure_required_subentries creates a switchboard junction only when no junction or node exists."""
+    if existing_type is not None:
+        hass.config_entries.async_add_subentry(
+            mock_hub_entry,
+            ConfigSubentry(
+                data=MappingProxyType({CONF_ELEMENT_TYPE: existing_type, CONF_NAME: "Existing"}),
+                subentry_type=existing_type,
+                title="Existing",
+                unique_id=None,
             ),
-            subentry_type=ElementType.NODE,
-            title="Existing Node",
-            unique_id=None,
         )
-        hass.config_entries.async_add_subentry(mock_hub_entry, node_subentry)
 
     await _ensure_required_subentries(hass, mock_hub_entry)
 
-    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
-    assert node_count == 1
-
-    node_subentry = next(sub for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
-    assert dict(node_subentry.data) == {
-        CONF_ELEMENT_TYPE: ElementType.NODE,
-        CONF_NAME: "Existing Node" if existing_node else "Switchboard",
-    }
+    hub_points = [
+        sub
+        for sub in mock_hub_entry.subentries.values()
+        if sub.subentry_type in (ElementType.JUNCTION, ElementType.NODE)
+    ]
+    assert len(hub_points) == 1
+    if existing_type is None:
+        assert hub_points[0].subentry_type == ElementType.JUNCTION
+        assert dict(hub_points[0].data) == {CONF_ELEMENT_TYPE: ElementType.JUNCTION, CONF_NAME: "Switchboard"}
 
 
 async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
     hass: HomeAssistant,
 ) -> None:
     """Test that _ensure_required_subentries does not create switchboard in advanced mode."""
-    # Create a hub entry with advanced_mode enabled
     advanced_hub_entry = MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -364,16 +361,9 @@ async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
     )
     advanced_hub_entry.add_to_hass(hass)
 
-    # Verify no node subentry exists initially
-    node_count = sum(1 for sub in advanced_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
-    assert node_count == 0
-
-    # Call ensure - should NOT create switchboard node in advanced mode
     await _ensure_required_subentries(hass, advanced_hub_entry)
 
-    # Verify no node subentry was created
-    node_count = sum(1 for sub in advanced_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
-    assert node_count == 0
+    assert not any(sub.subentry_type == ElementType.JUNCTION for sub in advanced_hub_entry.subentries.values())
 
 
 async def test_async_update_listener(

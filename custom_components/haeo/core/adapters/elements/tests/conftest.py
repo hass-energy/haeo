@@ -47,7 +47,7 @@ def optimize_participants(
 
 def bus_node(name: str) -> NodeConfigData:
     """Return a passive bus node."""
-    return NodeConfigData(element_type=ElementType.NODE, name=name)
+    return NodeConfigData(element_type=ElementType.NODE, name=name, role={"is_source": False, "is_sink": False})
 
 
 def grid_at(name: str, bus: str, *, import_price: float, export_price: float) -> GridConfigData:

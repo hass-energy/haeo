@@ -7158,7 +7158,7 @@
           { "group": "Inverter", "name": "Inverter", "type": "inverter" },
           { "group": "Load", "inbound_tags": [1, 2, 3], "name": "Load", "type": "load" },
           { "group": "Solar", "name": "Solar", "outbound_tags": [3], "type": "solar" },
-          { "group": "Switchboard", "name": "Switchboard", "type": "node" }
+          { "group": "Switchboard", "name": "Switchboard", "type": "junction" }
         ],
         "policies": [
           { "label": "Battery \u2192 *", "name": "policy_pricing_r0_v1", "terms": [{ "connection": "Inverter:dc_to_ac", "tag": 1 }] },
@@ -7432,7 +7432,7 @@
       "advanced": false,
       "device_class": "monetary",
       "element_name": "Switchboard",
-      "element_type": "node",
+      "element_type": "junction",
       "field_type": "shadow_price",
       "forecast": [
         { "time": "2026-04-19T21:58:00.000000+1000", "value": 0.179 },
@@ -7548,7 +7548,7 @@
         { "time": "2026-04-22T21:58:00.000000+1000", "value": 0.179 }
       ],
       "friendly_name": "Switchboard Power balance shadow price",
-      "output_name": "node_power_balance",
+      "output_name": "junction_power_balance",
       "source_role": "output",
       "unit_of_measurement": "$/kWh"
     }

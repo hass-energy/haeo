@@ -343,14 +343,15 @@ def test_migrate_subentry_load_node_solar() -> None:
         {
             CONF_ELEMENT_TYPE: node.ELEMENT_TYPE,
             CONF_NAME: "Node",
-            "is_source": True,
-            "is_sink": False,
+            node.CONF_IS_SOURCE: True,
+            node.CONF_IS_SINK: False,
         },
         subentry_type=node.ELEMENT_TYPE,
     )
     node_migrated = v1_3.migrate_subentry_data(node_subentry)
     assert node_migrated is not None
-    assert node_migrated["role"] == {"is_source": True, "is_sink": False}
+    assert _section(node_migrated, node.SECTION_ROLE)[node.CONF_IS_SOURCE] is True
+    assert _section(node_migrated, node.SECTION_ROLE)[node.CONF_IS_SINK] is False
 
     solar_subentry = _create_subentry(
         {
@@ -447,8 +448,8 @@ def test_migrate_subentry_load_node_solar() -> None:
             node.ELEMENT_TYPE,
             {
                 CONF_NAME: "Node",
-                "is_source": True,
-                "is_sink": False,
+                node.CONF_IS_SOURCE: True,
+                node.CONF_IS_SINK: False,
             },
             id="node-flat-v033",
         ),

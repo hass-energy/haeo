@@ -39,6 +39,7 @@ CREATE_CASES: Sequence[CreateCase] = [
         "data": NodeConfigData(
             element_type=ElementType.NODE,
             name="node_main",
+            role={"is_source": False, "is_sink": False},
         ),
         "model": [
             {"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "node_main", "is_source": False, "is_sink": False},

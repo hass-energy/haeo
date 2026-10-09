@@ -300,6 +300,21 @@
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
+    "junction": {
+      "flow_title": "Junction",
+      "entry_type": "Junction",
+      "initiate_flow": { "user": "Junction", "reconfigure": "Junction" },
+      "step": {
+        "user": {
+          "title": "Junction Configuration",
+          "description": "Add a junction where connections meet. Power flowing in always equals power flowing out.",
+          "data": { "name": "Junction Name" },
+          "sections": { "common": { "data": { "name": "Junction Name" }, "name": "Common settings" } }
+        }
+      },
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
     "load": {
       "flow_title": "Load",
       "entry_type": "Load",
@@ -342,9 +357,22 @@
       "step": {
         "user": {
           "title": "Node Configuration",
-          "description": "Add a junction where connected power must balance, such as a separate AC or DC bus.",
-          "data": { "name": "Node Name" },
-          "sections": { "common": { "data": { "name": "Node Name" }, "name": "Common settings" } }
+          "description": "Add a node that can produce or consume unlimited power. Use a junction for a point that only passes power through.",
+          "data": {
+            "is_sink": "Can consume unlimited power (Sink)",
+            "is_source": "Can produce unlimited power (Source)",
+            "name": "Node Name"
+          },
+          "sections": {
+            "common": { "data": { "name": "Node Name" }, "name": "Common settings" },
+            "role": {
+              "data": {
+                "is_sink": "Can consume unlimited power (Sink)",
+                "is_source": "Can produce unlimited power (Source)"
+              },
+              "name": "Node role"
+            }
+          }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -425,6 +453,7 @@
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
+    "junction": { "name": "{name}" },
     "load": { "name": "{name}" },
     "network": { "name": "Optimizer" },
     "node": { "name": "{name}" },
@@ -504,6 +533,7 @@
       "inverter_power_ac_to_dc": { "name": "AC to DC power" },
       "inverter_power_active": { "name": "Active power" },
       "inverter_power_dc_to_ac": { "name": "DC to AC power" },
+      "junction_power_balance": { "name": "Power balance shadow price" },
       "load_forecast_limit_price": { "name": "Forecast limit shadow price" },
       "load_horizon_average_marginal_price": { "name": "Horizon average marginal price" },
       "load_horizon_energy": { "name": "Horizon energy" },
@@ -524,6 +554,8 @@
     "switch": {
       "load_curtailment": { "name": "Shedding" },
       "network_auto_optimize": { "name": "Auto optimize" },
+      "node_is_sink": { "name": "Is sink" },
+      "node_is_source": { "name": "Is source" },
       "policy_enabled": { "name": "{rule_name} enabled" },
       "solar_curtailment": { "name": "Curtailment" }
     }

@@ -27,7 +27,7 @@ from custom_components.haeo.core.schema.elements.connection import (
     SECTION_ENDPOINTS,
     ConnectionConfigData,
 )
-from custom_components.haeo.core.schema.elements.node import NodeConfigData
+from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
 from custom_components.haeo.core.schema.sections import SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 
@@ -68,6 +68,7 @@ async def test_evaluate_network_connectivity_connected(
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: ElementType.NODE,
         CONF_NAME: "Node A",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a}
 
@@ -88,10 +89,12 @@ async def test_evaluate_network_connectivity_disconnected(
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: ElementType.NODE,
         CONF_NAME: "Node A",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         CONF_ELEMENT_TYPE: ElementType.NODE,
         CONF_NAME: "Node B",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a, "Node B": node_b}
 
@@ -113,10 +116,12 @@ async def test_evaluate_network_connectivity_resolves_issue(
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: ElementType.NODE,
         CONF_NAME: "Node A",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         CONF_ELEMENT_TYPE: ElementType.NODE,
         CONF_NAME: "Node B",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     participants: dict[str, ElementConfigData] = {"Node A": node_a, "Node B": node_b}
 

@@ -1,43 +1,53 @@
 # Node Modeling
 
-The Node device composes a [Node](../model-layer/elements/node.md) model element to represent an electrical bus where multiple elements connect and power must balance.
+The Node device composes a [Node](../model-layer/elements/node.md) model element with user-configured source and sink flags.
+It represents a point that can produce and/or consume unlimited power at no cost.
+For a pure power balance point, see [Junction](junction.md).
 
 ## Model Elements Created
 
 ```mermaid
 graph LR
     subgraph "Device"
-        NodeModel["Node<br/>(is_source=false, is_sink=false)"]
+        NodeModel["Node<br/>(is_source, is_sink)"]
     end
 ```
 
-| Model Element                           | Name     | Parameters From Configuration                  |
-| --------------------------------------- | -------- | ---------------------------------------------- |
-| [Node](../model-layer/elements/node.md) | `{name}` | is_source=false, is_sink=false (pure junction) |
+| Model Element                           | Name     | Parameters From Configuration                |
+| --------------------------------------- | -------- | -------------------------------------------- |
+| [Node](../model-layer/elements/node.md) | `{name}` | is_source, is_sink (from user configuration) |
 
-Node is unique among Device Layer elements: it creates only a Node model element with no implicit Connection.
+Node creates only a Node model element with no implicit Connection.
 
 ## Devices Created
 
 Node creates 1 device in Home Assistant:
 
-| Device  | Name     | Created When | Purpose                          |
-| ------- | -------- | ------------ | -------------------------------- |
-| Primary | `{name}` | Always       | Junction point for power balance |
+| Device  | Name     | Created When | Purpose                               |
+| ------- | -------- | ------------ | ------------------------------------- |
+| Primary | `{name}` | Always       | Unlimited source and/or sink of power |
 
 ## Parameter Mapping
 
 The adapter transforms user configuration into model parameters:
 
-| User Configuration | Model Element | Model Parameter | Notes                                   |
-| ------------------ | ------------- | --------------- | --------------------------------------- |
-| `name`             | Node          | `name`          | Element name                            |
-| —                  | Node          | `is_source`     | Always `false`: a node cannot add power |
-| —                  | Node          | `is_sink`       | Always `false`: a node cannot remove it |
+| User Configuration | Model Element | Model Parameter | Notes                                           |
+| ------------------ | ------------- | --------------- | ----------------------------------------------- |
+| `name`             | Node          | `name`          | Element name                                    |
+| `is_source`        | Node          | `is_source`     | Whether node can produce power (default: false) |
+| `is_sink`          | Node          | `is_sink`       | Whether node can consume power (default: false) |
 
-A Node device is always a pure junction.
-The model-layer source and sink flags are reserved for device elements that bound and price the power they add or remove, such as [Grid](grid.md), [Solar](solar.md), and [Loads](loads.md).
-A node with either flag set would be an unpriced, unbounded source or sink, which the optimizer could exploit to fabricate energy or discard it for free.
+`is_source` and `is_sink` are switch input entities, so they can change at runtime.
+Their combination creates:
+
+- **Grid-like nodes** (`is_source=true, is_sink=true`): Can import and export power
+- **Load-like nodes** (`is_source=false, is_sink=true`): Can only consume power
+- **Source-like nodes** (`is_source=true, is_sink=false`): Can only produce power
+- **Balance nodes** (`is_source=false, is_sink=false`): Power must balance, as in a [Junction](junction.md)
+
+The Node model element places no bound or cost on the power it produces or consumes.
+The connections attached to a source or sink node must carry the power limits and prices.
+Without them, the optimizer can fabricate energy at a source node or discard it for free at a sink node.
 
 ## Sensors Created
 
@@ -49,49 +59,10 @@ A node with either flag set would be an unpriced, unbounded source or sink, whic
 
 See [Node Configuration](../../user-guide/elements/node.md) for detailed sensor and configuration documentation.
 
-## Configuration Examples
-
-### Single Bus (Most Common)
-
-| Field    | Value    |
-| -------- | -------- |
-| **Name** | Home Bus |
-
-### Multi-Bus Topology
-
-**DC Bus:**
-
-| Field    | Value  |
-| -------- | ------ |
-| **Name** | DC Bus |
-
-**AC Bus:**
-
-| Field    | Value  |
-| -------- | ------ |
-| **Name** | AC Bus |
-
-## Typical Use Cases
-
-**Single-Bus System**:
-Most residential installations use one node as the central connection point for all elements (grid, battery, solar, loads).
-
-**DC/AC Separation**:
-Systems with DC-coupled batteries and AC-coupled solar may use separate DC and AC buses connected by a converter.
-
-**Multi-Site Systems**:
-Large installations may use multiple nodes to represent different physical locations or voltage levels.
-
 ## Physical Interpretation
 
-Node represents an electrical bus where Kirchhoff's current law applies—total power flowing in must equal total power flowing out at every instant.
-
-### Configuration Guidelines
-
-- **Name Clearly**: Use descriptive names like `home_bus`, `dc_bus`, `ac_bus` to clarify system topology.
-- **Single Node Sufficient**: Most home systems only need one node. Don't create multiple nodes unless you have a specific need (DC/AC separation, etc.).
-- **No Storage**: Nodes have no capacity—power balance is instantaneous. Use Battery elements for energy storage.
-- **Connection Target**: All other elements (Grid, Battery, Solar, Loads) specify which node they connect to via their `connection.target` field.
+A source or sink node represents an external supply or demand whose limits and prices are modeled on its connections rather than on the node itself.
+It is a building block for custom endpoints that the dedicated device elements do not cover.
 
 ## Next steps
 
@@ -117,7 +88,7 @@ Node represents an electrical bus where Kirchhoff's current law applies—total 
 
     ---
 
-    Connect nodes to other elements.
+    Bound and price the power a node produces or consumes.
 
     [:material-arrow-right: Connection formulation](../model-layer/connections/connection.md)
 

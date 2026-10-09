@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 from types import MappingProxyType
+from unittest.mock import patch
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, HUB_SECTION_ADVANCED
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value
-from custom_components.haeo.core.schema.elements import connection
+from custom_components.haeo.core.schema.elements import connection, junction, node
 from custom_components.haeo.core.schema.sections import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -289,3 +291,79 @@ async def test_async_migrate_entry_skips_when_already_current(hass: HomeAssistan
     result = await v1_4.async_migrate_entry(hass, entry)
     assert result is True
     assert entry.minor_version == 4
+
+
+def _add_hub_in_mode(hass: HomeAssistant, *, advanced_mode: bool) -> MockConfigEntry:
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Hub",
+        data={CONF_NAME: "Hub", HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: advanced_mode}},
+        version=1,
+        minor_version=3,
+    )
+    entry.add_to_hass(hass)
+    return entry
+
+
+def _node(name: str, *, is_source: object = False, is_sink: object = False) -> ConfigSubentry:
+    return _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: node.ELEMENT_TYPE,
+            CONF_NAME: name,
+            node.SECTION_ROLE: {node.CONF_IS_SOURCE: is_source, node.CONF_IS_SINK: is_sink},
+        }
+    )
+
+
+def _register_entity(
+    hass: HomeAssistant, entry: MockConfigEntry, subentry: ConfigSubentry, domain: str, key: str
+) -> str:
+    return (
+        er.async_get(hass)
+        .async_get_or_create(domain, DOMAIN, f"{entry.entry_id}_{subentry.subentry_id}_{key}", config_entry=entry)
+        .entity_id
+    )
+
+
+@pytest.mark.parametrize("advanced_mode", [False, True], ids=["standard", "advanced"])
+async def test_async_migrate_entry_replaces_junction_node(hass: HomeAssistant, advanced_mode: bool) -> None:
+    """A node that neither sources nor sinks becomes a junction, and its old entities are removed."""
+    entry = _add_hub_in_mode(hass, advanced_mode=advanced_mode)
+    switchboard = _node("Switchboard")
+    hass.config_entries.async_add_subentry(entry, switchboard)
+    switch_entity_id = _register_entity(hass, entry, switchboard, "switch", node.CONF_IS_SOURCE)
+    sensor_entity_id = _register_entity(hass, entry, switchboard, "sensor", "node_power_balance")
+
+    assert await v1_4.async_migrate_entry(hass, entry)
+
+    (replacement,) = entry.subentries.values()
+    assert replacement.subentry_type == junction.ELEMENT_TYPE
+    assert replacement.title == "Switchboard"
+    assert dict(replacement.data) == {CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: "Switchboard"}
+    registry = er.async_get(hass)
+    assert registry.async_get(switch_entity_id) is None
+    assert registry.async_get(sensor_entity_id) is None
+
+
+async def test_async_migrate_entry_replaces_source_node_outside_advanced_mode(hass: HomeAssistant) -> None:
+    """Outside advanced mode a node's source switch can only be on by mistake, so it becomes a junction."""
+    entry = _add_hub_in_mode(hass, advanced_mode=False)
+    hass.config_entries.async_add_subentry(entry, _node("Switchboard", is_source=as_constant_value(True)))
+
+    with patch.object(v1_4._LOGGER, "warning") as warning:
+        assert await v1_4.async_migrate_entry(hass, entry)
+
+    (replacement,) = entry.subentries.values()
+    assert replacement.subentry_type == junction.ELEMENT_TYPE
+    warning.assert_called_once()
+
+
+async def test_async_migrate_entry_keeps_source_node_in_advanced_mode(hass: HomeAssistant) -> None:
+    """In advanced mode a node that sources or sinks power stays a node with its role."""
+    entry = _add_hub_in_mode(hass, advanced_mode=True)
+    grid_node = _node("Grid point", is_source=True, is_sink=True)
+    hass.config_entries.async_add_subentry(entry, grid_node)
+
+    assert await v1_4.async_migrate_entry(hass, entry)
+
+    assert entry.subentries[grid_node.subentry_id] == grid_node

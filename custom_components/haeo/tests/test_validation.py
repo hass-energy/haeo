@@ -22,7 +22,7 @@ from custom_components.haeo.core.schema.elements.battery import (
     BatteryConfigData,
 )
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
-from custom_components.haeo.core.schema.elements.node import NodeConfigData
+from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -69,6 +69,7 @@ def test_validate_network_topology_with_implicit_connection() -> None:
     main_node: NodeConfigData = {
         CONF_ELEMENT_TYPE: ElementType.NODE,
         CONF_NAME: "main",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     grid: GridConfigData = {
         CONF_ELEMENT_TYPE: ElementType.GRID,
@@ -93,10 +94,12 @@ def test_validate_network_topology_detects_disconnected() -> None:
     node_a: NodeConfigData = {
         CONF_ELEMENT_TYPE: ElementType.NODE,
         CONF_NAME: "a",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     node_b: NodeConfigData = {
         CONF_ELEMENT_TYPE: ElementType.NODE,
         CONF_NAME: "b",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     grid_a: GridConfigData = {
         CONF_ELEMENT_TYPE: ElementType.GRID,
@@ -147,6 +150,7 @@ def test_validate_network_topology_with_battery(
     main_node: NodeConfigData = {
         CONF_ELEMENT_TYPE: ElementType.NODE,
         CONF_NAME: "main",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     grid: GridConfigData = {
         CONF_ELEMENT_TYPE: ElementType.GRID,

@@ -13,9 +13,8 @@ from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
 from custom_components.haeo.core.schema.elements.load import LoadConfigData
-from custom_components.haeo.core.schema.elements.node import NodeConfigData
+from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, NodeConfigData
 from custom_components.haeo.core.schema.elements.policy import PolicyConfigData, PolicyRuleData
-from custom_components.haeo.core.schema.elements.solar import SolarConfigData
 
 
 async def test_create_network_successful_loads_load_participant(hass: HomeAssistant) -> None:
@@ -27,6 +26,7 @@ async def test_create_network_successful_loads_load_participant(hass: HomeAssist
     main_bus: NodeConfigData = {
         "element_type": ElementType.NODE,
         "name": "main_bus",
+        "role": {CONF_IS_SOURCE: True, CONF_IS_SINK: True},
     }
     baseload: LoadConfigData = {
         "element_type": ElementType.LOAD,
@@ -67,16 +67,12 @@ async def test_create_network_without_participants_returns_empty_network(hass: H
     assert len(network.elements) == 0
 
 
-def _line_participants() -> dict[str, ElementConfigData]:
-    """Solar on node_a feeding a load on node_b through an explicit line connection."""
-    solar: SolarConfigData = {
-        "element_type": ElementType.SOLAR,
-        "name": "Solar",
-        "connection": as_connection_target("node_a"),
-        "forecast": {"forecast": np.asarray([5.0], dtype=float)},
-        "curtailment": {},
-    }
-    node_a: NodeConfigData = {"element_type": ElementType.NODE, "name": "node_a"}
+async def test_create_network_applies_policy_rules_to_connections(hass: HomeAssistant) -> None:
+    """Policy participants are compiled into PolicyPricing model elements."""
+
+    entry = MockConfigEntry(domain=DOMAIN, entry_id="policy_network")
+    entry.add_to_hass(hass)
+
     line_cfg: ConnectionConfigData = {
         "element_type": ElementType.CONNECTION,
         "name": "line",
@@ -88,28 +84,21 @@ def _line_participants() -> dict[str, ElementConfigData]:
         "pricing": {},
         "efficiency": {},
     }
-    node_b: NodeConfigData = {"element_type": ElementType.NODE, "name": "node_b"}
-    load: LoadConfigData = {
-        "element_type": ElementType.LOAD,
-        "name": "Load",
-        "connection": as_connection_target("node_b"),
-        "forecast": {"forecast": np.asarray([1.0], dtype=float)},
-        "curtailment": {},
+    node_a: NodeConfigData = {
+        "element_type": ElementType.NODE,
+        "name": "node_a",
+        "role": {CONF_IS_SOURCE: True, CONF_IS_SINK: False},
     }
-    return {"line": line_cfg, "Solar": solar, "node_a": node_a, "node_b": node_b, "Load": load}
-
-
-async def test_create_network_applies_policy_rules_to_connections(hass: HomeAssistant) -> None:
-    """Policy participants are compiled into PolicyPricing model elements."""
-
-    entry = MockConfigEntry(domain=DOMAIN, entry_id="policy_network")
-    entry.add_to_hass(hass)
-
+    node_b: NodeConfigData = {
+        "element_type": ElementType.NODE,
+        "name": "node_b",
+        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: True},
+    }
     policy_rule: PolicyRuleData = {
         "name": "A to B",
         "enabled": True,
-        "source": ["Solar"],
-        "target": ["Load"],
+        "source": ["node_a"],
+        "target": ["node_b"],
         "price": 0.07,
     }
     policies_cfg: PolicyConfigData = {
@@ -117,7 +106,12 @@ async def test_create_network_applies_policy_rules_to_connections(hass: HomeAssi
         "name": "Policies",
         "rules": [policy_rule],
     }
-    participants: dict[str, ElementConfigData] = {**_line_participants(), "policies": policies_cfg}
+    participants: dict[str, ElementConfigData] = {
+        "line": line_cfg,
+        "node_a": node_a,
+        "node_b": node_b,
+        "policies": policies_cfg,
+    }
 
     network, element_updaters = await create_network(
         entry,
@@ -128,7 +122,7 @@ async def test_create_network_applies_policy_rules_to_connections(hass: HomeAssi
     line = network.elements["line"]
     assert isinstance(line, Connection)
     tags = line.connection_tags()
-    # Solar is the only source and is policied (VLAN 1), so the connection
+    # node_a is the only source and is policied (VLAN 1), so the connection
     # only carries the VLAN tag — no unpolicied source can reach it.
     assert tags == {1}
 
@@ -145,11 +139,32 @@ async def test_create_network_disabled_policy_rule_has_zero_price(hass: HomeAssi
     entry = MockConfigEntry(domain=DOMAIN, entry_id="disabled_policy")
     entry.add_to_hass(hass)
 
+    line_cfg: ConnectionConfigData = {
+        "element_type": ElementType.CONNECTION,
+        "name": "line",
+        "endpoints": {
+            "source": as_connection_target("node_a"),
+            "target": as_connection_target("node_b"),
+        },
+        "power_limits": {},
+        "pricing": {},
+        "efficiency": {},
+    }
+    node_a: NodeConfigData = {
+        "element_type": ElementType.NODE,
+        "name": "node_a",
+        "role": {CONF_IS_SOURCE: True, CONF_IS_SINK: False},
+    }
+    node_b: NodeConfigData = {
+        "element_type": ElementType.NODE,
+        "name": "node_b",
+        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: True},
+    }
     policy_rule: PolicyRuleData = {
         "name": "A to B",
         "enabled": False,
-        "source": ["Solar"],
-        "target": ["Load"],
+        "source": ["node_a"],
+        "target": ["node_b"],
         "price": 0.07,
     }
     policies_cfg: PolicyConfigData = {
@@ -157,7 +172,12 @@ async def test_create_network_disabled_policy_rule_has_zero_price(hass: HomeAssi
         "name": "Policies",
         "rules": [policy_rule],
     }
-    participants: dict[str, ElementConfigData] = {**_line_participants(), "policies": policies_cfg}
+    participants: dict[str, ElementConfigData] = {
+        "line": line_cfg,
+        "node_a": node_a,
+        "node_b": node_b,
+        "policies": policies_cfg,
+    }
 
     network, _updaters = await create_network(
         entry,
@@ -176,13 +196,39 @@ async def test_policy_updater_disabling_zeros_price(hass: HomeAssistant) -> None
     entry = MockConfigEntry(domain=DOMAIN, entry_id="toggle_policy")
     entry.add_to_hass(hass)
 
+    line_cfg: ConnectionConfigData = {
+        "element_type": ElementType.CONNECTION,
+        "name": "line",
+        "endpoints": {
+            "source": as_connection_target("node_a"),
+            "target": as_connection_target("node_b"),
+        },
+        "power_limits": {},
+        "pricing": {},
+        "efficiency": {},
+    }
+    node_a: NodeConfigData = {
+        "element_type": ElementType.NODE,
+        "name": "node_a",
+        "role": {CONF_IS_SOURCE: True, CONF_IS_SINK: False},
+    }
+    node_b: NodeConfigData = {
+        "element_type": ElementType.NODE,
+        "name": "node_b",
+        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: True},
+    }
     # Start enabled
     policies_cfg: PolicyConfigData = {
         "element_type": ElementType.POLICY,
         "name": "Policies",
-        "rules": [{"name": "A to B", "enabled": True, "source": ["Solar"], "target": ["Load"], "price": 0.07}],
+        "rules": [{"name": "A to B", "enabled": True, "source": ["node_a"], "target": ["node_b"], "price": 0.07}],
     }
-    participants: dict[str, ElementConfigData] = {**_line_participants(), "policies": policies_cfg}
+    participants: dict[str, ElementConfigData] = {
+        "line": line_cfg,
+        "node_a": node_a,
+        "node_b": node_b,
+        "policies": policies_cfg,
+    }
 
     network, element_updaters = await create_network(
         entry,
@@ -199,7 +245,7 @@ async def test_policy_updater_disabling_zeros_price(hass: HomeAssistant) -> None
     disabled_cfg: PolicyConfigData = {
         "element_type": ElementType.POLICY,
         "name": "Policies",
-        "rules": [{"name": "A to B", "enabled": False, "source": ["Solar"], "target": ["Load"], "price": 0.07}],
+        "rules": [{"name": "A to B", "enabled": False, "source": ["node_a"], "target": ["node_b"], "price": 0.07}],
     }
     policy_updater(disabled_cfg)
     assert pricing_elem.price == pytest.approx([0.0])
@@ -208,7 +254,7 @@ async def test_policy_updater_disabling_zeros_price(hass: HomeAssistant) -> None
     reenabled_cfg: PolicyConfigData = {
         "element_type": ElementType.POLICY,
         "name": "Policies",
-        "rules": [{"name": "A to B", "enabled": True, "source": ["Solar"], "target": ["Load"], "price": 0.07}],
+        "rules": [{"name": "A to B", "enabled": True, "source": ["node_a"], "target": ["node_b"], "price": 0.07}],
     }
     policy_updater(reenabled_cfg)
     assert pricing_elem.price == pytest.approx([0.07])
@@ -220,7 +266,32 @@ async def test_create_network_sorts_connections_after_elements(hass: HomeAssista
     entry = MockConfigEntry(domain=DOMAIN, entry_id="sorted_connections")
     entry.add_to_hass(hass)
 
-    participants = _line_participants()
+    line_cfg: ConnectionConfigData = {
+        "element_type": ElementType.CONNECTION,
+        "name": "line",
+        "endpoints": {
+            "source": as_connection_target("node_a"),
+            "target": as_connection_target("node_b"),
+        },
+        "power_limits": {},
+        "pricing": {},
+        "efficiency": {},
+    }
+    node_a: NodeConfigData = {
+        "element_type": ElementType.NODE,
+        "name": "node_a",
+        "role": {CONF_IS_SOURCE: True, CONF_IS_SINK: False},
+    }
+    node_b: NodeConfigData = {
+        "element_type": ElementType.NODE,
+        "name": "node_b",
+        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: True},
+    }
+    participants: dict[str, ElementConfigData] = {
+        "line": line_cfg,
+        "node_a": node_a,
+        "node_b": node_b,
+    }
 
     network, _ = await create_network(
         entry,
@@ -229,9 +300,7 @@ async def test_create_network_sorts_connections_after_elements(hass: HomeAssista
     )
 
     # Nodes should be added before the connection even though the connection was listed first
-    element_names = list(network.elements.keys())
-    assert element_names.index("line") > element_names.index("node_a")
-    assert element_names.index("line") > element_names.index("node_b")
+    assert list(network.elements.keys()) == ["node_a", "node_b", "line"]
 
 
 async def test_create_network_add_failure_is_wrapped(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -243,6 +312,7 @@ async def test_create_network_add_failure_is_wrapped(hass: HomeAssistant, monkey
     node_only: NodeConfigData = {
         "element_type": ElementType.NODE,
         "name": "node",
+        "role": {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
     participants: dict[str, ElementConfigData] = {"node": node_only}
 

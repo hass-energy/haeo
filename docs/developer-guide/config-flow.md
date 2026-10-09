@@ -187,6 +187,7 @@ Each element type has its own flow class in `custom_components/haeo/flows/elemen
 - `ConnectionSubentryFlowHandler` - Connection configuration
 - `GridSubentryFlowHandler` - Grid configuration
 - `InverterSubentryFlowHandler` - Inverter configuration
+- `JunctionSubentryFlowHandler` - Junction configuration
 - `LoadSubentryFlowHandler` - Load configuration
 - `NodeSubentryFlowHandler` - Network node configuration
 - `SolarSubentryFlowHandler` - Solar system configuration

@@ -17,7 +17,7 @@ from custom_components.haeo.core.model.elements.segments.soc_pricing import SocP
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
-from custom_components.haeo.core.schema.elements.node import NodeConfigData
+from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
 
 BATTERY_NAME = "Test Battery"
 BUS_NAME = "DC Bus"
@@ -64,6 +64,7 @@ async def test_min_charge_edit_updates_live_soc_pricing_threshold() -> None:
     bus: NodeConfigData = {
         "element_type": ElementType.NODE,
         "name": BUS_NAME,
+        SECTION_ROLE: {CONF_IS_SOURCE: True, CONF_IS_SINK: True},
     }
     participants: dict[str, ElementConfigData] = {
         BUS_NAME: bus,

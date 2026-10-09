@@ -10,7 +10,17 @@ from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.node import ELEMENT_TYPE, NodeConfigData
+from custom_components.haeo.core.schema.elements.node import (
+    CONF_IS_SINK,
+    CONF_IS_SOURCE,
+    ELEMENT_TYPE,
+    SECTION_ROLE,
+    NodeConfigData,
+)
+
+# Defaults for absent optional fields (no-op values: pure junction behavior)
+DEFAULT_IS_SOURCE: Final[bool] = False
+DEFAULT_IS_SINK: Final[bool] = False
 
 # Node output names
 type NodeOutputName = Literal["node_power_balance"]
@@ -31,20 +41,17 @@ class NodeAdapter:
     element_type: str = ELEMENT_TYPE
     advanced: bool = True
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
-    can_source: bool = False
-    can_sink: bool = False
+    can_source: bool = True
+    can_sink: bool = True
 
     def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:
-        """Return model element parameters for Node configuration.
-
-        Nodes are always pure junctions that conserve power.
-        """
+        """Return model element parameters for Node configuration."""
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
                 "name": config["name"],
-                "is_source": False,
-                "is_sink": False,
+                "is_source": config[SECTION_ROLE].get(CONF_IS_SOURCE, DEFAULT_IS_SOURCE),
+                "is_sink": config[SECTION_ROLE].get(CONF_IS_SINK, DEFAULT_IS_SINK),
             }
         ]
 
