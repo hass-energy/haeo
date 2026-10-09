@@ -14,6 +14,7 @@ from custom_components.haeo.core.data.loader.config_loader import (
     load_element_config_from_values,
     load_element_configs,
 )
+from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements.battery import CONF_CAPACITY, SECTION_STORAGE
@@ -659,3 +660,57 @@ def test_load_element_config_from_values_unknown_element_type_raises() -> None:
             {},
             FORECAST_TIMES,
         )
+
+
+# -- resolve_field non-negative inputs --
+
+_POWER_HINT = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=True, min_value=0.0)
+_PRICE_HINT = FieldHint(output_type=OutputType.PRICE, time_series=True, min_value=-1000.0)
+_UNBOUNDED_HINT = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=True)
+_SOC_SCALAR_HINT = FieldHint(output_type=OutputType.STATE_OF_CHARGE, min_value=0.0)
+
+
+@pytest.mark.parametrize(
+    ("hint", "sensor_value", "expected"),
+    [
+        pytest.param(_POWER_HINT, -0.005, [0.0, 0.0, 0.0], id="slightly_negative_power_clamped"),
+        pytest.param(_POWER_HINT, 2.5, [2.5, 2.5, 2.5], id="positive_power_unchanged"),
+        pytest.param(_PRICE_HINT, -0.5, [-0.5, -0.5, -0.5], id="negative_price_allowed"),
+        pytest.param(_UNBOUNDED_HINT, -0.5, [-0.5, -0.5, -0.5], id="no_minimum_allowed"),
+        pytest.param(_SOC_SCALAR_HINT, -0.005, 0.0, id="slightly_negative_soc_scalar_clamped"),
+    ],
+)
+def test_entity_values_respect_non_negative_minimum(
+    monkeypatch: pytest.MonkeyPatch,
+    hint: FieldHint,
+    sensor_value: float,
+    expected: list[float] | float,
+) -> None:
+    """Fields with a non-negative minimum clamp slightly negative readings to zero."""
+    monkeypatch.setattr(cl, "load_sensors", lambda *_a: {"sensor.x": sensor_value})
+
+    result = cl.resolve_field({"type": "entity", "value": ["sensor.x"]}, hint, FakeStateMachine({}), FORECAST_TIMES)
+
+    np.testing.assert_array_equal(result, expected)
+
+
+@pytest.mark.parametrize(
+    ("hint", "sensor_value"),
+    [
+        pytest.param(_POWER_HINT, -0.5, id="power"),
+        pytest.param(_SOC_SCALAR_HINT, -5.0, id="soc_scalar_in_percent"),
+    ],
+)
+def test_entity_significantly_negative_value_raises(
+    monkeypatch: pytest.MonkeyPatch,
+    hint: FieldHint,
+    sensor_value: float,
+) -> None:
+    """A significantly negative value for a non-negative field is rejected with the value in sensor units."""
+    monkeypatch.setattr(cl, "load_sensors", lambda *_a: {"sensor.x": sensor_value})
+
+    with pytest.raises(InputError) as exc_info:
+        cl.resolve_field({"type": "entity", "value": ["sensor.x"]}, hint, FakeStateMachine({}), FORECAST_TIMES)
+
+    assert exc_info.value.translation_key == "negative_input_value"
+    assert exc_info.value.translation_placeholders == {"value": f"{sensor_value:g}"}
