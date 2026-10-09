@@ -15,7 +15,14 @@ from custom_components.haeo.core.data.loader.config_loader import (
 )
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import ConstantValue, EntityValue, as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.core.schema import (
+    ConstantValue,
+    EntityValue,
+    as_connection_target,
+    as_constant_value,
+    as_entity_value,
+)
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import CONF_CAPACITY, SECTION_STORAGE
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
 from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
@@ -500,12 +507,12 @@ def test_load_element_configs_negates_entity_surfaced_load_price(monkeypatch: py
     must be negated on resolution or the load sees a cost instead of a value.
     """
 
-    def fake_load_sensors(_sm: Any, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: object, entity_ids: Sequence[str]) -> dict[str, float]:
         return dict.fromkeys(entity_ids, 0.25)
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
 
-    participants: dict[str, Any] = {
+    participants: dict[str, object] = {
         "Miner": {"element_type": "load", "name": "Miner", "common": {"connection": "node_a"}},
         "Battery": _battery_config(),
         "Policies": {
@@ -519,9 +526,15 @@ def test_load_element_configs_negates_entity_surfaced_load_price(monkeypatch: py
         },
     }
 
-    result: Any = load_element_configs(participants, FakeStateMachine({}), FORECAST_TIMES)
+    result = load_element_configs(
+        participants,  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
+        FakeStateMachine({}),
+        FORECAST_TIMES,
+    )
 
-    rules = result["Policies"][CONF_RULES]
+    policies = result["Policies"]
+    assert policies["element_type"] == ElementType.POLICY
+    rules = policies[CONF_RULES]
     np.testing.assert_array_equal(rules[0][CONF_PRICE], [-0.25, -0.25, -0.25])
     np.testing.assert_array_equal(rules[1][CONF_PRICE], [0.25, 0.25, 0.25])
     np.testing.assert_array_equal(rules[2][CONF_PRICE], [-0.1, -0.1, -0.1])

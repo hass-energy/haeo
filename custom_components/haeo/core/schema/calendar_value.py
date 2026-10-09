@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Literal, TypedDict, TypeGuard
+from typing import Literal, TypedDict, TypeGuard
 
 VALUE_TYPE_CALENDAR = "calendar"
 
@@ -37,7 +37,7 @@ def as_calendar_value(entity_id: str) -> CalendarValue:
     return {"type": VALUE_TYPE_CALENDAR, "value": entity_id, "events": None}
 
 
-def is_calendar_value(value: Any) -> TypeGuard[CalendarValue]:
+def is_calendar_value(value: object) -> TypeGuard[CalendarValue]:
     """Return True if value is a calendar schema value."""
     if not isinstance(value, Mapping):
         return False

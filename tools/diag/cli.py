@@ -36,7 +36,8 @@ from custom_components.haeo.core.data.loader.config_loader import load_element_c
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue, Network
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema, ElementType
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
+from custom_components.haeo.core.schema.elements.policy import is_policy_config_data
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config
 from custom_components.haeo.core.schema.sections import SECTION_PRICING
 from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
@@ -212,7 +213,7 @@ def collect_policy_rules(participants: Mapping[str, ElementConfigData]) -> list[
     return [
         rule
         for config in participants.values()
-        if config[CONF_ELEMENT_TYPE] == ElementType.POLICY
+        if is_policy_config_data(config)
         for rule in extract_policy_rules(config)
     ]
 
@@ -1107,14 +1108,14 @@ def run_diagnostics(
         sys.exit(1)
 
     # Normalize participant config shape before loading values
-    normalized_participants: dict[str, object] = {}
+    normalized_participants: dict[str, dict[str, object]] = {}
     for element_name, element_config in participants_config.items():
         element_config_obj: dict[str, object] = dict(element_config) if isinstance(element_config, dict) else {}
         normalized_participants[element_name] = normalize_participant_config_for_diag(element_config_obj)
 
     state_provider = DiagnosticsStateProvider(diag.inputs)
 
-    negated_paths = negated_price_paths(participants_config)
+    negated_paths = negated_price_paths(normalized_participants)
     loaded_participants: dict[str, ElementConfigData] = {}
     for element_name, element_config in normalized_participants.items():
         try:

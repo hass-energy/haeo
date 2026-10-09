@@ -6,7 +6,7 @@ and their associated metadata like output type, direction, and time series behav
 
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from typing import Literal, TypeGuard
+from typing import Literal, TypeGuard, overload
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
@@ -102,16 +102,23 @@ type InputFieldGroups = Mapping[str, InputFieldSection]
 type InputFieldPath = tuple[str, ...]
 
 
-def localize_input_field[T: (NumberEntityDescription, SwitchEntityDescription)](
-    field_info: InputFieldInfo[T], currency_symbol: str
-) -> InputFieldInfo[T]:
+@overload
+def localize_input_field(
+    field_info: InputFieldInfo[NumberEntityDescription], currency_symbol: str
+) -> InputFieldInfo[NumberEntityDescription]: ...
+
+
+@overload
+def localize_input_field(field_info: AnyInputFieldInfo, currency_symbol: str) -> AnyInputFieldInfo: ...
+
+
+def localize_input_field(field_info: AnyInputFieldInfo, currency_symbol: str) -> AnyInputFieldInfo:
     """Return the field with the ``$`` placeholder in its unit replaced by a currency symbol."""
-    description = field_info.entity_description
-    # Home Assistant rebuilds entity descriptions as compat dataclasses, so match by name
-    if type(description).__name__ != "NumberEntityDescription":
+    if not is_number_field_info(field_info):
         return field_info
-    unit = localize_currency(description.native_unit_of_measurement, currency_symbol)  # type: ignore[union-attr]
-    if unit == description.native_unit_of_measurement:  # type: ignore[union-attr]
+    description = field_info.entity_description
+    unit = localize_currency(description.native_unit_of_measurement, currency_symbol)
+    if unit == description.native_unit_of_measurement:
         return field_info
     return replace(field_info, entity_description=replace(description, native_unit_of_measurement=unit))
 

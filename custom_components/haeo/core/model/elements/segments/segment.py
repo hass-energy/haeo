@@ -17,11 +17,11 @@ from dataclasses import dataclass
 from functools import reduce
 import operator
 from typing import (
-    Protocol,
     Any,  # noqa: TID251  # source_element/target_element are the connection's endpoint elements,
     # which can be any concrete NetworkElement subtype. Element is invariant in its output-name
     # Literal (see element.py's outputs()), so no non-Any type expresses "an Element of some
     # unknown output-name type" here; segments only use these via hasattr/isinstance duck typing.
+    Protocol,
 )
 
 from highspy import Highs

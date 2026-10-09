@@ -1,6 +1,5 @@
 """Tests for coordinator network utilities."""
 
-from typing import Any
 from unittest.mock import MagicMock
 
 import numpy as np

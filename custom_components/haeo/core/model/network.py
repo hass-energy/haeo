@@ -23,7 +23,7 @@ from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
-from .elements.policy_pricing import PolicyPricing, PolicyPricingElementConfig
+from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
 from .util.solver_rows import add_row, update_row
 
 _LOGGER = logging.getLogger(__name__)

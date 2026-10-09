@@ -17,7 +17,6 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.reactive import TrackedParam, cost
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
-
 type PolicyPricingElementTypeName = Literal["policy_pricing"]
 ELEMENT_TYPE: Final[PolicyPricingElementTypeName] = "policy_pricing"
 

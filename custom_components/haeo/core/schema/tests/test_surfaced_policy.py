@@ -1,7 +1,5 @@
 """Tests for surfaced policy rule lookup and negated price paths."""
 
-from typing import Any
-
 import pytest
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
@@ -62,7 +60,7 @@ def test_find_surfaced_rule(
 
 def test_negated_price_paths_flags_load_consumption_rule() -> None:
     """A wildcard-to-load rule is flagged; a battery charge rule is not."""
-    participants: dict[str, dict[str, Any]] = {
+    participants: dict[str, dict[str, object]] = {
         "Miner": {CONF_ELEMENT_TYPE: ElementType.LOAD},
         "Battery": {CONF_ELEMENT_TYPE: ElementType.BATTERY},
         "Policies": {

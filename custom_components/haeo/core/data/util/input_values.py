@@ -1,7 +1,7 @@
 """Check values resolved from source entities before they reach the optimizer."""
 
 from collections.abc import Mapping
-from typing import Any, Final
+from typing import Final
 
 import numpy as np
 from numpy.typing import NDArray
@@ -29,7 +29,7 @@ class InputError(ValueError):
         self.translation_placeholders = dict(translation_placeholders)
 
 
-def enforce_non_negative(values: NDArray[Any]) -> NDArray[np.float64]:
+def enforce_non_negative(values: NDArray[np.float64]) -> NDArray[np.float64]:
     """Return values with readings just below zero clamped to zero.
 
     Raises:
