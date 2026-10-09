@@ -263,7 +263,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         # Time-preference objective: prefer earlier energy transfer
         n = self.n_periods
         weights = self.priority * n + np.arange(1, n + 1, dtype=np.float64)
-        secondary = Highs.qsum(self.total_power_in * self.periods * weights)
+        secondary = Highs.qsum(self.total_measured_power * self.periods * weights)
 
         if primary is None:
             return (None, secondary)

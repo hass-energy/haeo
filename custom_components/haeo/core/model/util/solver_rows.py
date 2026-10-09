@@ -36,8 +36,19 @@ def is_free_row(expr: highs_linear_expression) -> bool:
 
 
 def add_row(solver: Highs, expr: highs_linear_expression) -> highs_cons:
-    """Add a constraint row for the expression."""
-    return solver.addConstr(row_expression(expr))
+    """Add a constraint row for the expression.
+
+    highspy raises after adding the row when HiGHS returns any non-OK status,
+    and unlike addConstrs it does not roll back, so the row is removed again
+    before the error propagates and a later retry does not add a duplicate.
+    """
+    rows_before = solver.numConstrs
+    try:
+        return solver.addConstr(row_expression(expr))
+    except Exception:
+        added = list(range(rows_before, solver.numConstrs))
+        solver.deleteRows(len(added), added)
+        raise
 
 
 def add_rows(solver: Highs, exprs: list[highs_linear_expression]) -> list[highs_cons]:
