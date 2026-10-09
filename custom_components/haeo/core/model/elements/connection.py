@@ -214,6 +214,10 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """Return the set of tags on this connection."""
         return self._tags
 
+    def measured_power_for_tag(self, tag: int) -> HighspyArray:
+        """Power at the measured point for a specific tag."""
+        return self.measured_power[tag]
+
     def power_into_source_for_tag(self, tag: int) -> HighspyArray:
         """Power flowing into the source node for a specific tag."""
         return -self._power_in[tag]

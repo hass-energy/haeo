@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 import logging
 from typing import Any, Final, Literal, overload
 
@@ -254,7 +255,7 @@ class Network:
             if tag not in conn_element.measured_power:
                 msg = f"PolicyPricing '{name}' references tag {tag} not on connection '{conn_name}'"
                 raise ValueError(msg)
-            power_terms.append(conn_element.measured_power[tag])
+            power_terms.append(partial(conn_element.measured_power_for_tag, tag))
 
         element = PolicyPricing(
             name=name,

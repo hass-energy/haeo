@@ -6,6 +6,7 @@ Updating the price triggers reactive cost invalidation so the next
 optimization picks up the new value without rebuilding the network.
 """
 
+from collections.abc import Callable
 from typing import Any, Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
@@ -58,10 +59,14 @@ class PolicyPricing(Element[str]):
         *,
         solver: Highs,
         price: float | NDArray[np.floating[Any]],
-        power_terms: list[HighspyArray],
+        power_terms: list[Callable[[], HighspyArray]],
         terms: list[PolicyPricingTerm] | None = None,
     ) -> None:
-        """Initialize with price and LP power flow variables."""
+        """Initialize with a price and the power flows it applies to.
+
+        Each power term is read when the cost is built, so a flow that depends on
+        a connection's efficiency follows changes to that efficiency.
+        """
         super().__init__(
             name=name,
             periods=periods,
@@ -77,5 +82,5 @@ class PolicyPricing(Element[str]):
     def pricing_cost(self) -> highs_linear_expression | None:
         """Compute the pricing cost for this policy rule placement."""
         price = self.price
-        costs = [Highs.qsum(pt * price * self.periods) for pt in self._power_terms]
+        costs = [Highs.qsum(power_term() * price * self.periods) for power_term in self._power_terms]
         return costs[0] if len(costs) == 1 else Highs.qsum(costs)

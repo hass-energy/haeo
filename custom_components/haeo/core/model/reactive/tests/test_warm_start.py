@@ -18,6 +18,8 @@ from custom_components.haeo.core.model.elements import (
 )
 from custom_components.haeo.core.model.elements.battery import Battery
 from custom_components.haeo.core.model.elements.connection import Connection, ConnectionElementConfig
+from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as POLICY_PRICING_ELEMENT_TYPE
+from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
 from custom_components.haeo.core.model.elements.segments import EfficiencySegment, PowerLimitSegment, PricingSegment
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -715,4 +717,58 @@ def test_power_limit_removed_after_solve_stops_binding() -> None:
     power_limit.max_power = np.array([8.0])
     network.optimize()
     assert connection.extract_values(connection.total_power_in) == pytest.approx((8.0,))
+    assert (network._solver.numVariables, network._solver.numConstrs) == structure
+
+
+def test_efficiency_update_reaches_policy_pricing() -> None:
+    """A policy price on a lossy connection follows an efficiency change after a solve.
+
+    The policy prices the connection's measured point, after its efficiency loss.
+    A feed caps the power drawn at 10 and delivering power earns 1 per kWh, so the
+    optimizer draws 10, delivers 10 x efficiency, and pays 0.1 on the delivered power.
+    """
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "store", "is_source": False, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "bus", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "feed",
+            "source": "grid",
+            "target": "store",
+            "tags": {0},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0])}},
+        }
+    )
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "discharge",
+            "source": "store",
+            "target": "bus",
+            "tags": {0},
+            "segments": {
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([0.5])},
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([100.0])},
+                "pricing": {"segment_type": "pricing", "price": np.array([-1.0])},
+            },
+        }
+    )
+    network.add(
+        PolicyPricingElementConfig(
+            element_type=POLICY_PRICING_ELEMENT_TYPE,
+            name="discharge_cost",
+            price=0.1,
+            terms=[PolicyPricingTerm(connection="discharge", tag=0)],
+        )
+    )
+    assert network.optimize() == pytest.approx(-10 * 0.5 + 0.1 * 10 * 0.5)
+    structure = (network._solver.numVariables, network._solver.numConstrs)
+
+    efficiency = network.elements["discharge"]["efficiency"]
+    assert isinstance(efficiency, EfficiencySegment)
+    efficiency.efficiency = np.array([0.25])
+
+    assert network.optimize() == pytest.approx(-10 * 0.25 + 0.1 * 10 * 0.25)
     assert (network._solver.numVariables, network._solver.numConstrs) == structure
