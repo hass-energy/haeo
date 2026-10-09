@@ -854,13 +854,52 @@ def test_horizon_change_triggers_optimization(
 ) -> None:
     """Horizon manager changes trigger optimization."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
-
     coordinator.network = Mock()
 
     with patch.object(coordinator, "signal_optimization_stale") as trigger_mock:
-        coordinator._handle_horizon_change(coordinator.network, mock_runtime_data.horizon_manager)
+        coordinator._subscribe_to_input_stores()
+        on_horizon_change = _get_mock_horizon(mock_runtime_data).subscribe.call_args.args[0]
+        on_horizon_change()
 
     trigger_mock.assert_called_once()
+    coordinator.network.update_periods.assert_not_called()
+
+
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
+async def test_async_update_data_solves_with_current_horizon_periods(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """The network is solved with the period durations of the horizon its inputs were loaded for.
+
+    At a horizon boundary the input stores reload first, and the last of them
+    triggers the optimization before any horizon-change callback runs. The
+    periods therefore have to be applied as part of the optimization itself,
+    on the event loop, before the solve is handed to the executor.
+    """
+    horizon = _get_mock_horizon(mock_runtime_data)
+    horizon.periods_seconds = [60, 60, 300]
+    horizon.get_forecast_timestamps.return_value = (0.0, 60.0, 120.0, 420.0)
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = Network(name="test", periods=np.array([1 / 60, 5 / 60, 5 / 60]))
+
+    periods_at_solve: list[np.ndarray] = []
+
+    def capture_periods(_job: Any) -> float:
+        periods_at_solve.append(coordinator.network.periods.copy())
+        msg = "stop after capturing the solve inputs"
+        raise RuntimeError(msg)
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(hass, "async_add_executor_job", side_effect=capture_periods),
+        pytest.raises(RuntimeError, match="stop after capturing"),
+    ):
+        await coordinator._async_update_data()
+
+    np.testing.assert_allclose(periods_at_solve[0], [1 / 60, 1 / 60, 5 / 60])
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
