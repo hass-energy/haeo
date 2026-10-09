@@ -22,9 +22,11 @@ Connections define explicit, **unidirectional** power paths between elements, wi
 !!! info "Upgrading from bidirectional connections"
 
     Earlier versions configured both directions on a single connection.
-    On upgrade, each existing connection keeps its source-to-target settings and gains a second connection named `{name} ({target} to {source})` that carries the former reverse settings.
-    A reverse direction with no max power set becomes an unlimited connection, matching its previous behavior.
-    No reverse connection is created when the reverse max power was 0, and if a connection with swapped endpoints already exists, the reverse settings are merged into it instead.
+    On upgrade, each existing connection keeps its source-to-target settings.
+    If any reverse setting (max power, price, or efficiency) was set, a second connection named `{name} ({target} to {source})` is created carrying those settings.
+    No reverse connection is created when no reverse setting was set or the reverse max power was 0.
+    If a connection with swapped endpoints already exists, the reverse settings are merged into it instead.
+    Add a reverse connection yourself if power should flow both ways.
 
 ## Configuration
 

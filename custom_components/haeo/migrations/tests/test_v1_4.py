@@ -119,8 +119,8 @@ def _register_number(hass: HomeAssistant, entry: MockConfigEntry, subentry: Conf
     ).entity_id
 
 
-async def test_async_migrate_entry_creates_unlimited_reverse_when_unset(hass: HomeAssistant) -> None:
-    """A legacy connection with no reverse fields gets an unlimited reverse connection."""
+async def test_async_migrate_entry_creates_no_reverse_when_unset(hass: HomeAssistant) -> None:
+    """A legacy connection with no reverse fields keeps carrying power in one direction only."""
     entry = _add_hub(hass)
     hass.config_entries.async_add_subentry(
         entry,
@@ -134,14 +134,7 @@ async def test_async_migrate_entry_creates_unlimited_reverse_when_unset(hass: Ho
 
     assert await v1_4.async_migrate_entry(hass, entry)
 
-    reverse = next(s for s in entry.subentries.values() if s.title != "Sub board")
-    assert reverse.title == "Sub board (Switchboard to Sub board node)"
-    assert reverse.data[connection.SECTION_ENDPOINTS] == {
-        connection.CONF_SOURCE: as_connection_target("Switchboard"),
-        connection.CONF_TARGET: as_connection_target("Sub board node"),
-    }
-    assert reverse.data[SECTION_POWER_LIMITS] == {}
-    assert reverse.data[SECTION_PRICING] == {}
+    assert [s.title for s in entry.subentries.values()] == ["Sub board"]
 
 
 async def test_async_migrate_entry_zero_reverse_power_blocks_reverse(hass: HomeAssistant) -> None:
@@ -214,8 +207,8 @@ async def test_async_migrate_entry_merges_into_existing_reverse(hass: HomeAssist
     assert reverse.data[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.05)
 
 
-async def test_async_migrate_entry_rehomes_entities_into_existing_reverse(hass: HomeAssistant) -> None:
-    """Reverse-field entities move to a hand-made reverse connection, which keeps its own entities."""
+async def test_async_migrate_entry_removes_entities_when_merging_into_existing_reverse(hass: HomeAssistant) -> None:
+    """Merging into a hand-made reverse connection removes the old reverse-field entities and keeps its own."""
     entry = _add_hub(hass)
     forward = _legacy_connection(
         "Line",
@@ -239,14 +232,12 @@ async def test_async_migrate_entry_rehomes_entities_into_existing_reverse(hass: 
     assert await v1_4.async_migrate_entry(hass, entry)
 
     registry = er.async_get(hass)
-    reverse_prefix = f"{entry.entry_id}_{existing_reverse.subentry_id}"
-    assert registry.async_get_entity_id("number", DOMAIN, f"{reverse_prefix}_max_power_source_target") == (
-        old_power_entity_id
-    )
-    assert registry.async_get_entity_id("number", DOMAIN, f"{reverse_prefix}_price_source_target") == (
-        existing_price_entity_id
-    )
+    assert registry.async_get(old_power_entity_id) is None
     assert registry.async_get(old_price_entity_id) is None
+    assert registry.async_get(existing_price_entity_id) is not None
+    merged = entry.subentries[existing_reverse.subentry_id].data
+    assert merged[SECTION_POWER_LIMITS] == {CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(8.0)}
+    assert merged[SECTION_PRICING] == {CONF_PRICE_SOURCE_TARGET: as_constant_value(0.05)}
 
 
 async def test_async_migrate_entry_pairs_opposing_legacy_connections(hass: HomeAssistant) -> None:
@@ -266,49 +257,28 @@ async def test_async_migrate_entry_pairs_opposing_legacy_connections(hass: HomeA
     }
 
 
-async def test_async_migrate_entry_moves_reverse_entity_unique_id(hass: HomeAssistant) -> None:
-    """v1.4 migration re-homes input entity unique IDs for reverse-direction fields."""
-    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=3)
-    entry.add_to_hass(hass)
-
-    connection_subentry = _create_subentry(
-        {
-            CONF_ELEMENT_TYPE: connection.ELEMENT_TYPE,
-            CONF_NAME: "Line",
-            connection.SECTION_ENDPOINTS: {
-                connection.CONF_SOURCE: as_connection_target("A"),
-                connection.CONF_TARGET: as_connection_target("B"),
-            },
-            SECTION_POWER_LIMITS: {
-                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
-            },
-            SECTION_PRICING: {},
-            SECTION_EFFICIENCY: {},
+async def test_async_migrate_entry_removes_reverse_field_entities(hass: HomeAssistant) -> None:
+    """Reverse-field entities are removed; the new reverse connection creates its own on setup."""
+    entry = _add_hub(hass)
+    forward = _legacy_connection(
+        "Line",
+        "A",
+        "B",
+        power_limits={
+            CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0),
+            CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(5.0),
         },
-        subentry_type=connection.ELEMENT_TYPE,
     )
-    hass.config_entries.async_add_subentry(entry, connection_subentry)
+    hass.config_entries.async_add_subentry(entry, forward)
+    reverse_entity_id = _register_number(hass, entry, forward, CONF_MAX_POWER_TARGET_SOURCE)
+    forward_entity_id = _register_number(hass, entry, forward, CONF_MAX_POWER_SOURCE_TARGET)
+
+    assert await v1_4.async_migrate_entry(hass, entry)
 
     registry = er.async_get(hass)
-    old_uid = f"{entry.entry_id}_{connection_subentry.subentry_id}_max_power_target_source"
-    registry.async_get_or_create(
-        "number",
-        DOMAIN,
-        old_uid,
-        config_entry=entry,
-        suggested_object_id="line_max_power_target_source",
-    )
-
-    result = await v1_4.async_migrate_entry(hass, entry)
-    assert result is True
-
-    reverse = next(
-        s for s in entry.subentries.values() if s.subentry_type == connection.ELEMENT_TYPE and s.title != "Line"
-    )
-    new_uid = f"{entry.entry_id}_{reverse.subentry_id}_max_power_source_target"
-    entry_by_uid = registry.async_get_entity_id("number", DOMAIN, new_uid)
-    assert entry_by_uid is not None
-    assert registry.async_get_entity_id("number", DOMAIN, old_uid) is None
+    assert registry.async_get(reverse_entity_id) is None
+    assert registry.async_get(forward_entity_id) is not None
+    assert len(entry.subentries) == 2
 
 
 async def test_async_migrate_entry_skips_when_already_current(hass: HomeAssistant) -> None:

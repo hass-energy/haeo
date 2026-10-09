@@ -7,7 +7,9 @@ from collections.abc import Mapping
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import (
     get_connection_target_name,
+    is_connection_target,
     is_constant_value,
+    is_none_value,
     normalize_connection_target,
 )
 from custom_components.haeo.core.schema.elements import connection
@@ -23,7 +25,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 
-_REVERSE_TO_FORWARD: tuple[tuple[str, str], ...] = (
+REVERSE_TO_FORWARD: tuple[tuple[str, str], ...] = (
     (CONF_MAX_POWER_TARGET_SOURCE, CONF_MAX_POWER_SOURCE_TARGET),
     (CONF_PRICE_TARGET_SOURCE, CONF_PRICE_SOURCE_TARGET),
     (CONF_EFFICIENCY_TARGET_SOURCE, CONF_EFFICIENCY_SOURCE_TARGET),
@@ -34,7 +36,15 @@ _REVERSE_SECTIONS: tuple[str, ...] = (SECTION_POWER_LIMITS, SECTION_PRICING, SEC
 
 def _is_configured_value(value: object) -> bool:
     """Return True when a schema value represents an active configuration."""
-    return value is not None and not (isinstance(value, dict) and value.get("type") == "none")
+    return value is not None and not is_none_value(value)
+
+
+def endpoint_name(value: object) -> str | None:
+    """Return the element name of a stored connection endpoint."""
+    if value is None or isinstance(value, str) or is_connection_target(value):
+        return get_connection_target_name(value)
+    msg = f"Unsupported connection target {value!r}"
+    raise TypeError(msg)
 
 
 def _section_dict(data: Mapping[str, object], section: str) -> dict[str, object]:
@@ -46,7 +56,7 @@ def _strip_reverse_from_section(section_data: dict[str, object]) -> tuple[dict[s
     """Remove reverse-direction keys and return extracted reverse values."""
     reverse_values: dict[str, object] = {}
     cleaned = dict(section_data)
-    for reverse_key, forward_key in _REVERSE_TO_FORWARD:
+    for reverse_key, forward_key in REVERSE_TO_FORWARD:
         if reverse_key in cleaned:
             value = cleaned.pop(reverse_key)
             if _is_configured_value(value):
@@ -87,14 +97,16 @@ def migrate_connection_config(
 ) -> tuple[dict[str, object], dict[str, object] | None]:
     """Migrate a connection config to unidirectional fields.
 
-    Legacy connections were bidirectional, and an unset reverse max power meant
-    unlimited reverse flow. Every legacy connection therefore yields a reverse
-    connection carrying the reverse-direction fields, unless the reverse max power
-    was the constant 0 that blocked reverse flow.
+    Since connections became unidirectional in the model, the reverse-direction
+    fields have had no effect, so a connection only carried power from source to
+    target. A reverse connection is created only when the user set at least one
+    reverse-direction field, carrying those fields, so a connection keeps behaving
+    as it did unless its reverse settings show reverse flow was intended. A reverse
+    max power of the constant 0 blocked reverse flow and creates no reverse connection.
 
     Returns:
         Tuple of forward connection data and reverse connection data, or None
-        when the legacy configuration blocked reverse flow.
+        when there is no reverse flow to migrate.
 
     """
     migrated = dict(data)
@@ -111,12 +123,12 @@ def migrate_connection_config(
     migrated[SECTION_PRICING] = pricing
     migrated[SECTION_EFFICIENCY] = efficiency
 
-    if blocks_reverse:
+    if blocks_reverse or not (reverse_power or reverse_pricing or reverse_efficiency):
         return migrated, None
 
     endpoints = _section_dict(migrated, connection.SECTION_ENDPOINTS)
-    source_name = get_connection_target_name(endpoints.get(connection.CONF_SOURCE)) or "source"
-    target_name = get_connection_target_name(endpoints.get(connection.CONF_TARGET)) or "target"
+    source_name = endpoint_name(endpoints.get(connection.CONF_SOURCE)) or "source"
+    target_name = endpoint_name(endpoints.get(connection.CONF_TARGET)) or "target"
     base_name = str(migrated.get(CONF_NAME, "Connection"))
     reverse_name = _reverse_connection_name(base_name, source_name, target_name)
     if existing_names is not None:
@@ -134,15 +146,15 @@ def migrate_connection_config(
 
 
 def endpoints_match_reverse(
-    endpoints: dict[str, object],
+    endpoints: Mapping[str, object],
     *,
     source_name: str,
     target_name: str,
 ) -> bool:
     """Return True when endpoints are the reverse of the given source/target names."""
     return (
-        get_connection_target_name(endpoints.get(connection.CONF_SOURCE)) == target_name
-        and get_connection_target_name(endpoints.get(connection.CONF_TARGET)) == source_name
+        endpoint_name(endpoints.get(connection.CONF_SOURCE)) == target_name
+        and endpoint_name(endpoints.get(connection.CONF_TARGET)) == source_name
     )
 
 
@@ -163,6 +175,8 @@ def merge_reverse_into_existing(
 
 
 __all__ = [
+    "REVERSE_TO_FORWARD",
+    "endpoint_name",
     "endpoints_match_reverse",
     "merge_reverse_into_existing",
     "migrate_connection_config",

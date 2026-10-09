@@ -67,8 +67,8 @@ def test_migrate_strips_segment_order() -> None:
         pytest.param({CONF_MAX_POWER_TARGET_SOURCE: as_none_value()}, id="none"),
     ],
 )
-def test_migrate_unset_reverse_power_creates_unlimited_reverse(reverse_power: dict[str, object]) -> None:
-    """An unset reverse max power meant unlimited reverse flow, so an unlimited reverse connection is created."""
+def test_migrate_without_reverse_settings_creates_no_reverse(reverse_power: dict[str, object]) -> None:
+    """Reverse fields had no effect since connections became unidirectional, so unset ones create no reverse."""
     data = _connection_config(
         power_limits={CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0), **reverse_power},
         pricing={},
@@ -78,11 +78,7 @@ def test_migrate_unset_reverse_power_creates_unlimited_reverse(reverse_power: di
     forward, reverse = migrate_connection_config(data)
 
     assert _section(forward, SECTION_POWER_LIMITS) == {CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0)}
-    assert reverse is not None
-    assert reverse[CONF_NAME] == "Inverter link (AC Bus to DC Bus)"
-    assert _section(reverse, SECTION_POWER_LIMITS) == {}
-    assert _section(reverse, SECTION_PRICING) == {}
-    assert _section(reverse, SECTION_EFFICIENCY) == {}
+    assert reverse is None
 
 
 @pytest.mark.parametrize("zero", [0, 0.0], ids=["int", "float"])

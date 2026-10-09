@@ -78,9 +78,6 @@
     "error": {
       "cannot_connect_to_self": "Cannot connect a device to itself",
       "invalid_name": "Invalid device name",
-      "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
-      "min_power_negative_not_allowed_unidirectional": "Minimum power cannot be negative for unidirectional connections",
-      "min_power_too_high": "Minimum power must be less than or equal to maximum power",
       "name_exists": "A device with this name already exists"
     },
     "abort": {

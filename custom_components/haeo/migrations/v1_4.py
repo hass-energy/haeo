@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import logging
 from types import MappingProxyType
 
@@ -11,17 +12,13 @@ from homeassistant.helpers import entity_registry as er
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema import get_connection_target_name
 from custom_components.haeo.core.schema.elements import connection
 from custom_components.haeo.core.schema.migrations.v1_4 import (
+    REVERSE_TO_FORWARD,
+    endpoint_name,
     endpoints_match_reverse,
     merge_reverse_into_existing,
     migrate_connection_config,
-)
-from custom_components.haeo.core.schema.sections import (
-    CONF_EFFICIENCY_TARGET_SOURCE,
-    CONF_MAX_POWER_TARGET_SOURCE,
-    CONF_PRICE_TARGET_SOURCE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,11 +27,7 @@ MINOR_VERSION = 4
 _CONNECTION_TYPE = connection.ELEMENT_TYPE
 _UNIQUE_ID_PART_COUNT = 3
 
-_REVERSE_FIELD_RENAMES: dict[str, str] = {
-    CONF_MAX_POWER_TARGET_SOURCE: "max_power_source_target",
-    CONF_PRICE_TARGET_SOURCE: "price_source_target",
-    CONF_EFFICIENCY_TARGET_SOURCE: "efficiency_source_target",
-}
+_REVERSE_FIELDS: frozenset[str] = frozenset(reverse_key for reverse_key, _ in REVERSE_TO_FORWARD)
 
 
 def _collect_subentry_names(entry: ConfigEntry) -> set[str]:
@@ -53,76 +46,31 @@ def _find_reverse_subentry(
         data = dict(subentry.data)
         if data.get(CONF_ELEMENT_TYPE) != _CONNECTION_TYPE:
             continue
-        endpoints = data.get(connection.SECTION_ENDPOINTS, {})
-        if endpoints_match_reverse(endpoints, source_name=source_name, target_name=target_name):
+        endpoints = data.get(connection.SECTION_ENDPOINTS)
+        if isinstance(endpoints, Mapping) and endpoints_match_reverse(
+            endpoints, source_name=source_name, target_name=target_name
+        ):
             return subentry
     return None
 
 
-async def _migrate_connection_entity_unique_ids(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    *,
-    reverse_destinations: dict[str, str],
-    blocked_subentry_ids: set[str],
-) -> None:
-    """Move reverse-field input entities to the connection that now holds those fields.
+def _remove_reverse_field_entities(hass: HomeAssistant, entry: ConfigEntry, connection_ids: set[str]) -> None:
+    """Remove the input entities of connection fields that no longer exist.
 
-    Entities of connections whose reverse flow was blocked have no destination and
-    are removed. When the destination already has an entity for the field, the old
-    entity is removed so the destination keeps its own.
+    Reverse-direction values now live on a separate connection, which creates its
+    own entities with names that match it when the integration sets up.
     """
     registry = er.async_get(hass)
-    candidate_unique_ids: dict[str, str] = {}
-    orphaned_entity_ids: set[str] = set()
-
     for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
         parts = entity_entry.unique_id.split("_", 2)
         if len(parts) != _UNIQUE_ID_PART_COUNT:
             continue
-
-        entry_part, subentry_id, unique_key = parts
-        new_leaf = _REVERSE_FIELD_RENAMES.get(unique_key.split(".")[-1])
-        if new_leaf is None:
-            continue
-
-        if subentry_id in blocked_subentry_ids:
-            orphaned_entity_ids.add(entity_entry.entity_id)
-            continue
-
-        new_subentry_id = reverse_destinations.get(subentry_id)
-        if new_subentry_id is None:
-            continue
-
-        new_uid = f"{entry_part}_{new_subentry_id}_{new_leaf}"
-        candidate_unique_ids[entity_entry.entity_id] = new_uid
-
-    for entity_id in orphaned_entity_ids:
-        _LOGGER.info("Removing %s because its connection blocked reverse flow", entity_id)
-        registry.async_remove(entity_id)
-
-    def _migrate_unique_id(entity_entry: er.RegistryEntry) -> dict[str, object] | None:
-        new_uid = candidate_unique_ids.get(entity_entry.entity_id)
-        if new_uid is None:
-            return None
-
-        conflict_entity_id = registry.async_get_entity_id(
-            entity_entry.domain,
-            entity_entry.platform,
-            new_uid,
-        )
-        if conflict_entity_id is not None:
+        _, subentry_id, unique_key = parts
+        if subentry_id in connection_ids and unique_key.split(".")[-1] in _REVERSE_FIELDS:
             _LOGGER.info(
-                "Removing %s because another entity already holds unique_id %s",
-                entity_entry.entity_id,
-                new_uid,
+                "Removing %s because connections no longer have reverse-direction fields", entity_entry.entity_id
             )
             registry.async_remove(entity_entry.entity_id)
-            return None
-
-        return {"new_unique_id": new_uid}
-
-    await er.async_migrate_entries(hass, entry.entry_id, _migrate_unique_id)
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -138,8 +86,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     original_subentry_ids = list(entry.subentries)
-    reverse_destinations: dict[str, str] = {}
-    blocked_subentry_ids: set[str] = set()
+    connection_ids: set[str] = set()
     existing_names = _collect_subentry_names(entry)
 
     for subentry_id in original_subentry_ids:
@@ -148,16 +95,19 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if data.get(CONF_ELEMENT_TYPE) != _CONNECTION_TYPE:
             continue
 
+        connection_ids.add(subentry_id)
         endpoints = data[connection.SECTION_ENDPOINTS]
-        source_name = get_connection_target_name(endpoints[connection.CONF_SOURCE]) or ""
-        target_name = get_connection_target_name(endpoints[connection.CONF_TARGET]) or ""
+        if not isinstance(endpoints, Mapping):
+            msg = f"Connection {subentry.title} has no endpoints section"
+            raise TypeError(msg)
+        source_name = endpoint_name(endpoints[connection.CONF_SOURCE]) or ""
+        target_name = endpoint_name(endpoints[connection.CONF_TARGET]) or ""
 
         forward_data, reverse_data = migrate_connection_config(data, existing_names=existing_names)
         hass.config_entries.async_update_subentry(entry, subentry, data=forward_data)
 
         if reverse_data is None:
-            blocked_subentry_ids.add(subentry_id)
-            _LOGGER.info("Connection %s blocked reverse flow; no reverse connection created", subentry.title)
+            _LOGGER.info("Connection %s has no reverse settings; no reverse connection created", subentry.title)
             continue
 
         existing_reverse = _find_reverse_subentry(
@@ -169,7 +119,6 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if existing_reverse is not None:
             merged = merge_reverse_into_existing(dict(existing_reverse.data), reverse_data)
             hass.config_entries.async_update_subentry(entry, existing_reverse, data=merged)
-            reverse_destinations[subentry_id] = existing_reverse.subentry_id
             _LOGGER.info(
                 "Merged reverse connection settings from %s into existing subentry %s",
                 subentry.title,
@@ -186,19 +135,13 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         hass.config_entries.async_add_subentry(entry, new_subentry)
         existing_names.add(reverse_title)
-        reverse_destinations[subentry_id] = new_subentry.subentry_id
         _LOGGER.info(
             "Created reverse connection subentry %s from %s",
             reverse_title,
             subentry.title,
         )
 
-    await _migrate_connection_entity_unique_ids(
-        hass,
-        entry,
-        reverse_destinations=reverse_destinations,
-        blocked_subentry_ids=blocked_subentry_ids,
-    )
+    _remove_reverse_field_entities(hass, entry, connection_ids)
 
     hass.config_entries.async_update_entry(entry, minor_version=MINOR_VERSION)
     _LOGGER.info("Migration complete for %s entry %s", DOMAIN, entry.entry_id)

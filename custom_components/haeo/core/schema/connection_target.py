@@ -47,7 +47,7 @@ def normalize_connection_target(value: object) -> ConnectionTargetValue:
     raise TypeError(msg)
 
 
-def get_connection_target_name(value: object) -> str | None:
+def get_connection_target_name(value: ConnectionTargetValue | str | None) -> str | None:
     """Return the connection target name for a schema value."""
     if value is None:
         return None
