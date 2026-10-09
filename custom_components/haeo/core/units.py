@@ -1,5 +1,6 @@
 """Core unit conversion helpers with no Home Assistant dependencies."""
 
+from collections.abc import Mapping
 from enum import StrEnum
 from typing import Final
 
@@ -35,6 +36,7 @@ class UnitOfMeasurement(StrEnum):
     MEGA_WATT_HOUR = "MWh"
     GIGA_WATT_HOUR = "GWh"
     DOLLAR_PER_KWH = "$/kWh"
+    DOLLAR_PER_KWH_PER_HOUR = "$/kWh/h"
     PERCENT = "%"
 
     @classmethod
@@ -75,6 +77,56 @@ ENERGY_UNITS: Final[tuple[UnitOfMeasurement, ...]] = (
 
 # Matches any currency followed by / and an energy unit (e.g. "£/kWh", "€/MWh")
 PRICE_UNIT_SPEC: Final[list[UnitSpec]] = [("*", "/", u.value) for u in ENERGY_UNITS]
+
+
+# Display symbols for common ISO 4217 currency codes. Codes not listed are shown
+# as the code itself, which is unambiguous.
+CURRENCY_SYMBOLS: Final[Mapping[str, str]] = {
+    "AUD": "$",
+    "BRL": "R$",
+    "CAD": "$",
+    "CHF": "CHF",
+    "CNY": "¥",
+    "CZK": "Kč",
+    "DKK": "kr",
+    "EUR": "€",
+    "GBP": "£",
+    "HKD": "$",
+    "HUF": "Ft",
+    "ILS": "₪",
+    "INR": "₹",
+    "JPY": "¥",
+    "KRW": "₩",
+    "MXN": "$",
+    "NOK": "kr",
+    "NZD": "$",
+    "PLN": "zł",
+    "RON": "lei",
+    "SEK": "kr",
+    "SGD": "$",
+    "THB": "฿",
+    "TRY": "₺",
+    "TWD": "$",
+    "UAH": "₴",
+    "USD": "$",
+    "ZAR": "R",
+}
+
+
+def currency_symbol(currency: str) -> str:
+    """Return the display symbol for an ISO 4217 currency code."""
+    return CURRENCY_SYMBOLS.get(currency, currency)
+
+
+def localize_currency(unit: str | None, currency: str) -> str | None:
+    """Replace the ``$`` placeholder in a unit string with a currency symbol.
+
+    Monetary units carry ``$`` as a placeholder (e.g. ``$/kWh``, ``$/kWh/h``, ``$``)
+    until a Home Assistant display boundary substitutes the user's currency.
+    """
+    if unit is None:
+        return None
+    return unit.replace("$", currency)
 
 
 def _infer_device_class_from_unit(unit: UnitOfMeasurement | None) -> DeviceClass | None:
