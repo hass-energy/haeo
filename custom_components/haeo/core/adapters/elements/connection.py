@@ -49,8 +49,9 @@ class ConnectionAdapter:
                 "name": config["name"],
                 "source": extract_connection_target(config[SECTION_ENDPOINTS]["source"]),
                 "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
-                # The limit and price sit at the source end, where the connection
-                # power sensor measures, so a connection at its limit reads the limit.
+                # The limit and price apply to the power entering the connection, before
+                # its losses, where the connection power sensor measures, so a connection
+                # at its limit reads the limit.
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",

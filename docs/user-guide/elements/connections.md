@@ -88,7 +88,7 @@ Both directions are available for optimization.
 The optimizer will choose the most cost-effective direction at each time step.
 
 **Efficiency modeling:**
-The power limit, the price, and the reported connection power all apply to power leaving the source, before losses.
+The power limit, the price, and the reported connection power all apply to the power entering the connection, before its losses.
 Power arriving at the target is reduced by efficiency.
 Example: a connection limited to 10 kW with 95% efficiency reports 10 kW at its limit, and 9.5 kW arrives at the target.
 

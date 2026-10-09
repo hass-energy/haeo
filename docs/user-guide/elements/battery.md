@@ -394,16 +394,15 @@ Provides a convenient percentage view of the battery level.
 The marginal value of energy stored in the battery, measured inside the charge and discharge efficiency.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
-This shadow price represents the economic value of 1 kW of additional power capacity at the battery.
-It reflects the cost of power flowing through the battery connection point.
+It shows how much the total system cost would change if one more kWh were held in the battery at that time.
 
 **Interpretation**:
 
 - **Positive value**: Energy in the battery has value (usually during discharge periods)
-- **Negative value**: Additional power would increase costs (usually during charging periods)
-- **Magnitude**: Higher absolute values indicate the battery connection is more valuable to the system
+- **Negative value**: Holding more energy would increase costs (usually during charging periods)
+- **Magnitude**: Higher absolute values indicate stored energy is more valuable to the system
 
-**Example**: A value of 0.15 means 1 kW of additional power capacity at the battery would save \$0.15 per time period.
+**Example**: A value of 0.15 means one more kWh held in the battery at that time would save \$0.15.
 
 ---
 

@@ -126,7 +126,7 @@ Values range from 0 to the configured capacity.
 The marginal value of energy at the battery section, on the storage side of any connection efficiency.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
-This shadow price shows how much the total system cost would change if you could inject or extract 1 kW of power at the battery section.
+It shows how much the total system cost would change if one more kWh were held in the section at that time.
 
 **Interpretation**:
 
@@ -134,7 +134,7 @@ This shadow price shows how much the total system cost would change if you could
 - **Negative value**: Power at the battery is costly (system would benefit from more discharging capacity)
 - **Zero value**: Battery power balance is not constraining the optimization
 
-**Example**: A value of 0.15 means that if the battery could accept 1 kW more power, the total system cost would decrease by \$0.15 at this time period.
+**Example**: A value of 0.15 means one more kWh held in the section at that time would save \$0.15.
 
 ### Energy In Flow
 

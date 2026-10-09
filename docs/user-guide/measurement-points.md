@@ -15,18 +15,22 @@ Each [element page](elements/index.md) states the point its inputs and sensors r
 When an element runs at its limit, its power sensor reads exactly the limit you configured.
 Prices on that element's flow are charged at the same point wherever possible.
 
-That point is chosen where the device is usually rated and metered.
+That point is on the outside of the device, where it is usually rated and metered.
 For example, a battery's limits and power refer to its terminals, and an inverter's refer to its AC side.
+This holds in both directions of flow: a battery's charge and discharge limits both refer to its terminals, whichever way power is moving.
 
-**Efficiency is a loss between that point and the device itself.**
-Values on the device side of the loss, such as stored energy and state of charge, are not power sensors.
+**Losses happen inside the device.**
+Efficiency describes the loss between the device's terminals and its inside, such as a battery's cells or an inverter's DC bus.
+Values inside the device, such as stored energy and state of charge, are not power sensors.
 You can work out device-side power from the reported power and the efficiency (see [Efficiency below 100%](#efficiency-below-100)).
 
 **Elements without losses refer to a single point.**
 Grid, solar, loads, and nodes have no efficiency of their own, so their limits, forecasts, and reported power all refer to the point where they connect.
 
 **Connections you build follow the same rule.**
-A connection's power limit, price, and reported power all refer to its source end, and its efficiency is applied after them.
+A connection carries power in one direction and models its losses inside itself.
+Its power limit, price, and reported power all refer to the power entering the connection, before its losses.
+The power leaving it is reduced by its efficiency.
 
 These are modeling assumptions.
 A real device may be rated or measured at a different point, report power from a different sensor, or have losses that a single efficiency figure does not capture.
@@ -64,7 +68,8 @@ With 95% discharge efficiency, a 0.10 \$/kWh discharge cost works out to about 0
 ## Changes from earlier versions
 
 Earlier versions of HAEO placed some limits and sensors on the device side of the efficiency loss, so a sensor could read more than its configured limit.
-If you set a battery charge limit, an inverter AC to DC limit, or a connection limit from a device-side figure, re-check it against the convention above.
+If you set a battery charge limit, an inverter AC to DC limit, or a connection limit from a figure inside the device, re-check it against the convention above.
+Connection prices also moved: they now apply to the power entering the connection, before its losses, rather than to the power delivered after them.
 
 ## Next steps
 
