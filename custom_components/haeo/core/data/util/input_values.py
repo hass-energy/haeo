@@ -6,9 +6,11 @@ from typing import Any, Final
 import numpy as np
 from numpy.typing import NDArray
 
-# How far below zero a value for a non-negative input may fall, in the source's
-# units, before it is rejected instead of clamped to zero. Sensors and forecasts
-# often report small negative readings (a few watts) where zero is meant.
+# How far below zero a value for a non-negative input may fall before it is
+# rejected instead of clamped to zero. It applies after conversion to HAEO's units
+# and before percentages are scaled, so it is 0.01 kW (10 W), 0.01 kWh, or 0.01
+# percentage points. Sensors and forecasts often report small negative readings
+# where zero is meant.
 NEGATIVE_TOLERANCE: Final = 0.01
 
 
