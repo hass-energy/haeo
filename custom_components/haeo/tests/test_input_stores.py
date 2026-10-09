@@ -24,7 +24,6 @@ from custom_components.haeo.core.schema.elements.grid import (
 )
 from custom_components.haeo.core.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
-from custom_components.haeo.elements.field_hints import PRICE_NATIVE_MIN_VALUE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import SubentryStorage, build_input_stores, input_error_placeholders
@@ -116,20 +115,6 @@ def test_build_input_stores_creates_stores_for_configured_fields(
     assert stores[constant_key].mode == InputMode.EDITABLE
     assert stores[driven_key].mode == InputMode.DRIVEN
     assert stores[driven_key].source_entity_ids == ["sensor.export_price"]
-
-
-def test_build_input_stores_carries_field_minimum(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    horizon_manager: Mock,
-) -> None:
-    """Store hints carry each field's effective minimum so loads can enforce non-negativity."""
-    _add_grid(hass, config_entry)
-
-    stores = build_input_stores(hass, config_entry, horizon_manager)
-
-    assert stores[("Main Grid", (SECTION_POWER_LIMITS, CONF_MAX_POWER_TARGET_SOURCE))].hint.min_value == 0.0
-    assert stores[("Main Grid", (SECTION_PRICING, CONF_PRICE_TARGET_SOURCE))].hint.min_value == PRICE_NATIVE_MIN_VALUE
 
 
 async def test_input_error_placeholders_describe_rejected_store(

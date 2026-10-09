@@ -90,6 +90,8 @@ class InputStore:
         self._loaded_timestamps: tuple[float, ...] = ()
         self._captured_source_states: dict[str, EntityState] = {}
         self._data_ready = asyncio.Event()
+        # Set once the store has data or has rejected its source's value
+        self._settled = asyncio.Event()
         self._listeners: list[Callable[[], None]] = []
 
         if mode == InputMode.EDITABLE and initial_value is not None:
@@ -208,9 +210,14 @@ class InputStore:
         """Wait for data to be ready."""
         await self._data_ready.wait()
 
+    async def wait_settled(self) -> None:
+        """Wait until the store has data or has rejected its source's value."""
+        await self._settled.wait()
+
     def mark_ready(self) -> None:
         """Explicitly mark the store as ready."""
         self._data_ready.set()
+        self._settled.set()
 
     # --- Change notification ---
 
@@ -281,6 +288,7 @@ class InputStore:
             # silently keeping the previous one.
             self._error = err
             self._available = False
+            self._settled.set()
             self._notify()
             return False
         except Exception:
@@ -308,6 +316,7 @@ class InputStore:
         self._available = True
         self._loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
         self._data_ready.set()
+        self._settled.set()
         self._notify()
         return True
 
@@ -325,6 +334,7 @@ class InputStore:
 
         if mark_ready:
             self._data_ready.set()
+            self._settled.set()
             self._notify()
 
 

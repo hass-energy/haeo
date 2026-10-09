@@ -6,6 +6,7 @@ and a tiny in-memory storage double so values resolve identically to the config
 loader (``resolve_field``/``resolve_constant``).
 """
 
+import asyncio
 from typing import Any
 from unittest.mock import patch
 
@@ -348,6 +349,8 @@ async def test_driven_async_load_records_input_error() -> None:
     assert store.available is False
     assert store.error is not None
     assert store.error.translation_key == "negative_input_value"
+    assert store.is_ready() is False
+    await asyncio.wait_for(store.wait_settled(), timeout=1)
     assert store.error.translation_placeholders == {"value": "-3"}
     assert len(notifications) == 1
 

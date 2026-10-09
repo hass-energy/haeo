@@ -17,7 +17,6 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
 from custom_components.haeo.core.data.util.input_values import InputError
-from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import is_none_value
 from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
@@ -81,18 +80,12 @@ class SubentryStorage:
 
 
 def _hint_from_field_info(field_info: InputFieldInfo[Any]) -> FieldHint:
-    """Build the resolver field hint from an input field's metadata.
-
-    The hint carries the field's effective minimum, the same bound its number
-    entity enforces, so values resolved from source entities are held to it too.
-    """
-    is_switch = field_info.output_type == OutputType.STATUS
+    """Build the resolver field hint from an input field's metadata."""
     return FieldHint(
         output_type=field_info.output_type,
         direction=field_info.direction,
         time_series=field_info.time_series,
         boundaries=field_info.boundaries,
-        min_value=None if is_switch else field_info.entity_description.native_min_value,
     )
 
 

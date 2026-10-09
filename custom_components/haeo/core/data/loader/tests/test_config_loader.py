@@ -697,10 +697,11 @@ def test_load_element_config_from_values_unknown_element_type_raises() -> None:
 
 # -- resolve_field non-negative inputs --
 
-_POWER_HINT = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=True, min_value=0.0)
-_PRICE_HINT = FieldHint(output_type=OutputType.PRICE, time_series=True, min_value=-1000.0)
-_UNBOUNDED_HINT = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=True)
-_SOC_SCALAR_HINT = FieldHint(output_type=OutputType.STATE_OF_CHARGE, min_value=0.0)
+# No min_value: non-negativity comes from the output type, so offline loading,
+# which uses schema hints, treats values the same way as runtime input stores.
+_POWER_HINT = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=True)
+_PRICE_HINT = FieldHint(output_type=OutputType.PRICE, time_series=True)
+_SOC_SCALAR_HINT = FieldHint(output_type=OutputType.STATE_OF_CHARGE)
 
 
 @pytest.mark.parametrize(
@@ -709,17 +710,16 @@ _SOC_SCALAR_HINT = FieldHint(output_type=OutputType.STATE_OF_CHARGE, min_value=0
         pytest.param(_POWER_HINT, -0.005, [0.0, 0.0, 0.0], id="slightly_negative_power_clamped"),
         pytest.param(_POWER_HINT, 2.5, [2.5, 2.5, 2.5], id="positive_power_unchanged"),
         pytest.param(_PRICE_HINT, -0.5, [-0.5, -0.5, -0.5], id="negative_price_allowed"),
-        pytest.param(_UNBOUNDED_HINT, -0.5, [-0.5, -0.5, -0.5], id="no_minimum_allowed"),
         pytest.param(_SOC_SCALAR_HINT, -0.005, 0.0, id="slightly_negative_soc_scalar_clamped"),
     ],
 )
-def test_entity_values_respect_non_negative_minimum(
+def test_entity_values_respect_non_negative_output_types(
     monkeypatch: pytest.MonkeyPatch,
     hint: FieldHint,
     sensor_value: float,
     expected: list[float] | float,
 ) -> None:
-    """Fields with a non-negative minimum clamp slightly negative readings to zero."""
+    """Fields for quantities that cannot be negative clamp slightly negative readings to zero."""
     monkeypatch.setattr(cl, "load_sensors", lambda *_a: {"sensor.x": sensor_value})
 
     result = cl.resolve_field({"type": "entity", "value": ["sensor.x"]}, hint, FakeStateMachine({}), FORECAST_TIMES)
