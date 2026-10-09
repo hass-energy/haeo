@@ -5,11 +5,7 @@ from typing import Any, Final
 import numpy as np
 from numpy.typing import NDArray
 
-# HiGHS drops matrix coefficients smaller than its small_matrix_value option
-# (default 1e-9) and reports a warning, which highspy raises as an error when a
-# row is added. Values this close to zero are floating point noise, such as
-# interpolation across a forecast step edge, and are treated as exactly zero.
-ZERO_TOLERANCE: Final = 1e-9
+from custom_components.haeo.core.model.util.solver_rows import SMALL_MATRIX_VALUE
 
 # How far below zero a value for a non-negative input may fall, in the source's
 # units, before it is rejected instead of clamped to zero. Sensors and forecasts
@@ -29,7 +25,8 @@ class NegativeInputError(ValueError):
 def clean_input_values(values: NDArray[Any], *, non_negative: bool) -> NDArray[np.float64]:
     """Return values with float noise snapped to zero and non-negativity enforced.
 
-    Magnitudes below ``ZERO_TOLERANCE`` become exactly zero. For non-negative
+    Magnitudes below ``SMALL_MATRIX_VALUE`` are floating point noise, such as
+    interpolation across a forecast step edge, and become exactly zero. For non-negative
     inputs, values within ``NEGATIVE_TOLERANCE`` below zero are clamped to zero.
 
     Raises:
@@ -37,7 +34,7 @@ def clean_input_values(values: NDArray[Any], *, non_negative: bool) -> NDArray[n
             than ``NEGATIVE_TOLERANCE``.
 
     """
-    cleaned = np.where(np.abs(values) < ZERO_TOLERANCE, 0.0, values).astype(np.float64)
+    cleaned = np.where(np.abs(values) < SMALL_MATRIX_VALUE, 0.0, values).astype(np.float64)
     if not non_negative:
         return cleaned
 
@@ -47,4 +44,4 @@ def clean_input_values(values: NDArray[Any], *, non_negative: bool) -> NDArray[n
     return np.where(cleaned < 0.0, 0.0, cleaned)
 
 
-__all__ = ["NEGATIVE_TOLERANCE", "ZERO_TOLERANCE", "NegativeInputError", "clean_input_values"]
+__all__ = ["NEGATIVE_TOLERANCE", "NegativeInputError", "clean_input_values"]

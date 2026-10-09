@@ -5,10 +5,10 @@ from functools import partial
 from typing import TypeVar, overload
 
 from highspy import Highs, HighsRanging, HighsSolution
-from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
+from custom_components.haeo.core.model.util.solver_rows import add_row, add_rows, update_row
 
 from .protocols import ReactiveHost
 from .tracked_param import ensure_decorator_state, tracking_context
@@ -223,80 +223,18 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
 
         # First call: create constraint(s) in solver
         if is_first_call:
-            cons = solver.addConstrs(expr) if isinstance(expr, list) else solver.addConstr(expr)  # type: ignore[arg-type]
+            cons = add_rows(solver, expr) if isinstance(expr, list) else add_row(solver, expr)  # type: ignore[arg-type]
             state["constraint"] = cons
         else:
             # Subsequent call with invalidation: update constraint(s)
             existing = state["constraint"]
-            self._update_constraint(solver, existing, expr)  # type: ignore[arg-type]
+            if isinstance(existing, list):
+                for cons, row in zip(existing, expr, strict=True):  # type: ignore[arg-type]
+                    update_row(solver, cons, row)
+            else:
+                update_row(solver, existing, expr)  # type: ignore[arg-type]
 
         return expr  # type: ignore[return-value]
-
-    def _update_constraint(
-        self,
-        solver: "Highs",
-        existing: "highs_cons | list[highs_cons]",
-        expr: "highs_linear_expression | list[highs_linear_expression]",
-    ) -> None:
-        """Update existing constraint(s) with new expression(s).
-
-        Args:
-            solver: The HiGHS solver instance
-            existing: The existing constraint(s) to update
-            expr: The new expression(s)
-
-        """
-        if isinstance(existing, list):
-            # Both existing and expr are lists - update element-wise
-            assert isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101 (runtime invariant check for constraint type consistency)
-            for cons, exp in zip(existing, expr, strict=True):
-                self._update_single_constraint(solver, cons, exp)
-        else:
-            # Both existing and expr are single values
-            assert not isinstance(expr, list), "Expression type must match existing constraint type"  # noqa: S101 (runtime invariant check for constraint type consistency)
-            self._update_single_constraint(solver, existing, expr)
-
-    def _update_single_constraint(
-        self,
-        solver: "Highs",
-        cons: "highs_cons",
-        expr: "highs_linear_expression",
-    ) -> None:
-        """Update a single constraint with new expression.
-
-        Args:
-            solver: The HiGHS solver instance
-            cons: The existing constraint to update
-            expr: The new expression
-
-        """
-        # Update bounds (handle both addition and removal of bounds)
-        # Get old bounds from the constraint
-        old_expr = solver.getExpr(cons)
-        old_bounds = old_expr.bounds
-        new_bounds = expr.bounds
-
-        # Update bounds if they changed
-        if old_bounds != new_bounds:
-            if new_bounds is not None:
-                solver.changeRowBounds(cons.index, new_bounds[0], new_bounds[1])
-            elif old_bounds is not None:
-                # Bounds were removed - set to unconstrained (-inf, inf)
-                solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
-
-        # Update coefficients
-        # Get existing expression to compare
-        old_coeffs = dict(zip(old_expr.idxs, old_expr.vals, strict=True))
-        new_coeffs = dict(zip(expr.idxs, expr.vals, strict=True))
-
-        # Apply coefficient changes for all variables (old, new, and removed)
-        # Variables not in new_coeffs get coefficient 0.0 (effectively removed)
-        all_vars = set(old_coeffs) | set(new_coeffs)
-        for var_idx in all_vars:
-            old_val = old_coeffs.get(var_idx, 0.0)
-            new_val = new_coeffs.get(var_idx, 0.0)
-            if old_val != new_val:
-                solver.changeCoeff(cons.index, var_idx, new_val)
 
 
 class ReactiveCost[R](ReactiveMethod[R]):

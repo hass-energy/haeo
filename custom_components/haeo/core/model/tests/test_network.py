@@ -4,7 +4,6 @@ import logging
 from unittest.mock import Mock
 
 from highspy import Highs, HighsModelStatus
-from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 import pytest
 
@@ -671,34 +670,33 @@ def test_update_constraint_sums_duplicate_coefficients() -> None:
     assert coeffs[v1.index] == pytest.approx(9.0)
 
 
-def test_failed_lex_row_addition_leaves_no_orphaned_row(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A lex row that highspy adds and then raises on is removed so later solves are unaffected.
+def test_lex_mode_solves_with_negligible_objective_coefficients() -> None:
+    """A primary objective term below HiGHS's small matrix value does not break the lex row.
 
-    highspy raises on a HiGHS warning, such as a dropped tiny coefficient, only
-    after the row is already in the model. An orphaned bound row would make
-    every later solve infeasible.
+    Regression for #501: highspy raised after adding a lex row containing such a
+    term, leaving an untracked row that made every later solve infeasible.
     """
-    network = _build_priced_network(LexOptions())
-    solver = network._solver
-    add_constr = solver.addConstr
+    network = Network(name="test", periods=np.array([1.0, 1.0]), options=LexOptions())
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "sink",
+            "tags": {1},
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 3e-10])},
+            },
+        }
+    )
 
-    def add_then_raise(expr: highs_linear_expression) -> highs_cons:
-        add_constr(expr)
-        msg = "Error adding constraint to the model."
-        raise Exception(msg)  # noqa: TRY002 (highspy raises a bare Exception)
+    first = network.optimize()
+    second = network.optimize()
 
-    monkeypatch.setattr(solver, "addConstr", add_then_raise)
-    with pytest.raises(Exception, match="Error adding constraint"):
-        network.optimize()
-    monkeypatch.undo()
-
-    reference = _build_priced_network(LexOptions())
-    expected = reference.optimize()
-    assert network._lex_constraint is None
-    assert solver.numConstrs == reference._solver.numConstrs - 1
-
-    assert network.optimize() == pytest.approx(expected)
-    assert solver.numConstrs == reference._solver.numConstrs
+    assert np.isfinite(first)
+    assert second == pytest.approx(first)
 
 
 def test_optimize_requires_objectives() -> None:
