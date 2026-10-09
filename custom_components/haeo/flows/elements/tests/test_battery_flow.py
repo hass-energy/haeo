@@ -218,6 +218,47 @@ async def test_partition_flow_enabled_shows_partition_step(hass: HomeAssistant, 
     assert result.get("step_id") == "partitions"
 
 
+@pytest.mark.parametrize(
+    ("currency", "expected_unit"),
+    [
+        pytest.param("EUR", "€/kWh/h", id="euro"),
+        pytest.param("AUD", "$/kWh/h", id="dollar"),
+        pytest.param("XYZ", "XYZ/kWh/h", id="unlisted_code"),
+    ],
+)
+async def test_partition_costs_show_currency_symbol(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, currency: str, expected_unit: str
+) -> None:
+    """Undercharge and overcharge costs show their holding-rate unit in the Home Assistant currency."""
+    hass.config.currency = currency
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    step1_input = {
+        CONF_NAME: "Test Battery",
+        CONF_CONNECTION: "main_bus",
+        CONF_CAPACITY: 10.0,
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+        CONF_MIN_CHARGE_PERCENTAGE: None,
+        CONF_MAX_CHARGE_PERCENTAGE: None,
+        CONF_EFFICIENCY_SOURCE_TARGET: 0.95,
+        CONF_EFFICIENCY_TARGET_SOURCE: 0.95,
+        CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+        CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+        CONF_CONFIGURE_PARTITIONS: True,
+    }
+    await flow.async_step_user(user_input=None)
+
+    result = await flow.async_step_user(user_input=_wrap_main_input(step1_input))
+
+    sections = {key.schema: value.schema.schema for key, value in result["data_schema"].schema.items()}
+    for section_key in (SECTION_UNDERCHARGE, SECTION_OVERCHARGE):
+        cost_selector = next(
+            selector for key, selector in sections[section_key].items() if key.schema == CONF_PARTITION_COST
+        )
+        number_config = cost_selector.config["choices"]["constant"]["selector"]["number"]
+        assert number_config["unit_of_measurement"] == expected_unit
+
+
 async def test_partition_flow_with_entity_links_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Complete flow with entity link partition values creates entry."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)

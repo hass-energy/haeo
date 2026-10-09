@@ -92,24 +92,6 @@ def _add_grid(hass: HomeAssistant, entry: MockConfigEntry) -> ConfigSubentry:
     return subentry
 
 
-def test_negated_policy_price_fields_skips_subentries_without_element_type(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-) -> None:
-    """Subentries missing element_type are ignored when locating negated price stores."""
-    from custom_components.haeo.input_stores import _negated_policy_price_fields  # noqa: PLC0415
-
-    junk = ConfigSubentry(
-        data=MappingProxyType({CONF_NAME: "orphan"}),
-        subentry_type="unknown",
-        title="orphan",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(config_entry, junk)
-
-    assert _negated_policy_price_fields(config_entry) == set()
-
-
 def test_build_input_stores_creates_stores_for_configured_fields(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,

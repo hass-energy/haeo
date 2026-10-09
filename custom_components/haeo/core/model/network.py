@@ -131,7 +131,7 @@ class Network:
         self.elements: dict[str, Element[Any]] = {}
         self.options: SolveOptions = options or CalibratedOptions()
         self._solver = Highs()
-        self._lex_constraint: highs_cons | None = None
+        self._lex_row: tuple[highs_cons, highs_linear_expression] | None = None
         self._calibrated_weight: float | None = None
 
         # Redirect HiGHS logging to Python logger at debug level
@@ -497,17 +497,23 @@ class Network:
         optimal_value: float,
     ) -> None:
         """Set the single lex constraint to bound the given objective."""
-        constraint_expr = objective <= optimal_value
-
-        if self._lex_constraint is None:
-            self._lex_constraint = add_row(self._solver, constraint_expr)
-        else:
-            update_row(self._solver, self._lex_constraint, constraint_expr)
+        self._set_lex_row(objective <= optimal_value)
 
     def _relax_lex_constraint(self) -> None:
         """Relax the lex constraint bounds so it is inactive."""
-        if self._lex_constraint is not None:
-            self._solver.changeRowBounds(self._lex_constraint.index, float("-inf"), float("inf"))
+        if self._lex_row is not None:
+            unbounded = highs_linear_expression(self._lex_row[1])
+            unbounded.bounds = None
+            self._set_lex_row(unbounded)
+
+    def _set_lex_row(self, expr: highs_linear_expression) -> None:
+        """Write the expression to the lex constraint row, adding the row on first use."""
+        if self._lex_row is None:
+            cons = add_row(self._solver, expr)
+        else:
+            cons, applied = self._lex_row
+            update_row(self._solver, cons, applied, expr)
+        self._lex_row = (cons, expr)
 
     def constraints(self) -> dict[str, dict[str, highs_cons | list[highs_cons]]]:
         """Return all constraints from all elements in the network.

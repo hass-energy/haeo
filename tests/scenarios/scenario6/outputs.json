@@ -392,7 +392,8 @@
       "mode": "auto",
       "source_role": "limit",
       "step": 0.001,
-      "time_series": true
+      "time_series": true,
+      "unit_of_measurement": "\u20ac/kWh"
     }
   },
   "number.battery_discharge_efficiency": {
@@ -1344,7 +1345,8 @@
       "source_entities": ["sensor.amber_express_home_feed_in_price"],
       "source_role": "limit",
       "step": 0.001,
-      "time_series": true
+      "time_series": true,
+      "unit_of_measurement": "\u20ac/kWh"
     }
   },
   "number.grid_import_limit": {
@@ -1609,7 +1611,8 @@
       "source_entities": ["sensor.amber_express_home_general_price"],
       "source_role": "limit",
       "step": 0.001,
-      "time_series": true
+      "time_series": true,
+      "unit_of_measurement": "\u20ac/kWh"
     }
   },
   "number.inverter_max_ac_to_dc_power": {
@@ -2143,7 +2146,8 @@
       "source_role": "limit",
       "step": 0.001,
       "target": ["Grid"],
-      "time_series": true
+      "time_series": true,
+      "unit_of_measurement": "\u20ac/kWh"
     }
   },
   "number.policies_battery_wear_price": {
@@ -2276,7 +2280,8 @@
       "source": ["Battery"],
       "source_role": "limit",
       "step": 0.001,
-      "time_series": true
+      "time_series": true,
+      "unit_of_measurement": "\u20ac/kWh"
     }
   },
   "number.policies_solar_minimum_sell_price": {
@@ -2410,7 +2415,8 @@
       "source_role": "limit",
       "step": 0.001,
       "target": ["Grid"],
-      "time_series": true
+      "time_series": true,
+      "unit_of_measurement": "\u20ac/kWh"
     }
   },
   "number.solar_forecast": {

@@ -38,7 +38,7 @@ from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.util import extract_unit_parts
 from custom_components.haeo.core.state import EntityState
-from custom_components.haeo.core.units import PRICE_UNIT_SPEC
+from custom_components.haeo.core.units import PRICE_UNIT_SPEC, currency_symbol, localize_currency
 from custom_components.haeo.elements import (
     ElementDeviceName,
     ElementOutputName,
@@ -145,19 +145,6 @@ def detect_currency_symbol(
     return fallback_currency or "$"
 
 
-def _localize_currency(unit: str | None, currency_sym: str) -> str | None:
-    """Replace the ``$`` placeholder in a unit string with the detected currency symbol.
-
-    The model and adapter layers use ``$`` as a conventional placeholder for
-    monetary values (e.g. ``$/kWh``, ``$/kW``, ``$``).  At the coordinator
-    boundary we substitute it with the currency symbol detected from the
-    user's price sensor data so that sensors display correctly.
-    """
-    if unit is None:
-        return None
-    return unit.replace("$", currency_sym)
-
-
 def _build_coordinator_output(
     output_name: ElementOutputName,
     output_data: OutputData,
@@ -213,7 +200,7 @@ def _build_coordinator_output(
 
     return CoordinatorOutput(
         type=output_data.type,
-        unit=_localize_currency(output_data.unit, currency_sym),
+        unit=localize_currency(output_data.unit, currency_sym),
         state=state,
         forecast=forecast,
         direction=output_data.direction,
@@ -792,7 +779,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             currency_sym = detect_currency_symbol(
                 context.source_states,
-                fallback_currency=self.hass.config.currency,
+                fallback_currency=currency_symbol(self.hass.config.currency),
             )
 
             outputs: dict[str, SubentryDevices] = {

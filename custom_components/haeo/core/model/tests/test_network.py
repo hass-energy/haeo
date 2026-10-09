@@ -610,7 +610,7 @@ def test_lex_mode_with_secondary_objective() -> None:
 def test_lex_mode_warm_resolve_with_duplicate_coefficients() -> None:
     """Re-optimizing in lex mode must survive primary expressions with repeated var idxs.
 
-    Regression: _update_constraint previously collapsed duplicate variable
+    Regression: the lex row update previously collapsed duplicate variable
     indices via dict(zip(...)), silently dropping coefficient contributions
     when updating the lex constraint from secondary (phase 3) back to primary
     (phase 2) on a warm re-solve.  The resulting constraint misrepresented
@@ -645,7 +645,7 @@ def test_lex_mode_warm_resolve_with_duplicate_coefficients() -> None:
 
 
 def test_update_constraint_sums_duplicate_coefficients() -> None:
-    """_update_constraint must aggregate duplicate var idxs in both sides."""
+    """Updating the lex row must aggregate duplicate var idxs in both sides."""
     network = Network(name="test", periods=np.array([1.0]))
     h: Highs = network._solver
     v0 = h.addVariable(lb=0.0, ub=10.0, name="v0")
@@ -661,8 +661,8 @@ def test_update_constraint_sums_duplicate_coefficients() -> None:
     updated = 4.0 * v1 + 5.0 * v1 + 3.0 * v0
     network._constrain_objective(updated, 200.0)
 
-    assert network._lex_constraint is not None
-    stored = h.getExpr(network._lex_constraint)
+    assert network._lex_row is not None
+    stored = h.getExpr(network._lex_row[0])
     coeffs: dict[int, float] = {}
     for idx, val in zip(stored.idxs, stored.vals, strict=True):
         coeffs[idx] = coeffs.get(idx, 0.0) + val
@@ -697,6 +697,26 @@ def test_lex_mode_solves_with_negligible_objective_coefficients() -> None:
 
     assert np.isfinite(first)
     assert second == pytest.approx(first)
+
+
+def test_lex_row_bound_restored_after_relax() -> None:
+    """Constraining to the same value after a relax bounds the lex row again."""
+    network = Network(name="test", periods=np.array([1.0]))
+    h: Highs = network._solver
+    v0 = h.addVariable(lb=0.0, ub=10.0, name="v0")
+    objective = 2.0 * v0
+
+    network._constrain_objective(objective, 5.0)
+    assert network._lex_row is not None
+    cons = network._lex_row[0]
+    assert h.getExpr(cons).bounds == (float("-inf"), 5.0)
+
+    network._relax_lex_constraint()
+    assert h.getExpr(cons).bounds == (float("-inf"), float("inf"))
+
+    network._constrain_objective(objective, 5.0)
+    assert h.getExpr(cons).bounds == (float("-inf"), 5.0)
+    assert h.numConstrs == 1
 
 
 def test_optimize_requires_objectives() -> None:

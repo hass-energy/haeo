@@ -226,13 +226,15 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             cons = add_rows(solver, expr) if isinstance(expr, list) else add_row(solver, expr)  # type: ignore[arg-type]
             state["constraint"] = cons
         else:
-            # Subsequent call with invalidation: update constraint(s)
+            # Subsequent call with invalidation: update constraint(s) from the expression they hold
             existing = state["constraint"]
+            applied = state["applied"]
             if isinstance(existing, list):
-                for cons, row in zip(existing, expr, strict=True):  # type: ignore[arg-type]
-                    update_row(solver, cons, row)
+                for cons, old, new in zip(existing, applied, expr, strict=True):  # type: ignore[arg-type]
+                    update_row(solver, cons, old, new)
             else:
-                update_row(solver, existing, expr)  # type: ignore[arg-type]
+                update_row(solver, existing, applied, expr)  # type: ignore[arg-type]
+        state["applied"] = expr
 
         return expr  # type: ignore[return-value]
 
