@@ -11,11 +11,9 @@ from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType, connection
 from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
-from custom_components.haeo.core.schema.elements.grid import GridConfigData
-from custom_components.haeo.core.schema.elements.node import NodeConfigData
 from custom_components.haeo.elements.availability import schema_config_available
 
-from .conftest import optimize_participants
+from .conftest import bus_node, grid_at, optimize_participants
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -165,11 +163,11 @@ def test_connection_limit_binds_where_power_is_reported() -> None:
     )
     model_outputs = optimize_participants(
         {
-            "a": NodeConfigData(element_type=ElementType.NODE, name="a", role={"is_source": False, "is_sink": False}),
-            "b": NodeConfigData(element_type=ElementType.NODE, name="b", role={"is_source": False, "is_sink": False}),
+            "a": bus_node("a"),
+            "b": bus_node("b"),
             "link": link,
-            "supply": _grid("supply", "a", import_price=0.1, export_price=0.0),
-            "market": _grid("market", "b", import_price=10.0, export_price=1.0),
+            "supply": grid_at("supply", "a", import_price=0.1, export_price=0.0),
+            "market": grid_at("market", "b", import_price=10.0, export_price=1.0),
         }
     )
 
@@ -179,14 +177,3 @@ def test_connection_limit_binds_where_power_is_reported() -> None:
     delivered = model_outputs["link"][model_connection.CONNECTION_POWER_OUT]
     assert isinstance(delivered, OutputData)
     assert delivered.values[0] == pytest.approx(cap * efficiency)
-
-
-def _grid(name: str, bus: str, *, import_price: float, export_price: float) -> GridConfigData:
-    """Return an unconstrained grid on the given bus."""
-    return GridConfigData(
-        element_type=ElementType.GRID,
-        name=name,
-        connection=as_connection_target(bus),
-        pricing={"price_source_target": np.array([import_price]), "price_target_source": np.array([export_price])},
-        power_limits={},
-    )

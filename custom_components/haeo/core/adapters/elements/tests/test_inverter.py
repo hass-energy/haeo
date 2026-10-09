@@ -25,12 +25,10 @@ from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import as_connection_target, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType, inverter
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
-from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
-from custom_components.haeo.core.schema.elements.node import NodeConfigData
 from custom_components.haeo.elements.availability import schema_config_available
 
-from .conftest import optimize_participants
+from .conftest import bus_node, grid_at, optimize_participants
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -142,18 +140,10 @@ def _optimize_hybrid_system(
     )
     model_outputs = optimize_participants(
         {
-            "ac_bus": NodeConfigData(
-                element_type=ElementType.NODE, name="ac_bus", role={"is_source": False, "is_sink": False}
-            ),
+            "ac_bus": bus_node("ac_bus"),
             "inverter": inverter_config,
             "battery": battery_config,
-            "grid": GridConfigData(
-                element_type=ElementType.GRID,
-                name="grid",
-                connection=as_connection_target("ac_bus"),
-                pricing={"price_source_target": np.array([1.0]), "price_target_source": np.array([export_price])},
-                power_limits={},
-            ),
+            "grid": grid_at("grid", "ac_bus", import_price=1.0, export_price=export_price),
         }
     )
     return (

@@ -22,12 +22,10 @@ from custom_components.haeo.core.model.elements import (
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.elements.segments import is_efficiency_spec
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
-from custom_components.haeo.core.schema.elements import ElementType, battery
-from custom_components.haeo.core.schema.elements.grid import GridConfigData
-from custom_components.haeo.core.schema.elements.node import NodeConfigData
+from custom_components.haeo.core.schema.elements import battery
 from custom_components.haeo.elements.availability import schema_config_available
 
-from .conftest import optimize_participants
+from .conftest import bus_node, grid_at, optimize_participants
 
 
 def _get_connection(elements: Sequence[ModelElementConfig], name: str) -> ConnectionElementConfig:
@@ -470,22 +468,6 @@ def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
     assert soc_pricing.get("charge_capacity_threshold") is not None
 
 
-def _grid(name: str, *, import_price: float, export_price: float) -> GridConfigData:
-    """Return an unconstrained grid connected to the bus."""
-    return GridConfigData(
-        element_type=ElementType.GRID,
-        name=name,
-        connection=as_connection_target("bus"),
-        pricing={"price_source_target": np.array([import_price]), "price_target_source": np.array([export_price])},
-        power_limits={},
-    )
-
-
-def _bus() -> NodeConfigData:
-    """Return a passive bus node."""
-    return NodeConfigData(element_type=ElementType.NODE, name="bus", role={"is_source": False, "is_sink": False})
-
-
 def _battery_at_bus(*, efficiency: float, cap: float, salvage_value: float) -> battery.BatteryConfigData:
     """Return a 20 kWh battery at half charge on the bus with equal limits and efficiency both ways."""
     return _wrap_data(
@@ -513,7 +495,7 @@ def test_adapter_discharge_cap_binds_bus_side() -> None:
     cap = 5.0
     config = _battery_at_bus(efficiency=efficiency, cap=cap, salvage_value=0.0)
     model_outputs = optimize_participants(
-        {"bus": _bus(), "battery": config, "grid": _grid("grid", import_price=1.0, export_price=0.5)}
+        {"bus": bus_node("bus"), "battery": config, "grid": grid_at("grid", "bus", import_price=1.0, export_price=0.5)}
     )
 
     outputs = battery_adapter.outputs("battery", model_outputs, config=config)[BATTERY_DEVICE_BATTERY]
@@ -537,7 +519,7 @@ def test_adapter_charge_cap_binds_bus_side() -> None:
     cap = 5.0
     config = _battery_at_bus(efficiency=efficiency, cap=cap, salvage_value=1.0)
     model_outputs = optimize_participants(
-        {"bus": _bus(), "battery": config, "grid": _grid("grid", import_price=0.1, export_price=0.0)}
+        {"bus": bus_node("bus"), "battery": config, "grid": grid_at("grid", "bus", import_price=0.1, export_price=0.0)}
     )
 
     outputs = battery_adapter.outputs("battery", model_outputs, config=config)[BATTERY_DEVICE_BATTERY]
