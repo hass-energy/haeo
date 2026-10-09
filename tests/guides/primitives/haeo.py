@@ -514,6 +514,24 @@ def add_load(
 
 
 @guide_step
+def add_junction(page: HAPage, *, name: str) -> None:
+    """Add junction element to HAEO network."""
+    et = ElementType.JUNCTION
+    _LOGGER.info("Adding Junction: %s", name)
+
+    page.click_button(_button_label(et))
+    page.wait_for_dialog(_dialog_title(et))
+
+    page.fill_textbox(_name_label(et), name)
+
+    with page.expect_config_reload():
+        page.submit()
+        page.close_element_dialog()
+
+    _LOGGER.info("Junction added: %s", name)
+
+
+@guide_step
 def add_node(page: HAPage, *, name: str) -> None:
     """Add node element to HAEO network."""
     et = ElementType.NODE

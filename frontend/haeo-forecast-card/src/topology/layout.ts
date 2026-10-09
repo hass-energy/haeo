@@ -78,6 +78,7 @@ export interface LayoutResult {
 
 export const NODE_STYLES: Record<string, { color: string; icon: string }> = {
   battery: { color: "#4CAF50", icon: "🔋" },
+  junction: { color: "#90CAF9", icon: "⚡" },
   node: { color: "#90CAF9", icon: "⚡" },
   grid: { color: "#FF9800", icon: "🏭" },
   solar: { color: "#FFD600", icon: "☀️" },

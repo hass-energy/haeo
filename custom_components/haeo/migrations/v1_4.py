@@ -78,11 +78,6 @@ def _remove_reverse_field_entities(hass: HomeAssistant, entry: ConfigEntry, conn
             registry.async_remove(entity_entry.entity_id)
 
 
-def _advanced_mode(entry: ConfigEntry) -> bool:
-    advanced = entry.data.get(HUB_SECTION_ADVANCED)
-    return isinstance(advanced, Mapping) and bool(advanced.get(CONF_ADVANCED_MODE, False))
-
-
 def _replace_nodes_with_junctions(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Replace nodes that neither source nor sink power with junctions.
 
@@ -90,7 +85,7 @@ def _replace_nodes_with_junctions(hass: HomeAssistant, entry: ConfigEntry) -> No
     switches could only have been turned on by mistake, and every node becomes a
     junction. A junction has no switches to turn on.
     """
-    advanced_mode = _advanced_mode(entry)
+    advanced_mode = entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
     registry = er.async_get(hass)
     for subentry in list(entry.subentries.values()):
         if subentry.subentry_type != node.ELEMENT_TYPE:
@@ -99,7 +94,7 @@ def _replace_nodes_with_junctions(hass: HomeAssistant, entry: ConfigEntry) -> No
             if advanced_mode:
                 continue
             _LOGGER.warning(
-                "Node %s was set to produce or consume unlimited power outside advanced mode; "
+                "Node %s had its source or sink switch turned on or driven by an entity outside advanced mode; "
                 "it is now a junction that only passes power through",
                 subentry.title,
             )
