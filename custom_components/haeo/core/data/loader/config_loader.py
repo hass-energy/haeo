@@ -35,6 +35,17 @@ from .sensor_loader import load_sensors
 
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
 
+# Physical quantities that cannot be negative. Prices can, and switches have no sign.
+_NON_NEGATIVE_OUTPUT_TYPES = frozenset(
+    {
+        OutputType.POWER,
+        OutputType.POWER_LIMIT,
+        OutputType.ENERGY,
+        OutputType.STATE_OF_CHARGE,
+        OutputType.EFFICIENCY,
+    }
+)
+
 
 def load_element_config(
     element_name: str,
@@ -294,8 +305,12 @@ def is_percent_field(hint: FieldHint) -> bool:
 
 
 def _is_non_negative_field(hint: FieldHint) -> bool:
-    """Return True when a field's declared minimum rules out negative values."""
-    return hint.min_value is not None and hint.min_value >= 0.0
+    """Return True when a field's output type is a quantity that cannot be negative.
+
+    Deciding by output type means runtime input stores and offline loading
+    (diagnostics, simulation, scenarios) treat the same values the same way.
+    """
+    return hint.output_type in _NON_NEGATIVE_OUTPUT_TYPES
 
 
 def resolve_constant(
