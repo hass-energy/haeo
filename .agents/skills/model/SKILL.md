@@ -58,7 +58,7 @@ Understand it before editing any element:
     `@constraint(output=True, unit=...)` also surfaces the constraint's dual as a shadow-price output.
     A constraint returns the same rows on every call so the LP keeps its shape: rows that do not currently apply are returned without a comparison and become free rows, and returning `None` is an error.
 - **`@cost`** — declares a linear cost contribution.
-- **`@derived`** — caches a value computed from parameters, such as a segment's transformed flow.
+- **`@computed`** — caches a value computed from parameters, such as a segment's transformed flow.
     Dependencies are recorded per object and invalidation follows them across objects,
     so a node balance reading a connection's flow is rebuilt when that connection's efficiency changes.
     Derive expressions that depend on parameters when they are read; an expression captured at construction never updates.

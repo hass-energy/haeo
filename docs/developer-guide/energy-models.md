@@ -76,8 +76,8 @@ class Battery(Element[BatteryOutputName]):
 
 When a `TrackedParam` value changes, the system automatically invalidates dependent constraints for rebuilding.
 Dependencies are recorded per object, so a constraint that reads another element's parameter is invalidated too.
-Use `@derived` for a cached value computed from parameters that constraints and costs build on, such as a segment's transformed flow.
-Anything that reads a `@derived` method depends on it and is rebuilt when it changes.
+Use `@computed` for a cached value computed from parameters that constraints and costs build on, such as a segment's transformed flow.
+Anything that reads a `@computed` method depends on it and is rebuilt when it changes.
 
 A constraint returns the same rows on every call so the LP keeps its shape and later optimizations still warm start.
 When part of a constraint does not currently apply, such as a power limit with no maximum set,
@@ -222,7 +222,7 @@ Each connection is unidirectional (source → target). Bidirectional paths use t
 Segments are functional transforms that derive a `power_in` flow from the segment before them
 and expose a `power_out` flow. Most segments are identity transforms that add
 constraints or costs as side effects. Subclasses that transform the flow
-override the output expression, computing it in a `@derived` method so that
+override the output expression, computing it in a `@computed` method so that
 downstream constraints are rebuilt when the transforming parameter changes.
 
 When adding a new segment type, implement `__init__` accepting the `power_in` flow source

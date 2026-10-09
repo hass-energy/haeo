@@ -16,9 +16,9 @@ from .decorators import (
     ReactiveCost,
     ReactiveMethod,
     applied_constraint,
+    computed,
     constraint,
     cost,
-    derived,
     output,
 )
 from .protocols import ReactiveHost
@@ -32,8 +32,8 @@ __all__ = [
     "ReactiveMethod",
     "TrackedParam",
     "applied_constraint",
+    "computed",
     "constraint",
     "cost",
-    "derived",
     "output",
 ]

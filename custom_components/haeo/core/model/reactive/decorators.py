@@ -26,7 +26,7 @@ class ReactiveMethod[R]:
     A reactive method that calls this one depends on it, so invalidating this
     method invalidates its callers too.
 
-    Used directly through ``@derived`` for values computed from parameters, such
+    Used directly through ``@computed`` for values computed from parameters, such
     as a segment's transformed flow, that constraints and costs build on.
     """
 
@@ -59,7 +59,7 @@ class ReactiveMethod[R]:
         state = ensure_decorator_state(obj, self._name)
 
         # Return cached if not invalidated
-        if not state["invalidated"] and state["result"] is not None:
+        if not state["invalidated"]:
             return state["result"]  # type: ignore[return-value]
 
         result = self._compute(obj, state)
@@ -75,9 +75,9 @@ class ReactiveMethod[R]:
         finally:
             tracking_context.reset(token)
 
+        register_dependencies(obj, self._name, tracking, state["deps"])
         state["deps"] = tracking
         state["invalidated"] = False
-        register_dependencies(obj, self._name, tracking)
         return result
 
 
@@ -152,8 +152,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         state = ensure_decorator_state(obj, self._name)
 
         # Check if we need to recompute
-        needs_recompute = state["invalidated"] or "result" not in state
-        if not needs_recompute:
+        if not state["invalidated"]:
             return state["result"]  # type: ignore[return-value]
 
         expr = self._compute(obj, state)
@@ -323,7 +322,7 @@ def constraint[R](
 
 
 cost = ReactiveCost
-derived = ReactiveMethod
+computed = ReactiveMethod
 
 
 @overload

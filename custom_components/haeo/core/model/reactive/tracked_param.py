@@ -59,19 +59,14 @@ class TrackedParam[T]:
         return getattr(obj, self._private)  # type: ignore[return-value]
 
     def __set__(self, obj: ReactiveHost, value: T) -> None:
-        """Set the parameter value and invalidate dependent decorators."""
-        # Check if this is the first time setting (no invalidation needed)
-        if not hasattr(obj, self._private):
-            setattr(obj, self._private, value)
-            return
+        """Set the parameter value and invalidate everything that read it, if it changed.
 
-        # Get old value and compare
-        old = getattr(obj, self._private)
+        A first assignment always counts as a change, so a method that checked
+        ``is_set`` before the parameter existed is rebuilt.
+        """
+        changed = not hasattr(obj, self._private) or not _values_equal(getattr(obj, self._private), value)
         setattr(obj, self._private, value)
-
-        # Only invalidate if value actually changed
-        if not _values_equal(old, value):
-            # Invalidate all reactive decorators that depend on this parameter
+        if changed:
             _invalidate_param_dependents(obj, self._name)
 
     def is_set(self, obj: ReactiveHost) -> bool:
@@ -94,6 +89,7 @@ class TrackedParam[T]:
                     return self.energy <= self.capacity
 
         """
+        record_access(obj, self._name)
         return hasattr(obj, self._private)
 
 
@@ -133,20 +129,31 @@ def record_access(obj: ReactiveHost, key: str) -> None:
         tracking.add((obj, key))
 
 
-def register_dependencies(obj: ReactiveHost, method_name: str, deps: set[Dependency]) -> None:
-    """Register ``method_name`` on ``obj`` as a dependent of everything it read.
+def register_dependencies(
+    obj: ReactiveHost,
+    method_name: str,
+    deps: set[Dependency],
+    previous_deps: set[Dependency],
+) -> None:
+    """Register ``method_name`` on ``obj`` as a dependent of exactly what it read.
 
     Each host keeps a reverse index from its keys to the methods that read them,
     so changing a value finds its dependents without scanning every object.
-    Entries are not removed when a method stops reading a key; invalidation checks
-    the method's current dependencies, so a stale entry is skipped.
+    Keys the method read last time but not this time are removed from the index.
     """
-    for host, key in deps:
-        dependents: dict[str, set[tuple[ReactiveHost, str]]] | None = getattr(host, _DEPENDENTS_ATTR, None)
-        if dependents is None:
-            dependents = {}
-            setattr(host, _DEPENDENTS_ATTR, dependents)
-        dependents.setdefault(key, set()).add((obj, method_name))
+    for host, key in previous_deps - deps:
+        _dependents_of(host)[key].discard((obj, method_name))
+    for host, key in deps - previous_deps:
+        _dependents_of(host).setdefault(key, set()).add((obj, method_name))
+
+
+def _dependents_of(host: ReactiveHost) -> dict[str, set[tuple[ReactiveHost, str]]]:
+    """Return the host's reverse index from its keys to the methods that read them."""
+    dependents: dict[str, set[tuple[ReactiveHost, str]]] | None = getattr(host, _DEPENDENTS_ATTR, None)
+    if dependents is None:
+        dependents = {}
+        setattr(host, _DEPENDENTS_ATTR, dependents)
+    return dependents
 
 
 def _invalidate_param_dependents(obj: ReactiveHost, param_name: str) -> None:
@@ -164,10 +171,10 @@ def _invalidate_param_dependents(obj: ReactiveHost, param_name: str) -> None:
     while pending:
         dependency = pending.pop()
         host, key = dependency
-        dependents: dict[str, set[tuple[ReactiveHost, str]]] = getattr(host, _DEPENDENTS_ATTR, {})
-        for dependent, method_name in dependents.get(key, ()):
-            state = get_decorator_state(dependent, method_name)
-            if state is None or state["invalidated"] or dependency not in state["deps"]:
+        for dependent, method_name in _dependents_of(host).get(key, ()):
+            # Every indexed method has state: it is registered after it computes
+            state = ensure_decorator_state(dependent, method_name)
+            if state["invalidated"]:
                 continue
             state["invalidated"] = True
             pending.append((dependent, f"method:{method_name}"))

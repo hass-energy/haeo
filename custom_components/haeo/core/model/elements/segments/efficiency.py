@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
 from custom_components.haeo.core.model.element import Element
-from custom_components.haeo.core.model.reactive import TrackedParam, derived
+from custom_components.haeo.core.model.reactive import TrackedParam, computed
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 from .segment import FlowSource, Segment
@@ -62,7 +62,7 @@ class EfficiencySegment(Segment):
         """Per-tag output with efficiency applied to each tag flow."""
         return self.efficient_flows()
 
-    @derived
+    @computed
     def efficient_flows(self) -> dict[int, HighspyArray]:
         """Per-tag flows with efficiency applied, rebuilt only when the efficiency or upstream flows change."""
         efficiency = self.efficiency

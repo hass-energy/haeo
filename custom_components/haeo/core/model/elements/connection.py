@@ -152,6 +152,9 @@ class Connection[TOutputName: str](Element[TOutputName]):
         specs = list(self._segment_specs.items()) or [("passthrough", {"segment_type": "passthrough"})]
 
         flows: FlowSource = self._variable_flows
+        # The measured point is the flow entering the power limit segment, or the
+        # variables themselves when there is no limit.
+        self._measured_flows: FlowSource = flows
         for seg_name, seg_spec in specs:
             seg = create_segment(
                 segment_id=f"{self.name}_{seg_name}",
@@ -164,7 +167,10 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 power_in=flows,
             )
             self._segments[seg_name] = seg
+            if isinstance(seg, PowerLimitSegment):
+                self._measured_flows = flows
             flows = _output_of(seg)
+        self._output_flows: FlowSource = flows
 
     def _variable_flows(self) -> dict[int, HighspyArray]:
         """Flow source for the first segment: the per-tag LP variables."""
@@ -183,7 +189,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
     @property
     def power_out(self) -> dict[int, HighspyArray]:
         """Per-tag power exiting the connection at the target end, derived from the last segment."""
-        return next(reversed(self._segments.values())).power_out
+        return self._output_flows()
 
     @property
     def total_power_out(self) -> HighspyArray:
@@ -200,10 +206,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         power limit has no losses to place it against and is measured where
         power enters it.
         """
-        for segment in self._segments.values():
-            if isinstance(segment, PowerLimitSegment):
-                return segment.power_in
-        return self._power_in
+        return self._measured_flows()
 
     @property
     def total_measured_power(self) -> HighspyArray:
