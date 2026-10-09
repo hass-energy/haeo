@@ -335,7 +335,7 @@ The composable metadata types are:
 
 ### Available Field Types
 
-Field types are defined in `custom_components/haeo/core/schema/fields.py`:
+Field types are defined in `custom_components/haeo/core/schema/field_schema.py`:
 
 | Validator Class | Purpose                       | Base Type |
 | --------------- | ----------------------------- | --------- |

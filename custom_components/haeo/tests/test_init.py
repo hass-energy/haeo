@@ -3,15 +3,18 @@
 import asyncio
 from collections.abc import Iterable
 from types import MappingProxyType
+from typing import ClassVar
 from unittest.mock import AsyncMock, Mock
 
 from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL, UrlManager
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-from homeassistant.const import Platform
+from homeassistant.const import EVENT_COMPONENT_LOADED, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.loader import async_get_integration
+from homeassistant.setup import ATTR_COMPONENT
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -55,6 +58,7 @@ from custom_components.haeo.core.const import (
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
 )
+from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import (
@@ -542,22 +546,42 @@ async def test_element_flow_in_progress(
     assert _element_flow_in_progress(hass, mock_hub_entry) is False
 
 
+@pytest.mark.parametrize(
+    ("input_error", "expected_translation_key"),
+    [
+        pytest.param(None, "input_entities_not_ready", id="not_ready"),
+        pytest.param(
+            InputError(translation_key="negative_input_value", translation_placeholders={"value": "-4.5"}),
+            "negative_input_value",
+            id="input_error",
+        ),
+    ],
+)
 async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     monkeypatch: pytest.MonkeyPatch,
+    input_error: InputError | None,
+    expected_translation_key: str,
 ) -> None:
     """Setup raises ConfigEntryNotReady when input stores don't become ready in time.
 
-    Verifies that ConfigEntryNotReady is raised with descriptive translation key.
+    Verifies that ConfigEntryNotReady is raised with descriptive translation key,
+    using the rejecting check's translation when a store rejected its source's value.
     Cleanup is handled via async_on_unload callbacks registered during setup.
     """
 
     # Create a mock input store that never becomes ready
     class NeverReadyStore:
-        async def wait_ready(self) -> None:
-            # Wait forever - will timeout
-            await asyncio.sleep(100)
+        source_entity_ids: ClassVar[list[str]] = ["sensor.limit"]
+
+        def __init__(self) -> None:
+            self.error = input_error
+
+        async def wait_settled(self) -> None:
+            # A store that rejected its value settles at once; one with no data never does
+            if self.error is None:
+                await asyncio.sleep(100)
 
         def is_ready(self) -> bool:
             return False
@@ -606,7 +630,7 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
         await async_setup_entry(hass, mock_hub_entry)
 
     # Verify the exception has the correct translation key
-    assert exc_info.value.translation_key == "input_entities_not_ready"
+    assert exc_info.value.translation_key == expected_translation_key
 
     # Note: Platform cleanup is handled via async_on_unload callbacks.
     # When testing directly (not via hass.config_entries.async_setup), the HA
@@ -648,10 +672,12 @@ async def test_setup_reentry_after_timeout_failure(
 
     # Create a mock input store that fails first time, succeeds second time
     class ConditionalReadyStore:
+        error = None
+
         def __init__(self) -> None:
             self._ready = False
 
-        async def wait_ready(self) -> None:
+        async def wait_settled(self) -> None:
             if attempt_count == 1:
                 # First attempt: timeout
                 await asyncio.sleep(100)
@@ -972,9 +998,12 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     mock_http = Mock()
     mock_http.async_register_static_paths = AsyncMock()
     hass.http = mock_http  # type: ignore[attr-defined]
+    # Frontend has already completed its own setup, so its registry exists.
     hass.data[DATA_EXTRA_MODULE_URL] = UrlManager(lambda *_: None, [])
+    hass.config.components.add("frontend")
 
     result = await async_setup(hass, {})
+    await hass.async_block_till_done()
 
     assert result is True
     mock_http.async_register_static_paths.assert_called_once()
@@ -982,6 +1011,37 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     assert len(configs) == 1
     assert configs[0].url_path == STATIC_CARD_STATIC_PATH
     assert configs[0].path.endswith(STATIC_CARD_STATIC_DIR)
+    registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
+    for _file_path, url_path in STATIC_CARD_BUNDLES:
+        assert url_path in registered_urls
+
+
+async def test_async_setup_registers_static_urls_when_frontend_sets_up_later(hass: HomeAssistant) -> None:
+    """Test that card URLs register even when HAEO's setup wins the race against frontend.
+
+    Regression test for the startup ordering race where HAEO is set up before the
+    frontend component creates hass.data[DATA_EXTRA_MODULE_URL]. Setup must not
+    raise KeyError, and the cards must still be registered once frontend appears
+    rather than being silently dropped until the next restart.
+    """
+    mock_http = Mock()
+    mock_http.async_register_static_paths = AsyncMock()
+    hass.http = mock_http  # type: ignore[attr-defined]
+    # The frontend component has not run its own setup yet, so its registry is absent.
+    assert DATA_EXTRA_MODULE_URL not in hass.data
+
+    result = await async_setup(hass, {})
+
+    assert result is True
+    mock_http.async_register_static_paths.assert_called_once()
+
+    # Frontend now finishes its setup: it creates the registry and announces itself.
+    await async_get_integration(hass, "frontend")
+    hass.data[DATA_EXTRA_MODULE_URL] = UrlManager(lambda *_: None, [])
+    hass.config.components.add("frontend")
+    hass.bus.async_fire(EVENT_COMPONENT_LOADED, {ATTR_COMPONENT: "frontend"})
+    await hass.async_block_till_done()
+
     registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
     for _file_path, url_path in STATIC_CARD_BUNDLES:
         assert url_path in registered_urls

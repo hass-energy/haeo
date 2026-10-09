@@ -15,24 +15,18 @@ from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
+from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema import is_none_value
-from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
 from custom_components.haeo.core.schema.field_hints import FieldHint
+from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 from custom_components.haeo.elements import (
     InputFieldPath,
     get_input_fields,
     get_list_input_fields,
     get_nested_config_value_by_path,
-    get_surfaced_price_hints,
     is_element_config_schema,
     iter_input_field_paths,
-)
-from custom_components.haeo.flows.surfaced_policy import (
-    find_policy_subentry,
-    find_surfaced_rule,
-    resolve_surfaced_endpoints,
 )
 from custom_components.haeo.util import async_update_subentry_value
 
@@ -95,32 +89,19 @@ def _hint_from_field_info(field_info: AnyInputFieldInfo) -> FieldHint:
     )
 
 
-def _negated_policy_price_fields(config_entry: HaeoConfigEntry) -> set[InputFieldPath]:
-    """Field paths of policy rule prices that surface a negated element price.
+def input_error_placeholders(key: InputStoreKey, error: InputError, store: InputStore) -> dict[str, str]:
+    """Return translation placeholders for a rejected input.
 
-    Negated surfaced prices (e.g. load consumption cost) show a positive running
-    value on the element form while the policy stores its negative. Constant
-    prices are negated at the storage layer, but entity-driven prices can only be
-    negated when resolved, so their backing store is flagged here.
+    Adds the element, field, and source entities to the placeholders the
+    rejecting check supplied, so every input error message can name them.
     """
-    policy_subentry = find_policy_subentry(config_entry)
-    if policy_subentry is None:
-        return set()
-
-    rules = list(policy_subentry.data.get(CONF_RULES, []))
-    negated: set[InputFieldPath] = set()
-    for subentry in config_entry.subentries.values():
-        element_type = subentry.data.get(CONF_ELEMENT_TYPE)
-        if element_type is None:
-            continue
-        for hint in get_surfaced_price_hints(element_type).values():
-            if not hint.negate:
-                continue
-            source, target = resolve_surfaced_endpoints(hint, subentry.title)
-            index = find_surfaced_rule(rules, source=source, target=target)
-            if index is not None:
-                negated.add((CONF_RULES, str(index), CONF_PRICE))
-    return negated
+    element_name, field_path = key
+    return {
+        "element": element_name,
+        "field": ".".join(field_path),
+        "entities": ", ".join(store.source_entity_ids),
+        **error.translation_placeholders,
+    }
 
 
 def build_input_stores(
@@ -136,9 +117,9 @@ def build_input_stores(
     """
     stores: InputStoreMap = {}
 
-    negated_price_fields = _negated_policy_price_fields(config_entry)
-    policy_subentry = find_policy_subentry(config_entry)
-    policy_subentry_id = policy_subentry.subentry_id if policy_subentry is not None else None
+    negated_paths = negated_price_paths(
+        {subentry.title: subentry.data for subentry in config_entry.subentries.values()}
+    )
 
     for subentry in config_entry.subentries.values():
         if not is_element_config_schema(subentry.data):
@@ -148,7 +129,7 @@ def build_input_stores(
             **get_input_fields(subentry.data),
             **get_list_input_fields(subentry.data),
         }
-        is_policy = subentry.subentry_id == policy_subentry_id
+        subentry_negated_paths = negated_paths.get(subentry.title, frozenset())
 
         for field_path, field_info in iter_input_field_paths(all_fields):
             config_value = get_nested_config_value_by_path(subentry.data, field_path)
@@ -160,11 +141,11 @@ def build_input_stores(
                 storage=storage,
                 hint=_hint_from_field_info(field_info),
                 get_forecast_timestamps=horizon_manager.get_forecast_timestamps,
-                negate=is_policy and field_path in negated_price_fields,
+                negate=field_path in subentry_negated_paths,
             )
             stores[(subentry.title, field_path)] = store
 
     return stores
 
 
-__all__ = ["InputStoreKey", "InputStoreMap", "SubentryStorage", "build_input_stores"]
+__all__ = ["InputStoreKey", "InputStoreMap", "SubentryStorage", "build_input_stores", "input_error_placeholders"]

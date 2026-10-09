@@ -9,6 +9,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
+from homeassistant.components.frontend import DOMAIN as FRONTEND_DOMAIN
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -18,6 +19,7 @@ from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.setup import async_when_setup
 
 from custom_components.haeo.const import (
     DOMAIN,
@@ -33,7 +35,7 @@ from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.input_stores import InputStoreMap, build_input_stores
+from custom_components.haeo.input_stores import InputStoreMap, build_input_stores, input_error_placeholders
 from custom_components.haeo.services import async_setup_services
 
 from . import migrations as _migrations
@@ -98,8 +100,16 @@ async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None
     await http.async_register_static_paths(
         [StaticPathConfig(STATIC_CARD_STATIC_PATH, str(static_dir), cache_headers=False)]
     )
-    for url_path in available_bundles:
-        add_extra_js_url(hass, url_path)
+
+    async def _register_card_urls(hass: HomeAssistant, _component: str) -> None:
+        """Register each available card bundle as a Lovelace resource."""
+        for url_path in available_bundles:
+            add_extra_js_url(hass, url_path)
+
+    # add_extra_js_url writes to a registry the frontend component only creates during its
+    # own setup, so calling it here would race with startup ordering. Defer registration
+    # until frontend is up; the callback runs immediately when it already is.
+    async_when_setup(hass, FRONTEND_DOMAIN, _register_card_urls)
 
 
 @dataclass(slots=True)
@@ -331,6 +341,17 @@ def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
         _save_policy_rules(hass, entry, cleaned)
 
 
+def _raise_for_rejected_inputs(input_stores: InputStoreMap) -> None:
+    """Raise ConfigEntryNotReady with the reason if any input store rejected its source's value."""
+    for key, store in input_stores.items():
+        if (error := store.error) is not None:
+            raise ConfigEntryNotReady(
+                translation_domain=DOMAIN,
+                translation_key=error.translation_key,
+                translation_placeholders=input_error_placeholders(key, error, store),
+            )
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Set up Home Assistant Energy Optimizer from a config entry.
 
@@ -396,22 +417,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         lambda: hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)  # type: ignore[arg-type]
     )
 
-    # Wait for all input stores to have their data ready
-    # Each store signals via asyncio.Event when its data is loaded
+    # Wait for every input store to have data or to reject its source's value,
+    # so a rejected value is reported at once rather than after the timeout
     _LOGGER.debug("Waiting for %d input stores to be ready", len(runtime_data.input_stores))
     try:
         async with asyncio.timeout(INPUT_ENTITY_READY_TIMEOUT):
-            await asyncio.gather(*[store.wait_ready() for store in runtime_data.input_stores.values()])
+            await asyncio.gather(*[store.wait_settled() for store in runtime_data.input_stores.values()])
     except TimeoutError:
-        not_ready = [key for key, store in runtime_data.input_stores.items() if not store.is_ready()]
+        _raise_for_rejected_inputs(runtime_data.input_stores)
+        not_ready = {key: store for key, store in runtime_data.input_stores.items() if not store.is_ready()}
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
             translation_key="input_entities_not_ready",
             translation_placeholders={
-                "not_ready": str(not_ready),
+                "not_ready": str(list(not_ready)),
                 "timeout": str(INPUT_ENTITY_READY_TIMEOUT),
             },
         ) from None
+    _raise_for_rejected_inputs(runtime_data.input_stores)
     _LOGGER.debug("All input entities ready")
 
     # Wrap coordinator operations to provide meaningful HA error messages

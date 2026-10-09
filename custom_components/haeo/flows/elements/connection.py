@@ -25,7 +25,7 @@ from custom_components.haeo.core.schema.elements.connection import (
     SECTION_ENDPOINTS,
     SECTION_SEGMENT_ORDER,
 )
-from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
+from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import (
     ElementFlowMixin,
@@ -139,7 +139,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             current_source = participants[0] if participants else ""
         if not isinstance(current_target, str):
             current_target = participants[min(1, len(participants) - 1)] if participants else ""
-        input_fields = get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields(ELEMENT_TYPE)
 
         sections = self._get_sections()
         user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
@@ -272,7 +272,7 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _build_config(self, user_input: Mapping[str, object]) -> dict[str, object]:
         """Build final config dict from user input."""
-        input_fields = get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields(ELEMENT_TYPE)
         config_dict = convert_sectioned_choose_data_to_config(
             user_input,
             input_fields,

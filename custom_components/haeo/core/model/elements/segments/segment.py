@@ -1,18 +1,23 @@
 """Base class for connection segments.
 
 Segments are composable transforms on a single direction of power flow.
-Each segment receives an input power expression at construction time
-and exposes an output power expression. Segments may add constraints
-and costs to the solver.
+Each segment reads its input flow from its upstream, the segment before it,
+and exposes an output flow. Segments may add constraints and costs to the solver.
+
+Flows are read from upstream on every access rather than captured at
+construction, so a constraint or cost that reads a flow records the upstream
+parameters that shaped it, such as an efficiency, and is rebuilt when they change.
 
 A segment instance belongs to one directional connection chain.
 Bidirectional paths are modelled as two separate Connection elements,
 each with its own segment chain.
 """
 
+from dataclasses import dataclass
 from functools import reduce
 import operator
 from typing import (
+    Protocol,
     Any,  # noqa: TID251  # source_element/target_element are the connection's endpoint elements,
     # which can be any concrete NetworkElement subtype. Element is invariant in its output-name
     # Literal (see element.py's outputs()), so no non-Any type expresses "an Element of some
@@ -31,16 +36,32 @@ from custom_components.haeo.core.model.reactive import (
     ReactiveConstraint,
     ReactiveCost,
     TrackedParam,
+    applied_constraint,
     cost,
 )
+
+
+class FlowProvider(Protocol):
+    """Anything a segment can read its input flow from: another segment, or a connection's variables."""
+
+    @property
+    def power_out(self) -> dict[int, HighspyArray]:
+        """Per-tag power flowing out to the next segment."""
+        ...
+
+
+@dataclass(frozen=True)
+class FlowVariables:
+    """The upstream of a connection's first segment: its per-tag LP flow variables."""
+
+    power_out: dict[int, HighspyArray]
 
 
 class Segment:
     """A single-direction transform on power flow.
 
-    Receives an input power expression at construction and exposes an output
-    power expression. Identity by default — subclasses override `power_out`
-    to transform the flow.
+    Reads its input flow from its upstream and exposes an output flow.
+    Identity by default — subclasses override `power_out` to transform the flow.
     """
 
     periods: TrackedParam[NDArray[np.float64]] = TrackedParam()
@@ -54,9 +75,9 @@ class Segment:
         *,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: dict[int, HighspyArray],
+        upstream: FlowProvider,
     ) -> None:
-        """Initialize segment with input power expression.
+        """Initialize segment with the upstream it reads its input flow from.
 
         Args:
             segment_id: Unique identifier for naming LP variables
@@ -65,7 +86,7 @@ class Segment:
             solver: HiGHS solver instance
             source_element: Connected source element reference
             target_element: Connected target element reference
-            power_in: Per-tag input power flows
+            upstream: The segment or variables this segment's input flow comes from
 
         """
         self._segment_id = segment_id
@@ -74,7 +95,7 @@ class Segment:
         self._solver = solver
         self._source_element = source_element
         self._target_element = target_element
-        self._power_in = power_in
+        self._upstream = upstream
 
     @property
     def segment_id(self) -> str:
@@ -98,18 +119,18 @@ class Segment:
 
     @property
     def power_in(self) -> dict[int, HighspyArray]:
-        """Per-tag input power flows."""
-        return self._power_in
+        """Per-tag input power flows, read from upstream."""
+        return self._upstream.power_out
 
     @property
     def total_power_in(self) -> HighspyArray:
         """Sum of all tag input flows."""
-        return reduce(operator.add, self._power_in.values())
+        return reduce(operator.add, self.power_in.values())
 
     @property
     def power_out(self) -> dict[int, HighspyArray]:
         """Per-tag output power flows. Identity by default."""
-        return self._power_in
+        return self.power_in
 
     @property
     def total_power_out(self) -> HighspyArray:
@@ -124,10 +145,8 @@ class Segment:
             if isinstance(attr, ReactiveConstraint):
                 method = getattr(self, name)
                 method()
-                state_attr = f"_reactive_state_{name}"
-                state = getattr(self, state_attr, None)
-                if state is not None and "constraint" in state:
-                    result[name] = state["constraint"]
+                if (cons := applied_constraint(self, name)) is not None:
+                    result[name] = cons
         return result
 
     def outputs(self) -> dict[str, OutputData]:

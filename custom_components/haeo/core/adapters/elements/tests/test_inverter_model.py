@@ -82,8 +82,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "inverter_main",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                     "power_limit": {"segment_type": "power_limit", "max_power": [8.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                 },
             },
         ],
@@ -121,8 +121,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "inverter_simple",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                     "power_limit": {"segment_type": "power_limit", "max_power": [10.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                 },
             },
         ],
@@ -150,7 +150,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             "inverter_main:ac_to_dc": {
                 connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="-"
+                    type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
@@ -221,6 +221,10 @@ def test_model_elements(case: CreateCase) -> None:
     entry = ELEMENT_TYPES[ElementType.INVERTER]
     result = entry.model_elements(case["data"])
     assert normalize_for_compare(result) == normalize_for_compare(case["model"])
+    # Segment order sets which end of a connection the power limit applies to
+    assert [list(element.get("segments", {})) for element in result] == [
+        list(element.get("segments", {})) for element in case["model"]
+    ]
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

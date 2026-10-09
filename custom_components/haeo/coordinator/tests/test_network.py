@@ -1,5 +1,8 @@
 """Tests for coordinator network utilities."""
 
+from typing import Any
+from unittest.mock import MagicMock
+
 import numpy as np
 from numpy.typing import NDArray
 import pytest
@@ -11,6 +14,7 @@ from custom_components.haeo.coordinator.network import (
     _collect_policy_rules,
     _discover_setters,
     _extract_at_path,
+    create_network,
 )
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.model import Network
@@ -30,12 +34,14 @@ from custom_components.haeo.core.model.elements.segments import EfficiencySegmen
 from custom_components.haeo.core.model.elements.segments.soc_pricing import SocPricingSegment
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
+from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
 from custom_components.haeo.core.schema.elements.connection import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_PRICE_SOURCE_TARGET,
     ConnectionConfigData,
 )
+from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
 from custom_components.haeo.core.schema.sections.efficiency import EfficiencyData
 from custom_components.haeo.core.schema.sections.power_limits import PowerLimitsData
 from custom_components.haeo.core.schema.sections.pricing import PricingData
@@ -487,3 +493,62 @@ def test_collect_policy_rules_merges_multiple_policy_participants() -> None:
     # Fixture rules carry schema-mode (unloaded) prices; the structural guard would reject them.
     rules = _collect_policy_rules(participants)  # type: ignore[arg-type]
     assert len(rules) == 2
+
+
+# ---------------------------------------------------------------------------
+# Live efficiency updates
+# ---------------------------------------------------------------------------
+
+
+def _draining_battery_config(discharge_efficiency: float) -> BatteryConfigData:
+    """Build a battery whose negative salvage value drains it at the discharge limit.
+
+    The discharge chain applies efficiency before the power limit, so the battery
+    draws ``max_power / efficiency`` to deliver the limit.
+    """
+    return BatteryConfigData(
+        element_type=ElementType.BATTERY,
+        name="Battery",
+        connection=as_connection_target("Bus"),
+        storage={"capacity": np.array([40.0, 40.0]), "initial_charge_percentage": 0.5},
+        limits={},
+        power_limits={
+            "max_power_source_target": np.array([5.0]),
+            "max_power_target_source": np.array([0.0]),
+        },
+        pricing={"salvage_value": -1.0},
+        efficiency={
+            "efficiency_source_target": np.array([discharge_efficiency]),
+            "efficiency_target_source": np.array([1.0]),
+        },
+        partitioning={},
+    )
+
+
+async def test_element_updater_efficiency_reaches_live_network() -> None:
+    """An efficiency edited through the element updater changes the next solve without a rebuild."""
+    bus: NodeConfigData = {
+        "element_type": ElementType.NODE,
+        "name": "Bus",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: True},
+    }
+    entry = MagicMock()
+    entry.entry_id = "test_entry"
+    network, updaters = await create_network(
+        entry,
+        periods_seconds=[3600],
+        participants={"Bus": bus, "Battery": _draining_battery_config(0.8)},
+    )
+    discharge = network.elements["Battery:discharge"]
+    assert isinstance(discharge, Connection)
+
+    network.optimize()
+    assert discharge.extract_values(discharge.total_power_in) == pytest.approx((6.25,))
+    structure = (network._solver.numVariables, network._solver.numConstrs)
+
+    updaters["Battery"](_draining_battery_config(0.5))
+    network.optimize()
+
+    assert discharge.extract_values(discharge.total_power_in) == pytest.approx((10.0,))
+    assert discharge.extract_values(discharge.total_power_out) == pytest.approx((5.0,))
+    assert (network._solver.numVariables, network._solver.numConstrs) == structure

@@ -9,14 +9,13 @@ from typing import (
 )
 
 from highspy import Highs
-from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
 from custom_components.haeo.core.model.element import Element
 
-from .segment import Segment
+from .segment import FlowProvider, Segment
 
 
 class PassthroughSegmentSpec(TypedDict):
@@ -38,7 +37,7 @@ class PassthroughSegment(Segment):
         spec: PassthroughSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: dict[int, HighspyArray],
+        upstream: FlowProvider,
     ) -> None:
         """Initialize passthrough segment."""
         _ = spec
@@ -49,7 +48,7 @@ class PassthroughSegment(Segment):
             solver,
             source_element=source_element,
             target_element=target_element,
-            power_in=power_in,
+            upstream=upstream,
         )
 
 

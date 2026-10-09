@@ -49,11 +49,10 @@ class ConnectionAdapter:
                 "name": config["name"],
                 "source": extract_connection_target(config[SECTION_ENDPOINTS]["source"]),
                 "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
+                # The limit and price apply to the power entering the connection, before
+                # its losses, where the connection power sensor measures, so a connection
+                # at its limit reads the limit.
                 "segments": {
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
-                    },
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
@@ -61,6 +60,10 @@ class ConnectionAdapter:
                     "pricing": {
                         "segment_type": "pricing",
                         "price": config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET),
+                    },
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
                     },
                 },
             },

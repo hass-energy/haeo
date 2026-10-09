@@ -14,7 +14,7 @@ from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.core.schema.elements import battery
 from custom_components.haeo.core.schema.elements.battery import is_battery_config_data
 from custom_components.haeo.elements import is_element_config_schema
-from tools import diag
+from tools.diag import cli as diag
 
 
 def _base_battery_config() -> dict[str, object]:

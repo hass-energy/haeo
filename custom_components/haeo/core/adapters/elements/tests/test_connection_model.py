@@ -63,9 +63,9 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "s",
                 "target": "t",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [4.0]},
                     "pricing": {"segment_type": "pricing", "price": [0.1]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                 },
             },
         ],
@@ -87,9 +87,9 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "s",
                 "target": "t",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": None},
                     "power_limit": {"segment_type": "power_limit", "max_power": None},
                     "pricing": {"segment_type": "pricing", "price": None},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": None},
                 },
             },
         ],
@@ -123,6 +123,10 @@ def test_model_elements(case: CreateCase) -> None:
     entry = ELEMENT_TYPES[ElementType.CONNECTION]
     result = entry.model_elements(case["data"])
     assert normalize_for_compare(result) == normalize_for_compare(case["model"])
+    # Segment order sets which end of a connection the power limit applies to
+    assert [list(element.get("segments", {})) for element in result] == [
+        list(element.get("segments", {})) for element in case["model"]
+    ]
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

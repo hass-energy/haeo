@@ -163,10 +163,18 @@
           "sections": {
             "overcharge": {
               "data": { "cost": "Overcharge cost", "percentage": "Overcharge percentage" },
+              "data_description": {
+                "cost": "Holding cost per kWh stored above the overcharge percentage, charged for every hour it stays there. For example, 0.02 means keeping 1 kWh above this level for 10 hours costs 0.20.",
+                "percentage": "State of charge above which the overcharge cost applies."
+              },
               "name": "Overcharge settings"
             },
             "undercharge": {
               "data": { "cost": "Undercharge cost", "percentage": "Undercharge percentage" },
+              "data_description": {
+                "cost": "Holding cost per kWh stored below the undercharge percentage, charged for every hour it stays there. For example, 0.02 means keeping 1 kWh below this level for 10 hours costs 0.20.",
+                "percentage": "State of charge below which the undercharge cost applies."
+              },
               "name": "Undercharge settings"
             }
           }
@@ -576,6 +584,9 @@
     },
     "missing_sensors": {
       "message": "HAEO cannot load data for {unavailable_sensors}. Verify each referenced sensor exists and is reporting data."
+    },
+    "negative_input_value": {
+      "message": "Input {field} of {element} cannot be negative, but {entities} supplied {value}. Check that the sensor or forecast reports this value with the expected sign."
     },
     "no_history_at_time": {
       "message": "No history available at time {time} for: {missing}. The recorder may not have data this far back."

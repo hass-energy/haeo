@@ -1,1 +1,0 @@
-../../.github/prompts/update-docs.prompt.md

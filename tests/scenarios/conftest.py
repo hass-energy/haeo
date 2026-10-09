@@ -1,8 +1,10 @@
 """Fixtures for centralized scenario tests."""
 
+from collections.abc import Iterator
 import json
 from pathlib import Path
 from typing import TypedDict, TypeGuard
+from unittest.mock import PropertyMock, patch
 
 from homeassistant.util.json import JsonValueType
 import pytest
@@ -141,3 +143,19 @@ def scenario_data(scenario_path: Path) -> ScenarioData:
 def snapshot(snapshot):  # type: ignore[no-untyped-def]  # noqa: ANN001, ANN201 (pytest fixture override cannot add type hints without breaking syrupy)
     """Override the default snapshot fixture with custom ScenarioJSONExtension."""
     return snapshot.use_extension(ScenarioJSONExtension)
+
+
+@pytest.fixture
+def entity_registry_enabled_by_default() -> Iterator[None]:
+    """Enable every entity, including those disabled by default.
+
+    Scenario snapshots cover every output, so a change to a sensor that ships
+    disabled still shows up. Each sensor's ``advanced`` attribute in the
+    snapshot records whether it is disabled by default.
+    """
+    with patch(
+        "homeassistant.helpers.entity.Entity.entity_registry_enabled_default",
+        new_callable=PropertyMock,
+        return_value=True,
+    ):
+        yield

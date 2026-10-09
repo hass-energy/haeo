@@ -45,8 +45,9 @@ from custom_components.haeo.core.schema.elements.policy import (
     PolicyRuleConfig,
 )
 from custom_components.haeo.core.schema.entity_value import as_entity_value, is_entity_value
+from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import get_list_input_fields
-from custom_components.haeo.elements.input_fields import AnyInputFieldInfo
+from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, localize_input_field
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
@@ -175,7 +176,7 @@ class PolicySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         }
         list_fields = get_list_input_fields(dummy_config)
         section = next(iter(list_fields.values()))
-        return section[CONF_PRICE]
+        return localize_input_field(section[CONF_PRICE], currency_symbol(self.hass.config.currency))
 
     def _build_price_selector(self) -> NormalizingChooseSelector:
         """Build a ChooseSelector for the price field (entity/constant)."""

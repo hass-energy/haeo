@@ -43,15 +43,15 @@ jobs:
         with:
           reviewdog_version: v0.20.3
 
-      - name: Ruff format (reviewdog)
+      - name: Ruff format (reviewdog annotations)
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         run: |
           uv run ruff format --diff \
             | reviewdog -f=diff -name="ruff format" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
-      - name: Ruff format (check)
-        if: github.event_name != 'pull_request'
-        run: uv run ruff format --check
+      - name: Ruff format
+        run: python3 tools/check.py ruff-format
 
   ruff-lint:
     name: Ruff lint
@@ -73,15 +73,15 @@ jobs:
         with:
           reviewdog_version: v0.20.3
 
-      - name: Ruff lint (reviewdog)
+      - name: Ruff lint (reviewdog annotations)
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         run: |
           uv run ruff check --output-format rdjson \
             | reviewdog -f=rdjson -name="ruff lint" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
-      - name: Ruff lint (check)
-        if: github.event_name != 'pull_request'
-        run: uv run ruff check
+      - name: Ruff lint
+        run: python3 tools/check.py ruff-lint
 
   pyright:
     name: Pyright
@@ -103,8 +103,9 @@ jobs:
         with:
           reviewdog_version: v0.20.3
 
-      - name: Pyright (reviewdog)
+      - name: Pyright (reviewdog annotations)
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         run: |
           # Run pyright with JSON output, capturing regardless of exit code
           uv run pyright --outputjson > pyright_output.json || true
@@ -126,9 +127,8 @@ jobs:
           }' pyright_output.json \
             | reviewdog -f=rdjson -name="pyright" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
-      - name: Pyright (check)
-        if: github.event_name != 'pull_request'
-        run: uv run pyright
+      - name: Pyright
+        run: python3 tools/check.py pyright
 
   prettier:
     name: Prettier
@@ -147,19 +147,17 @@ jobs:
         with:
           reviewdog_version: v0.20.3
 
-      - name: Prettier (reviewdog)
+      - name: Prettier (reviewdog annotations)
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         run: |
           npm ci
           npx --yes prettier@3 --write .
           git diff \
             | reviewdog -f=diff -name="prettier" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
-      - name: Prettier (check)
-        if: github.event_name != 'pull_request'
-        run: |
-          npm ci
-          npx --yes prettier@3 --check .
+      - name: Prettier
+        run: python3 tools/check.py prettier
 
   mdformat:
     name: Markdown format
@@ -181,16 +179,16 @@ jobs:
         with:
           reviewdog_version: v0.20.3
 
-      - name: Markdown format (reviewdog)
+      - name: Markdown format (reviewdog annotations)
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         run: |
           uv run mdformat $(git ls-files '*.md' '*.mdx')
           git diff \
             | reviewdog -f=diff -name="mdformat" -reporter=github-pr-review -filter-mode=nofilter -fail-level=any
 
-      - name: Markdown format (check)
-        if: github.event_name != 'pull_request'
-        run: uv run mdformat --check $(git ls-files '*.md' '*.mdx')
+      - name: Markdown format
+        run: python3 tools/check.py mdformat
 
   import-linter:
     name: Import boundaries
@@ -205,7 +203,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Check import boundaries
-        run: uv run lint-imports
+        run: python3 tools/check.py imports
 
   frontend-card-check:
     name: Frontend card checks
@@ -220,9 +218,7 @@ jobs:
           node-version: 22
 
       - name: Run frontend card quality checks
-        run: |
-          npm --prefix frontend/haeo-forecast-card ci
-          npm --prefix frontend/haeo-forecast-card run check
+        run: python3 tools/check.py frontend
 
       - name: Upload frontend coverage to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
@@ -252,7 +248,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Run Tests
-        run: uv run pytest -m "not guide and not scenario and not benchmark" --cov=custom_components/haeo --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
+        run: python3 tools/check.py test -- --cov=custom_components/haeo --cov-branch --cov-report=xml --junitxml=junit.xml -o junit_family=legacy
 
       - name: Upload test results to Codecov
         if: ${{ github.event_name != 'release' && !cancelled() }}
@@ -292,7 +288,7 @@ jobs:
         run: npm --prefix frontend/haeo-forecast-card run build
 
       - name: Run scenario tests
-        run: uv run pytest -m scenario -vv
+        run: python3 tools/check.py scenario -- -vv
   #endregion
 
   #region Validation
@@ -320,19 +316,8 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@61cb8a9741eeb8a550a1b8544337180c0fc8476b # v7.2.0
 
-      - name: Check HAEO version consistency
-        run: |
-          PYPROJECT=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
-          MANIFEST=$(jq -r '.version' custom_components/haeo/manifest.json)
-          echo "pyproject.toml=$PYPROJECT manifest.json=$MANIFEST"
-          [[ "$PYPROJECT" == "$MANIFEST" ]]
-
-      - name: Check Home Assistant version consistency
-        run: |
-          PYPROJECT=$(uv run python -c "import tomllib, re; deps=tomllib.load(open('pyproject.toml', 'rb'))['project']['dependencies']; print(re.search(r'homeassistant>=(\d+\.\d+\.\d+)', str(deps)).group(1))")
-          HACS=$(jq -r '.homeassistant' hacs.json)
-          echo "pyproject.toml=$PYPROJECT hacs.json=$HACS"
-          [[ "$PYPROJECT" == "$HACS" ]]
+      - name: Check version consistency
+        run: python3 tools/check.py version
 
   hacs:
     name: HACS
@@ -364,7 +349,7 @@ jobs:
         run: uv sync
 
       - name: Build documentation
-        run: uv run zensical build
+        run: python3 tools/check.py docs
   #endregion
 
   #region CI passed

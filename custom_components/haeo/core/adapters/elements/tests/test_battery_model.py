@@ -120,8 +120,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "battery_main",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                 },
             },
         ],
@@ -179,8 +179,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "battery_normal",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                 },
             },
         ],
@@ -238,8 +238,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "battery_salvage",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [4.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                 },
             },
         ],
@@ -306,7 +306,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             "battery_no_balance:charge": {
                 connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"
+                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"
                 ),
             },
         },
@@ -469,7 +469,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             "battery_with_thresholds:charge": {
                 connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"
+                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"
                 ),
             },
         },
@@ -501,6 +501,10 @@ def test_model_elements(case: CreateCase) -> None:
     entry = ELEMENT_TYPES[ElementType.BATTERY]
     result = entry.model_elements(case["data"])
     assert normalize_for_compare(result) == normalize_for_compare(case["model"])
+    # Segment order sets which end of a connection the power limit applies to
+    assert [list(element.get("segments", {})) for element in result] == [
+        list(element.get("segments", {})) for element in case["model"]
+    ]
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

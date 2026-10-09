@@ -21,8 +21,9 @@ from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_T
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.util import UnitSpec
-from custom_components.haeo.core.units import PRICE_UNIT_SPEC
-from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldGroups
+from custom_components.haeo.core.units import PRICE_UNIT_SPEC, currency_symbol
+from custom_components.haeo.elements import get_input_fields
+from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldGroups, localize_input_fields
 
 
 def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[UnitSpec] | None:
@@ -150,6 +151,11 @@ class ElementFlowMixin:
     - context: Flow context dict (from ConfigSubentryFlow)
 
     """
+
+    def _get_input_fields(self, element_type: str) -> InputFieldGroups:
+        """Return the element type's input fields with monetary units in the user's currency."""
+        currency = currency_symbol(self.hass.config.currency)  # type: ignore[attr-defined]
+        return localize_input_fields(get_input_fields(element_type), currency)
 
     def _get_used_names(self) -> set[str]:
         """Return all configured element names excluding the current subentry.

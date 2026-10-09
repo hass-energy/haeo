@@ -23,7 +23,8 @@ graph LR
 | [Connection](../model-layer/connections/connection.md) | `{name}` | Source, target, and segment specifications |
 
 The Connection device creates a `Connection` model element with a segment chain.
-The adapter builds power-limit, efficiency, and pricing segments based on configured fields.
+The adapter builds power-limit, pricing, and efficiency segments, in that order, from the configured fields.
+The limit and price therefore apply to the power entering the connection, before its losses, the same point the connection power output measures.
 
 ## Devices Created
 

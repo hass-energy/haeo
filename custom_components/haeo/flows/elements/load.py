@@ -16,7 +16,7 @@ from custom_components.haeo.core.schema.sections import (
     CONF_FORECAST,
     SECTION_CURTAILMENT,
 )
-from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields, get_surfaced_input_fields
+from custom_components.haeo.elements import get_input_field_schema_info, get_surfaced_input_fields
 from custom_components.haeo.elements.input_fields import InputFieldGroups
 from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
@@ -89,7 +89,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         default_name = await self._async_get_default_name(ELEMENT_TYPE)
         if not isinstance(current_connection, str):
             current_connection = participants[0] if participants else ""
-        input_fields = get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields(ELEMENT_TYPE)
 
         sections = self._get_sections()
         user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
@@ -214,7 +214,7 @@ class LoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
     def _build_config(self, user_input: Mapping[str, object]) -> dict[str, object]:
         """Build final config dict from user input."""
-        input_fields = get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields(ELEMENT_TYPE)
         config_dict = convert_sectioned_choose_data_to_config(
             user_input,
             input_fields,

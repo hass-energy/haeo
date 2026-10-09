@@ -6,6 +6,7 @@ and a tiny in-memory storage double so values resolve identically to the config
 loader (``resolve_field``/``resolve_constant``).
 """
 
+import asyncio
 from unittest.mock import patch
 
 import numpy as np
@@ -331,6 +332,31 @@ async def test_driven_async_load_failure_keeps_unavailable() -> None:
     assert store.available is False
     assert store.is_ready() is False
     assert store.value is None
+
+
+async def test_driven_async_load_records_input_error() -> None:
+    """A rejected source value is recorded, notified, and cleared by the next good load."""
+    storage = _MemStorage(as_entity_value(["sensor.x"]))
+    hint = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=True, min_value=0.0)
+    store = create_input_store(storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
+    notifications: list[None] = []
+    store.add_listener(lambda: notifications.append(None))
+
+    bad = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "-3.0", {})})
+    assert await store.async_load(bad) is False
+
+    assert store.available is False
+    assert store.error is not None
+    assert store.error.translation_key == "negative_input_value"
+    assert store.is_ready() is False
+    await asyncio.wait_for(store.wait_settled(), timeout=1)
+    assert store.error.translation_placeholders == {"value": "-3"}
+    assert len(notifications) == 1
+
+    good = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "3.0", {})})
+    assert await store.async_load(good) is True
+
+    assert store.error is None
 
 
 # --- Construction errors ---

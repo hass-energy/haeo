@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 import datetime
+from pathlib import Path
 
 from homeassistant.util import dt as dt_util
 import pytest
@@ -27,14 +28,16 @@ from pytest_socket import enable_socket
 # the browser disconnects during shutdown on CI. Ignore pytest's wrapper so
 # guide screenshot assertions remain the signal.
 #
-# Note: pytestmark in a conftest does not propagate to collected tests under
-# pytest >= 9.0, so socket enablement is done via an autouse fixture below
-# rather than a usefixtures mark here.
-pytestmark = [
-    pytest.mark.filterwarnings("default"),
-    pytest.mark.filterwarnings("ignore::ResourceWarning"),
-    pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning"),
-]
+# These are applied in pytest_collection_modifyitems rather than a conftest
+# pytestmark, because pytest >= 9.0 does not propagate conftest pytestmark to
+# collected tests. As a mark the filters silently did nothing, and the
+# ResourceWarning failed whichever guide test happened to be running when the
+# file object was finalized.
+WARNING_FILTERS = (
+    "default",
+    "ignore::ResourceWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+)
 
 
 @pytest.fixture(autouse=True)
@@ -48,6 +51,15 @@ def _enable_socket_for_guides() -> None:  # pyright: ignore[reportUnusedFunction
     no longer propagates conftest-level pytestmark to test items.
     """
     enable_socket()
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Apply the guide warning filters to every collected guide test."""
+    guides_dir = Path(__file__).parent
+    for item in items:
+        if item.path.is_relative_to(guides_dir):
+            for spec in WARNING_FILTERS:
+                item.add_marker(pytest.mark.filterwarnings(spec))
 
 
 def pytest_configure(config: pytest.Config) -> None:

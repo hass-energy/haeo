@@ -137,6 +137,8 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
                 for entity_id in entity_ids:
                     if isinstance(entity_id, str) and "." in entity_id:
                         collected.add(entity_id)
+            case {"type": "calendar", "value": str(entity_id)} if "." in entity_id:
+                collected.add(entity_id)
             case {"type": _}:
                 return
             case Mapping():
