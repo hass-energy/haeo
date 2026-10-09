@@ -54,6 +54,8 @@ from custom_components.haeo.core.schema.elements import (
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
+    CONF_EFFICIENCY_SOURCE_TARGET,
+    CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_FORECAST,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -282,11 +284,11 @@ def _migrate_element_to_sectioned(data: Mapping[str, object]) -> dict[str, objec
         for key in (connection.CONF_SOURCE, connection.CONF_TARGET):
             if (endpoint_value := endpoints.get(key)) is not None:
                 endpoints[key] = normalize_connection_target(endpoint_value)
-        for key in (connection.CONF_MAX_POWER_SOURCE_TARGET, connection.CONF_MAX_POWER_TARGET_SOURCE):
+        for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE):
             add_if_present(power_limits, key, convert=True)
-        for key in (connection.CONF_PRICE_SOURCE_TARGET, connection.CONF_PRICE_TARGET_SOURCE):
+        for key in (CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE):
             add_if_present(pricing, key, convert=True)
-        for key in (connection.CONF_EFFICIENCY_SOURCE_TARGET, connection.CONF_EFFICIENCY_TARGET_SOURCE):
+        for key in (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE):
             add_if_present(efficiency, key, convert=True)
         migrated |= {
             connection.SECTION_ENDPOINTS: endpoints,

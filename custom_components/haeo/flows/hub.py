@@ -21,6 +21,7 @@ from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
 from custom_components.haeo.core.schema.elements.node import SECTION_ROLE as NODE_SECTION_ROLE
 from custom_components.haeo.flows.field_schema import as_mapping, as_str
+from custom_components.haeo.migrations import MIGRATION_MINOR_VERSION
 
 from . import (
     HORIZON_PRESET_CUSTOM,
@@ -41,7 +42,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for HAEO hub creation."""
 
     VERSION = 1
-    MINOR_VERSION = 3
+    MINOR_VERSION = MIGRATION_MINOR_VERSION
 
     def __init__(self) -> None:
         """Initialize the config flow."""
