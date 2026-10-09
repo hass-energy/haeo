@@ -153,10 +153,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             "inverter_main:ac_to_dc": {
                 connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="-"
+                    type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="+"
                 ),
                 connection.CONNECTION_POWER_OUT: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(2.25,), direction="-"
+                    type=OutputType.POWER_FLOW, unit="kW", values=(2.25,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {

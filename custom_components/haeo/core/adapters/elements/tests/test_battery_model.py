@@ -309,10 +309,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             "battery_no_balance:charge": {
                 connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"
+                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"
                 ),
                 connection.CONNECTION_POWER_OUT: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(0.8,), direction="-"
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.8,), direction="+"
                 ),
             },
         },
@@ -481,10 +481,10 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             "battery_with_thresholds:charge": {
                 connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="-"
+                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"
                 ),
                 connection.CONNECTION_POWER_OUT: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(0.8,), direction="-"
+                    type=OutputType.POWER_FLOW, unit="kW", values=(0.8,), direction="+"
                 ),
             },
         },
