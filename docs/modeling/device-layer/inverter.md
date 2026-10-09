@@ -31,7 +31,6 @@ graph LR
 ## Metered terminal convention
 
 Inverters are rated, metered, and controlled on the AC side.
-See [Where values are measured](../../user-guide/measurement-points.md) for how this convention applies across every element.
 Each connection therefore places its efficiency segment next to the DC bus and its power-limit segment at the AC end:
 
 | Connection        | Segment order           | Power limit applies to         |
