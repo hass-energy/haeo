@@ -17,6 +17,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
+from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import is_none_value
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
@@ -102,20 +103,18 @@ def _hint_from_field_info(field_info: InputFieldInfo[Any]) -> FieldHint:
     )
 
 
-def negative_input_placeholders(key: InputStoreKey, store: InputStore) -> dict[str, str] | None:
-    """Describe a store whose source supplied a significantly negative value.
+def input_error_placeholders(key: InputStoreKey, error: InputError, store: InputStore) -> dict[str, str]:
+    """Return translation placeholders for a rejected input.
 
-    Returns translation placeholders naming the element, field, source entities,
-    and offending value, or None when the store did not reject a negative value.
+    Adds the element, field, and source entities to the placeholders the
+    rejecting check supplied, so every input error message can name them.
     """
-    if (error := store.negative_input) is None:
-        return None
     element_name, field_path = key
     return {
         "element": element_name,
         "field": ".".join(field_path),
         "entities": ", ".join(store.source_entity_ids),
-        "value": f"{error.value:g}",
+        **error.translation_placeholders,
     }
 
 
@@ -191,4 +190,4 @@ def build_input_stores(
     return stores
 
 
-__all__ = ["InputStoreKey", "InputStoreMap", "SubentryStorage", "build_input_stores", "negative_input_placeholders"]
+__all__ = ["InputStoreKey", "InputStoreMap", "SubentryStorage", "build_input_stores", "input_error_placeholders"]

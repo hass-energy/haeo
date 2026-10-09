@@ -47,7 +47,7 @@ from custom_components.haeo.elements import (
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.input_stores import negative_input_placeholders
+from custom_components.haeo.input_stores import input_error_placeholders
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 
 from . import network as network_module
@@ -583,9 +583,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Check forecast input stores have values and matching horizon
         for store in runtime_data.input_stores.values():
-            # A store that rejected a negative value keeps its previous horizon;
+            # A store that rejected its source's value keeps its previous horizon;
             # the update reports the rejection instead of waiting on alignment.
-            if not store.time_series or store.negative_input is not None:
+            if not store.time_series or store.error is not None:
                 continue
             store_horizon = store.horizon_start
             if store_horizon is None:
@@ -736,11 +736,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             for key, store in runtime_data.input_stores.items():
                 if store.available:
                     continue
-                if (placeholders := negative_input_placeholders(key, store)) is not None:
+                if (error := store.error) is not None:
                     raise UpdateFailed(
                         translation_domain=DOMAIN,
-                        translation_key="negative_input_value",
-                        translation_placeholders=placeholders,
+                        translation_key=error.translation_key,
+                        translation_placeholders=input_error_placeholders(key, error, store),
                     )
                 msg = f"Element '{key[0]}' has unavailable inputs"
                 raise UpdateFailed(msg)

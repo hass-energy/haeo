@@ -334,8 +334,8 @@ async def test_driven_async_load_failure_keeps_unavailable() -> None:
     assert store.value is None
 
 
-async def test_driven_async_load_records_negative_input() -> None:
-    """A significantly negative source value is recorded, notified, and cleared by the next good load."""
+async def test_driven_async_load_records_input_error() -> None:
+    """A rejected source value is recorded, notified, and cleared by the next good load."""
     storage = _MemStorage(as_entity_value(["sensor.x"]))
     hint = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=True, min_value=0.0)
     store = create_input_store(storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
@@ -346,14 +346,15 @@ async def test_driven_async_load_records_negative_input() -> None:
     assert await store.async_load(bad) is False
 
     assert store.available is False
-    assert store.negative_input is not None
-    assert store.negative_input.value == -3.0
+    assert store.error is not None
+    assert store.error.translation_key == "negative_input_value"
+    assert store.error.translation_placeholders == {"value": "-3"}
     assert len(notifications) == 1
 
     good = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "3.0", {})})
     assert await store.async_load(good) is True
 
-    assert store.negative_input is None
+    assert store.error is None
 
 
 # --- Construction errors ---

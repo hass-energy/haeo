@@ -15,7 +15,7 @@ from custom_components.haeo.core.adapters.registry import is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
-from custom_components.haeo.core.data.util.input_values import clean_input_values
+from custom_components.haeo.core.data.util.input_values import enforce_non_negative
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import SchemaValue
 from custom_components.haeo.core.schema.constant_value import is_constant_value
@@ -331,7 +331,9 @@ def _resolve_entities(
     else:
         raw = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
 
-    values = clean_input_values(np.array(raw, dtype=np.float64), non_negative=_is_non_negative_field(hint))
+    values = np.array(raw, dtype=np.float64)
+    if _is_non_negative_field(hint):
+        values = enforce_non_negative(values)
 
     if is_percent:
         values = values / 100.0

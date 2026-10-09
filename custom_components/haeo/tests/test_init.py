@@ -58,7 +58,7 @@ from custom_components.haeo.core.const import (
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
 )
-from custom_components.haeo.core.data.util.input_values import NegativeInputError
+from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import (
@@ -547,23 +547,27 @@ async def test_element_flow_in_progress(
 
 
 @pytest.mark.parametrize(
-    ("negative_input", "expected_translation_key"),
+    ("input_error", "expected_translation_key"),
     [
         pytest.param(None, "input_entities_not_ready", id="not_ready"),
-        pytest.param(NegativeInputError(-4.5), "negative_input_value", id="negative_input"),
+        pytest.param(
+            InputError(translation_key="negative_input_value", translation_placeholders={"value": "-4.5"}),
+            "negative_input_value",
+            id="input_error",
+        ),
     ],
 )
 async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     monkeypatch: pytest.MonkeyPatch,
-    negative_input: NegativeInputError | None,
+    input_error: InputError | None,
     expected_translation_key: str,
 ) -> None:
     """Setup raises ConfigEntryNotReady when input stores don't become ready in time.
 
     Verifies that ConfigEntryNotReady is raised with descriptive translation key,
-    naming a significantly negative source value when that is why a store is not ready.
+    using the rejecting check's translation when a store rejected its source's value.
     Cleanup is handled via async_on_unload callbacks registered during setup.
     """
 
@@ -572,7 +576,7 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
         source_entity_ids: ClassVar[list[str]] = ["sensor.limit"]
 
         def __init__(self) -> None:
-            self.negative_input = negative_input
+            self.error = input_error
 
         async def wait_ready(self) -> None:
             # Wait forever - will timeout
@@ -667,7 +671,7 @@ async def test_setup_reentry_after_timeout_failure(
 
     # Create a mock input store that fails first time, succeeds second time
     class ConditionalReadyStore:
-        negative_input = None
+        error = None
 
         def __init__(self) -> None:
             self._ready = False

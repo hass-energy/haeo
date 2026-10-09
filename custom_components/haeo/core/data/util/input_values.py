@@ -1,11 +1,10 @@
-"""Clean values resolved from source entities before they reach the optimizer."""
+"""Check values resolved from source entities before they reach the optimizer."""
 
+from collections.abc import Mapping
 from typing import Any, Final
 
 import numpy as np
 from numpy.typing import NDArray
-
-from custom_components.haeo.core.model.util.solver_rows import SMALL_MATRIX_VALUE
 
 # How far below zero a value for a non-negative input may fall, in the source's
 # units, before it is rejected instead of clamped to zero. Sensors and forecasts
@@ -13,35 +12,35 @@ from custom_components.haeo.core.model.util.solver_rows import SMALL_MATRIX_VALU
 NEGATIVE_TOLERANCE: Final = 0.01
 
 
-class NegativeInputError(ValueError):
-    """A source supplied a significantly negative value for a non-negative input."""
+class InputError(ValueError):
+    """A source supplied a value an input cannot use.
 
-    def __init__(self, value: float) -> None:
-        """Record the offending value."""
-        super().__init__(f"Value {value:g} is below the minimum of zero for this input")
-        self.value = value
+    The check that rejects the value names the translation key and placeholders
+    describing the problem. Consumers report it through that key without knowing
+    which check raised it.
+    """
+
+    def __init__(self, *, translation_key: str, translation_placeholders: Mapping[str, str]) -> None:
+        """Record the translation describing the rejected value."""
+        super().__init__(translation_key, dict(translation_placeholders))
+        self.translation_key = translation_key
+        self.translation_placeholders = dict(translation_placeholders)
 
 
-def clean_input_values(values: NDArray[Any], *, non_negative: bool) -> NDArray[np.float64]:
-    """Return values with float noise snapped to zero and non-negativity enforced.
-
-    Magnitudes below ``SMALL_MATRIX_VALUE`` are floating point noise, such as
-    interpolation across a forecast step edge, and become exactly zero. For non-negative
-    inputs, values within ``NEGATIVE_TOLERANCE`` below zero are clamped to zero.
+def enforce_non_negative(values: NDArray[Any]) -> NDArray[np.float64]:
+    """Return values with readings just below zero clamped to zero.
 
     Raises:
-        NegativeInputError: If a non-negative input has a value further below zero
-            than ``NEGATIVE_TOLERANCE``.
+        InputError: If a value is further below zero than ``NEGATIVE_TOLERANCE``.
 
     """
-    cleaned = np.where(np.abs(values) < SMALL_MATRIX_VALUE, 0.0, values).astype(np.float64)
-    if not non_negative:
-        return cleaned
+    values = np.asarray(values, dtype=np.float64)
+    if np.any(values < -NEGATIVE_TOLERANCE):
+        raise InputError(
+            translation_key="negative_input_value",
+            translation_placeholders={"value": f"{float(values.min()):g}"},
+        )
+    return np.maximum(values, 0.0)
 
-    if np.any(cleaned < -NEGATIVE_TOLERANCE):
-        raise NegativeInputError(float(cleaned.min()))
 
-    return np.where(cleaned < 0.0, 0.0, cleaned)
-
-
-__all__ = ["NEGATIVE_TOLERANCE", "NegativeInputError", "clean_input_values"]
+__all__ = ["NEGATIVE_TOLERANCE", "InputError", "enforce_non_negative"]

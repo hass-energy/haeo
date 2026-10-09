@@ -27,7 +27,7 @@ from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements.field_hints import PRICE_NATIVE_MIN_VALUE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.input_stores import SubentryStorage, build_input_stores, negative_input_placeholders
+from custom_components.haeo.input_stores import SubentryStorage, build_input_stores, input_error_placeholders
 
 
 @pytest.fixture
@@ -150,12 +150,12 @@ def test_build_input_stores_carries_field_minimum(
     assert stores[("Main Grid", (SECTION_PRICING, CONF_PRICE_TARGET_SOURCE))].hint.min_value == PRICE_NATIVE_MIN_VALUE
 
 
-async def test_negative_input_placeholders_describe_rejected_store(
+async def test_input_error_placeholders_describe_rejected_store(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     horizon_manager: Mock,
 ) -> None:
-    """Placeholders identify the element, field, source entities, and offending value."""
+    """Placeholders add the element, field, and source entities to the error's own."""
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
@@ -179,12 +179,11 @@ async def test_negative_input_placeholders_describe_rejected_store(
     key = ("Main Grid", (SECTION_POWER_LIMITS, CONF_MAX_POWER_SOURCE_TARGET))
     store = build_input_stores(hass, config_entry, horizon_manager)[key]
 
-    assert negative_input_placeholders(key, store) is None
-
     sm = FakeStateMachine({"sensor.import_limit": FakeEntityState("sensor.import_limit", "-4.5", {})})
     assert await store.async_load(sm) is False
 
-    assert negative_input_placeholders(key, store) == {
+    assert store.error is not None
+    assert input_error_placeholders(key, store.error, store) == {
         "element": "Main Grid",
         "field": f"{SECTION_POWER_LIMITS}.{CONF_MAX_POWER_SOURCE_TARGET}",
         "entities": "sensor.import_limit",
