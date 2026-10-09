@@ -3,7 +3,7 @@
 from typing import Any, Literal, NotRequired
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
+from highspy.highs import highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
@@ -12,7 +12,7 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.reactive import TrackedParam, cost
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
-from .segment import Segment
+from .segment import FlowProvider, Segment
 
 
 class PricingSegmentSpec(TypedDict):
@@ -45,7 +45,7 @@ class PricingSegment(Segment):
         spec: PricingSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: dict[int, HighspyArray],
+        upstream: FlowProvider,
     ) -> None:
         """Initialize pricing segment."""
         super().__init__(
@@ -55,7 +55,7 @@ class PricingSegment(Segment):
             solver,
             source_element=source_element,
             target_element=target_element,
-            power_in=power_in,
+            upstream=upstream,
         )
         self.price = broadcast_to_sequence(spec.get("price"), self._n_periods)
         self._tag_prices: dict[int, NDArray[np.float64]] = {
@@ -76,10 +76,11 @@ class PricingSegment(Segment):
         """Per-tag surcharge cost."""
         if not self._tag_prices:
             return None
+        power_in = self.power_in
         costs = [
-            Highs.qsum(self._power_in[tag] * price * self.periods)
+            Highs.qsum(power_in[tag] * price * self.periods)
             for tag, price in self._tag_prices.items()
-            if tag in self._power_in
+            if tag in power_in
         ]
         if not costs:
             return None

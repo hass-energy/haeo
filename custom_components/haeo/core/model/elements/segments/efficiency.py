@@ -9,10 +9,10 @@ from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
 from custom_components.haeo.core.model.element import Element
-from custom_components.haeo.core.model.reactive import TrackedParam
+from custom_components.haeo.core.model.reactive import TrackedParam, computed
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
-from .segment import Segment
+from .segment import FlowProvider, Segment
 
 
 class EfficiencySegmentSpec(TypedDict):
@@ -43,7 +43,7 @@ class EfficiencySegment(Segment):
         spec: EfficiencySegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: dict[int, HighspyArray],
+        upstream: FlowProvider,
     ) -> None:
         """Initialize efficiency segment."""
         super().__init__(
@@ -53,16 +53,22 @@ class EfficiencySegment(Segment):
             solver,
             source_element=source_element,
             target_element=target_element,
-            power_in=power_in,
+            upstream=upstream,
         )
         self.efficiency = broadcast_to_sequence(spec.get("efficiency"), self._n_periods)
 
     @property
     def power_out(self) -> dict[int, HighspyArray]:
         """Per-tag output with efficiency applied to each tag flow."""
-        if self.efficiency is None:
-            return self._power_in
-        return {tag: flow * self.efficiency for tag, flow in self._power_in.items()}
+        return self.efficient_flows()
+
+    @computed
+    def efficient_flows(self) -> dict[int, HighspyArray]:
+        """Per-tag flows with efficiency applied, rebuilt only when the efficiency or upstream flows change."""
+        efficiency = self.efficiency
+        if efficiency is None:
+            return self.power_in
+        return {tag: flow * efficiency for tag, flow in self.power_in.items()}
 
 
 __all__ = ["EfficiencySegment", "EfficiencySegmentSpec"]
