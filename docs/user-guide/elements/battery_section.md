@@ -42,7 +42,7 @@ You must manually create Connection elements to connect the Battery Section to y
 | **[Capacity](#capacity)**             | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Battery capacity in kWh (can vary over time)  |
 | **[Initial Charge](#initial-charge)** | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Initial energy stored in battery (kWh)        |
 
-See [Where values are measured](../measurement-points.md#battery-section) for where each input and sensor applies in your system.
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 ### Name
 

@@ -20,7 +20,7 @@ For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed
 | **[Import Limit](#import-limit)** | Power  | No       | -       | Maximum import power from grid                             |
 | **[Export Limit](#export-limit)** | Power  | No       | -       | Maximum export power to grid                               |
 
-See [Where values are measured](../measurement-points.md#grid) for where each input and sensor applies in your system.
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 ## Name
 

@@ -23,7 +23,7 @@ Virtual balance points enforcing power conservation (Kirchhoff's law).
 | **[Is Source](#is-source)** | Boolean | No       | false   | Whether node can produce power (Advanced Mode only) |
 | **[Is Sink](#is-sink)**     | Boolean | No       | false   | Whether node can consume power (Advanced Mode only) |
 
-See [Where values are measured](../measurement-points.md#node) for where each input and sensor applies in your system.
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 ## Name
 

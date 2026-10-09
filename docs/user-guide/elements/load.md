@@ -15,7 +15,7 @@ The Load element uses forecast data to model any type of consumption pattern fro
 | **[Forecast](#forecast)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption forecast sensor(s) (kW)                                   |
 | **[Shedding](#shedding)** | Boolean                                  | No       | false   | Allow the optimizer to reduce load below the forecast when it is uneconomic |
 
-See [Where values are measured](../measurement-points.md#load) for where each input and sensor applies in your system.
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 ## Name
 

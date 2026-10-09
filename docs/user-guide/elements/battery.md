@@ -52,7 +52,7 @@ Optional fields set to "None" are omitted from the optimization entirely.
 | **[Max Discharge Power](#max-charge-and-discharge-power)**        | Power      | No       | -       | Maximum discharging power                                  |
 | **[Salvage Value](#salvage-value)**                               | Price      | No       | 0       | Value assigned to stored energy at the horizon end         |
 
-See [Where values are measured](../measurement-points.md#battery) for where each input and sensor applies in your system.
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 !!! tip "Charge and discharge pricing"
 
@@ -105,7 +105,7 @@ Refer to your battery or inverter specifications for the most appropriate values
 Add limits based on your battery's charge/discharge rating.
 Leave the fields blank when no practical limit applies.
 
-Both limits apply at the battery terminals, where your battery management system measures power.
+Both limits apply at the battery terminals, where battery management systems usually measure power.
 A 5 kW discharge limit means at most 5 kW leaves the battery terminals, whatever the discharge efficiency.
 
 !!! note
