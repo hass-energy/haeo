@@ -2,7 +2,6 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from functools import partial
 import logging
 from typing import Any, Final, Literal, overload
 
@@ -244,7 +243,7 @@ class Network:
     def _add_policy_pricing(self, config: PolicyPricingElementConfig) -> PolicyPricing:
         """Create a PolicyPricing element by resolving connection/tag references."""
         name = config["name"]
-        power_terms = []
+        priced_flows: list[tuple[Connection[Any], int]] = []
         for term in config["terms"]:
             conn_name = term["connection"]
             tag = term["tag"]
@@ -255,14 +254,14 @@ class Network:
             if tag not in conn_element.measured_power:
                 msg = f"PolicyPricing '{name}' references tag {tag} not on connection '{conn_name}'"
                 raise ValueError(msg)
-            power_terms.append(partial(conn_element.measured_power_for_tag, tag))
+            priced_flows.append((conn_element, tag))
 
         element = PolicyPricing(
             name=name,
             periods=self.periods,
             solver=self._solver,
             price=config["price"],
-            power_terms=power_terms,
+            priced_flows=priced_flows,
             terms=config["terms"],
         )
         element.label = config.get("label", "")

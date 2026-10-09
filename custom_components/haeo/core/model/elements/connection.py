@@ -24,7 +24,7 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import output
 
-from .segments import FlowSource, PowerLimitSegment, Segment, SegmentSpec, create_segment
+from .segments import FlowProvider, FlowVariables, PowerLimitSegment, Segment, SegmentSpec, create_segment
 
 type ConnectionElementTypeName = Literal["connection"]
 # Model element type for connection strings
@@ -52,11 +52,6 @@ class ConnectionElementConfig(TypedDict):
     is_time_sensitive: NotRequired[bool]
     segments: NotRequired[dict[str, SegmentSpec]]
     tags: NotRequired[set[int]]
-
-
-def _output_of(segment: Segment) -> FlowSource:
-    """Return a flow source that reads the segment's output flow when called."""
-    return lambda: segment.power_out
 
 
 class Connection[TOutputName: str](Element[TOutputName]):
@@ -151,10 +146,10 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         specs = list(self._segment_specs.items()) or [("passthrough", {"segment_type": "passthrough"})]
 
-        flows: FlowSource = self._variable_flows
-        # The measured point is the flow entering the power limit segment, or the
-        # variables themselves when there is no limit.
-        self._measured_flows: FlowSource = flows
+        # Each segment reads its input from the one before it. The measured point is
+        # the flow entering the power limit segment, or the variables when there is none.
+        upstream: FlowProvider = FlowVariables(self._power_in)
+        self._measured: FlowProvider = upstream
         for seg_name, seg_spec in specs:
             seg = create_segment(
                 segment_id=f"{self.name}_{seg_name}",
@@ -164,17 +159,13 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 spec=seg_spec,
                 source_element=source_element,
                 target_element=target_element,
-                power_in=flows,
+                upstream=upstream,
             )
             self._segments[seg_name] = seg
             if isinstance(seg, PowerLimitSegment):
-                self._measured_flows = flows
-            flows = _output_of(seg)
-        self._output_flows: FlowSource = flows
-
-    def _variable_flows(self) -> dict[int, HighspyArray]:
-        """Flow source for the first segment: the per-tag LP variables."""
-        return self._power_in
+                self._measured = upstream
+            upstream = seg
+        self._output: FlowProvider = upstream
 
     @property
     def power_in(self) -> dict[int, HighspyArray]:
@@ -189,7 +180,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
     @property
     def power_out(self) -> dict[int, HighspyArray]:
         """Per-tag power exiting the connection at the target end, derived from the last segment."""
-        return self._output_flows()
+        return self._output.power_out
 
     @property
     def total_power_out(self) -> HighspyArray:
@@ -206,7 +197,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         power limit has no losses to place it against and is measured where
         power enters it.
         """
-        return self._measured_flows()
+        return self._measured.power_out
 
     @property
     def total_measured_power(self) -> HighspyArray:
@@ -216,10 +207,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
     def connection_tags(self) -> set[int]:
         """Return the set of tags on this connection."""
         return self._tags
-
-    def measured_power_for_tag(self, tag: int) -> HighspyArray:
-        """Power at the measured point for a specific tag."""
-        return self.measured_power[tag]
 
     def power_into_source_for_tag(self, tag: int) -> HighspyArray:
         """Power flowing into the source node for a specific tag."""

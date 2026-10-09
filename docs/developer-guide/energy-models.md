@@ -219,13 +219,13 @@ See the [tagged power formulation](../modeling/tagged-power.md) for the mathemat
 
 Connections create the **only LP variables** for power flow (one per time step).
 Each connection is unidirectional (source → target). Bidirectional paths use two connections.
-Segments are functional transforms that derive a `power_in` flow from the segment before them
+Segments are functional transforms that read a `power_in` flow from their upstream, the segment before them,
 and expose a `power_out` flow. Most segments are identity transforms that add
 constraints or costs as side effects. Subclasses that transform the flow
 override the output expression, computing it in a `@computed` method so that
 downstream constraints are rebuilt when the transforming parameter changes.
 
-When adding a new segment type, implement `__init__` accepting the `power_in` flow source
+When adding a new segment type, implement `__init__` accepting its `upstream`
 and pass it to `Segment`. Read `self.power_in` inside constraint and cost methods rather
 than storing the flow, so the dependency on upstream parameters is recorded. Avoid creating
 power flow LP variables — the Connection owns those. Auxiliary variables

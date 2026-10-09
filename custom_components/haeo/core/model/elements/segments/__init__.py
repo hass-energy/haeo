@@ -22,7 +22,7 @@ from .efficiency import EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
 from .power_limit import PowerLimitSegment, PowerLimitSegmentSpec
 from .pricing import PricingSegment, PricingSegmentSpec
-from .segment import FlowSource, Segment
+from .segment import FlowProvider, FlowVariables, Segment
 from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
 
 # Discriminated union of segment type strings
@@ -85,7 +85,7 @@ def create_segment(
     spec: SegmentSpec,
     source_element: Element[Any],
     target_element: Element[Any],
-    power_in: FlowSource,
+    upstream: FlowProvider,
 ) -> Segment:
     """Create a segment instance from a segment specification."""
     segment_type = spec["segment_type"]
@@ -98,7 +98,7 @@ def create_segment(
         spec=spec,
         source_element=source_element,
         target_element=target_element,
-        power_in=power_in,
+        upstream=upstream,
     )
 
 
@@ -106,7 +106,8 @@ __all__ = [
     "SEGMENTS",
     "EfficiencySegment",
     "EfficiencySegmentSpec",
-    "FlowSource",
+    "FlowProvider",
+    "FlowVariables",
     "PassthroughSegment",
     "PassthroughSegmentSpec",
     "PowerLimitSegment",

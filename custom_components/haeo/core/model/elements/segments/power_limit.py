@@ -12,7 +12,7 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
-from .segment import FlowSource, Segment
+from .segment import FlowProvider, Segment
 
 
 class PowerLimitSegmentSpec(TypedDict):
@@ -44,7 +44,7 @@ class PowerLimitSegment(Segment):
         spec: PowerLimitSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: FlowSource,
+        upstream: FlowProvider,
     ) -> None:
         """Initialize power limit segment."""
         super().__init__(
@@ -54,7 +54,7 @@ class PowerLimitSegment(Segment):
             solver,
             source_element=source_element,
             target_element=target_element,
-            power_in=power_in,
+            upstream=upstream,
         )
         self._fixed = spec.get("fixed", False)
         self.max_power = broadcast_to_sequence(spec.get("max_power"), self._n_periods)

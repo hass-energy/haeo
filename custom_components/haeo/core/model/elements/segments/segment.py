@@ -1,22 +1,22 @@
 """Base class for connection segments.
 
 Segments are composable transforms on a single direction of power flow.
-Each segment derives its input flow from the segment before it and exposes
-an output flow. Segments may add constraints and costs to the solver.
+Each segment reads its input flow from its upstream, the segment before it,
+and exposes an output flow. Segments may add constraints and costs to the solver.
 
-Flows are derived on every read rather than captured at construction, so a
-constraint or cost that reads a flow records the upstream parameters that
-shaped it, such as an efficiency, and is rebuilt when they change.
+Flows are read from upstream on every access rather than captured at
+construction, so a constraint or cost that reads a flow records the upstream
+parameters that shaped it, such as an efficiency, and is rebuilt when they change.
 
 A segment instance belongs to one directional connection chain.
 Bidirectional paths are modelled as two separate Connection elements,
 each with its own segment chain.
 """
 
-from collections.abc import Callable
+from dataclasses import dataclass
 from functools import reduce
 import operator
-from typing import Any
+from typing import Any, Protocol
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
@@ -34,14 +34,27 @@ from custom_components.haeo.core.model.reactive import (
     cost,
 )
 
-type FlowSource = Callable[[], dict[int, HighspyArray]]
-"""Returns the per-tag flow entering a segment, derived from the current upstream parameters."""
+
+class FlowProvider(Protocol):
+    """Anything a segment can read its input flow from: another segment, or a connection's variables."""
+
+    @property
+    def power_out(self) -> dict[int, HighspyArray]:
+        """Per-tag power flowing out to the next segment."""
+        ...
+
+
+@dataclass(frozen=True)
+class FlowVariables:
+    """The upstream of a connection's first segment: its per-tag LP flow variables."""
+
+    power_out: dict[int, HighspyArray]
 
 
 class Segment:
     """A single-direction transform on power flow.
 
-    Derives its input flow from a flow source and exposes an output flow.
+    Reads its input flow from its upstream and exposes an output flow.
     Identity by default — subclasses override `power_out` to transform the flow.
     """
 
@@ -56,9 +69,9 @@ class Segment:
         *,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: FlowSource,
+        upstream: FlowProvider,
     ) -> None:
-        """Initialize segment with the source of its input flow.
+        """Initialize segment with the upstream it reads its input flow from.
 
         Args:
             segment_id: Unique identifier for naming LP variables
@@ -67,7 +80,7 @@ class Segment:
             solver: HiGHS solver instance
             source_element: Connected source element reference
             target_element: Connected target element reference
-            power_in: Source of the per-tag input power flows
+            upstream: The segment or variables this segment's input flow comes from
 
         """
         self._segment_id = segment_id
@@ -76,7 +89,7 @@ class Segment:
         self._solver = solver
         self._source_element = source_element
         self._target_element = target_element
-        self._power_in_source = power_in
+        self._upstream = upstream
 
     @property
     def segment_id(self) -> str:
@@ -100,8 +113,8 @@ class Segment:
 
     @property
     def power_in(self) -> dict[int, HighspyArray]:
-        """Per-tag input power flows."""
-        return self._power_in_source()
+        """Per-tag input power flows, read from upstream."""
+        return self._upstream.power_out
 
     @property
     def total_power_in(self) -> HighspyArray:
