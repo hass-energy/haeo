@@ -44,8 +44,8 @@ Optional fields set to "None" are omitted from the optimization entirely.
 | **[Configure battery partitions](#configure-battery-partitions)** | Boolean    | No       | false   | Enable undercharge and overcharge partitions               |
 | **[Undercharge Percentage](#undercharge-configuration)**          | Percentage | No       | -       | Hard minimum SOC limit (%) (battery partitions step)       |
 | **[Overcharge Percentage](#overcharge-configuration)**            | Percentage | No       | -       | Hard maximum SOC limit (%) (battery partitions step)       |
-| **[Undercharge Cost](#undercharge-configuration)**                | Price      | No       | -       | Economic penalty for discharging below min SOC             |
-| **[Overcharge Cost](#overcharge-configuration)**                  | Price      | No       | -       | Economic penalty for charging above max SOC                |
+| **[Undercharge Cost](#undercharge-cost)**                         | Price rate | No       | -       | Hourly holding cost for energy below min SOC (\$/kWh/h)    |
+| **[Overcharge Cost](#overcharge-cost)**                           | Price rate | No       | -       | Hourly holding cost for energy above max SOC (\$/kWh/h)    |
 | **[Discharge efficiency](#charge-and-discharge-efficiency)**      | Percentage | No       | 95      | Efficiency when discharging (battery to network)           |
 | **[Charge efficiency](#charge-and-discharge-efficiency)**         | Percentage | No       | 95      | Efficiency when charging (network to battery)              |
 | **[Max Charge Power](#max-charge-and-discharge-power)**           | Power      | No       | -       | Maximum charging power                                     |
@@ -177,46 +177,70 @@ This allows operation between 90-95% SOC with an added overcharge cost penalty w
 
 #### Undercharge Cost
 
-Economic penalty in \$/kWh for **discharging** below `min_charge_percentage`.
+Holding cost in \$/kWh/h (your currency per kWh per hour) for energy kept **below** `min_charge_percentage`.
 Required when the undercharge percentage is configured.
 
-**Setting the cost**: Consider the economic value of avoiding deep discharge:
+The cost is a rate that accrues over time, not a one-off charge per kWh discharged.
+At every point in the forecast, HAEO measures how many kWh the battery holds below `min_charge_percentage` and charges this rate for each hour the shortfall lasts:
 
-- Battery degradation from deep cycles
-- Manufacturer warranty conditions
-- Your risk tolerance for low SOC states
+$$
+\text{cost} = \text{rate} \times \text{kWh below the threshold} \times \text{hours held}
+$$
 
-Typical values: \$0.50-\$2.00/kWh
+**Worked example**: With an undercharge cost of 0.02 \$/kWh/h, discharging 1 kWh below `min_charge_percentage` and leaving it there for 72 hours costs 0.02 \$/kWh/h × 1 kWh × 72 h = \$1.44.
+Refilling that kWh after 3 hours instead costs only \$0.06.
 
-**How it works**: The optimizer compares grid revenue against the undercharge cost penalty.
-If grid prices are \$0.40/kWh and the undercharge cost is \$0.50/kWh, the battery won't discharge into the undercharge range.
-If grid prices spike to \$0.80/kWh, the optimizer will economically justify deep discharge because the \$0.30/kWh profit makes it worthwhile.
+**How it works**: Discharging into the undercharge range is worthwhile when the value of that energy exceeds the rate multiplied by how long the battery stays below the threshold.
+A short dip that is refilled soon is cheap, while a deficit that lasts until the end of the forecast horizon is expensive.
+This makes the undercharge range behave like a reserve: HAEO tends to use it for short price spikes and refill it soon afterwards.
 
-**Applies to**: Energy discharged below `min_charge_percentage`.
+**Setting the cost**: Decide what one kWh of reserve should cost if it stays used for a typical duration, then divide by that duration.
+
+| Undercharge cost | Held 1 hour | Held 12 hours | Held 24 hours | Held 72 hours |
+| ---------------- | ----------- | ------------- | ------------- | ------------- |
+| 0.005 \$/kWh/h   | \$0.005     | \$0.06        | \$0.12        | \$0.36        |
+| 0.02 \$/kWh/h    | \$0.02      | \$0.24        | \$0.48        | \$1.44        |
+| 0.05 \$/kWh/h    | \$0.05      | \$0.60        | \$1.20        | \$3.60        |
+
+Typical values are 0.005-0.05 \$/kWh/h.
+For example, if using the reserve for a day should cost about the same as a \$0.50/kWh price difference, use \$0.50/kWh ÷ 24 h ≈ 0.02 \$/kWh/h.
+
+Compare the cost over your planning horizon with the price differences HAEO can exploit.
+If the rate multiplied by the hours a shortfall lasts is smaller than the money saved by discharging, HAEO treats the reserve as normal capacity.
+With a 72-hour horizon, a rate of 0.0015 \$/kWh/h costs at most about \$0.11 per kWh, which is less than a typical gap between import and export prices.
+
+The penalty stops at the end of the forecast horizon, so a shortfall that starts near the end costs little.
+Use the [salvage value](#salvage-value) to value the energy left in the battery at the end of the horizon.
+
+**Applies to**: Energy stored below `min_charge_percentage`, for as long as it stays there.
 The battery will not discharge below the undercharge percentage under any circumstance.
 
 #### Overcharge Cost
 
-Economic penalty in \$/kWh for **charging** above `max_charge_percentage`.
+Holding cost in \$/kWh/h (your currency per kWh per hour) for energy kept **above** `max_charge_percentage`.
 Required when the overcharge percentage is configured.
+
+The overcharge cost works the same way as the [undercharge cost](#undercharge-cost):
+HAEO charges the rate for every kWh above `max_charge_percentage` for every hour it stays there.
+With an overcharge cost of 0.02 \$/kWh/h, holding 1 kWh above `max_charge_percentage` for 10 hours costs \$0.20.
 
 **Setting the cost**: Consider the economic value of avoiding high SOC:
 
-- Battery degradation from high SOC levels
+- Battery degradation from time spent at high SOC
 - Cell balancing concerns
 - Your risk tolerance for high SOC states
 
-Typical values: \$0.50-\$2.00/kWh
+Typical values are 0.005-0.05 \$/kWh/h, chosen with the same rate-times-hours reasoning as the undercharge cost.
 
-**How it works**: The optimizer compares available energy value against this penalty.
+**How it works**: Charging into the overcharge range is worthwhile when the value of the extra energy exceeds the rate multiplied by how long it is held.
 
-**From grid**: The battery will only charge into the overcharge range from the grid if grid prices are **negative** (you get paid to consume) by more than the overcharge cost.
-For example, if overcharge cost is \$1.00/kWh, grid prices would need to be below -\$1.00/kWh.
+**From grid**: The battery charges into the overcharge range from the grid only when the gain outweighs the holding cost.
+For example, with an overcharge cost of 0.02 \$/kWh/h, absorbing energy at -\$0.10/kWh and discharging it 4 hours later costs \$0.08 per kWh in holding cost, so it is worthwhile.
 
-**From solar**: The battery will charge into the overcharge range from solar if the forecasted future export value exceeds the overcharge cost.
-For example, if export prices tomorrow are \$0.50/kWh and overcharge cost is \$0.20/kWh, HAEO will overcharge today to maximize export revenue tomorrow.
+**From solar**: The battery charges into the overcharge range from solar when the future value of that energy exceeds the holding cost.
+For example, if export prices in 6 hours are \$0.50/kWh and the overcharge cost is 0.02 \$/kWh/h, holding the extra energy until then costs \$0.12 per kWh, so HAEO overcharges to capture the later export revenue.
 
-**Applies to**: Energy charged above `max_charge_percentage`.
+**Applies to**: Energy stored above `max_charge_percentage`, for as long as it stays there.
 The battery will not charge above the overcharge percentage under any circumstance.
 
 ## Configuration Examples
@@ -254,8 +278,8 @@ Enable **Configure battery partitions** to access the undercharge and overcharge
 | **Max Charge Percentage**     | 90%                |
 | **Undercharge Percentage**    | 5%                 |
 | **Overcharge Percentage**     | 95%                |
-| **Undercharge Cost**          | 1.50 \$/kWh        |
-| **Overcharge Cost**           | 1.00 \$/kWh        |
+| **Undercharge Cost**          | 0.03 \$/kWh/h      |
+| **Overcharge Cost**           | 0.02 \$/kWh/h      |
 | **Discharge Efficiency**      | 99%                |
 | **Charge Efficiency**         | 99%                |
 | **Max Charge Power**          | 6 kW               |
@@ -263,32 +287,32 @@ Enable **Configure battery partitions** to access the undercharge and overcharge
 
 In this example:
 
-- **Undercharge range**: 5-10% (available with \$1.50/kWh discharge penalty)
+- **Undercharge range**: 5-10% (available with a holding cost of \$0.03/kWh for each hour, or \$0.72/kWh per day)
 - **Normal range**: 10-90% (preferred operation)
-- **Overcharge range**: 90-95% (available with \$1.00/kWh charge penalty)
+- **Overcharge range**: 90-95% (available with a holding cost of \$0.02/kWh for each hour, or \$0.48/kWh per day)
 - Total usable range: 5-95% (90%)
 - Higher undercharge cost reflects greater degradation risk at low SOC
-- Optimizer will use extended ranges only when grid conditions justify the penalties
+- Optimizer will use extended ranges only when grid conditions justify the holding cost for as long as the battery stays there
 
 ### Input Entities
 
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
 
-| Input                                     | Unit   | Description                                  |
-| ----------------------------------------- | ------ | -------------------------------------------- |
-| `number.{name}_capacity`                  | kWh    | Battery storage capacity                     |
-| `number.{name}_initial_charge_percentage` | %      | Current state of charge from sensor          |
-| `number.{name}_min_charge_percentage`     | %      | Preferred minimum SOC (normal range floor)   |
-| `number.{name}_max_charge_percentage`     | %      | Preferred maximum SOC (normal range ceiling) |
-| `number.{name}_max_power_target_source`   | kW     | Maximum charging power                       |
-| `number.{name}_max_power_source_target`   | kW     | Maximum discharging power                    |
-| `number.{name}_efficiency_source_target`  | %      | Discharge efficiency (if configured)         |
-| `number.{name}_efficiency_target_source`  | %      | Charge efficiency (if configured)            |
-| `number.{name}_percentage`                | %      | Undercharge or overcharge percentage         |
-| `number.{name}_cost`                      | \$/kWh | Undercharge or overcharge cost               |
-| `number.{name}_charge_cost`               | \$/kWh | Charge cost (if configured)                  |
-| `number.{name}_discharge_cost`            | \$/kWh | Discharge cost (if configured)               |
+| Input                                     | Unit     | Description                                  |
+| ----------------------------------------- | -------- | -------------------------------------------- |
+| `number.{name}_capacity`                  | kWh      | Battery storage capacity                     |
+| `number.{name}_initial_charge_percentage` | %        | Current state of charge from sensor          |
+| `number.{name}_min_charge_percentage`     | %        | Preferred minimum SOC (normal range floor)   |
+| `number.{name}_max_charge_percentage`     | %        | Preferred maximum SOC (normal range ceiling) |
+| `number.{name}_max_power_target_source`   | kW       | Maximum charging power                       |
+| `number.{name}_max_power_source_target`   | kW       | Maximum discharging power                    |
+| `number.{name}_efficiency_source_target`  | %        | Discharge efficiency (if configured)         |
+| `number.{name}_efficiency_target_source`  | %        | Charge efficiency (if configured)            |
+| `number.{name}_percentage`                | %        | Undercharge or overcharge percentage         |
+| `number.{name}_cost`                      | \$/kWh/h | Undercharge or overcharge holding cost       |
+| `number.{name}_charge_cost`               | \$/kWh   | Charge cost (if configured)                  |
+| `number.{name}_discharge_cost`            | \$/kWh   | Discharge cost (if configured)               |
 
 When both undercharge and overcharge partitions are configured, Home Assistant adds a suffix to keep entity IDs unique.
 

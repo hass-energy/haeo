@@ -46,8 +46,12 @@ User-facing energy and SOC add the lower bound offset back to the model values.
 
 When undercharge or overcharge costs are configured, the connection includes the SOC pricing segment:
 
-- **Undercharge penalty** applies when SOC falls below `min_charge_percentage`
-- **Overcharge penalty** applies when SOC rises above `max_charge_percentage`
+- **Undercharge penalty** applies while SOC is below `min_charge_percentage`
+- **Overcharge penalty** applies while SOC is above `max_charge_percentage`
+
+Both costs are holding rates in \$/kWh/h.
+The penalty for each period is the energy outside the threshold multiplied by the rate and the period duration in hours.
+See the [SOC pricing segment](../model-layer/segments/soc-pricing.md) for the formulation.
 
 These are soft constraints driven by cost.
 The battery can operate outside the preferred range when prices justify it, but it will never exceed the configured lower/upper bounds.
@@ -76,8 +80,8 @@ Battery creates a single Home Assistant device:
 | `max_charge_percentage`     | Battery + SOC pricing | Preferred maximum SOC threshold            | Penalty threshold              |
 | Undercharge percentage      | Battery               | Lower bound for SOC range                  | Hard minimum                   |
 | Overcharge percentage       | Battery               | Upper bound for SOC range                  | Hard maximum                   |
-| Undercharge cost            | SOC pricing segment   | `discharge_energy_price`                   | Penalty below min SOC          |
-| Overcharge cost             | SOC pricing segment   | `charge_capacity_price`                    | Penalty above max SOC          |
+| Undercharge cost            | SOC pricing segment   | `discharge_energy_price`                   | \$/kWh/h below min SOC         |
+| Overcharge cost             | SOC pricing segment   | `charge_capacity_price`                    | \$/kWh/h above max SOC         |
 | `salvage_value`             | Battery               | `salvage_value`                            | Terminal value for stored kWh  |
 | `efficiency_source_target`  | Efficiency segment    | `efficiency_source_target`                 | Battery to network (discharge) |
 | `efficiency_target_source`  | Efficiency segment    | `efficiency_target_source`                 | Network to battery (charge)    |

@@ -5,13 +5,14 @@ and their associated metadata like output type, direction, and time series behav
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Literal
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.units import localize_currency
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,10 +77,35 @@ type InputFieldSection = Mapping[str, InputFieldInfo[Any]]
 type InputFieldGroups = Mapping[str, InputFieldSection]
 type InputFieldPath = tuple[str, ...]
 
+
+def localize_input_field[T: (NumberEntityDescription, SwitchEntityDescription)](
+    field_info: InputFieldInfo[T], currency_symbol: str
+) -> InputFieldInfo[T]:
+    """Return the field with the ``$`` placeholder in its unit replaced by a currency symbol."""
+    description = field_info.entity_description
+    # Home Assistant rebuilds entity descriptions as compat dataclasses, so match by name
+    if type(description).__name__ != "NumberEntityDescription":
+        return field_info
+    unit = localize_currency(description.native_unit_of_measurement, currency_symbol)  # type: ignore[union-attr]
+    if unit == description.native_unit_of_measurement:  # type: ignore[union-attr]
+        return field_info
+    return replace(field_info, entity_description=replace(description, native_unit_of_measurement=unit))
+
+
+def localize_input_fields(groups: InputFieldGroups, currency_symbol: str) -> InputFieldGroups:
+    """Return the field groups with every monetary unit shown in the given currency symbol."""
+    return {
+        section: {name: localize_input_field(info, currency_symbol) for name, info in fields.items()}
+        for section, fields in groups.items()
+    }
+
+
 __all__ = [
     "InputFieldDefaults",
     "InputFieldGroups",
     "InputFieldInfo",
     "InputFieldPath",
     "InputFieldSection",
+    "localize_input_field",
+    "localize_input_fields",
 ]
