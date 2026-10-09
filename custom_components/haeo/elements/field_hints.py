@@ -74,7 +74,7 @@ OUTPUT_TYPE_DEFAULTS: dict[OutputType, OutputTypeMetadata] = {
         step=0.1,
     ),
     OutputType.PRICE: OutputTypeMetadata(
-        unit=None,
+        unit=UnitOfMeasurement.DOLLAR_PER_KWH,
         device_class=None,
         min_value=PRICE_NATIVE_MIN_VALUE,
         max_value=PRICE_NATIVE_MAX_VALUE,

@@ -42,6 +42,7 @@ def _build_surfaced_mirror_entities(
     device_entry: DeviceEntry,
     runtime_data: HaeoRuntimeData,
     horizon_manager: HorizonManager,
+    currency: str,
 ) -> list[HaeoInputNumber]:
     """Build mirror entities for an element's surfaced policy prices.
 
@@ -49,6 +50,7 @@ def _build_surfaced_mirror_entities(
     single policy subentry, so they already appear as entities on the policy
     device. This creates additional entities on the element's own device that
     wrap the same store, so editing either updates the one stored value.
+    Monetary units are shown in ``currency``.
     """
     surfaced_hints = get_surfaced_price_hints(element_type)
     if not surfaced_hints:
@@ -81,7 +83,7 @@ def _build_surfaced_mirror_entities(
             HaeoInputNumber(
                 config_entry=config_entry,
                 subentry=subentry,
-                field_info=field_info,
+                field_info=localize_input_field(field_info, currency),
                 field_path=(field_name,),
                 device_entry=device_entry,
                 horizon_manager=horizon_manager,
@@ -171,6 +173,7 @@ async def async_setup_entry(
                 device_entry,
                 runtime_data,
                 horizon_manager,
+                currency,
             )
         )
 

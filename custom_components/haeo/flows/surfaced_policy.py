@@ -30,6 +30,8 @@ from custom_components.haeo.core.schema.elements.policy import (
 )
 from custom_components.haeo.core.schema.entity_value import EntityValue, as_entity_value, is_entity_value
 from custom_components.haeo.core.schema.field_hints import SurfacedPriceHint
+from custom_components.haeo.core.units import currency_symbol
+from custom_components.haeo.elements.input_fields import localize_input_field
 from custom_components.haeo.flows.element_flow import build_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
@@ -296,7 +298,9 @@ def build_surfaced_schema_entries(
     entity_metadata = extract_entity_metadata(hass, hub_entry)
     inclusion_map = build_inclusion_map(dict(surfaced_fields), entity_metadata)
     entries: dict[str, tuple[Any, Any]] = {}
-    for field_name, field_info in surfaced_fields.items():
+    currency = currency_symbol(hass.config.currency)
+    for field_name, surfaced_field in surfaced_fields.items():
+        field_info = localize_input_field(surfaced_field, currency)
         hint = surfaced_hints.get(field_name)
         current_data: dict[str, Any] | None = None
         if hint is not None and element_name is not None:
