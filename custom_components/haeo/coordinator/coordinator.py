@@ -409,15 +409,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         if runtime_data is None:
             return
 
-        # Subscribe to horizon manager changes (requires full re-optimization)
-        network = self.network
-        horizon_manager = runtime_data.horizon_manager
-
-        @callback
-        def _on_horizon_change() -> None:
-            self._handle_horizon_change(network, horizon_manager)
-
-        horizon_manager.subscribe(_on_horizon_change)
+        # Horizon changes require a full re-optimization. The new period durations
+        # are applied to the network when that optimization runs.
+        runtime_data.horizon_manager.subscribe(self.signal_optimization_stale)
 
         # Subscribe to auto-optimize switch state changes
         if runtime_data.auto_optimize_switch is not None:
@@ -462,21 +456,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._pending_element_updates[element_name] = element_config
 
         # Trigger optimization (with debouncing)
-        self.signal_optimization_stale()
-
-    @callback
-    def _handle_horizon_change(self, network: Network, horizon_manager: HorizonManager) -> None:
-        """Handle horizon manager changes.
-
-        Updates network periods with new durations from the horizon manager,
-        then triggers optimization. The period update propagates to all elements
-        and segments, invalidating dependent constraints and costs.
-        """
-        periods_seconds = horizon_manager.periods_seconds
-        periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
-        network.update_periods(periods_hours)
-
-        # Trigger optimization - _are_inputs_aligned will gate until all elements update
         self.signal_optimization_stale()
 
     @callback
@@ -774,6 +753,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             # Network should have been created in async_initialize() or set manually in tests.
             network = self.network
+
+            # Bring the network to the horizon the inputs were loaded for. This must
+            # happen here, before the solve is handed to the executor, so the network
+            # is never mutated while it is being solved.
+            network.update_periods(np.asarray(runtime_data.horizon_manager.periods_seconds, dtype=float) / 3600)
 
             # Apply any pending element updates before optimization
             self._apply_pending_element_updates()
