@@ -4,7 +4,9 @@ A Connection represents a single direction of power flow from source to target.
 Bidirectional paths are modelled as two separate connections.
 
 Connection creates per-tag LP variables for the power flow, then chains them
-through segments. Each segment receives and returns a dict of per-tag flows.
+through segments. Each segment derives its per-tag input flow from the segment
+before it, so the flow leaving the connection always reflects the current
+segment parameters.
 """
 
 from collections import OrderedDict
@@ -22,7 +24,7 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import output
 
-from .segments import Segment, SegmentSpec, create_segment
+from .segments import FlowSource, Segment, SegmentSpec, create_segment
 
 type ConnectionElementTypeName = Literal["connection"]
 # Model element type for connection strings
@@ -50,6 +52,11 @@ class ConnectionElementConfig(TypedDict):
     is_time_sensitive: NotRequired[bool]
     segments: NotRequired[dict[str, SegmentSpec]]
     tags: NotRequired[set[int]]
+
+
+def _output_of(segment: Segment) -> FlowSource:
+    """Return a flow source that reads the segment's output flow when called."""
+    return lambda: segment.power_out
 
 
 class Connection[TOutputName: str](Element[TOutputName]):
@@ -96,7 +103,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         self._tags: set[int] = set(tags)
         self._power_in: dict[int, HighspyArray] = {}
-        self._power_out: dict[int, HighspyArray] = {}
 
     @property
     def segments(self) -> OrderedDict[str, Segment]:
@@ -131,18 +137,19 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
         # Create per-tag LP variables
-        flows: dict[int, HighspyArray] = {}
-        for tag in sorted(self._tags):
-            flows[tag] = self._solver.addVariables(
+        self._power_in = {
+            tag: self._solver.addVariables(
                 self.n_periods,
                 lb=0,
                 name_prefix=f"{self.name}_t{tag}_",
                 out_array=True,
             )
-        self._power_in = dict(flows)
+            for tag in sorted(self._tags)
+        }
 
         specs = list(self._segment_specs.items()) or [("passthrough", {"segment_type": "passthrough"})]
 
+        flows: FlowSource = self._variable_flows
         for seg_name, seg_spec in specs:
             seg = create_segment(
                 segment_id=f"{self.name}_{seg_name}",
@@ -155,9 +162,11 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 power_in=flows,
             )
             self._segments[seg_name] = seg
-            flows = seg.power_out
+            flows = _output_of(seg)
 
-        self._power_out = flows
+    def _variable_flows(self) -> dict[int, HighspyArray]:
+        """Flow source for the first segment: the per-tag LP variables."""
+        return self._power_in
 
     @property
     def power_in(self) -> dict[int, HighspyArray]:
@@ -171,13 +180,13 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     @property
     def power_out(self) -> dict[int, HighspyArray]:
-        """Per-tag power exiting the connection at the target end."""
-        return self._power_out
+        """Per-tag power exiting the connection at the target end, derived from the last segment."""
+        return next(reversed(self._segments.values())).power_out
 
     @property
     def total_power_out(self) -> HighspyArray:
         """Total power exiting the connection (sum of all tags)."""
-        return reduce(operator.add, self._power_out.values())
+        return reduce(operator.add, self.power_out.values())
 
     def connection_tags(self) -> set[int]:
         """Return the set of tags on this connection."""
@@ -189,7 +198,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     def power_into_target_for_tag(self, tag: int) -> HighspyArray:
         """Power flowing into the target node for a specific tag."""
-        return self._power_out[tag]
+        return self.power_out[tag]
 
     # --- Node power balance interface ---
 

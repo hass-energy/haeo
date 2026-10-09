@@ -108,8 +108,8 @@ def test_cached_constraint_tracks_multiple_dependencies() -> None:
     # Check state was created and dependencies tracked
     state = getattr(elem, "_reactive_state_combined_constraint", None)
     assert state is not None
-    assert "capacity" in state["deps"]
-    assert "efficiency" in state["deps"]
+    assert (elem, "capacity") in state["deps"]
+    assert (elem, "efficiency") in state["deps"]
 
 
 def test_cached_constraint_class_access_returns_descriptor() -> None:
@@ -254,6 +254,44 @@ def test_element_reactive_invalidate_dependents_constraints() -> None:
     assert not state_b["invalidated"]
 
 
+def test_invalidation_reaches_methods_on_other_objects() -> None:
+    """A method reading another object's parameter, directly or through its methods, is invalidated with it."""
+
+    class Upstream(Element[str]):
+        a = TrackedParam[float]()
+        b = TrackedParam[float]()
+
+        @cost
+        def scaled(self) -> float:
+            return self.b * 2
+
+    class Downstream(Element[str]):
+        def __init__(self, upstream: Upstream) -> None:
+            super().__init__(name="downstream", periods=np.array([1.0]), solver=Highs(), output_names=frozenset())
+            self.upstream = upstream
+
+        @cost
+        def reads_param(self) -> float:
+            return self.upstream.a
+
+        @cost
+        def reads_method(self) -> float:
+            return self.upstream.scaled()
+
+    upstream = create_test_element(Upstream)
+    upstream.a = 1.0
+    upstream.b = 1.0
+    downstream = Downstream(upstream)
+    assert downstream.reads_param() == 1.0
+    assert downstream.reads_method() == 2.0
+
+    upstream.a = 3.0
+    upstream.b = 5.0
+
+    assert downstream.reads_param() == 3.0
+    assert downstream.reads_method() == 10.0
+
+
 def test_element_reactive_invalidate_dependents_costs() -> None:
     """Test invalidate_dependents marks correct costs."""
 
@@ -325,6 +363,38 @@ def test_constraints_skips_none_result() -> None:
     state = getattr(elem, "_reactive_state_my_constraint", None)
     assert state is not None
     assert "constraint" not in state
+
+
+def test_constraint_that_stops_applying_frees_its_row() -> None:
+    """A single-row constraint returning None after being added keeps its row with free bounds."""
+    solver = Highs()
+    solver.setOptionValue("output_flag", False)
+    x = solver.addVariable(lb=0.0, ub=10.0)
+
+    class TestElement(Element[str]):
+        limit = TrackedParam[float | None]()
+
+        @constraint
+        def my_constraint(self) -> highs_linear_expression | None:
+            return None if self.limit is None else x <= self.limit
+
+    elem = TestElement(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
+    solver.changeColsCost(1, np.array([0], dtype=np.int32), np.array([-1.0]))
+
+    def maximized_x() -> float:
+        elem.constraints()
+        solver.run()
+        return solver.getSolution().col_value[0]
+
+    elem.limit = 5.0
+    assert maximized_x() == 5.0
+
+    elem.limit = None
+    assert maximized_x() == 10.0
+    assert solver.numConstrs == 1
+
+    elem.limit = 3.0
+    assert maximized_x() == 3.0
 
 
 # Integration tests

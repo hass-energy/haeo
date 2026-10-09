@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from typing import Any, Final, Literal, TypeGuard
 
 from highspy import Highs
-from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 
@@ -23,7 +22,7 @@ from .efficiency import EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
 from .power_limit import PowerLimitSegment, PowerLimitSegmentSpec
 from .pricing import PricingSegment, PricingSegmentSpec
-from .segment import Segment
+from .segment import FlowSource, Segment
 from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
 
 # Discriminated union of segment type strings
@@ -86,7 +85,7 @@ def create_segment(
     spec: SegmentSpec,
     source_element: Element[Any],
     target_element: Element[Any],
-    power_in: dict[int, HighspyArray],
+    power_in: FlowSource,
 ) -> Segment:
     """Create a segment instance from a segment specification."""
     segment_type = spec["segment_type"]
@@ -107,6 +106,7 @@ __all__ = [
     "SEGMENTS",
     "EfficiencySegment",
     "EfficiencySegmentSpec",
+    "FlowSource",
     "PassthroughSegment",
     "PassthroughSegmentSpec",
     "PowerLimitSegment",

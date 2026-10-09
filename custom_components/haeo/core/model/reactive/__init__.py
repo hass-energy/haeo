@@ -10,7 +10,16 @@ The pattern is inspired by reactive frameworks like MobX:
 - Parameter changes invalidate only dependent constraints
 """
 
-from .decorators import OutputMethod, ReactiveConstraint, ReactiveCost, ReactiveMethod, constraint, cost, output
+from .decorators import (
+    OutputMethod,
+    ReactiveConstraint,
+    ReactiveCost,
+    ReactiveMethod,
+    constraint,
+    cost,
+    derived,
+    output,
+)
 from .protocols import ReactiveHost
 from .tracked_param import TrackedParam
 
@@ -23,5 +32,6 @@ __all__ = [
     "TrackedParam",
     "constraint",
     "cost",
+    "derived",
     "output",
 ]

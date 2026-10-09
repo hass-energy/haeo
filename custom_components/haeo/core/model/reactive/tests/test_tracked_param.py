@@ -66,7 +66,7 @@ def test_tracked_param_change_value_invalidates_dependents() -> None:
     # Check state was created and dependency tracked
     state = getattr(elem, "_reactive_state_soc_constraint", None)
     assert state is not None
-    assert "capacity" in state["deps"]
+    assert (elem, "capacity") in state["deps"]
 
     # Change value
     elem.capacity = 20.0

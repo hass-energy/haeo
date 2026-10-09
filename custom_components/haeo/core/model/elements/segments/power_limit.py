@@ -3,7 +3,7 @@
 from typing import Any, Literal, NotRequired
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
+from highspy.highs import highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
@@ -12,7 +12,7 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
-from .segment import Segment
+from .segment import FlowSource, Segment
 
 
 class PowerLimitSegmentSpec(TypedDict):
@@ -44,7 +44,7 @@ class PowerLimitSegment(Segment):
         spec: PowerLimitSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: dict[int, HighspyArray],
+        power_in: FlowSource,
     ) -> None:
         """Initialize power limit segment."""
         super().__init__(

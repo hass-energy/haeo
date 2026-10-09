@@ -34,7 +34,7 @@ When no tags are specified, a single default tag is used (always-tagged paradigm
 
 Segments do **not** create their own variables (except SOC pricing, which creates auxiliary slack variables).
 Instead, the Connection passes its power variables through the segment chain.
-Each segment receives a `power_in` expression and exposes a `power_out` expression.
+Each segment derives its `power_in` from the segment before it and exposes a `power_out` expression.
 
 ### Parameters
 

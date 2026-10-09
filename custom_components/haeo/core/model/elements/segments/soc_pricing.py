@@ -12,7 +12,7 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
-from .segment import Segment
+from .segment import FlowSource, Segment
 
 
 class SocPricingSegmentSpec(TypedDict):
@@ -51,7 +51,7 @@ class SocPricingSegment(Segment):
         spec: SocPricingSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: dict[int, HighspyArray],
+        power_in: FlowSource,
     ) -> None:
         """Initialize SOC pricing segment."""
         super().__init__(

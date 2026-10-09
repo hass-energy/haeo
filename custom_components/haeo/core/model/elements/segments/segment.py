@@ -1,15 +1,19 @@
 """Base class for connection segments.
 
 Segments are composable transforms on a single direction of power flow.
-Each segment receives an input power expression at construction time
-and exposes an output power expression. Segments may add constraints
-and costs to the solver.
+Each segment derives its input flow from the segment before it and exposes
+an output flow. Segments may add constraints and costs to the solver.
+
+Flows are derived on every read rather than captured at construction, so a
+constraint or cost that reads a flow records the upstream parameters that
+shaped it, such as an efficiency, and is rebuilt when they change.
 
 A segment instance belongs to one directional connection chain.
 Bidirectional paths are modelled as two separate Connection elements,
 each with its own segment chain.
 """
 
+from collections.abc import Callable
 from functools import reduce
 import operator
 from typing import Any
@@ -29,13 +33,15 @@ from custom_components.haeo.core.model.reactive import (
     cost,
 )
 
+type FlowSource = Callable[[], dict[int, HighspyArray]]
+"""Returns the per-tag flow entering a segment, derived from the current upstream parameters."""
+
 
 class Segment:
     """A single-direction transform on power flow.
 
-    Receives an input power expression at construction and exposes an output
-    power expression. Identity by default — subclasses override `power_out`
-    to transform the flow.
+    Derives its input flow from a flow source and exposes an output flow.
+    Identity by default — subclasses override `power_out` to transform the flow.
     """
 
     periods: TrackedParam[NDArray[np.floating[Any]]] = TrackedParam()
@@ -49,9 +55,9 @@ class Segment:
         *,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: dict[int, HighspyArray],
+        power_in: FlowSource,
     ) -> None:
-        """Initialize segment with input power expression.
+        """Initialize segment with the source of its input flow.
 
         Args:
             segment_id: Unique identifier for naming LP variables
@@ -60,7 +66,7 @@ class Segment:
             solver: HiGHS solver instance
             source_element: Connected source element reference
             target_element: Connected target element reference
-            power_in: Per-tag input power flows
+            power_in: Source of the per-tag input power flows
 
         """
         self._segment_id = segment_id
@@ -69,7 +75,7 @@ class Segment:
         self._solver = solver
         self._source_element = source_element
         self._target_element = target_element
-        self._power_in = power_in
+        self._power_in_source = power_in
 
     @property
     def segment_id(self) -> str:
@@ -94,17 +100,17 @@ class Segment:
     @property
     def power_in(self) -> dict[int, HighspyArray]:
         """Per-tag input power flows."""
-        return self._power_in
+        return self._power_in_source()
 
     @property
     def total_power_in(self) -> HighspyArray:
         """Sum of all tag input flows."""
-        return reduce(operator.add, self._power_in.values())
+        return reduce(operator.add, self.power_in.values())
 
     @property
     def power_out(self) -> dict[int, HighspyArray]:
         """Per-tag output power flows. Identity by default."""
-        return self._power_in
+        return self.power_in
 
     @property
     def total_power_out(self) -> HighspyArray:

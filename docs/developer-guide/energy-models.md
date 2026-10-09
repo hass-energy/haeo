@@ -75,6 +75,12 @@ class Battery(Element[BatteryOutputName]):
 ```
 
 When a `TrackedParam` value changes, the system automatically invalidates dependent constraints for rebuilding.
+Dependencies are recorded per object, so a constraint that reads another element's parameter is invalidated too.
+Use `@derived` for a cached value computed from parameters that constraints and costs build on, such as a segment's transformed flow.
+Anything that reads a `@derived` method depends on it and is rebuilt when it changes.
+
+A constraint that returns `None` after it has been added keeps its rows with free bounds,
+so the LP keeps its shape and later optimizations still warm start.
 
 ### @constraint decorator
 
@@ -209,13 +215,15 @@ See the [tagged power formulation](../modeling/tagged-power.md) for the mathemat
 
 Connections create the **only LP variables** for power flow (one per time step).
 Each connection is unidirectional (source → target). Bidirectional paths use two connections.
-Segments are functional transforms that receive a `power_in` expression at construction
-and expose a `power_out` expression. Most segments are identity transforms that add
+Segments are functional transforms that derive a `power_in` flow from the segment before them
+and expose a `power_out` flow. Most segments are identity transforms that add
 constraints or costs as side effects. Subclasses that transform the flow
-override the output expression.
+override the output expression, computing it in a `@derived` method so that
+downstream constraints are rebuilt when the transforming parameter changes.
 
-When adding a new segment type, implement `__init__` accepting `power_in`.
-Store the input for constraint/cost methods to reference. Avoid creating
+When adding a new segment type, implement `__init__` accepting the `power_in` flow source
+and pass it to `Segment`. Read `self.power_in` inside constraint and cost methods rather
+than storing the flow, so the dependency on upstream parameters is recorded. Avoid creating
 power flow LP variables — the Connection owns those. Auxiliary variables
 (e.g., slack variables for penalty terms) are acceptable.
 
