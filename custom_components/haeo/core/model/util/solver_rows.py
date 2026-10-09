@@ -31,12 +31,23 @@ def add_rows(solver: Highs, exprs: list[highs_linear_expression]) -> list[highs_
     return solver.addConstrs([row_expression(expr) for expr in exprs])
 
 
+def _row_coefficients(expr: highs_linear_expression) -> dict[int, float]:
+    """Return the expression's coefficients with repeated variables summed and negligible terms removed."""
+    coeffs: dict[int, float] = {}
+    for idx, val in zip(expr.idxs, expr.vals, strict=True):
+        coeffs[idx] = coeffs.get(idx, 0.0) + val
+    return {idx: val for idx, val in coeffs.items() if abs(val) >= SMALL_MATRIX_VALUE}
+
+
 def update_row(solver: Highs, cons: highs_cons, expr: highs_linear_expression) -> None:
-    """Change an existing row's bounds and coefficients to match the expression."""
-    row = row_expression(expr)
+    """Change an existing row's bounds and coefficients to match the expression.
+
+    Rows are updated in place on every optimization, so this compares
+    coefficients directly instead of building a simplified expression.
+    """
     old_row = solver.getExpr(cons)
     old_bounds = old_row.bounds
-    new_bounds = row.bounds
+    new_bounds = expr.bounds
 
     if old_bounds != new_bounds:
         if new_bounds is not None:
@@ -45,7 +56,7 @@ def update_row(solver: Highs, cons: highs_cons, expr: highs_linear_expression) -
             solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
 
     old_coeffs = dict(zip(old_row.idxs, old_row.vals, strict=True))
-    new_coeffs = dict(zip(row.idxs, row.vals, strict=True))
+    new_coeffs = _row_coefficients(expr)
     for var_idx in set(old_coeffs) | set(new_coeffs):
         old_val = old_coeffs.get(var_idx, 0.0)
         new_val = new_coeffs.get(var_idx, 0.0)
