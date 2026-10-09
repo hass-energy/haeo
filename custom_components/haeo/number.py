@@ -10,13 +10,16 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
-from custom_components.haeo.core.schema.surfaced_policy import find_surfaced_rule, resolve_surfaced_endpoints
+from custom_components.haeo.core.schema.surfaced_policy import (
+    find_surfaced_rule,
+    get_surfaced_price_hints,
+    resolve_surfaced_endpoints,
+)
 from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import (
     get_input_fields,
     get_list_input_fields,
     get_surfaced_input_fields,
-    get_surfaced_price_hints,
     is_element_config_schema,
     iter_input_field_paths,
 )

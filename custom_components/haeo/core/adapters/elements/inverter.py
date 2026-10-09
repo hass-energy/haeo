@@ -64,7 +64,11 @@ class InverterAdapter:
     can_sink: bool = False
 
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:
-        """Return model element parameters for Inverter configuration."""
+        """Return model element parameters for Inverter configuration.
+
+        Efficiency sits next to the DC bus and the power limit at the AC end,
+        where the inverter's rating applies, in both directions.
+        """
         return [
             {
                 "element_type": MODEL_ELEMENT_TYPE_NODE,
@@ -94,13 +98,13 @@ class InverterAdapter:
                 "source": extract_connection_target(config[CONF_CONNECTION]),
                 "target": config["name"],
                 "segments": {
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
-                    },
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_TARGET_SOURCE),
+                    },
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_TARGET_SOURCE),
                     },
                 },
             },
@@ -117,6 +121,8 @@ class InverterAdapter:
         reverse_conn = model_outputs.get(f"{name}:ac_to_dc")
         dc_bus = model_outputs[name]
         period_count = len(expect_output_data(dc_bus[ELEMENT_POWER_BALANCE]).values)
+        # Each connection reports power at its measured point, where its power limit
+        # applies: the AC side.
         power_forward = connection_power(forward_conn, period_count)
         power_reverse = connection_power(reverse_conn, period_count)
 

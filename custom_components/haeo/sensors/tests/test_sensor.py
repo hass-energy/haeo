@@ -1,5 +1,6 @@
 """Tests for the HAEO sensor platform."""
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from types import MappingProxyType
 from typing import Any, Literal
@@ -773,3 +774,40 @@ def test_handle_coordinator_update_sets_fixed_attribute(device_entry: DeviceEntr
     attributes = sensor.extra_state_attributes
     assert attributes is not None
     assert attributes["fixed"] is True
+
+
+@pytest.mark.parametrize(("advanced", "enabled_default"), [(True, False), (False, True)])
+def test_advanced_outputs_are_disabled_by_default(
+    device_entry: DeviceEntry,
+    *,
+    advanced: bool,
+    enabled_default: bool,
+) -> None:
+    """Sensors for advanced outputs ship disabled in the entity registry."""
+    output = replace(
+        _make_output(
+            type_=OutputType.SHADOW_PRICE,
+            unit="$/kWh",
+            state=0.0,
+            forecast=None,
+            entity_category=None,
+            device_class=None,
+            state_class=None,
+            options=None,
+        ),
+        advanced=advanced,
+    )
+
+    sensor = HaeoSensor(
+        _create_mock_coordinator(),
+        device_entry=device_entry,
+        subentry_key="battery",
+        device_key=ElementType.BATTERY,
+        element_title="Battery",
+        element_type=BATTERY_TYPE,
+        output_name=LOAD_POWER,
+        output_data=output,
+        unique_id="sensor-id",
+    )
+
+    assert sensor.entity_registry_enabled_default is enabled_default

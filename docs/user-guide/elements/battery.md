@@ -52,6 +52,8 @@ Optional fields set to "None" are omitted from the optimization entirely.
 | **[Max Discharge Power](#max-charge-and-discharge-power)**        | Power      | No       | -       | Maximum discharging power                                  |
 | **[Salvage Value](#salvage-value)**                               | Price      | No       | 0       | Value assigned to stored energy at the horizon end         |
 
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
+
 !!! tip "Charge and discharge pricing"
 
     To apply a per-kWh cost or incentive for charging or discharging, use a [Power Policy](../../walkthroughs/power-policies.md).
@@ -92,6 +94,8 @@ A typical starting point is 10-90% unless your manufacturer recommends otherwise
 Enter separate charge and discharge efficiencies as percentages (0-100).
 Charge efficiency applies when power flows from the network into the battery.
 Discharge efficiency applies when power flows from the battery into the network.
+Efficiency is the loss between the battery terminals and the energy stored in the cells.
+Charging 10 kW at 95% efficiency stores 9.5 kWh per hour, and discharging 10 kW at 95% efficiency draws about 10.5 kWh per hour from storage.
 If you only have a round-trip figure, use the same value for both directions or approximate a symmetric value with $\sqrt{\text{round-trip}}$.
 Most modern lithium batteries have efficiencies in the 95-98% range, while older chemistries may be lower.
 Refer to your battery or inverter specifications for the most appropriate values.
@@ -100,6 +104,9 @@ Refer to your battery or inverter specifications for the most appropriate values
 
 Add limits based on your battery's charge/discharge rating.
 Leave the fields blank when no practical limit applies.
+
+Both limits apply at the battery terminals, where battery management systems usually measure power.
+A 5 kW discharge limit means at most 5 kW leaves the battery terminals, whatever the discharge efficiency.
 
 !!! note
 
@@ -334,21 +341,22 @@ A Battery element creates a single device in Home Assistant:
 
 These sensors appear on the battery device:
 
-| Sensor                                                       | Unit   | Description                                  |
-| ------------------------------------------------------------ | ------ | -------------------------------------------- |
-| [`sensor.{name}_power_charge`](#charge-power)                | kW     | Charging power                               |
-| [`sensor.{name}_power_discharge`](#discharge-power)          | kW     | Discharging power                            |
-| [`sensor.{name}_energy_stored`](#energy-stored)              | kWh    | Current energy level                         |
-| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %      | State of charge percentage                   |
-| [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kWh | Marginal value of power at battery terminals |
+| Sensor                                                       | Unit   | Description                     |
+| ------------------------------------------------------------ | ------ | ------------------------------- |
+| [`sensor.{name}_power_charge`](#charge-power)                | kW     | Charging power                  |
+| [`sensor.{name}_power_discharge`](#discharge-power)          | kW     | Discharging power               |
+| [`sensor.{name}_energy_stored`](#energy-stored)              | kWh    | Current energy level            |
+| [`sensor.{name}_state_of_charge`](#state-of-charge-sensor)   | %      | State of charge percentage      |
+| [`sensor.{name}_power_balance`](#power-balance-shadow-price) | \$/kWh | Marginal value of energy stored |
 
 ### Charge Power
 
 The optimal charging power for this battery at each time period.
 
-Values represent the average power during the period.
+Values represent the average power during the period, measured at the battery terminals.
 Positive values indicate energy flowing into the battery.
 A value of 0 means the battery is not charging.
+The energy stored rises by this power less the charge efficiency loss.
 
 **Example**: A value of 3.2 kW means the battery is charging at an average rate of 3.2 kW during this period, limited by the configured max charge power or other system constraints.
 
@@ -356,9 +364,10 @@ A value of 0 means the battery is not charging.
 
 The optimal discharging power for this battery at each time period.
 
-Values represent the average power during the period.
+Values represent the average power during the period, measured at the battery terminals.
 Positive values indicate energy flowing out of the battery.
 A value of 0 means the battery is not discharging.
+The energy stored falls by this power plus the discharge efficiency loss.
 
 **Example**: A value of 2.5 kW means the battery is discharging at an average rate of 2.5 kW during this period, providing power to loads or exporting to the grid.
 
@@ -382,19 +391,18 @@ Provides a convenient percentage view of the battery level.
 
 ### Power Balance Shadow Price
 
-The marginal value of power at the battery terminals.
+The marginal value of energy stored in the battery, measured inside the charge and discharge efficiency.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
-This shadow price represents the economic value of 1 kW of additional power capacity at the battery.
-It reflects the cost of power flowing through the battery connection point.
+It shows how much the total system cost would change if one more kWh were held in the battery at that time.
 
 **Interpretation**:
 
-- **Positive value**: Power at the battery terminals has value (usually during discharge periods)
-- **Negative value**: Additional power would increase costs (usually during charging periods)
-- **Magnitude**: Higher absolute values indicate the battery connection is more valuable to the system
+- **Positive value**: Energy in the battery has value (usually during discharge periods)
+- **Negative value**: Holding more energy would increase costs (usually during charging periods)
+- **Magnitude**: Higher absolute values indicate stored energy is more valuable to the system
 
-**Example**: A value of 0.15 means 1 kW of additional power capacity at the battery would save \$0.15 per time period.
+**Example**: A value of 0.15 means one more kWh held in the battery at that time would save \$0.15.
 
 ---
 
