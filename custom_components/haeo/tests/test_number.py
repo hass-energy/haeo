@@ -267,6 +267,7 @@ async def test_mirror_entities_empty_without_policy_subentry(
         device_entry,
         runtime_data,
         horizon_manager,
+        "$",
     )
 
     assert mirrors == []
@@ -303,6 +304,7 @@ async def test_mirror_entities_empty_for_element_without_surfaced_hints(
         device_entry,
         runtime_data,
         horizon_manager,
+        "$",
     )
 
     assert mirrors == []
@@ -367,6 +369,7 @@ async def test_mirror_entities_skip_when_rule_does_not_match_element(
         device_entry,
         runtime_data,
         horizon_manager,
+        "$",
     )
 
     assert mirrors == []
@@ -420,6 +423,7 @@ async def test_mirror_entities_skip_when_policy_store_missing(
         device_entry,
         runtime_data,
         horizon_manager,
+        "$",
     )
 
     assert mirrors == []
@@ -476,6 +480,7 @@ async def test_mirror_entities_skip_when_surfaced_field_metadata_missing(
             device_entry,
             runtime_data,
             horizon_manager,
+            "$",
         )
 
     assert mirrors == []
@@ -538,6 +543,7 @@ async def test_mirror_entities_share_policy_store_for_battery_costs(
         device_entry,
         runtime_data,
         horizon_manager,
+        "$",
     )
 
     mirror_fields = {e._field_info.field_name for e in mirrors}

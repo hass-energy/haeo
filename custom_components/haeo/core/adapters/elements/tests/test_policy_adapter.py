@@ -1,7 +1,5 @@
 """Tests for the policy element adapter."""
 
-from typing import Any
-
 import numpy as np
 import pytest
 
@@ -66,7 +64,7 @@ from custom_components.haeo.core.schema.elements.policy import (
         ),
     ],
 )
-def test_extract_policy_rules(config: dict[str, Any], expected: list[dict[str, Any]]) -> None:
+def test_extract_policy_rules(config: PolicyConfigData, expected: list[dict[str, object]]) -> None:
     """Rules map to compile_policies input shape; empty endpoints become wildcards."""
     actual = extract_policy_rules(config)
     assert len(actual) == len(expected)

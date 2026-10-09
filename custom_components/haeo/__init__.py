@@ -332,6 +332,17 @@ def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
         _save_policy_rules(hass, entry, cleaned)
 
 
+def _raise_for_rejected_inputs(input_stores: InputStoreMap) -> None:
+    """Raise ConfigEntryNotReady with the reason if any input store rejected its source's value."""
+    for key, store in input_stores.items():
+        if (error := store.error) is not None:
+            raise ConfigEntryNotReady(
+                translation_domain=DOMAIN,
+                translation_key=error.translation_key,
+                translation_placeholders=input_error_placeholders(key, error, store),
+            )
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Set up Home Assistant Energy Optimizer from a config entry.
 
@@ -397,21 +408,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         lambda: hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)  # type: ignore[arg-type]
     )
 
-    # Wait for all input stores to have their data ready
-    # Each store signals via asyncio.Event when its data is loaded
+    # Wait for every input store to have data or to reject its source's value,
+    # so a rejected value is reported at once rather than after the timeout
     _LOGGER.debug("Waiting for %d input stores to be ready", len(runtime_data.input_stores))
     try:
         async with asyncio.timeout(INPUT_ENTITY_READY_TIMEOUT):
-            await asyncio.gather(*[store.wait_ready() for store in runtime_data.input_stores.values()])
+            await asyncio.gather(*[store.wait_settled() for store in runtime_data.input_stores.values()])
     except TimeoutError:
+        _raise_for_rejected_inputs(runtime_data.input_stores)
         not_ready = {key: store for key, store in runtime_data.input_stores.items() if not store.is_ready()}
-        for key, store in not_ready.items():
-            if (error := store.error) is not None:
-                raise ConfigEntryNotReady(
-                    translation_domain=DOMAIN,
-                    translation_key=error.translation_key,
-                    translation_placeholders=input_error_placeholders(key, error, store),
-                ) from None
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
             translation_key="input_entities_not_ready",
@@ -420,6 +425,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
                 "timeout": str(INPUT_ENTITY_READY_TIMEOUT),
             },
         ) from None
+    _raise_for_rejected_inputs(runtime_data.input_stores)
     _LOGGER.debug("All input entities ready")
 
     # Wrap coordinator operations to provide meaningful HA error messages

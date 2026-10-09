@@ -5,7 +5,6 @@ not as enum instances. The participant name resolution must handle both.
 """
 
 from types import MappingProxyType
-from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -29,7 +28,7 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     return entry
 
 
-def _add_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry, *, element_type: Any, title: str) -> None:
+def _add_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry, *, element_type: object, title: str) -> None:
     """Add a subentry with the given element_type value."""
     subentry = ConfigSubentry(
         data=MappingProxyType({CONF_ELEMENT_TYPE: element_type, CONF_NAME: title}),

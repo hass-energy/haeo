@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from types import MappingProxyType
-from typing import Any, TypedDict
+from typing import TypedDict
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_USER, ConfigSubentry
@@ -16,7 +16,7 @@ from custom_components.haeo.core.schema.elements.node import ELEMENT_TYPE
 from custom_components.haeo.flows.conftest import create_flow
 
 
-def _node_config(name: str) -> dict[str, Any]:
+def _node_config(name: str) -> dict[str, object]:
     """Build stored node config for a name."""
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, CONF_NAME: name}
 
@@ -25,14 +25,14 @@ class ValidFlowCase(TypedDict):
     """Test case for valid flow input."""
 
     description: str
-    config: dict[str, Any]
+    config: dict[str, object]
 
 
 class InvalidFlowCase(TypedDict):
     """Test case for invalid flow input."""
 
     description: str
-    config: dict[str, Any]
+    config: dict[str, object]
     error_field: str
     existing_name: str | None
 
@@ -113,7 +113,7 @@ async def test_reconfigure_step_updates_entry(
 
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
-    assert hub_entry.subentries[existing.subentry_id].data == _node_config(case["config"][CONF_NAME])
+    assert hub_entry.subentries[existing.subentry_id].data == _node_config(str(case["config"][CONF_NAME]))
 
 
 async def test_user_step_shows_only_name_field(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:

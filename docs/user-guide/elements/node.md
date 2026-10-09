@@ -18,6 +18,8 @@ Virtual balance points enforcing power conservation (Kirchhoff's law).
 | ----------------- | ------ | -------- | ------- | ------------------------------- |
 | **[Name](#name)** | String | Yes      | -       | Unique identifier for this node |
 
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
+
 ## Name
 
 Unique identifier for this node within your HAEO configuration.

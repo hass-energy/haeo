@@ -10,13 +10,13 @@ Run with:
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import json
 from pathlib import Path
-from typing import Any
 
+from homeassistant.util.json import JsonValueType
 import numpy as np
 import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
@@ -29,7 +29,9 @@ from custom_components.haeo.core.data.forecast_times import generate_forecast_ti
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model.network import CalibratedOptions, LexOptions, Network, SolveOptions
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema, ElementType
+from custom_components.haeo.core.schema.elements.policy import is_policy_config_data
 from custom_components.haeo.core.state import EntityState
+from custom_components.haeo.elements import is_element_config_schema
 
 # ---------------------------------------------------------------------------
 # Lightweight StateMachine backed by scenario inputs.json
@@ -42,9 +44,9 @@ class _EntityState:
 
     entity_id: str
     state: str
-    attributes: Mapping[str, Any]
+    attributes: Mapping[str, object]
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> dict[str, object]:
         return {
             "entity_id": self.entity_id,
             "state": self.state,
@@ -55,14 +57,19 @@ class _EntityState:
 class _ScenarioStateMachine:
     """StateMachine backed by a list of state dicts from inputs.json."""
 
-    def __init__(self, inputs: list[dict[str, Any]]) -> None:
+    def __init__(self, inputs: list[dict[str, JsonValueType]]) -> None:
         self._states: dict[str, _EntityState] = {}
         for entry in inputs:
             entity_id = entry["entity_id"]
+            state = entry["state"]
+            if not isinstance(entity_id, str) or not isinstance(state, str):
+                msg = f"Scenario input entry has non-string entity_id/state: {entry!r}"
+                raise TypeError(msg)
+            attributes = entry.get("attributes", {})
             self._states[entity_id] = _EntityState(
                 entity_id=entity_id,
-                state=entry["state"],
-                attributes=entry.get("attributes", {}),
+                state=state,
+                attributes=attributes if isinstance(attributes, dict) else {},
             )
 
     def get(self, entity_id: str) -> EntityState | None:
@@ -76,7 +83,7 @@ class _ScenarioStateMachine:
 
 def _load_scenario(
     scenario_path: Path,
-) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
+) -> tuple[dict[str, JsonValueType], list[dict[str, JsonValueType]], str]:
     """Load scenario files from disk."""
     with (scenario_path / "config.json").open() as f:
         config = json.load(f)
@@ -87,15 +94,53 @@ def _load_scenario(
     return config, inputs, environment["optimization_start_time"]
 
 
+def _as_tier_config(config: Mapping[str, JsonValueType]) -> dict[str, int | str | Mapping[str, int | str]]:
+    """Narrow a scenario config dict to the shape ``tiers_to_periods_seconds`` expects.
+
+    Scenario config is genuinely-JSON-shaped and typed as such, but the tier
+    config helper only cares about tier_N_count/tier_N_duration/horizon_preset
+    fields, which are always plain ints/strings (optionally nested one level).
+    """
+    result: dict[str, int | str | Mapping[str, int | str]] = {}
+    for key, value in config.items():
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, int | str):
+            result[key] = value
+        elif isinstance(value, dict):
+            nested: dict[str, int | str] = {
+                nested_key: nested_value
+                for nested_key, nested_value in value.items()
+                if isinstance(nested_value, int | str) and not isinstance(nested_value, bool)
+            }
+            result[key] = nested
+    return result
+
+
+def _participants_from_config(config: Mapping[str, JsonValueType]) -> dict[str, ElementConfigSchema]:
+    """Narrow a scenario config's participants section to ElementConfigSchema entries."""
+    participants_raw = config["participants"]
+    if not isinstance(participants_raw, dict):
+        msg = "Scenario config participants must be an object"
+        raise TypeError(msg)
+    participants: dict[str, ElementConfigSchema] = {}
+    for name, participant_config in participants_raw.items():
+        if not is_element_config_schema(participant_config):
+            msg = f"Scenario participant {name!r} is not a valid element config"
+            raise TypeError(msg)
+        participants[name] = participant_config
+    return participants
+
+
 def _build_network(
-    config: dict[str, Any],
+    config: dict[str, JsonValueType],
     sm: _ScenarioStateMachine,
     frozen_dt: datetime,
     options: SolveOptions | None = None,
 ) -> tuple[Network, dict[str, ElementUpdater]]:
     """Build a Network from scenario data without Home Assistant."""
-    participants: dict[str, ElementConfigSchema] = config["participants"]
-    periods_seconds = tiers_to_periods_seconds(config, start_time=frozen_dt)
+    participants = _participants_from_config(config)
+    periods_seconds = tiers_to_periods_seconds(_as_tier_config(config), start_time=frozen_dt)
     periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
     forecast_times = generate_forecast_timestamps(periods_seconds, start_time=frozen_dt.timestamp())
 
@@ -110,10 +155,7 @@ def _build_network(
 
     # Compile policy rules (same as coordinator/network.py)
     policy_rules = [
-        rule
-        for cfg in loaded_configs.values()
-        if cfg.get("element_type") == ElementType.POLICY
-        for rule in extract_policy_rules(cfg)
+        rule for cfg in loaded_configs.values() if is_policy_config_data(cfg) for rule in extract_policy_rules(cfg)
     ]
     compiled_elements = compile_policies(sorted_model_elements, policy_rules)
 
@@ -140,18 +182,18 @@ def _build_network(
 
 
 def _load_configs(
-    config: dict[str, Any],
+    config: dict[str, JsonValueType],
     sm: _ScenarioStateMachine,
     frozen_dt: datetime,
 ) -> dict[str, ElementConfigData]:
     """Load element configs resolved against scenario state machine."""
-    periods_seconds = tiers_to_periods_seconds(config, start_time=frozen_dt)
+    periods_seconds = tiers_to_periods_seconds(_as_tier_config(config), start_time=frozen_dt)
     forecast_times = generate_forecast_timestamps(periods_seconds, start_time=frozen_dt.timestamp())
-    return load_element_configs(config["participants"], sm, forecast_times)
+    return load_element_configs(_participants_from_config(config), sm, forecast_times)
 
 
 def _load_shifted_configs(
-    config: dict[str, Any],
+    config: dict[str, JsonValueType],
     sm: _ScenarioStateMachine,
     frozen_dt: datetime,
     shift_seconds: int,
@@ -159,9 +201,9 @@ def _load_shifted_configs(
     """Load element configs with time shifted forward."""
     shifted_epoch = frozen_dt.timestamp() + shift_seconds
     shifted_dt = datetime.fromtimestamp(shifted_epoch, tz=UTC)
-    shifted_periods = tiers_to_periods_seconds(config, start_time=shifted_dt)
+    shifted_periods = tiers_to_periods_seconds(_as_tier_config(config), start_time=shifted_dt)
     shifted_forecast_times = generate_forecast_timestamps(shifted_periods, start_time=shifted_epoch)
-    return load_element_configs(config["participants"], sm, shifted_forecast_times)
+    return load_element_configs(_participants_from_config(config), sm, shifted_forecast_times)
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +244,7 @@ _benchmark_params = [
 ]
 
 
-def _apply_marks(fn: Any) -> Any:
+def _apply_marks[F: Callable[..., None]](fn: F) -> F:
     for mark in reversed(_benchmark_params):
         fn = mark(fn)
     return fn
@@ -252,7 +294,7 @@ def test_time_shift(scenario_path: Path, options: SolveOptions, benchmark: Bench
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
 
-    periods_seconds = tiers_to_periods_seconds(config, start_time=frozen_dt)
+    periods_seconds = tiers_to_periods_seconds(_as_tier_config(config), start_time=frozen_dt)
     shift_seconds = periods_seconds[0]
     shifted_configs = _load_shifted_configs(config, sm, frozen_dt, shift_seconds)
 

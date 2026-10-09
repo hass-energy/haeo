@@ -1,6 +1,6 @@
 """Battery entity for electrical system modeling."""
 
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
@@ -61,7 +61,7 @@ class BatteryElementConfig(TypedDict):
 
     element_type: BatteryElementTypeName
     name: str
-    capacity: NDArray[np.floating[Any]] | float
+    capacity: NDArray[np.float64] | float
     initial_charge: float
     salvage_value: NotRequired[float]
     outbound_tags: NotRequired[set[int] | None]
@@ -83,10 +83,10 @@ class Battery(NetworkElement[BatteryOutputName]):
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         solver: Highs,
-        capacity: NDArray[np.floating[Any]] | float,
+        capacity: NDArray[np.float64] | float,
         initial_charge: float,
         salvage_value: float = 0.0,
         outbound_tags: set[int] | None = None,

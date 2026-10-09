@@ -5,7 +5,7 @@ When configured, its rules are compiled into PolicyPricing model elements
 that apply costs to tagged power flows on connection min-cuts.
 """
 
-from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
+from typing import Annotated, Final, Literal, NotRequired, TypedDict, TypeGuard
 
 import numpy as np
 from numpy.typing import NDArray
@@ -47,7 +47,7 @@ class PolicyRuleData(TypedDict):
     enabled: bool
     source: NotRequired[list[str]]
     target: NotRequired[list[str]]
-    price: NDArray[np.floating[Any]] | float | None
+    price: NDArray[np.float64] | float | None
 
 
 class PolicyConfigSchema(TypedDict):
@@ -80,6 +80,11 @@ class PolicyConfigData(TypedDict):
     rules: list[PolicyRuleData]
 
 
+def is_policy_config_data(config: object) -> TypeGuard[PolicyConfigData]:
+    """Narrow a loaded element config to policy data using the element_type discriminator."""
+    return isinstance(config, dict) and config.get("element_type") == ELEMENT_TYPE
+
+
 __all__ = [
     "CONF_ENABLED",
     "CONF_PRICE",
@@ -93,4 +98,5 @@ __all__ = [
     "PolicyConfigSchema",
     "PolicyRuleConfig",
     "PolicyRuleData",
+    "is_policy_config_data",
 ]

@@ -86,7 +86,9 @@ def test_build_version_entries_no_stable() -> None:
     rc = _release("v0.4.0rc1", is_rc=True)
     entries = build_version_entries([rc], None, "main", "dev", "latest")
     for entry in entries:
-        assert "latest" not in entry["aliases"]
+        aliases = entry["aliases"]
+        assert isinstance(aliases, list)
+        assert "latest" not in aliases
 
 
 def test_write_redirect(tmp_path: Path) -> None:

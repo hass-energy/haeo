@@ -1,7 +1,7 @@
 """Load sensor data from Home Assistant entities."""
 
 from collections.abc import Sequence
-from typing import Any, TypeGuard
+from typing import TypeGuard
 
 from custom_components.haeo.core.state import StateMachine
 
@@ -11,7 +11,7 @@ type ForecastSeries = Sequence[tuple[float, float]]
 type SensorPayload = float | ForecastSeries
 
 
-def is_sensor_sequence(value: Any) -> TypeGuard[Sequence[str]]:
+def is_sensor_sequence(value: object) -> TypeGuard[Sequence[str]]:
     """Return True when *value* is a sequence of sensor entity IDs."""
 
     return (
@@ -21,7 +21,7 @@ def is_sensor_sequence(value: Any) -> TypeGuard[Sequence[str]]:
     )
 
 
-def normalize_entity_ids(value: Any) -> list[str]:
+def normalize_entity_ids(value: object) -> list[str]:
     """Return a list of entity IDs extracted from *value*.
 
     Accepts either a single entity ID or any sequence of entity IDs. Raises

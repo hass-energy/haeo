@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 import numpy as np
 
@@ -111,7 +111,7 @@ class LoadAdapter:
         *,
         config: LoadConfigData,
         periods: Sequence[float] = (),
-        **_kwargs: Any,
+        **_kwargs: object,
     ) -> Mapping[LoadDeviceName, Mapping[LoadOutputName, OutputData]]:
         """Map model outputs to load-specific output names."""
         connection = model_outputs.get(f"{name}:connection")
