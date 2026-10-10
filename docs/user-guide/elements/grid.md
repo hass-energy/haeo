@@ -3,10 +3,6 @@
 The grid represents your connection to the electricity network.
 It allows bidirectional power flow: importing (buying) and exporting (selling) electricity.
 
-!!! note "Connection endpoints"
-
-    Grid elements appear in connection selectors only when Advanced Mode is enabled on your hub.
-
 ## Configuration
 
 Grid configuration uses a single-step flow where you enter the name and configure each input field.

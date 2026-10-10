@@ -48,7 +48,7 @@ class SolarAdapter:
 
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
-    connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
+    connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = True
     can_sink: bool = False
 

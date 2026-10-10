@@ -27,8 +27,16 @@ from custom_components.haeo.core.schema.elements.connection import (
     SECTION_ENDPOINTS,
     ConnectionConfigData,
 )
+from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
-from custom_components.haeo.core.schema.sections import SECTION_EFFICIENCY, SECTION_POWER_LIMITS, SECTION_PRICING
+from custom_components.haeo.core.schema.sections import (
+    CONF_CONNECTION,
+    CONF_PRICE_SOURCE_TARGET,
+    CONF_PRICE_TARGET_SOURCE,
+    SECTION_EFFICIENCY,
+    SECTION_POWER_LIMITS,
+    SECTION_PRICING,
+)
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
 
 
@@ -147,3 +155,49 @@ async def test_evaluate_network_connectivity_resolves_issue(
     issue_registry = ir.async_get(hass)
     issue = issue_registry.async_get_issue(DOMAIN, issue_id)
     assert issue is None
+
+
+async def test_evaluate_network_connectivity_flags_closed_endpoints(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """A connection made directly to a grid raises an issue that clears once removed."""
+
+    node_a: NodeConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.NODE,
+        CONF_NAME: "Node A",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+    }
+    grid: GridConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.GRID,
+        CONF_NAME: "Grid",
+        CONF_CONNECTION: as_connection_target("Node A"),
+        SECTION_PRICING: {CONF_PRICE_SOURCE_TARGET: 0.30, CONF_PRICE_TARGET_SOURCE: 0.10},
+        SECTION_POWER_LIMITS: {},
+    }
+    bypass: ConnectionConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.CONNECTION,
+        CONF_NAME: "Bypass",
+        SECTION_ENDPOINTS: {
+            CONF_SOURCE: as_connection_target("Grid"),
+            CONF_TARGET: as_connection_target("Node A"),
+        },
+        SECTION_POWER_LIMITS: {},
+        SECTION_PRICING: {},
+        SECTION_EFFICIENCY: {},
+    }
+    participants: dict[str, ElementConfigData] = {"Node A": node_a, "Grid": grid, "Bypass": bypass}
+    issue_id = f"invalid_connection_endpoints_{config_entry.entry_id}"
+    issue_registry = ir.async_get(hass)
+
+    await evaluate_network_connectivity(hass, config_entry, participants=participants)
+
+    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_key == "invalid_connection_endpoints"
+    assert issue.translation_placeholders == {"connection_summary": "Bypass → Grid"}
+
+    del participants["Bypass"]
+    await evaluate_network_connectivity(hass, config_entry, participants=participants)
+
+    assert issue_registry.async_get_issue(DOMAIN, issue_id) is None

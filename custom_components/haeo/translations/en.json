@@ -177,7 +177,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "battery_section": {
@@ -187,7 +191,7 @@
       "step": {
         "user": {
           "title": "Battery Section Configuration",
-          "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
+          "description": "Configure a single battery section with explicit capacity and initial charge. Battery sections have no implicit connections. Connections carry power in one direction only, so add one connection into the section to charge it and another connection out of it to discharge it.",
           "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" },
           "sections": {
             "common": { "data": { "name": "Battery Section Name" }, "name": "Common settings" },
@@ -225,6 +229,7 @@
       },
       "error": {
         "cannot_connect_to_self": "Cannot connect a device to itself",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
       },
@@ -259,7 +264,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "inverter": {
@@ -297,7 +306,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "junction": {
@@ -340,7 +353,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "network": {
@@ -442,7 +459,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
@@ -599,13 +620,17 @@
       "title": "Invalid configuration for {element_name}",
       "description": "Element {element_name} has an invalid configuration: {config_problem}\n\nTo fix this issue:\n1. Open the HAEO integration settings\n2. Navigate to the {element_name} element configuration\n3. Correct the configuration problem described above\n4. Save your changes and reload the integration"
     },
+    "invalid_connection_endpoints": {
+      "title": "Connections bypass an element's own limits and prices",
+      "description": "Some elements connect directly to an element that applies its own prices, forecasts, power limits, and efficiencies on its own connection. A connection made directly to it bypasses all of those, so the optimizer treats it as free, unlimited power.\n\nAffected connections (element → endpoint):\n{connection_summary}\n\nTo fix this issue:\n1. Open the HAEO integration configuration\n2. Reconfigure each affected element to connect to the junction or inverter that its endpoint is connected to\n3. Save your changes; this issue will clear automatically once no element connects directly to one of these endpoints"
+    },
     "missing_sensor": {
       "title": "Missing sensor data for {element_name}",
       "description": "The HAEO integration cannot find sensor data for element {element_name}. The sensor entity {sensor_entity_id} may not exist or may be unavailable.\n\nTo fix this issue:\n1. Check that the sensor entity exists in Home Assistant\n2. Verify the sensor is available and reporting data\n3. If the sensor was removed, reconfigure the element to use a different sensor\n4. If the sensor is temporarily unavailable, this issue will automatically dismiss when the sensor becomes available again"
     },
     "node_replaced_by_junction": {
       "title": "{element_name} is now a junction",
-      "description": "{element_name} was a node with its source or sink switch turned on or driven by an entity. A node like this produces or consumes unlimited power at no cost, which let the optimizer plan with power that does not exist.\n\n{element_name} is now a junction, which only passes power between the elements connected to it. Its source and sink switches have been removed.\n\nIf you need an element that produces or consumes power, use a grid, solar, or load element, or in advanced mode a node attached through a connection that limits and prices it. You can ignore this issue once you have read it."
+      "description": "{element_name} was a node with its source or sink switch turned on or driven by an entity. A node like this produces or consumes unlimited power at no cost, which let the optimizer plan with power that does not exist.\n\n{element_name} is now a junction, which only passes power between the elements connected to it. Its source and sink switches have been removed.\n\nIf power should be produced or consumed at {element_name}, connect an element that sets its own limits and prices to it. You can ignore this issue once you have read it."
     },
     "optimization_failure": {
       "title": "Optimization failed",

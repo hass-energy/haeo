@@ -37,7 +37,7 @@ class StorageChargeData(TypedDict):
     """Loaded storage values with required initial charge."""
 
     capacity: NDArray[np.float64]
-    initial_charge: NDArray[np.float64]
+    initial_charge: float
 
 
 class BatterySectionConfigSchema(CommonConfig):
@@ -56,8 +56,7 @@ class BatterySectionConfigSchema(CommonConfig):
                 ),
                 CONF_INITIAL_CHARGE: FieldHint(
                     output_type=OutputType.ENERGY,
-                    time_series=True,
-                    boundaries=True,
+                    time_series=False,
                     min_value=0.0,
                 ),
             }

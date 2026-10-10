@@ -10,9 +10,11 @@ this element creates a single battery section that must be connected manually vi
     This element is intended for advanced users who need direct control over battery modeling.
     Most users should use the standard [Battery](battery.md) element instead.
 
-!!! note "Connection endpoints"
+!!! warning "Two connections required"
 
-    Battery Section elements always appear in connection selectors regardless of Advanced Mode setting.
+    Connections carry power in one direction only, from source to target.
+    A Battery Section needs one connection with the section as its **target** to charge, and a second connection with the section as its **source** to discharge.
+    With only one connection, the section can only charge or only discharge.
 
 For mathematical details, see [Battery Section Modeling](../../modeling/device-layer/battery_section.md).
 
@@ -32,7 +34,8 @@ Unlike the standard Battery element, Battery Section does not create:
 - Internal node for power routing
 - Implicit connections to other elements
 
-You must manually create Connection elements to connect the Battery Section to your network.
+You must manually create Connection elements to connect the Battery Section to your network: one for each direction power should flow.
+Put the charge and discharge efficiencies and power limits on those connections, since the section itself has none.
 
 ## Configuration Fields
 
@@ -61,7 +64,8 @@ The optimizer uses this value to enforce state of charge constraints.
 Select a Home Assistant sensor that reports the initial energy stored in the battery in kWh.
 This represents the battery's state of charge at the start of the optimization window.
 
-The sensor should provide a single current value (not a forecast).
+HAEO reads the sensor's current value.
+Forecast attributes are ignored, because only the energy at the start of the window is used.
 
 ## Configuration Example
 
@@ -73,7 +77,12 @@ Basic battery section configuration:
 | **Capacity**       | sensor.battery_capacity |
 | **Initial Charge** | sensor.battery_energy   |
 
-After creating the Battery Section element, you must create Connection elements to connect it to other elements in your network (nodes, grids, etc.).
+After creating the Battery Section element, create two Connection elements between it and a junction or inverter:
+
+| Connection                    | Source            | Target            | Purpose     |
+| ----------------------------- | ----------------- | ----------------- | ----------- |
+| **Battery Section charge**    | Switchboard       | Battery Section 1 | Charging    |
+| **Battery Section discharge** | Battery Section 1 | Switchboard       | Discharging |
 
 ## Sensors Created
 
@@ -211,8 +220,9 @@ Battery Section is only available when Advanced Mode is enabled.
 
 **Problem**: Battery Section shows zero power even when connected.
 
-**Solution**: Verify that Connection elements are properly configured to connect the Battery Section to other elements (nodes, grids, etc.).
+**Solution**: Verify that Connection elements connect the Battery Section to a junction or inverter in both directions.
 Battery Section does not create implicit connections like the standard Battery element.
+If the section only charges or only discharges, the connection for the other direction is missing.
 
 ### Connection Errors
 

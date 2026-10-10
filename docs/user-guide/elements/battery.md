@@ -5,10 +5,6 @@ HAEO optimizes when to charge and discharge based on electricity prices, solar a
 
 Internally, HAEO represents batteries as a single storage element and applies SOC preferences via connection pricing. This provides flexible, economically-rational battery behavior without partitioning the battery model.
 
-!!! note "Connection endpoints"
-
-    Battery elements appear in connection selectors only when Advanced Mode is enabled on your hub.
-
 For mathematical details, see [Battery Modeling](../../modeling/device-layer/battery.md).
 
 ## Configuration
