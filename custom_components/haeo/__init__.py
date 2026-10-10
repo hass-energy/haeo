@@ -436,8 +436,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         # This must happen before the first refresh
         await coordinator.async_initialize()
 
-        # Trigger initial optimization before output platform setup
-        # This populates coordinator.data so sensor platform can create output entities
+        # Trigger initial optimization before output platform setup so the output
+        # sensors can be created with the platform. If it fails, the sensor platform
+        # adds them after the first successful optimization instead.
         # Use async_refresh() instead of async_config_entry_first_refresh() to avoid
         # retrying setup if optimization fails (e.g., missing sensor data)
         await coordinator.async_refresh()

@@ -1,5 +1,6 @@
 """Tests for the HAEO sensor platform."""
 
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 from types import MappingProxyType
@@ -10,7 +11,7 @@ from typing import Any, Literal  # noqa: TID251
 from unittest.mock import Mock
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import ConfigEntryState, ConfigSubentry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
@@ -808,3 +809,87 @@ def test_advanced_outputs_are_disabled_by_default(
     )
 
     assert sensor.entity_registry_enabled_default is enabled_default
+
+
+def _coordinator_without_data() -> tuple[Mock, list[Callable[[], None]]]:
+    """Return a coordinator whose first optimization failed, and its registered listeners."""
+    coordinator = _create_mock_coordinator()
+    coordinator.data = None
+    coordinator.last_update_success = False
+    listeners: list[Callable[[], None]] = []
+
+    def add_listener(update_callback: Callable[[], None]) -> Callable[[], None]:
+        listeners.append(update_callback)
+        return lambda: listeners.remove(update_callback)
+
+    coordinator.async_add_listener = add_listener
+    return coordinator, listeners
+
+
+def _status_outputs(network_key: str) -> dict[str, Any]:
+    return {
+        network_key: {
+            network_key: {
+                OUTPUT_NAME_OPTIMIZATION_STATUS: _make_output(
+                    type_=OutputType.STATUS,
+                    unit=None,
+                    state="success",
+                    forecast=None,
+                    entity_category=None,
+                    device_class=SensorDeviceClass.ENUM,
+                    state_class=None,
+                    options=("failed", "pending", "success"),
+                ),
+            },
+        },
+    }
+
+
+async def test_outputs_added_after_failed_first_optimization(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Without data at setup only the horizon is added, and outputs follow the first successful update once."""
+    coordinator, listeners = _coordinator_without_data()
+    config_entry.runtime_data = _create_mock_runtime_data(coordinator)
+    config_entry.mock_state(hass, ConfigEntryState.LOADED)
+    async_add_entities = Mock()
+
+    await async_setup_entry(hass, config_entry, async_add_entities)
+    (horizon_only,) = async_add_entities.call_args.args
+    assert [type(entity).__name__ for entity in horizon_only] == ["HaeoHorizonEntity"]
+
+    # A failed update adds nothing
+    for listener in list(listeners):
+        listener()
+    assert async_add_entities.call_count == 1
+
+    coordinator.data = _make_coordinator_data(_status_outputs(config_entry.title))
+    for _ in range(2):
+        for listener in list(listeners):
+            listener()
+
+    assert async_add_entities.call_count == 2
+    (outputs,) = async_add_entities.call_args.args
+    assert [sensor.translation_key for sensor in outputs] == [OUTPUT_NAME_OPTIMIZATION_STATUS]
+
+
+async def test_outputs_not_added_while_entry_unloads(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """An update that finishes while the entry is unloading adds no entities, and unloading removes the listener."""
+    coordinator, listeners = _coordinator_without_data()
+    config_entry.runtime_data = _create_mock_runtime_data(coordinator)
+    config_entry.mock_state(hass, ConfigEntryState.LOADED)
+    async_add_entities = Mock()
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    config_entry.mock_state(hass, ConfigEntryState.UNLOAD_IN_PROGRESS)
+    coordinator.data = _make_coordinator_data(_status_outputs(config_entry.title))
+    for listener in list(listeners):
+        listener()
+    assert async_add_entities.call_count == 1
+
+    await config_entry._async_process_on_unload(hass)
+    assert listeners == []

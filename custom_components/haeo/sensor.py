@@ -1,10 +1,9 @@
 """Sensor platform for Home Assistant Energy Optimizer integration."""
 
-from collections.abc import Callable
 import logging
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -62,59 +61,26 @@ async def async_setup_entry(
         device_entry=network_device_entry,
         horizon_manager=horizon_manager,
     )
-    # Output sensors can only be built once the coordinator has produced data. If the
-    # first optimisation after (re)load failed, data is still None here, so defer them
-    # to the first successful update rather than leaving the entry without outputs.
-    # DataUpdateCoordinator types `data` as non-optional, but it really is None until
-    # the first successful refresh, so this has to be a truthiness check.
-    if not coordinator.data:
-        async_add_entities([horizon_entity])
-        _LOGGER.debug(
-            "No optimization data yet for entry %s; deferring output sensors to the first successful update",
-            config_entry.entry_id,
-        )
-        _defer_output_sensors(hass, config_entry, coordinator, async_add_entities)
+    # Output sensors are built from the coordinator's outputs. If the first optimization
+    # after a load or reload failed there are none yet, so they are added on the first
+    # successful update instead.
+    if coordinator.data:
+        async_add_entities([horizon_entity, *_build_output_entities(hass, config_entry, coordinator)])
         return
 
-    async_add_entities([horizon_entity, *_build_output_entities(hass, config_entry, coordinator)])
-
-
-def _defer_output_sensors(
-    hass: HomeAssistant,
-    config_entry: ConfigEntry,
-    coordinator: HaeoDataUpdateCoordinator,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Add the output sensors once the coordinator first produces data.
-
-    The listener removes itself after a successful update so later refreshes do not
-    create duplicate entities.
-    """
-    remove_listener: Callable[[], None] | None = None
+    async_add_entities([horizon_entity])
+    added = False
 
     @callback
     def _add_when_ready() -> None:
-        nonlocal remove_listener
-
-        if not coordinator.data:
+        nonlocal added
+        # An update can finish while the entry is unloading, when entities must not be added
+        if added or not coordinator.data or config_entry.state is not ConfigEntryState.LOADED:
             return
-
-        if remove_listener is not None:
-            remove_listener()
-            remove_listener = None
-
-        _LOGGER.debug("Creating deferred output sensors for entry %s", config_entry.entry_id)
+        added = True
         async_add_entities(_build_output_entities(hass, config_entry, coordinator))
 
-    remove_listener = coordinator.async_add_listener(_add_when_ready)
-
-    @callback
-    def _cleanup() -> None:
-        """Drop the listener if the entry unloads before any successful update."""
-        if remove_listener is not None:
-            remove_listener()
-
-    config_entry.async_on_unload(_cleanup)
+    config_entry.async_on_unload(coordinator.async_add_listener(_add_when_ready))
 
 
 def _build_output_entities(
@@ -122,15 +88,11 @@ def _build_output_entities(
     config_entry: ConfigEntry,
     coordinator: HaeoDataUpdateCoordinator,
 ) -> list[SensorEntity]:
-    """Build one sensor per coordinator output, grouped by element."""
-    data = coordinator.data
-    if not data:
-        return []
-
+    """Build one sensor per output of the coordinator's latest data, grouped by element."""
     entities: list[SensorEntity] = []
     for subentry in config_entry.subentries.values():
         # Get all devices under this subentry (may be multiple, e.g., battery regions)
-        subentry_devices = data.outputs.get(subentry.title, {})
+        subentry_devices = coordinator.data.outputs.get(subentry.title, {})
 
         # Pass subentry data as translation placeholders (convert all values to strings)
         translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
