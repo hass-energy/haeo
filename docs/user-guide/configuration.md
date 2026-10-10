@@ -90,20 +90,20 @@ The template renders again every minute, but the forecast only changes at each q
     When you upgrade, a hub that used custom tiers switches to the 5-day preset, and a hub on a preset keeps it.
     To recreate a custom layout, build a sensor that lists your period boundaries and choose it as a **Forecast sensor**.
 
-#### Advanced Mode
+#### Expose raw model elements
 
-Advanced Mode is a hub-level setting that enables access to raw modeling elements for advanced users.
+**Expose raw model elements** is a hub-level setting that shows low-level model building blocks you connect manually.
 
-**When enabled**, Advanced Mode makes additional element types available that provide direct access to model layer components.
-These advanced elements require manual connection configuration and are intended for users who understand the underlying optimization model.
+**When enabled**, additional element types become available that provide direct access to model layer components.
+These raw model elements require manual connection configuration and are intended for deliberately building the optimization model yourself.
 
 **When disabled** (default), only standard elements are available.
 Standard elements provide automatic connections and optimized behavior suitable for most use cases.
 
-Most users should leave Advanced Mode disabled.
-Enable Advanced Mode only if you need direct control over the underlying model layer components.
+Most users should leave this setting off.
+Turn it on only if you are deliberately building the optimization model yourself.
 
-See the [elements overview](elements/index.md) for details on which elements require Advanced Mode.
+See the [elements overview](elements/index.md) for the raw model elements it exposes.
 
 Click **Submit** to create your hub.
 
@@ -163,7 +163,7 @@ HAEO provides element types for modeling different aspects of energy systems:
 energy storage, power generation, consumption, grid connections, and network topology.
 
 Most elements create automatic connections to simplify configuration.
-Some advanced elements provide direct access to model layer components and require manual connection setup.
+Some raw model elements provide direct access to model layer components and require manual connection setup.
 
 See the [elements overview](elements/index.md) for detailed configuration guides for each element type.
 
