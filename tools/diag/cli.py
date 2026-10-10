@@ -30,7 +30,13 @@ from tabulate import tabulate
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
 from custom_components.haeo.core.adapters.policy_compilation import CompiledPolicyRule, compile_policies
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements, is_element_type
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HUB_SECTION_COMMON
+from custom_components.haeo.core.const import (
+    CONF_ELEMENT_TYPE,
+    CONF_HORIZON,
+    CONF_NAME,
+    HORIZON_PRESET_DAYS,
+    HUB_SECTION_COMMON,
+)
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
@@ -1192,7 +1198,7 @@ Examples:
     parser.add_argument(
         "--preset",
         "-p",
-        choices=["2_days", "3_days", "5_days", "7_days"],
+        choices=list(HORIZON_PRESET_DAYS),
         help="Override horizon preset for tier alignment (use when diagnostics lacks preset)",
     )
     parser.add_argument(

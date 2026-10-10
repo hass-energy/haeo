@@ -146,17 +146,33 @@ async def test_options_flow_rejects_invalid_horizon_entity(hass: HomeAssistant) 
     assert entry.data[HUB_SECTION_COMMON][CONF_HORIZON] == as_horizon_preset_value(HORIZON_PRESET_5_DAYS)
 
 
-async def test_options_flow_rejects_own_horizon_sensor(hass: HomeAssistant) -> None:
-    """The hub's own horizon sensor cannot be chosen as its horizon."""
+@pytest.mark.parametrize("unique_key", [OUTPUT_NAME_HORIZON, "battery_power"], ids=["horizon_sensor", "output_sensor"])
+async def test_options_flow_rejects_this_hubs_sensors(hass: HomeAssistant, unique_key: str) -> None:
+    """A sensor belonging to the hub cannot set its horizon, because it is computed on that horizon."""
     entry = _hub_entry(hass, as_horizon_preset_value(HORIZON_PRESET_5_DAYS))
-    own_horizon = (
+    own_sensor = (
         er.async_get(hass)
-        .async_get_or_create("sensor", DOMAIN, f"{entry.entry_id}_{OUTPUT_NAME_HORIZON}", config_entry=entry)
+        .async_get_or_create("sensor", DOMAIN, f"{entry.entry_id}_{unique_key}", config_entry=entry)
         .entity_id
     )
-    _set_haeo_forecast_sensor(hass, own_horizon)
+    _set_haeo_forecast_sensor(hass, own_sensor)
 
-    result = await _submit(hass, entry, {"active_choice": "entity", "entity": own_horizon})
+    result = await _submit(hass, entry, {"active_choice": "entity", "entity": own_sensor})
 
     assert result["type"] == FlowResultType.FORM
-    assert result["errors"] == {CONF_HORIZON: "horizon_entity_is_own_horizon"}
+    assert result["errors"] == {CONF_HORIZON: "horizon_entity_from_this_hub"}
+
+
+async def test_options_flow_accepts_another_hubs_horizon_sensor(hass: HomeAssistant) -> None:
+    """Another hub's horizon sensor, whose forecast points carry only times, can set the horizon."""
+    entry = _hub_entry(hass, as_horizon_preset_value(HORIZON_PRESET_5_DAYS))
+    hass.states.async_set(
+        HORIZON_ENTITY_ID,
+        "2025-01-01T12:00:00+00:00",
+        {"forecast": [{"time": "2025-01-01T12:00:00+00:00"}, {"time": "2025-01-01T13:00:00+00:00"}]},
+    )
+
+    result = await _submit(hass, entry, {"active_choice": "entity", "entity": HORIZON_ENTITY_ID})
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert entry.data[HUB_SECTION_COMMON][CONF_HORIZON] == as_entity_value([HORIZON_ENTITY_ID])

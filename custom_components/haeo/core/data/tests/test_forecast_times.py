@@ -315,13 +315,9 @@ def test_preset_produces_exact_horizon_duration(preset: str) -> None:
             )
 
 
-def _forecast_state(forecast: object, unit: str = "kW") -> FakeEntityState:
-    """Return a forecast entity state with the given forecast attribute."""
-    return FakeEntityState(
-        entity_id="sensor.horizon",
-        state="0",
-        attributes={"forecast": forecast, "unit_of_measurement": unit},
-    )
+def _forecast_state(forecast: object) -> FakeEntityState:
+    """Return an entity state with the given forecast attribute."""
+    return FakeEntityState(entity_id="sensor.horizon", state="0", attributes={"forecast": forecast})
 
 
 @pytest.mark.parametrize(
@@ -344,6 +340,11 @@ def _forecast_state(forecast: object, unit: str = "kW") -> FakeEntityState:
             (1735732800.0, 1735733100.0),
             id="datetimes",
         ),
+        pytest.param(
+            [{"time": datetime(2025, 1, 1, 12, 0, tzinfo=UTC)}, {"time": datetime(2025, 1, 1, 13, 0, tzinfo=UTC)}],
+            (1735732800.0, 1735736400.0),
+            id="horizon_sensor_times_only",
+        ),
     ],
 )
 def test_forecast_boundaries_reads_forecast_times(forecast: object, expected: tuple[float, ...]) -> None:
@@ -356,13 +357,14 @@ def test_forecast_boundaries_reads_forecast_times(forecast: object, expected: tu
     [
         pytest.param(
             FakeEntityState(entity_id="sensor.horizon", state="0", attributes={}),
-            "does not provide a HAEO-format forecast",
+            "has no forecast of times",
             id="no_forecast",
         ),
+        pytest.param(_forecast_state("2025-01-01T12:00:00+00:00"), "has no forecast of times", id="string_forecast"),
         pytest.param(
-            _forecast_state([{"time": "2025-01-01T12:00:00+00:00", "value": 0}], unit=""),
-            "does not provide a HAEO-format forecast",
-            id="no_unit",
+            _forecast_state([{"time": "2025-01-01T12:00:00+00:00"}, {"value": 0}]),
+            "has no forecast of times",
+            id="point_without_time",
         ),
         pytest.param(
             _forecast_state([{"time": "2025-01-01T12:00:00+00:00", "value": 0}]),
@@ -392,7 +394,7 @@ def test_forecast_boundaries_reads_forecast_times(forecast: object, expected: tu
     ],
 )
 def test_forecast_boundaries_rejects_unusable_forecasts(state: FakeEntityState, match: str) -> None:
-    """A state without a usable HAEO-format forecast raises ValueError naming the entity."""
+    """A state without a usable forecast of times raises ValueError naming the entity."""
     with pytest.raises(ValueError, match=f"sensor.horizon .*{match}"):
         forecast_boundaries(state)
 

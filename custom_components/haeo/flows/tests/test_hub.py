@@ -73,7 +73,7 @@ async def test_config_error_translations_exist(hass: HomeAssistant) -> None:
     translations = await async_get_translations(hass, "en", "config", integrations=[DOMAIN], config_flow=True)
     assert f"component.{DOMAIN}.config.error.name_exists" in translations
     assert f"component.{DOMAIN}.config.error.horizon_entity_invalid" in translations
-    assert f"component.{DOMAIN}.config.error.horizon_entity_is_own_horizon" in translations
+    assert f"component.{DOMAIN}.config.error.horizon_entity_from_this_hub" in translations
 
 
 async def test_config_abort_translations_exist(hass: HomeAssistant) -> None:

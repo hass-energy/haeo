@@ -1,12 +1,14 @@
 """Forecast time generation utilities."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from itertools import pairwise
 
 from custom_components.haeo.core.const import HORIZON_PRESET_DAYS
-from custom_components.haeo.core.data.loader.extractors import haeo as haeo_extractor
-from custom_components.haeo.core.data.loader.extractors.utils import parse_datetime_to_timestamp
+from custom_components.haeo.core.data.loader.extractors.utils import (
+    is_parsable_to_datetime,
+    parse_datetime_to_timestamp,
+)
 from custom_components.haeo.core.state import EntityState
 
 # A horizon needs a start and an end boundary
@@ -254,23 +256,28 @@ def preset_periods_seconds(preset: str, start_time: datetime | None = None) -> l
 
 
 def forecast_boundaries(state: EntityState) -> tuple[float, ...]:
-    """Return the period boundaries given by a HAEO-format forecast entity.
+    """Return the period boundaries listed in an entity's ``forecast`` attribute.
 
-    Each forecast point's time is a boundary, so a forecast with n + 1 points
-    describes n periods. Values are ignored.
+    The attribute is a list of points whose ``time`` is a period boundary, so
+    n + 1 points describe n periods. This is the forecast HAEO's own horizon
+    sensor publishes. Any other keys in a point are ignored.
 
     Raises:
-        ValueError: If the state is not a HAEO-format forecast, has fewer than
-            two distinct times, or its times are not increasing.
+        ValueError: If the entity has no forecast of times, or fewer than two
+            increasing times.
 
     """
-    entity_id = state.entity_id
-    if not haeo_extractor.Parser.detect(state):
-        msg = f"{entity_id} does not provide a HAEO-format forecast"
+    forecast = state.attributes.get("forecast")
+    if (
+        not isinstance(forecast, Sequence)
+        or isinstance(forecast, str)
+        or not all(isinstance(point, Mapping) and is_parsable_to_datetime(point.get("time")) for point in forecast)
+    ):
+        msg = f"{state.entity_id} has no forecast of times"
         raise ValueError(msg)
-    boundaries = tuple(float(parse_datetime_to_timestamp(point["time"])) for point in state.attributes["forecast"])
+    boundaries = tuple(float(parse_datetime_to_timestamp(point["time"])) for point in forecast)
     if len(boundaries) < _MIN_BOUNDARIES or any(end <= start for start, end in pairwise(boundaries)):
-        msg = f"{entity_id} forecast needs at least two increasing times"
+        msg = f"{state.entity_id} forecast needs at least two increasing times"
         raise ValueError(msg)
     return boundaries
 

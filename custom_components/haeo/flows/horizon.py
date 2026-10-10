@@ -17,7 +17,6 @@ from homeassistant.helpers.selector import (
 )
 import voluptuous as vol
 
-from custom_components.haeo.const import DOMAIN, OUTPUT_NAME_HORIZON
 from custom_components.haeo.core.const import CONF_HORIZON, HORIZON_PRESET_5_DAYS, HORIZON_PRESET_DAYS
 from custom_components.haeo.core.data.forecast_times import forecast_boundaries
 from custom_components.haeo.core.schema.entity_value import as_entity_value
@@ -78,16 +77,16 @@ def horizon_field(current: HorizonValue | None = None) -> tuple[vol.Required, Ho
 def validate_horizon(hass: HomeAssistant, horizon: HorizonValue, errors: dict[str, str], entry_id: str | None) -> None:
     """Add an error when a horizon entity cannot provide the horizon.
 
-    The entity must currently report a HAEO-format forecast, and cannot be the
-    hub's own horizon sensor, which reports the horizon it is given.
+    The entity must currently report a forecast of at least two increasing
+    times. It cannot belong to this hub, because the hub's sensors are
+    computed on its horizon.
     """
     if is_horizon_preset_value(horizon):
         return
     entity_id = horizon["value"][0]
-    if entry_id is not None and entity_id == er.async_get(hass).async_get_entity_id(
-        "sensor", DOMAIN, f"{entry_id}_{OUTPUT_NAME_HORIZON}"
-    ):
-        errors[CONF_HORIZON] = "horizon_entity_is_own_horizon"
+    registry_entry = er.async_get(hass).async_get(entity_id)
+    if entry_id is not None and registry_entry is not None and registry_entry.config_entry_id == entry_id:
+        errors[CONF_HORIZON] = "horizon_entity_from_this_hub"
         return
     state = hass.states.get(entity_id)
     if state is None:

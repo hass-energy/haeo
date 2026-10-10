@@ -50,14 +50,15 @@ Distant periods can use coarser resolution since forecasts become less reliable 
 HAEO uses [forecast cycling](forecasts-and-sensors.md#forecast-coverage-and-cycling) to extend partial forecast data across the full horizon.
 A 24-hour solar forecast cycles to cover longer horizons with time-of-day alignment preserved.
 
-**Forecast sensor** takes the horizon from a sensor with a HAEO-format `forecast` attribute, the [forecast format](forecasts-and-sensors.md#creating-custom-forecast-sensors) HAEO's own sensors publish.
-Use it when you want a period layout the presets do not offer.
-The time of each forecast point is a period boundary, so a forecast with 25 points describes 24 periods.
-HAEO ignores the values.
-The horizon updates whenever the sensor changes.
+**Forecast sensor** takes the horizon from a sensor whose `forecast` attribute lists the period boundaries.
+Use it when you want a period layout the presets do not offer, or to plan two hubs on the same horizon.
+The attribute is a list of points, and the `time` of each point is a period boundary, so a forecast with 25 points describes 24 periods.
+Any other keys in a point, such as `value`, are ignored.
+Another hub's horizon sensor publishes exactly this format.
+The horizon updates whenever the sensor's forecast times change.
 
-The setup and options forms reject a sensor that does not report a HAEO-format forecast with at least two increasing times.
-They also reject the hub's own horizon sensor.
+The setup and options forms reject a sensor that does not report at least two increasing times.
+They also reject the hub's own sensors, because those are calculated on its horizon.
 If the sensor is not available when Home Assistant starts, HAEO retries setting up the hub until it is.
 If the sensor later stops reporting a usable forecast, HAEO keeps planning with the last horizon it read and logs a warning.
 
@@ -67,7 +68,6 @@ For example, this [template sensor](https://www.home-assistant.io/integrations/t
 template:
   - sensor:
       - name: Planning horizon
-        unit_of_measurement: h
         state: '48'
         attributes:
           forecast: >-
@@ -76,7 +76,7 @@ template:
             {% set ns = namespace(points=[]) %}
             {% for i in range(4 * 48 + 1) %}
             {% set time = (start + timedelta(minutes=15 * i)).isoformat() %}
-            {% set ns.points = ns.points + [{"time": time, "value": 0}] %}
+            {% set ns.points = ns.points + [{"time": time}] %}
             {% endfor %}
             {{ ns.points }}
 ```

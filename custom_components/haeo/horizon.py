@@ -75,7 +75,8 @@ class HorizonManager:
         # Current forecast timestamps (cached)
         self._forecast_timestamps: tuple[float, ...] = ()
 
-        if not self._update_timestamps():
+        self._update_timestamps()
+        if not self._forecast_timestamps:
             raise ConfigEntryNotReady(
                 translation_domain=DOMAIN,
                 translation_key="horizon_entity_not_ready",
@@ -83,7 +84,7 @@ class HorizonManager:
             )
 
     def _update_timestamps(self) -> bool:
-        """Update the cached forecast timestamps, returning whether a horizon is available.
+        """Update the cached forecast timestamps, returning whether they changed.
 
         An entity horizon whose forecast cannot be read keeps the previous horizon.
         """
@@ -94,19 +95,22 @@ class HorizonManager:
             start_ts = floor_timestamp(now.timestamp(), self._smallest_period)
             start_dt = datetime.fromtimestamp(start_ts, tz=now.tzinfo)
             self._periods_seconds = preset_periods_seconds(preset, start_time=start_dt)
+            previous = self._forecast_timestamps
             self._forecast_timestamps = generate_forecast_timestamps(self._periods_seconds, start_ts)
-            return True
+            return self._forecast_timestamps != previous
 
         entity_id = self._horizon["value"][0]
         state = self._hass.states.get(entity_id)
         if state is None:
             _LOGGER.warning("Keeping the current horizon because %s is not available", entity_id)
-            return bool(self._forecast_timestamps)
+            return False
         try:
             boundaries = forecast_boundaries(state)
         except ValueError as err:
             _LOGGER.warning("Keeping the current horizon: %s", err)
-            return bool(self._forecast_timestamps)
+            return False
+        if boundaries == self._forecast_timestamps:
+            return False
         self._forecast_timestamps = boundaries
         self._periods_seconds = periods_seconds_from_boundaries(boundaries)
         self._smallest_period = min(self._periods_seconds)
@@ -162,8 +166,10 @@ class HorizonManager:
         """Schedule the next horizon update.
 
         A preset horizon updates at the next period boundary, and an entity
-        horizon whenever the entity changes.
+        horizon whenever the entity changes. Any update already scheduled is
+        cancelled first, so resuming never leaves two running.
         """
+        self.pause()
         if not is_horizon_preset_value(self._horizon):
             self._unsub_update = async_track_state_change_event(
                 self._hass, self._horizon["value"][0], self._async_entity_update
@@ -200,10 +206,10 @@ class HorizonManager:
 
     @callback
     def _async_entity_update(self, _event: Event[EventStateChangedData]) -> None:
-        """Handle a change to the horizon entity."""
-        self._update_timestamps()
-        for subscriber in self._subscribers:
-            subscriber()
+        """Handle a change to the horizon entity, notifying subscribers if its boundaries changed."""
+        if self._update_timestamps():
+            for subscriber in self._subscribers:
+                subscriber()
 
     def subscribe(self, callback_fn: Callable[[], None]) -> Callable[[], None]:
         """Subscribe to horizon changes.

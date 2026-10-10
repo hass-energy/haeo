@@ -54,11 +54,12 @@ Installations with UTC offsets that include half-hour or quarter-hour components
 
 ### Entity mode
 
-An entity horizon reads its boundaries from a sensor with a HAEO-format `forecast` attribute.
-`forecast_boundaries()` treats the time of each forecast point as a period boundary and ignores the values, so n + 1 points define n periods.
-It raises `ValueError` when the state is not a HAEO-format forecast or has fewer than two increasing times.
+An entity horizon reads its boundaries from a sensor's `forecast` attribute, in the same format the [horizon sensor](#horizon-sensor) publishes.
+`forecast_boundaries()` treats the `time` of each forecast point as a period boundary and ignores any other keys, so n + 1 points define n periods.
+It raises `ValueError` when the state has no forecast of times or fewer than two increasing times.
 
-The hub setup and options flows run the same check through `validate_horizon()` in `custom_components/haeo/flows/horizon.py`, and also reject the hub's own horizon sensor, which only reflects the horizon it is given.
+The hub setup and options flows run the same check through `validate_horizon()` in `custom_components/haeo/flows/horizon.py`, and also reject any entity that belongs to the hub, because its sensors are calculated on its horizon.
+The HorizonManager notifies subscribers only when the forecast times change, so state or attribute updates that keep the same times do not trigger an optimization.
 
 If the sensor does not provide a usable forecast when the HorizonManager is created, its constructor raises `ConfigEntryNotReady` so Home Assistant retries the hub setup.
 If the sensor later becomes unavailable or stops reporting a usable forecast, the HorizonManager keeps the previous horizon and logs a warning.

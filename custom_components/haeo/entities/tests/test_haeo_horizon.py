@@ -42,11 +42,11 @@ HORIZON_BOUNDARIES = (HORIZON_START, HORIZON_START + 300, HORIZON_START + 600, H
 # --- Fixtures ---
 
 
-def _set_horizon_entity(hass: HomeAssistant, boundaries: tuple[float, ...]) -> None:
-    """Set the horizon entity to a HAEO-format forecast whose times are the given boundaries."""
+def _set_horizon_entity(hass: HomeAssistant, boundaries: tuple[float, ...], state: str = "0") -> None:
+    """Set the horizon entity to a forecast whose times are the given boundaries."""
     hass.states.async_set(
         HORIZON_ENTITY_ID,
-        "0",
+        state,
         {
             "unit_of_measurement": "kW",
             "forecast": [
@@ -381,9 +381,11 @@ async def test_horizon_manager_invalid_entity_update_keeps_horizon(
     config_entry: MockConfigEntry,
     attributes: dict[str, object] | None,
 ) -> None:
-    """An entity update without a usable forecast keeps the previous horizon."""
+    """An entity update without a usable forecast keeps the previous horizon without notifying subscribers."""
     manager = HorizonManager(hass, config_entry)
     manager.start()
+    subscriber = Mock()
+    manager.subscribe(subscriber)
 
     if attributes is None:
         hass.states.async_remove(HORIZON_ENTITY_ID)
@@ -393,8 +395,48 @@ async def test_horizon_manager_invalid_entity_update_keeps_horizon(
 
     assert manager.get_forecast_timestamps() == HORIZON_BOUNDARIES
     assert manager.periods_seconds == [300, 300, 900]
+    subscriber.assert_not_called()
 
     manager.stop()
+
+
+async def test_horizon_manager_entity_change_with_same_boundaries_does_not_notify(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """An entity change that leaves the forecast times unchanged does not notify subscribers."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+    subscriber = Mock()
+    manager.subscribe(subscriber)
+
+    _set_horizon_entity(hass, HORIZON_BOUNDARIES, state="1")
+    await hass.async_block_till_done()
+
+    subscriber.assert_not_called()
+
+    manager.stop()
+
+
+async def test_horizon_manager_resume_after_start_keeps_one_listener(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Resuming a started manager replaces its entity listener, so changes notify once and stop ends them."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+    manager.resume()
+    subscriber = Mock()
+    manager.subscribe(subscriber)
+
+    _set_horizon_entity(hass, (HORIZON_START + 60, HORIZON_START + 120))
+    await hass.async_block_till_done()
+    subscriber.assert_called_once()
+
+    manager.stop()
+    _set_horizon_entity(hass, (HORIZON_START + 120, HORIZON_START + 180))
+    await hass.async_block_till_done()
+    assert manager.get_forecast_timestamps() == (HORIZON_START + 60, HORIZON_START + 120)
 
 
 @pytest.mark.parametrize("entity_attributes", [None, {}], ids=["missing", "no_forecast"])
