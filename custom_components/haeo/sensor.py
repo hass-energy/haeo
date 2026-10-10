@@ -1,14 +1,22 @@
 """Sensor platform for Home Assistant Energy Optimizer integration."""
 
+from collections.abc import Mapping
 import logging
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
+from custom_components.haeo.core.schema import (
+    is_connection_target,
+    is_constant_value,
+    is_entity_value,
+    is_none_value,
+    is_schema_value,
+)
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.device import (
     build_device_identifier,
@@ -21,6 +29,38 @@ _LOGGER = logging.getLogger(__name__)
 
 # Sensors are read-only and use coordinator, so unlimited parallel updates is safe
 PARALLEL_UPDATES = 0
+
+
+def _format_placeholder(value: object) -> str:
+    """Render a subentry value as a translation placeholder string."""
+    if is_entity_value(value):
+        return ", ".join(value["value"])
+    if is_constant_value(value):
+        return str(value["value"])
+    if is_none_value(value):
+        return ""
+    if is_connection_target(value):
+        return value["value"]
+    return str(value)
+
+
+def _translation_placeholders(subentry: ConfigSubentry) -> dict[str, str]:
+    """Build translation placeholders from subentry data.
+
+    Section values (e.g. a connection's ``endpoints``) are flattened so their
+    fields (``source``, ``target``) are available to translated names. Home
+    Assistant raises on a missing placeholder, so an unflattened section drops
+    the entity entirely.
+    """
+    placeholders: dict[str, str] = {}
+    for key, value in subentry.data.items():
+        if isinstance(value, Mapping) and not is_schema_value(value) and not is_connection_target(value):
+            for nested_key, nested_value in value.items():
+                placeholders.setdefault(nested_key, _format_placeholder(nested_value))
+            continue
+        placeholders[key] = _format_placeholder(value)
+    placeholders.setdefault("name", subentry.title)
+    return placeholders
 
 
 async def async_setup_entry(
@@ -68,8 +108,8 @@ async def async_setup_entry(
             # Get all devices under this subentry (may be multiple, e.g., battery regions)
             subentry_devices = coordinator.data.outputs.get(subentry.title, {})
 
-            # Pass subentry data as translation placeholders (convert all values to strings)
-            translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
+            # Flatten sections so nested fields such as endpoints.source resolve
+            translation_placeholders = _translation_placeholders(subentry)
 
             for device_name, device_outputs in subentry_devices.items():
                 # Get or create the device using centralized device creation
