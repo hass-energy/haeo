@@ -178,7 +178,7 @@
         }
       },
       "error": {
-        "invalid_endpoint": "Grid, battery, solar, and load elements cannot be connected to directly. Choose the junction or inverter they are connected to.",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
       },
@@ -229,7 +229,7 @@
       },
       "error": {
         "cannot_connect_to_self": "Cannot connect a device to itself",
-        "invalid_endpoint": "Grid, battery, solar, and load elements cannot be connected to directly. Choose the junction or inverter they are connected to.",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
       },
@@ -265,7 +265,7 @@
         }
       },
       "error": {
-        "invalid_endpoint": "Grid, battery, solar, and load elements cannot be connected to directly. Choose the junction or inverter they are connected to.",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
       },
@@ -307,7 +307,7 @@
         }
       },
       "error": {
-        "invalid_endpoint": "Grid, battery, solar, and load elements cannot be connected to directly. Choose the junction or inverter they are connected to.",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
       },
@@ -354,7 +354,7 @@
         }
       },
       "error": {
-        "invalid_endpoint": "Grid, battery, solar, and load elements cannot be connected to directly. Choose the junction or inverter they are connected to.",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
       },
@@ -460,7 +460,7 @@
         }
       },
       "error": {
-        "invalid_endpoint": "Grid, battery, solar, and load elements cannot be connected to directly. Choose the junction or inverter they are connected to.",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
       },
@@ -621,8 +621,8 @@
       "description": "Element {element_name} has an invalid configuration: {config_problem}\n\nTo fix this issue:\n1. Open the HAEO integration settings\n2. Navigate to the {element_name} element configuration\n3. Correct the configuration problem described above\n4. Save your changes and reload the integration"
     },
     "invalid_connection_endpoints": {
-      "title": "Elements connected directly to a grid, solar, load, or battery",
-      "description": "Some elements connect directly to a grid, solar, load, or battery element. A connection made directly to one of these elements bypasses its own prices, forecasts, power limits, and efficiencies, so the optimizer treats it as free, unlimited power.\n\nAffected connections (element → endpoint):\n{connection_summary}\n\nTo fix this issue:\n1. Open the HAEO integration configuration\n2. Reconfigure each affected element to connect to the junction or inverter that the endpoint element is connected to\n3. Save your changes; this issue will clear automatically once no element connects directly to a grid, solar, load, or battery"
+      "title": "Connections bypass an element's own limits and prices",
+      "description": "Some elements connect directly to an element that applies its own prices, forecasts, power limits, and efficiencies on its own connection. A connection made directly to it bypasses all of those, so the optimizer treats it as free, unlimited power.\n\nAffected connections (element → endpoint):\n{connection_summary}\n\nTo fix this issue:\n1. Open the HAEO integration configuration\n2. Reconfigure each affected element to connect to the junction or inverter that its endpoint is connected to\n3. Save your changes; this issue will clear automatically once no element connects directly to one of these endpoints"
     },
     "missing_sensor": {
       "title": "Missing sensor data for {element_name}",
@@ -630,7 +630,7 @@
     },
     "node_replaced_by_junction": {
       "title": "{element_name} is now a junction",
-      "description": "{element_name} was a node with its source or sink switch turned on or driven by an entity. A node like this produces or consumes unlimited power at no cost, which let the optimizer plan with power that does not exist.\n\n{element_name} is now a junction, which only passes power between the elements connected to it. Its source and sink switches have been removed.\n\nIf you need an element that produces or consumes power, use a grid, solar, or load element, or in advanced mode a node attached through a connection that limits and prices it. You can ignore this issue once you have read it."
+      "description": "{element_name} was a node with its source or sink switch turned on or driven by an entity. A node like this produces or consumes unlimited power at no cost, which let the optimizer plan with power that does not exist.\n\n{element_name} is now a junction, which only passes power between the elements connected to it. Its source and sink switches have been removed.\n\nIf power should be produced or consumed at {element_name}, connect an element that sets its own limits and prices to it. You can ignore this issue once you have read it."
     },
     "optimization_failure": {
       "title": "Optimization failed",
