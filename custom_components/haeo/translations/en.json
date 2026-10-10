@@ -177,7 +177,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "Grid, battery, solar, and load elements cannot be connected to directly. Choose the junction or inverter they are connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "battery_section": {
@@ -225,6 +229,7 @@
       },
       "error": {
         "cannot_connect_to_self": "Cannot connect a device to itself",
+        "invalid_endpoint": "Grid, battery, solar, and load elements cannot be connected to directly. Choose the junction or inverter they are connected to.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
       },
@@ -259,7 +264,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "Grid, battery, solar, and load elements cannot be connected to directly. Choose the junction or inverter they are connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "inverter": {
@@ -297,7 +306,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "Grid, battery, solar, and load elements cannot be connected to directly. Choose the junction or inverter they are connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "junction": {
@@ -340,7 +353,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "Grid, battery, solar, and load elements cannot be connected to directly. Choose the junction or inverter they are connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "network": {
@@ -442,7 +459,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "Grid, battery, solar, and load elements cannot be connected to directly. Choose the junction or inverter they are connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },

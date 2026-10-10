@@ -81,14 +81,14 @@ async def test_flow_source_equals_target_error(hass: HomeAssistant, hub_entry: M
 
 async def test_reconfigure_source_equals_target_error(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     """Connection reconfigure should error when source equals target."""
-    add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
-    add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Node1", node.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Node2", node.ELEMENT_TYPE)
 
     existing_config = _wrap_config(
         {
             CONF_NAME: "Existing Connection",
-            CONF_SOURCE: "Battery1",
-            CONF_TARGET: "Grid1",
+            CONF_SOURCE: "Node1",
+            CONF_TARGET: "Node2",
         }
     )
     existing_subentry = ConfigSubentry(
@@ -107,13 +107,37 @@ async def test_reconfigure_source_equals_target_error(hass: HomeAssistant, hub_e
     result = await flow.async_step_reconfigure(
         user_input={
             CONF_NAME: "Existing Connection",
-            CONF_SOURCE: "Battery1",
-            CONF_TARGET: "Battery1",
+            CONF_SOURCE: "Node1",
+            CONF_TARGET: "Node1",
         }
     )
 
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_TARGET: "cannot_connect_to_self"}
+
+
+async def test_reconfigure_rejects_saved_never_endpoint(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
+    """A saved connection to a grid is still shown, but submitting it is rejected."""
+    add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Node1", node.ELEMENT_TYPE)
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(_wrap_config({CONF_NAME: "Bypass", CONF_SOURCE: "Grid1", CONF_TARGET: "Node1"})),
+        subentry_type=ELEMENT_TYPE,
+        title="Bypass",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    result = await flow.async_step_reconfigure(
+        user_input={CONF_NAME: "Bypass", CONF_SOURCE: "Grid1", CONF_TARGET: "Node1"}
+    )
+
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("errors") == {CONF_SOURCE: "invalid_endpoint"}
 
 
 def test_build_config_normalizes_endpoints(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -214,8 +238,8 @@ async def test_user_step_with_constant_creates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Submitting with constant values should create entry directly."""
-    add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
-    add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Node1", node.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Node2", node.ELEMENT_TYPE)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.async_create_entry = Mock(
@@ -228,8 +252,8 @@ async def test_user_step_with_constant_creates_entry(
 
     user_input = {
         CONF_NAME: "Test Connection",
-        CONF_SOURCE: "Battery1",
-        CONF_TARGET: "Grid1",
+        CONF_SOURCE: "Node1",
+        CONF_TARGET: "Node2",
         CONF_MAX_POWER_SOURCE_TARGET: 10.0,
     }
     result = await flow.async_step_user(user_input=user_input)
@@ -245,8 +269,8 @@ async def test_user_step_with_entity_creates_entry(
     hub_entry: MockConfigEntry,
 ) -> None:
     """Submitting with entity selections should create entry with entity IDs."""
-    add_participant(hass, hub_entry, "Battery1", battery.ELEMENT_TYPE)
-    add_participant(hass, hub_entry, "Grid1", grid.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Node1", node.ELEMENT_TYPE)
+    add_participant(hass, hub_entry, "Node2", node.ELEMENT_TYPE)
 
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
     flow.async_create_entry = Mock(
@@ -259,8 +283,8 @@ async def test_user_step_with_entity_creates_entry(
 
     user_input = {
         CONF_NAME: "Test Connection",
-        CONF_SOURCE: "Battery1",
-        CONF_TARGET: "Grid1",
+        CONF_SOURCE: "Node1",
+        CONF_TARGET: "Node2",
         CONF_MAX_POWER_SOURCE_TARGET: ["sensor.power_st"],
     }
     result = await flow.async_step_user(user_input=user_input)
