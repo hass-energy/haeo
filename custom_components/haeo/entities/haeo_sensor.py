@@ -6,9 +6,8 @@ from homeassistant.core import callback
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.const import CONF_RECORD_FORECASTS, OUTPUT_NAME_OPTIMIZATION_STATUS
+from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.coordinator import CoordinatorOutput, ForecastPoint, HaeoDataUpdateCoordinator
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.elements import ElementDeviceName, ElementOutputName
@@ -111,12 +110,6 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
                 if output_data.forecast:
                     attributes["forecast"] = self._scale_percentage_forecast(output_data.unit, output_data.forecast)
 
-        if self._output_name == OUTPUT_NAME_OPTIMIZATION_STATUS:
-            # UTC keeps last_run stable across CI machines and HA time zones (snapshot tests).
-            attributes["last_run"] = dt_util.as_utc(self.coordinator.data.completed_at).isoformat()
-            # Network topology for the frontend card (not recorded to keep DB clean)
-            attributes["topology"] = self.coordinator.topology
-
         self._attr_native_value = native_value
         self._attr_extra_state_attributes = attributes
         super()._handle_coordinator_update()
@@ -129,15 +122,9 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
 
     def _apply_recorder_attribute_filtering(self) -> None:
         """Apply recorder filtering to this entity's runtime state info."""
-        unrecorded: frozenset[str] = frozenset()
-        # Topology is always excluded from recording
-        if self._output_name == OUTPUT_NAME_OPTIMIZATION_STATUS:
-            unrecorded = unrecorded | TOPOLOGY_UNRECORDED_ATTRIBUTES
         # Forecasts excluded unless explicitly opted in
         if not self._record_forecasts:
-            unrecorded = unrecorded | FORECAST_UNRECORDED_ATTRIBUTES
-        if unrecorded:
-            self._state_info["unrecorded_attributes"] = unrecorded
+            self._state_info["unrecorded_attributes"] = FORECAST_UNRECORDED_ATTRIBUTES
 
     def _apply_output(self, output: CoordinatorOutput) -> None:
         """Apply device class, options, and unit metadata for an output."""

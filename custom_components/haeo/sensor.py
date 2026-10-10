@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoRuntimeData
-from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
+from custom_components.haeo.const import ELEMENT_TYPE_NETWORK, OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.device import (
@@ -17,6 +17,7 @@ from custom_components.haeo.entities.device import (
     get_or_create_network_device,
 )
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
+from custom_components.haeo.entities.haeo_status import HaeoStatusSensor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,14 +62,23 @@ async def async_setup_entry(
         device_entry=network_device_entry,
         horizon_manager=horizon_manager,
     )
+    status_entity = HaeoStatusSensor(
+        coordinator,
+        device_entry=network_device_entry,
+        network_subentry=network_subentry,
+        unique_id=(
+            f"{build_device_identifier(config_entry, network_subentry, ELEMENT_TYPE_NETWORK)[1]}"
+            f"_{OUTPUT_NAME_OPTIMIZATION_STATUS}"
+        ),
+    )
     # Output sensors are built from the coordinator's outputs. If the first optimization
     # after a load or reload failed there are none yet, so they are added on the first
     # successful update instead.
     if coordinator.data:
-        async_add_entities([horizon_entity, *_build_output_entities(hass, config_entry, coordinator)])
+        async_add_entities([horizon_entity, status_entity, *_build_output_entities(hass, config_entry, coordinator)])
         return
 
-    async_add_entities([horizon_entity])
+    async_add_entities([horizon_entity, status_entity])
     added = False
 
     @callback

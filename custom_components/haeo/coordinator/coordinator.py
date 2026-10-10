@@ -27,7 +27,6 @@ from custom_components.haeo.const import (
     OPTIMIZATION_STATUS_SUCCESS,
     OUTPUT_NAME_OPTIMIZATION_COST,
     OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
     NetworkOutputName,
 )
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
@@ -49,7 +48,10 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import input_error_placeholders
-from custom_components.haeo.repairs import dismiss_optimization_failure_issue
+from custom_components.haeo.repairs import (
+    create_optimization_persistent_failure_issue,
+    dismiss_optimization_failure_issue,
+)
 
 from . import network as network_module
 
@@ -60,6 +62,10 @@ if TYPE_CHECKING:
     from custom_components.haeo.input_stores import InputStoreKey
 
 _LOGGER = logging.getLogger(__name__)
+
+# Optimizations that must fail in a row before HAEO raises a repair issue, so a
+# brief failure, such as inputs still loading after a restart, does not raise one
+FAILURES_BEFORE_REPAIR_ISSUE = 3
 
 
 class ForecastPoint(TypedDict):
@@ -317,6 +323,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._debounce_timer: CALLBACK_TYPE | None = None
         self._pending_refresh: bool = False
         self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
+        self._consecutive_failures = 0
         self._pending_element_updates: dict[str, ElementConfigData] = {}
 
         # No update_interval - we're event-driven from input entities
@@ -675,6 +682,27 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 updater(element_config)
         self._pending_element_updates.clear()
 
+    @property
+    def optimization_status(self) -> str:
+        """Return whether the latest optimization succeeded, failed, or has not run yet."""
+        if not self.last_update_success:
+            return OPTIMIZATION_STATUS_FAILED
+        return OPTIMIZATION_STATUS_SUCCESS if self.data else OPTIMIZATION_STATUS_PENDING
+
+    @callback
+    def _async_refresh_finished(self) -> None:
+        """Raise a repair issue once optimizations keep failing, and dismiss it on success."""
+        super()._async_refresh_finished()
+        if self.last_update_success:
+            self._consecutive_failures = 0
+            dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
+            return
+        self._consecutive_failures += 1
+        if self._consecutive_failures >= FAILURES_BEFORE_REPAIR_ISSUE:
+            create_optimization_persistent_failure_issue(
+                self.hass, self.config_entry.entry_id, str(self.last_exception)
+            )
+
     async def _async_update_data(self) -> CoordinatorData:
         """Update data from input entities and run optimization."""
         # Check if optimization is already in progress
@@ -763,13 +791,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._last_optimization_time = end_time
 
             _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
-            dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
 
             network_output_data: dict[NetworkOutputName, OutputData] = {
                 OUTPUT_NAME_OPTIMIZATION_COST: OutputData(type=OutputType.COST, unit="$", values=(cost,)),
-                OUTPUT_NAME_OPTIMIZATION_STATUS: OutputData(
-                    type=OutputType.STATUS, unit=None, values=(OPTIMIZATION_STATUS_SUCCESS,)
-                ),
                 OUTPUT_NAME_OPTIMIZATION_DURATION: OutputData(
                     type=OutputType.DURATION, unit=UnitOfTime.SECONDS, values=(optimization_duration,)
                 ),

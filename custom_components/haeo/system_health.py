@@ -4,13 +4,7 @@ from homeassistant.components import system_health
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util.json import JsonValueType
 
-from .const import (
-    DOMAIN,
-    OPTIMIZATION_STATUS_PENDING,
-    OUTPUT_NAME_OPTIMIZATION_COST,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
-)
+from .const import DOMAIN, OUTPUT_NAME_OPTIMIZATION_COST, OUTPUT_NAME_OPTIMIZATION_DURATION
 
 
 @callback
@@ -55,11 +49,7 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, JsonValueTy
         # the generic `ConfigEntry` with its default `Any` runtime_data parameter.
         hub_outputs = coordinator.data.outputs.get(hub_key, {}) if coordinator.data else {}
 
-        status_output = hub_outputs.get(OUTPUT_NAME_OPTIMIZATION_STATUS)
-        optimization_status = (
-            status_output.state if status_output and status_output.state else OPTIMIZATION_STATUS_PENDING
-        )
-        health_info[f"{prefix}optimization_status"] = optimization_status
+        health_info[f"{prefix}optimization_status"] = coordinator.optimization_status
 
         cost_output = hub_outputs.get(OUTPUT_NAME_OPTIMIZATION_COST)
         duration_output = hub_outputs.get(OUTPUT_NAME_OPTIMIZATION_DURATION)

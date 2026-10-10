@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory, UnitOfEnergy
 from homeassistant.core import HomeAssistant, State
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import EventStateChangedData
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -37,6 +38,7 @@ from custom_components.haeo.coordinator import (
     _build_optimization_context,
     detect_currency_symbol,
 )
+from custom_components.haeo.coordinator.coordinator import FAILURES_BEFORE_REPAIR_ISSUE
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
 from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
 from custom_components.haeo.core.adapters.elements.grid import GRID_COST_NET, GRID_POWER_MAX_IMPORT_PRICE
@@ -308,6 +310,33 @@ def test_load_element_config_reflects_store_values(
     assert battery_config[SECTION_PRICING].get(CONF_SALVAGE_VALUE) == 5.0
 
 
+async def test_optimization_status_and_failure_repair_issue(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """Repeated failed optimizations are reported as failed and raise a repair issue that success dismisses."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    issue_id = f"optimization_failure_{mock_hub_entry.entry_id}"
+    assert coordinator.optimization_status == "pending"
+
+    with patch.object(coordinator, "_async_update_data", AsyncMock(side_effect=ValueError("Unbounded"))):
+        for _ in range(FAILURES_BEFORE_REPAIR_ISSUE - 1):
+            await coordinator.async_refresh()
+        assert coordinator.optimization_status == "failed"
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+        await coordinator.async_refresh()
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.translation_placeholders == {"error_message": "Unbounded"}
+
+    with patch.object(coordinator, "_async_update_data", AsyncMock(return_value=Mock())):
+        await coordinator.async_refresh()
+    assert coordinator.optimization_status == "success"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
+
+
 def test_update_interval_is_none_for_event_driven(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -405,7 +434,6 @@ async def test_async_update_data_returns_outputs(
     with (
         patch("custom_components.haeo.coordinator.coordinator.network_module.create_network", new_callable=AsyncMock),
         patch.object(hass, "async_add_executor_job", new_callable=AsyncMock) as mock_executor,
-        patch("custom_components.haeo.coordinator.coordinator.dismiss_optimization_failure_issue") as mock_dismiss,
         patch("custom_components.haeo.coordinator.coordinator.dt_util.utcnow", return_value=generated_at),
         patch("custom_components.haeo.coordinator.coordinator.async_get_translations", mock_translations),
         patch.dict(
@@ -442,11 +470,7 @@ async def test_async_update_data_returns_outputs(
     assert cost_output.state == 123.45
     assert cost_output.forecast is None
 
-    status_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_STATUS]
-    assert status_output.type == OutputType.STATUS
-    assert status_output.unit is None
-    assert status_output.state == "success"
-    assert status_output.forecast is None
+    assert OUTPUT_NAME_OPTIMIZATION_STATUS not in network_outputs
 
     duration_output = network_outputs[OUTPUT_NAME_OPTIMIZATION_DURATION]
     assert duration_output.type == OutputType.DURATION
@@ -464,8 +488,6 @@ async def test_async_update_data_returns_outputs(
         ForecastPoint(time=datetime.fromtimestamp(expected_forecast_times[0], tz=local_tz), value=1.0),
         ForecastPoint(time=datetime.fromtimestamp(expected_forecast_times[1], tz=local_tz), value=2.0),
     ]
-
-    mock_dismiss.assert_called_once_with(hass, mock_hub_entry.entry_id)
 
 
 async def test_async_initialize_with_empty_input_stores(
