@@ -15,6 +15,7 @@ from homeassistant.config_entries import ConfigEntryState, ConfigSubentry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -817,10 +818,9 @@ async def test_async_setup_entry_flattens_connection_endpoints_into_placeholders
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
 ) -> None:
-    """Connection sensors get source and target placeholders from the nested endpoints section.
+    """The connection power sensor's translated name resolves from the nested endpoints section.
 
-    The connection power name is "{source} to {target} power". Home Assistant raises on a
-    missing placeholder, which would drop the sensor when the entity is added.
+    Home Assistant raises on a missing placeholder, which drops the sensor when it is added.
     """
     connection_subentry = ConfigSubentry(
         data=MappingProxyType(
@@ -844,7 +844,7 @@ async def test_async_setup_entry_flattens_connection_endpoints_into_placeholders
     coordinator.data = _make_coordinator_data(
         {
             "ACEV to EV1": {
-                "ACEV to EV1": {
+                ElementType.CONNECTION: {
                     CONNECTION_POWER: _make_output(
                         type_=OutputType.POWER_FLOW,
                         unit="kW",
@@ -867,11 +867,9 @@ async def test_async_setup_entry_flattens_connection_endpoints_into_placeholders
 
     sensors = [s for s in async_add_entities.call_args.args[0] if isinstance(s, HaeoSensor)]
     assert len(sensors) == 1
-    placeholders = sensors[0].translation_placeholders
-    assert placeholders["source"] == "ACEV Charger"
-    assert placeholders["target"] == "EV1 Port"
-    assert placeholders["efficiency_source_target"] == "100.0"
-    assert "{source} to {target} power".format(**placeholders) == "ACEV Charger to EV1 Port power"
+    translations = await async_get_translations(hass, "en", "entity", integrations=[DOMAIN])
+    name = translations[f"component.{DOMAIN}.entity.sensor.{sensors[0].translation_key}.name"]
+    assert name.format(**sensors[0].translation_placeholders) == "ACEV Charger to EV1 Port power"
 
 
 def _coordinator_without_data() -> tuple[Mock, list[Callable[[], None]]]:
