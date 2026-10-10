@@ -54,7 +54,7 @@ CREATE_CASES: Sequence[CreateCase] = [
             name="test_section",
             storage={
                 "capacity": np.array([10.0]),
-                "initial_charge": np.array([5.0]),
+                "initial_charge": 5.0,
             },
         ),
         "model": [

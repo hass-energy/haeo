@@ -3,10 +3,6 @@
 Solar panels that generate electricity.
 HAEO optimizes how generated power flows through your energy network.
 
-!!! note "Connection endpoints"
-
-    Solar elements appear in connection selectors only when Advanced Mode is enabled on your hub.
-
 ## Configuration
 
 | Field                           | Type                                     | Required | Default | Description                                                     |

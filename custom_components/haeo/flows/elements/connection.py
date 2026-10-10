@@ -227,6 +227,8 @@ class ConnectionSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         target = endpoints_input.get(CONF_TARGET)
         source_name = get_connection_target_name(source)  # type: ignore[arg-type]  # user input validated by choose selector against the connection schema
         target_name = get_connection_target_name(target)  # type: ignore[arg-type]  # user input validated by choose selector against the connection schema
+        self._validate_endpoint(source_name, CONF_SOURCE, errors)
+        self._validate_endpoint(target_name, CONF_TARGET, errors)
         if source_name and target_name and source_name == target_name:
             errors[CONF_TARGET] = "cannot_connect_to_self"
         return errors if errors else None

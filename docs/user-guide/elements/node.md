@@ -1,27 +1,28 @@
 # Node
 
-Virtual balance points enforcing power conservation (Kirchhoff's law).
+A node is a point in your network that can produce and/or consume unlimited power at no cost.
+Use it to build a custom endpoint when no other element fits, and put the limits and prices on the connections to it.
 
-!!! warning "Advanced Element"
+!!! warning "Raw model element"
 
-    A switchboard node is created automatically when you set up a HAEO hub.
-    Creating **additional** nodes requires **Advanced Mode** to be enabled on your hub.
-    In standard mode, the automatic switchboard node is sufficient for most residential systems.
+    Creating nodes requires **Expose raw model elements** to be enabled on your hub.
 
-    Advanced source/sink configuration (`is_source` and `is_sink` fields) is only available when Advanced Mode is enabled.
-    In standard mode, nodes are pure junctions with no generation or consumption capability.
+    For a point where connections meet and power only passes through, such as a switchboard or a DC bus, use a [junction](junction.md) instead.
 
-!!! note "Connection endpoints"
+!!! danger "Attach a node only through a limiting, priced connection"
 
-    Node elements always appear in connection selectors regardless of Advanced Mode setting.
+    A node that can produce or consume power does so without any limit or price of its own.
+    Connect it to the rest of your network only through [connections](connections.md) that set a power limit and a price.
+    Connections are one-way, so a node that both produces and consumes power needs a limited, priced connection in each direction.
+    Without them, the optimizer can create free power from a source node or dump power for free into a sink node, and the resulting plan will not be physically meaningful.
 
 ## Configuration
 
-| Field                       | Type    | Required | Default | Description                                         |
-| --------------------------- | ------- | -------- | ------- | --------------------------------------------------- |
-| **[Name](#name)**           | String  | Yes      | -       | Unique identifier for this node                     |
-| **[Is Source](#is-source)** | Boolean | No       | false   | Whether node can produce power (Advanced Mode only) |
-| **[Is Sink](#is-sink)**     | Boolean | No       | false   | Whether node can consume power (Advanced Mode only) |
+| Field                       | Type    | Required | Default | Description                              |
+| --------------------------- | ------- | -------- | ------- | ---------------------------------------- |
+| **[Name](#name)**           | String  | Yes      | -       | Unique identifier for this node          |
+| **[Is Source](#is-source)** | Boolean | No       | false   | Whether node can produce unlimited power |
+| **[Is Sink](#is-sink)**     | Boolean | No       | false   | Whether node can consume unlimited power |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -30,147 +31,85 @@ See [Where values are measured](../measurement-points.md) for the convention HAE
 Unique identifier for this node within your HAEO configuration.
 Used to identify the node in connection endpoints.
 
-Choose descriptive names based on electrical location: "Main Node", "AC Panel", "DC Bus", "Home Circuit"
+Choose descriptive names based on what the node represents: "Generator", "Neighbor Supply", "Dump Load"
 
 ## Is Source
 
-Whether this node can produce power (act as a power source).
-When `true`, the node can generate power that flows out through connections.
+Whether this node can produce power.
+When on, the node can supply any amount of power that flows out through its connections.
 
-**Default**: `false` (node cannot produce power)
-
-**Available only when Advanced Mode is enabled**.
+**Default**: off (node cannot produce power)
 
 ## Is Sink
 
-Whether this node can consume power (act as a power sink).
-When `true`, the node can accept power that flows in through connections.
+Whether this node can consume power.
+When on, the node can absorb any amount of power that flows in through its connections.
 
-**Default**: `false` (node cannot consume power)
-
-**Available only when Advanced Mode is enabled**.
+**Default**: off (node cannot consume power)
 
 ### Source and Sink Combinations
 
 The combination of `is_source` and `is_sink` determines the node's behavior:
 
-**Pure Junction** (`is_source=false, is_sink=false` - default):
-
-- Power must balance: all power flowing in equals all power flowing out
-- No power generation or consumption at the node itself
-- Most common configuration for standard nodes
-- Available in standard mode (Advanced Mode not required)
-
 **Source Only** (`is_source=true, is_sink=false`):
 
 - Node can produce power that flows out through connections
 - Cannot accept power from connections
-- Useful for modeling power sources without using dedicated generation or grid elements
+- Useful for modeling a power source without a dedicated generation or grid element
 
 **Sink Only** (`is_source=false, is_sink=true`):
 
 - Node can accept power that flows in through connections
 - Cannot produce power
-- Useful for modeling power sinks without using dedicated consumption elements
+- Useful for modeling a power sink without a dedicated consumption element
 
 **Bidirectional** (`is_source=true, is_sink=true`):
 
 - Node can both produce and consume power
-- Useful for modeling bidirectional power sources or flexible power exchange points
-- Similar to bidirectional grid elements but without automatic connection creation
+- Useful for modeling a flexible power exchange point
+- Similar to a grid element, but the connections to and from it carry the limits and prices
+
+**Neither** (`is_source=false, is_sink=false`):
+
+- Power must balance, exactly like a [junction](junction.md)
+- Useful when you want to switch the node's role on and off at runtime through its input entities
+- If the role never changes, use a junction instead
 
 !!! info "Node role and power policies"
 
-    Source/sink flags also determine how [power policies](../../modeling/tagged-power.md) follow energy through the node.
+    Source/sink switches also determine how [power policies](../../modeling/tagged-power.md) follow energy through the node.
+    A node that can produce or consume power can be chosen as a policy source or destination.
     Sinks terminate a policy's provenance — a `source=X → destination=Y` rule cannot see past an intermediate sink.
-    Junctions (neither source nor sink) pass provenance through unchanged, which is what lets a `Solar → Grid` policy price the whole chain through your switchboard and inverter.
-    If you are placing a routing hub between policied sources and destinations, keep it a pure junction.
     See [Node roles and policy scope](../../modeling/tagged-power.md#node-roles-and-policy-scope) for the full rules.
-
-## Purpose
-
-Nodes are connection hubs where power balance is enforced:
-
-$$
-\text{Power In} = \text{Power Out}
-$$
-
-Nodes are not physical devices - they represent electrical junctions where Kirchhoff's current law applies.
-
-!!! tip "Automatic switchboard"
-
-    HAEO creates a switchboard node automatically when you set up a hub.
-    This central connection point is sufficient for most residential energy systems.
-    You only need to create additional nodes if you have complex multi-bus topologies (e.g., separate AC/DC buses).
-
-    If the switchboard node is accidentally deleted in non-advanced mode, HAEO will automatically recreate it on the next integration reload to maintain network connectivity.
-
-!!! tip "Key insight"
-
-    All elements function as nodes in the network.
-    Explicit Node elements are only needed when you want an additional connection point without any associated device.
-
-## Use Cases
-
-**Single node (simple)**: Central hub for all elements.
-
-```mermaid
-graph LR
-    Source1[Source] <--> Node[Switchboard]
-    Source2[Source] --> Node
-    Storage[Storage] <--> Node
-    Node --> Sink[Sink]
-
-    class Node emphasis
-```
-
-Most residential systems use the automatic switchboard node only.
-Additional nodes are not needed unless you have complex multi-bus topologies.
-
-**Multiple nodes (complex)**: Separate AC/DC or hierarchical distribution.
-
-```mermaid
-graph LR
-    Source[Source] --> DC[DC Node]
-    Storage[Storage] <--> DC
-    DC<-->|Inverter|AC[AC Node]
-    Bidirectional[Bidirectional] <--> AC
-    AC-->Sink[Sink]
-
-    class DC dc
-    class AC ac
-```
-
-Hybrid inverter systems with separate buses.
 
 ## Configuration Example
 
-Simple node for connecting elements:
+A backup generator modeled as a source node:
 
-| Field    | Value     |
-| -------- | --------- |
-| **Name** | Main Node |
+| Field         | Value     |
+| ------------- | --------- |
+| **Name**      | Generator |
+| **Is Source** | On        |
+| **Is Sink**   | Off       |
 
-Then connect elements to "Main Node" via connections.
+Then add a connection from "Generator" to your switchboard with a maximum power matching the generator rating and a price matching its fuel cost per kWh.
 
 !!! warning "Deleting nodes"
 
     If you delete a node element, you must update all connections that reference it.
     Connections cannot have endpoints that don't exist.
 
-    **In non-advanced mode**: If you delete the switchboard node, HAEO will automatically recreate it the next time the integration reloads (on restart or configuration change) to ensure network connectivity is maintained.
-
 ### Input Entities
 
 Each configuration option creates a corresponding input entity in Home Assistant.
 Input entities appear as Switch entities with the `config` entity category.
+Because they are entities, you can switch a node's role at runtime, for example from an automation.
 
-| Input                     | Description                    |
-| ------------------------- | ------------------------------ |
-| `switch.{name}_is_source` | Whether node can produce power |
-| `switch.{name}_is_sink`   | Whether node can consume power |
+| Input                     | Description                              |
+| ------------------------- | ---------------------------------------- |
+| `switch.{name}_is_source` | Whether node can produce unlimited power |
+| `switch.{name}_is_sink`   | Whether node can consume unlimited power |
 
-These switch inputs are only created when Advanced Mode is enabled.
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
 
@@ -180,34 +119,16 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Node element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                          | Unit   | Description                     |
-| ----------------------------------------------- | ------ | ------------------------------- |
-| [`sensor.{name}_power_balance`](#power-balance) | \$/kWh | Local energy price at this node |
+| Sensor                                                       | Unit   | Description                     |
+| ------------------------------------------------------------ | ------ | ------------------------------- |
+| [`sensor.{name}_power_balance_shadow_price`](#power-balance) | \$/kWh | Local energy price at this node |
 
 ### Power Balance
 
-The marginal cost or value of power at this specific node in the network.
+Displayed as "Power balance shadow price".
+The marginal cost or value of power at this node.
+It is interpreted the same way as the [junction power balance sensor](junction.md#power-balance).
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
-
-This shadow price represents the "local spot price" for energy at this connection point.
-It shows how much the total system cost would change if you could inject or extract 1 kW of power at this node.
-
-**Interpretation**:
-
-- **Positive value**: Represents the cost of power at this node
-    - Higher values indicate expensive power (e.g., importing during peak prices)
-    - Shows what you would save by reducing consumption or adding generation at this node
-- **Negative value**: Represents surplus power at this node (uncommon)
-    - Indicates more generation than consumption
-    - Shows the value that could be captured by adding loads or storage at this node
-- **Differences between nodes**: Reveal the economic value of power transfer between network locations
-    - Larger differences indicate stronger incentive for power flow between nodes
-    - Help identify valuable connection points in the network
-
-**Example**: A value of 0.22 means power at this node costs \$0.22 per kW at this time period, reflecting the marginal cost to supply this location in the network.
-
-**Note**: For physical power measurements, monitor connected entity sensors instead.
-Nodes only provide shadow prices, not physical power flow data.
 
 ---
 
@@ -215,44 +136,10 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 ## Troubleshooting
 
-**Infeasible optimization**: Check all elements connected, sufficient sources exist, connection directions correct, limits not too restrictive.
+**Unexpectedly cheap or profitable plan**: A source or sink node is connected without a power limit or price.
+Add a limit and a price to every connection to or from the node.
 
-**Unexpected power flows**: Verify connection endpoints, review node names unique, check connection min/max power limits.
-
-## Multiple Nodes
-
-**Use when**:
-
-- Physical separation (AC/DC buses in hybrid inverter systems)
-- Intermediate limits (inverter capacity, feeder constraints)
-- Hierarchical distribution (main panel and sub-panels)
-
-**Configuration**: Enable Advanced Mode on your hub, then create additional node elements and link them with connections.
-
-**Complexity**: Requires more configuration and adds more constraints, but accurately models real system architecture.
-
-### Hybrid Inverter Example
-
-For hybrid (AC/DC) inverter systems, use separate AC and DC nodes with a connection between them:
-
-```mermaid
-graph LR
-    Storage[Storage] <--> DC[DC Node]
-    Source[Source] --> DC
-    DC <-->|Inverter| AC[AC Node]
-    Bidirectional[Bidirectional] <--> AC
-    AC --> Sink[Sink]
-```
-
-The **connection** between DC and AC nodes represents the inverter.
-Set connection power limits to match the inverter rating.
-
-| Connection        | Max Power                            |
-| ----------------- | ------------------------------------ |
-| DC Node → AC Node | Inverter output rating (e.g., 10 kW) |
-| AC Node → DC Node | Inverter input rating (e.g., 10 kW)  |
-
-See [Connections](connections.md) for detailed configuration guidance.
+**Infeasible optimization**: Check all elements connected, connection directions correct, limits not too restrictive.
 
 ## Next steps
 
@@ -262,24 +149,24 @@ See [Connections](connections.md) for detailed configuration guidance.
 
     ---
 
-    Learn how to connect elements using power flow connections.
+    Set the limits and prices on the connections to your node.
 
     [:material-arrow-right: Connections guide](connections.md)
+
+- :material-source-branch:{ .lg .middle } **Junctions**
+
+    ---
+
+    Add a point where connections meet and power only passes through.
+
+    [:material-arrow-right: Junction guide](junction.md)
 
 - :material-math-integral:{ .lg .middle } **Node modeling**
 
     ---
 
-    Understand the power balance formulation at nodes.
+    Understand the source, sink, and power balance formulation at nodes.
 
     [:material-arrow-right: Node modeling](../../modeling/device-layer/node.md)
-
-- :material-chart-line:{ .lg .middle } **Understand optimization**
-
-    ---
-
-    See how power flows through nodes during optimization.
-
-    [:material-arrow-right: Optimization results](../optimization.md)
 
 </div>

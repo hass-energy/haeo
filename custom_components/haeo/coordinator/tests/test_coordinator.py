@@ -45,19 +45,10 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
+    CONF_HORIZON,
     CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
     DEFAULT_DEBOUNCE_SECONDS,
-    DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_DURATION,
+    HORIZON_PRESET_2_DAYS,
 )
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model import Network, OutputData, OutputType
@@ -86,6 +77,7 @@ from custom_components.haeo.core.schema.elements.grid import (
     CONF_MAX_POWER_TARGET_SOURCE as CONF_GRID_MAX_POWER_TARGET_SOURCE,
 )
 from custom_components.haeo.core.schema.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     SECTION_EFFICIENCY,
@@ -95,7 +87,7 @@ from custom_components.haeo.core.schema.sections import (
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION as CONF_CONNECTION_GRID
 from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import get_element_configs
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.input_stores import build_input_stores
 
 
@@ -106,16 +98,9 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            HUB_SECTION_COMMON: {CONF_NAME: "Power Network"},
-            HUB_SECTION_TIERS: {
-                CONF_TIER_1_COUNT: 2,  # 2 intervals of 30 min = 1 hour horizon
-                CONF_TIER_1_DURATION: 30,
-                CONF_TIER_2_COUNT: 0,
-                CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-                CONF_TIER_3_COUNT: 0,
-                CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-                CONF_TIER_4_COUNT: 0,
-                CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            HUB_SECTION_COMMON: {
+                CONF_NAME: "Power Network",
+                CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS),
             },
             HUB_SECTION_ADVANCED: {CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS},
         },
@@ -1767,7 +1752,7 @@ def test_build_optimization_context_collects_source_states() -> None:
     }
 
     context = _build_optimization_context(
-        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
+        hub_config={},
         # Fixture configs omit required ElementConfigSchema keys; only source_states collection is under test.
         participant_configs=participant_configs,  # type: ignore[arg-type]
         input_stores=input_stores,
@@ -1787,7 +1772,7 @@ def test_build_optimization_context_captures_horizon_start() -> None:
     mock_horizon.current_start_time = expected_time
 
     context = _build_optimization_context(
-        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
+        hub_config={},
         participant_configs={},
         input_stores={},
         horizon_manager=mock_horizon,
@@ -1802,7 +1787,7 @@ def test_build_optimization_context_falls_back_to_utcnow_when_no_start_time() ->
     mock_horizon.current_start_time = None
 
     context = _build_optimization_context(
-        hub_config={"tier_1_count": 2, "tier_1_duration": 60},
+        hub_config={},
         participant_configs={},
         input_stores={},
         horizon_manager=mock_horizon,

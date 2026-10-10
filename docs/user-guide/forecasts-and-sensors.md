@@ -450,9 +450,9 @@ A value further below zero stops optimization, and the error names the element, 
 Data resolution is less critical than you might expect because HAEO interpolates all data to match your optimization intervals.
 However, higher resolution forecasts improve accuracy:
 
-- Use forecasts with resolution matching or finer than your shortest tier duration
-- 1-minute tier 1 intervals work well with 5-minute or finer forecast data
-- Longer tier durations (30-60 minutes) can use coarser forecast intervals
+- Use forecasts with resolution matching or finer than your shortest horizon period
+- The 1-minute near-term periods of a preset horizon work well with 5-minute or finer forecast data
+- Longer periods (30-60 minutes) can use coarser forecast intervals
 - Finer forecast data provides more accurate interpolation results
 
 ### Data Quality

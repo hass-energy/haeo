@@ -126,7 +126,7 @@ All policy semantics are resolved in the compilation layer.
 ## Example
 
 ```
-Nodes: Grid, Solar, Battery, Switchboard, Load
+Nodes: Grid, Solar, Battery, Switchboard (junction), Load
 Policies:
   Grid -> Load: $0.05/kWh
   Solar -> Load: $0.02/kWh

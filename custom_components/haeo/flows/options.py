@@ -7,18 +7,10 @@ from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
-from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_DEBOUNCE_SECONDS, CONF_HORIZON_PRESET
-from custom_components.haeo.flows.field_schema import as_mapping, as_str
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_DEBOUNCE_SECONDS, CONF_HORIZON
+from custom_components.haeo.flows.horizon import validate_horizon
 
-from . import (
-    HORIZON_PRESET_CUSTOM,
-    HUB_SECTION_ADVANCED,
-    HUB_SECTION_COMMON,
-    HUB_SECTION_TIERS,
-    get_custom_tiers_schema,
-    get_hub_options_schema,
-    get_tier_config,
-)
+from . import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, get_hub_options_schema
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -26,63 +18,26 @@ _LOGGER = logging.getLogger(__name__)
 class HubOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for HAEO hub."""
 
-    def __init__(self) -> None:
-        """Initialize the options flow."""
-        self._user_input: dict[str, object] = {}
-
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Configure hub settings with simplified preset dropdown."""
+        """Configure hub settings."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            # Store user input for later
-            self._user_input = user_input
-
-            # If custom preset selected, go to custom tiers step
-            if user_input[HUB_SECTION_COMMON][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM:
-                return await self.async_step_custom_tiers()
-
-            # Otherwise, apply preset values and save
-            return await self._save_options()
+            horizon = user_input[HUB_SECTION_COMMON][CONF_HORIZON]
+            validate_horizon(self.hass, horizon, errors, entry_id=self.config_entry.entry_id)
+            if not errors:
+                advanced = user_input[HUB_SECTION_ADVANCED]
+                new_data = {
+                    **self.config_entry.data,
+                    HUB_SECTION_COMMON: {**self.config_entry.data[HUB_SECTION_COMMON], CONF_HORIZON: horizon},
+                    HUB_SECTION_ADVANCED: {
+                        **self.config_entry.data.get(HUB_SECTION_ADVANCED, {}),
+                        CONF_DEBOUNCE_SECONDS: advanced[CONF_DEBOUNCE_SECONDS],
+                        CONF_ADVANCED_MODE: advanced[CONF_ADVANCED_MODE],
+                    },
+                    CONF_RECORD_FORECASTS: advanced.get(CONF_RECORD_FORECASTS, False),
+                }
+                self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
+                return self.async_create_entry(title="", data={})
 
         data_schema = get_hub_options_schema(config_entry=self.config_entry)
-        return self.async_show_form(step_id="init", data_schema=data_schema)
-
-    async def async_step_custom_tiers(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Handle custom tier configuration step."""
-        if user_input is not None:
-            # Merge custom tier config with stored user input
-            self._user_input[HUB_SECTION_TIERS] = user_input
-            return await self._save_options()
-
-        # Show full tier configuration form with current values
-        return self.async_show_form(
-            step_id="custom_tiers",
-            data_schema=get_custom_tiers_schema(config_entry=self.config_entry),
-        )
-
-    async def _save_options(self) -> ConfigFlowResult:
-        """Save the options with tier configuration."""
-        common = as_mapping(self._user_input.get(HUB_SECTION_COMMON))
-        advanced = as_mapping(self._user_input.get(HUB_SECTION_ADVANCED))
-        tier_config, stored_preset = get_tier_config(
-            self._user_input,
-            as_str(common.get(CONF_HORIZON_PRESET)),
-        )
-
-        # Update config entry data with new values
-        new_data = {
-            **self.config_entry.data,
-            HUB_SECTION_COMMON: {
-                **self.config_entry.data.get(HUB_SECTION_COMMON, {}),
-                CONF_HORIZON_PRESET: stored_preset,
-            },
-            HUB_SECTION_TIERS: tier_config,
-            HUB_SECTION_ADVANCED: {
-                **self.config_entry.data.get(HUB_SECTION_ADVANCED, {}),
-                CONF_DEBOUNCE_SECONDS: advanced[CONF_DEBOUNCE_SECONDS],
-                CONF_ADVANCED_MODE: advanced[CONF_ADVANCED_MODE],
-            },
-            CONF_RECORD_FORECASTS: advanced.get(CONF_RECORD_FORECASTS, False),
-        }
-
-        self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
-        return self.async_create_entry(title="", data={})
+        return self.async_show_form(step_id="init", data_schema=data_schema, errors=errors)

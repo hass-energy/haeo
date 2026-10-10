@@ -79,6 +79,12 @@ from custom_components.haeo.core.adapters.elements.inverter import (
     InverterDeviceName,
     InverterOutputName,
 )
+from custom_components.haeo.core.adapters.elements.junction import (
+    JUNCTION_DEVICE_NAMES,
+    JUNCTION_OUTPUT_NAMES,
+    JunctionDeviceName,
+    JunctionOutputName,
+)
 from custom_components.haeo.core.adapters.elements.load import (
     LOAD_DEVICE_NAMES,
     LOAD_OUTPUT_NAMES,
@@ -120,6 +126,8 @@ from custom_components.haeo.core.schema.elements.grid import OPTIONAL_INPUT_FIEL
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
+from custom_components.haeo.core.schema.elements.junction import OPTIONAL_INPUT_FIELDS as JUNCTION_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.junction import JunctionConfigData
 from custom_components.haeo.core.schema.elements.load import OPTIONAL_INPUT_FIELDS as LOAD_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.load import LoadConfigData
 from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
@@ -145,6 +153,7 @@ type ElementOutputName = (
     | GridOutputName
     | LoadOutputName
     | NodeOutputName
+    | JunctionOutputName
     | SolarOutputName
     | NetworkOutputName
 )
@@ -157,6 +166,7 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
     | GRID_OUTPUT_NAMES
     | LOAD_OUTPUT_NAMES
     | NODE_OUTPUT_NAMES
+    | JUNCTION_OUTPUT_NAMES
     | SOLAR_OUTPUT_NAMES
     | NETWORK_OUTPUT_NAMES
 )
@@ -169,6 +179,7 @@ type ElementDeviceName = (
     | GridDeviceName
     | LoadDeviceName
     | NodeDeviceName
+    | JunctionDeviceName
     | SolarDeviceName
     | PolicyDeviceName
     | NetworkDeviceName
@@ -184,6 +195,7 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | GRID_DEVICE_NAMES
     | LOAD_DEVICE_NAMES
     | NODE_DEVICE_NAMES
+    | JUNCTION_DEVICE_NAMES
     | SOLAR_DEVICE_NAMES
     | POLICY_DEVICE_NAMES
     | NETWORK_DEVICE_NAMES
@@ -196,6 +208,7 @@ ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
     ElementType.CONNECTION: frozenset(CONNECTION_DEVICE_NAMES),
     ElementType.GRID: frozenset(GRID_DEVICE_NAMES),
     ElementType.LOAD: frozenset(LOAD_DEVICE_NAMES),
+    ElementType.JUNCTION: frozenset(JUNCTION_DEVICE_NAMES),
     ElementType.NODE: frozenset(NODE_DEVICE_NAMES),
     ElementType.POLICY: frozenset(POLICY_DEVICE_NAMES),
     ElementType.SOLAR: frozenset(SOLAR_DEVICE_NAMES),
@@ -219,6 +232,7 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     ElementType.GRID: GridConfigData,
     ElementType.INVERTER: InverterConfigData,
     ElementType.LOAD: LoadConfigData,
+    ElementType.JUNCTION: JunctionConfigData,
     ElementType.NODE: NodeConfigData,
     ElementType.POLICY: PolicyConfigData,
     ElementType.SOLAR: SolarConfigData,
@@ -231,6 +245,7 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.GRID: GRID_OPTIONAL_INPUT_FIELDS,
     ElementType.INVERTER: INVERTER_OPTIONAL_INPUT_FIELDS,
     ElementType.LOAD: LOAD_OPTIONAL_INPUT_FIELDS,
+    ElementType.JUNCTION: JUNCTION_OPTIONAL_INPUT_FIELDS,
     ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
     ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
 }
