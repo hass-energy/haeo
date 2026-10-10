@@ -6,8 +6,8 @@ It allows bidirectional power flow: importing (buying) and exporting (selling) e
 !!! note "Connection endpoints"
 
     Grid elements never appear in connection selectors, even in Advanced Mode.
-    The grid applies its import and export prices and limits on its own connections to the node it is connected to.
-    A connection made directly to the grid would bypass those prices and limits, so connect other elements to that node instead.
+    The grid applies its import and export prices and limits on its own connections to the junction it is connected to.
+    A connection made directly to the grid would bypass those prices and limits, so connect other elements to that junction instead.
 
 ## Configuration
 
@@ -21,6 +21,8 @@ For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed
 | **[Export Price](#export-price)** | Price  | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
 | **[Import Limit](#import-limit)** | Power  | No       | -       | Maximum import power from grid                             |
 | **[Export Limit](#export-limit)** | Power  | No       | -       | Maximum export power to grid                               |
+
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 ## Name
 

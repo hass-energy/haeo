@@ -9,7 +9,6 @@ This module provides:
 """
 
 from collections.abc import Mapping
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry, UnknownSubEntry
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
@@ -22,8 +21,9 @@ from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_T
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.util import UnitSpec
-from custom_components.haeo.core.units import PRICE_UNIT_SPEC
-from custom_components.haeo.elements.input_fields import InputFieldGroups, InputFieldInfo
+from custom_components.haeo.core.units import PRICE_UNIT_SPEC, currency_symbol
+from custom_components.haeo.elements import get_input_fields
+from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldGroups, localize_input_fields
 
 
 def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[UnitSpec] | None:
@@ -72,7 +72,7 @@ def filter_compatible_entities(
 
 
 def build_inclusion_map(
-    input_fields: Mapping[str, InputFieldInfo[Any]],
+    input_fields: Mapping[str, AnyInputFieldInfo],
     entity_metadata: list[EntityMetadata],
 ) -> dict[str, list[str]]:
     """Build field name → compatible entity IDs mapping from input fields.
@@ -152,6 +152,11 @@ class ElementFlowMixin:
 
     """
 
+    def _get_input_fields(self, element_type: str) -> InputFieldGroups:
+        """Return the element type's input fields with monetary units in the user's currency."""
+        currency = currency_symbol(self.hass.config.currency)  # type: ignore[attr-defined]
+        return localize_input_fields(get_input_fields(element_type), currency)
+
     def _get_used_names(self) -> set[str]:
         """Return all configured element names excluding the current subentry.
 
@@ -213,7 +218,7 @@ class ElementFlowMixin:
             Subentry ID if reconfiguring, None otherwise.
 
         """
-        context: dict[str, Any] = getattr(self, "context", {})
+        context: dict[str, object] = getattr(self, "context", {})
         subentry_id = context.get("subentry_id")
         return subentry_id if isinstance(subentry_id, str) else None
 

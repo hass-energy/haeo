@@ -36,6 +36,7 @@ from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import InputStoreMap, build_input_stores, input_error_placeholders
+from custom_components.haeo.repairs import dismiss_entry_issues
 from custom_components.haeo.services import async_setup_services
 
 from . import migrations as _migrations
@@ -145,22 +146,17 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     """
     # Avoid circular import with schema module
     from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
-    from custom_components.haeo.core.schema.elements.node import (  # noqa: PLC0415
-        CONF_IS_SINK,
-        CONF_IS_SOURCE,
-        SECTION_ROLE,
-    )
 
     # Check if Network subentry already exists
     has_network = False
-    has_node = False
+    has_switchboard = False
 
     for subentry in hub_entry.subentries.values():
         if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
             has_network = True
-        elif subentry.subentry_type == ElementType.NODE:
-            has_node = True
-        if has_network and has_node:
+        elif subentry.subentry_type in (ElementType.JUNCTION, ElementType.NODE):
+            has_switchboard = True
+        if has_network and has_switchboard:
             break
 
     # Load translations for subentry names
@@ -179,29 +175,25 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         hass.config_entries.async_add_subentry(hub_entry, network_subentry)
         _LOGGER.debug("Network subentry created successfully")
 
-    # In non-advanced mode, ensure switchboard node exists
+    # In non-advanced mode, ensure the switchboard junction exists
     advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
-    if not advanced_mode and not has_node:
-        _LOGGER.info("Creating Switchboard node for hub %s (non-advanced mode)", hub_entry.entry_id)
+    if not advanced_mode and not has_switchboard:
+        _LOGGER.info("Creating Switchboard junction for hub %s (non-advanced mode)", hub_entry.entry_id)
         switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
 
         switchboard_subentry = ConfigSubentry(
             data=MappingProxyType(
                 {
-                    CONF_ELEMENT_TYPE: ElementType.NODE,
+                    CONF_ELEMENT_TYPE: ElementType.JUNCTION,
                     CONF_NAME: switchboard_name,
-                    SECTION_ROLE: {
-                        CONF_IS_SOURCE: False,
-                        CONF_IS_SINK: False,
-                    },
                 }
             ),
-            subentry_type=ElementType.NODE,
+            subentry_type=ElementType.JUNCTION,
             title=switchboard_name,
             unique_id=None,
         )
         hass.config_entries.async_add_subentry(hub_entry, switchboard_subentry)
-        _LOGGER.debug("Switchboard node created successfully")
+        _LOGGER.debug("Switchboard junction created successfully")
 
 
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
@@ -341,6 +333,17 @@ def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
         _save_policy_rules(hass, entry, cleaned)
 
 
+def _raise_for_rejected_inputs(input_stores: InputStoreMap) -> None:
+    """Raise ConfigEntryNotReady with the reason if any input store rejected its source's value."""
+    for key, store in input_stores.items():
+        if (error := store.error) is not None:
+            raise ConfigEntryNotReady(
+                translation_domain=DOMAIN,
+                translation_key=error.translation_key,
+                translation_placeholders=input_error_placeholders(key, error, store),
+            )
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Set up Home Assistant Energy Optimizer from a config entry.
 
@@ -406,21 +409,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         lambda: hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)  # type: ignore[arg-type]
     )
 
-    # Wait for all input stores to have their data ready
-    # Each store signals via asyncio.Event when its data is loaded
+    # Wait for every input store to have data or to reject its source's value,
+    # so a rejected value is reported at once rather than after the timeout
     _LOGGER.debug("Waiting for %d input stores to be ready", len(runtime_data.input_stores))
     try:
         async with asyncio.timeout(INPUT_ENTITY_READY_TIMEOUT):
-            await asyncio.gather(*[store.wait_ready() for store in runtime_data.input_stores.values()])
+            await asyncio.gather(*[store.wait_settled() for store in runtime_data.input_stores.values()])
     except TimeoutError:
+        _raise_for_rejected_inputs(runtime_data.input_stores)
         not_ready = {key: store for key, store in runtime_data.input_stores.items() if not store.is_ready()}
-        for key, store in not_ready.items():
-            if (error := store.error) is not None:
-                raise ConfigEntryNotReady(
-                    translation_domain=DOMAIN,
-                    translation_key=error.translation_key,
-                    translation_placeholders=input_error_placeholders(key, error, store),
-                ) from None
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
             translation_key="input_entities_not_ready",
@@ -429,6 +426,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
                 "timeout": str(INPUT_ENTITY_READY_TIMEOUT),
             },
         ) from None
+    _raise_for_rejected_inputs(runtime_data.input_stores)
     _LOGGER.debug("All input entities ready")
 
     # Wrap coordinator operations to provide meaningful HA error messages
@@ -493,6 +491,11 @@ async def async_unload_entry(_hass: HomeAssistant, entry: HaeoConfigEntry) -> bo
 
     # All cleanup is handled by async_on_unload callbacks
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
+    """Dismiss the repair issues raised for a removed config entry."""
+    dismiss_entry_issues(hass, entry.entry_id)
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:

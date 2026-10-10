@@ -109,9 +109,9 @@ If an element is isolated, add connection entries to link it to the network:
 5. Connect it to another element in your network
 6. Submit the connection
 
-#### Use Nodes
+#### Use Junctions
 
-For complex topologies, use nodes as connection hubs:
+For complex topologies, use [junctions](elements/junction.md) as connection hubs:
 
 ```mermaid
 graph LR

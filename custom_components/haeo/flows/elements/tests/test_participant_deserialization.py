@@ -5,7 +5,6 @@ not as enum instances. The participant name resolution must handle both.
 """
 
 from types import MappingProxyType
-from typing import Any
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -30,7 +29,7 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
     return entry
 
 
-def _add_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry, *, element_type: Any, title: str) -> None:
+def _add_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry, *, element_type: object, title: str) -> None:
     """Add a subentry with the given element_type value."""
     subentry = ConfigSubentry(
         data=MappingProxyType({CONF_ELEMENT_TYPE: element_type, CONF_NAME: title}),
@@ -64,8 +63,8 @@ async def test_participant_names_with_string_element_type(hass: HomeAssistant, h
 @pytest.mark.parametrize(
     ("advanced_mode", "expected"),
     [
-        pytest.param(False, ["Inverter", "Node"], id="standard"),
-        pytest.param(True, ["Battery Section", "Inverter", "Node"], id="advanced"),
+        pytest.param(False, ["Inverter", "Junction", "Node"], id="standard"),
+        pytest.param(True, ["Battery Section", "Inverter", "Junction", "Node"], id="advanced"),
     ],
 )
 async def test_participant_names_exclude_elements_with_own_connections(

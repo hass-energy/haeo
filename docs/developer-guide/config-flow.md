@@ -175,7 +175,7 @@ The `ConnectivityLevel` enum has three values:
 - **`NEVER`**: Never shown in connection selectors
 
 An element is an endpoint only if a connection to it goes through the same constraints as any other power flow.
-Nodes and inverter DC buses are plain balance points, so they are `ALWAYS`.
+Junctions, nodes, and inverter DC buses are plain balance points, so they are `ALWAYS`.
 Battery Section is a bare storage element wired by hand, so it is `ADVANCED`.
 Grid, Battery, Solar, and Load apply their prices, forecasts, limits, and efficiencies on the connection to their own target, so a connection made directly to them would bypass all of that; they are `NEVER`, as are Connection and Policy.
 Each adapter in `core/adapters/elements/` declares its level in its `connectivity` attribute.
@@ -192,6 +192,7 @@ Each element type has its own flow class in `custom_components/haeo/flows/elemen
 - `ConnectionSubentryFlowHandler` - Connection configuration
 - `GridSubentryFlowHandler` - Grid configuration
 - `InverterSubentryFlowHandler` - Inverter configuration
+- `JunctionSubentryFlowHandler` - Junction configuration
 - `LoadSubentryFlowHandler` - Load configuration
 - `NodeSubentryFlowHandler` - Network node configuration
 - `SolarSubentryFlowHandler` - Solar system configuration

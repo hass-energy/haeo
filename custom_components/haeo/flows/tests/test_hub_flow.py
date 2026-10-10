@@ -1,6 +1,11 @@
 """Test hub configuration flow - 100% coverage."""
 
-from typing import Any
+from collections.abc import Mapping
+
+# Element subentry flow classes are driven dynamically here (calling per-element step
+# methods that the shared ConfigSubentryFlow base class does not declare), which a
+# static type cannot express.
+from typing import Any  # noqa: TID251
 
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
@@ -15,6 +20,7 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
+    CONF_ELEMENT_TYPE,
     CONF_HORIZON_PRESET,
     CONF_NAME,
     CONF_TIER_1_COUNT,
@@ -35,6 +41,7 @@ from custom_components.haeo.core.const import (
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
 )
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.flows import (
     HORIZON_PRESET_3_DAYS,
     HORIZON_PRESET_5_DAYS,
@@ -48,9 +55,9 @@ from custom_components.haeo.flows.hub import HubConfigFlow
 
 
 def _wrap_hub_user_input(
-    common: dict[str, Any],
-    advanced: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+    common: Mapping[str, object],
+    advanced: Mapping[str, object] | None = None,
+) -> dict[str, object]:
     """Wrap hub input values into sectioned form data."""
     return {
         HUB_SECTION_COMMON: common,
@@ -58,7 +65,7 @@ def _wrap_hub_user_input(
     }
 
 
-def _get_section_schema(data_schema: Any, key: str) -> vol.Schema:
+def _get_section_schema(data_schema: vol.Schema, key: str) -> vol.Schema:
     """Return the schema for a specific section key."""
     section_map = {marker.schema: section for marker, section in data_schema.schema.items()}
     return section_map[key].schema
@@ -100,10 +107,12 @@ async def test_user_flow_success_with_preset(hass: HomeAssistant) -> None:
     assert tiers[CONF_TIER_1_COUNT] == preset_values[CONF_TIER_1_COUNT]
     assert tiers[CONF_TIER_4_COUNT] == preset_values[CONF_TIER_4_COUNT]
 
-    # Verify entry was created
+    # Verify entry was created with a junction Switchboard
     entries = hass.config_entries.async_entries(DOMAIN)
     assert len(entries) == 1
     assert entries[0].title == "Test Hub"
+    (switchboard,) = (s for s in entries[0].subentries.values() if s.subentry_type == ElementType.JUNCTION)
+    assert dict(switchboard.data) == {CONF_ELEMENT_TYPE: ElementType.JUNCTION, CONF_NAME: "Switchboard"}
 
 
 async def test_user_flow_custom_preset_shows_second_step(hass: HomeAssistant) -> None:

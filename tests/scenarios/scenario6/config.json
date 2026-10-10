@@ -149,6 +149,6 @@
         }
       }
     },
-    "Switchboard": { "name": "Switchboard", "element_type": "node", "role": { "is_sink": false, "is_source": false } }
+    "Switchboard": { "name": "Switchboard", "element_type": "junction" }
   }
 }

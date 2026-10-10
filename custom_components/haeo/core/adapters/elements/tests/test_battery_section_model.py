@@ -1,7 +1,7 @@
 """Tests for battery_section element model mapping."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import numpy as np
 import pytest
@@ -34,7 +34,7 @@ class CreateCase(TypedDict):
 
     description: str
     data: BatterySectionConfigData
-    model: list[dict[str, Any]]
+    model: list[dict[str, object]]
 
 
 class OutputsCase(TypedDict):

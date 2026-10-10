@@ -105,9 +105,9 @@ def extract(state: EntityState) -> ExtractedData:
     else:
         # If no extractor matched read the state as a single float value
         data = float(state.state)
-        unit = state.attributes.get("unit_of_measurement")
-        device_class_attr = state.attributes.get("device_class")
-        device_class = DeviceClass.of(device_class_attr)
+        unit_attr = state.attributes.get("unit_of_measurement")
+        unit = unit_attr if isinstance(unit_attr, str) else None
+        device_class = DeviceClass.of(state.attributes.get("device_class"))
 
     # Normalize unit to string (handle enum values with .value attribute)
     unit_str: str | None = unit.value if isinstance(unit, StrEnum) else unit

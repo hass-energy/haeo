@@ -8,7 +8,7 @@ the failure mode the shared script exists to prevent.
 
 from pathlib import Path
 import re
-from typing import Any
+from typing import TypedDict
 
 import pytest
 import yaml
@@ -22,9 +22,29 @@ WORKFLOW = Path(__file__).parent.parent / ".github" / "workflows" / "ci.yml"
 ACTION_ONLY_JOBS = {"hassfest", "hacs", "ci-passed"}
 
 
-def workflow() -> dict[str, Any]:
+class WorkflowStep(TypedDict, total=False):
+    """The part of a CI workflow step these tests read."""
+
+    run: str
+
+
+class WorkflowJob(TypedDict, total=False):
+    """The parts of a CI workflow job these tests read."""
+
+    steps: list[WorkflowStep]
+    needs: list[str]
+
+
+class Workflow(TypedDict):
+    """The part of the CI workflow these tests read."""
+
+    jobs: dict[str, WorkflowJob]
+
+
+def workflow() -> Workflow:
     """Return the parsed CI workflow."""
-    return yaml.safe_load(WORKFLOW.read_text())
+    parsed: Workflow = yaml.safe_load(WORKFLOW.read_text())
+    return parsed
 
 
 def gate_invocations() -> dict[str, str]:
@@ -80,7 +100,7 @@ def test_gates_without_a_command_explain_why() -> None:
 def test_required_check_depends_on_every_gate_job() -> None:
     """The single required check must aggregate each gate's job."""
     jobs = workflow()["jobs"]
-    needs = set(jobs["ci-passed"]["needs"])
+    needs = set(jobs["ci-passed"].get("needs", []))
     gate_jobs = {job for job in jobs if job not in ACTION_ONLY_JOBS} | {"hassfest", "hacs"}
 
     assert gate_jobs <= needs, f"jobs missing from the CI passed check: {sorted(gate_jobs - needs)}"

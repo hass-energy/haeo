@@ -4,7 +4,6 @@ from datetime import datetime
 import json
 import logging
 from pathlib import Path
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -40,7 +39,7 @@ def _format_manifest(manifest: Manifest) -> Manifest:
     return manifest_copy
 
 
-async def _build_diagnostics_payload(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+async def _build_diagnostics_payload(hass: HomeAssistant, data: dict[str, object]) -> dict[str, object]:
     """Build full diagnostics payload matching Home Assistant's format.
 
     Includes system info, custom components, integration manifest, and setup times.
@@ -147,7 +146,7 @@ async def async_setup_services(hass: HomeAssistant) -> None:
         _LOGGER.info("HAEO diagnostics saved to %s", filepath)
 
     # Build schema - only include timestamp if recorder is available
-    schema_fields: dict[vol.Marker, Any] = {vol.Required(ATTR_CONFIG_ENTRY): cv.string}
+    schema_fields: dict[vol.Marker, object] = {vol.Required(ATTR_CONFIG_ENTRY): cv.string}
     if "recorder" in hass.config.components:
         schema_fields[vol.Optional(ATTR_TIMESTAMP)] = cv.datetime
 

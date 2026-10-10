@@ -1,6 +1,6 @@
 """Grid element schema definitions."""
 
-from typing import Annotated, Any, Final, Literal, TypedDict
+from typing import Annotated, Final, Literal, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -42,8 +42,8 @@ class GridPricingConfig(TypedDict):
 class GridPricingData(TypedDict):
     """Loaded directional pricing values with required entries."""
 
-    price_source_target: NDArray[np.floating[Any]] | float
-    price_target_source: NDArray[np.floating[Any]] | float
+    price_source_target: NDArray[np.float64] | float
+    price_target_source: NDArray[np.float64] | float
 
 
 class GridConfigSchema(ConnectedCommonConfig):

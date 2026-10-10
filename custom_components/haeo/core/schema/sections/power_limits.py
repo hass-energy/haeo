@@ -1,6 +1,6 @@
 """Section types for power limit configuration."""
 
-from typing import Any, Final, TypedDict
+from typing import Final, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -22,5 +22,5 @@ class PowerLimitsConfig(TypedDict, total=False):
 class PowerLimitsData(TypedDict, total=False):
     """Loaded directional power limits."""
 
-    max_power_source_target: NDArray[np.floating[Any]] | float
-    max_power_target_source: NDArray[np.floating[Any]] | float
+    max_power_source_target: NDArray[np.float64] | float
+    max_power_target_source: NDArray[np.float64] | float

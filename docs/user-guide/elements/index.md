@@ -28,13 +28,13 @@ For the mathematical details of how elements are modeled, see the [Modeling Docu
 
 Elements work together once you connect them to match your real-world wiring.
 HAEO balances available energy, expected consumption, and any limits you set so the total system stays within bounds.
-In a typical home system, solar may feed a common node, the grid can import or export, and a battery shifts energy between time periods.
+In a typical home system, solar may feed a common junction, the grid can import or export, and a battery shifts energy between time periods.
 
 Example layout:
 
 ```mermaid
 graph TD
-    Solar[Solar] --> Net[Node]
+    Solar[Solar] --> Net[Junction]
     Grid[Grid] <--> Net
     Net --> Battery[Battery]
     Battery --> Load[Load]
@@ -60,7 +60,8 @@ These elements provide direct access to raw modeling components for advanced use
 Advanced elements include:
 
 - **Connection**: Explicit power flow paths between elements
-- **Node**: Virtual power balance points (with advanced source/sink configuration)
+- **Junction**: Points where connections meet and power balances (such as separate AC and DC buses)
+- **Node**: Points that produce or consume unlimited power behind a limiting, priced connection
 - **Battery Section**: Direct access to model layer Battery element
 
 Most users should use the standard elements which provide automatic connections and optimized behavior.
@@ -98,9 +99,15 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Load guide](load.md)
 
-- :material-source-branch:{ .lg .middle } __Node configuration__
+- :material-source-branch:{ .lg .middle } __Junction configuration__ (Advanced)
 
-    Virtual power balance nodes.
+    Points where connections meet and power balances.
+
+    [:material-arrow-right: Junction guide](junction.md)
+
+- :material-source-branch:{ .lg .middle } __Node configuration__ (Advanced)
+
+    Points that produce or consume unlimited power.
 
     [:material-arrow-right: Node guide](node.md)
 

@@ -20,7 +20,7 @@ it.
 """
 
 from collections.abc import Mapping
-from typing import Any, Final, Protocol
+from typing import Final, Protocol
 
 from . import binding, series
 
@@ -28,15 +28,22 @@ from . import binding, series
 class Analysis(Protocol):
     """Renders one answer about a diagnostics export."""
 
-    NAME: str
-    HELP: str
+    @property
+    def NAME(self) -> str:  # noqa: N802 (matches the module-level constant each analysis defines)
+        """Name used to select the analysis."""
+        ...
 
-    def run(self, outputs: Mapping[str, Any], config: Mapping[str, Any], argument: str) -> str:
+    @property
+    def HELP(self) -> str:  # noqa: N802 (matches the module-level constant each analysis defines)
+        """One-line description shown by --list-analyses."""
+        ...
+
+    def run(self, outputs: Mapping[str, object], config: Mapping[str, object], argument: str) -> str:
         """Return the analysis output as readable text."""
         ...
 
 
-ANALYSES: Final[dict[str, Any]] = {
+ANALYSES: Final[dict[str, Analysis]] = {
     binding.NAME: binding,
     series.NAME: series,
 }
@@ -49,7 +56,7 @@ def describe_analyses() -> str:
     return "Available analyses:\n" + "\n".join(lines)
 
 
-def run_analysis(spec: str, outputs: Mapping[str, Any], config: Mapping[str, Any]) -> str:
+def run_analysis(spec: str, outputs: Mapping[str, object], config: Mapping[str, object]) -> str:
     """Run one `name` or `name:argument` spec against a diagnostics export."""
     name, _, argument = spec.partition(":")
     module = ANALYSES.get(name)

@@ -10,10 +10,17 @@ Each segment type applies a specific transformation or constraint to power flow:
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Final, Literal, TypeGuard
+from typing import (
+    Any,  # noqa: TID251  # source_element/target_element are the connection's endpoint elements,
+    # which can be any concrete NetworkElement subtype. Element is invariant in its output-name
+    # Literal (see element.py's outputs()), so no non-Any type expresses "an Element of some
+    # unknown output-name type" here; segments only use these via hasattr/isinstance duck typing.
+    Final,
+    Literal,
+    TypeGuard,
+)
 
 from highspy import Highs
-from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 
@@ -23,7 +30,7 @@ from .efficiency import EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
 from .power_limit import PowerLimitSegment, PowerLimitSegmentSpec
 from .pricing import PricingSegment, PricingSegmentSpec
-from .segment import Segment
+from .segment import FlowProvider, FlowVariables, Segment
 from .soc_pricing import SocPricingSegment, SocPricingSegmentSpec
 
 # Discriminated union of segment type strings
@@ -81,12 +88,12 @@ def create_segment(
     *,
     segment_id: str,
     n_periods: int,
-    periods: NDArray[np.floating[Any]],
+    periods: NDArray[np.float64],
     solver: Highs,
     spec: SegmentSpec,
     source_element: Element[Any],
     target_element: Element[Any],
-    power_in: dict[int, HighspyArray],
+    upstream: FlowProvider,
 ) -> Segment:
     """Create a segment instance from a segment specification."""
     segment_type = spec["segment_type"]
@@ -99,7 +106,7 @@ def create_segment(
         spec=spec,
         source_element=source_element,
         target_element=target_element,
-        power_in=power_in,
+        upstream=upstream,
     )
 
 
@@ -107,6 +114,8 @@ __all__ = [
     "SEGMENTS",
     "EfficiencySegment",
     "EfficiencySegmentSpec",
+    "FlowProvider",
+    "FlowVariables",
     "PassthroughSegment",
     "PassthroughSegmentSpec",
     "PowerLimitSegment",

@@ -1,7 +1,7 @@
 """Tests for connection element config flow."""
 
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -16,7 +16,6 @@ from custom_components.haeo.core.schema import as_connection_target, as_constant
 from custom_components.haeo.core.schema.elements import battery, grid, node
 from custom_components.haeo.core.schema.elements.connection import (
     CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
     CONF_SOURCE,
     CONF_TARGET,
     ELEMENT_TYPE,
@@ -29,7 +28,7 @@ from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.flows.conftest import create_flow
 
 
-def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_input(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat connection input values into sectioned config."""
     if SECTION_ENDPOINTS in flat:
         return dict(flat)
@@ -37,7 +36,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
         CONF_SOURCE: flat[CONF_SOURCE],
         CONF_TARGET: flat[CONF_TARGET],
     }
-    limits = {key: flat[key] for key in (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE) if key in flat}
+    limits = {key: flat[key] for key in (CONF_MAX_POWER_SOURCE_TARGET,) if key in flat}
     return {
         CONF_NAME: flat[CONF_NAME],
         SECTION_ENDPOINTS: endpoints,
@@ -47,15 +46,17 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_config(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat connection config values into sectioned config with element type."""
     if SECTION_ENDPOINTS in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     config = _wrap_input(flat)
     endpoints = config.get(SECTION_ENDPOINTS, {})
-    for key in (CONF_SOURCE, CONF_TARGET):
-        if key in endpoints and isinstance(endpoints[key], str):
-            endpoints[key] = as_connection_target(endpoints[key])
+    if isinstance(endpoints, dict):
+        for key in (CONF_SOURCE, CONF_TARGET):
+            value = endpoints.get(key)
+            if isinstance(value, str):
+                endpoints[key] = as_connection_target(value)
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
 
@@ -146,11 +147,9 @@ def test_build_config_normalizes_endpoints(hass: HomeAssistant, hub_entry: MockC
                 CONF_SOURCE: "Battery1",
                 CONF_TARGET: "Grid1",
                 CONF_MAX_POWER_SOURCE_TARGET: as_entity_value(["sensor.max_power_st"]),
-                CONF_MAX_POWER_TARGET_SOURCE: as_entity_value(["sensor.max_power_ts"]),
             },
             {
                 CONF_MAX_POWER_SOURCE_TARGET: ["sensor.max_power_st"],
-                CONF_MAX_POWER_TARGET_SOURCE: ["sensor.max_power_ts"],
             },
             id="entity_values",
         ),
@@ -163,11 +162,9 @@ def test_build_config_normalizes_endpoints(hass: HomeAssistant, hub_entry: MockC
                 CONF_SOURCE: "DeletedBattery",
                 CONF_TARGET: "Grid1",
                 CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0),
-                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(10.0),
             },
             {
                 CONF_MAX_POWER_SOURCE_TARGET: 10.0,
-                CONF_MAX_POWER_TARGET_SOURCE: 10.0,
             },
             id="constant_values_deleted_source",
         ),
@@ -179,8 +176,8 @@ async def test_reconfigure_defaults_handle_schema_values(
     source: str,
     target: str,
     add_source: bool,
-    config_values: dict[str, Any],
-    expected_defaults: dict[str, Any],
+    config_values: dict[str, object],
+    expected_defaults: dict[str, object],
 ) -> None:
     """Reconfigure defaults reflect schema values and tolerate missing endpoints."""
     if add_source:
@@ -229,22 +226,18 @@ async def test_user_step_with_constant_creates_entry(
         }
     )
 
-    # Submit with constant values using choose selector format
     user_input = {
         CONF_NAME: "Test Connection",
         CONF_SOURCE: "Battery1",
         CONF_TARGET: "Grid1",
         CONF_MAX_POWER_SOURCE_TARGET: 10.0,
-        CONF_MAX_POWER_TARGET_SOURCE: 10.0,
     }
     result = await flow.async_step_user(user_input=user_input)
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
-    # Verify the config contains the constant values
     create_kwargs = flow.async_create_entry.call_args.kwargs
     assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(10.0)
-    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(10.0)
 
 
 async def test_user_step_with_entity_creates_entry(
@@ -264,23 +257,17 @@ async def test_user_step_with_entity_creates_entry(
         }
     )
 
-    # Submit with entity selections
     user_input = {
         CONF_NAME: "Test Connection",
         CONF_SOURCE: "Battery1",
         CONF_TARGET: "Grid1",
         CONF_MAX_POWER_SOURCE_TARGET: ["sensor.power_st"],
-        CONF_MAX_POWER_TARGET_SOURCE: ["sensor.power_ts"],
     }
     result = await flow.async_step_user(user_input=user_input)
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
-    # Verify the config contains the entity schema values (single entity)
     create_kwargs = flow.async_create_entry.call_args.kwargs
     assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_SOURCE_TARGET] == as_entity_value(
         ["sensor.power_st"]
-    )
-    assert create_kwargs["data"][SECTION_POWER_LIMITS][CONF_MAX_POWER_TARGET_SOURCE] == as_entity_value(
-        ["sensor.power_ts"]
     )

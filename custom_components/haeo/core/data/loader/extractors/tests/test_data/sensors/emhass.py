@@ -6,14 +6,13 @@ EMHASS uses a unique format where:
 - Values are stored as strings that parse to floats
 """
 
-from typing import Any
 
 # Timestamps for testing (2025-10-06 in AEST +11:00)
 # 2025-10-06T00:00:00+11:00 = 1759669200
 # 2025-10-06T00:30:00+11:00 = 1759671000
 # 2025-10-06T01:00:00+11:00 = 1759672800
 
-VALID: list[dict[str, Any]] = [
+VALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.p_load_forecast",
         "state": "1500.0",
@@ -153,7 +152,7 @@ VALID: list[dict[str, Any]] = [
     },
 ]
 
-INVALID: list[dict[str, Any]] = [
+INVALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.p_load_forecast",
         "state": "1500.0",

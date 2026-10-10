@@ -6,8 +6,8 @@ HAEO optimizes how generated power flows through your energy network.
 !!! note "Connection endpoints"
 
     Solar elements never appear in connection selectors, even in Advanced Mode.
-    Solar applies its forecast limit on its own connection to the node or inverter it is connected to.
-    A connection made directly to the solar element would bypass the forecast, so connect other elements to that node or inverter instead.
+    Solar applies its forecast limit on its own connection to the junction or inverter it is connected to.
+    A connection made directly to the solar element would bypass the forecast, so connect other elements to that junction or inverter instead.
 
 ## Configuration
 
@@ -16,6 +16,8 @@ HAEO optimizes how generated power flows through your energy network.
 | **[Name](#name)**               | String                                   | Yes      | -       | Unique identifier for this solar system                         |
 | **[Forecast](#forecast)**       | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Solar generation forecast sensor(s) providing power output (kW) |
 | **[Curtailment](#curtailment)** | Boolean                                  | No       | true    | Allow optimizer to reduce generation below forecast             |
+
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 ## Name
 
