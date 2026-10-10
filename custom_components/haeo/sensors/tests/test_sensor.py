@@ -15,6 +15,7 @@ from homeassistant.config_entries import ConfigEntryState, ConfigSubentry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -32,6 +33,8 @@ from custom_components.haeo.core.adapters.elements.battery import BATTERY_STATE_
 from custom_components.haeo.core.adapters.elements.load import LOAD_POWER
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.model import OutputData, OutputType
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER
+from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.core.schema.elements.battery import SECTION_LIMITS
@@ -742,6 +745,64 @@ def test_advanced_outputs_are_disabled_by_default(
     )
 
     assert sensor.entity_registry_enabled_default is enabled_default
+
+
+async def test_async_setup_entry_flattens_connection_endpoints_into_placeholders(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """The connection power sensor's translated name resolves from the nested endpoints section.
+
+    Home Assistant raises on a missing placeholder, which drops the sensor when it is added.
+    """
+    connection_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.CONNECTION,
+                CONF_NAME: "ACEV to EV1",
+                "endpoints": {
+                    "source": as_connection_target("ACEV Charger"),
+                    "target": as_connection_target("EV1 Port"),
+                },
+                "efficiency": {"efficiency_source_target": {"type": "constant", "value": 100.0}},
+            }
+        ),
+        subentry_type=ElementType.CONNECTION,
+        title="ACEV to EV1",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, connection_subentry)
+
+    coordinator = _create_mock_coordinator()
+    coordinator.data = _make_coordinator_data(
+        {
+            "ACEV to EV1": {
+                ElementType.CONNECTION: {
+                    CONNECTION_POWER: _make_output(
+                        type_=OutputType.POWER_FLOW,
+                        unit="kW",
+                        state=11.14,
+                        forecast=None,
+                        entity_category=None,
+                        device_class=SensorDeviceClass.POWER,
+                        state_class=SensorStateClass.MEASUREMENT,
+                        options=None,
+                    )
+                },
+            },
+        }
+    )
+    config_entry.runtime_data = _create_mock_runtime_data(coordinator)
+
+    async_add_entities = Mock()
+
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    sensors = [s for s in async_add_entities.call_args.args[0] if isinstance(s, HaeoSensor)]
+    assert len(sensors) == 1
+    translations = await async_get_translations(hass, "en", "entity", integrations=[DOMAIN])
+    name = translations[f"component.{DOMAIN}.entity.sensor.{sensors[0].translation_key}.name"]
+    assert name.format(**sensors[0].translation_placeholders) == "ACEV Charger to EV1 Port power"
 
 
 def _coordinator_without_data() -> tuple[Mock, list[Callable[[], None]]]:

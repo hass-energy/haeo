@@ -15,17 +15,11 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.data.input_store import InputMode, InputStore
-from custom_components.haeo.core.schema import (
-    as_constant_value,
-    is_connection_target,
-    is_constant_value,
-    is_entity_value,
-    is_none_value,
-    is_schema_value,
-)
+from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
+from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
 
@@ -120,27 +114,7 @@ class HaeoInputNumber(NumberEntity):
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
 
-        # Translation placeholders
-        placeholders: dict[str, str] = {}
-
-        def format_placeholder(value: object) -> str:
-            if is_entity_value(value):
-                return ", ".join(value["value"])
-            if is_constant_value(value):
-                return str(value["value"])
-            if is_none_value(value):
-                return ""
-            if is_connection_target(value):
-                return value["value"]
-            return str(value)
-
-        for key, value in subentry.data.items():
-            if isinstance(value, Mapping) and not is_schema_value(value) and not is_connection_target(value):
-                for nested_key, nested_value in value.items():
-                    placeholders.setdefault(nested_key, format_placeholder(nested_value))
-                continue
-            placeholders[key] = format_placeholder(value)
-        placeholders.setdefault("name", subentry.title)
+        placeholders = build_translation_placeholders(subentry)
 
         # For list item fields, add the item's name as a placeholder
         if len(self._field_path) > 1:
