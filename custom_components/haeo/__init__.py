@@ -36,6 +36,7 @@ from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import InputStoreMap, build_input_stores, input_error_placeholders
+from custom_components.haeo.repairs import dismiss_entry_issues
 from custom_components.haeo.services import async_setup_services
 
 from . import migrations as _migrations
@@ -145,22 +146,17 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     """
     # Avoid circular import with schema module
     from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
-    from custom_components.haeo.core.schema.elements.node import (  # noqa: PLC0415
-        CONF_IS_SINK,
-        CONF_IS_SOURCE,
-        SECTION_ROLE,
-    )
 
     # Check if Network subentry already exists
     has_network = False
-    has_node = False
+    has_switchboard = False
 
     for subentry in hub_entry.subentries.values():
         if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
             has_network = True
-        elif subentry.subentry_type == ElementType.NODE:
-            has_node = True
-        if has_network and has_node:
+        elif subentry.subentry_type in (ElementType.JUNCTION, ElementType.NODE):
+            has_switchboard = True
+        if has_network and has_switchboard:
             break
 
     # Load translations for subentry names
@@ -179,29 +175,25 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         hass.config_entries.async_add_subentry(hub_entry, network_subentry)
         _LOGGER.debug("Network subentry created successfully")
 
-    # In non-advanced mode, ensure switchboard node exists
+    # In non-advanced mode, ensure the switchboard junction exists
     advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
-    if not advanced_mode and not has_node:
-        _LOGGER.info("Creating Switchboard node for hub %s (non-advanced mode)", hub_entry.entry_id)
+    if not advanced_mode and not has_switchboard:
+        _LOGGER.info("Creating Switchboard junction for hub %s (non-advanced mode)", hub_entry.entry_id)
         switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
 
         switchboard_subentry = ConfigSubentry(
             data=MappingProxyType(
                 {
-                    CONF_ELEMENT_TYPE: ElementType.NODE,
+                    CONF_ELEMENT_TYPE: ElementType.JUNCTION,
                     CONF_NAME: switchboard_name,
-                    SECTION_ROLE: {
-                        CONF_IS_SOURCE: False,
-                        CONF_IS_SINK: False,
-                    },
                 }
             ),
-            subentry_type=ElementType.NODE,
+            subentry_type=ElementType.JUNCTION,
             title=switchboard_name,
             unique_id=None,
         )
         hass.config_entries.async_add_subentry(hub_entry, switchboard_subentry)
-        _LOGGER.debug("Switchboard node created successfully")
+        _LOGGER.debug("Switchboard junction created successfully")
 
 
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
@@ -444,8 +436,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         # This must happen before the first refresh
         await coordinator.async_initialize()
 
-        # Trigger initial optimization before output platform setup
-        # This populates coordinator.data so sensor platform can create output entities
+        # Trigger initial optimization before output platform setup so the output
+        # sensors can be created with the platform. If it fails, the sensor platform
+        # adds them after the first successful optimization instead.
         # Use async_refresh() instead of async_config_entry_first_refresh() to avoid
         # retrying setup if optimization fails (e.g., missing sensor data)
         await coordinator.async_refresh()
@@ -499,6 +492,11 @@ async def async_unload_entry(_hass: HomeAssistant, entry: HaeoConfigEntry) -> bo
 
     # All cleanup is handled by async_on_unload callbacks
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
+    """Dismiss the repair issues raised for a removed config entry."""
+    dismiss_entry_issues(hass, entry.entry_id)
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:

@@ -2,10 +2,10 @@
 
 Connections define explicit, **unidirectional** power paths between elements, with optional capacity limits, efficiency losses, and transfer pricing.
 
-!!! warning "Advanced Element"
+!!! warning "Raw model element"
 
-    Connection is only available when **Advanced Mode** is enabled on your hub.
-    This element is intended for advanced users who need explicit control over power flow paths.
+    Connection is only available when **Expose raw model elements** is enabled on your hub.
+    This element is for explicit control over power flow paths when you are building the model yourself.
     Most users should rely on implicit connections created automatically by other elements.
 
 !!! note "Implicit connections"
@@ -54,48 +54,33 @@ Use [input number helpers](https://www.home-assistant.io/integrations/input_numb
 
 ### Connection Endpoint Selection
 
-The **Source** and **Target** fields show a dropdown of available elements that can be used as connection endpoints.
-The list of available elements is filtered based on connectivity level and your hub's Advanced Mode setting.
+The **Source** and **Target** fields list the points in your network that power can flow through.
+Elements that apply their own prices, forecasts, and limits on their own connection are not listed, because a connection made directly to them would bypass those.
+Connect to the junction or inverter such an element is attached to instead.
 
-**Why filtering?**
-Standard elements (Grid, Battery, Solar, Load) create implicit connections automatically.
-Explicit connections between these elements are usually unnecessary and can lead to configuration errors.
-The filtering hides these elements by default to prevent common mistakes.
-
-**Filtering behavior:**
-
-- Advanced elements that require manual connection setup always appear in the selector regardless of Advanced Mode.
-- Standard elements that create implicit connections automatically only appear when Advanced Mode is enabled.
-- Connection elements never appear as endpoints to prevent invalid connection topologies.
-
-This filtering ensures that connection endpoints are appropriate for your configuration level.
-Each element's documentation describes its connectivity level and when it appears in connection selectors.
+If an existing configuration connects directly to one of these elements, HAEO raises a repair issue listing each affected connection.
 
 ## Configuration Examples
 
-### One-way link between nodes
+### One-way link between junctions
 
 | Field         | Value                  |
 | ------------- | ---------------------- |
 | **Name**      | DC bus to AC bus       |
-| **Source**    | DC Node                |
-| **Target**    | AC Node                |
+| **Source**    | DC Bus                 |
+| **Target**    | AC Bus                 |
 | **Max power** | input_number.max_power |
 
 ### Bidirectional link (two connections)
 
 Create one connection for each direction when both paths need limits or different parameters:
 
-| Connection | Source  | Target  | **Max power**             |
-| ---------- | ------- | ------- | ------------------------- |
-| DC to AC   | DC Node | AC Node | input_number.dc_to_ac_max |
-| AC to DC   | AC Node | DC Node | input_number.ac_to_dc_max |
+| Connection | Source | Target | **Max power**             |
+| ---------- | ------ | ------ | ------------------------- |
+| DC to AC   | DC Bus | AC Bus | input_number.dc_to_ac_max |
+| AC to DC   | AC Bus | DC Bus | input_number.ac_to_dc_max |
 
 Use separate **Efficiency** and **Price** values on each connection when the directions differ.
-
-!!! note "Advanced Mode required for standard elements"
-
-    Examples that use Grid, Battery, Solar, or Load as endpoints require Advanced Mode on your hub so those elements appear in the selector.
 
 ## Physical Interpretation
 
@@ -128,8 +113,8 @@ Leave **Max power** unset for unlimited flow in the configured direction:
 | Field          | Value                   |
 | -------------- | ----------------------- |
 | **Name**       | DC to AC                |
-| **Source**     | DC Node                 |
-| **Target**     | AC Node                 |
+| **Source**     | DC Bus                  |
+| **Target**     | AC Bus                  |
 | **Max power**  | input_number.max_power  |
 | **Efficiency** | input_number.efficiency |
 
@@ -160,14 +145,15 @@ Then configure the connection:
 
 | Field         | Value                           |
 | ------------- | ------------------------------- |
-| **Name**      | Grid to EV                      |
-| **Source**    | Grid                            |
-| **Target**    | EV_Battery                      |
+| **Name**      | Switchboard to EV               |
+| **Source**    | Switchboard                     |
+| **Target**    | EV Battery                      |
 | **Max power** | sensor.ev_charging_availability |
 
-!!! note "Advanced Mode required"
+!!! note "Battery Section endpoint"
 
-    This example uses standard elements that require Advanced Mode to appear in connection selectors.
+    `EV Battery` is a [Battery Section](battery_section.md).
+    Power reaches it through the Switchboard, so the grid import price still applies to the charging energy.
 
 The optimizer will only schedule charging when the sensor value is non-zero.
 
@@ -230,13 +216,13 @@ See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly)
 
     [:material-arrow-right: Connection modeling](../../modeling/device-layer/connection.md)
 
-- :material-circle-outline:{ .lg .middle } **Node modeling**
+- :material-circle-outline:{ .lg .middle } **Junction modeling**
 
     ---
 
-    Learn about power balance at network nodes.
+    Learn about power balance where connections meet.
 
-    [:material-arrow-right: Node modeling](../../modeling/device-layer/node.md)
+    [:material-arrow-right: Junction modeling](../../modeling/device-layer/junction.md)
 
 - :material-chart-line:{ .lg .middle } **Understand optimization**
 

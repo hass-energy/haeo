@@ -27,26 +27,7 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import CoordinatorData, HaeoDataUpdateCoordinator, OptimizationContext
 from custom_components.haeo.core.adapters.elements.grid import GRID_POWER_IMPORT
-from custom_components.haeo.core.const import (
-    CONF_ELEMENT_TYPE,
-    CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-    DEFAULT_TIER_1_COUNT,
-    DEFAULT_TIER_1_DURATION,
-    DEFAULT_TIER_2_COUNT,
-    DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_3_COUNT,
-    DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_COUNT,
-    DEFAULT_TIER_4_DURATION,
-)
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.battery import (
@@ -59,6 +40,7 @@ from custom_components.haeo.core.schema.elements.battery import (
     SECTION_PARTITIONING,
     SECTION_STORAGE,
 )
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -85,7 +67,7 @@ from custom_components.haeo.diagnostics.collector import (
     _get_last_run_before,
 )
 from custom_components.haeo.entities.device import build_device_identifier
-from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.flows import HUB_SECTION_COMMON
 from custom_components.haeo.sensor_utils import get_duration_sensor_entity_id, get_horizon_sensor_entity_id
 
 
@@ -179,17 +161,7 @@ def _hub_entry_data(name: str = "Test Hub") -> dict[str, object]:
     """Build hub entry data using the sectioned schema."""
     return {
         CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-        HUB_SECTION_COMMON: {CONF_NAME: name},
-        HUB_SECTION_TIERS: {
-            CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-            CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-            CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-            CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-            CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-            CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-            CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-            CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        },
+        HUB_SECTION_COMMON: {CONF_NAME: name, CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS)},
     }
 
 
@@ -275,8 +247,7 @@ async def test_diagnostics_basic_structure(hass: HomeAssistant) -> None:
     assert "info" not in diagnostics
     assert "outputs" in diagnostics
 
-    assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_COUNT] == DEFAULT_TIER_1_COUNT
-    assert diagnostics["config"][HUB_SECTION_TIERS][CONF_TIER_1_DURATION] == DEFAULT_TIER_1_DURATION
+    assert diagnostics["config"][HUB_SECTION_COMMON][CONF_HORIZON] == as_horizon_preset_value(HORIZON_PRESET_2_DAYS)
     assert "participants" in diagnostics["config"]
 
     environment = diagnostics["environment"]

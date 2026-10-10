@@ -72,7 +72,7 @@ class BatterySectionAdapter:
                 "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                 "name": config["name"],
                 "capacity": config[SECTION_STORAGE][CONF_CAPACITY],
-                "initial_charge": config[SECTION_STORAGE][CONF_INITIAL_CHARGE][0],
+                "initial_charge": config[SECTION_STORAGE][CONF_INITIAL_CHARGE],
             }
         ]
 

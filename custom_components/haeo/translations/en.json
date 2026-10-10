@@ -5,78 +5,77 @@
       "user": {
         "title": "HAEO Setup",
         "description": "Configure your system and choose a planning horizon that matches your forecast data availability.",
-        "data": { "advanced_mode": "Advanced Mode", "horizon_preset": "Planning Horizon", "name": "System Name" },
-        "data_description": { "advanced_mode": "Reveals additional element types for complex energy systems." },
+        "data": { "advanced_mode": "Expose raw model elements", "horizon": "Planning Horizon", "name": "System Name" },
+        "data_description": {
+          "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself."
+        },
         "sections": {
-          "advanced": { "data": { "advanced_mode": "Advanced Mode" }, "name": "Advanced settings" },
+          "advanced": {
+            "data": { "advanced_mode": "Expose raw model elements" },
+            "data_description": {
+              "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself."
+            },
+            "name": "Advanced settings"
+          },
           "common": {
-            "data": { "horizon_preset": "Planning Horizon", "name": "System Name" },
+            "data": { "horizon": "Planning Horizon", "name": "System Name" },
+            "data_description": {
+              "horizon": "A preset covering 2 to 7 days, or a sensor whose forecast times set the start and end of every period."
+            },
             "name": "Common settings"
           }
         }
-      },
-      "custom_tiers": {
-        "title": "Custom Tier Configuration",
-        "description": "Configure custom interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
-        "data": {
-          "tier_1_count": "Tier 1 Count (fine-grained)",
-          "tier_1_duration": "Tier 1 Duration (minutes)",
-          "tier_2_count": "Tier 2 Count (short-term)",
-          "tier_2_duration": "Tier 2 Duration (minutes)",
-          "tier_3_count": "Tier 3 Count (medium-term)",
-          "tier_3_duration": "Tier 3 Duration (minutes)",
-          "tier_4_count": "Tier 4 Count (long-term)",
-          "tier_4_duration": "Tier 4 Duration (minutes)"
-        }
       }
     },
-    "error": { "name_exists": "A system with this name already exists" },
+    "error": {
+      "horizon_entity_from_this_hub": "This hub's own sensors depend on its horizon, so they cannot set it.",
+      "horizon_entity_invalid": "This sensor does not report a forecast with at least two increasing times.",
+      "name_exists": "A system with this name already exists"
+    },
     "abort": { "already_configured": "HAEO already configured" }
   },
   "options": {
     "step": {
-      "custom_tiers": {
-        "title": "Custom Tier Configuration",
-        "description": "Configure custom interval tiers. Near-term intervals are more granular for precise control, while longer-term intervals reduce complexity.",
-        "data": {
-          "tier_1_count": "Tier 1 Count (fine-grained)",
-          "tier_1_duration": "Tier 1 Duration (minutes)",
-          "tier_2_count": "Tier 2 Count (short-term)",
-          "tier_2_duration": "Tier 2 Duration (minutes)",
-          "tier_3_count": "Tier 3 Count (medium-term)",
-          "tier_3_duration": "Tier 3 Duration (minutes)",
-          "tier_4_count": "Tier 4 Count (long-term)",
-          "tier_4_duration": "Tier 4 Duration (minutes)"
-        }
-      },
       "init": {
         "title": "HAEO Settings",
         "description": "Configure optimization settings. Choose a planning horizon that matches your forecast data availability.",
         "data": {
-          "advanced_mode": "Advanced Mode",
+          "advanced_mode": "Expose raw model elements",
           "debounce_seconds": "Debounce Window (seconds)",
-          "horizon_preset": "Planning Horizon",
+          "horizon": "Planning Horizon",
           "record_forecasts": "Record forecast data"
         },
         "data_description": {
-          "advanced_mode": "Reveals additional element types for complex energy systems.",
+          "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
           "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
         },
         "sections": {
           "advanced": {
             "data": {
-              "advanced_mode": "Advanced Mode",
+              "advanced_mode": "Expose raw model elements",
               "debounce_seconds": "Debounce Window (seconds)",
               "record_forecasts": "Record forecast data"
             },
+            "data_description": {
+              "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
+              "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
+            },
             "name": "Advanced settings"
           },
-          "common": { "data": { "horizon_preset": "Planning Horizon" }, "name": "Common settings" }
+          "common": {
+            "data": { "horizon": "Planning Horizon" },
+            "data_description": {
+              "horizon": "A preset covering 2 to 7 days, or a sensor whose forecast times set the start and end of every period."
+            },
+            "name": "Common settings"
+          }
         }
       }
     },
     "error": {
       "cannot_connect_to_self": "Cannot connect a device to itself",
+      "horizon_entity_from_this_hub": "This hub's own sensors depend on its horizon, so they cannot set it.",
+      "horizon_entity_invalid": "This sensor does not report a forecast with at least two increasing times.",
       "invalid_name": "Invalid device name",
       "name_exists": "A device with this name already exists"
     },
@@ -177,7 +176,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "battery_section": {
@@ -187,7 +190,7 @@
       "step": {
         "user": {
           "title": "Battery Section Configuration",
-          "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
+          "description": "Configure a single battery section with explicit capacity and initial charge. Battery sections have no implicit connections. Connections carry power in one direction only, so add one connection into the section to charge it and another connection out of it to discharge it.",
           "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" },
           "sections": {
             "common": { "data": { "name": "Battery Section Name" }, "name": "Common settings" },
@@ -225,6 +228,7 @@
       },
       "error": {
         "cannot_connect_to_self": "Cannot connect a device to itself",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
       },
@@ -259,7 +263,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "inverter": {
@@ -297,6 +305,25 @@
           }
         }
       },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
+    "junction": {
+      "flow_title": "Junction",
+      "entry_type": "Junction",
+      "initiate_flow": { "user": "Junction", "reconfigure": "Junction" },
+      "step": {
+        "user": {
+          "title": "Junction Configuration",
+          "description": "Add a junction where connections meet. Power flowing in always equals power flowing out.",
+          "data": { "name": "Junction Name" },
+          "sections": { "common": { "data": { "name": "Junction Name" }, "name": "Common settings" } }
+        }
+      },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -325,7 +352,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "network": {
@@ -342,7 +373,7 @@
       "step": {
         "user": {
           "title": "Node Configuration",
-          "description": "Add a node for power balance calculations or to source/sink unlimited power.",
+          "description": "Add a node that can produce or consume unlimited power. Use a junction for a point that only passes power through.",
           "data": {
             "is_sink": "Can consume unlimited power (Sink)",
             "is_source": "Can produce unlimited power (Source)",
@@ -427,7 +458,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
@@ -438,6 +473,7 @@
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
+    "junction": { "name": "{name}" },
     "load": { "name": "{name}" },
     "network": { "name": "Optimizer" },
     "node": { "name": "{name}" },
@@ -517,6 +553,7 @@
       "inverter_power_ac_to_dc": { "name": "AC to DC power" },
       "inverter_power_active": { "name": "Active power" },
       "inverter_power_dc_to_ac": { "name": "DC to AC power" },
+      "junction_power_balance": { "name": "Power balance shadow price" },
       "load_forecast_limit_price": { "name": "Forecast limit shadow price" },
       "load_horizon_average_marginal_price": { "name": "Horizon average marginal price" },
       "load_horizon_energy": { "name": "Horizon energy" },
@@ -547,6 +584,9 @@
     "config_entry_not_found": { "message": "Config entry {entry_id} not found" },
     "config_entry_not_loaded": { "message": "Config entry {entry_id} is not loaded (state: {state})" },
     "config_entry_wrong_domain": { "message": "Config entry {entry_id} is not a HAEO hub (domain: {domain})" },
+    "horizon_entity_not_ready": {
+      "message": "The planning horizon sensor {entity_id} does not report a usable HAEO-format forecast yet."
+    },
     "input_entities_not_ready": {
       "message": "Input entities not ready after {timeout} seconds: {not_ready}. Some sensors may not be available yet."
     },
@@ -582,9 +622,17 @@
       "title": "Invalid configuration for {element_name}",
       "description": "Element {element_name} has an invalid configuration: {config_problem}\n\nTo fix this issue:\n1. Open the HAEO integration settings\n2. Navigate to the {element_name} element configuration\n3. Correct the configuration problem described above\n4. Save your changes and reload the integration"
     },
+    "invalid_connection_endpoints": {
+      "title": "Connections bypass an element's own limits and prices",
+      "description": "Some elements connect directly to an element that applies its own prices, forecasts, power limits, and efficiencies on its own connection. A connection made directly to it bypasses all of those, so the optimizer treats it as free, unlimited power.\n\nAffected connections (element → endpoint):\n{connection_summary}\n\nTo fix this issue:\n1. Open the HAEO integration configuration\n2. Reconfigure each affected element to connect to the junction or inverter that its endpoint is connected to\n3. Save your changes; this issue will clear automatically once no element connects directly to one of these endpoints"
+    },
     "missing_sensor": {
       "title": "Missing sensor data for {element_name}",
       "description": "The HAEO integration cannot find sensor data for element {element_name}. The sensor entity {sensor_entity_id} may not exist or may be unavailable.\n\nTo fix this issue:\n1. Check that the sensor entity exists in Home Assistant\n2. Verify the sensor is available and reporting data\n3. If the sensor was removed, reconfigure the element to use a different sensor\n4. If the sensor is temporarily unavailable, this issue will automatically dismiss when the sensor becomes available again"
+    },
+    "node_replaced_by_junction": {
+      "title": "{element_name} is now a junction",
+      "description": "{element_name} was a node with its source or sink switch turned on or driven by an entity. A node like this produces or consumes unlimited power at no cost, which let the optimizer plan with power that does not exist.\n\n{element_name} is now a junction, which only passes power between the elements connected to it. Its source and sink switches have been removed.\n\nIf power should be produced or consumed at {element_name}, connect an element that sets its own limits and prices to it. You can ignore this issue once you have read it."
     },
     "optimization_failure": {
       "title": "Optimization failed",
@@ -592,9 +640,8 @@
     }
   },
   "selector": {
-    "horizon_preset": {
-      "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days", "custom": "Custom" }
-    },
+    "horizon_preset": { "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days" } },
+    "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
     "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },
     "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }
   },

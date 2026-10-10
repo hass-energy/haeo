@@ -241,6 +241,26 @@ class ElementFlowMixin:
             return False
         return True
 
+    def _validate_endpoint(self, name: str | None, field: str, errors: dict[str, str]) -> None:
+        """Add an error when an endpoint names an element that is never a connection endpoint.
+
+        The participant selector keeps a saved endpoint selectable so a config
+        saved before such endpoints were removed still renders, so the endpoint
+        is rejected here when the form is submitted.
+        """
+        # Avoid circular import with adapter registry, core constants, and schema module
+        from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type  # noqa: PLC0415
+        from custom_components.haeo.core.const import ConnectivityLevel  # noqa: PLC0415
+
+        hub_entry: ConfigEntry = self._get_entry()  # type: ignore[attr-defined]
+        for subentry in hub_entry.subentries.values():
+            if (
+                subentry.title == name
+                and is_element_type(subentry.subentry_type)
+                and ELEMENT_TYPES[subentry.subentry_type].connectivity == ConnectivityLevel.NEVER.value
+            ):
+                errors[field] = "invalid_endpoint"
+
     def _get_subentry(self) -> ConfigSubentry | None:
         """Get the subentry being reconfigured, or None for new entries."""
         try:

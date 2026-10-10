@@ -24,24 +24,6 @@ from custom_components.haeo.coordinator import (
     HaeoDataUpdateCoordinator,
     OptimizationContext,
 )
-from custom_components.haeo.core.const import (
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-    DEFAULT_TIER_1_COUNT,
-    DEFAULT_TIER_1_DURATION,
-    DEFAULT_TIER_2_COUNT,
-    DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_3_COUNT,
-    DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_COUNT,
-    DEFAULT_TIER_4_DURATION,
-)
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.system_health import async_register, async_system_health_info
 
@@ -64,7 +46,7 @@ def _make_coordinator_data(outputs: dict[str, Any]) -> CoordinatorData:
 
 def _make_runtime_data(coordinator: HaeoDataUpdateCoordinator | None) -> HaeoRuntimeData:
     """Create runtime data for system health tests."""
-    return HaeoRuntimeData(horizon_manager=Mock(), coordinator=coordinator)
+    return HaeoRuntimeData(horizon_manager=Mock(periods_seconds=[300] * 12 + [3600] * 23), coordinator=coordinator)
 
 
 async def test_async_register_callback(hass: HomeAssistant) -> None:
@@ -133,16 +115,6 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
 
     entry = MagicMock()
     entry.title = "HAEO Hub"
-    entry.data = {
-        CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-        CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-        CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-        CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-        CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-        CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-        CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-    }
     entry.runtime_data = _make_runtime_data(coordinator)
 
     with patch.object(hass.config_entries, "async_entries", return_value=[entry]):
@@ -154,8 +126,8 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
     assert info["HAEO Hub_last_optimization_duration"] == pytest.approx(1.234)
     assert info["HAEO Hub_last_optimization_time"] == "2024-01-01T12:00:00+00:00"
     assert info["HAEO Hub_outputs"] == 1
-    # Check the tier-based configuration is reported (110 periods with default config)
-    assert info["HAEO Hub_total_periods"] == 110
+    assert info["HAEO Hub_total_periods"] == 35
+    assert info["HAEO Hub_horizon_minutes"] == 1440
 
 
 async def test_system_health_detects_failed_updates(hass: HomeAssistant) -> None:
@@ -168,16 +140,6 @@ async def test_system_health_detects_failed_updates(hass: HomeAssistant) -> None
 
     entry = MagicMock()
     entry.title = "HAEO Hub"
-    entry.data = {
-        CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-        CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-        CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-        CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-        CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-        CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-        CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-        CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-    }
     entry.runtime_data = _make_runtime_data(coordinator)
 
     with patch.object(hass.config_entries, "async_entries", return_value=[entry]):

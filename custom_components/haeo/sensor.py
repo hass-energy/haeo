@@ -1,22 +1,15 @@
 """Sensor platform for Home Assistant Energy Optimizer integration."""
 
-from collections.abc import Mapping
 import logging
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
-from custom_components.haeo.core.schema import (
-    is_connection_target,
-    is_constant_value,
-    is_entity_value,
-    is_none_value,
-    is_schema_value,
-)
+from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.device import (
     build_device_identifier,
@@ -29,38 +22,6 @@ _LOGGER = logging.getLogger(__name__)
 
 # Sensors are read-only and use coordinator, so unlimited parallel updates is safe
 PARALLEL_UPDATES = 0
-
-
-def _format_placeholder(value: object) -> str:
-    """Render a subentry value as a translation placeholder string."""
-    if is_entity_value(value):
-        return ", ".join(value["value"])
-    if is_constant_value(value):
-        return str(value["value"])
-    if is_none_value(value):
-        return ""
-    if is_connection_target(value):
-        return value["value"]
-    return str(value)
-
-
-def _translation_placeholders(subentry: ConfigSubentry) -> dict[str, str]:
-    """Build translation placeholders from subentry data.
-
-    Section values (e.g. a connection's ``endpoints``) are flattened so their
-    fields (``source``, ``target``) are available to translated names. Home
-    Assistant raises on a missing placeholder, so an unflattened section drops
-    the entity entirely.
-    """
-    placeholders: dict[str, str] = {}
-    for key, value in subentry.data.items():
-        if isinstance(value, Mapping) and not is_schema_value(value) and not is_connection_target(value):
-            for nested_key, nested_value in value.items():
-                placeholders.setdefault(nested_key, _format_placeholder(nested_value))
-            continue
-        placeholders[key] = _format_placeholder(value)
-    placeholders.setdefault("name", subentry.title)
-    return placeholders
 
 
 async def async_setup_entry(
@@ -100,44 +61,66 @@ async def async_setup_entry(
         device_entry=network_device_entry,
         horizon_manager=horizon_manager,
     )
-    entities: list[SensorEntity] = [horizon_entity]
-
-    # Create sensors for each output in the coordinator data grouped by element
+    # Output sensors are built from the coordinator's outputs. If the first optimization
+    # after a load or reload failed there are none yet, so they are added on the first
+    # successful update instead.
     if coordinator.data:
-        for subentry in config_entry.subentries.values():
-            # Get all devices under this subentry (may be multiple, e.g., battery regions)
-            subentry_devices = coordinator.data.outputs.get(subentry.title, {})
+        async_add_entities([horizon_entity, *_build_output_entities(hass, config_entry, coordinator)])
+        return
 
-            # Flatten sections so nested fields such as endpoints.source resolve
-            translation_placeholders = _translation_placeholders(subentry)
+    async_add_entities([horizon_entity])
+    added = False
 
-            for device_name, device_outputs in subentry_devices.items():
-                # Get or create the device using centralized device creation
-                device_entry = get_or_create_element_device(hass, config_entry, subentry, device_name)
+    @callback
+    def _add_when_ready() -> None:
+        nonlocal added
+        # An update can finish while the entry is unloading, when entities must not be added
+        if added or not coordinator.data or config_entry.state is not ConfigEntryState.LOADED:
+            return
+        added = True
+        async_add_entities(_build_output_entities(hass, config_entry, coordinator))
 
-                # Build unique ID using consistent identifier pattern
-                device_identifier = build_device_identifier(config_entry, subentry, device_name)
+    config_entry.async_on_unload(coordinator.async_add_listener(_add_when_ready))
 
-                for output_name, output_data in device_outputs.items():
-                    entities.append(
-                        HaeoSensor(
-                            coordinator,
-                            device_entry=device_entry,
-                            subentry_key=subentry.title,
-                            device_key=device_name,
-                            element_title=subentry.title,
-                            element_type=subentry.subentry_type,
-                            output_name=output_name,
-                            output_data=output_data,
-                            unique_id=f"{device_identifier[1]}_{output_name}",
-                            translation_placeholders=translation_placeholders,
-                        )
-                    )
 
-    if entities:
-        async_add_entities(entities)
-    else:
-        _LOGGER.debug("No sensors created for entry %s", config_entry.entry_id)
+def _build_output_entities(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    coordinator: HaeoDataUpdateCoordinator,
+) -> list[SensorEntity]:
+    """Build one sensor per output of the coordinator's latest data, grouped by element."""
+    entities: list[SensorEntity] = []
+    for subentry in config_entry.subentries.values():
+        # Get all devices under this subentry (may be multiple, e.g., battery regions)
+        subentry_devices = coordinator.data.outputs.get(subentry.title, {})
+
+        # Pass subentry data as translation placeholders (convert all values to strings)
+        translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
+
+        for device_name, device_outputs in subentry_devices.items():
+            # Get or create the device using centralized device creation
+            device_entry = get_or_create_element_device(hass, config_entry, subentry, device_name)
+
+            # Build unique ID using consistent identifier pattern
+            device_identifier = build_device_identifier(config_entry, subentry, device_name)
+
+            entities.extend(
+                HaeoSensor(
+                    coordinator,
+                    device_entry=device_entry,
+                    subentry_key=subentry.title,
+                    device_key=device_name,
+                    element_title=subentry.title,
+                    element_type=subentry.subentry_type,
+                    output_name=output_name,
+                    output_data=output_data,
+                    unique_id=f"{device_identifier[1]}_{output_name}",
+                    translation_placeholders=translation_placeholders,
+                )
+                for output_name, output_data in device_outputs.items()
+            )
+
+    return entities
 
 
 __all__ = ["async_setup_entry"]

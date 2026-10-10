@@ -3,10 +3,6 @@
 Inverters convert power between DC and AC systems.
 They provide a DC bus for connecting batteries and solar panels, with bidirectional power conversion to an AC network.
 
-!!! note "Connection endpoints"
-
-    Inverter elements always appear in connection selectors regardless of Advanced Mode setting.
-
 ## Configuration
 
 | Field                                         | Type                                  | Required | Default | Description                                            |
@@ -30,7 +26,7 @@ Used to create sensor entity IDs and identify the inverter in connections.
 ## Connection
 
 The AC side node where the inverter connects.
-This is typically your home's main electrical bus or switchboard node.
+This is typically your home's main electrical bus, such as the Switchboard junction.
 
 Other elements (batteries, solar panels) connect to the inverter's DC bus by specifying the inverter name as their connection target.
 

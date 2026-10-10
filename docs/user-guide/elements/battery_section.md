@@ -1,18 +1,20 @@
 # Battery Section
 
-Battery Section is an advanced element that provides direct access to the model layer Battery element.
+Battery Section is a raw model element that provides direct access to the model layer Battery element.
 Unlike the standard Battery element which creates multiple sections and an internal node,
 this element creates a single battery section that must be connected manually via Connection elements.
 
-!!! warning "Advanced Element"
+!!! warning "Raw model element"
 
-    Battery Section is only available when **Advanced Mode** is enabled on your hub.
-    This element is intended for advanced users who need direct control over battery modeling.
+    Battery Section is only available when **Expose raw model elements** is enabled on your hub.
+    This element is for direct control over battery modeling when you are building the model yourself.
     Most users should use the standard [Battery](battery.md) element instead.
 
-!!! note "Connection endpoints"
+!!! warning "Two connections required"
 
-    Battery Section elements always appear in connection selectors regardless of Advanced Mode setting.
+    Connections carry power in one direction only, from source to target.
+    A Battery Section needs one connection with the section as its **target** to charge, and a second connection with the section as its **source** to discharge.
+    With only one connection, the section can only charge or only discharge.
 
 For mathematical details, see [Battery Section Modeling](../../modeling/device-layer/battery_section.md).
 
@@ -32,7 +34,8 @@ Unlike the standard Battery element, Battery Section does not create:
 - Internal node for power routing
 - Implicit connections to other elements
 
-You must manually create Connection elements to connect the Battery Section to your network.
+You must manually create Connection elements to connect the Battery Section to your network: one for each direction power should flow.
+Put the charge and discharge efficiencies and power limits on those connections, since the section itself has none.
 
 ## Configuration Fields
 
@@ -61,7 +64,8 @@ The optimizer uses this value to enforce state of charge constraints.
 Select a Home Assistant sensor that reports the initial energy stored in the battery in kWh.
 This represents the battery's state of charge at the start of the optimization window.
 
-The sensor should provide a single current value (not a forecast).
+HAEO reads the sensor's current value.
+Forecast attributes are ignored, because only the energy at the start of the window is used.
 
 ## Configuration Example
 
@@ -73,7 +77,12 @@ Basic battery section configuration:
 | **Capacity**       | sensor.battery_capacity |
 | **Initial Charge** | sensor.battery_energy   |
 
-After creating the Battery Section element, you must create Connection elements to connect it to other elements in your network (nodes, grids, etc.).
+After creating the Battery Section element, create two Connection elements between it and a junction or inverter:
+
+| Connection                    | Source            | Target            | Purpose     |
+| ----------------------------- | ----------------- | ----------------- | ----------- |
+| **Battery Section charge**    | Switchboard       | Battery Section 1 | Charging    |
+| **Battery Section discharge** | Battery Section 1 | Switchboard       | Discharging |
 
 ## Sensors Created
 
@@ -204,15 +213,16 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 **Problem**: The Battery Section element type does not appear in the element selection list.
 
-**Solution**: Enable Advanced Mode in your hub configuration.
-Battery Section is only available when Advanced Mode is enabled.
+**Solution**: Enable **Expose raw model elements** in your hub configuration.
+Battery Section is only available when that setting is enabled.
 
 ### No Power Flow
 
 **Problem**: Battery Section shows zero power even when connected.
 
-**Solution**: Verify that Connection elements are properly configured to connect the Battery Section to other elements (nodes, grids, etc.).
+**Solution**: Verify that Connection elements connect the Battery Section to a junction or inverter in both directions.
 Battery Section does not create implicit connections like the standard Battery element.
+If the section only charges or only discharges, the connection for the other direction is missing.
 
 ### Connection Errors
 
@@ -249,12 +259,12 @@ Check that the Battery Section element exists before creating connections.
 
     [:material-arrow-right: Battery Section modeling](../../modeling/device-layer/battery_section.md)
 
-- :material-cog-outline:{ .lg .middle } **Advanced mode**
+- :material-cog-outline:{ .lg .middle } **Expose raw model elements**
 
     ---
 
-    Learn about advanced mode and other advanced elements.
+    Learn when to expose raw model elements and which elements it adds.
 
-    [:material-arrow-right: Configuration guide](../configuration.md#advanced-mode)
+    [:material-arrow-right: Configuration guide](../configuration.md#expose-raw-model-elements)
 
 </div>
