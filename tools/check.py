@@ -130,10 +130,36 @@ def card_dependencies() -> None:
         execute(["npm", "--prefix", "frontend/haeo-forecast-card", "ci", "--silent"])
 
 
+CARD_ROOT: Final = REPO_ROOT / "frontend" / "haeo-forecast-card"
+CARD_BUNDLE: Final = CARD_ROOT / "dist" / "render-topology-svg.mjs"
+CARD_BUILD_INPUTS: Final = (
+    CARD_ROOT / "src",
+    CARD_ROOT / "scripts",
+    CARD_ROOT / "package.json",
+    CARD_ROOT / "package-lock.json",
+    CARD_ROOT / "rolldown.config.mjs",
+    CARD_ROOT / "tsconfig.json",
+)
+
+
+def bundle_is_stale(bundle: Path, inputs: Sequence[Path]) -> bool:
+    """Return whether the bundle is missing or older than any file it is built from."""
+    if not bundle.exists():
+        return True
+    built = bundle.stat().st_mtime
+    files = (file for path in inputs for file in ([path] if path.is_file() else path.rglob("*")) if file.is_file())
+    return any(file.stat().st_mtime > built for file in files)
+
+
 def card_build() -> None:
-    """Build the card bundle that scenario tests render topology SVGs through."""
+    """Build the card bundle that scenario tests render topology SVGs through.
+
+    The bundle is git-ignored, so a checkout can hold one built from older
+    sources. It is rebuilt whenever a source is newer, so scenario SVGs are never
+    rendered with an outdated card.
+    """
     card_dependencies()
-    if not (REPO_ROOT / "frontend" / "haeo-forecast-card" / "dist" / "render-topology-svg.mjs").exists():
+    if bundle_is_stale(CARD_BUNDLE, CARD_BUILD_INPUTS):
         execute(["npm", "--prefix", "frontend/haeo-forecast-card", "run", "build", "--silent"])
 
 
