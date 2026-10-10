@@ -204,16 +204,6 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
         {
             network_key: {
                 network_key: {
-                    OUTPUT_NAME_OPTIMIZATION_STATUS: _make_output(
-                        type_=OutputType.STATUS,
-                        unit=None,
-                        state="pending",
-                        forecast=None,
-                        entity_category=None,
-                        device_class=SensorDeviceClass.ENUM,
-                        state_class=None,
-                        options=("failed", "pending", "success"),
-                    ),
                     OUTPUT_NAME_OPTIMIZATION_DURATION: _make_output(
                         type_=OutputType.DURATION,
                         unit=UnitOfTime.SECONDS,
@@ -250,13 +240,9 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
 
     async_add_entities.assert_called_once()
     sensors = list(async_add_entities.call_args.args[0])
-    # 3 output sensors + 1 horizon entity = 4 total
+    # Horizon and status sensors, then 2 output sensors
+    assert [type(sensor).__name__ for sensor in sensors[:2]] == ["HaeoHorizonEntity", "HaeoStatusSensor"]
     assert len(sensors) == 4
-
-    status_sensor = next(sensor for sensor in sensors if sensor.translation_key == OUTPUT_NAME_OPTIMIZATION_STATUS)
-    assert status_sensor.device_class is SensorDeviceClass.ENUM
-    assert status_sensor.options == ["failed", "pending", "success"]
-    assert status_sensor.native_value == "pending"
 
     duration_sensor = next(sensor for sensor in sensors if sensor.translation_key == OUTPUT_NAME_OPTIMIZATION_DURATION)
     assert duration_sensor.entity_category is EntityCategory.DIAGNOSTIC
@@ -304,15 +290,10 @@ async def test_async_setup_entry_creates_horizon_when_no_outputs(
 
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    # Horizon entity is always added (created in sensor platform from horizon_manager)
+    # The horizon and status sensors are always added
     async_add_entities.assert_called_once()
     entities = async_add_entities.call_args[0][0]
-    assert len(entities) == 1
-    # The first entity is the HaeoHorizonEntity created in sensor platform
-    # Import is at function scope to avoid circular import issues in test module
-    from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity  # noqa: PLC0415
-
-    assert isinstance(entities[0], HaeoHorizonEntity)
+    assert [type(entity).__name__ for entity in entities] == ["HaeoHorizonEntity", "HaeoStatusSensor"]
 
 
 def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry) -> None:
@@ -568,10 +549,10 @@ async def test_async_setup_entry_creates_sub_device_sensors(
 
     async_add_entities.assert_called_once()
     sensors = list(async_add_entities.call_args.args[0])
-    # 2 entities: horizon entity + 1 output sensor
-    assert len(sensors) == 2
+    # Horizon and status sensors, plus 1 output sensor
+    assert len(sensors) == 3
 
-    # Find the output sensor (not the horizon entity)
+    # Find the output sensor
     output_sensors = [s for s in sensors if isinstance(s, HaeoSensor)]
     assert len(output_sensors) == 1
 
@@ -627,54 +608,6 @@ def test_handle_coordinator_update_sets_direction(device_entry: DeviceEntry) -> 
     attributes = sensor.extra_state_attributes
     assert attributes is not None
     assert attributes["direction"] == "+"
-
-
-def test_optimization_status_sensor_tracks_last_run(device_entry: DeviceEntry) -> None:
-    """Optimization status sensor exposes completed timestamp for each run."""
-    coordinator = _create_mock_coordinator()
-    output = _make_output(
-        type_=OutputType.STATUS,
-        unit=None,
-        state="success",
-        forecast=None,
-        entity_category=None,
-        device_class=SensorDeviceClass.ENUM,
-        state_class=None,
-        options=("failed", "pending", "success"),
-    )
-    sensor = HaeoSensor(
-        coordinator,
-        device_entry=device_entry,
-        subentry_key="Network",
-        device_key=ELEMENT_TYPE_NETWORK,
-        element_title="Network",
-        element_type=ELEMENT_TYPE_NETWORK,
-        output_name=OUTPUT_NAME_OPTIMIZATION_STATUS,
-        output_data=output,
-        unique_id="status-sensor-id",
-    )
-    sensor.async_write_ha_state = Mock()
-
-    first_completed_at = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
-    second_completed_at = datetime(2024, 1, 1, 12, 5, tzinfo=UTC)
-
-    coordinator.data = _make_coordinator_data(
-        {"Network": {"network": {OUTPUT_NAME_OPTIMIZATION_STATUS: output}}},
-        completed_at=first_completed_at,
-    )
-    sensor._handle_coordinator_update()
-    first_attributes = sensor.extra_state_attributes
-    assert first_attributes is not None
-    assert first_attributes["last_run"] == dt_util.as_utc(first_completed_at).isoformat()
-
-    coordinator.data = _make_coordinator_data(
-        {"Network": {"network": {OUTPUT_NAME_OPTIMIZATION_STATUS: output}}},
-        completed_at=second_completed_at,
-    )
-    sensor._handle_coordinator_update()
-    second_attributes = sensor.extra_state_attributes
-    assert second_attributes is not None
-    assert second_attributes["last_run"] == dt_util.as_utc(second_completed_at).isoformat()
 
 
 # --- Recorder Filtering Tests ---
@@ -917,8 +850,8 @@ async def test_outputs_added_after_failed_first_optimization(
     async_add_entities = Mock()
 
     await async_setup_entry(hass, config_entry, async_add_entities)
-    (horizon_only,) = async_add_entities.call_args.args
-    assert [type(entity).__name__ for entity in horizon_only] == ["HaeoHorizonEntity"]
+    (always_present,) = async_add_entities.call_args.args
+    assert [type(entity).__name__ for entity in always_present] == ["HaeoHorizonEntity", "HaeoStatusSensor"]
 
     # A failed update adds nothing
     for listener in list(listeners):
@@ -954,3 +887,20 @@ async def test_outputs_not_added_while_entry_unloads(
 
     await config_entry._async_process_on_unload(hass)
     assert listeners == []
+
+
+async def test_status_sensor_keeps_previous_unique_id(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """The status sensor keeps the unique ID it had as a network output, so its entity ID is unchanged."""
+    config_entry.runtime_data = _create_mock_runtime_data(_create_mock_coordinator())
+    async_add_entities = Mock()
+
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    network = next(s for s in config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK)
+    status_sensor = async_add_entities.call_args.args[0][1]
+    assert status_sensor.unique_id == (
+        f"{config_entry.entry_id}_{network.subentry_id}_network_network_optimization_status"
+    )
