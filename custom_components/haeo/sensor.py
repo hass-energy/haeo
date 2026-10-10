@@ -17,6 +17,7 @@ from custom_components.haeo.entities.device import (
     get_or_create_network_device,
 )
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
+from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -94,8 +95,7 @@ def _build_output_entities(
         # Get all devices under this subentry (may be multiple, e.g., battery regions)
         subentry_devices = coordinator.data.outputs.get(subentry.title, {})
 
-        # Pass subentry data as translation placeholders (convert all values to strings)
-        translation_placeholders = {k: str(v) for k, v in subentry.data.items()}
+        translation_placeholders = build_translation_placeholders(subentry)
 
         for device_name, device_outputs in subentry_devices.items():
             # Get or create the device using centralized device creation
