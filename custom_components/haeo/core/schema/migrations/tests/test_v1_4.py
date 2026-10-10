@@ -4,7 +4,17 @@ from collections.abc import Mapping
 
 import pytest
 
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.const import (
+    CONF_ELEMENT_TYPE,
+    CONF_HORIZON,
+    CONF_HORIZON_PRESET,
+    CONF_NAME,
+    HORIZON_PRESET_3_DAYS,
+    HORIZON_PRESET_5_DAYS,
+    HUB_SECTION_ADVANCED,
+    HUB_SECTION_COMMON,
+    HUB_SECTION_TIERS,
+)
 from custom_components.haeo.core.schema import (
     as_connection_target,
     as_constant_value,
@@ -13,10 +23,12 @@ from custom_components.haeo.core.schema import (
     get_connection_target_name,
 )
 from custom_components.haeo.core.schema.elements import connection, junction, node
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.migrations.v1_4 import (
     junction_config,
     merge_reverse_into_existing,
     migrate_connection_config,
+    migrate_hub_horizon,
     node_is_junction,
 )
 from custom_components.haeo.core.schema.sections import (
@@ -219,3 +231,24 @@ def test_junction_config_keeps_only_the_name() -> None:
     data = {CONF_ELEMENT_TYPE: node.ELEMENT_TYPE, CONF_NAME: "Switchboard", node.SECTION_ROLE: {"is_source": False}}
 
     assert junction_config(data) == {CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: "Switchboard"}
+
+
+@pytest.mark.parametrize(
+    ("stored_preset", "expected_preset"),
+    [
+        pytest.param(HORIZON_PRESET_3_DAYS, HORIZON_PRESET_3_DAYS, id="preset_kept"),
+        pytest.param("custom", HORIZON_PRESET_5_DAYS, id="custom_tiers_use_default"),
+        pytest.param(None, HORIZON_PRESET_5_DAYS, id="no_preset_uses_default"),
+    ],
+)
+def test_migrate_hub_horizon(stored_preset: str | None, expected_preset: str) -> None:
+    """The horizon preset becomes a horizon choice, and custom tiers are dropped for the default preset."""
+    common: dict[str, object] = {CONF_NAME: "Hub"}
+    if stored_preset is not None:
+        common[CONF_HORIZON_PRESET] = stored_preset
+    data = {HUB_SECTION_COMMON: common, HUB_SECTION_TIERS: {"tier_1_count": 5}, HUB_SECTION_ADVANCED: {}}
+
+    assert migrate_hub_horizon(data) == {
+        HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: as_horizon_preset_value(expected_preset)},
+        HUB_SECTION_ADVANCED: {},
+    }

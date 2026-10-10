@@ -25,13 +25,14 @@ from custom_components.haeo.coordinator.network import ElementUpdater, _build_el
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
 from custom_components.haeo.core.adapters.policy_compilation import compile_policies
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements
-from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
+from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model.network import CalibratedOptions, LexOptions, Network, SolveOptions
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.policy import is_policy_config_data
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.elements import is_element_config_schema
+from tools.diag.cli import config_horizon_preset
 
 # ---------------------------------------------------------------------------
 # Lightweight StateMachine backed by scenario inputs.json
@@ -94,29 +95,6 @@ def _load_scenario(
     return config, inputs, environment["optimization_start_time"]
 
 
-def _as_tier_config(config: Mapping[str, JsonValueType]) -> dict[str, int | str | Mapping[str, int | str]]:
-    """Narrow a scenario config dict to the shape ``tiers_to_periods_seconds`` expects.
-
-    Scenario config is genuinely-JSON-shaped and typed as such, but the tier
-    config helper only cares about tier_N_count/tier_N_duration/horizon_preset
-    fields, which are always plain ints/strings (optionally nested one level).
-    """
-    result: dict[str, int | str | Mapping[str, int | str]] = {}
-    for key, value in config.items():
-        if isinstance(value, bool):
-            continue
-        if isinstance(value, int | str):
-            result[key] = value
-        elif isinstance(value, dict):
-            nested: dict[str, int | str] = {
-                nested_key: nested_value
-                for nested_key, nested_value in value.items()
-                if isinstance(nested_value, int | str) and not isinstance(nested_value, bool)
-            }
-            result[key] = nested
-    return result
-
-
 def _participants_from_config(config: Mapping[str, JsonValueType]) -> dict[str, ElementConfigSchema]:
     """Narrow a scenario config's participants section to ElementConfigSchema entries."""
     participants_raw = config["participants"]
@@ -140,7 +118,7 @@ def _build_network(
 ) -> tuple[Network, dict[str, ElementUpdater]]:
     """Build a Network from scenario data without Home Assistant."""
     participants = _participants_from_config(config)
-    periods_seconds = tiers_to_periods_seconds(_as_tier_config(config), start_time=frozen_dt)
+    periods_seconds = preset_periods_seconds(config_horizon_preset(config), start_time=frozen_dt)
     periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
     forecast_times = generate_forecast_timestamps(periods_seconds, start_time=frozen_dt.timestamp())
 
@@ -187,7 +165,7 @@ def _load_configs(
     frozen_dt: datetime,
 ) -> dict[str, ElementConfigData]:
     """Load element configs resolved against scenario state machine."""
-    periods_seconds = tiers_to_periods_seconds(_as_tier_config(config), start_time=frozen_dt)
+    periods_seconds = preset_periods_seconds(config_horizon_preset(config), start_time=frozen_dt)
     forecast_times = generate_forecast_timestamps(periods_seconds, start_time=frozen_dt.timestamp())
     return load_element_configs(_participants_from_config(config), sm, forecast_times)
 
@@ -201,7 +179,7 @@ def _load_shifted_configs(
     """Load element configs with time shifted forward."""
     shifted_epoch = frozen_dt.timestamp() + shift_seconds
     shifted_dt = datetime.fromtimestamp(shifted_epoch, tz=UTC)
-    shifted_periods = tiers_to_periods_seconds(_as_tier_config(config), start_time=shifted_dt)
+    shifted_periods = preset_periods_seconds(config_horizon_preset(config), start_time=shifted_dt)
     shifted_forecast_times = generate_forecast_timestamps(shifted_periods, start_time=shifted_epoch)
     return load_element_configs(_participants_from_config(config), sm, shifted_forecast_times)
 
@@ -294,7 +272,7 @@ def test_time_shift(scenario_path: Path, options: SolveOptions, benchmark: Bench
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
 
-    periods_seconds = tiers_to_periods_seconds(_as_tier_config(config), start_time=frozen_dt)
+    periods_seconds = preset_periods_seconds(config_horizon_preset(config), start_time=frozen_dt)
     shift_seconds = periods_seconds[0]
     shifted_configs = _load_shifted_configs(config, sm, frozen_dt, shift_seconds)
 

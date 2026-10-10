@@ -36,44 +36,59 @@ A unique name for your energy hub (for example, "Home Energy System").
 
 #### Planning horizon
 
-Choose a planning horizon preset that matches your forecast coverage.
-Presets automatically populate tier configuration.
-Select **Custom** to define tier counts and durations yourself.
+The planning horizon sets how far ahead HAEO plans and how long each period in the plan is.
+Choose **Preset** or **Forecast sensor**.
 
-#### Custom tiers
-
-HAEO uses dynamic interval sizing to balance precision and performance.
-When you select **Custom**, the next step lets you configure up to four tiers, each specifying how many intervals to create and their duration in minutes.
-
-| Tier | Default Count | Default Duration | Purpose                             |
-| ---- | ------------- | ---------------- | ----------------------------------- |
-| 1    | 5             | 1 minute         | High-resolution near-term decisions |
-| 2    | 5             | 5 minutes        | Short-term response                 |
-| 3    | 46            | 30 minutes       | Day-ahead planning                  |
-| 4    | 48            | 60 minutes       | Extended horizon                    |
-
-The custom tier defaults create approximately 104 intervals spanning roughly 72 hours:
-
-- 5 × 1 min = 5 minutes of fine-grained control
-- 5 × 5 min = 25 minutes of responsive planning
-- 46 × 30 min ≈ 23 hours of day-ahead optimization
-- 48 × 60 min = 48 hours of extended lookahead
-
-**Why variable intervals?**
+**Preset** plans 2, 3, 5, or 7 days ahead (5 days by default).
+Choose a horizon that matches your forecast coverage.
+Periods start at 1 minute, then grow to 5, 30, and 60 minutes further out.
+Each change in period length lines up with the clock, and the horizon ends exactly the chosen number of days after it starts.
 
 Near-term decisions benefit from high resolution because they directly influence immediate actions.
 Distant periods can use coarser resolution since forecasts become less reliable further out and battery decisions today rarely depend on hour-by-hour precision three days from now.
 
-**Tuning tips**:
+HAEO uses [forecast cycling](forecasts-and-sensors.md#forecast-coverage-and-cycling) to extend partial forecast data across the full horizon.
+A 24-hour solar forecast cycles to cover longer horizons with time-of-day alignment preserved.
 
-- Set tier counts to zero to disable a tier entirely
-- Increase tier 1 count for faster-responding systems (EV chargers, heat pumps)
-- Reduce tier 4 count if optimization takes too long
-- Match tier 1 duration to your fastest-updating price or forecast sensor
+**Forecast sensor** takes the horizon from a sensor whose `forecast` attribute lists the period boundaries.
+Use it when you want a period layout the presets do not offer, or to plan two hubs on the same horizon.
+The attribute is a list of points, and the `time` of each point is a period boundary, so a forecast with 25 points describes 24 periods.
+Any other keys in a point, such as `value`, are ignored.
+Another hub's horizon sensor publishes exactly this format.
+The horizon updates whenever the sensor's forecast times change.
 
-Presets automatically adjust the Tier 4 count to match the selected horizon.
-HAEO uses intelligent forecast cycling to extend partial forecast data across the full horizon.
-A 24-hour solar forecast automatically cycles to cover longer horizons with time-of-day alignment preserved.
+The setup and options forms reject a sensor that does not report at least two increasing times.
+They also reject the hub's own sensors, because those are calculated on its horizon.
+If the sensor is not available when Home Assistant starts, HAEO retries setting up the hub until it is.
+If the sensor later stops reporting a usable forecast, HAEO keeps planning with the last horizon it read and logs a warning.
+
+For example, this [template sensor](https://www.home-assistant.io/integrations/template/) describes 48 hours of 15-minute periods, starting at the current quarter hour:
+
+```yaml
+template:
+  - sensor:
+      - name: Planning horizon
+        state: '48'
+        attributes:
+          forecast: >-
+            {% set start = now().replace(second=0, microsecond=0) %}
+            {% set start = start - timedelta(minutes=start.minute % 15) %}
+            {% set ns = namespace(points=[]) %}
+            {% for i in range(4 * 48 + 1) %}
+            {% set time = (start + timedelta(minutes=15 * i)).isoformat() %}
+            {% set ns.points = ns.points + [{"time": time}] %}
+            {% endfor %}
+            {{ ns.points }}
+```
+
+The template renders again every minute, but the forecast only changes at each quarter hour, so the horizon moves forward every 15 minutes.
+
+!!! note "Upgrading from custom tiers"
+
+    Earlier versions offered a **Custom** horizon with up to four tiers of interval counts and durations.
+    Custom tiers are no longer available.
+    When you upgrade, a hub that used custom tiers switches to the 5-day preset, and a hub on a preset keeps it.
+    To recreate a custom layout, build a sensor that lists your period boundaries and choose it as a **Forecast sensor**.
 
 #### Expose raw model elements
 
@@ -91,7 +106,6 @@ Turn it on only if you are deliberately building the optimization model yourself
 See the [elements overview](elements/index.md) for the raw model elements it exposes.
 
 Click **Submit** to create your hub.
-If you selected **Custom**, complete the custom tier step before the hub is created.
 
 ## Adding Elements
 
@@ -205,7 +219,7 @@ The hub automatically adjusts optimization for remaining elements.
 
 ### Editing hub settings
 
-Click **Configure** on the hub entry to modify the planning horizon, tiers, or advanced settings.
+Click **Configure** on the hub entry to modify the planning horizon or advanced settings.
 Changes trigger immediate re-optimization with the new parameters.
 
 ## Best Practices
@@ -233,7 +247,7 @@ Choose descriptive element names using friendly, readable format:
 ### Monitor performance
 
 Watch optimization duration in the sensor.
-If it takes too long, adjust interval tiers (increase durations or reduce counts).
+If it takes too long, choose a shorter preset or a forecast sensor with fewer periods.
 See [performance considerations](optimization.md#performance-considerations) for more details.
 
 ## Next steps

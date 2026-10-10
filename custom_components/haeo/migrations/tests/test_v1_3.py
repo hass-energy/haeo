@@ -24,6 +24,8 @@ from custom_components.haeo.core.const import (
     CONF_NAME,
     CONF_TIER_1_COUNT,
     CONF_TIER_1_DURATION,
+    HORIZON_PRESET_5_DAYS,
+    HUB_SECTION_TIERS,
 )
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import (
@@ -56,12 +58,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 from custom_components.haeo.elements import is_element_config_schema
-from custom_components.haeo.flows import (
-    HORIZON_PRESET_5_DAYS,
-    HUB_SECTION_ADVANCED,
-    HUB_SECTION_COMMON,
-    HUB_SECTION_TIERS,
-)
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.migrations import async_migrate_entry, v1_3
 
 V033_SCENARIO_FIXTURES_DIR = Path(__file__).parent / "test_data" / "v0_3_3" / "scenarios"

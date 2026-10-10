@@ -153,7 +153,7 @@ When any input entity updates its state (due to external sensor changes or user 
 **Horizon boundary crossings**
 
 The coordinator subscribes to the [HorizonManager](horizon-manager.md).
-When the forecast horizon advances (at period boundaries like every 1 minute for the finest tier), the manager notifies the coordinator to refresh.
+When the forecast horizon advances (at each period boundary of a preset horizon, or when the horizon sensor changes), the manager notifies the coordinator to refresh.
 
 **Manual refresh**
 

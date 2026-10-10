@@ -36,20 +36,8 @@ from homeassistant.util.json import JsonValueType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import MIGRATION_MINOR_VERSION
-from custom_components.haeo.const import DOMAIN, INTEGRATION_TYPE_HUB
-from custom_components.haeo.core.const import (
-    CONF_ELEMENT_TYPE,
-    CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-)
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from tools.live_hass import (
     PROJECT_ROOT,
     LiveHomeAssistant,
@@ -84,6 +72,10 @@ async def wait_for_sim_idle(hass: HomeAssistant) -> None:
     await hass.async_block_till_done(wait_background_tasks=True)
 
 
+# Scenario config keys that describe the scenario rather than the hub's config entry data
+_NON_HUB_SCENARIO_KEYS = frozenset({"participants", "version", "minor_version", "update_interval_minutes"})
+
+
 def _require_dict(value: JsonValueType, context: str) -> dict[str, JsonValueType]:
     """Narrow a scenario JSON value to a dict, with a readable failure."""
     if not isinstance(value, dict):
@@ -96,24 +88,9 @@ async def setup_haeo_entry(hass: HomeAssistant, scenario_config: dict[str, JsonV
     """Create and set up a HAEO hub config entry from scenario config data."""
     await _remove_haeo_entries(hass)
 
-    tiers_data = _require_dict(scenario_config.get("tiers") or scenario_config, "tiers")
     mock_config_entry = MockConfigEntry(
         domain=DOMAIN,
-        data={
-            "integration_type": INTEGRATION_TYPE_HUB,
-            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
-            HUB_SECTION_TIERS: {
-                CONF_TIER_1_COUNT: tiers_data["tier_1_count"],
-                CONF_TIER_1_DURATION: tiers_data["tier_1_duration"],
-                CONF_TIER_2_COUNT: tiers_data.get("tier_2_count", 0),
-                CONF_TIER_2_DURATION: tiers_data.get("tier_2_duration", 5),
-                CONF_TIER_3_COUNT: tiers_data.get("tier_3_count", 0),
-                CONF_TIER_3_DURATION: tiers_data.get("tier_3_duration", 30),
-                CONF_TIER_4_COUNT: tiers_data.get("tier_4_count", 0),
-                CONF_TIER_4_DURATION: tiers_data.get("tier_4_duration", 60),
-            },
-            HUB_SECTION_ADVANCED: {},
-        },
+        data={key: value for key, value in scenario_config.items() if key not in _NON_HUB_SCENARIO_KEYS},
         version=version if isinstance(version := scenario_config.get("version", 1), int) else 1,
         minor_version=(
             minor

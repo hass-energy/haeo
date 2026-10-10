@@ -1,14 +1,23 @@
 """Pure config transformation logic for the v1.4 migration.
 
-Connections become unidirectional, and nodes that neither source nor sink power
-become junctions.
+Connections become unidirectional, nodes that neither source nor sink power
+become junctions, and the hub's horizon preset and tiers become a horizon choice.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.const import (
+    CONF_ELEMENT_TYPE,
+    CONF_HORIZON,
+    CONF_HORIZON_PRESET,
+    CONF_NAME,
+    HORIZON_PRESET_5_DAYS,
+    HORIZON_PRESET_DAYS,
+    HUB_SECTION_COMMON,
+    HUB_SECTION_TIERS,
+)
 from custom_components.haeo.core.schema import (
     get_connection_target_name,
     is_connection_target,
@@ -17,6 +26,7 @@ from custom_components.haeo.core.schema import (
     normalize_connection_target,
 )
 from custom_components.haeo.core.schema.elements import connection, junction, node
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -53,7 +63,7 @@ def endpoint_name(value: object) -> str | None:
 
 def _section_dict(data: Mapping[str, object], section: str) -> dict[str, object]:
     section_data = data.get(section, {})
-    return dict(section_data) if isinstance(section_data, dict) else {}
+    return dict(section_data) if isinstance(section_data, Mapping) else {}
 
 
 def _strip_reverse_from_section(section_data: dict[str, object]) -> tuple[dict[str, object], dict[str, object]]:
@@ -200,6 +210,21 @@ def junction_config(data: Mapping[str, object]) -> dict[str, object]:
     return {CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: data[CONF_NAME]}
 
 
+def migrate_hub_horizon(data: Mapping[str, object]) -> dict[str, object]:
+    """Replace the hub's horizon preset and tiers with a horizon choice holding the preset.
+
+    Custom tiers are no longer supported, so a hub using them gets the default preset.
+    """
+    migrated = {key: value for key, value in data.items() if key != HUB_SECTION_TIERS}
+    common = _section_dict(data, HUB_SECTION_COMMON)
+    preset = common.pop(CONF_HORIZON_PRESET, None)
+    common[CONF_HORIZON] = as_horizon_preset_value(
+        preset if isinstance(preset, str) and preset in HORIZON_PRESET_DAYS else HORIZON_PRESET_5_DAYS
+    )
+    migrated[HUB_SECTION_COMMON] = common
+    return migrated
+
+
 __all__ = [
     "REVERSE_TO_FORWARD",
     "endpoint_name",
@@ -207,5 +232,6 @@ __all__ = [
     "junction_config",
     "merge_reverse_into_existing",
     "migrate_connection_config",
+    "migrate_hub_horizon",
     "node_is_junction",
 ]

@@ -61,9 +61,9 @@ This focused approach means:
 ## 🎯 How It Works
 
 HAEO builds an energy network model from your configured elements.
-It uses linear programming to find the optimal power flow that minimizes total energy cost over a **multi-tier planning horizon** (fine resolution near-term, coarser intervals further out).
+It uses linear programming to find the optimal power flow that minimizes total energy cost over a **multi-resolution planning horizon** (fine resolution near-term, coarser intervals further out).
 
-Optimization runs when input data changes (debounced) and when the horizon advances past each finest-tier period boundary, so recommendations stay current as prices and forecasts update.
+Optimization runs when input data changes (debounced) and when the planning horizon advances, so recommendations stay current as prices and forecasts update.
 See the [configuration guide](https://hass-energy.github.io/haeo/user-guide/configuration/) and [data updates guide](https://hass-energy.github.io/haeo/user-guide/data-updates/) for details.
 
 ### The Optimization Process
@@ -71,7 +71,7 @@ See the [configuration guide](https://hass-energy.github.io/haeo/user-guide/conf
 1. **Data Collection**: Gathers current state (battery SOC, prices) and forecasts (solar production, loads, price forecasts)
 2. **Network Modeling**: Builds a mathematical model representing your energy system with power flow constraints
 3. **Constraint Application**: Applies limits (battery capacity, charge rates, grid limits, etc.)
-4. **Cost Optimization**: Uses HiGHS to minimize total cost over the tiered horizon
+4. **Cost Optimization**: Uses HiGHS to minimize total cost over the planning horizon
 5. **Result Publishing**: Updates Home Assistant sensors with current optimal power and forecast attributes
 
 ### Supported Elements
@@ -121,12 +121,10 @@ You can use the My Home Assistant link above to open HAEO directly in HACS, then
 3. Search for **HAEO**
 4. Configure your hub:
     - **Name**: A unique name for your energy network
-    - **Planning horizon**: Preset (2, 3, 5, or 7 days) or **Custom** tier configuration
+    - **Planning horizon**: Preset (2, 3, 5, or 7 days) or a forecast sensor whose forecast times set the periods
     - **Advanced settings** (optional): Debounce window, Expose raw model elements, forecast recording
 
-If you select **Custom**, configure up to four **tiers** (interval count and duration in minutes) for near-term precision and long-term lookahead.
-
-See the [configuration guide](https://hass-energy.github.io/haeo/user-guide/configuration/) for tier tuning advice.
+See the [configuration guide](https://hass-energy.github.io/haeo/user-guide/configuration/#planning-horizon) for how to choose a planning horizon.
 
 ### Adding Elements
 
@@ -198,21 +196,22 @@ Each sensor includes forecast attributes with timestamped future values.
 HAEO uses the **HiGHS** linear programming solver via the `highspy` Python bindings.
 HiGHS is the only supported solver and is bundled with the integration (no external binaries required).
 
-### Planning Horizon and Tiers
+### Planning Horizon
 
-HAEO divides the planning horizon into up to four **tiers**, each with its own interval duration:
+HAEO divides the planning horizon into periods of varying length:
 
-- **Near-term tiers** (for example, 1-minute intervals): Higher resolution for immediate decisions; match your fastest-updating price or forecast sensors
-- **Long-term tiers** (for example, 30–60 minute intervals): Coarser lookahead when distant forecasts are less reliable
+- **Near-term periods** (for example, 1-minute intervals): Higher resolution for immediate decisions
+- **Long-term periods** (for example, 30–60 minute intervals): Coarser lookahead when distant forecasts are less reliable
+
+Presets cover 2, 3, 5, or 7 days with this layout.
+For a different layout, choose a forecast sensor whose forecast times mark each period boundary.
 
 Tuning tips:
 
-- Use a **shorter preset** or reduce tier 4 count for faster solves
+- Use a **shorter preset** or a forecast sensor with fewer periods for faster solves
 - Use a **longer preset** for more multi-day lookahead
-- Disable a tier by setting its count to zero
 
-Balance tier counts and durations based on your hardware and use case.
-See the [custom tiers section](https://hass-energy.github.io/haeo/user-guide/configuration/#custom-tiers) in the documentation.
+See the [planning horizon section](https://hass-energy.github.io/haeo/user-guide/configuration/#planning-horizon) in the documentation.
 
 ## 📈 Example Use Cases
 

@@ -11,7 +11,6 @@ from .const import (
     OUTPUT_NAME_OPTIMIZATION_DURATION,
     OUTPUT_NAME_OPTIMIZATION_STATUS,
 )
-from .core.data.forecast_times import tiers_to_periods_seconds
 
 
 @callback
@@ -82,7 +81,7 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, JsonValueTy
         health_info[f"{prefix}outputs"] = outputs_count
 
         # Report total number of periods and horizon in minutes
-        periods_seconds = tiers_to_periods_seconds(entry.data)
+        periods_seconds = runtime_data.horizon_manager.periods_seconds
         total_periods = len(periods_seconds)
         if total_periods > 0:
             health_info[f"{prefix}total_periods"] = total_periods

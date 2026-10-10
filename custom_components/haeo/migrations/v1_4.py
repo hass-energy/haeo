@@ -1,6 +1,7 @@
 """Migration helpers for config entry version 1.4.
 
-Splits bidirectional connections and turns pure-junction nodes into junctions.
+Splits bidirectional connections, turns pure-junction nodes into junctions, and
+replaces the hub's horizon preset and tiers with a horizon choice.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from custom_components.haeo.core.schema.migrations.v1_4 import (
     junction_config,
     merge_reverse_into_existing,
     migrate_connection_config,
+    migrate_hub_horizon,
     node_is_junction,
 )
 from custom_components.haeo.repairs import create_node_replaced_by_junction_issue
@@ -247,6 +249,6 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _remove_reverse_field_entities(hass, entry, connection_ids)
     await _replace_nodes_with_junctions(hass, entry)
 
-    hass.config_entries.async_update_entry(entry, minor_version=MINOR_VERSION)
+    hass.config_entries.async_update_entry(entry, data=migrate_hub_horizon(entry.data), minor_version=MINOR_VERSION)
     _LOGGER.info("Migration complete for %s entry %s", DOMAIN, entry.entry_id)
     return True
