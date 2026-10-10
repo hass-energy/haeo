@@ -102,7 +102,7 @@ Beyond scheduling philosophy, the projects differ in scope and integration style
 **HAEO** follows the Unix philosophy: do one thing well.
 It focuses on optimization with a flexible graph-based network model, **power policies for source-aware economics**, and relies on other Home Assistant integrations for forecasts and prices.
 The network solve is **pure LP by default**; mixed-integer variables are a **last resort** when linear modeling cannot match the required behaviour (see [Deferrable loads (planned)](#deferrable-loads-planned)).
-The flexibility to model diverse topologies through connections (and Advanced Mode elements) is its defining software-architecture characteristic.
+The flexibility to model diverse topologies through connections (and raw model elements) is its defining software-architecture characteristic.
 
 ## EMHASS
 

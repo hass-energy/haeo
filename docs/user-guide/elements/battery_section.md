@@ -1,13 +1,13 @@
 # Battery Section
 
-Battery Section is an advanced element that provides direct access to the model layer Battery element.
+Battery Section is a raw model element that provides direct access to the model layer Battery element.
 Unlike the standard Battery element which creates multiple sections and an internal node,
 this element creates a single battery section that must be connected manually via Connection elements.
 
-!!! warning "Advanced Element"
+!!! warning "Raw model element"
 
-    Battery Section is only available when **Advanced Mode** is enabled on your hub.
-    This element is intended for advanced users who need direct control over battery modeling.
+    Battery Section is only available when **Expose raw model elements** is enabled on your hub.
+    This element is for direct control over battery modeling when you are building the model yourself.
     Most users should use the standard [Battery](battery.md) element instead.
 
 !!! warning "Two connections required"
@@ -213,8 +213,8 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 **Problem**: The Battery Section element type does not appear in the element selection list.
 
-**Solution**: Enable Advanced Mode in your hub configuration.
-Battery Section is only available when Advanced Mode is enabled.
+**Solution**: Enable **Expose raw model elements** in your hub configuration.
+Battery Section is only available when that setting is enabled.
 
 ### No Power Flow
 
@@ -259,12 +259,12 @@ Check that the Battery Section element exists before creating connections.
 
     [:material-arrow-right: Battery Section modeling](../../modeling/device-layer/battery_section.md)
 
-- :material-cog-outline:{ .lg .middle } **Advanced mode**
+- :material-cog-outline:{ .lg .middle } **Expose raw model elements**
 
     ---
 
-    Learn about advanced mode and other advanced elements.
+    Learn when to expose raw model elements and which elements it adds.
 
-    [:material-arrow-right: Configuration guide](../configuration.md#advanced-mode)
+    [:material-arrow-right: Configuration guide](../configuration.md#expose-raw-model-elements)
 
 </div>

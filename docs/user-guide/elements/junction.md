@@ -3,10 +3,10 @@
 A junction is a point in your network where connections meet.
 All power flowing in equals all power flowing out (Kirchhoff's current law).
 
-!!! warning "Advanced Element"
+!!! warning "Raw model element"
 
     HAEO creates a junction named Switchboard when you set up a hub.
-    Creating **additional** junctions requires **Advanced Mode** to be enabled on your hub.
+    Creating **additional** junctions requires **Expose raw model elements** to be enabled on your hub.
     In standard mode, the Switchboard is sufficient for most residential systems.
 
 ## Configuration
@@ -47,7 +47,7 @@ If you need a point that produces or consumes unlimited power, use a [node](node
     This central connection point is sufficient for most residential energy systems.
     You only need to create additional junctions if you have complex multi-bus topologies (e.g., separate AC/DC buses).
 
-    If the Switchboard is deleted in non-advanced mode, HAEO recreates it on the next integration reload to maintain network connectivity.
+    If the Switchboard is deleted while raw model elements are not exposed, HAEO recreates it on the next integration reload to maintain network connectivity.
 
 !!! info "Junctions and power policies"
 
@@ -60,8 +60,8 @@ If you need a point that produces or consumes unlimited power, use a [node](node
 
     Earlier versions used a node for the switchboard and for every other connection point.
     When you upgrade, the Switchboard and every node that neither produces nor consumes power become junctions with the same name.
-    Outside Advanced Mode, every node becomes a junction.
-    In Advanced Mode, any other node that can produce or consume power, or whose switch is driven by an entity, stays a node.
+    When **Expose raw model elements** is off, every node becomes a junction.
+    When it is on, any other node that can produce or consume power, or whose switch is driven by an entity, stays a node.
     When a node that had its source or sink switch turned on becomes a junction, HAEO raises a repair issue for it.
     The junction keeps the node's device and power balance sensor, so their entity IDs, areas, and history carry over.
 
@@ -164,7 +164,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 - Intermediate limits (inverter capacity, feeder constraints)
 - Hierarchical distribution (main panel and sub-panels)
 
-**Configuration**: Enable Advanced Mode on your hub, then create additional junctions and link them with connections.
+**Configuration**: Enable **Expose raw model elements** on your hub, then create additional junctions and link them with connections.
 
 **Complexity**: Requires more configuration and adds more constraints, but accurately models real system architecture.
 
