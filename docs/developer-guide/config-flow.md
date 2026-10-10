@@ -175,9 +175,8 @@ The `ConnectivityLevel` enum has three values:
 - **`NEVER`**: Never shown in connection selectors
 
 An element is an endpoint only if a connection to it goes through the same constraints as any other power flow.
-Junctions, nodes, and inverter DC buses are plain balance points, so they are `ALWAYS`.
-Battery Section is a bare storage element wired by hand, so it is `ADVANCED`.
-Grid, Battery, Solar, and Load apply their prices, forecasts, limits, and efficiencies on the connection to their own target, so a connection made directly to them would bypass all of that; they are `NEVER`, as are Connection and Policy.
+Plain balance points are endpoints.
+An element that applies its own prices, forecasts, limits, or efficiencies on its own connection is `NEVER`, because a connection made directly to it would bypass them.
 Each adapter in `core/adapters/elements/` declares its level in its `connectivity` attribute.
 
 Existing configurations that already connect to a `NEVER` element are reported through the `invalid_connection_endpoints` repair issue.

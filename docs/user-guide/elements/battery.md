@@ -5,13 +5,6 @@ HAEO optimizes when to charge and discharge based on electricity prices, solar a
 
 Internally, HAEO represents batteries as a single storage element and applies SOC preferences via connection pricing. This provides flexible, economically-rational battery behavior without partitioning the battery model.
 
-!!! note "Connection endpoints"
-
-    Battery elements never appear in connection selectors, even in Advanced Mode.
-    The battery applies its efficiency, power limits, and SOC pricing on its own charge and discharge connections.
-    A connection made directly to the battery would bypass them, so connect other elements to the junction or inverter the battery is connected to.
-    Use a [Battery Section](battery_section.md) when you need to wire storage manually.
-
 For mathematical details, see [Battery Modeling](../../modeling/device-layer/battery.md).
 
 ## Configuration

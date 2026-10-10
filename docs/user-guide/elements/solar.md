@@ -3,12 +3,6 @@
 Solar panels that generate electricity.
 HAEO optimizes how generated power flows through your energy network.
 
-!!! note "Connection endpoints"
-
-    Solar elements never appear in connection selectors, even in Advanced Mode.
-    Solar applies its forecast limit on its own connection to the junction or inverter it is connected to.
-    A connection made directly to the solar element would bypass the forecast, so connect other elements to that junction or inverter instead.
-
 ## Configuration
 
 | Field                           | Type                                     | Required | Default | Description                                                     |

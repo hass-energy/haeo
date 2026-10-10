@@ -3,12 +3,6 @@
 Loads represent power consumption in your system.
 The Load element uses forecast data to model any type of consumption pattern from fixed baseline loads to variable time-varying consumption.
 
-!!! note "Connection endpoints"
-
-    Load elements never appear in connection selectors, even in Advanced Mode.
-    The load applies its forecast on its own connection from the junction or inverter it is connected to.
-    A connection made directly to the load would bypass the forecast, so connect other elements to that junction or inverter instead.
-
 ## Configuration
 
 | Field                     | Type                                     | Required | Default | Description                                                                 |

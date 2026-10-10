@@ -10,10 +10,6 @@ this element creates a single battery section that must be connected manually vi
     This element is intended for advanced users who need direct control over battery modeling.
     Most users should use the standard [Battery](battery.md) element instead.
 
-!!! note "Connection endpoints"
-
-    Battery Section elements appear in connection selectors only when Advanced Mode is enabled on your hub.
-
 !!! warning "Two connections required"
 
     Connections carry power in one direction only, from source to target.

@@ -3,12 +3,6 @@
 The grid represents your connection to the electricity network.
 It allows bidirectional power flow: importing (buying) and exporting (selling) electricity.
 
-!!! note "Connection endpoints"
-
-    Grid elements never appear in connection selectors, even in Advanced Mode.
-    The grid applies its import and export prices and limits on its own connections to the junction it is connected to.
-    A connection made directly to the grid would bypass those prices and limits, so connect other elements to that junction instead.
-
 ## Configuration
 
 Grid configuration uses a single-step flow where you enter the name and configure each input field.

@@ -16,10 +16,6 @@ Use it to build a custom endpoint when no other element fits, and put the limits
     Connections are one-way, so a node that both produces and consumes power needs a limited, priced connection in each direction.
     Without them, the optimizer can create free power from a source node or dump power for free into a sink node, and the resulting plan will not be physically meaningful.
 
-!!! note "Connection endpoints"
-
-    Node elements always appear in connection selectors regardless of Advanced Mode setting.
-
 ## Configuration
 
 | Field                       | Type    | Required | Default | Description                              |

@@ -3,10 +3,6 @@
 Inverters convert power between DC and AC systems.
 They provide a DC bus for connecting batteries and solar panels, with bidirectional power conversion to an AC network.
 
-!!! note "Connection endpoints"
-
-    Inverter elements always appear in connection selectors regardless of Advanced Mode setting.
-
 ## Configuration
 
 | Field                                         | Type                                  | Required | Default | Description                                            |

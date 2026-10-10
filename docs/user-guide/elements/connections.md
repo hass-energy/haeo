@@ -54,26 +54,11 @@ Use [input number helpers](https://www.home-assistant.io/integrations/input_numb
 
 ### Connection Endpoint Selection
 
-The **Source** and **Target** fields show a dropdown of available elements that can be used as connection endpoints.
-Only elements that act as a junction for power flow appear in the list.
+The **Source** and **Target** fields list the points in your network that power can flow through.
+Elements that apply their own prices, forecasts, and limits on their own connection are not listed, because a connection made directly to them would bypass those.
+Connect to the junction or inverter such an element is attached to instead.
 
-| Element                               | Appears as an endpoint             |
-| ------------------------------------- | ---------------------------------- |
-| [Junction](junction.md)               | Always                             |
-| [Node](node.md)                       | Always                             |
-| [Inverter](inverter.md) (its DC bus)  | Always                             |
-| [Battery Section](battery_section.md) | Only when Advanced Mode is enabled |
-| Grid, Battery, Solar, Load            | Never                              |
-| Connection, Policy                    | Never                              |
-
-**Why Grid, Battery, Solar, and Load are never endpoints:**
-These elements apply their prices, forecasts, power limits, and efficiencies on their own connection to the junction or inverter they are connected to.
-A connection made directly to one of them would bypass all of that.
-For example, a connection out of a Grid would be free, unlimited import that ignores the import price, and a connection into a Load would be a free sink that ignores the load forecast.
-Connect to the junction or inverter the element is attached to instead, so its own limits and prices still apply.
-
-If an existing configuration already connects an element directly to a Grid, Battery, Solar, or Load, HAEO raises a repair issue listing each affected connection.
-Reconfigure those elements to connect to the corresponding junction or inverter, and the issue clears automatically.
+If an existing configuration connects directly to one of these elements, HAEO raises a repair issue listing each affected connection.
 
 ## Configuration Examples
 
@@ -167,7 +152,7 @@ Then configure the connection:
 
 !!! note "Battery Section endpoint"
 
-    `EV Battery` is a [Battery Section](battery_section.md), which appears in connection selectors only when Advanced Mode is enabled.
+    `EV Battery` is a [Battery Section](battery_section.md).
     Power reaches it through the Switchboard, so the grid import price still applies to the charging energy.
 
 The optimizer will only schedule charging when the sensor value is non-zero.

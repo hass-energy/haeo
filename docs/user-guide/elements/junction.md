@@ -9,10 +9,6 @@ All power flowing in equals all power flowing out (Kirchhoff's current law).
     Creating **additional** junctions requires **Advanced Mode** to be enabled on your hub.
     In standard mode, the Switchboard is sufficient for most residential systems.
 
-!!! note "Connection endpoints"
-
-    Junction elements always appear in connection selectors regardless of Advanced Mode setting.
-
 ## Configuration
 
 | Field             | Type   | Required | Default | Description                         |
