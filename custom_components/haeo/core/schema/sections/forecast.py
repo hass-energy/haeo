@@ -1,6 +1,6 @@
 """Section types for forecast configuration."""
 
-from typing import Any, Final, TypedDict
+from typing import Final, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -20,4 +20,4 @@ class ForecastConfig(TypedDict):
 class ForecastData(TypedDict):
     """Loaded forecast values for inputs."""
 
-    forecast: NDArray[np.floating[Any]] | float
+    forecast: NDArray[np.float64] | float

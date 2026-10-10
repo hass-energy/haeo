@@ -93,6 +93,52 @@ async def test_get_output_sensors_filters_and_handles_forecasts(hass: HomeAssist
     assert "forecast" in attributes
 
 
+async def test_get_output_sensors_passes_attributes_through(hass: HomeAssistant) -> None:
+    """State attributes pass through to snapshots, minus internal-only keys.
+
+    The forecast card relies on attributes such as element_type to build its
+    series, so filtering them out breaks card rendering.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Test Hub",
+        data={
+            CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
+            CONF_NAME: "Test Hub",
+        },
+        entry_id="hub_entry_attrs",
+    )
+    entry.add_to_hass(hass)
+
+    entity_registry = er.async_get(hass)
+    haeo_entry = entity_registry.async_get_or_create(
+        domain="sensor",
+        platform=DOMAIN,
+        unique_id="haeo_attrs_unique",
+        config_entry=entry,
+    )
+    hass.states.async_set(
+        haeo_entry.entity_id,
+        "1.0",
+        {
+            "unit_of_measurement": "kW",
+            "element_type": "battery",
+            "config_mode": "driven",
+            "friendly_name": "Battery Power",
+            "field_path": "battery.power",
+        },
+    )
+
+    output_sensors = get_output_sensors(hass, entry)
+
+    attributes = output_sensors[haeo_entry.entity_id]["attributes"]
+    assert attributes["unit_of_measurement"] == "kW"
+    assert attributes["element_type"] == "battery"
+    assert attributes["config_mode"] == "driven"
+    assert attributes["friendly_name"] == "Battery Power"
+    assert "field_path" not in attributes
+
+
 async def test_get_output_sensors_handles_forecast_attributes(hass: HomeAssistant) -> None:
     """Sensors with forecast attributes have forecast values rounded."""
     entry = MockConfigEntry(
@@ -141,8 +187,9 @@ async def test_get_output_sensors_handles_forecast_attributes(hass: HomeAssistan
     # Verify forecast values are present and rounded
     assert haeo_entry.entity_id in output_sensors
     sensor_data = output_sensors[haeo_entry.entity_id]
-    assert "forecast" in sensor_data["attributes"]
-    assert len(sensor_data["attributes"]["forecast"]) == 2
+    forecast = sensor_data["attributes"]["forecast"]
+    assert isinstance(forecast, list)
+    assert len(forecast) == 2
 
 
 async def test_get_output_sensors_handles_non_numeric_states(hass: HomeAssistant) -> None:
@@ -310,8 +357,9 @@ async def test_rounding_two_pass_per_value_then_per_entity(hass: HomeAssistant) 
     amber_data = output_sensors[amber_entry.entity_id]
     assert amber_data["state"] == "0.08"
     attributes = amber_data["attributes"]
-    assert "forecast" in attributes
-    forecast_values = [pt["value"] for pt in attributes["forecast"]]
+    forecast = attributes["forecast"]
+    assert isinstance(forecast, list)
+    forecast_values = [pt["value"] for pt in forecast]
     assert forecast_values == [0.08, 0.147, 0.004]
 
 

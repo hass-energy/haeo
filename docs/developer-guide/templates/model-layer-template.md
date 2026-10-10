@@ -82,7 +82,7 @@ Note any real-world behaviors not captured by the model:
 - Limitation one and when it matters
 - Limitation two and potential workarounds
 
-## Next Steps
+## Next steps
 
 !!! note "Template Instructions"
 

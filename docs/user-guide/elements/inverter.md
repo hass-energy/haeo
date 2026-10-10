@@ -3,10 +3,6 @@
 Inverters convert power between DC and AC systems.
 They provide a DC bus for connecting batteries and solar panels, with bidirectional power conversion to an AC network.
 
-!!! note "Connection endpoints"
-
-    Inverter elements always appear in connection selectors regardless of the hub setting.
-
 ## Configuration
 
 | Field                                         | Type                                  | Required | Default | Description                                            |
@@ -18,6 +14,8 @@ They provide a DC bus for connecting batteries and solar panels, with bidirectio
 | **Efficiency DC to AC**                       | Number (%)                            | No       | 100     | Efficiency percentage when inverting DC to AC (0-100)  |
 | **Efficiency AC to DC**                       | Number (%)                            | No       | 100     | Efficiency percentage when rectifying AC to DC (0-100) |
 
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
+
 ## Name
 
 Unique identifier for this inverter within your HAEO configuration.
@@ -28,7 +26,7 @@ Used to create sensor entity IDs and identify the inverter in connections.
 ## Connection
 
 The AC side node where the inverter connects.
-This is typically your home's main electrical bus or switchboard node.
+This is typically your home's main electrical bus, such as the Switchboard junction.
 
 Other elements (batteries, solar panels) connect to the inverter's DC bus by specifying the inverter name as their connection target.
 
@@ -37,12 +35,18 @@ Other elements (batteries, solar panels) connect to the inverter's DC bus by spe
 Maximum power the inverter can convert from DC to AC (inverting direction).
 Leave empty for unlimited power.
 
+Enter the inverter's rated AC power.
+The limit applies on the AC side, so a 5 kW limit means at most 5 kW reaches the AC network, and the DC bus supplies that plus the conversion loss.
+
 Use a sensor to model time-varying power limits, or an input number helper for a constant value.
 
 ## Max Power AC to DC
 
 Maximum power the inverter can convert from AC to DC (rectifying direction).
 Leave empty for unlimited power.
+
+Enter the inverter's rated AC power for charging from the AC side.
+The limit applies on the AC side, so a 5 kW limit means at most 5 kW is drawn from the AC network, and the DC bus receives that less the conversion loss.
 
 Use a sensor to model time-varying power limits, or an input number helper for a constant value.
 
@@ -128,21 +132,21 @@ Not all sensors are created for every inverter - only those relevant to the conf
 
 ### DC to AC Power
 
-The optimal power flowing from the DC bus to the AC network (inverting direction).
+The optimal power flowing from the DC bus to the AC network (inverting direction), measured on the AC side.
 Values are always positive or zero.
 
 **Example**: A value of 3.5 kW means the inverter is converting 3.5 kW from DC to AC at this time period.
 
 ### AC to DC Power
 
-The optimal power flowing from the AC network to the DC bus (rectifying direction).
+The optimal power flowing from the AC network to the DC bus (rectifying direction), measured on the AC side.
 Values are always positive or zero.
 
 **Example**: A value of 2.0 kW means the inverter is converting 2.0 kW from AC to DC at this time period.
 
 ### Active Power
 
-The net power flow through the inverter (DC to AC minus AC to DC).
+The net power flow through the inverter (DC to AC minus AC to DC), measured on the AC side.
 Positive values indicate net DC to AC conversion.
 Negative values indicate net AC to DC conversion.
 
@@ -205,7 +209,7 @@ Verify power limits and efficiency values are realistic.
 Set efficiency values slightly lower to account for real-world losses.
 Avoid using 100% efficiency unless your inverter truly has no losses.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

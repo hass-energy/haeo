@@ -6,14 +6,14 @@ and a tiny in-memory storage double so values resolve identically to the config
 loader (``resolve_field``/``resolve_constant``).
 """
 
-from typing import Any
+import asyncio
 from unittest.mock import patch
 
 import numpy as np
 import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
-from custom_components.haeo.core.data.input_store import InputMode, create_input_store
+from custom_components.haeo.core.data.input_store import InputMode, InputStore, create_input_store
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.field_hints import FieldHint
@@ -29,26 +29,26 @@ def _timestamps() -> tuple[float, ...]:
 class _MemStorage:
     """In-memory storage double implementing the Storage protocol."""
 
-    def __init__(self, value: Any = None) -> None:
+    def __init__(self, value: object = None) -> None:
         self.value = value
-        self.written: list[Any] = []
+        self.written: list[object] = []
 
-    def read(self) -> Any:
+    def read(self) -> object:
         return self.value
 
-    async def write(self, value: Any) -> None:
+    async def write(self, value: object) -> None:
         self.written.append(value)
         self.value = value
 
 
 def _make_store(
     *,
-    storage_value: Any = None,
+    storage_value: object = None,
     output_type: OutputType = OutputType.ENERGY,
     time_series: bool = False,
     boundaries: bool = False,
     negate: bool = False,
-) -> Any:
+) -> InputStore:
     """Build an InputStore from an in-memory storage value and field hint."""
     storage = _MemStorage(storage_value)
     hint = FieldHint(output_type=output_type, time_series=time_series, boundaries=boundaries)
@@ -332,6 +332,31 @@ async def test_driven_async_load_failure_keeps_unavailable() -> None:
     assert store.available is False
     assert store.is_ready() is False
     assert store.value is None
+
+
+async def test_driven_async_load_records_input_error() -> None:
+    """A rejected source value is recorded, notified, and cleared by the next good load."""
+    storage = _MemStorage(as_entity_value(["sensor.x"]))
+    hint = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=True, min_value=0.0)
+    store = create_input_store(storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
+    notifications: list[None] = []
+    store.add_listener(lambda: notifications.append(None))
+
+    bad = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "-3.0", {})})
+    assert await store.async_load(bad) is False
+
+    assert store.available is False
+    assert store.error is not None
+    assert store.error.translation_key == "negative_input_value"
+    assert store.is_ready() is False
+    await asyncio.wait_for(store.wait_settled(), timeout=1)
+    assert store.error.translation_placeholders == {"value": "-3"}
+    assert len(notifications) == 1
+
+    good = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "3.0", {})})
+    assert await store.async_load(good) is True
+
+    assert store.error is None
 
 
 # --- Construction errors ---

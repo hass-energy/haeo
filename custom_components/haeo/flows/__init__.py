@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import logging
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Final
 
 if TYPE_CHECKING:
     from custom_components.haeo.core.schema.elements import ElementType
@@ -114,7 +115,7 @@ TIER_CONF_KEYS: Final = [
 ]
 
 
-def get_tier_config(user_input: dict[str, Any], horizon_preset: str | None) -> tuple[dict[str, int], str]:
+def get_tier_config(user_input: dict[str, object], horizon_preset: str | None) -> tuple[dict[str, int], str]:
     """Get tier config from preset or user input.
 
     Args:
@@ -128,6 +129,9 @@ def get_tier_config(user_input: dict[str, Any], horizon_preset: str | None) -> t
     if horizon_preset and horizon_preset != HORIZON_PRESET_CUSTOM:
         return HORIZON_PRESETS[horizon_preset], horizon_preset
     tiers = user_input[HUB_SECTION_TIERS]
+    if not isinstance(tiers, Mapping):
+        msg = f"Expected a tier section in user input, got {type(tiers).__name__}"
+        raise TypeError(msg)
     return {key: tiers[key] for key in TIER_CONF_KEYS}, HORIZON_PRESET_CUSTOM
 
 
@@ -352,6 +356,7 @@ def get_element_flow_classes() -> dict[ElementType, type]:
     from custom_components.haeo.flows.elements.connection import ConnectionSubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.grid import GridSubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.inverter import InverterSubentryFlowHandler  # noqa: PLC0415
+    from custom_components.haeo.flows.elements.junction import JunctionSubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.load import LoadSubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.node import NodeSubentryFlowHandler  # noqa: PLC0415
     from custom_components.haeo.flows.elements.policy import PolicySubentryFlowHandler  # noqa: PLC0415
@@ -364,6 +369,7 @@ def get_element_flow_classes() -> dict[ElementType, type]:
         ElementType.GRID: GridSubentryFlowHandler,
         ElementType.INVERTER: InverterSubentryFlowHandler,
         ElementType.LOAD: LoadSubentryFlowHandler,
+        ElementType.JUNCTION: JunctionSubentryFlowHandler,
         ElementType.NODE: NodeSubentryFlowHandler,
         ElementType.POLICY: PolicySubentryFlowHandler,
         ElementType.SOLAR: SolarSubentryFlowHandler,

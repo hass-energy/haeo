@@ -6,13 +6,15 @@ this element creates a single battery section that must be connected manually vi
 
 !!! warning "Advanced Element"
 
-    Battery Section is only available when **Expose raw model elements** is enabled on your hub.
-    This element is for direct control over battery modeling when building the model manually.
+    Battery Section is only available when **Advanced Mode** is enabled on your hub.
+    This element is intended for advanced users who need direct control over battery modeling.
     Most users should use the standard [Battery](battery.md) element instead.
 
-!!! note "Connection endpoints"
+!!! warning "Two connections required"
 
-    Battery Section elements always appear in connection selectors regardless of the hub setting.
+    Connections carry power in one direction only, from source to target.
+    A Battery Section needs one connection with the section as its **target** to charge, and a second connection with the section as its **source** to discharge.
+    With only one connection, the section can only charge or only discharge.
 
 For mathematical details, see [Battery Section Modeling](../../modeling/device-layer/battery_section.md).
 
@@ -32,7 +34,8 @@ Unlike the standard Battery element, Battery Section does not create:
 - Internal node for power routing
 - Implicit connections to other elements
 
-You must manually create Connection elements to connect the Battery Section to your network.
+You must manually create Connection elements to connect the Battery Section to your network: one for each direction power should flow.
+Put the charge and discharge efficiencies and power limits on those connections, since the section itself has none.
 
 ## Configuration Fields
 
@@ -41,6 +44,8 @@ You must manually create Connection elements to connect the Battery Section to y
 | **[Name](#name)**                     | String                                | Yes      | -       | Unique identifier (e.g., "Battery Section 1") |
 | **[Capacity](#capacity)**             | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Battery capacity in kWh (can vary over time)  |
 | **[Initial Charge](#initial-charge)** | [sensor](../forecasts-and-sensors.md) | Yes      | -       | Initial energy stored in battery (kWh)        |
+
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 ### Name
 
@@ -59,7 +64,8 @@ The optimizer uses this value to enforce state of charge constraints.
 Select a Home Assistant sensor that reports the initial energy stored in the battery in kWh.
 This represents the battery's state of charge at the start of the optimization window.
 
-The sensor should provide a single current value (not a forecast).
+HAEO reads the sensor's current value.
+Forecast attributes are ignored, because only the energy at the start of the window is used.
 
 ## Configuration Example
 
@@ -71,7 +77,12 @@ Basic battery section configuration:
 | **Capacity**       | sensor.battery_capacity |
 | **Initial Charge** | sensor.battery_energy   |
 
-After creating the Battery Section element, you must create Connection elements to connect it to other elements in your network (nodes, grids, etc.).
+After creating the Battery Section element, create two Connection elements between it and a junction or inverter:
+
+| Connection                    | Source            | Target            | Purpose     |
+| ----------------------------- | ----------------- | ----------------- | ----------- |
+| **Battery Section charge**    | Switchboard       | Battery Section 1 | Charging    |
+| **Battery Section discharge** | Battery Section 1 | Switchboard       | Discharging |
 
 ## Sensors Created
 
@@ -83,7 +94,7 @@ A Battery Section element creates 1 device in Home Assistant with the following 
 | [`sensor.{name}_battery_section_power_discharge`](#power-discharge) | kW     | Power being discharged from the battery     |
 | [`sensor.{name}_battery_section_power_active`](#power-active)       | kW     | Net active power (discharge - charge)       |
 | [`sensor.{name}_battery_section_energy_stored`](#energy-stored)     | kWh    | Current energy stored in the battery        |
-| [`sensor.{name}_battery_section_power_balance`](#power-balance)     | \$/kWh | Shadow price of power at battery terminals  |
+| [`sensor.{name}_battery_section_power_balance`](#power-balance)     | \$/kWh | Shadow price of energy at the section       |
 | [`sensor.{name}_battery_section_energy_in_flow`](#energy-in-flow)   | \$/kWh | Shadow price of charging constraint         |
 | [`sensor.{name}_battery_section_energy_out_flow`](#energy-out-flow) | \$/kWh | Shadow price of discharging constraint      |
 | [`sensor.{name}_battery_section_soc_max`](#soc-max)                 | \$/kWh | Shadow price of maximum capacity constraint |
@@ -93,6 +104,7 @@ A Battery Section element creates 1 device in Home Assistant with the following 
 
 The optimal power being charged into the battery at each time period.
 Values are always positive or zero.
+This is the rate the stored energy rises, after any efficiency on the connection that feeds the section.
 
 **Example**: A value of 3.5 kW means the battery is charging at 3.5 kW at this time period.
 
@@ -100,6 +112,7 @@ Values are always positive or zero.
 
 The optimal power being discharged from the battery at each time period.
 Values are always positive or zero.
+This is the rate the stored energy falls, before any efficiency on the connection that carries it away.
 
 **Example**: A value of 2.0 kW means the battery is discharging at 2.0 kW at this time period.
 
@@ -119,10 +132,10 @@ Values range from 0 to the configured capacity.
 
 ### Power Balance
 
-The marginal value of power at the battery terminals.
+The marginal value of energy at the battery section, on the storage side of any connection efficiency.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
 
-This shadow price shows how much the total system cost would change if you could inject or extract 1 kW of power at the battery terminals.
+It shows how much the total system cost would change if one more kWh were held in the section at that time.
 
 **Interpretation**:
 
@@ -130,7 +143,7 @@ This shadow price shows how much the total system cost would change if you could
 - **Negative value**: Power at the battery is costly (system would benefit from more discharging capacity)
 - **Zero value**: Battery power balance is not constraining the optimization
 
-**Example**: A value of 0.15 means that if the battery could accept 1 kW more power, the total system cost would decrease by \$0.15 at this time period.
+**Example**: A value of 0.15 means one more kWh held in the section at that time would save \$0.15.
 
 ### Energy In Flow
 
@@ -200,15 +213,16 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 **Problem**: The Battery Section element type does not appear in the element selection list.
 
-**Solution**: Enable **Expose raw model elements** in your hub configuration.
-Battery Section is only available when that setting is enabled.
+**Solution**: Enable Advanced Mode in your hub configuration.
+Battery Section is only available when Advanced Mode is enabled.
 
 ### No Power Flow
 
 **Problem**: Battery Section shows zero power even when connected.
 
-**Solution**: Verify that Connection elements are properly configured to connect the Battery Section to other elements (nodes, grids, etc.).
+**Solution**: Verify that Connection elements connect the Battery Section to a junction or inverter in both directions.
 Battery Section does not create implicit connections like the standard Battery element.
+If the section only charges or only discharges, the connection for the other direction is missing.
 
 ### Connection Errors
 
@@ -217,7 +231,7 @@ Battery Section does not create implicit connections like the standard Battery e
 **Solution**: Ensure the Battery Section name matches exactly in both the Connection source and target fields.
 Check that the Battery Section element exists before creating connections.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 
@@ -245,12 +259,12 @@ Check that the Battery Section element exists before creating connections.
 
     [:material-arrow-right: Battery Section modeling](../../modeling/device-layer/battery_section.md)
 
-- :material-cog-outline:{ .lg .middle } **Expose raw model elements**
+- :material-cog-outline:{ .lg .middle } **Advanced mode**
 
     ---
 
-    Learn when to expose raw model elements and which elements require it.
+    Learn about advanced mode and other advanced elements.
 
-    [:material-arrow-right: Configuration guide](../configuration.md#expose-raw-model-elements)
+    [:material-arrow-right: Configuration guide](../configuration.md#advanced-mode)
 
 </div>

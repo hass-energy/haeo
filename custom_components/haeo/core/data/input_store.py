@@ -19,12 +19,12 @@ import asyncio
 from collections.abc import Callable
 from enum import Enum
 import logging
-from typing import Any
 
 import numpy as np
 
 from custom_components.haeo.core.data.loader.config_loader import is_percent_field, resolve_constant, resolve_field
 from custom_components.haeo.core.data.storage import Storage
+from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema import as_entity_value
 from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.state import EntityState, StateMachine
@@ -85,9 +85,12 @@ class InputStore:
         self._constant: float | bool | None = initial_value
         self._value: bool | float | np.ndarray | None = None
         self._available = False
+        self._error: InputError | None = None
         self._loaded_timestamps: tuple[float, ...] = ()
         self._captured_source_states: dict[str, EntityState] = {}
         self._data_ready = asyncio.Event()
+        # Set once the store has data or has rejected its source's value
+        self._settled = asyncio.Event()
         self._listeners: list[Callable[[], None]] = []
 
         if mode == InputMode.EDITABLE and initial_value is not None:
@@ -140,6 +143,11 @@ class InputStore:
         optimization should be skipped).
         """
         return self._available
+
+    @property
+    def error(self) -> InputError | None:
+        """Return why the source's last value was rejected, if it was."""
+        return self._error
 
     @property
     def native_value(self) -> float | bool | None:
@@ -201,9 +209,14 @@ class InputStore:
         """Wait for data to be ready."""
         await self._data_ready.wait()
 
+    async def wait_settled(self) -> None:
+        """Wait until the store has data or has rejected its source's value."""
+        await self._settled.wait()
+
     def mark_ready(self) -> None:
         """Explicitly mark the store as ready."""
         self._data_ready.set()
+        self._settled.set()
 
     # --- Change notification ---
 
@@ -236,7 +249,7 @@ class InputStore:
         self._constant = value
         self._resolve_from_constant(mark_ready=True)
 
-    async def persist(self, schema_value: Any) -> None:
+    async def persist(self, schema_value: object) -> None:
         """Persist a schema value through the bound storage."""
         await self._storage.write(schema_value)
 
@@ -260,13 +273,23 @@ class InputStore:
             return False
 
         forecast_timestamps = self._get_forecast_timestamps()
+        self._error = None
         try:
             resolved = resolve_field(
                 as_entity_value(self._source_entity_ids),
                 self._hint,
                 sm,
                 list(forecast_timestamps),
+                negate=self._negate,
             )
+        except InputError as err:
+            # Notify so consumers run and report the rejected value rather than
+            # silently keeping the previous one.
+            self._error = err
+            self._available = False
+            self._settled.set()
+            self._notify()
+            return False
         except Exception:
             _LOGGER.debug(
                 "Load failed from sources %s; keeping previous value",
@@ -288,13 +311,11 @@ class InputStore:
             self._available = False
             return False
 
-        if self._negate and not isinstance(resolved, bool):
-            resolved = -resolved
-
         self._value = resolved
         self._available = True
         self._loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
         self._data_ready.set()
+        self._settled.set()
         self._notify()
         return True
 
@@ -312,6 +333,7 @@ class InputStore:
 
         if mark_ready:
             self._data_ready.set()
+            self._settled.set()
             self._notify()
 
 

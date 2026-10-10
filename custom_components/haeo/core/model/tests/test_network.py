@@ -610,7 +610,7 @@ def test_lex_mode_with_secondary_objective() -> None:
 def test_lex_mode_warm_resolve_with_duplicate_coefficients() -> None:
     """Re-optimizing in lex mode must survive primary expressions with repeated var idxs.
 
-    Regression: _update_constraint previously collapsed duplicate variable
+    Regression: the lex row update previously collapsed duplicate variable
     indices via dict(zip(...)), silently dropping coefficient contributions
     when updating the lex constraint from secondary (phase 3) back to primary
     (phase 2) on a warm re-solve.  The resulting constraint misrepresented
@@ -645,7 +645,7 @@ def test_lex_mode_warm_resolve_with_duplicate_coefficients() -> None:
 
 
 def test_update_constraint_sums_duplicate_coefficients() -> None:
-    """_update_constraint must aggregate duplicate var idxs in both sides."""
+    """Updating the lex row must aggregate duplicate var idxs in both sides."""
     network = Network(name="test", periods=np.array([1.0]))
     h: Highs = network._solver
     v0 = h.addVariable(lb=0.0, ub=10.0, name="v0")
@@ -661,13 +661,62 @@ def test_update_constraint_sums_duplicate_coefficients() -> None:
     updated = 4.0 * v1 + 5.0 * v1 + 3.0 * v0
     network._constrain_objective(updated, 200.0)
 
-    assert network._lex_constraint is not None
-    stored = h.getExpr(network._lex_constraint)
+    assert network._lex_row is not None
+    stored = h.getExpr(network._lex_row[0])
     coeffs: dict[int, float] = {}
     for idx, val in zip(stored.idxs, stored.vals, strict=True):
         coeffs[idx] = coeffs.get(idx, 0.0) + val
     assert coeffs[v0.index] == pytest.approx(3.0)
     assert coeffs[v1.index] == pytest.approx(9.0)
+
+
+def test_lex_mode_solves_with_negligible_objective_coefficients() -> None:
+    """A primary objective term below HiGHS's small matrix value does not break the lex row.
+
+    Regression for #501: highspy raised after adding a lex row containing such a
+    term, leaving an untracked row that made every later solve infeasible.
+    """
+    network = Network(name="test", periods=np.array([1.0, 1.0]), options=LexOptions())
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "source",
+            "target": "sink",
+            "tags": {1},
+            "segments": {
+                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 3e-10])},
+            },
+        }
+    )
+
+    first = network.optimize()
+    second = network.optimize()
+
+    assert np.isfinite(first)
+    assert second == pytest.approx(first)
+
+
+def test_lex_row_bound_restored_after_relax() -> None:
+    """Constraining to the same value after a relax bounds the lex row again."""
+    network = Network(name="test", periods=np.array([1.0]))
+    h: Highs = network._solver
+    v0 = h.addVariable(lb=0.0, ub=10.0, name="v0")
+    objective = 2.0 * v0
+
+    network._constrain_objective(objective, 5.0)
+    assert network._lex_row is not None
+    cons = network._lex_row[0]
+    assert h.getExpr(cons).bounds == (float("-inf"), 5.0)
+
+    network._relax_lex_constraint()
+    assert h.getExpr(cons).bounds == (float("-inf"), float("inf"))
+
+    network._constrain_objective(objective, 5.0)
+    assert h.getExpr(cons).bounds == (float("-inf"), 5.0)
+    assert h.numConstrs == 1
 
 
 def test_optimize_requires_objectives() -> None:
@@ -763,6 +812,42 @@ def test_calibrated_mode_zero_primary_cost_vector() -> None:
     result = network.optimize()
     assert np.isfinite(result)
     assert network._calibrated_weight == pytest.approx(1e-3)
+
+
+def test_policy_pricing_charges_the_measured_power() -> None:
+    """A policy price on a connection is charged on the power at its power limit, after efficiency losses.
+
+    The connection loses half its power before the limit, the way a battery's discharge
+    connection does, and delivering power earns 1 per kWh. With a limit of 5 the optimizer
+    draws 10 and delivers 5, so a policy price of 0.1 adds 0.1 x 5, not 0.1 x 10.
+    """
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "store", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "bus", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "discharge",
+            "source": "store",
+            "target": "bus",
+            "tags": {0},
+            "segments": {
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([0.5])},
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([5.0])},
+                "pricing": {"segment_type": "pricing", "price": np.array([-1.0])},
+            },
+        }
+    )
+    network.add(
+        PolicyPricingElementConfig(
+            element_type=ELEMENT_TYPE_POLICY_PRICING,
+            name="discharge_cost",
+            price=0.1,
+            terms=[PolicyPricingTerm(connection="discharge", tag=0)],
+        )
+    )
+
+    assert network.optimize() == pytest.approx(-5.0 + 0.1 * 5.0)
 
 
 def test_add_policy_pricing_unknown_connection() -> None:

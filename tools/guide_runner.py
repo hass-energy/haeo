@@ -21,6 +21,7 @@ import re
 import shutil
 import sys
 
+from homeassistant.util.json import JsonValueType
 from playwright.sync_api import sync_playwright
 
 from tests.guides.primitives import (
@@ -31,6 +32,7 @@ from tests.guides.primitives import (
     add_grid,
     add_integration,
     add_inverter,
+    add_junction,
     add_load,
     add_node,
     add_policies,
@@ -56,10 +58,10 @@ INPUTS_FILE = SCENARIO_DIR / "inputs.json"
 ENVIRONMENT_FILE = SCENARIO_DIR / "environment.json"
 
 
-def load_scenario_environment() -> dict[str, object]:
+def load_scenario_environment() -> dict[str, JsonValueType]:
     """Load scenario environment used to bootstrap live Home Assistant."""
     with ENVIRONMENT_FILE.open(encoding="utf-8") as environment_file:
-        environment: dict[str, object] = json.load(environment_file)
+        environment: dict[str, JsonValueType] = json.load(environment_file)
     return environment
 
 
@@ -231,6 +233,7 @@ def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, obj
         "add_solar": add_solar,
         "add_grid": add_grid,
         "add_load": add_load,
+        "add_junction": add_junction,
         "add_node": add_node,
         "add_policies": add_policies,
         "reconfigure_policies": reconfigure_policies,

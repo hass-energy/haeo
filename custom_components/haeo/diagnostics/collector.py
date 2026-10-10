@@ -3,10 +3,8 @@
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any, cast
 
 from homeassistant.components.diagnostics import async_redact_data
-from homeassistant.components.recorder import history as recorder_history
 from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.recorder import get_instance as get_recorder_instance
@@ -19,6 +17,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
+from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
 from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.sensor_utils import (
     SensorStateDict,
@@ -73,13 +72,13 @@ class EnvironmentInfo:
 class DiagnosticsResult:
     """Result of collecting diagnostics."""
 
-    config: dict[str, Any]
+    config: dict[str, object]
     """HAEO configuration (hub settings, participants)."""
 
     environment: EnvironmentInfo
     """Runtime info plus per-snapshot timestamps."""
 
-    inputs: list[dict[str, Any]]
+    inputs: list[Mapping[str, object]]
     """Input sensor states used in optimization."""
 
     outputs: dict[str, SensorStateDict] | None
@@ -88,9 +87,9 @@ class DiagnosticsResult:
     missing_entity_ids: tuple[str, ...]
     """Entity IDs that were expected but not found in the recorder."""
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         """Serialize to a JSON-compatible dict for HA diagnostics output."""
-        data: dict[str, Any] = {
+        data: dict[str, object] = {
             "environment": asdict(self.environment),
             "config": self.config,
             "inputs": self.inputs,
@@ -100,7 +99,7 @@ class DiagnosticsResult:
         return data
 
 
-def _config_from_context(context: OptimizationContext) -> dict[str, Any]:
+def _config_from_context(context: OptimizationContext) -> dict[str, object]:
     """Build diagnostics config section from OptimizationContext.
 
     Uses the exact hub configuration and participant schemas the optimizer used,
@@ -113,7 +112,7 @@ def _config_from_context(context: OptimizationContext) -> dict[str, Any]:
     }
 
 
-def _inputs_from_context(context: OptimizationContext) -> list[dict[str, Any]]:
+def _inputs_from_context(context: OptimizationContext) -> list[Mapping[str, object]]:
     """Build diagnostics inputs section from OptimizationContext.
 
     Uses the exact source states captured when entities loaded data,
@@ -132,12 +131,14 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     This function iterates over all config values and collects entity IDs.
     """
 
-    def _collect(value: SchemaValue | Mapping[str, Any], collected: set[str]) -> None:
+    def _collect(value: SchemaValue | Mapping[str, object], collected: set[str]) -> None:
         match value:
             case {"type": "entity", "value": entity_ids} if isinstance(entity_ids, list):
                 for entity_id in entity_ids:
                     if isinstance(entity_id, str) and "." in entity_id:
                         collected.add(entity_id)
+            case {"type": "calendar", "value": str(entity_id)} if "." in entity_id:
+                collected.add(entity_id)
             case {"type": _}:
                 return
             case Mapping():
@@ -152,24 +153,23 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
     return entity_ids
 
 
-def _config_from_entry(config_entry: HaeoConfigEntry) -> dict[str, Any]:
+def _config_from_entry(config_entry: HaeoConfigEntry) -> dict[str, object]:
     """Build diagnostics config section from the config entry (current config).
 
     Used for historical diagnostics where we always use the current configuration.
     """
-    config: dict[str, Any] = {
-        **dict(config_entry.data),
-        "participants": {},
-    }
-
+    participants: dict[str, object] = {}
     for subentry in config_entry.subentries.values():
         if subentry.subentry_type != ELEMENT_TYPE_NETWORK:
             raw_data = dict(subentry.data)
             raw_data.setdefault(CONF_ELEMENT_TYPE, subentry.subentry_type)
             raw_data.setdefault(CONF_NAME, subentry.title)
-            config["participants"][subentry.title] = raw_data
+            participants[subentry.title] = raw_data
 
-    return config
+    return {
+        **dict(config_entry.data),
+        "participants": participants,
+    }
 
 
 def _collect_entity_ids_from_entry(config_entry: HaeoConfigEntry) -> set[str]:
@@ -189,7 +189,7 @@ async def _fetch_inputs_at(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
     target_time: datetime,
-) -> tuple[list[dict[str, Any]], list[str]]:
+) -> tuple[list[Mapping[str, object]], list[str]]:
     """Fetch input entity states from the recorder at a specific time.
 
     Returns:
@@ -204,7 +204,7 @@ async def _fetch_inputs_at(
     entity_id_list = sorted(all_entity_ids)
 
     def _query() -> dict[str, list[State]]:
-        result = recorder_history.get_significant_states(
+        return get_significant_states_full(
             hass,
             start_time=target_time,
             end_time=target_time,
@@ -213,13 +213,12 @@ async def _fetch_inputs_at(
             significant_changes_only=False,
             no_attributes=False,
         )
-        return cast("dict[str, list[State]]", result)
 
     states = await recorder.async_add_executor_job(_query)
     entity_states = {eid: slist[0] for eid, slist in states.items() if slist}
 
     missing_entity_ids = sorted(all_entity_ids - set(entity_states.keys()))
-    inputs: list[dict[str, Any]] = [
+    inputs: list[Mapping[str, object]] = [
         state.as_dict() for eid in entity_id_list if (state := entity_states.get(eid)) is not None
     ]
     return inputs, missing_entity_ids
@@ -252,7 +251,7 @@ async def _get_last_run_before(
     recorder = get_recorder_instance(hass)
 
     def _query() -> dict[str, list[State]]:
-        result = recorder_history.get_significant_states(
+        return get_significant_states_full(
             hass,
             start_time=target_time,
             end_time=target_time,
@@ -261,7 +260,6 @@ async def _get_last_run_before(
             significant_changes_only=False,
             no_attributes=False,
         )
-        return cast("dict[str, list[State]]", result)
 
     states = await recorder.async_add_executor_job(_query)
 

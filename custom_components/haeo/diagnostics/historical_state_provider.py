@@ -2,11 +2,11 @@
 
 from collections.abc import Iterable
 from datetime import datetime
-from typing import Any, cast
 
-from homeassistant.components.recorder import history as recorder_history
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.recorder import get_instance as get_recorder_instance
+
+from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
 
 
 class HistoricalStateProvider:
@@ -64,9 +64,7 @@ class HistoricalStateProvider:
 
         Run this in an executor to avoid blocking the event loop.
         """
-        # get_significant_states handles session scope internally
-        # With minimal_response=False (default), it returns full State objects
-        result: dict[str, list[State | dict[str, Any]]] = recorder_history.get_significant_states(
+        return get_significant_states_full(
             self._hass,
             start_time=self._timestamp,
             end_time=self._timestamp,
@@ -75,5 +73,3 @@ class HistoricalStateProvider:
             significant_changes_only=False,  # include attribute-only changes
             no_attributes=False,  # preserve attributes (needed for forecasts)
         )
-        # Cast since we're not using minimal_response, so we get full State objects
-        return cast("dict[str, list[State]]", result)

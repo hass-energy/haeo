@@ -1,7 +1,9 @@
 """Loader for constant (scalar) configuration values."""
 
 from numbers import Real
-from typing import Any, TypeGuard, cast
+from typing import TypeGuard, TypeVar, overload
+
+T = TypeVar("T")
 
 
 class ConstantLoader[T]:
@@ -12,12 +14,23 @@ class ConstantLoader[T]:
 
     """
 
-    def __init__(self, cls: type[T]) -> None:
-        """Initialize with the expected constant type."""
-        super().__init__()
-        self._type = cls
+    @overload
+    def __new__(cls, loader_type: type[float]) -> "FloatConstantLoader": ...
 
-    def available(self, value: Any, **_kwargs: Any) -> bool:
+    @overload
+    def __new__(cls, loader_type: type[T]) -> "ConstantLoader[T]": ...
+
+    def __new__(cls, loader_type: type[object]) -> "ConstantLoader[object] | FloatConstantLoader":
+        """Return a float-specialized loader when ``loader_type`` is ``float``."""
+        if loader_type is float:
+            return object.__new__(FloatConstantLoader)
+        return super().__new__(cls)
+
+    def __init__(self, loader_type: type[T]) -> None:
+        """Initialize with the expected constant type."""
+        self._type = loader_type
+
+    def available(self, value: object, **_kwargs: object) -> bool:
         """Return True if the constant field is available."""
         if self._convert(value) is None:
             msg = f"Value must be of type {self._type}"
@@ -25,7 +38,7 @@ class ConstantLoader[T]:
 
         return True  # Constants are always available
 
-    async def load(self, *, value: Any, **_kwargs: Any) -> T:
+    async def load(self, *, value: object, **_kwargs: object) -> T:
         """Load the constant field value."""
         converted = self._convert(value)
         if converted is None:
@@ -34,19 +47,32 @@ class ConstantLoader[T]:
 
         return converted
 
-    def is_valid_value(self, value: Any) -> TypeGuard[T]:
+    def is_valid_value(self, value: object) -> TypeGuard[T]:
         """Check if the value is of the expected constant type."""
         return self._convert(value) is not None
 
-    def _convert(self, value: Any) -> T | None:
+    def _convert(self, value: object) -> T | None:
         """Return the converted value when it matches the expected type."""
-
-        if self._type is float:
-            if isinstance(value, Real):
-                return cast("T", float(value))
-            return None
-
         if isinstance(value, self._type):
             return value
+
+        return None
+
+
+class FloatConstantLoader(ConstantLoader[float]):
+    """Constant loader that coerces numeric values to float."""
+
+    def __init__(self, loader_type: type[object]) -> None:
+        """Initialize as a float constant loader.
+
+        ``loader_type`` must be ``float`` when created via ``ConstantLoader(float)``.
+        """
+        _ = loader_type
+        super().__init__(float)
+
+    def _convert(self, value: object) -> float | None:
+        """Accept any Real value and normalize to float."""
+        if isinstance(value, Real):
+            return float(value)
 
         return None

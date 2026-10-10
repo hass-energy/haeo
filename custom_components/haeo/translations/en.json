@@ -5,10 +5,10 @@
       "user": {
         "title": "HAEO Setup",
         "description": "Configure your system and choose a planning horizon that matches your forecast data availability.",
-        "data": { "advanced_mode": "Expose raw model elements", "horizon_preset": "Planning Horizon", "name": "System Name" },
-        "data_description": { "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself." },
+        "data": { "advanced_mode": "Advanced Mode", "horizon_preset": "Planning Horizon", "name": "System Name" },
+        "data_description": { "advanced_mode": "Reveals additional element types for complex energy systems." },
         "sections": {
-          "advanced": { "data": { "advanced_mode": "Expose raw model elements" }, "name": "Advanced settings" },
+          "advanced": { "data": { "advanced_mode": "Advanced Mode" }, "name": "Advanced settings" },
           "common": {
             "data": { "horizon_preset": "Planning Horizon", "name": "System Name" },
             "name": "Common settings"
@@ -53,19 +53,19 @@
         "title": "HAEO Settings",
         "description": "Configure optimization settings. Choose a planning horizon that matches your forecast data availability.",
         "data": {
-          "advanced_mode": "Expose raw model elements",
+          "advanced_mode": "Advanced Mode",
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon_preset": "Planning Horizon",
           "record_forecasts": "Record forecast data"
         },
         "data_description": {
-          "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
+          "advanced_mode": "Reveals additional element types for complex energy systems.",
           "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
         },
         "sections": {
           "advanced": {
             "data": {
-              "advanced_mode": "Expose raw model elements",
+              "advanced_mode": "Advanced Mode",
               "debounce_seconds": "Debounce Window (seconds)",
               "record_forecasts": "Record forecast data"
             },
@@ -78,9 +78,6 @@
     "error": {
       "cannot_connect_to_self": "Cannot connect a device to itself",
       "invalid_name": "Invalid device name",
-      "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
-      "min_power_negative_not_allowed_unidirectional": "Minimum power cannot be negative for unidirectional connections",
-      "min_power_too_high": "Minimum power must be less than or equal to maximum power",
       "name_exists": "A device with this name already exists"
     },
     "abort": {
@@ -163,16 +160,28 @@
           "sections": {
             "overcharge": {
               "data": { "cost": "Overcharge cost", "percentage": "Overcharge percentage" },
+              "data_description": {
+                "cost": "Holding cost per kWh stored above the overcharge percentage, charged for every hour it stays there. For example, 0.02 means keeping 1 kWh above this level for 10 hours costs 0.20.",
+                "percentage": "State of charge above which the overcharge cost applies."
+              },
               "name": "Overcharge settings"
             },
             "undercharge": {
               "data": { "cost": "Undercharge cost", "percentage": "Undercharge percentage" },
+              "data_description": {
+                "cost": "Holding cost per kWh stored below the undercharge percentage, charged for every hour it stays there. For example, 0.02 means keeping 1 kWh below this level for 10 hours costs 0.20.",
+                "percentage": "State of charge below which the undercharge cost applies."
+              },
               "name": "Undercharge settings"
             }
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "battery_section": {
@@ -182,7 +191,7 @@
       "step": {
         "user": {
           "title": "Battery Section Configuration",
-          "description": "Configure a single battery section with explicit capacity and initial charge. Connect to other elements using Connection elements.",
+          "description": "Configure a single battery section with explicit capacity and initial charge. Battery sections have no implicit connections. Connections carry power in one direction only, so add one connection into the section to charge it and another connection out of it to discharge it.",
           "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" },
           "sections": {
             "common": { "data": { "name": "Battery Section Name" }, "name": "Common settings" },
@@ -200,52 +209,27 @@
       "step": {
         "user": {
           "title": "Connection Configuration",
-          "description": "Configure connection parameters between devices",
+          "description": "Configure a unidirectional power path from source to target. For reverse flow, add a second connection with swapped endpoints.",
           "data": {
-            "efficiency_source_target": "Efficiency Source to Target",
-            "efficiency_target_source": "Efficiency Target to Source",
-            "max_power_source_target": "Max Power Source to Target",
-            "max_power_target_source": "Max Power Target to Source",
-            "mirror_segment_order": "Mirror segment order",
+            "efficiency_source_target": "Efficiency",
+            "max_power_source_target": "Max power",
             "name": "Connection Name",
-            "price_source_target": "Price Source to Target",
-            "price_target_source": "Price Target to Source",
+            "price_source_target": "Price",
             "source": "Source Device",
             "target": "Target Device"
           },
           "sections": {
             "common": { "data": { "name": "Connection Name" }, "name": "Common settings" },
-            "efficiency": {
-              "data": {
-                "efficiency_source_target": "Efficiency Source to Target",
-                "efficiency_target_source": "Efficiency Target to Source"
-              },
-              "name": "Connection efficiency"
-            },
+            "efficiency": { "data": { "efficiency_source_target": "Efficiency" }, "name": "Connection efficiency" },
             "endpoints": { "data": { "source": "Source Device", "target": "Target Device" }, "name": "Endpoints" },
-            "power_limits": {
-              "data": {
-                "max_power_source_target": "Max Power Source to Target",
-                "max_power_target_source": "Max Power Target to Source"
-              },
-              "name": "Power limits"
-            },
-            "pricing": {
-              "data": {
-                "price_source_target": "Price Source to Target",
-                "price_target_source": "Price Target to Source"
-              },
-              "name": "Pricing"
-            },
-            "segment_order": { "data": { "mirror_segment_order": "Mirror segment order" }, "name": "Segment order" }
+            "power_limits": { "data": { "max_power_source_target": "Max power" }, "name": "Power limits" },
+            "pricing": { "data": { "price_source_target": "Price" }, "name": "Pricing" }
           }
         }
       },
       "error": {
         "cannot_connect_to_self": "Cannot connect a device to itself",
-        "max_power_must_be_positive_for_bidirectional": "Maximum power must be positive for bidirectional connections",
-        "min_power_negative_not_allowed_unidirectional": "Minimum power cannot be negative for unidirectional connections",
-        "min_power_too_high": "Minimum power must be less than or equal to maximum power",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
       },
@@ -280,7 +264,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "inverter": {
@@ -318,6 +306,25 @@
           }
         }
       },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
+    "junction": {
+      "flow_title": "Junction",
+      "entry_type": "Junction",
+      "initiate_flow": { "user": "Junction", "reconfigure": "Junction" },
+      "step": {
+        "user": {
+          "title": "Junction Configuration",
+          "description": "Add a junction where connections meet. Power flowing in always equals power flowing out.",
+          "data": { "name": "Junction Name" },
+          "sections": { "common": { "data": { "name": "Junction Name" }, "name": "Common settings" } }
+        }
+      },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -346,7 +353,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "network": {
@@ -363,7 +374,7 @@
       "step": {
         "user": {
           "title": "Node Configuration",
-          "description": "Add a node for power balance calculations or to source/sink unlimited power.",
+          "description": "Add a node that can produce or consume unlimited power. Use a junction for a point that only passes power through.",
           "data": {
             "is_sink": "Can consume unlimited power (Sink)",
             "is_source": "Can produce unlimited power (Source)",
@@ -448,7 +459,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
   },
@@ -459,6 +474,7 @@
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
+    "junction": { "name": "{name}" },
     "load": { "name": "{name}" },
     "network": { "name": "Optimizer" },
     "node": { "name": "{name}" },
@@ -484,12 +500,9 @@
       "battery_salvage_value": { "name": "Salvage value" },
       "battery_undercharge_partition_cost": { "name": "Undercharge cost" },
       "battery_undercharge_partition_percentage": { "name": "Undercharge percentage" },
-      "connection_efficiency_source_target": { "name": "Source to target efficiency" },
-      "connection_efficiency_target_source": { "name": "Target to source efficiency" },
-      "connection_max_power_source_target": { "name": "Max source to target power" },
-      "connection_max_power_target_source": { "name": "Max target to source power" },
-      "connection_price_source_target": { "name": "Source to target price" },
-      "connection_price_target_source": { "name": "Target to source price" },
+      "connection_efficiency_source_target": { "name": "Efficiency" },
+      "connection_max_power_source_target": { "name": "Max power" },
+      "connection_price_source_target": { "name": "Price" },
       "grid_max_power_source_target": { "name": "Import limit" },
       "grid_max_power_target_source": { "name": "Export limit" },
       "grid_price_source_target": { "name": "Import price" },
@@ -541,7 +554,16 @@
       "inverter_power_ac_to_dc": { "name": "AC to DC power" },
       "inverter_power_active": { "name": "Active power" },
       "inverter_power_dc_to_ac": { "name": "DC to AC power" },
+      "junction_power_balance": { "name": "Power balance shadow price" },
       "load_forecast_limit_price": { "name": "Forecast limit shadow price" },
+      "load_horizon_average_marginal_price": { "name": "Horizon average marginal price" },
+      "load_horizon_energy": { "name": "Horizon energy" },
+      "load_horizon_marginal_cost": { "name": "Horizon marginal cost" },
+      "load_horizon_runtime": { "name": "Horizon runtime" },
+      "load_next_24h_average_marginal_price": { "name": "Next 24h average marginal price" },
+      "load_next_24h_energy": { "name": "Next 24h energy" },
+      "load_next_24h_marginal_cost": { "name": "Next 24h marginal cost" },
+      "load_next_24h_runtime": { "name": "Next 24h runtime" },
       "load_power": { "name": "Power" },
       "network_optimization_cost": { "name": "Cost" },
       "network_optimization_duration": { "name": "Duration" },
@@ -569,6 +591,9 @@
     "missing_sensors": {
       "message": "HAEO cannot load data for {unavailable_sensors}. Verify each referenced sensor exists and is reporting data."
     },
+    "negative_input_value": {
+      "message": "Input {field} of {element} cannot be negative, but {entities} supplied {value}. Check that the sensor or forecast reports this value with the expected sign."
+    },
     "no_history_at_time": {
       "message": "No history available at time {time} for: {missing}. The recorder may not have data this far back."
     },
@@ -595,13 +620,21 @@
       "title": "Invalid configuration for {element_name}",
       "description": "Element {element_name} has an invalid configuration: {config_problem}\n\nTo fix this issue:\n1. Open the HAEO integration settings\n2. Navigate to the {element_name} element configuration\n3. Correct the configuration problem described above\n4. Save your changes and reload the integration"
     },
+    "invalid_connection_endpoints": {
+      "title": "Connections bypass an element's own limits and prices",
+      "description": "Some elements connect directly to an element that applies its own prices, forecasts, power limits, and efficiencies on its own connection. A connection made directly to it bypasses all of those, so the optimizer treats it as free, unlimited power.\n\nAffected connections (element → endpoint):\n{connection_summary}\n\nTo fix this issue:\n1. Open the HAEO integration configuration\n2. Reconfigure each affected element to connect to the junction or inverter that its endpoint is connected to\n3. Save your changes; this issue will clear automatically once no element connects directly to one of these endpoints"
+    },
     "missing_sensor": {
       "title": "Missing sensor data for {element_name}",
       "description": "The HAEO integration cannot find sensor data for element {element_name}. The sensor entity {sensor_entity_id} may not exist or may be unavailable.\n\nTo fix this issue:\n1. Check that the sensor entity exists in Home Assistant\n2. Verify the sensor is available and reporting data\n3. If the sensor was removed, reconfigure the element to use a different sensor\n4. If the sensor is temporarily unavailable, this issue will automatically dismiss when the sensor becomes available again"
     },
+    "node_replaced_by_junction": {
+      "title": "{element_name} is now a junction",
+      "description": "{element_name} was a node with its source or sink switch turned on or driven by an entity. A node like this produces or consumes unlimited power at no cost, which let the optimizer plan with power that does not exist.\n\n{element_name} is now a junction, which only passes power between the elements connected to it. Its source and sink switches have been removed.\n\nIf power should be produced or consumed at {element_name}, connect an element that sets its own limits and prices to it. You can ignore this issue once you have read it."
+    },
     "optimization_failure": {
       "title": "Optimization failed",
-      "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. Issues with the selected solver\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your system configuration for conflicting constraints\n4. Try a different optimization solver in the integration settings\n5. This issue will automatically dismiss when optimization succeeds"
+      "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. An infeasible or numerically difficult optimization problem\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your system configuration for conflicting constraints\n4. Adjust interval tiers or simplify the network if solves are slow or failing\n5. This issue will automatically dismiss when optimization succeeds"
     }
   },
   "selector": {

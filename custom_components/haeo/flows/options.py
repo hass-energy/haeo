@@ -1,13 +1,14 @@
 """Options flow for HAEO hub management."""
 
 import logging
-from typing import Any
+from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
 
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_DEBOUNCE_SECONDS, CONF_HORIZON_PRESET
+from custom_components.haeo.flows.field_schema import as_mapping, as_str
 
 from . import (
     HORIZON_PRESET_CUSTOM,
@@ -27,7 +28,7 @@ class HubOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self) -> None:
         """Initialize the options flow."""
-        self._user_input: dict[str, Any] = {}
+        self._user_input: dict[str, object] = {}
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Configure hub settings with simplified preset dropdown."""
@@ -60,9 +61,11 @@ class HubOptionsFlow(config_entries.OptionsFlow):
 
     async def _save_options(self) -> ConfigFlowResult:
         """Save the options with tier configuration."""
+        common = as_mapping(self._user_input.get(HUB_SECTION_COMMON))
+        advanced = as_mapping(self._user_input.get(HUB_SECTION_ADVANCED))
         tier_config, stored_preset = get_tier_config(
             self._user_input,
-            self._user_input[HUB_SECTION_COMMON].get(CONF_HORIZON_PRESET),
+            as_str(common.get(CONF_HORIZON_PRESET)),
         )
 
         # Update config entry data with new values
@@ -75,10 +78,10 @@ class HubOptionsFlow(config_entries.OptionsFlow):
             HUB_SECTION_TIERS: tier_config,
             HUB_SECTION_ADVANCED: {
                 **self.config_entry.data.get(HUB_SECTION_ADVANCED, {}),
-                CONF_DEBOUNCE_SECONDS: self._user_input[HUB_SECTION_ADVANCED][CONF_DEBOUNCE_SECONDS],
-                CONF_ADVANCED_MODE: self._user_input[HUB_SECTION_ADVANCED][CONF_ADVANCED_MODE],
+                CONF_DEBOUNCE_SECONDS: advanced[CONF_DEBOUNCE_SECONDS],
+                CONF_ADVANCED_MODE: advanced[CONF_ADVANCED_MODE],
             },
-            CONF_RECORD_FORECASTS: self._user_input[HUB_SECTION_ADVANCED].get(CONF_RECORD_FORECASTS, False),
+            CONF_RECORD_FORECASTS: advanced.get(CONF_RECORD_FORECASTS, False),
         }
 
         self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)

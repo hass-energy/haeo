@@ -2,19 +2,22 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from collections.abc import Mapping
 
+from homeassistant.util.json import JsonValueType
 import numpy as np
 import pytest
 
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.schema import as_constant_value
-from custom_components.haeo.core.schema.elements import ElementConfigSchema, battery
-from tools import diag
+from custom_components.haeo.core.schema.elements import battery
+from custom_components.haeo.core.schema.elements.battery import is_battery_config_data
+from custom_components.haeo.elements import is_element_config_schema
+from tools.diag import cli as diag
 
 
-def _base_battery_config() -> dict[str, Any]:
+def _base_battery_config() -> dict[str, object]:
     """Build a minimal battery config in diagnostics schema format."""
     return {
         "element_type": "battery",
@@ -31,6 +34,18 @@ def _base_battery_config() -> dict[str, Any]:
     }
 
 
+def _load_battery_config(
+    config: dict[str, object],
+    provider: diag.DiagnosticsStateProvider,
+    forecast_times: tuple[float, ...],
+) -> battery.BatteryConfigData:
+    """Load a battery fixture after schema and result discriminators are verified."""
+    assert is_element_config_schema(config)
+    loaded = load_element_config("Battery", config, provider, forecast_times)
+    assert is_battery_config_data(loaded)
+    return loaded
+
+
 def test_load_element_config_unwraps_constant_wrappers() -> None:
     """Constant wrappers convert to loaded scalar/series values."""
     config = _base_battery_config()
@@ -39,15 +54,7 @@ def test_load_element_config_unwraps_constant_wrappers() -> None:
         "initial_charge_percentage": {"type": "constant", "value": 50.0},
     }
 
-    loaded = cast(
-        "battery.BatteryConfigData",
-        load_element_config(
-            "Battery",
-            cast("ElementConfigSchema", config),
-            diag.DiagnosticsStateProvider([]),
-            (0.0, 1800.0, 3600.0),
-        ),
-    )
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
 
     np.testing.assert_allclose(loaded["storage"]["capacity"], np.array([13.5, 13.5, 13.5]))
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.5)
@@ -83,15 +90,7 @@ def test_load_element_config_uses_present_value_for_scalar_entities(monkeypatch:
         lambda *_args, **_kwargs: pytest.fail("fuse_to_intervals should not run for scalar fields"),
     )
 
-    loaded = cast(
-        "battery.BatteryConfigData",
-        load_element_config(
-            "Battery",
-            cast("ElementConfigSchema", config),
-            diag.DiagnosticsStateProvider([]),
-            (0.0, 1800.0, 3600.0),
-        ),
-    )
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
 
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.75)
 
@@ -120,15 +119,7 @@ def test_load_element_config_unwraps_entity_wrappers_for_time_series(monkeypatch
         lambda *_args, **_kwargs: [13.5, 13.4, 13.3],
     )
 
-    loaded = cast(
-        "battery.BatteryConfigData",
-        load_element_config(
-            "Battery",
-            cast("ElementConfigSchema", config),
-            diag.DiagnosticsStateProvider([]),
-            (0.0, 1800.0, 3600.0),
-        ),
-    )
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
 
     np.testing.assert_allclose(loaded["storage"]["capacity"], np.array([13.5, 13.4, 13.3]))
 
@@ -144,22 +135,14 @@ def test_load_element_config_drops_none_wrappers() -> None:
         "salvage_value": {"type": "none"},
     }
 
-    loaded = cast(
-        "battery.BatteryConfigData",
-        load_element_config(
-            "Battery",
-            cast("ElementConfigSchema", config),
-            diag.DiagnosticsStateProvider([]),
-            (0.0, 1800.0, 3600.0),
-        ),
-    )
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
 
     assert "salvage_value" not in loaded["pricing"]
 
 
 def test_normalize_participant_config_for_diag_migrates_legacy_flat_config() -> None:
     """Legacy flat participant config is migrated to sectioned format."""
-    config: dict[str, Any] = {
+    config: dict[str, object] = {
         "element_type": "battery",
         "name": "Battery",
         "connection": "Inverter",
@@ -170,8 +153,10 @@ def test_normalize_participant_config_for_diag_migrates_legacy_flat_config() -> 
     normalized = diag.normalize_participant_config_for_diag(config)
 
     assert normalized["name"] == "Battery"
-    assert normalized["storage"]["capacity"] == as_constant_value(13.5)
-    assert normalized["storage"]["initial_charge_percentage"] == as_constant_value(50.0)
+    storage = normalized["storage"]
+    assert isinstance(storage, dict)
+    assert storage["capacity"] == as_constant_value(13.5)
+    assert storage["initial_charge_percentage"] == as_constant_value(50.0)
 
 
 def test_normalize_participant_config_for_diag_skips_migration_for_sectioned_config(
@@ -196,13 +181,13 @@ def test_normalize_participant_config_for_diag_migrates_mixed_config(monkeypatch
     config = _base_battery_config()
     config["capacity"] = 13.5
 
-    migrated = {
+    migrated: dict[str, object] = {
         "element_type": "battery",
         "common": {"name": "Battery"},
     }
-    called: list[Any] = []
+    called: list[Mapping[str, object]] = []
 
-    def _fake_migrate(data: Any) -> dict[str, Any]:
+    def _fake_migrate(data: Mapping[str, object]) -> dict[str, object]:
         called.append(data)
         return migrated
 
@@ -216,7 +201,7 @@ def test_normalize_participant_config_for_diag_migrates_mixed_config(monkeypatch
 
 def test_get_forecast_by_fields_supports_legacy_grid_price_aliases() -> None:
     """Diagnostics forecast lookup falls back to legacy grid price field names."""
-    outputs = {
+    outputs: dict[str, JsonValueType] = {
         "number.grid_import_price": {
             "attributes": {
                 "element_name": "Grid",
@@ -276,13 +261,13 @@ def test_format_comparison_table_averages_only_overlap_rows() -> None:
 
 def test_infer_interval_starts_from_outputs_prefers_interval_series() -> None:
     """Interval-start inference uses interval outputs, not boundary-only tails."""
-    config = {
+    config: dict[str, JsonValueType] = {
         "participants": {
             "Grid": {"element_type": "grid"},
             "Battery": {"element_type": "battery"},
         }
     }
-    outputs = {
+    outputs: dict[str, JsonValueType] = {
         "sensor.grid_power_active": {
             "attributes": {
                 "element_name": "Grid",
@@ -316,8 +301,8 @@ def test_infer_interval_starts_from_outputs_prefers_interval_series() -> None:
 
 def test_infer_interval_starts_from_outputs_supports_legacy_price_fields() -> None:
     """Interval-start inference falls back to legacy import/export price forecasts."""
-    config = {"participants": {"Grid": {"element_type": "grid"}}}
-    outputs = {
+    config: dict[str, JsonValueType] = {"participants": {"Grid": {"element_type": "grid"}}}
+    outputs: dict[str, JsonValueType] = {
         "number.grid_import_price": {
             "attributes": {
                 "element_name": "Grid",

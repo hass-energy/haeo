@@ -87,7 +87,7 @@ Visit http://127.0.0.1:8000
 
 Documentation automatically deploys via GitHub Actions on push to main.
 
-## Next Steps
+## Next steps
 
 - Read [Contributing](contributing.md) guidelines
 - Explore [Architecture](architecture.md)

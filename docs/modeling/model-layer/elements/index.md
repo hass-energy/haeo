@@ -54,7 +54,7 @@ Complex device behavior (multi-section batteries, cost incentives, efficiency lo
 
 This separation keeps the Model Layer focused on optimization mathematics while the Device Layer handles user-facing complexity.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

@@ -11,6 +11,7 @@ from custom_components.haeo.core.schema.elements.connection import ConnectionCon
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.grid import GridConfigData, GridConfigSchema
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData, InverterConfigSchema
+from custom_components.haeo.core.schema.elements.junction import JunctionConfigData, JunctionConfigSchema
 from custom_components.haeo.core.schema.elements.load import LoadConfigData, LoadConfigSchema
 from custom_components.haeo.core.schema.elements.node import NodeConfigData, NodeConfigSchema
 from custom_components.haeo.core.schema.elements.policy import PolicyConfigData, PolicyConfigSchema
@@ -24,6 +25,7 @@ ElementConfigSchema = (
     | LoadConfigSchema
     | SolarConfigSchema
     | NodeConfigSchema
+    | JunctionConfigSchema
     | PolicyConfigSchema
     | ConnectionConfigSchema
 )
@@ -36,6 +38,7 @@ ElementConfigData = (
     | LoadConfigData
     | SolarConfigData
     | NodeConfigData
+    | JunctionConfigData
     | PolicyConfigData
     | ConnectionConfigData
 )
@@ -46,6 +49,7 @@ ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
     ElementType.CONNECTION: ConnectionConfigSchema,
     ElementType.GRID: GridConfigSchema,
     ElementType.INVERTER: InverterConfigSchema,
+    ElementType.JUNCTION: JunctionConfigSchema,
     ElementType.LOAD: LoadConfigSchema,
     ElementType.NODE: NodeConfigSchema,
     ElementType.POLICY: PolicyConfigSchema,

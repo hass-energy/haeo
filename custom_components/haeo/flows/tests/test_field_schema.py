@@ -1,7 +1,5 @@
 """Tests for flows/field_schema.py utilities."""
 
-from typing import Any
-
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
@@ -20,7 +18,7 @@ from custom_components.haeo.core.schema import (
     as_none_value,
 )
 from custom_components.haeo.elements.field_schema import FieldSchemaInfo
-from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
     CHOICE_ENTITY,
@@ -67,7 +65,7 @@ def number_field() -> InputFieldInfo[NumberEntityDescription]:
     )
 
 
-def _field_map(*fields: InputFieldInfo[Any]) -> dict[str, InputFieldInfo[Any]]:
+def _field_map(*fields: AnyInputFieldInfo) -> dict[str, AnyInputFieldInfo]:
     """Build an input field mapping keyed by field name."""
     return {field.field_name: field for field in fields}
 
@@ -471,7 +469,7 @@ def test_convert_choose_data_constant_stored_directly(
 
     After schema validation, ChooseSelector returns the raw value.
     """
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": 42.0,  # Raw value after ChooseSelector validation
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -485,7 +483,7 @@ def test_convert_choose_data_entity_single_stored_as_string(
 
     After schema validation, ChooseSelector returns the entity list.
     """
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": ["sensor.power"],  # Raw list after ChooseSelector validation
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -496,7 +494,7 @@ def test_convert_choose_data_entity_string_stored_as_list(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """String entity IDs are stored as entity schema values."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": "sensor.power",
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -507,7 +505,7 @@ def test_convert_choose_data_empty_string_stored_as_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Empty string values are stored as none schema values."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": "",
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -521,7 +519,7 @@ def test_convert_choose_data_entity_multiple_stored_as_list(
 
     After schema validation, ChooseSelector returns the entity list.
     """
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": ["sensor.power1", "sensor.power2"],  # Raw list
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -532,7 +530,7 @@ def test_convert_choose_data_empty_value_stored_as_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Empty entity list is stored as none schema value."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": [],  # Empty list after ChooseSelector validation
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -543,7 +541,7 @@ def test_convert_choose_data_none_constant_stored_as_none(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """None value is stored as none schema value."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": None,
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -554,7 +552,7 @@ def test_convert_choose_data_respects_exclude_keys(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Excluded keys are not processed."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "name": "Test",
         "test_field": 42.0,  # Raw value
     }
@@ -567,7 +565,7 @@ def test_convert_choose_data_ignores_unknown_fields(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Unknown fields (not in input_fields) are ignored."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": 42.0,  # Raw value
         "unknown_field": 99.0,  # Not in input_fields
     }
@@ -581,7 +579,7 @@ def test_convert_choose_data_ignores_unsupported_value_types(
     number_field: InputFieldInfo[NumberEntityDescription],
 ) -> None:
     """Unsupported value types are ignored."""
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": {"unexpected": 1},
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))
@@ -601,7 +599,7 @@ def test_convert_choose_data_boolean_constant() -> None:
         ),
         output_type=OutputType.STATUS,
     )
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "enabled": True,  # Raw boolean
     }
     result = convert_choose_data_to_config(user_input, _field_map(field))
@@ -615,7 +613,7 @@ def test_convert_choose_data_none_stored_as_none(
 
     After preprocessing, the none choice is converted to None.
     """
-    user_input: dict[str, Any] = {
+    user_input: dict[str, object] = {
         "test_field": None,  # None from preprocessing (originally "" from ConstantSelector)
     }
     result = convert_choose_data_to_config(user_input, _field_map(number_field))

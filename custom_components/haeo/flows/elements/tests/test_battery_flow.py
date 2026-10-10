@@ -1,7 +1,7 @@
 """Tests for battery element config flow."""
 
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any, cast
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -42,7 +42,7 @@ from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.flows.conftest import create_flow
 
 
-def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> dict[str, Any]:
+def _wrap_main_input(user_input: Mapping[str, object], *, as_schema: bool = False) -> dict[str, object]:
     """Wrap battery user input into sectioned form data."""
     common = {
         key: user_input[key]
@@ -52,8 +52,9 @@ def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> 
         )
         if key in user_input
     }
-    if as_schema and isinstance(common.get(CONF_CONNECTION), str):
-        common[CONF_CONNECTION] = as_connection_target(common[CONF_CONNECTION])
+    connection = common.get(CONF_CONNECTION)
+    if as_schema and isinstance(connection, str):
+        common[CONF_CONNECTION] = as_connection_target(connection)
     pricing = {key: user_input[key] for key in (CONF_SALVAGE_VALUE,) if key in user_input}
     pricing.setdefault(CONF_SALVAGE_VALUE, 0.0)
 
@@ -94,9 +95,9 @@ def _wrap_main_input(user_input: dict[str, Any], *, as_schema: bool = False) -> 
 
 
 def _wrap_partition_input(
-    undercharge_input: dict[str, Any],
-    overcharge_input: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+    undercharge_input: Mapping[str, object],
+    overcharge_input: Mapping[str, object] | None = None,
+) -> dict[str, object]:
     """Wrap partition inputs into sectioned form data."""
     overcharge_input = overcharge_input or {}
     return {
@@ -216,6 +217,47 @@ async def test_partition_flow_enabled_shows_partition_step(hass: HomeAssistant, 
     result = await flow.async_step_user(user_input=_wrap_main_input(step1_input))
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "partitions"
+
+
+@pytest.mark.parametrize(
+    ("currency", "expected_unit"),
+    [
+        pytest.param("EUR", "€/kWh/h", id="euro"),
+        pytest.param("AUD", "$/kWh/h", id="dollar"),
+        pytest.param("XYZ", "XYZ/kWh/h", id="unlisted_code"),
+    ],
+)
+async def test_partition_costs_show_currency_symbol(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, currency: str, expected_unit: str
+) -> None:
+    """Undercharge and overcharge costs show their holding-rate unit in the Home Assistant currency."""
+    hass.config.currency = currency
+    add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    step1_input = {
+        CONF_NAME: "Test Battery",
+        CONF_CONNECTION: "main_bus",
+        CONF_CAPACITY: 10.0,
+        CONF_INITIAL_CHARGE_PERCENTAGE: ["sensor.battery_soc"],
+        CONF_MIN_CHARGE_PERCENTAGE: None,
+        CONF_MAX_CHARGE_PERCENTAGE: None,
+        CONF_EFFICIENCY_SOURCE_TARGET: 0.95,
+        CONF_EFFICIENCY_TARGET_SOURCE: 0.95,
+        CONF_MAX_POWER_TARGET_SOURCE: 5.0,
+        CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+        CONF_CONFIGURE_PARTITIONS: True,
+    }
+    await flow.async_step_user(user_input=None)
+
+    result = await flow.async_step_user(user_input=_wrap_main_input(step1_input))
+
+    sections = {key.schema: value.schema.schema for key, value in result["data_schema"].schema.items()}
+    for section_key in (SECTION_UNDERCHARGE, SECTION_OVERCHARGE):
+        cost_selector = next(
+            selector for key, selector in sections[section_key].items() if key.schema == CONF_PARTITION_COST
+        )
+        number_config = cost_selector.config["choices"]["constant"]["selector"]["number"]
+        assert number_config["unit_of_measurement"] == expected_unit
 
 
 async def test_partition_flow_with_entity_links_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -481,7 +523,7 @@ async def test_reconfigure_partition_defaults_entity_links(hass: HomeAssistant, 
     }
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
+    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
     defaults = flow._build_partition_defaults(input_fields, dict(existing_config))
 
     assert defaults[SECTION_UNDERCHARGE][CONF_PARTITION_PERCENTAGE] == ["sensor.undercharge"]
@@ -529,7 +571,7 @@ async def test_reconfigure_partition_defaults_scalar_values(hass: HomeAssistant,
     }
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
 
-    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
+    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
     defaults = flow._build_partition_defaults(input_fields, dict(existing_config))
 
     assert defaults[SECTION_UNDERCHARGE][CONF_PARTITION_PERCENTAGE] == 5.0
@@ -540,7 +582,7 @@ async def test_build_partition_defaults_no_existing_data(hass: HomeAssistant, hu
     """_build_partition_defaults with no existing data uses field defaults."""
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
-    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
+    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
     defaults = flow._build_partition_defaults(input_fields, None)
 
     # Partition fields have defaults (mode="value", value=0 or value=100)
@@ -610,8 +652,8 @@ async def test_reconfigure_defaults_handle_schema_values(
     hub_entry: MockConfigEntry,
     connection: str,
     add_connection: bool,
-    config_values: dict[str, Any],
-    expected_defaults: dict[str, dict[str, Any]],
+    config_values: dict[str, object],
+    expected_defaults: dict[str, dict[str, object]],
 ) -> None:
     """Reconfigure defaults reflect schema values and tolerate missing connections."""
     if add_connection:
@@ -641,7 +683,7 @@ async def test_reconfigure_defaults_handle_schema_values(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
+    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
     defaults = flow._build_defaults("Test Battery", input_fields, dict(existing_subentry.data))
 
     for section, values in expected_defaults.items():

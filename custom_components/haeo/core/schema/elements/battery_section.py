@@ -5,7 +5,7 @@ Unlike the standard Battery element which creates multiple sections and an inter
 this element creates a single battery section that must be connected manually via Connection.
 """
 
-from typing import Annotated, Any, Final, Literal, TypedDict
+from typing import Annotated, Final, Literal, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -36,8 +36,8 @@ class StorageChargeConfig(TypedDict):
 class StorageChargeData(TypedDict):
     """Loaded storage values with required initial charge."""
 
-    capacity: NDArray[np.floating[Any]]
-    initial_charge: NDArray[np.floating[Any]]
+    capacity: NDArray[np.float64]
+    initial_charge: float
 
 
 class BatterySectionConfigSchema(CommonConfig):
@@ -56,8 +56,7 @@ class BatterySectionConfigSchema(CommonConfig):
                 ),
                 CONF_INITIAL_CHARGE: FieldHint(
                     output_type=OutputType.ENERGY,
-                    time_series=True,
-                    boundaries=True,
+                    time_series=False,
                     min_value=0.0,
                 ),
             }

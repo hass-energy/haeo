@@ -1,13 +1,12 @@
 """Tests for elements.field_hints: list helpers and OutputType defaults."""
 
-from typing import Any
-
 from homeassistant.components.number.const import DEFAULT_MAX_VALUE, DEFAULT_MIN_VALUE
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.elements.grid import GridConfigSchema
 from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints, extract_field_hints
 from custom_components.haeo.core.schema.sections import CONF_PRICE_SOURCE_TARGET, SECTION_PRICING
+from custom_components.haeo.elements.input_fields import is_number_field_info
 from custom_components.haeo.elements.field_hints import (
     OUTPUT_TYPE_DEFAULTS,
     PRICE_NATIVE_MAX_VALUE,
@@ -57,7 +56,7 @@ def test_build_list_input_fields_empty_list() -> None:
 def test_build_list_input_fields_skips_non_mapping_items() -> None:
     """Non-mapping items in the list are skipped."""
     hints = ListFieldHints(fields={"price": FieldHint(output_type=OutputType.PRICE)})
-    items: Any = ["not_a_dict", {"name": "grid", "price": 0.30}]
+    items: object = ["not_a_dict", {"name": "grid", "price": 0.30}]
 
     result = build_list_input_fields("policy", "rules", hints, items)
 
@@ -117,7 +116,9 @@ def test_grid_pricing_fields_use_explicit_price_bounds() -> None:
     """Built grid pricing inputs expose explicit native min/max on the description."""
     hints = extract_field_hints(GridConfigSchema)
     fields = build_input_fields("grid", hints)
-    desc = fields[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET].entity_description
+    field_info = fields[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET]
+    assert is_number_field_info(field_info)
+    desc = field_info.entity_description
     assert desc.native_min_value == PRICE_NATIVE_MIN_VALUE
     assert desc.native_max_value == PRICE_NATIVE_MAX_VALUE
 

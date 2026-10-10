@@ -29,11 +29,11 @@ Battery Section creates 1 device in Home Assistant:
 
 The adapter passes user configuration directly to the Battery model element:
 
-| User Configuration | Model Element | Model Parameter  | Notes                       |
-| ------------------ | ------------- | ---------------- | --------------------------- |
-| `name`             | Battery       | `name`           | Element name                |
-| `capacity`         | Battery       | `capacity`       | Battery capacity (kWh)      |
-| `initial_charge`   | Battery       | `initial_charge` | Initial stored energy (kWh) |
+| User Configuration | Model Element | Model Parameter  | Notes                               |
+| ------------------ | ------------- | ---------------- | ----------------------------------- |
+| `name`             | Battery       | `name`           | Element name                        |
+| `capacity`         | Battery       | `capacity`       | Battery capacity (kWh)              |
+| `initial_charge`   | Battery       | `initial_charge` | Current value of the sensor, in kWh |
 
 ## Sensors Created
 
@@ -45,7 +45,7 @@ The adapter passes user configuration directly to the Battery model element:
 | `power_discharge` | kW     | Real-time | Power being discharged from battery    |
 | `power_active`    | kW     | Real-time | Net active power (discharge - charge)  |
 | `energy_stored`   | kWh    | Real-time | Current energy stored in battery       |
-| `power_balance`   | \$/kWh | Real-time | Shadow price of power at terminals     |
+| `power_balance`   | \$/kWh | Real-time | Shadow price of energy at the section  |
 | `energy_in_flow`  | \$/kWh | Real-time | Shadow price of charging constraint    |
 | `energy_out_flow` | \$/kWh | Real-time | Shadow price of discharging constraint |
 | `soc_max`         | \$/kWh | Real-time | Shadow price of maximum capacity       |
@@ -78,6 +78,7 @@ Access raw model layer Battery behavior for research, testing, or advanced optim
 
 Battery Section represents a single-section energy storage device with no implicit connections or internal routing.
 All power flow must be explicitly configured via Connection elements.
+Connections are unidirectional, so charging and discharging each need their own connection.
 
 ### Configuration Guidelines
 
@@ -87,7 +88,7 @@ All power flow must be explicitly configured via Connection elements.
     For multi-section behavior, use the standard Battery element or compose multiple Battery Section elements manually.
 - **Direct Model Mapping**: All configuration parameters map directly to the model layer Battery element with no transformation.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

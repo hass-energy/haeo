@@ -3,8 +3,21 @@
 from __future__ import annotations
 
 import types as stdlib_types
-from typing import Any, Final, TypeAliasType, TypeGuard, Union, get_args, get_origin
+from typing import (
+    Any,  # noqa: TID251  # reflection over typing constructs (get_origin/get_args): type
+    # expressions (e.g. TypeAliasType.__value__, Union members) have no precise static type
+    Final,
+    TypeAliasType,
+    TypeGuard,
+    Union,
+    get_args,
+    get_origin,
+)
 
+from .calendar_value import CalendarEventDict as CalendarEventDict
+from .calendar_value import CalendarValue as CalendarValue
+from .calendar_value import as_calendar_value as as_calendar_value
+from .calendar_value import is_calendar_value as is_calendar_value
 from .connection_target import (
     ConnectionTarget,
     ConnectionTargetValue,
@@ -23,12 +36,13 @@ from .util import UnitSpec, extract_unit_parts, matches_unit_spec
 VALUE_TYPE_ENTITY: Final = "entity"
 VALUE_TYPE_CONSTANT: Final = "constant"
 VALUE_TYPE_NONE: Final = "none"
+VALUE_TYPE_CALENDAR: Final = "calendar"
 VALUE_TYPE_CONNECTION_TARGET: Final = "connection_target"
 
 
-def is_schema_value(value: Any) -> TypeGuard[SchemaValue]:
+def is_schema_value(value: object) -> TypeGuard[SchemaValue]:
     """Return True if value is a known schema value variant."""
-    return is_entity_value(value) or is_constant_value(value) or is_none_value(value)
+    return is_entity_value(value) or is_constant_value(value) or is_none_value(value) or is_calendar_value(value)
 
 
 def _unwrap_alias_type(value_type: Any) -> Any:
@@ -48,11 +62,12 @@ def get_schema_value_kinds(value_type: Any) -> frozenset[SchemaValueKind]:
             kinds.update(get_schema_value_kinds(arg))
         return frozenset(kinds)
 
-    if value_type in (EntityValue, ConstantValue, NoneValue):
+    if value_type in (EntityValue, ConstantValue, NoneValue, CalendarValue):
         mapping: dict[type, SchemaValueKind] = {
             EntityValue: VALUE_TYPE_ENTITY,
             ConstantValue: VALUE_TYPE_CONSTANT,
             NoneValue: VALUE_TYPE_NONE,
+            CalendarValue: VALUE_TYPE_CALENDAR,
         }
         return frozenset({mapping[value_type]})
 
@@ -60,10 +75,13 @@ def get_schema_value_kinds(value_type: Any) -> frozenset[SchemaValueKind]:
 
 
 __all__ = [
+    "VALUE_TYPE_CALENDAR",
     "VALUE_TYPE_CONNECTION_TARGET",
     "VALUE_TYPE_CONSTANT",
     "VALUE_TYPE_ENTITY",
     "VALUE_TYPE_NONE",
+    "CalendarEventDict",
+    "CalendarValue",
     "ConnectionTarget",
     "ConnectionTargetValue",
     "ConstantValue",
@@ -73,6 +91,7 @@ __all__ = [
     "SchemaValue",
     "SchemaValueKind",
     "UnitSpec",
+    "as_calendar_value",
     "as_connection_target",
     "as_constant_value",
     "as_entity_value",
@@ -81,6 +100,7 @@ __all__ = [
     "extract_unit_parts",
     "get_connection_target_name",
     "get_schema_value_kinds",
+    "is_calendar_value",
     "is_connection_target",
     "is_constant_value",
     "is_entity_value",
