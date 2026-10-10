@@ -253,3 +253,29 @@ def test_fuse_to_boundaries_raises_when_no_data() -> None:
     """Test that missing both forecast_series and present_value raises ValueError."""
     with pytest.raises(ValueError, match="Either forecast_series or present_value must be provided"):
         fuse_to_boundaries(None, [], [0, 1000, 2000])
+
+
+def test_interpolation_context_before_horizon_start() -> None:
+    """Test that interpolation at horizon_start uses prior cycle data, not flat extrapolation.
+
+    When normalize_forecast_cycle wraps a forecast, the first block point may be
+    well after horizon_start. Without a prior cycle, np.interp flat-extrapolates
+    from the first point, giving incorrect values.
+    """
+    # Solar-like ramp over 24h
+    forecast: list[tuple[int, float]] = [
+        (0, 0.0),
+        (21600, 0.5),
+        (43200, 1.0),
+        (64800, 0.5),
+        (86400, 0.0),
+    ]
+
+    # Horizon at t=50000 falls between noon (43200, 1.0) and 6pm (64800, 0.5)
+    horizon_start = 50000.0
+    expected_value = 1.0 + (50000 - 43200) / (64800 - 43200) * (0.5 - 1.0)
+
+    result = fuse_to_boundaries(None, forecast, [horizon_start, horizon_start + 10000])
+
+    # Without the prior cycle fix, this returns 0.5 (flat extrapolation from first block point)
+    assert result[0] == pytest.approx(expected_value, abs=0.01)
