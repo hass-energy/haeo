@@ -42,23 +42,9 @@ from custom_components.haeo.const import (
 from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
     CONF_ELEMENT_TYPE,
+    CONF_HORIZON,
     CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-    DEFAULT_TIER_1_COUNT,
-    DEFAULT_TIER_1_DURATION,
-    DEFAULT_TIER_2_COUNT,
-    DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_3_COUNT,
-    DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_COUNT,
-    DEFAULT_TIER_4_DURATION,
+    HORIZON_PRESET_2_DAYS,
 )
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
@@ -72,6 +58,7 @@ from custom_components.haeo.core.schema.elements.battery import (
     SECTION_STORAGE,
 )
 from custom_components.haeo.core.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -82,7 +69,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.repairs import create_node_replaced_by_junction_issue
 
 
@@ -93,16 +80,9 @@ def mock_hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
-            HUB_SECTION_TIERS: {
-                CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-                CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-                CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-                CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-                CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-                CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-                CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-                CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
+            HUB_SECTION_COMMON: {
+                CONF_NAME: "Test Network",
+                CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS),
             },
             HUB_SECTION_ADVANCED: {},
         },
@@ -366,9 +346,11 @@ async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
+            HUB_SECTION_COMMON: {
+                CONF_NAME: "Test Network",
+                CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS),
+            },
             HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: True},
-            HUB_SECTION_TIERS: {},
         },
         entry_id="hub_entry_id",
         title="Test HAEO Integration",

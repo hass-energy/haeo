@@ -13,9 +13,20 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, HUB_SECTION_ADVANCED
+from custom_components.haeo.core.const import (
+    CONF_ADVANCED_MODE,
+    CONF_ELEMENT_TYPE,
+    CONF_HORIZON,
+    CONF_HORIZON_PRESET,
+    CONF_NAME,
+    HORIZON_PRESET_3_DAYS,
+    HUB_SECTION_ADVANCED,
+    HUB_SECTION_COMMON,
+    HUB_SECTION_TIERS,
+)
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value
 from custom_components.haeo.core.schema.elements import connection, junction, node
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -413,3 +424,26 @@ async def test_async_migrate_entry_keeps_source_node_in_advanced_mode(hass: Home
     assert await v1_4.async_migrate_entry(hass, entry)
 
     assert entry.subentries[grid_node.subentry_id] == grid_node
+
+
+async def test_async_migrate_entry_replaces_horizon_preset_and_tiers(hass: HomeAssistant) -> None:
+    """A v1.3 hub's horizon preset and tiers become a horizon choice holding the preset."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Hub",
+        data={
+            HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON_PRESET: HORIZON_PRESET_3_DAYS},
+            HUB_SECTION_TIERS: {"tier_1_count": 5, "tier_1_duration": 1},
+            HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: False},
+        },
+        version=1,
+        minor_version=3,
+    )
+    entry.add_to_hass(hass)
+
+    assert await v1_4.async_migrate_entry(hass, entry)
+
+    assert dict(entry.data) == {
+        HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_3_DAYS)},
+        HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: False},
+    }

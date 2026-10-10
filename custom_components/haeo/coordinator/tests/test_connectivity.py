@@ -7,18 +7,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.coordinator import evaluate_network_connectivity
-from custom_components.haeo.core.const import (
-    CONF_ELEMENT_TYPE,
-    CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-)
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.connection import (
@@ -29,6 +18,7 @@ from custom_components.haeo.core.schema.elements.connection import (
 )
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_PRICE_SOURCE_TARGET,
@@ -37,7 +27,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 
 
 @pytest.fixture
@@ -47,17 +37,7 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
-            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
-            HUB_SECTION_TIERS: {
-                CONF_TIER_1_COUNT: 2,
-                CONF_TIER_1_DURATION: 30,
-                CONF_TIER_2_COUNT: 0,
-                CONF_TIER_2_DURATION: 60,
-                CONF_TIER_3_COUNT: 0,
-                CONF_TIER_3_DURATION: 30,
-                CONF_TIER_4_COUNT: 0,
-                CONF_TIER_4_DURATION: 60,
-            },
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub", CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS)},
             HUB_SECTION_ADVANCED: {},
         },
         entry_id="test_entry",

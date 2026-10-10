@@ -30,15 +30,17 @@ from tabulate import tabulate
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
 from custom_components.haeo.core.adapters.policy_compilation import CompiledPolicyRule, compile_policies
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements, is_element_type
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, tiers_to_periods_seconds
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HUB_SECTION_COMMON
+from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue, Network
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.elements.policy import is_policy_config_data
+from custom_components.haeo.core.schema.horizon_value import is_horizon_preset_value
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config
+from custom_components.haeo.core.schema.migrations.v1_4 import migrate_hub_horizon
 from custom_components.haeo.core.schema.sections import SECTION_PRICING
 from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
@@ -185,27 +187,39 @@ def normalize_participant_config_for_diag(element_config: dict[str, object]) -> 
     return migrated if migrated is not None else element_config
 
 
-def _as_tier_config(config: Mapping[str, JsonValueType]) -> dict[str, int | str | Mapping[str, int | str]]:
-    """Narrow a diagnostics config dict to the shape ``tiers_to_periods_seconds`` expects.
+def config_horizon_preset(config: Mapping[str, JsonValueType]) -> str:
+    """Return the horizon preset a diagnostics config uses.
 
-    Diagnostics config is genuinely-JSON-shaped and typed as such, but the tier
-    config helper only cares about tier_N_count/tier_N_duration/horizon_preset
-    fields, which are always plain ints/strings (optionally nested one level).
+    Configs from before horizon choices are migrated the same way a hub is, so
+    custom tiers fall back to the default preset.
+
+    Raises:
+        SystemExit: If the config uses a horizon entity, which only recorded
+            forecast timestamps can reproduce.
+
     """
-    result: dict[str, int | str | Mapping[str, int | str]] = {}
-    for key, value in config.items():
-        if isinstance(value, bool):
-            continue
-        if isinstance(value, int | str):
-            result[key] = value
-        elif isinstance(value, dict):
-            nested: dict[str, int | str] = {
-                nested_key: nested_value
-                for nested_key, nested_value in value.items()
-                if isinstance(nested_value, int | str) and not isinstance(nested_value, bool)
-            }
-            result[key] = nested
-    return result
+    common = config.get(HUB_SECTION_COMMON)
+    horizon = common.get(CONF_HORIZON) if isinstance(common, Mapping) else None
+    if horizon is None:
+        migrated_common = migrate_hub_horizon(config)[HUB_SECTION_COMMON]
+        horizon = migrated_common[CONF_HORIZON] if isinstance(migrated_common, Mapping) else None
+    if not is_horizon_preset_value(horizon):
+        print("Error: The diagnostics use a horizon entity but include no forecast timestamps")
+        sys.exit(1)
+    return horizon["value"]
+
+
+def _preset_timeline(
+    config: Mapping[str, JsonValueType], preset: str | None, start_dt: datetime | None, start_time: float
+) -> tuple[list[int], tuple[float, ...]]:
+    """Generate the timeline of the config's horizon preset, or of a preset given on the command line."""
+    if preset:
+        print(f"Using preset override: {preset}")
+    periods_seconds = preset_periods_seconds(preset or config_horizon_preset(config), start_time=start_dt)
+    print(f"Optimization periods: {len(periods_seconds)} intervals (from config)")
+    forecast_times = generate_forecast_timestamps(periods_seconds, start_dt.timestamp() if start_dt else start_time)
+    print(f"Forecast horizon: {len(forecast_times)} boundaries (generated)")
+    return periods_seconds, forecast_times
 
 
 def collect_policy_rules(participants: Mapping[str, ElementConfigData]) -> list[CompiledPolicyRule]:
@@ -1037,7 +1051,7 @@ def run_diagnostics(
     # Priority:
     # 1) environment.forecast_timestamps for exact reproducibility,
     # 2) in compare mode, infer interval starts from diagnostics outputs,
-    # 3) otherwise generate from tier config.
+    # 3) otherwise generate from the horizon preset.
     periods_seconds: list[int] = []
     forecast_times: tuple[float, ...] = ()
 
@@ -1070,38 +1084,10 @@ def run_diagnostics(
             else:
                 interval_starts = []
         if len(interval_starts) < MIN_INTERVAL_POINTS:
-            print("Warning: Could not infer output-aligned timeline, falling back to config tiers")
-            # Apply preset override if provided via CLI
-            effective_config = _as_tier_config(config)
-            if preset:
-                effective_config["horizon_preset"] = preset
-                print(f"Using preset override: {preset}")
-            periods_seconds = tiers_to_periods_seconds(effective_config, start_time=start_dt)
-            print(f"Optimization periods: {len(periods_seconds)} intervals (from config)")
-
-            if not periods_seconds:
-                print("Error: No periods configured")
-                sys.exit(1)
-
-            effective_start = start_dt.timestamp() if start_dt else start_time
-            forecast_times = generate_forecast_timestamps(periods_seconds, effective_start)
-            print(f"Forecast horizon: {len(forecast_times)} boundaries (generated)")
+            print("Warning: Could not infer output-aligned timeline, falling back to the config horizon preset")
+            periods_seconds, forecast_times = _preset_timeline(config, preset, start_dt, start_time)
     else:
-        # Apply preset override if provided via CLI
-        effective_config = _as_tier_config(config)
-        if preset:
-            effective_config["horizon_preset"] = preset
-            print(f"Using preset override: {preset}")
-        periods_seconds = tiers_to_periods_seconds(effective_config, start_time=start_dt)
-        print(f"Optimization periods: {len(periods_seconds)} intervals (from config)")
-
-        if not periods_seconds:
-            print("Error: No periods configured")
-            sys.exit(1)
-
-        effective_start = start_dt.timestamp() if start_dt else start_time
-        forecast_times = generate_forecast_timestamps(periods_seconds, effective_start)
-        print(f"Forecast horizon: {len(forecast_times)} boundaries (generated)")
+        periods_seconds, forecast_times = _preset_timeline(config, preset, start_dt, start_time)
 
     if not periods_seconds or not forecast_times:
         print("Error: Failed to build forecast timeline")

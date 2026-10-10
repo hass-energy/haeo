@@ -64,17 +64,7 @@ Optimization settings are stored in `data` under section keys, not in `options`.
         "integration_type": "hub",  # Marker to identify hub entries
         "common": {
             "name": "Home Energy System",
-            "horizon_preset": "custom",
-        },
-        "tiers": {
-            "tier_1_count": 5,
-            "tier_1_duration": 1,
-            "tier_2_count": 11,
-            "tier_2_duration": 5,
-            "tier_3_count": 46,
-            "tier_3_duration": 30,
-            "tier_4_count": 48,
-            "tier_4_duration": 60,
+            "horizon": {"type": "preset", "value": "5_days"},
         },
         "advanced": {
             "advanced_mode": False,
@@ -87,11 +77,14 @@ Optimization settings are stored in `data` under section keys, not in `options`.
 
 Optimization settings are stored in `data` (user-editable), alongside the hub marker.
 The hub flow implementation is in `custom_components/haeo/flows/hub.py`.
-The form uses sectioned schemas (`common`, `advanced`) and an optional `custom_tiers` step when users select a custom planning horizon.
+The form uses sectioned schemas (`common`, `advanced`).
+The planning horizon field is a `ChooseSelector` between a preset and a forecast sensor, built in `custom_components/haeo/flows/horizon.py`.
+The stored `horizon` is either a preset value as shown above or an entity value such as `{"type": "entity", "value": ["sensor.planning_horizon"]}`.
+The hub and options flows both validate a forecast sensor with `validate_horizon()` before saving it.
 
 ### Key implementation points
 
-- Hub flow uses a standard config flow pattern with a user step and optional custom tiers step
+- Hub flow uses a standard config flow pattern with a single user step
 - Prevents duplicate hub names by checking existing entries
 - Stores optimization settings in `data` sections so options flow can update them in-place
 - Hub marker in `data` allows coordinator to identify hub entries
@@ -376,7 +369,7 @@ The options flow implementation is in `custom_components/haeo/flows/options.py`.
 
 ### Key points
 
-- Options flow edits hub-level optimization settings (planning horizon preset, tier configuration, debounce window, advanced mode, forecast recording)
+- Options flow edits hub-level optimization settings (planning horizon, debounce window, advanced mode, forecast recording)
 - Element configuration happens via separate config entries
 - Settings stored in `config_entry.data` under section keys
 - Changes trigger coordinator reload to apply new parameters

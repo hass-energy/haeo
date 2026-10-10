@@ -14,23 +14,14 @@ from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
     CONF_DEBOUNCE_SECONDS,
     CONF_ELEMENT_TYPE,
-    CONF_HORIZON_PRESET,
+    CONF_HORIZON,
     DEFAULT_DEBOUNCE_SECONDS,
 )
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.flows.field_schema import as_mapping, as_str
+from custom_components.haeo.flows.horizon import validate_horizon
 from custom_components.haeo.migrations import MIGRATION_MINOR_VERSION
 
-from . import (
-    HORIZON_PRESET_CUSTOM,
-    HUB_SECTION_ADVANCED,
-    HUB_SECTION_COMMON,
-    HUB_SECTION_TIERS,
-    get_custom_tiers_schema,
-    get_element_flow_classes,
-    get_hub_setup_schema,
-    get_tier_config,
-)
+from . import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, get_element_flow_classes, get_hub_setup_schema
 from .options import HubOptionsFlow
 
 _LOGGER = logging.getLogger(__name__)
@@ -41,10 +32,6 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
     MINOR_VERSION = MIGRATION_MINOR_VERSION
-
-    def __init__(self) -> None:
-        """Initialize the config flow."""
-        self._user_input: dict[str, object] = {}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial step for hub creation."""
@@ -57,20 +44,12 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
 
             if hub_name in existing_names:
                 errors[CONF_NAME] = "name_exists"
-            else:
+            validate_horizon(self.hass, user_input[HUB_SECTION_COMMON][CONF_HORIZON], errors, entry_id=None)
+            if not errors:
                 # Check unique_id to prevent duplicates
                 await self.async_set_unique_id(f"haeo_hub_{hub_name.lower().replace(' ', '_')}")
                 self._abort_if_unique_id_configured()
-
-                # Store user input for later
-                self._user_input = user_input
-
-                # If custom preset selected, go to custom tiers step
-                if user_input[HUB_SECTION_COMMON][CONF_HORIZON_PRESET] == HORIZON_PRESET_CUSTOM:
-                    return await self.async_step_custom_tiers()
-
-                # Otherwise, create entry with preset values
-                return await self._create_hub_entry()
+                return await self._create_hub_entry(user_input)
 
         # Fetch the default hub name from translations
         translations = await async_get_translations(
@@ -78,35 +57,16 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         )
         default_hub_name = translations.get(f"component.{DOMAIN}.common.default_hub_name", "Home")
 
-        # Show simplified form with horizon preset dropdown
         return self.async_show_form(
             step_id="user",
             data_schema=get_hub_setup_schema(suggested_name=default_hub_name),
             errors=errors,
         )
 
-    async def async_step_custom_tiers(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Handle custom tier configuration step."""
-        if user_input is not None:
-            # Merge custom tier config with stored user input
-            self._user_input[HUB_SECTION_TIERS] = user_input
-            return await self._create_hub_entry()
-
-        # Show full tier configuration form
-        return self.async_show_form(
-            step_id="custom_tiers",
-            data_schema=get_custom_tiers_schema(),
-        )
-
-    async def _create_hub_entry(self) -> ConfigFlowResult:
-        """Create the hub entry with tier configuration."""
-        common = as_mapping(self._user_input.get(HUB_SECTION_COMMON))
-        advanced = as_mapping(self._user_input.get(HUB_SECTION_ADVANCED))
-        hub_name = str(common[CONF_NAME])
-        tier_config, stored_preset = get_tier_config(
-            self._user_input,
-            as_str(common.get(CONF_HORIZON_PRESET)),
-        )
+    async def _create_hub_entry(self, user_input: dict[str, Any]) -> ConfigFlowResult:
+        """Create the hub entry from the validated setup form."""
+        common = user_input[HUB_SECTION_COMMON]
+        hub_name = common[CONF_NAME]
 
         # Resolve the switchboard name from translations
         translations = await async_get_translations(
@@ -122,12 +82,11 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
                 HUB_SECTION_COMMON: {
                     CONF_NAME: hub_name,
-                    CONF_HORIZON_PRESET: stored_preset,
+                    CONF_HORIZON: common[CONF_HORIZON],
                 },
-                HUB_SECTION_TIERS: tier_config,
                 HUB_SECTION_ADVANCED: {
                     CONF_DEBOUNCE_SECONDS: DEFAULT_DEBOUNCE_SECONDS,
-                    CONF_ADVANCED_MODE: advanced[CONF_ADVANCED_MODE],
+                    CONF_ADVANCED_MODE: user_input[HUB_SECTION_ADVANCED][CONF_ADVANCED_MODE],
                 },
             },
             subentries=[

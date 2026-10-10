@@ -23,30 +23,17 @@ from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRAT
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import (
     CONF_ELEMENT_TYPE,
+    CONF_HORIZON,
     CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-    DEFAULT_TIER_1_COUNT,
-    DEFAULT_TIER_1_DURATION,
-    DEFAULT_TIER_2_COUNT,
-    DEFAULT_TIER_2_DURATION,
-    DEFAULT_TIER_3_COUNT,
-    DEFAULT_TIER_3_DURATION,
-    DEFAULT_TIER_4_COUNT,
-    DEFAULT_TIER_4_DURATION,
+    HORIZON_PRESET_2_DAYS,
     ConnectivityLevel,
 )
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, OutputData
 from custom_components.haeo.core.schema.elements import ElementType, battery, connection, grid, node
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.elements import ElementOutputName
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo
-from custom_components.haeo.flows import HUB_SECTION_COMMON, HUB_SECTION_TIERS, get_element_flow_classes
+from custom_components.haeo.flows import HUB_SECTION_COMMON, get_element_flow_classes
 
 # Policy uses a multi-step menu-driven flow incompatible with the generic single-step tests
 SINGLE_STEP_ELEMENT_TYPES: tuple[ElementType, ...] = tuple(et for et in ELEMENT_TYPES if et != ElementType.POLICY)
@@ -234,17 +221,7 @@ def hub_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         data={
             CONF_INTEGRATION_TYPE: INTEGRATION_TYPE_HUB,
-            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
-            HUB_SECTION_TIERS: {
-                CONF_TIER_1_COUNT: DEFAULT_TIER_1_COUNT,
-                CONF_TIER_1_DURATION: DEFAULT_TIER_1_DURATION,
-                CONF_TIER_2_COUNT: DEFAULT_TIER_2_COUNT,
-                CONF_TIER_2_DURATION: DEFAULT_TIER_2_DURATION,
-                CONF_TIER_3_COUNT: DEFAULT_TIER_3_COUNT,
-                CONF_TIER_3_DURATION: DEFAULT_TIER_3_DURATION,
-                CONF_TIER_4_COUNT: DEFAULT_TIER_4_COUNT,
-                CONF_TIER_4_DURATION: DEFAULT_TIER_4_DURATION,
-            },
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub", CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS)},
         },
         entry_id="test_hub_id",
     )
