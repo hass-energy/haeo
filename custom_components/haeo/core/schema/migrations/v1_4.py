@@ -1,4 +1,8 @@
-"""Pure config transformation logic for v1.4 connection unidirectional migration."""
+"""Pure config transformation logic for the v1.4 migration.
+
+Connections become unidirectional, and nodes that neither source nor sink power
+become junctions.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +16,7 @@ from custom_components.haeo.core.schema import (
     is_none_value,
     normalize_connection_target,
 )
-from custom_components.haeo.core.schema.elements import connection
+from custom_components.haeo.core.schema.elements import connection, junction, node
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -174,10 +178,34 @@ def merge_reverse_into_existing(
     return merged
 
 
+def _role_enabled(value: object) -> bool:
+    """Return True when a node role field is on, or driven by an entity that can turn it on."""
+    if value is None or value is False or is_none_value(value):
+        return False
+    if is_constant_value(value):
+        return bool(value["value"])
+    return True
+
+
+def node_is_junction(data: Mapping[str, object]) -> bool:
+    """Return True when a node config neither sources nor sinks power."""
+    role = data.get(node.SECTION_ROLE)
+    if not isinstance(role, Mapping):
+        return True
+    return not any(_role_enabled(role.get(field)) for field in (node.CONF_IS_SOURCE, node.CONF_IS_SINK))
+
+
+def junction_config(data: Mapping[str, object]) -> dict[str, object]:
+    """Return the junction config that replaces a node config."""
+    return {CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: data[CONF_NAME]}
+
+
 __all__ = [
     "REVERSE_TO_FORWARD",
     "endpoint_name",
     "endpoints_match_reverse",
+    "junction_config",
     "merge_reverse_into_existing",
     "migrate_connection_config",
+    "node_is_junction",
 ]

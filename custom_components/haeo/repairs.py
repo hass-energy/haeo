@@ -4,6 +4,7 @@ from collections.abc import Collection, Sequence
 import logging
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue, async_delete_issue
 
 from .const import DOMAIN
@@ -51,6 +52,27 @@ def create_disconnected_network_issue(
         entry_id,
         num_components,
     )
+
+
+def create_node_replaced_by_junction_issue(hass: HomeAssistant, entry_id: str, element_name: str) -> None:
+    """Create a repair issue for a node whose source or sink role was removed by becoming a junction."""
+    async_create_issue(
+        hass,
+        DOMAIN,
+        f"node_replaced_by_junction_{entry_id}_{element_name}",
+        is_fixable=False,
+        is_persistent=True,
+        severity=IssueSeverity.WARNING,
+        translation_key="node_replaced_by_junction",
+        translation_placeholders={"element_name": element_name},
+    )
+
+
+def dismiss_entry_issues(hass: HomeAssistant, entry_id: str) -> None:
+    """Dismiss every repair issue raised for a config entry."""
+    for domain, issue_id in list(ir.async_get(hass).issues):
+        if domain == DOMAIN and entry_id in issue_id:
+            async_delete_issue(hass, DOMAIN, issue_id)
 
 
 def dismiss_disconnected_network_issue(

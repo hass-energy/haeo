@@ -8,8 +8,10 @@ from custom_components.haeo.repairs import (
     create_disconnected_network_issue,
     create_invalid_config_issue,
     create_missing_sensor_issue,
+    create_node_replaced_by_junction_issue,
     create_optimization_persistent_failure_issue,
     dismiss_disconnected_network_issue,
+    dismiss_entry_issues,
     dismiss_missing_sensor_issue,
     dismiss_optimization_failure_issue,
 )
@@ -215,3 +217,25 @@ async def test_dismiss_nonexistent_optimization_failure_issue(hass: HomeAssistan
 
     # Should not raise an error when dismissing non-existent issue
     dismiss_optimization_failure_issue(hass, entry_id)
+
+
+async def test_create_node_replaced_by_junction_issue(hass: HomeAssistant) -> None:
+    """The issue for a node replaced by a junction persists until the user ignores it."""
+    create_node_replaced_by_junction_issue(hass, "entry123", "Switchboard")
+
+    issue = async_get(hass).async_get_issue(DOMAIN, "node_replaced_by_junction_entry123_Switchboard")
+    assert issue is not None
+    assert issue.translation_key == "node_replaced_by_junction"
+    assert issue.is_persistent
+    assert not issue.is_fixable
+
+
+async def test_dismiss_entry_issues_only_removes_that_entry(hass: HomeAssistant) -> None:
+    """Dismissing an entry's issues leaves other entries' issues in place."""
+    create_node_replaced_by_junction_issue(hass, "entry123", "Switchboard")
+    create_disconnected_network_issue(hass, "entry123", [{"Battery"}, {"Grid"}])
+    create_node_replaced_by_junction_issue(hass, "entry456", "Switchboard")
+
+    dismiss_entry_issues(hass, "entry123")
+
+    assert list(async_get(hass).issues) == [(DOMAIN, "node_replaced_by_junction_entry456_Switchboard")]

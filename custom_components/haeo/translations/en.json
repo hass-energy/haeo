@@ -300,6 +300,21 @@
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
+    "junction": {
+      "flow_title": "Junction",
+      "entry_type": "Junction",
+      "initiate_flow": { "user": "Junction", "reconfigure": "Junction" },
+      "step": {
+        "user": {
+          "title": "Junction Configuration",
+          "description": "Add a junction where connections meet. Power flowing in always equals power flowing out.",
+          "data": { "name": "Junction Name" },
+          "sections": { "common": { "data": { "name": "Junction Name" }, "name": "Common settings" } }
+        }
+      },
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
     "load": {
       "flow_title": "Load",
       "entry_type": "Load",
@@ -342,7 +357,7 @@
       "step": {
         "user": {
           "title": "Node Configuration",
-          "description": "Add a node for power balance calculations or to source/sink unlimited power.",
+          "description": "Add a node that can produce or consume unlimited power. Use a junction for a point that only passes power through.",
           "data": {
             "is_sink": "Can consume unlimited power (Sink)",
             "is_source": "Can produce unlimited power (Source)",
@@ -438,6 +453,7 @@
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
+    "junction": { "name": "{name}" },
     "load": { "name": "{name}" },
     "network": { "name": "Optimizer" },
     "node": { "name": "{name}" },
@@ -517,6 +533,7 @@
       "inverter_power_ac_to_dc": { "name": "AC to DC power" },
       "inverter_power_active": { "name": "Active power" },
       "inverter_power_dc_to_ac": { "name": "DC to AC power" },
+      "junction_power_balance": { "name": "Power balance shadow price" },
       "load_forecast_limit_price": { "name": "Forecast limit shadow price" },
       "load_horizon_average_marginal_price": { "name": "Horizon average marginal price" },
       "load_horizon_energy": { "name": "Horizon energy" },
@@ -585,6 +602,10 @@
     "missing_sensor": {
       "title": "Missing sensor data for {element_name}",
       "description": "The HAEO integration cannot find sensor data for element {element_name}. The sensor entity {sensor_entity_id} may not exist or may be unavailable.\n\nTo fix this issue:\n1. Check that the sensor entity exists in Home Assistant\n2. Verify the sensor is available and reporting data\n3. If the sensor was removed, reconfigure the element to use a different sensor\n4. If the sensor is temporarily unavailable, this issue will automatically dismiss when the sensor becomes available again"
+    },
+    "node_replaced_by_junction": {
+      "title": "{element_name} is now a junction",
+      "description": "{element_name} was a node with its source or sink switch turned on or driven by an entity. A node like this produces or consumes unlimited power at no cost, which let the optimizer plan with power that does not exist.\n\n{element_name} is now a junction, which only passes power between the elements connected to it. Its source and sink switches have been removed.\n\nIf you need an element that produces or consumes power, use a grid, solar, or load element, or in advanced mode a node attached through a connection that limits and prices it. You can ignore this issue once you have read it."
     },
     "optimization_failure": {
       "title": "Optimization failed",

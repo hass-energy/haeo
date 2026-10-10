@@ -73,23 +73,23 @@ Each element's documentation describes its connectivity level and when it appear
 
 ## Configuration Examples
 
-### One-way link between nodes
+### One-way link between junctions
 
 | Field         | Value                  |
 | ------------- | ---------------------- |
 | **Name**      | DC bus to AC bus       |
-| **Source**    | DC Node                |
-| **Target**    | AC Node                |
+| **Source**    | DC Bus                 |
+| **Target**    | AC Bus                 |
 | **Max power** | input_number.max_power |
 
 ### Bidirectional link (two connections)
 
 Create one connection for each direction when both paths need limits or different parameters:
 
-| Connection | Source  | Target  | **Max power**             |
-| ---------- | ------- | ------- | ------------------------- |
-| DC to AC   | DC Node | AC Node | input_number.dc_to_ac_max |
-| AC to DC   | AC Node | DC Node | input_number.ac_to_dc_max |
+| Connection | Source | Target | **Max power**             |
+| ---------- | ------ | ------ | ------------------------- |
+| DC to AC   | DC Bus | AC Bus | input_number.dc_to_ac_max |
+| AC to DC   | AC Bus | DC Bus | input_number.ac_to_dc_max |
 
 Use separate **Efficiency** and **Price** values on each connection when the directions differ.
 
@@ -230,13 +230,13 @@ See [troubleshooting guide](../troubleshooting.md#graph-isnt-connected-properly)
 
     [:material-arrow-right: Connection modeling](../../modeling/device-layer/connection.md)
 
-- :material-circle-outline:{ .lg .middle } **Node modeling**
+- :material-circle-outline:{ .lg .middle } **Junction modeling**
 
     ---
 
-    Learn about power balance at network nodes.
+    Learn about power balance where connections meet.
 
-    [:material-arrow-right: Node modeling](../../modeling/device-layer/node.md)
+    [:material-arrow-right: Junction modeling](../../modeling/device-layer/junction.md)
 
 - :material-chart-line:{ .lg .middle } **Understand optimization**
 

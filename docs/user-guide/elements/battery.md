@@ -480,7 +480,7 @@ See the [troubleshooting guide](../troubleshooting.md) for more solutions.
 HAEO supports multiple batteries in the same network:
 
 1. Add each battery with a unique name
-2. Connect each battery to the network (typically via a [node](node.md))
+2. Connect each battery to the network (typically via a [junction](junction.md))
 3. HAEO will optimize all batteries together
 
 This allows HAEO to:

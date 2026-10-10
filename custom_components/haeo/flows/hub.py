@@ -18,8 +18,6 @@ from custom_components.haeo.core.const import (
     DEFAULT_DEBOUNCE_SECONDS,
 )
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE
-from custom_components.haeo.core.schema.elements.node import SECTION_ROLE as NODE_SECTION_ROLE
 from custom_components.haeo.flows.field_schema import as_mapping, as_str
 from custom_components.haeo.migrations import MIGRATION_MINOR_VERSION
 
@@ -110,7 +108,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
             as_str(common.get(CONF_HORIZON_PRESET)),
         )
 
-        # Resolve the switchboard node name from translations
+        # Resolve the switchboard name from translations
         translations = await async_get_translations(
             self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
         )
@@ -143,17 +141,13 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                     "title": network_subentry_name,
                     "unique_id": None,
                 },
-                # Switchboard node as central connection point
+                # Switchboard junction as central connection point
                 {
                     "data": {
-                        CONF_ELEMENT_TYPE: ElementType.NODE,
+                        CONF_ELEMENT_TYPE: ElementType.JUNCTION,
                         CONF_NAME: switchboard_name,
-                        NODE_SECTION_ROLE: {
-                            CONF_IS_SOURCE: False,
-                            CONF_IS_SINK: False,
-                        },
                     },
-                    "subentry_type": ElementType.NODE,
+                    "subentry_type": ElementType.JUNCTION,
                     "title": switchboard_name,
                     "unique_id": None,
                 },

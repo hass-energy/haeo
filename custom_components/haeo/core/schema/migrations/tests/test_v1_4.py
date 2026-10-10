@@ -1,4 +1,4 @@
-"""Tests for v1.4 connection unidirectional schema migration."""
+"""Tests for the v1.4 schema migration."""
 
 from collections.abc import Mapping
 
@@ -12,8 +12,13 @@ from custom_components.haeo.core.schema import (
     as_none_value,
     get_connection_target_name,
 )
-from custom_components.haeo.core.schema.elements import connection
-from custom_components.haeo.core.schema.migrations.v1_4 import merge_reverse_into_existing, migrate_connection_config
+from custom_components.haeo.core.schema.elements import connection, junction, node
+from custom_components.haeo.core.schema.migrations.v1_4 import (
+    junction_config,
+    merge_reverse_into_existing,
+    migrate_connection_config,
+    node_is_junction,
+)
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -187,3 +192,30 @@ def test_merge_reverse_into_existing() -> None:
 
     assert _section(merged, SECTION_POWER_LIMITS)[CONF_MAX_POWER_SOURCE_TARGET] == as_constant_value(6.0)
     assert _section(merged, SECTION_PRICING)[CONF_PRICE_SOURCE_TARGET] == as_constant_value(0.2)
+
+
+@pytest.mark.parametrize(
+    ("role", "expected"),
+    [
+        pytest.param(None, True, id="no_role"),
+        pytest.param({"is_source": False, "is_sink": False}, True, id="plain_false"),
+        pytest.param({"is_source": as_constant_value(False), "is_sink": as_none_value()}, True, id="constant_false"),
+        pytest.param({"is_source": True, "is_sink": False}, False, id="plain_source"),
+        pytest.param({"is_source": False, "is_sink": as_constant_value(True)}, False, id="constant_sink"),
+        pytest.param({"is_source": as_entity_value(["switch.source"])}, False, id="entity_driven"),
+    ],
+)
+def test_node_is_junction(role: dict[str, object] | None, expected: bool) -> None:
+    """A node is a junction only when no role field is on or driven by an entity."""
+    data: dict[str, object] = {CONF_ELEMENT_TYPE: node.ELEMENT_TYPE, CONF_NAME: "Switchboard"}
+    if role is not None:
+        data[node.SECTION_ROLE] = role
+
+    assert node_is_junction(data) is expected
+
+
+def test_junction_config_keeps_only_the_name() -> None:
+    """The junction replacing a node keeps its name and drops the role."""
+    data = {CONF_ELEMENT_TYPE: node.ELEMENT_TYPE, CONF_NAME: "Switchboard", node.SECTION_ROLE: {"is_source": False}}
+
+    assert junction_config(data) == {CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: "Switchboard"}
