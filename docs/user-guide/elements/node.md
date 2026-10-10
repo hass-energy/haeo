@@ -3,9 +3,9 @@
 A node is a point in your network that can produce and/or consume unlimited power at no cost.
 Use it to build a custom endpoint when no other element fits, and put the limits and prices on the connections to it.
 
-!!! warning "Advanced Element"
+!!! warning "Raw model element"
 
-    Creating nodes requires **Advanced Mode** to be enabled on your hub.
+    Creating nodes requires **Expose raw model elements** to be enabled on your hub.
 
     For a point where connections meet and power only passes through, such as a switchboard or a DC bus, use a [junction](junction.md) instead.
 

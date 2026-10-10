@@ -84,9 +84,10 @@ See the [configuration guide](https://hass-energy.github.io/haeo/user-guide/conf
 - **Load**: Fixed or forecast-based consumption
 - **Inverter**: AC/DC conversion between elements
 
-**Advanced Mode** (optional, for custom topologies):
+**Expose raw model elements** (optional, for custom topologies):
 
-- **Node**: Virtual power balance points
+- **Junction**: Points where connections meet and power balances
+- **Node**: Points that produce or consume unlimited power behind a limiting, priced connection
 - **Connection**: Explicit power flow paths between elements
 - **Battery Section**: Direct model-layer battery access
 
@@ -121,7 +122,7 @@ You can use the My Home Assistant link above to open HAEO directly in HACS, then
 4. Configure your hub:
     - **Name**: A unique name for your energy network
     - **Planning horizon**: Preset (2, 3, 5, or 7 days) or **Custom** tier configuration
-    - **Advanced settings** (optional): Debounce window, Advanced Mode, forecast recording
+    - **Advanced settings** (optional): Debounce window, Expose raw model elements, forecast recording
 
 If you select **Custom**, configure up to four **tiers** (interval count and duration in minutes) for near-term precision and long-term lookahead.
 
@@ -165,7 +166,7 @@ After creating your hub, add elements from the hub integration card:
 - **Name**: Identifier for the load
 - **Power**: Fixed value or forecast sensor entities for variable consumption
 
-#### Connections (Advanced Mode)
+#### Connections (raw model element)
 
 Define explicit power flow paths between elements:
 

@@ -2,10 +2,10 @@
 
 Connections define explicit, **unidirectional** power paths between elements, with optional capacity limits, efficiency losses, and transfer pricing.
 
-!!! warning "Advanced Element"
+!!! warning "Raw model element"
 
-    Connection is only available when **Advanced Mode** is enabled on your hub.
-    This element is intended for advanced users who need explicit control over power flow paths.
+    Connection is only available when **Expose raw model elements** is enabled on your hub.
+    This element is for explicit control over power flow paths when you are building the model yourself.
     Most users should rely on implicit connections created automatically by other elements.
 
 !!! note "Implicit connections"
