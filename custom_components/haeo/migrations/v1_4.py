@@ -11,10 +11,13 @@ from types import MappingProxyType
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.adapters.elements.junction import JUNCTION_DEVICE_JUNCTION, JUNCTION_POWER_BALANCE
+from custom_components.haeo.core.adapters.elements.node import NODE_DEVICE_NODE, NODE_POWER_BALANCE
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, HUB_SECTION_ADVANCED
 from custom_components.haeo.core.schema.elements import connection, junction, node
 from custom_components.haeo.core.schema.migrations.v1_4 import (
@@ -80,6 +83,70 @@ def _remove_reverse_field_entities(hass: HomeAssistant, entry: ConfigEntry, conn
             registry.async_remove(entity_entry.entity_id)
 
 
+def _swap_node_for_junction(hass: HomeAssistant, entry: ConfigEntry, subentry: ConfigSubentry) -> None:
+    """Replace a node subentry with a junction that keeps its subentry ID, device, and sensor.
+
+    Home Assistant deletes a removed subentry's devices and entities, so the
+    device is held by the config entry alone and the sensor is detached while
+    the subentry is swapped. The junction reuses the subentry ID, and the device
+    and sensor are re-keyed to the junction's identifiers, so their IDs,
+    customizations, and history carry over. The role switches have no junction
+    equivalent and are removed.
+    """
+    device_registry = dr.async_get(hass)
+    entity_registry = er.async_get(hass)
+    prefix = f"{entry.entry_id}_{subentry.subentry_id}_"
+    node_device_key = f"{prefix}{NODE_DEVICE_NODE}"
+    junction_device_key = f"{prefix}{JUNCTION_DEVICE_JUNCTION}"
+    rekeyed_unique_ids = {
+        f"{node_device_key}_{NODE_POWER_BALANCE}": f"{junction_device_key}_{JUNCTION_POWER_BALANCE}",
+    }
+
+    device = device_registry.async_get_device(identifiers={(DOMAIN, node_device_key)})
+    if device is not None:
+        device_registry.async_update_device(device.id, add_config_entry_id=entry.entry_id, add_config_subentry_id=None)
+
+    kept_entity_ids: list[str] = []
+    for entity_entry in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
+        if not entity_entry.unique_id.startswith(prefix):
+            continue
+        new_unique_id = rekeyed_unique_ids.get(entity_entry.unique_id)
+        if new_unique_id is None:
+            entity_registry.async_remove(entity_entry.entity_id)
+            continue
+        entity_registry.async_update_entity(
+            entity_entry.entity_id, config_subentry_id=None, new_unique_id=new_unique_id
+        )
+        kept_entity_ids.append(entity_entry.entity_id)
+
+    hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)
+    hass.config_entries.async_add_subentry(
+        entry,
+        ConfigSubentry(
+            data=MappingProxyType(junction_config(subentry.data)),
+            subentry_type=junction.ELEMENT_TYPE,
+            title=subentry.title,
+            unique_id=None,
+            subentry_id=subentry.subentry_id,
+        ),
+    )
+
+    if device is not None:
+        device_registry.async_update_device(
+            device.id,
+            add_config_entry_id=entry.entry_id,
+            add_config_subentry_id=subentry.subentry_id,
+            new_identifiers={(DOMAIN, junction_device_key)},
+        )
+    for entity_id in kept_entity_ids:
+        entity_registry.async_update_entity(entity_id, config_subentry_id=subentry.subentry_id)
+    # Entities linked to the config entry alone would be removed with this link, so it goes last
+    if device is not None:
+        device_registry.async_update_device(
+            device.id, remove_config_entry_id=entry.entry_id, remove_config_subentry_id=None
+        )
+
+
 async def _replace_nodes_with_junctions(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Replace nodes with junctions where they should only pass power through.
 
@@ -92,7 +159,6 @@ async def _replace_nodes_with_junctions(hass: HomeAssistant, entry: ConfigEntry)
     translations = await async_get_translations(hass, hass.config.language, "common", integrations=[DOMAIN])
     switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
     advanced_mode = entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
-    registry = er.async_get(hass)
     for subentry in list(entry.subentries.values()):
         if subentry.subentry_type != node.ELEMENT_TYPE:
             continue
@@ -106,20 +172,7 @@ async def _replace_nodes_with_junctions(hass: HomeAssistant, entry: ConfigEntry)
             )
             create_node_replaced_by_junction_issue(hass, entry.entry_id, subentry.title)
 
-        prefix = f"{entry.entry_id}_{subentry.subentry_id}_"
-        for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
-            if entity_entry.unique_id.startswith(prefix):
-                registry.async_remove(entity_entry.entity_id)
-        hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)
-        hass.config_entries.async_add_subentry(
-            entry,
-            ConfigSubentry(
-                data=MappingProxyType(junction_config(subentry.data)),
-                subentry_type=junction.ELEMENT_TYPE,
-                title=subentry.title,
-                unique_id=None,
-            ),
-        )
+        _swap_node_for_junction(hass, entry, subentry)
         _LOGGER.info("Replaced node %s with a junction", subentry.title)
 
 

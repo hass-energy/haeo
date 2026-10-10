@@ -6,6 +6,7 @@ from types import MappingProxyType
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 import pytest
@@ -315,35 +316,68 @@ def _node(name: str, *, is_source: object = False, is_sink: object = False) -> C
     )
 
 
-def _register_entity(
-    hass: HomeAssistant, entry: MockConfigEntry, subentry: ConfigSubentry, domain: str, key: str
-) -> str:
-    return (
-        er.async_get(hass)
-        .async_get_or_create(domain, DOMAIN, f"{entry.entry_id}_{subentry.subentry_id}_{key}", config_entry=entry)
-        .entity_id
-    )
-
-
 @pytest.mark.parametrize("advanced_mode", [False, True], ids=["standard", "advanced"])
 async def test_async_migrate_entry_replaces_junction_node(hass: HomeAssistant, advanced_mode: bool) -> None:
-    """A node that neither sources nor sinks becomes a junction, and its old entities are removed."""
+    """A node that neither sources nor sinks becomes a junction and creates no repair issue."""
     entry = _add_hub_in_mode(hass, advanced_mode=advanced_mode)
     switchboard = _node("Switchboard")
     hass.config_entries.async_add_subentry(entry, switchboard)
-    switch_entity_id = _register_entity(hass, entry, switchboard, "switch", node.CONF_IS_SOURCE)
-    sensor_entity_id = _register_entity(hass, entry, switchboard, "sensor", "node_power_balance")
 
     assert await v1_4.async_migrate_entry(hass, entry)
 
     (replacement,) = entry.subentries.values()
     assert replacement.subentry_type == junction.ELEMENT_TYPE
+    assert replacement.subentry_id == switchboard.subentry_id
     assert replacement.title == "Switchboard"
     assert dict(replacement.data) == {CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: "Switchboard"}
-    registry = er.async_get(hass)
-    assert registry.async_get(switch_entity_id) is None
-    assert registry.async_get(sensor_entity_id) is None
     assert not ir.async_get(hass).issues
+
+
+async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAssistant) -> None:
+    """The junction adopts the node's device and power balance sensor, so their IDs and customizations carry over."""
+    entry = _add_hub_in_mode(hass, advanced_mode=False)
+    switchboard = _node("Switchboard")
+    hass.config_entries.async_add_subentry(entry, switchboard)
+    prefix = f"{entry.entry_id}_{switchboard.subentry_id}_"
+    device_registry = dr.async_get(hass)
+    entity_registry = er.async_get(hass)
+    device = device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        config_subentry_id=switchboard.subentry_id,
+        identifiers={(DOMAIN, f"{prefix}node")},
+    )
+    device_registry.async_update_device(device.id, area_id="garage")
+    sensor = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{prefix}node_node_power_balance",
+        config_entry=entry,
+        config_subentry_id=switchboard.subentry_id,
+        device_id=device.id,
+    )
+    entity_registry.async_update_entity(sensor.entity_id, new_entity_id="sensor.my_switchboard_price")
+    switch = entity_registry.async_get_or_create(
+        "switch",
+        DOMAIN,
+        f"{prefix}{node.CONF_IS_SOURCE}",
+        config_entry=entry,
+        config_subentry_id=switchboard.subentry_id,
+        device_id=device.id,
+    )
+
+    assert await v1_4.async_migrate_entry(hass, entry)
+
+    adopted_device = device_registry.async_get(device.id)
+    assert adopted_device is not None
+    assert adopted_device.identifiers == {(DOMAIN, f"{prefix}junction")}
+    assert adopted_device.area_id == "garage"
+    assert adopted_device.config_entries_subentries == {entry.entry_id: {switchboard.subentry_id}}
+    adopted_sensor = entity_registry.async_get("sensor.my_switchboard_price")
+    assert adopted_sensor is not None
+    assert adopted_sensor.unique_id == f"{prefix}junction_junction_power_balance"
+    assert adopted_sensor.config_subentry_id == switchboard.subentry_id
+    assert adopted_sensor.device_id == device.id
+    assert entity_registry.async_get(switch.entity_id) is None
 
 
 @pytest.mark.parametrize(

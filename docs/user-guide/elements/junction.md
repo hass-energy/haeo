@@ -67,6 +67,7 @@ If you need a point that produces or consumes unlimited power, use a [node](node
     Outside Advanced Mode, every node becomes a junction.
     In Advanced Mode, any other node that can produce or consume power, or whose switch is driven by an entity, stays a node.
     When a node that had its source or sink switch turned on becomes a junction, HAEO raises a repair issue for it.
+    The junction keeps the node's device and power balance sensor, so their entity IDs, areas, and history carry over.
 
 ## Use Cases
 
