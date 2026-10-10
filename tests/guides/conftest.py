@@ -12,9 +12,11 @@ from __future__ import annotations
 
 from collections.abc import Generator
 import datetime
+from pathlib import Path
 
 from homeassistant.util import dt as dt_util
 import pytest
+from pytest_socket import enable_socket
 
 # Guide tests run a full HA instance in a background thread. The global
 # filterwarnings = ["error"] from pyproject.toml turns third-party
@@ -25,12 +27,39 @@ import pytest
 # HA's frontend static handler can emit unraisable ResourceWarnings when
 # the browser disconnects during shutdown on CI. Ignore pytest's wrapper so
 # guide screenshot assertions remain the signal.
-pytestmark = [
-    pytest.mark.usefixtures("socket_enabled"),
-    pytest.mark.filterwarnings("default"),
-    pytest.mark.filterwarnings("ignore::ResourceWarning"),
-    pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptionWarning"),
-]
+#
+# These are applied in pytest_collection_modifyitems rather than a conftest
+# pytestmark, because pytest >= 9.0 does not propagate conftest pytestmark to
+# collected tests. As a mark the filters silently did nothing, and the
+# ResourceWarning failed whichever guide test happened to be running when the
+# file object was finalized.
+WARNING_FILTERS = (
+    "default",
+    "ignore::ResourceWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+)
+
+
+@pytest.fixture(autouse=True)
+def _enable_socket_for_guides() -> None:  # pyright: ignore[reportUnusedFunction]
+    """Re-enable real sockets for guide tests.
+
+    pytest-homeassistant-custom-component disables sockets globally; guide
+    tests need real sockets to find a free port and run a live HA HTTP
+    server for Playwright. The `socket_enabled` fixture from pytest-socket
+    used to be applied via a module-level `pytestmark` here, but pytest 9
+    no longer propagates conftest-level pytestmark to test items.
+    """
+    enable_socket()
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Apply the guide warning filters to every collected guide test."""
+    guides_dir = Path(__file__).parent
+    for item in items:
+        if item.path.is_relative_to(guides_dir):
+            for spec in WARNING_FILTERS:
+                item.add_marker(pytest.mark.filterwarnings(spec))
 
 
 def pytest_configure(config: pytest.Config) -> None:

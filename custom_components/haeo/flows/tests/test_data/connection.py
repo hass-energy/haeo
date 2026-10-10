@@ -5,7 +5,6 @@ from custom_components.haeo.core.schema import as_connection_target, as_constant
 from custom_components.haeo.core.schema.elements.connection import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
     CONF_SOURCE,
     CONF_TARGET,
     SECTION_EFFICIENCY,
@@ -40,7 +39,6 @@ VALID_DATA = [
             },
             SECTION_POWER_LIMITS: {
                 CONF_MAX_POWER_SOURCE_TARGET: as_constant_value(10.0),
-                CONF_MAX_POWER_TARGET_SOURCE: as_constant_value(10.0),
             },
             SECTION_PRICING: {},
             SECTION_EFFICIENCY: {

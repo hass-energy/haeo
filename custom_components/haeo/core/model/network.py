@@ -3,7 +3,15 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 import logging
-from typing import Any, Final, Literal, overload
+from typing import (
+    Any,  # noqa: TID251  # Element is invariant in its output-name Literal (see outputs()'s
+    # Mapping[OutputNameT, ...] return), so a plain dict of heterogeneous concrete Element
+    # subtypes (Battery, Node, Connection, ...) cannot be typed Element[str] or a shared TypeVar;
+    # add()'s @overloads already give callers the precise concrete return type per element_type
+    Final,
+    Literal,
+    overload,
+)
 
 from highspy import Highs, HighsModelStatus
 from highspy.highs import highs_cons, highs_linear_expression
@@ -15,7 +23,8 @@ from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
-from .elements.policy_pricing import PolicyPricing, PolicyPricingElementConfig
+from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
+from .util.solver_rows import add_row, update_row
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -119,7 +128,7 @@ class Network:
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         options: SolveOptions | None = None,
     ) -> None:
@@ -129,7 +138,7 @@ class Network:
         self.elements: dict[str, Element[Any]] = {}
         self.options: SolveOptions = options or CalibratedOptions()
         self._solver = Highs()
-        self._lex_constraint: highs_cons | None = None
+        self._lex_row: tuple[highs_cons, highs_linear_expression] | None = None
         self._calibrated_weight: float | None = None
 
         # Redirect HiGHS logging to Python logger at debug level
@@ -154,7 +163,7 @@ class Network:
         """Return the number of optimization periods."""
         return len(self.periods)
 
-    def update_periods(self, new_periods: NDArray[np.floating[Any]]) -> None:
+    def update_periods(self, new_periods: NDArray[np.float64]) -> None:
         """Update period durations across the network.
 
         Propagates the new periods to all elements and their segments,
@@ -242,7 +251,7 @@ class Network:
     def _add_policy_pricing(self, config: PolicyPricingElementConfig) -> PolicyPricing:
         """Create a PolicyPricing element by resolving connection/tag references."""
         name = config["name"]
-        power_terms = []
+        priced_flows: list[tuple[MeasuredFlows, int]] = []
         for term in config["terms"]:
             conn_name = term["connection"]
             tag = term["tag"]
@@ -250,17 +259,17 @@ class Network:
             if not isinstance(conn_element, Connection):
                 msg = f"PolicyPricing '{name}' references unknown connection '{conn_name}'"
                 raise TypeError(msg)
-            if tag not in conn_element.power_in:
+            if tag not in conn_element.measured_power:
                 msg = f"PolicyPricing '{name}' references tag {tag} not on connection '{conn_name}'"
                 raise ValueError(msg)
-            power_terms.append(conn_element.power_in[tag])
+            priced_flows.append((conn_element, tag))
 
         element = PolicyPricing(
             name=name,
             periods=self.periods,
             solver=self._solver,
             price=config["price"],
-            power_terms=power_terms,
+            priced_flows=priced_flows,
             terms=config["terms"],
         )
         element.label = config.get("label", "")
@@ -494,54 +503,23 @@ class Network:
         optimal_value: float,
     ) -> None:
         """Set the single lex constraint to bound the given objective."""
-        constraint_expr = objective <= optimal_value
-
-        if self._lex_constraint is None:
-            self._lex_constraint = self._solver.addConstr(constraint_expr)
-        else:
-            self._update_constraint(self._lex_constraint, constraint_expr)
+        self._set_lex_row(objective <= optimal_value)
 
     def _relax_lex_constraint(self) -> None:
         """Relax the lex constraint bounds so it is inactive."""
-        if self._lex_constraint is not None:
-            self._solver.changeRowBounds(self._lex_constraint.index, float("-inf"), float("inf"))
+        if self._lex_row is not None:
+            unbounded = highs_linear_expression(self._lex_row[1])
+            unbounded.bounds = None
+            self._set_lex_row(unbounded)
 
-    def _update_constraint(
-        self,
-        cons: highs_cons,
-        expr: highs_linear_expression,
-    ) -> None:
-        """Update an existing constraint with a new expression.
-
-        highs_linear_expression may contain repeated variable indices whose
-        coefficients are meant to be summed (this is what Highs.addConstr does
-        internally).  We must replicate that aggregation here, otherwise
-        duplicate entries are silently collapsed by dict() and the stored
-        constraint misrepresents the expression.
-        """
-        old_expr = self._solver.getExpr(cons)
-        old_bounds = old_expr.bounds
-        new_bounds = expr.bounds
-
-        if old_bounds != new_bounds:
-            if new_bounds is not None:
-                self._solver.changeRowBounds(cons.index, new_bounds[0], new_bounds[1])
-            elif old_bounds is not None:
-                self._solver.changeRowBounds(cons.index, float("-inf"), float("inf"))
-
-        old_coeffs: dict[int, float] = {}
-        for idx, val in zip(old_expr.idxs, old_expr.vals, strict=True):
-            old_coeffs[idx] = old_coeffs.get(idx, 0.0) + val
-        new_coeffs: dict[int, float] = {}
-        for idx, val in zip(expr.idxs, expr.vals, strict=True):
-            new_coeffs[idx] = new_coeffs.get(idx, 0.0) + val
-        all_vars = set(old_coeffs) | set(new_coeffs)
-
-        for var_idx in all_vars:
-            old_val = old_coeffs.get(var_idx, 0.0)
-            new_val = new_coeffs.get(var_idx, 0.0)
-            if old_val != new_val:
-                self._solver.changeCoeff(cons.index, var_idx, new_val)
+    def _set_lex_row(self, expr: highs_linear_expression) -> None:
+        """Write the expression to the lex constraint row, adding the row on first use."""
+        if self._lex_row is None:
+            cons = add_row(self._solver, expr)
+        else:
+            cons, applied = self._lex_row
+            update_row(self._solver, cons, applied, expr)
+        self._lex_row = (cons, expr)
 
     def constraints(self) -> dict[str, dict[str, highs_cons | list[highs_cons]]]:
         """Return all constraints from all elements in the network.

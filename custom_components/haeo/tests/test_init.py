@@ -3,23 +3,29 @@
 import asyncio
 from collections.abc import Iterable
 from types import MappingProxyType
+from typing import ClassVar
 from unittest.mock import AsyncMock, Mock
 
 from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL, UrlManager
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
-from homeassistant.const import Platform
+from homeassistant.const import EVENT_COMPONENT_LOADED, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.loader import async_get_integration
+from homeassistant.setup import ATTR_COMPONENT
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import (
     HaeoRuntimeData,
     _async_register_static_frontend_resources,
+    _element_flow_in_progress,
     _ensure_required_subentries,
     async_remove_config_entry_device,
+    async_remove_entry,
     async_setup,
     async_setup_entry,
     async_unload_entry,
@@ -54,6 +60,7 @@ from custom_components.haeo.core.const import (
     DEFAULT_TIER_4_COUNT,
     DEFAULT_TIER_4_DURATION,
 )
+from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import (
@@ -65,7 +72,6 @@ from custom_components.haeo.core.schema.elements.battery import (
     SECTION_STORAGE,
 )
 from custom_components.haeo.core.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
-from custom_components.haeo.core.schema.elements.node import SECTION_ROLE
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -77,6 +83,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.repairs import create_node_replaced_by_junction_issue
 
 
 @pytest.fixture
@@ -224,6 +231,17 @@ async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     # Note: coordinator.cleanup is now called via async_on_unload, not directly in async_unload_entry
 
 
+async def test_remove_hub_entry_dismisses_its_repair_issues(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """Removing a hub entry dismisses the repair issues raised for it."""
+    create_node_replaced_by_junction_issue(hass, mock_hub_entry.entry_id, "Switchboard")
+
+    await async_remove_entry(hass, mock_hub_entry)
+
+    assert not ir.async_get(hass).issues
+
+
 async def test_async_setup_entry_initializes_coordinator(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
@@ -306,47 +324,44 @@ async def test_ensure_required_subentries_creates_network(hass: HomeAssistant, m
 
 
 @pytest.mark.parametrize(
-    "existing_node",
-    [False, True],
-    ids=["creates_switchboard", "skips_existing"],
+    "existing_type",
+    [None, ElementType.JUNCTION, ElementType.NODE],
+    ids=["creates_switchboard", "skips_existing_junction", "skips_existing_node"],
 )
 async def test_ensure_required_subentries_switchboard_handling(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
-    existing_node: bool,
+    existing_type: ElementType | None,
 ) -> None:
-    """_ensure_required_subentries creates a switchboard only when missing."""
-    if existing_node:
-        node_subentry = ConfigSubentry(
-            data=MappingProxyType(
-                {
-                    CONF_ELEMENT_TYPE: ElementType.NODE,
-                    CONF_NAME: "Existing Node",
-                }
+    """_ensure_required_subentries creates a switchboard junction only when no junction or node exists."""
+    if existing_type is not None:
+        hass.config_entries.async_add_subentry(
+            mock_hub_entry,
+            ConfigSubentry(
+                data=MappingProxyType({CONF_ELEMENT_TYPE: existing_type, CONF_NAME: "Existing"}),
+                subentry_type=existing_type,
+                title="Existing",
+                unique_id=None,
             ),
-            subentry_type=ElementType.NODE,
-            title="Existing Node",
-            unique_id=None,
         )
-        hass.config_entries.async_add_subentry(mock_hub_entry, node_subentry)
 
     await _ensure_required_subentries(hass, mock_hub_entry)
 
-    node_count = sum(1 for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
-    assert node_count == 1
-
-    node_subentry = next(sub for sub in mock_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
-    assert node_subentry.data[CONF_NAME] == ("Existing Node" if existing_node else "Switchboard")
-    if not existing_node:
-        assert node_subentry.data[SECTION_ROLE]["is_source"] is False
-        assert node_subentry.data[SECTION_ROLE]["is_sink"] is False
+    hub_points = [
+        sub
+        for sub in mock_hub_entry.subentries.values()
+        if sub.subentry_type in (ElementType.JUNCTION, ElementType.NODE)
+    ]
+    assert len(hub_points) == 1
+    if existing_type is None:
+        assert hub_points[0].subentry_type == ElementType.JUNCTION
+        assert dict(hub_points[0].data) == {CONF_ELEMENT_TYPE: ElementType.JUNCTION, CONF_NAME: "Switchboard"}
 
 
 async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
     hass: HomeAssistant,
 ) -> None:
     """Test that _ensure_required_subentries does not create switchboard in advanced mode."""
-    # Create a hub entry with advanced_mode enabled
     advanced_hub_entry = MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -360,16 +375,9 @@ async def test_ensure_required_subentries_skips_switchboard_advanced_mode(
     )
     advanced_hub_entry.add_to_hass(hass)
 
-    # Verify no node subentry exists initially
-    node_count = sum(1 for sub in advanced_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
-    assert node_count == 0
-
-    # Call ensure - should NOT create switchboard node in advanced mode
     await _ensure_required_subentries(hass, advanced_hub_entry)
 
-    # Verify no node subentry was created
-    node_count = sum(1 for sub in advanced_hub_entry.subentries.values() if sub.subentry_type == ElementType.NODE)
-    assert node_count == 0
+    assert not any(sub.subentry_type == ElementType.JUNCTION for sub in advanced_hub_entry.subentries.values())
 
 
 async def test_async_update_listener(
@@ -458,22 +466,125 @@ async def test_async_update_listener_value_update_in_progress(
         mock_coordinator.signal_optimization_stale.assert_called_once()
 
 
+def _mock_element_flow_in_progress(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    """Mark a subentry config flow as in progress for *entry*."""
+    hass.config_entries.subentries.async_progress = Mock(
+        return_value=[{"handler": (entry.entry_id, "battery")}],
+    )
+
+
+async def test_async_update_listener_defers_reload_during_element_flow(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Reload is deferred to the next loop iteration while an element flow commits subentries."""
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(Mock())
+    _mock_element_flow_in_progress(hass, mock_hub_entry)
+
+    schedule_reload_calls: list[str] = []
+    hass.config_entries.async_schedule_reload = lambda entry_id: schedule_reload_calls.append(entry_id)
+
+    await async_update_listener(hass, mock_hub_entry)
+
+    assert schedule_reload_calls == []
+    assert mock_hub_entry.runtime_data.reload_pending is True
+
+    await hass.async_block_till_done()
+
+    assert mock_hub_entry.runtime_data.reload_pending is False
+    assert schedule_reload_calls == [mock_hub_entry.entry_id]
+
+
+async def test_async_update_listener_coalesces_deferred_reload(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Further update events during a flow only schedule one deferred reload."""
+    mock_hub_entry.runtime_data = _create_mock_runtime_data(Mock())
+    mock_hub_entry.runtime_data.reload_pending = True
+    _mock_element_flow_in_progress(hass, mock_hub_entry)
+
+    schedule_reload = Mock()
+    hass.config_entries.async_schedule_reload = schedule_reload
+
+    await async_update_listener(hass, mock_hub_entry)
+    await hass.async_block_till_done()
+
+    schedule_reload.assert_not_called()
+    assert mock_hub_entry.runtime_data.reload_pending is True
+
+
+async def test_async_update_listener_defers_reload_without_runtime_data(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Deferred reload still runs when runtime_data is not yet populated."""
+    mock_hub_entry.runtime_data = None
+    _mock_element_flow_in_progress(hass, mock_hub_entry)
+
+    schedule_reload_calls: list[str] = []
+    hass.config_entries.async_schedule_reload = lambda entry_id: schedule_reload_calls.append(entry_id)
+
+    await async_update_listener(hass, mock_hub_entry)
+
+    assert schedule_reload_calls == []
+
+    await hass.async_block_till_done()
+
+    assert schedule_reload_calls == [mock_hub_entry.entry_id]
+
+
+async def test_element_flow_in_progress(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+) -> None:
+    """Element flow detection matches subentry flows owned by the config entry."""
+    hass.config_entries.subentries.async_progress = Mock(
+        return_value=[{"handler": (mock_hub_entry.entry_id, "battery")}],
+    )
+
+    assert _element_flow_in_progress(hass, mock_hub_entry) is True
+
+    hass.config_entries.subentries.async_progress = Mock(return_value=[])
+    assert _element_flow_in_progress(hass, mock_hub_entry) is False
+
+
+@pytest.mark.parametrize(
+    ("input_error", "expected_translation_key"),
+    [
+        pytest.param(None, "input_entities_not_ready", id="not_ready"),
+        pytest.param(
+            InputError(translation_key="negative_input_value", translation_placeholders={"value": "-4.5"}),
+            "negative_input_value",
+            id="input_error",
+        ),
+    ],
+)
 async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     monkeypatch: pytest.MonkeyPatch,
+    input_error: InputError | None,
+    expected_translation_key: str,
 ) -> None:
     """Setup raises ConfigEntryNotReady when input stores don't become ready in time.
 
-    Verifies that ConfigEntryNotReady is raised with descriptive translation key.
+    Verifies that ConfigEntryNotReady is raised with descriptive translation key,
+    using the rejecting check's translation when a store rejected its source's value.
     Cleanup is handled via async_on_unload callbacks registered during setup.
     """
 
     # Create a mock input store that never becomes ready
     class NeverReadyStore:
-        async def wait_ready(self) -> None:
-            # Wait forever - will timeout
-            await asyncio.sleep(100)
+        source_entity_ids: ClassVar[list[str]] = ["sensor.limit"]
+
+        def __init__(self) -> None:
+            self.error = input_error
+
+        async def wait_settled(self) -> None:
+            # A store that rejected its value settles at once; one with no data never does
+            if self.error is None:
+                await asyncio.sleep(100)
 
         def is_ready(self) -> bool:
             return False
@@ -522,7 +633,7 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
         await async_setup_entry(hass, mock_hub_entry)
 
     # Verify the exception has the correct translation key
-    assert exc_info.value.translation_key == "input_entities_not_ready"
+    assert exc_info.value.translation_key == expected_translation_key
 
     # Note: Platform cleanup is handled via async_on_unload callbacks.
     # When testing directly (not via hass.config_entries.async_setup), the HA
@@ -564,10 +675,12 @@ async def test_setup_reentry_after_timeout_failure(
 
     # Create a mock input store that fails first time, succeeds second time
     class ConditionalReadyStore:
+        error = None
+
         def __init__(self) -> None:
             self._ready = False
 
-        async def wait_ready(self) -> None:
+        async def wait_settled(self) -> None:
             if attempt_count == 1:
                 # First attempt: timeout
                 await asyncio.sleep(100)
@@ -888,9 +1001,12 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     mock_http = Mock()
     mock_http.async_register_static_paths = AsyncMock()
     hass.http = mock_http  # type: ignore[attr-defined]
+    # Frontend has already completed its own setup, so its registry exists.
     hass.data[DATA_EXTRA_MODULE_URL] = UrlManager(lambda *_: None, [])
+    hass.config.components.add("frontend")
 
     result = await async_setup(hass, {})
+    await hass.async_block_till_done()
 
     assert result is True
     mock_http.async_register_static_paths.assert_called_once()
@@ -898,6 +1014,37 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     assert len(configs) == 1
     assert configs[0].url_path == STATIC_CARD_STATIC_PATH
     assert configs[0].path.endswith(STATIC_CARD_STATIC_DIR)
+    registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
+    for _file_path, url_path in STATIC_CARD_BUNDLES:
+        assert url_path in registered_urls
+
+
+async def test_async_setup_registers_static_urls_when_frontend_sets_up_later(hass: HomeAssistant) -> None:
+    """Test that card URLs register even when HAEO's setup wins the race against frontend.
+
+    Regression test for the startup ordering race where HAEO is set up before the
+    frontend component creates hass.data[DATA_EXTRA_MODULE_URL]. Setup must not
+    raise KeyError, and the cards must still be registered once frontend appears
+    rather than being silently dropped until the next restart.
+    """
+    mock_http = Mock()
+    mock_http.async_register_static_paths = AsyncMock()
+    hass.http = mock_http  # type: ignore[attr-defined]
+    # The frontend component has not run its own setup yet, so its registry is absent.
+    assert DATA_EXTRA_MODULE_URL not in hass.data
+
+    result = await async_setup(hass, {})
+
+    assert result is True
+    mock_http.async_register_static_paths.assert_called_once()
+
+    # Frontend now finishes its setup: it creates the registry and announces itself.
+    await async_get_integration(hass, "frontend")
+    hass.data[DATA_EXTRA_MODULE_URL] = UrlManager(lambda *_: None, [])
+    hass.config.components.add("frontend")
+    hass.bus.async_fire(EVENT_COMPONENT_LOADED, {ATTR_COMPONENT: "frontend"})
+    await hass.async_block_till_done()
+
     registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
     for _file_path, url_path in STATIC_CARD_BUNDLES:
         assert url_path in registered_urls

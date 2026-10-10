@@ -5,13 +5,14 @@ and their associated metadata like output type, direction, and time series behav
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
-from typing import Any, Literal
+from dataclasses import dataclass, replace
+from typing import Literal, TypeGuard, overload
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.units import localize_currency
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,14 +73,73 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     device_type: str | None = None
 
 
-type InputFieldSection = Mapping[str, InputFieldInfo[Any]]
+# Union of the two concrete field-info instantiations; use when handling
+# heterogeneous fields (the TypeVar is constrained to exactly these two).
+type AnyInputFieldInfo = InputFieldInfo[NumberEntityDescription] | InputFieldInfo[SwitchEntityDescription]
+
+type InputFieldSection = Mapping[str, AnyInputFieldInfo]
+
+
+def is_number_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldInfo[NumberEntityDescription]]:
+    """Narrow a heterogeneous InputFieldInfo to the NumberEntityDescription variant.
+
+    Uses a class-name check rather than isinstance: Home Assistant's frozen
+    dataclass compatibility shim generates entity description classes at
+    runtime, so isinstance against the imported class does not reliably hold.
+    """
+    return type(field_info.entity_description).__name__ == "NumberEntityDescription"
+
+
+def is_switch_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldInfo[SwitchEntityDescription]]:
+    """Narrow a heterogeneous InputFieldInfo to the SwitchEntityDescription variant.
+
+    See is_number_field_info for why this is a class-name check.
+    """
+    return type(field_info.entity_description).__name__ == "SwitchEntityDescription"
+
+
 type InputFieldGroups = Mapping[str, InputFieldSection]
 type InputFieldPath = tuple[str, ...]
 
+
+@overload
+def localize_input_field(
+    field_info: InputFieldInfo[NumberEntityDescription], currency_symbol: str
+) -> InputFieldInfo[NumberEntityDescription]: ...
+
+
+@overload
+def localize_input_field(field_info: AnyInputFieldInfo, currency_symbol: str) -> AnyInputFieldInfo: ...
+
+
+def localize_input_field(field_info: AnyInputFieldInfo, currency_symbol: str) -> AnyInputFieldInfo:
+    """Return the field with the ``$`` placeholder in its unit replaced by a currency symbol."""
+    if not is_number_field_info(field_info):
+        return field_info
+    description = field_info.entity_description
+    unit = localize_currency(description.native_unit_of_measurement, currency_symbol)
+    if unit == description.native_unit_of_measurement:
+        return field_info
+    return replace(field_info, entity_description=replace(description, native_unit_of_measurement=unit))
+
+
+def localize_input_fields(groups: InputFieldGroups, currency_symbol: str) -> InputFieldGroups:
+    """Return the field groups with every monetary unit shown in the given currency symbol."""
+    return {
+        section: {name: localize_input_field(info, currency_symbol) for name, info in fields.items()}
+        for section, fields in groups.items()
+    }
+
+
 __all__ = [
+    "AnyInputFieldInfo",
     "InputFieldDefaults",
     "InputFieldGroups",
     "InputFieldInfo",
     "InputFieldPath",
     "InputFieldSection",
+    "is_number_field_info",
+    "is_switch_field_info",
+    "localize_input_field",
+    "localize_input_fields",
 ]

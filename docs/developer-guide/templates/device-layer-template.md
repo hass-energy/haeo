@@ -97,7 +97,7 @@ Provide practical advice for setting configuration values:
 - Guideline 2: Common mistakes and how to avoid them
 - Guideline 3: Performance or accuracy considerations
 
-## Next Steps
+## Next steps
 
 !!! note "Template Instructions"
 

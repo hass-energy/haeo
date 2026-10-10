@@ -1,6 +1,8 @@
 """Node element configuration flows."""
 
-from typing import Any
+from typing import (
+    Any,  # noqa: TID251  # HA flow signatures upstream; voluptuous schema value types are heterogeneous by design
+)
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfig
@@ -9,7 +11,7 @@ import voluptuous as vol
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, SECTION_ROLE
 from custom_components.haeo.flows.element_flow import ElementFlowMixin
-from custom_components.haeo.flows.field_schema import SectionDefinition, build_section_schema
+from custom_components.haeo.flows.field_schema import SectionDefinition, as_mapping, as_str, build_section_schema
 from custom_components.haeo.sections import build_common_fields
 
 # Suggested values for first setup (pure junction: no source or sink)
@@ -66,16 +68,16 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Handle reconfiguring an existing node element."""
         return await self._async_step_user(user_input)
 
-    async def _async_step_user(self, user_input: dict[str, Any] | None) -> SubentryFlowResult:
+    async def _async_step_user(self, user_input: dict[str, object] | None) -> SubentryFlowResult:
         """Shared logic for user and reconfigure steps."""
         errors: dict[str, str] = {}
         subentry = self._get_subentry()
 
         if user_input is not None:
-            role_input = user_input.get(SECTION_ROLE, {})
-            name = user_input.get(CONF_NAME)
+            role_input = as_mapping(user_input.get(SECTION_ROLE))
+            name = as_str(user_input.get(CONF_NAME))
             if self._validate_name(name, errors):
-                config = {
+                config: dict[str, object] = {
                     CONF_ELEMENT_TYPE: ELEMENT_TYPE,
                     CONF_NAME: name,
                     SECTION_ROLE: {
@@ -90,7 +92,7 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                         title=str(name),
                         data=config,
                     )
-                return self.async_create_entry(title=name, data=config)
+                return self.async_create_entry(title=str(name), data=config)
 
         schema = self._build_schema()
         defaults = dict(subentry.data) if subentry else _SUGGESTED_DEFAULTS

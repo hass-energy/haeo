@@ -1,8 +1,6 @@
 """Test data for Nordpool energy pricing forecast sensors."""
 
-from typing import Any
-
-VALID: list[dict[str, Any]] = [
+VALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.nordpool_kwh_eur",
         "state": "0.093",
@@ -94,7 +92,7 @@ VALID: list[dict[str, Any]] = [
 ]
 
 # Invalid Nordpool sensor configurations
-INVALID: list[dict[str, Any]] = [
+INVALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.nordpool_no_raw_today",
         "state": "0.10",

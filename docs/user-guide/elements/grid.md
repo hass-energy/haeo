@@ -3,10 +3,6 @@
 The grid represents your connection to the electricity network.
 It allows bidirectional power flow: importing (buying) and exporting (selling) electricity.
 
-!!! note "Connection endpoints"
-
-    Grid elements appear in connection selectors only when Advanced Mode is enabled on your hub.
-
 ## Configuration
 
 Grid configuration uses a single-step flow where you enter the name and configure each input field.
@@ -19,6 +15,8 @@ For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed
 | **[Export Price](#export-price)** | Price  | Yes      | -       | Revenue per kWh for exporting electricity to grid (\$/kWh) |
 | **[Import Limit](#import-limit)** | Power  | No       | -       | Maximum import power from grid                             |
 | **[Export Limit](#export-limit)** | Power  | No       | -       | Maximum export power to grid                               |
+
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 ## Name
 
@@ -320,7 +318,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 - Review connections in network configuration
 - Check grid import limit vs total load
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

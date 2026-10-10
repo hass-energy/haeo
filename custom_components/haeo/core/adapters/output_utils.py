@@ -34,7 +34,7 @@ def connection_power(
     connection_outputs: Mapping[ModelOutputName, ModelOutputValue] | None,
     period_count: int,
 ) -> OutputData:
-    """Return a connection's power output, or zeros when the connection is absent.
+    """Return a connection's power at its measured point, or zeros when the connection is absent.
 
     Policy compilation drops connections that no tagged source can reach. Adapters
     still run for the configured element, so a pruned connection is treated as

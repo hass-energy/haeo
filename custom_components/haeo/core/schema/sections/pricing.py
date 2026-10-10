@@ -1,6 +1,6 @@
 """Section types for pricing configuration."""
 
-from typing import Any, Final, TypedDict
+from typing import Final, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -22,5 +22,5 @@ class PricingConfig(TypedDict, total=False):
 class PricingData(TypedDict, total=False):
     """Loaded directional pricing values."""
 
-    price_source_target: NDArray[np.floating[Any]] | float
-    price_target_source: NDArray[np.floating[Any]] | float
+    price_source_target: NDArray[np.float64] | float
+    price_target_source: NDArray[np.float64] | float

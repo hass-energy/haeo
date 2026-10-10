@@ -10,24 +10,29 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
+from custom_components.haeo.core.schema.surfaced_policy import (
+    find_surfaced_rule,
+    get_surfaced_price_hints,
+    resolve_surfaced_endpoints,
+)
+from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import (
     get_input_fields,
     get_list_input_fields,
     get_surfaced_input_fields,
-    get_surfaced_price_hints,
     is_element_config_schema,
     iter_input_field_paths,
 )
+from custom_components.haeo.elements.input_fields import is_number_field_info, localize_input_field
 from custom_components.haeo.entities.device import get_or_create_element_device
 from custom_components.haeo.entities.haeo_number import HaeoInputNumber
-from custom_components.haeo.flows.surfaced_policy import (
-    find_policy_subentry,
-    find_surfaced_rule,
-    resolve_surfaced_endpoints,
-)
+from custom_components.haeo.flows.surfaced_policy import find_policy_subentry
 from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
+
+# Number entities are backed by InputStore state, not by external I/O, so unlimited parallel updates is safe
+PARALLEL_UPDATES = 0
 
 
 def _build_surfaced_mirror_entities(
@@ -37,6 +42,7 @@ def _build_surfaced_mirror_entities(
     device_entry: DeviceEntry,
     runtime_data: HaeoRuntimeData,
     horizon_manager: HorizonManager,
+    currency: str,
 ) -> list[HaeoInputNumber]:
     """Build mirror entities for an element's surfaced policy prices.
 
@@ -44,6 +50,7 @@ def _build_surfaced_mirror_entities(
     single policy subentry, so they already appear as entities on the policy
     device. This creates additional entities on the element's own device that
     wrap the same store, so editing either updates the one stored value.
+    Monetary units are shown in ``currency``.
     """
     surfaced_hints = get_surfaced_price_hints(element_type)
     if not surfaced_hints:
@@ -59,7 +66,7 @@ def _build_surfaced_mirror_entities(
     entities: list[HaeoInputNumber] = []
     for field_name, hint in surfaced_hints.items():
         field_info = surfaced_fields.get(field_name)
-        if field_info is None:
+        if field_info is None or not is_number_field_info(field_info):
             continue
 
         source, target = resolve_surfaced_endpoints(hint, subentry.title)
@@ -76,7 +83,7 @@ def _build_surfaced_mirror_entities(
             HaeoInputNumber(
                 config_entry=config_entry,
                 subentry=subentry,
-                field_info=field_info,
+                field_info=localize_input_field(field_info, currency),
                 field_path=(field_name,),
                 device_entry=device_entry,
                 horizon_manager=horizon_manager,
@@ -105,6 +112,7 @@ async def async_setup_entry(
 
     runtime_data = config_entry.runtime_data
     horizon_manager = runtime_data.horizon_manager
+    currency = currency_symbol(hass.config.currency)
 
     entities: list[HaeoInputNumber] = []
 
@@ -128,7 +136,7 @@ async def async_setup_entry(
         number_fields = [
             (field_path, field_info)
             for field_path, field_info in iter_input_field_paths(all_fields)
-            if type(field_info.entity_description).__name__ == "NumberEntityDescription"
+            if is_number_field_info(field_info)
         ]
 
         surfaced_hints = get_surfaced_price_hints(element_type)
@@ -149,7 +157,7 @@ async def async_setup_entry(
             entity = HaeoInputNumber(
                 config_entry=config_entry,
                 subentry=subentry,
-                field_info=field_info,
+                field_info=localize_input_field(field_info, currency),
                 field_path=field_path,
                 device_entry=device_entry,
                 horizon_manager=horizon_manager,
@@ -165,6 +173,7 @@ async def async_setup_entry(
                 device_entry,
                 runtime_data,
                 horizon_manager,
+                currency,
             )
         )
 

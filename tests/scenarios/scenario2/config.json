@@ -1,5 +1,4 @@
 {
-  "horizon_preset": "3_days",
   "minor_version": 3,
   "tier_1_count": 5,
   "tier_1_duration": 1,
@@ -121,6 +120,6 @@
       },
       "pricing": {}
     },
-    "Switchboard": { "name": "Switchboard", "element_type": "node", "role": { "is_sink": false, "is_source": false } }
+    "Switchboard": { "name": "Switchboard", "element_type": "junction" }
   }
 }

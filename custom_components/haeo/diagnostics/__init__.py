@@ -1,7 +1,5 @@
 """Diagnostics support for HAEO integration."""
 
-from typing import Any
-
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo import HaeoConfigEntry
@@ -14,7 +12,7 @@ from .state_provider import CurrentStateProvider, StateProvider
 async def async_get_config_entry_diagnostics(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """Return diagnostics for a HAEO config entry.
 
     This is the Home Assistant entry point for diagnostics (current, not historical).

@@ -118,7 +118,7 @@ Focus on actionable problems users are likely to encounter.
 
 **Solution**: Clear steps to resolve the issue
 
-## Next Steps
+## Next steps
 
 !!! note "Template Instructions"
 

@@ -1,7 +1,7 @@
 """Tests for load element config flow."""
 
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any, cast
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -26,7 +26,7 @@ from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.flows.conftest import create_flow
 
 
-def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_input(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat load input values into sectioned config."""
     return {
         CONF_NAME: flat[CONF_NAME],
@@ -38,12 +38,14 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_config(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat load config values into sectioned config with element type."""
     if isinstance(flat.get(CONF_CONNECTION), dict):
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     config = _wrap_input(flat)
-    config[CONF_CONNECTION] = as_connection_target(config[CONF_CONNECTION])
+    connection = config[CONF_CONNECTION]
+    assert isinstance(connection, str)
+    config[CONF_CONNECTION] = as_connection_target(connection)
     config.setdefault(SECTION_CURTAILMENT, {})
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
@@ -97,7 +99,7 @@ def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
 async def test_reconfigure_defaults_handle_schema_values(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    config_values: dict[str, Any],
+    config_values: dict[str, object],
     expected_forecast: object,
     add_node: bool,
 ) -> None:
@@ -134,7 +136,7 @@ async def test_reconfigure_defaults_handle_schema_values(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
+    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
     defaults = flow._build_defaults("Test Load", input_fields, dict(existing_subentry.data))
     assert defaults.get(SECTION_FORECAST, {}).get(CONF_FORECAST) == expected_forecast
 

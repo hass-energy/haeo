@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from typing import TypedDict
+from zoneinfo import ZoneInfo
 
 from freezegun import freeze_time
 import pytest
@@ -9,11 +10,9 @@ import pytest
 from custom_components.haeo.core.data.forecast_times import (
     calculate_aligned_tier_counts,
     calculate_total_steps,
-    extract_haeo_forecast_timestamps_from_attributes,
     generate_forecast_timestamps,
     generate_forecast_timestamps_from_config,
     minutes_to_next_boundary,
-    periods_seconds_from_boundaries,
     tiers_to_periods_seconds,
 )
 
@@ -315,27 +314,6 @@ def test_alignment_no_extra_steps() -> None:
     assert tier_counts[3] == total_steps - (tier_counts[0] + tier_counts[1] + tier_counts[2])
 
 
-def test_periods_seconds_from_boundaries() -> None:
-    """Derive period durations from boundary timestamps."""
-    timestamps = (0.0, 60.0, 360.0)
-    assert periods_seconds_from_boundaries(timestamps) == [60, 300]
-
-
-def test_extract_haeo_forecast_timestamps_from_attributes() -> None:
-    """Extract sorted timestamps from HAEO forecast attributes."""
-    attributes = {
-        "forecast": [
-            {"time": "2025-10-06T01:00:00+00:00", "value": 1.0},
-            {"time": "2025-10-06T00:00:00+00:00", "value": 2.0},
-            {"time": "2025-10-06T00:30:00+00:00", "value": 3.0},
-        ],
-        "unit_of_measurement": "kW",
-    }
-    timestamps = extract_haeo_forecast_timestamps_from_attributes("sensor.test", attributes)
-    assert len(timestamps) == 3
-    assert timestamps == tuple(sorted(timestamps))
-
-
 def test_tiers_to_periods_with_custom() -> None:
     """Test that tiers_to_periods_seconds uses fixed counts for custom preset."""
     config = {
@@ -421,6 +399,55 @@ PRESET_HORIZON_MINUTES = {
     "5_days": 5 * 24 * 60,
     "7_days": 7 * 24 * 60,
 }
+
+
+ADELAIDE = ZoneInfo("Australia/Adelaide")
+PRESET_CONFIG_5_DAYS = {
+    "horizon_preset": "5_days",
+    "tier_1_duration": 1,
+    "tier_2_duration": 5,
+    "tier_3_duration": 30,
+    "tier_4_duration": 60,
+}
+
+
+def _t4_boundary_local_minutes(
+    periods_seconds: list[int],
+    start_ts: float,
+    tz: ZoneInfo,
+) -> list[int]:
+    """Return local minutes-of-hour for each end-of-period T4 (3600s) boundary."""
+    timestamps = generate_forecast_timestamps(periods_seconds, start_ts)
+    minutes: list[int] = []
+    for index, period in enumerate(periods_seconds):
+        if period == 3600:
+            local_dt = datetime.fromtimestamp(timestamps[index + 1], tz=tz)
+            minutes.append(local_dt.minute)
+    return minutes
+
+
+def test_adelaide_utc_start_time_misaligns_t4_to_half_hour() -> None:
+    """UTC start_time at Adelaide noon aligns T4 to :30 local (issue #457 bug)."""
+    local_noon = datetime(2025, 6, 2, 12, 0, 0, tzinfo=ADELAIDE)
+    utc_start = local_noon.astimezone(UTC)
+
+    periods = tiers_to_periods_seconds(PRESET_CONFIG_5_DAYS, start_time=utc_start)
+    t4_minutes = _t4_boundary_local_minutes(periods, utc_start.timestamp(), ADELAIDE)
+
+    assert t4_minutes, "expected at least one T4 boundary"
+    assert t4_minutes[0] == 30, "UTC alignment should place first T4 boundary at :30 local"
+
+
+def test_adelaide_local_start_time_aligns_t4_to_hour() -> None:
+    """Local start_time at Adelaide noon aligns T4 to :00 local."""
+    local_noon = datetime(2025, 6, 2, 12, 0, 0, tzinfo=ADELAIDE)
+
+    periods = tiers_to_periods_seconds(PRESET_CONFIG_5_DAYS, start_time=local_noon)
+    t4_minutes = _t4_boundary_local_minutes(periods, local_noon.timestamp(), ADELAIDE)
+
+    assert t4_minutes, "expected at least one T4 boundary"
+    assert t4_minutes[0] == 0, "local alignment should place first T4 boundary at :00 local"
+    assert all(minute == 0 for minute in t4_minutes), "all T4 boundaries should fall on local hour"
 
 
 @pytest.mark.parametrize("preset", ["2_days", "3_days", "5_days", "7_days"])

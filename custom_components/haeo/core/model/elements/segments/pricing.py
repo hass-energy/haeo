@@ -1,9 +1,16 @@
 """Pricing segment — adds transfer cost proportional to power flow."""
 
-from typing import Any, Literal, NotRequired
+from typing import (
+    Any,  # noqa: TID251  # source_element/target_element are the connection's endpoint elements,
+    # which can be any concrete NetworkElement subtype. Element is invariant in its output-name
+    # Literal (see element.py's outputs()), so no non-Any type expresses "an Element of some
+    # unknown output-name type" here; segments only use these via hasattr/isinstance duck typing.
+    Literal,
+    NotRequired,
+)
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
+from highspy.highs import highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
@@ -12,7 +19,14 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.reactive import TrackedParam, cost
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
-from .segment import Segment
+from .segment import FlowProvider, Segment
+
+
+class TagPriceSpec(TypedDict):
+    """Per-tag price override entry for PricingSegment.tag_prices."""
+
+    tag: int
+    price: NotRequired[NDArray[np.float64] | float | None]
 
 
 class PricingSegmentSpec(TypedDict):
@@ -23,11 +37,11 @@ class PricingSegmentSpec(TypedDict):
     """
 
     segment_type: Literal["pricing"]
-    price: NotRequired[NDArray[np.floating[Any]] | float | None]
+    price: NotRequired[NDArray[np.float64] | float | None]
     # Directional aliases — resolved by Connection, not used by segment directly
-    price_source_target: NotRequired[NDArray[np.floating[Any]] | float | None]
-    price_target_source: NotRequired[NDArray[np.floating[Any]] | float | None]
-    tag_prices: NotRequired[list[dict[str, Any]]]
+    price_source_target: NotRequired[NDArray[np.float64] | float | None]
+    price_target_source: NotRequired[NDArray[np.float64] | float | None]
+    tag_prices: NotRequired[list[TagPriceSpec]]
 
 
 class PricingSegment(Segment):
@@ -39,13 +53,13 @@ class PricingSegment(Segment):
         self,
         segment_id: str,
         n_periods: int,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         solver: Highs,
         *,
         spec: PricingSegmentSpec,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: dict[int, HighspyArray],
+        upstream: FlowProvider,
     ) -> None:
         """Initialize pricing segment."""
         super().__init__(
@@ -55,7 +69,7 @@ class PricingSegment(Segment):
             solver,
             source_element=source_element,
             target_element=target_element,
-            power_in=power_in,
+            upstream=upstream,
         )
         self.price = broadcast_to_sequence(spec.get("price"), self._n_periods)
         self._tag_prices: dict[int, NDArray[np.float64]] = {
@@ -76,14 +90,15 @@ class PricingSegment(Segment):
         """Per-tag surcharge cost."""
         if not self._tag_prices:
             return None
+        power_in = self.power_in
         costs = [
-            Highs.qsum(self._power_in[tag] * price * self.periods)
+            Highs.qsum(power_in[tag] * price * self.periods)
             for tag, price in self._tag_prices.items()
-            if tag in self._power_in
+            if tag in power_in
         ]
         if not costs:
             return None
         return Highs.qsum(costs) if len(costs) > 1 else costs[0]
 
 
-__all__ = ["PricingSegment", "PricingSegmentSpec"]
+__all__ = ["PricingSegment", "PricingSegmentSpec", "TagPriceSpec"]

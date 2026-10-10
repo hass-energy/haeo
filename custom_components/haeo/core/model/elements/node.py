@@ -1,6 +1,6 @@
 """Node entity for electrical system modeling."""
 
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
 from highspy.highs import HighspyArray
@@ -47,7 +47,7 @@ class Node(NetworkElement[NodeOutputName]):
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         solver: Highs,
         is_source: bool = True,

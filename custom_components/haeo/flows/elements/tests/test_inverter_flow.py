@@ -1,7 +1,7 @@
 """Tests for inverter element config flow."""
 
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any, cast
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -32,7 +32,7 @@ CONF_MAX_POWER_AC_TO_DC = CONF_MAX_POWER_TARGET_SOURCE
 SECTION_LIMITS = SECTION_POWER_LIMITS
 
 
-def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_input(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat inverter input values into sectioned config."""
     if SECTION_LIMITS in flat:
         return dict(flat)
@@ -48,13 +48,14 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_config(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat inverter config values into sectioned config with element type."""
     if SECTION_LIMITS in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
     config = _wrap_input(flat)
-    if CONF_CONNECTION in config and isinstance(config[CONF_CONNECTION], str):
-        config[CONF_CONNECTION] = as_connection_target(config[CONF_CONNECTION])
+    connection = config.get(CONF_CONNECTION)
+    if isinstance(connection, str):
+        config[CONF_CONNECTION] = as_connection_target(connection)
     return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **config}
 
 
@@ -122,7 +123,7 @@ def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
 async def test_reconfigure_defaults_handle_schema_values(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    config_values: dict[str, Any],
+    config_values: dict[str, object],
     expected_defaults: dict[str, object],
     add_node: bool,
 ) -> None:
@@ -159,7 +160,7 @@ async def test_reconfigure_defaults_handle_schema_values(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    input_fields = get_input_fields(cast("Any", {CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
+    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
     defaults = flow._build_defaults("Test Inverter", input_fields, dict(existing_subentry.data))
     assert defaults[SECTION_LIMITS][CONF_MAX_POWER_DC_TO_AC] == expected_defaults[CONF_MAX_POWER_DC_TO_AC]
     assert defaults[SECTION_LIMITS][CONF_MAX_POWER_AC_TO_DC] == expected_defaults[CONF_MAX_POWER_AC_TO_DC]

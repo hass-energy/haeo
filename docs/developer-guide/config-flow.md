@@ -87,7 +87,7 @@ Optimization settings are stored in `data` under section keys, not in `options`.
 
 Optimization settings are stored in `data` (user-editable), alongside the hub marker.
 The hub flow implementation is in `custom_components/haeo/flows/hub.py`.
-The form uses sectioned schemas (`common`, `advanced`) with a planning horizon ChooseSelector (preset or forecast entity).
+The form uses sectioned schemas (`common`, `advanced`) and an optional `custom_tiers` step when users select a custom planning horizon.
 
 ### Key implementation points
 
@@ -174,9 +174,13 @@ The `ConnectivityLevel` enum has three values:
 - **`ADVANCED`**: Only shown when Advanced Mode is enabled
 - **`NEVER`**: Never shown in connection selectors
 
-This filtering ensures connection endpoints are appropriate for the user's configuration level.
-It prevents invalid connection topologies by excluding elements that shouldn't be connection endpoints.
-See [`custom_components/haeo/elements/__init__.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/elements/__init__.py) for the connectivity level assigned to each element type.
+An element is an endpoint only if a connection to it goes through the same constraints as any other power flow.
+Plain balance points are endpoints.
+An element that applies its own prices, forecasts, limits, or efficiencies on its own connection is `NEVER`, because a connection made directly to it would bypass them.
+Each adapter in `core/adapters/elements/` declares its level in its `connectivity` attribute.
+
+Existing configurations that already connect to a `NEVER` element are reported through the `invalid_connection_endpoints` repair issue.
+`find_invalid_connection_endpoints()` in `validation.py` reads endpoints from the model connections each adapter produces, so it checks every element type the same way.
 
 ### Element-specific implementations
 
@@ -187,6 +191,7 @@ Each element type has its own flow class in `custom_components/haeo/flows/elemen
 - `ConnectionSubentryFlowHandler` - Connection configuration
 - `GridSubentryFlowHandler` - Grid configuration
 - `InverterSubentryFlowHandler` - Inverter configuration
+- `JunctionSubentryFlowHandler` - Junction configuration
 - `LoadSubentryFlowHandler` - Load configuration
 - `NodeSubentryFlowHandler` - Network node configuration
 - `SolarSubentryFlowHandler` - Solar system configuration
@@ -335,7 +340,7 @@ The composable metadata types are:
 
 ### Available Field Types
 
-Field types are defined in `custom_components/haeo/core/schema/fields.py`:
+Field types are defined in `custom_components/haeo/core/schema/field_schema.py`:
 
 | Validator Class | Purpose                       | Base Type |
 | --------------- | ----------------------------- | --------- |

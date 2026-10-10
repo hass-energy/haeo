@@ -3,10 +3,6 @@
 Loads represent power consumption in your system.
 The Load element uses forecast data to model any type of consumption pattern from fixed baseline loads to variable time-varying consumption.
 
-!!! note "Connection endpoints"
-
-    Load elements appear in connection selectors only when Advanced Mode is enabled on your hub.
-
 ## Configuration
 
 | Field                     | Type                                     | Required | Default | Description                                                                 |
@@ -14,6 +10,8 @@ The Load element uses forecast data to model any type of consumption pattern fro
 | **[Name](#name)**         | String                                   | Yes      | -       | Unique identifier for this load                                             |
 | **[Forecast](#forecast)** | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Power consumption forecast sensor(s) (kW)                                   |
 | **[Shedding](#shedding)** | Boolean                                  | No       | false   | Allow the optimizer to reduce load below the forecast when it is uneconomic |
+
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 ## Name
 
@@ -328,7 +326,7 @@ If optimization fails with loads:
 - Only include loads that represent required consumption in the Load element.
     For controllable/deferrable loads today, schedule them externally (for example EMHASS) and drive this element from forecast sensors, or wait for planned native deferrable support in HAEO.
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

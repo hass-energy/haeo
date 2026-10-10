@@ -6,8 +6,7 @@ It handles schema value dispatch (none/constant/entity), sensor loading,
 forecast fusion, and unit conversion -- all without HA dependencies.
 """
 
-from collections.abc import Mapping, Sequence
-from typing import Any
+from collections.abc import Collection, Mapping, Sequence
 
 import numpy as np
 
@@ -15,6 +14,7 @@ from custom_components.haeo.core.adapters.registry import is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
+from custom_components.haeo.core.data.util.input_values import enforce_non_negative
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import SchemaValue
 from custom_components.haeo.core.schema.constant_value import is_constant_value
@@ -27,11 +27,23 @@ from custom_components.haeo.core.schema.field_hints import (
     extract_list_field_hints,
 )
 from custom_components.haeo.core.schema.none_value import is_none_value
+from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 from custom_components.haeo.core.state import StateMachine
 
 from .sensor_loader import load_sensors
 
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
+
+# Physical quantities that cannot be negative. Prices can, and switches have no sign.
+_NON_NEGATIVE_OUTPUT_TYPES = frozenset(
+    {
+        OutputType.POWER,
+        OutputType.POWER_LIMIT,
+        OutputType.ENERGY,
+        OutputType.STATE_OF_CHARGE,
+        OutputType.EFFICIENCY,
+    }
+)
 
 
 def load_element_config(
@@ -39,6 +51,8 @@ def load_element_config(
     element_config: ElementConfigSchema,
     sm: StateMachine,
     forecast_times: Sequence[float],
+    *,
+    negated_paths: Collection[tuple[str, ...]] = frozenset(),
 ) -> ElementConfigData:
     """Load a single element's config by resolving values against a state machine.
 
@@ -53,6 +67,8 @@ def load_element_config(
         element_config: Raw element config dict (sectioned format)
         sm: State machine providing entity states
         forecast_times: Boundary timestamps (n+1 values defining n intervals)
+        negated_paths: Field paths whose entity-driven values are negated, as
+            returned by ``negated_price_paths`` for this element
 
     Returns:
         Loaded configuration with resolved time series and scalar values.
@@ -68,7 +84,7 @@ def load_element_config(
 
     field_hints = extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
 
-    loaded: dict[str, Any] = {
+    loaded: dict[str, object] = {
         key: dict(value) if isinstance(value, Mapping) else value for key, value in element_config.items()
     }
     loaded[CONF_NAME] = element_name
@@ -82,21 +98,23 @@ def load_element_config(
             value = section_config.get(field_name)
             if value is None:
                 if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                    loaded.setdefault(section_name, {})[field_name] = default
+                    _section_dict(loaded, section_name)[field_name] = default
                 continue
 
-            resolved = resolve_field(value, hint, sm, forecast_times)
+            resolved = resolve_field(
+                value, hint, sm, forecast_times, negate=(section_name, field_name) in negated_paths
+            )
             if resolved is _REMOVE:
                 if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                    loaded.setdefault(section_name, {})[field_name] = default
+                    _section_dict(loaded, section_name)[field_name] = default
                 else:
                     loaded_section = loaded.get(section_name)
                     if isinstance(loaded_section, dict):
                         loaded_section.pop(field_name, None)
             elif resolved is None and (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                loaded.setdefault(section_name, {})[field_name] = default
+                _section_dict(loaded, section_name)[field_name] = default
             else:
-                loaded.setdefault(section_name, {})[field_name] = resolved
+                _section_dict(loaded, section_name)[field_name] = resolved
 
     # Resolve list-based input fields (e.g. policy rules with entity prices)
     list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
@@ -104,7 +122,7 @@ def load_element_config(
         items = element_config.get(list_key)
         if not isinstance(items, (list, tuple)):
             continue
-        loaded_items = _resolve_list_items(items, hints, sm, forecast_times)
+        loaded_items = _resolve_list_items(list_key, items, hints, sm, forecast_times, negated_paths)
         loaded[list_key] = loaded_items
 
     return loaded  # type: ignore[return-value]
@@ -117,6 +135,9 @@ def load_element_configs(
 ) -> dict[str, ElementConfigData]:
     """Load all element configs by resolving values against a state machine.
 
+    Entity-driven policy prices that surface a negated element price are
+    negated, matching the input stores used at runtime.
+
     Args:
         participants: Map of element name to raw config dict
         sm: State machine providing entity states
@@ -126,13 +147,17 @@ def load_element_configs(
         Map of element name to loaded configuration.
 
     """
-    return {name: load_element_config(name, config, sm, forecast_times) for name, config in participants.items()}
+    negated = negated_price_paths(participants)
+    return {
+        name: load_element_config(name, config, sm, forecast_times, negated_paths=negated.get(name, frozenset()))
+        for name, config in participants.items()
+    }
 
 
 def load_element_config_from_values(
     element_name: str,
     element_config: ElementConfigSchema,
-    field_values: Mapping[tuple[str, ...], Any],
+    field_values: Mapping[tuple[str, ...], bool | float | np.ndarray | None],
     forecast_times: Sequence[float],
 ) -> ElementConfigData:
     """Assemble an element's loaded config from pre-resolved input field values.
@@ -164,7 +189,7 @@ def load_element_config_from_values(
 
     field_hints = extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
 
-    loaded: dict[str, Any] = {
+    loaded: dict[str, object] = {
         key: dict(value) if isinstance(value, Mapping) else value for key, value in element_config.items()
     }
     loaded[CONF_NAME] = element_name
@@ -177,14 +202,14 @@ def load_element_config_from_values(
             if path in field_values:
                 resolved = field_values[path]
                 if resolved is None and default is not _REMOVE:
-                    loaded.setdefault(section_name, {})[field_name] = default
+                    _section_dict(loaded, section_name)[field_name] = default
                 else:
-                    loaded.setdefault(section_name, {})[field_name] = resolved
+                    _section_dict(loaded, section_name)[field_name] = resolved
                 continue
 
             # No store for this field: disabled/none or absent in config.
             if default is not _REMOVE:
-                loaded.setdefault(section_name, {})[field_name] = default
+                _section_dict(loaded, section_name)[field_name] = default
             else:
                 loaded_section = loaded.get(section_name)
                 if isinstance(loaded_section, dict):
@@ -195,7 +220,7 @@ def load_element_config_from_values(
         items = element_config.get(list_key)
         if not isinstance(items, (list, tuple)):
             continue
-        loaded_items: list[Any] = []
+        loaded_items: list[object] = []
         for index, item in enumerate(items):
             if not isinstance(item, Mapping):
                 loaded_items.append(item)
@@ -220,6 +245,20 @@ class _Sentinel:
 _REMOVE = _Sentinel()
 
 
+def _section_dict(loaded: dict[str, object], section_name: str) -> dict[str, object]:
+    """Return the mutable dict for a config section, creating an empty one if absent.
+
+    Sections already present in ``loaded`` are always dicts by construction --
+    mappings in the raw config are copied via ``dict()`` before this is called --
+    so the isinstance check only guards the first-write path for a new section.
+    """
+    section = loaded.setdefault(section_name, {})
+    if not isinstance(section, dict):
+        section = {}
+        loaded[section_name] = section
+    return section
+
+
 def _default_for_hint(hint: FieldHint, forecast_times: Sequence[float]) -> _Sentinel | float | np.ndarray:
     """Return a type-driven default value for optional fields."""
     if hint.output_type is not OutputType.EFFICIENCY:
@@ -232,11 +271,16 @@ def resolve_field(
     hint: FieldHint,
     sm: StateMachine,
     forecast_times: Sequence[float],
+    *,
+    negate: bool = False,
 ) -> _Sentinel | bool | float | np.ndarray | None:
     """Resolve a single field value based on its schema type and hint metadata.
 
     Shared by the config loader (whole-element resolution) and ``InputStore``
     (single-field resolution) so both paths produce identical values.
+
+    When ``negate`` is True, values resolved from entities are negated.
+    Constant values are already stored negated, so they pass through unchanged.
     """
     if is_none_value(value):
         return _REMOVE
@@ -262,12 +306,24 @@ def resolve_field(
     if not unwrapped:
         return None
 
-    return _resolve_entities(unwrapped, hint, sm, forecast_times, is_percent=is_percent)
+    resolved = _resolve_entities(unwrapped, hint, sm, forecast_times, is_percent=is_percent)
+    if negate and resolved is not None:
+        return -resolved
+    return resolved
 
 
 def is_percent_field(hint: FieldHint) -> bool:
     """Return True when a field's values are stored as percentages."""
     return hint.output_type in _PERCENT_OUTPUT_TYPES
+
+
+def _is_non_negative_field(hint: FieldHint) -> bool:
+    """Return True when a field's output type is a quantity that cannot be negative.
+
+    Deciding by output type means runtime input stores and offline loading
+    (diagnostics, simulation, scenarios) treat the same values the same way.
+    """
+    return hint.output_type in _NON_NEGATIVE_OUTPUT_TYPES
 
 
 def resolve_constant(
@@ -319,35 +375,37 @@ def _resolve_entities(
     present_value, forecast_series = combine_sensor_payloads(payloads)
 
     if not hint.time_series:
-        scalar = present_value if present_value is not None else 0.0
-        if is_percent:
-            scalar /= 100.0
-        return scalar
-
-    if hint.boundaries:
-        values = fuse_to_boundaries(present_value, forecast_series, list(forecast_times))
+        raw = [present_value if present_value is not None else 0.0]
+    elif hint.boundaries:
+        raw = fuse_to_boundaries(present_value, forecast_series, list(forecast_times))
     else:
-        values = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
+        raw = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
+
+    values = np.array(raw, dtype=np.float64)
+    if _is_non_negative_field(hint):
+        values = enforce_non_negative(values)
 
     if is_percent:
-        values = [v / 100.0 for v in values]
+        values = values / 100.0
 
-    return np.array(values)
+    return values if hint.time_series else float(values[0])
 
 
 def _resolve_list_items(
-    items: Sequence[Any],
+    list_key: str,
+    items: Sequence[object],
     hints: ListFieldHints,
     sm: StateMachine,
     forecast_times: Sequence[float],
-) -> list[Any]:
+    negated_paths: Collection[tuple[str, ...]],
+) -> list[object]:
     """Resolve hinted fields within each item of a list config field.
 
     Non-mapping items are passed through unchanged, so the return type is
-    ``list[Any]`` rather than ``list[dict[str, Any]]``.
+    ``list[object]`` rather than ``list[dict[str, object]]``.
     """
-    loaded_items: list[Any] = []
-    for item in items:
+    loaded_items: list[object] = []
+    for index, item in enumerate(items):
         if not isinstance(item, Mapping):
             loaded_items.append(item)
             continue
@@ -356,7 +414,8 @@ def _resolve_list_items(
             value = item.get(field_name)
             if value is None:
                 continue
-            resolved = resolve_field(value, hint, sm, forecast_times)
+            negate = (list_key, str(index), field_name) in negated_paths
+            resolved = resolve_field(value, hint, sm, forecast_times, negate=negate)
             if isinstance(resolved, _Sentinel):
                 loaded_item.pop(field_name, None)
             elif resolved is not None:

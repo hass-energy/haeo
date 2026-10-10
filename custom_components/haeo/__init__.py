@@ -9,6 +9,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
+from homeassistant.components.frontend import DOMAIN as FRONTEND_DOMAIN
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
@@ -18,6 +19,7 @@ from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.setup import async_when_setup
 
 from custom_components.haeo.const import (
     DOMAIN,
@@ -33,7 +35,8 @@ from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.input_stores import InputStoreMap, build_input_stores
+from custom_components.haeo.input_stores import InputStoreMap, build_input_stores, input_error_placeholders
+from custom_components.haeo.repairs import dismiss_entry_issues
 from custom_components.haeo.services import async_setup_services
 
 from . import migrations as _migrations
@@ -98,8 +101,16 @@ async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None
     await http.async_register_static_paths(
         [StaticPathConfig(STATIC_CARD_STATIC_PATH, str(static_dir), cache_headers=False)]
     )
-    for url_path in available_bundles:
-        add_extra_js_url(hass, url_path)
+
+    async def _register_card_urls(hass: HomeAssistant, _component: str) -> None:
+        """Register each available card bundle as a Lovelace resource."""
+        for url_path in available_bundles:
+            add_extra_js_url(hass, url_path)
+
+    # add_extra_js_url writes to a registry the frontend component only creates during its
+    # own setup, so calling it here would race with startup ordering. Defer registration
+    # until frontend is up; the callback runs immediately when it already is.
+    async_when_setup(hass, FRONTEND_DOMAIN, _register_card_urls)
 
 
 @dataclass(slots=True)
@@ -112,6 +123,7 @@ class HaeoRuntimeData:
         auto_optimize_switch: Switch controlling automatic optimization.
         coordinator: Coordinator for network-level optimization (set after input platforms).
         value_update_in_progress: Flag to skip reload when updating entity values.
+        reload_pending: Flag to coalesce deferred reloads during an element config flow.
 
     """
 
@@ -120,6 +132,7 @@ class HaeoRuntimeData:
     auto_optimize_switch: AutoOptimizeSwitch | None = field(default=None)
     coordinator: HaeoDataUpdateCoordinator | None = field(default=None)
     value_update_in_progress: bool = field(default=False)
+    reload_pending: bool = field(default=False)
 
 
 type HaeoConfigEntry = ConfigEntry[HaeoRuntimeData | None]
@@ -133,22 +146,17 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     """
     # Avoid circular import with schema module
     from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
-    from custom_components.haeo.core.schema.elements.node import (  # noqa: PLC0415
-        CONF_IS_SINK,
-        CONF_IS_SOURCE,
-        SECTION_ROLE,
-    )
 
     # Check if Network subentry already exists
     has_network = False
-    has_node = False
+    has_switchboard = False
 
     for subentry in hub_entry.subentries.values():
         if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
             has_network = True
-        elif subentry.subentry_type == ElementType.NODE:
-            has_node = True
-        if has_network and has_node:
+        elif subentry.subentry_type in (ElementType.JUNCTION, ElementType.NODE):
+            has_switchboard = True
+        if has_network and has_switchboard:
             break
 
     # Load translations for subentry names
@@ -167,29 +175,25 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
         hass.config_entries.async_add_subentry(hub_entry, network_subentry)
         _LOGGER.debug("Network subentry created successfully")
 
-    # In non-advanced mode, ensure switchboard node exists
+    # In non-advanced mode, ensure the switchboard junction exists
     advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
-    if not advanced_mode and not has_node:
-        _LOGGER.info("Creating Switchboard node for hub %s (non-advanced mode)", hub_entry.entry_id)
+    if not advanced_mode and not has_switchboard:
+        _LOGGER.info("Creating Switchboard junction for hub %s (non-advanced mode)", hub_entry.entry_id)
         switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
 
         switchboard_subentry = ConfigSubentry(
             data=MappingProxyType(
                 {
-                    CONF_ELEMENT_TYPE: ElementType.NODE,
+                    CONF_ELEMENT_TYPE: ElementType.JUNCTION,
                     CONF_NAME: switchboard_name,
-                    SECTION_ROLE: {
-                        CONF_IS_SOURCE: False,
-                        CONF_IS_SINK: False,
-                    },
                 }
             ),
-            subentry_type=ElementType.NODE,
+            subentry_type=ElementType.JUNCTION,
             title=switchboard_name,
             unique_id=None,
         )
         hass.config_entries.async_add_subentry(hub_entry, switchboard_subentry)
-        _LOGGER.debug("Switchboard node created successfully")
+        _LOGGER.debug("Switchboard junction created successfully")
 
 
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
@@ -219,11 +223,41 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     # writes the element's surfaced policy rules before that. Skip cleanup while
     # a subentry flow for this entry is active so those rules are not mistaken
     # for orphans; element deletions do not run a flow, so they still clean up.
-    if not _element_flow_in_progress(hass, entry):
+    flow_in_progress = _element_flow_in_progress(hass, entry)
+    if not flow_in_progress:
         _cleanup_policy_rules(hass, entry)
 
     _LOGGER.info("HAEO configuration changed, reloading integration")
-    hass.config_entries.async_schedule_reload(entry.entry_id)
+
+    if not flow_in_progress:
+        hass.config_entries.async_schedule_reload(entry.entry_id)
+        return
+
+    # A subentry flow may still be committing further subentries in the same
+    # synchronous step: the battery flow writes its surfaced policy rules before
+    # creating its own subentry. Home Assistant fires update listeners and runs
+    # reloads eagerly, so scheduling the reload now runs the unload phase
+    # synchronously from within this change callback, which removes this update
+    # listener before the later subentry commit fires it; that commit then never
+    # schedules a reload and the new element is left without a device or
+    # entities. Defer to the next event loop iteration so every commit in this
+    # step lands first, and coalesce the deferred reloads so the flow rebuilds
+    # the entry exactly once with all subentries present.
+    if runtime_data is None:
+        hass.loop.call_soon(hass.config_entries.async_schedule_reload, entry.entry_id)
+        return
+
+    if runtime_data.reload_pending:
+        return
+    runtime_data.reload_pending = True
+
+    def _deferred_reload() -> None:
+        # Clear the coalescing flag before scheduling so it cannot stick across
+        # synchronous steps; the reload recreates runtime_data regardless.
+        runtime_data.reload_pending = False
+        hass.config_entries.async_schedule_reload(entry.entry_id)
+
+    hass.loop.call_soon(_deferred_reload)
 
 
 def _element_flow_in_progress(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -299,6 +333,17 @@ def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
         _save_policy_rules(hass, entry, cleaned)
 
 
+def _raise_for_rejected_inputs(input_stores: InputStoreMap) -> None:
+    """Raise ConfigEntryNotReady with the reason if any input store rejected its source's value."""
+    for key, store in input_stores.items():
+        if (error := store.error) is not None:
+            raise ConfigEntryNotReady(
+                translation_domain=DOMAIN,
+                translation_key=error.translation_key,
+                translation_placeholders=input_error_placeholders(key, error, store),
+            )
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool:
     """Set up Home Assistant Energy Optimizer from a config entry.
 
@@ -364,22 +409,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
         lambda: hass.config_entries.async_unload_platforms(entry, INPUT_PLATFORMS)  # type: ignore[arg-type]
     )
 
-    # Wait for all input stores to have their data ready
-    # Each store signals via asyncio.Event when its data is loaded
+    # Wait for every input store to have data or to reject its source's value,
+    # so a rejected value is reported at once rather than after the timeout
     _LOGGER.debug("Waiting for %d input stores to be ready", len(runtime_data.input_stores))
     try:
         async with asyncio.timeout(INPUT_ENTITY_READY_TIMEOUT):
-            await asyncio.gather(*[store.wait_ready() for store in runtime_data.input_stores.values()])
+            await asyncio.gather(*[store.wait_settled() for store in runtime_data.input_stores.values()])
     except TimeoutError:
-        not_ready = [key for key, store in runtime_data.input_stores.items() if not store.is_ready()]
+        _raise_for_rejected_inputs(runtime_data.input_stores)
+        not_ready = {key: store for key, store in runtime_data.input_stores.items() if not store.is_ready()}
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
             translation_key="input_entities_not_ready",
             translation_placeholders={
-                "not_ready": str(not_ready),
+                "not_ready": str(list(not_ready)),
                 "timeout": str(INPUT_ENTITY_READY_TIMEOUT),
             },
         ) from None
+    _raise_for_rejected_inputs(runtime_data.input_stores)
     _LOGGER.debug("All input entities ready")
 
     # Wrap coordinator operations to provide meaningful HA error messages
@@ -444,6 +491,11 @@ async def async_unload_entry(_hass: HomeAssistant, entry: HaeoConfigEntry) -> bo
 
     # All cleanup is handled by async_on_unload callbacks
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
+    """Dismiss the repair issues raised for a removed config entry."""
+    dismiss_entry_issues(hass, entry.entry_id)
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:

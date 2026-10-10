@@ -176,7 +176,7 @@ No. Configuration changes through the UI take effect immediately:
 
 Only changes to integration code (development) require restart.
 
-## Next Steps
+## Next steps
 
 Focus on these areas to keep data updates reliable and useful.
 

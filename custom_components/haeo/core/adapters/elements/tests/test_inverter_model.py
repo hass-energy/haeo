@@ -1,7 +1,7 @@
 """Tests for inverter element model mapping."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import numpy as np
 import pytest
@@ -15,7 +15,7 @@ from custom_components.haeo.core.adapters.elements.inverter import (
     INVERTER_POWER_ACTIVE,
     INVERTER_POWER_DC_TO_AC,
 )
-from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
+from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare, segment_order
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -36,7 +36,7 @@ class CreateCase(TypedDict):
 
     description: str
     data: InverterConfigData
-    model: list[dict[str, Any]]
+    model: list[dict[str, object]]
 
 
 class OutputsCase(TypedDict):
@@ -82,8 +82,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "inverter_main",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                     "power_limit": {"segment_type": "power_limit", "max_power": [8.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                 },
             },
         ],
@@ -121,8 +121,8 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "network",
                 "target": "inverter_simple",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                     "power_limit": {"segment_type": "power_limit", "max_power": [10.0]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": 1.0},
                 },
             },
         ],
@@ -150,7 +150,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
             },
             "inverter_main:ac_to_dc": {
                 connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="-"
+                    type=OutputType.POWER_FLOW, unit="kW", values=(3.0,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
@@ -221,6 +221,8 @@ def test_model_elements(case: CreateCase) -> None:
     entry = ELEMENT_TYPES[ElementType.INVERTER]
     result = entry.model_elements(case["data"])
     assert normalize_for_compare(result) == normalize_for_compare(case["model"])
+    # Segment order sets which end of a connection the power limit applies to
+    assert segment_order(result) == segment_order(case["model"])
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

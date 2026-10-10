@@ -1,6 +1,9 @@
 """Model element output tests covering reporting and validation helpers."""
 
-from typing import Any
+# The scenario helper drives heterogeneous element types dynamically (reads
+# per-element attributes, monkeypatches methods), which a static base type
+# cannot express.
+from typing import Any  # noqa: TID251
 
 from highspy import Highs
 from highspy.highs import HighspyArray
@@ -9,11 +12,15 @@ import pytest
 
 from custom_components.haeo.core.model.elements.node import Node
 from custom_components.haeo.core.model.tests import test_data
-from custom_components.haeo.core.model.tests.test_data.element_types import ElementTestCase, ElementTestCaseInputs
+from custom_components.haeo.core.model.tests.test_data.element_types import (
+    ElementTestCase,
+    ElementTestCaseInputs,
+    ExpectedOutput,
+)
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 
-def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) -> dict[str, dict[str, Any]]:
+def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) -> dict[str, ExpectedOutput]:
     """Set up and solve an optimization scenario for an element.
 
     Args:

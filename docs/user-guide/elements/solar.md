@@ -3,10 +3,6 @@
 Solar panels that generate electricity.
 HAEO optimizes how generated power flows through your energy network.
 
-!!! note "Connection endpoints"
-
-    Solar elements appear in connection selectors only when Advanced Mode is enabled on your hub.
-
 ## Configuration
 
 | Field                           | Type                                     | Required | Default | Description                                                     |
@@ -14,6 +10,8 @@ HAEO optimizes how generated power flows through your energy network.
 | **[Name](#name)**               | String                                   | Yes      | -       | Unique identifier for this solar system                         |
 | **[Forecast](#forecast)**       | [sensor(s)](../forecasts-and-sensors.md) | Yes      | -       | Solar generation forecast sensor(s) providing power output (kW) |
 | **[Curtailment](#curtailment)** | Boolean                                  | No       | true    | Allow optimizer to reduce generation below forecast             |
+
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 ## Name
 
@@ -178,7 +176,7 @@ It indicates whether more solar generation would be beneficial or detrimental.
 - Verify forecast covers daytime hours
 - Review HAEO logs for format detection warnings
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 

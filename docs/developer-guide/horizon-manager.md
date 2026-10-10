@@ -39,11 +39,8 @@ This ordering ensures input entities can subscribe immediately during their setu
 
 ## Horizon Computation
 
-The horizon consists of boundary timestamps that define the optimization time grid.
-In **preset** mode, timestamps are computed from tier configuration.
-In **entity** mode, timestamps are read from a configured sensor's HAEO-format `forecast` attribute (times only; values are ignored).
-
-Each preset tier specifies a period duration and count:
+The horizon consists of timestamps computed from tier configuration.
+Each tier specifies a period duration and count:
 
 | Tier | Period | Count | Coverage |
 | ---- | ------ | ----- | -------- |
@@ -51,10 +48,17 @@ Each preset tier specifies a period duration and count:
 | 2    | 30 min | 6     | 3 hours  |
 | 3    | 1 hour | 20    | 20 hours |
 
-The HorizonManager computes period start times aligned to natural boundaries (for example, 12:00, 12:01, 12:02 for 1-minute periods).
+The HorizonManager computes period start times aligned to natural boundaries in the installation wall clock (for example, 12:00, 12:01, 12:02 for 1-minute periods).
 
-The `horizon` property returns the current forecast timestamps as a tuple of datetime objects.
-Components access this to align their data loading with the optimization time grid.
+Preset horizons use the [Home Assistant configured time zone](https://www.home-assistant.io/docs/configuration/customizing/#time-zone) when aligning tier boundaries to forecast data.
+Installations with UTC offsets that include half-hour or quarter-hour components therefore keep coarser tiers on local clock hours rather than UTC hours.
+The implementation is in `custom_components/haeo/horizon.py` and `custom_components/haeo/core/data/forecast_times.py`.
+
+`HorizonManager.get_forecast_timestamps()` returns boundary timestamps as epoch seconds.
+
+Input entities and the coordinator use these values to align data loading with the optimization time grid.
+
+The diagnostic `HaeoHorizonEntity` in `custom_components/haeo/entities/haeo_horizon.py` exposes the same boundaries as timezone-aware `datetime` objects in its `forecast` attribute.
 
 ## Subscription Pattern
 
@@ -69,8 +73,7 @@ The subscription returns an unsubscribe callable that entities register for auto
 
 ## Period Boundary Scheduling
 
-In preset mode, the HorizonManager schedules updates at the start of each finest-tier period.
-In entity mode, it subscribes to the source entity's state changes instead of using boundary timers.
+The HorizonManager schedules updates at the start of each finest-tier period:
 
 ```mermaid
 sequenceDiagram

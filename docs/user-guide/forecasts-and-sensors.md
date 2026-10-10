@@ -412,6 +412,20 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 - Verify the integration is configured correctly
 - Review HAEO logs for format detection warnings
 
+### Input Cannot Be Negative
+
+**Problem**: Error message "Input ... cannot be negative, but ... supplied ..."
+
+Power, energy, state of charge, and efficiency inputs cannot be negative.
+HAEO treats a sensor or forecast value slightly below zero as zero: within 10 W for power, 10 Wh for energy, or 0.01 percentage points for state of charge and efficiency.
+A value further below zero stops optimization, and the error names the element, the input, the source sensors, and the value.
+
+**Solutions**:
+
+- Check the named sensor in Developer Tools → States, including its forecast attribute
+- Fix the sign of the source, for example with a template sensor, if the integration reports the value inverted
+- Optimization resumes automatically once the sensor reports a valid value
+
 ### Incorrect Values
 
 **Problem**: Optimized values don't match expectations
@@ -447,7 +461,7 @@ However, higher resolution forecasts improve accuracy:
 - Use reputable forecast providers with proven track records
 - Consider multiple forecast sources for critical elements
 
-## Next Steps
+## Next steps
 
 <div class="grid cards" markdown>
 
