@@ -36,6 +36,7 @@ from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import InputStoreMap, build_input_stores, input_error_placeholders
+from custom_components.haeo.repairs import dismiss_entry_issues
 from custom_components.haeo.services import async_setup_services
 
 from . import migrations as _migrations
@@ -490,6 +491,11 @@ async def async_unload_entry(_hass: HomeAssistant, entry: HaeoConfigEntry) -> bo
 
     # All cleanup is handled by async_on_unload callbacks
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:
+    """Dismiss the repair issues raised for a removed config entry."""
+    dismiss_entry_issues(hass, entry.entry_id)
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:

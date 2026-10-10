@@ -13,6 +13,7 @@ from homeassistant.const import EVENT_COMPONENT_LOADED, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.loader import async_get_integration
 from homeassistant.setup import ATTR_COMPONENT
 import pytest
@@ -24,6 +25,7 @@ from custom_components.haeo import (
     _element_flow_in_progress,
     _ensure_required_subentries,
     async_remove_config_entry_device,
+    async_remove_entry,
     async_setup,
     async_setup_entry,
     async_unload_entry,
@@ -81,6 +83,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.repairs import create_node_replaced_by_junction_issue
 
 
 @pytest.fixture
@@ -226,6 +229,17 @@ async def test_unload_hub_entry(hass: HomeAssistant, mock_hub_entry: MockConfigE
     # runtime_data should be cleared
     assert mock_hub_entry.runtime_data is None
     # Note: coordinator.cleanup is now called via async_on_unload, not directly in async_unload_entry
+
+
+async def test_remove_hub_entry_dismisses_its_repair_issues(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """Removing a hub entry dismisses the repair issues raised for it."""
+    create_node_replaced_by_junction_issue(hass, mock_hub_entry.entry_id, "Switchboard")
+
+    await async_remove_entry(hass, mock_hub_entry)
+
+    assert not ir.async_get(hass).issues
 
 
 async def test_async_setup_entry_initializes_coordinator(
