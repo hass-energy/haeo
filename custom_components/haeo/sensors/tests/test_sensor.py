@@ -826,3 +826,20 @@ async def test_outputs_not_added_while_entry_unloads(
 
     await config_entry._async_process_on_unload(hass)
     assert listeners == []
+
+
+async def test_status_sensor_keeps_previous_unique_id(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """The status sensor keeps the unique ID it had as a network output, so its entity ID is unchanged."""
+    config_entry.runtime_data = _create_mock_runtime_data(_create_mock_coordinator())
+    async_add_entities = Mock()
+
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    network = next(s for s in config_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK)
+    status_sensor = async_add_entities.call_args.args[0][1]
+    assert status_sensor.unique_id == (
+        f"{config_entry.entry_id}_{network.subentry_id}_network_network_optimization_status"
+    )

@@ -1,5 +1,6 @@
 """Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
+import asyncio
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -323,7 +324,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._debounce_timer: CALLBACK_TYPE | None = None
         self._pending_refresh: bool = False
         self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
+        self._optimization_lock = asyncio.Lock()
         self._consecutive_failures = 0
+        self._reported_error: str | None = None
         self._pending_element_updates: dict[str, ElementConfigData] = {}
 
         # No update_interval - we're event-driven from input entities
@@ -689,37 +692,48 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             return OPTIMIZATION_STATUS_FAILED
         return OPTIMIZATION_STATUS_SUCCESS if self.data else OPTIMIZATION_STATUS_PENDING
 
+    @property
+    def optimization_error(self) -> str | None:
+        """Return why the latest optimization failed, or None if it did not fail."""
+        if self.last_update_success or self.last_exception is None:
+            return None
+        return str(self.last_exception) or type(self.last_exception).__name__
+
     @callback
     def _async_refresh_finished(self) -> None:
-        """Raise a repair issue once optimizations keep failing, and dismiss it on success."""
+        """Track consecutive failed optimizations and report them.
+
+        Home Assistant only notifies listeners when a refresh changes from failing
+        to succeeding or back, so repeated failures notify them here, keeping the
+        reported error current. A repair issue is raised once optimizations keep
+        failing, again only when the error changes, and dismissed on success.
+        """
         super()._async_refresh_finished()
         if self.last_update_success:
             self._consecutive_failures = 0
+            self._reported_error = None
             dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
             return
         self._consecutive_failures += 1
-        if self._consecutive_failures >= FAILURES_BEFORE_REPAIR_ISSUE:
-            create_optimization_persistent_failure_issue(
-                self.hass, self.config_entry.entry_id, str(self.last_exception)
-            )
+        if self._consecutive_failures > 1:
+            self.async_update_listeners()
+        error = self.optimization_error
+        if self._consecutive_failures >= FAILURES_BEFORE_REPAIR_ISSUE and error != self._reported_error:
+            self._reported_error = error
+            create_optimization_persistent_failure_issue(self.hass, self.config_entry.entry_id, str(error))
 
     async def _async_update_data(self) -> CoordinatorData:
-        """Update data from input entities and run optimization."""
-        # Check if optimization is already in progress
-        # If so, skip this call - we'll use existing data or signal retry
-        if self._optimization_in_progress:
-            # Return existing data if available (may be None before first refresh).
-            # The base class sets self.data to None initially (via type: ignore) even
-            # though it's declared as CoordinatorData, so the check below is only
-            # "unnecessary" to the type checker — the base class's lie means it can
-            # genuinely be None here at runtime.
-            existing_data = self.data
-            if existing_data is not None:  # type: ignore[reportUnnecessaryComparison]
-                return existing_data
-            # First run with concurrent call - raise to signal retry later
-            msg = "Concurrent optimization during first refresh"
-            raise UpdateFailed(msg)
+        """Update data from input entities and run optimization.
 
+        Optimizations run one at a time. A refresh requested while one is running
+        waits for it and then optimizes with the inputs as they are by then, so
+        its result is never a stale copy reported as a fresh success.
+        """
+        async with self._optimization_lock:
+            return await self._async_optimize()
+
+    async def _async_optimize(self) -> CoordinatorData:
+        """Load the inputs, run the optimization, and build the outputs."""
         start_time = time.time()
         started_at = dt_util.utc_from_timestamp(start_time).astimezone()
 

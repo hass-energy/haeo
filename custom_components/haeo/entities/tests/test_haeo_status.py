@@ -15,11 +15,11 @@ COMPLETED_AT = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
 TOPOLOGY = {"nodes": [], "edges": [], "groups": {}}
 
 
-def _status_sensor(*, status: str, data: object, last_exception: BaseException | None = None) -> HaeoStatusSensor:
+def _status_sensor(*, status: str, data: object, error: str | None) -> HaeoStatusSensor:
     coordinator = Mock()
     coordinator.optimization_status = status
     coordinator.data = data
-    coordinator.last_exception = last_exception
+    coordinator.optimization_error = error
     coordinator.topology = TOPOLOGY
     network = ConfigSubentry(
         data=MappingProxyType({}), subentry_type=ELEMENT_TYPE_NETWORK, title="System", unique_id=None
@@ -33,7 +33,7 @@ def _status_sensor(*, status: str, data: object, last_exception: BaseException |
 
 
 @pytest.mark.parametrize(
-    ("status", "data", "last_exception", "expected_extra"),
+    ("status", "data", "error", "expected_extra"),
     [
         pytest.param("pending", None, None, {}, id="pending"),
         pytest.param(
@@ -46,18 +46,18 @@ def _status_sensor(*, status: str, data: object, last_exception: BaseException |
         pytest.param(
             "failed",
             Mock(completed_at=COMPLETED_AT),
-            ValueError("Unbounded"),
+            "Unbounded",
             {"last_run": "2024-01-01T12:00:00+00:00", "error": "Unbounded"},
             id="failed_after_a_success",
         ),
-        pytest.param("failed", None, ValueError("Unbounded"), {"error": "Unbounded"}, id="failed_first_run"),
+        pytest.param("failed", None, "Unbounded", {"error": "Unbounded"}, id="failed_first_run"),
     ],
 )
 def test_status_sensor_reports_optimization_status(
-    status: str, data: object, last_exception: BaseException | None, expected_extra: dict[str, str]
+    status: str, data: object, error: str | None, expected_extra: dict[str, str]
 ) -> None:
     """The sensor stays available and shows the status, the last successful run, and any error."""
-    sensor = _status_sensor(status=status, data=data, last_exception=last_exception)
+    sensor = _status_sensor(status=status, data=data, error=error)
 
     assert sensor.available
     assert sensor.native_value == status

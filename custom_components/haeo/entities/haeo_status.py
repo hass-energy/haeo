@@ -7,15 +7,10 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.const import (
-    ELEMENT_TYPE_NETWORK,
-    OPTIMIZATION_STATUS_FAILED,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
-)
+from custom_components.haeo.const import ELEMENT_TYPE_NETWORK, OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.coordinator import STATUS_OPTIONS, HaeoDataUpdateCoordinator
 from custom_components.haeo.core.model import OutputType
-from custom_components.haeo.entities.haeo_sensor import TOPOLOGY_UNRECORDED_ATTRIBUTES
-from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, SOURCE_ROLE_OUTPUT
+from custom_components.haeo.entities.haeo_sensor import output_attributes
 
 
 class HaeoStatusSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
@@ -30,6 +25,8 @@ class HaeoStatusSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntit
     _attr_has_entity_name = True
     _attr_translation_key = OUTPUT_NAME_OPTIMIZATION_STATUS
     _attr_device_class = SensorDeviceClass.ENUM
+    # The topology only serves the frontend card, so it is not recorded
+    _unrecorded_attributes = frozenset({"topology"})
 
     def __init__(
         self,
@@ -53,29 +50,22 @@ class HaeoStatusSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntit
     @callback
     def _handle_coordinator_update(self) -> None:
         """Show the coordinator's optimization status."""
-        status = self.coordinator.optimization_status
-        attributes: dict[str, object] = {
-            "element_name": self._network_title,
-            "element_type": ELEMENT_TYPE_NETWORK,
-            "output_name": OUTPUT_NAME_OPTIMIZATION_STATUS,
-            "field_type": OutputType.STATUS,
-            SOURCE_ROLE_KEY: SOURCE_ROLE_OUTPUT,
-            "advanced": False,
-            "topology": self.coordinator.topology,
-        }
+        attributes = output_attributes(
+            self._network_title, ELEMENT_TYPE_NETWORK, OUTPUT_NAME_OPTIMIZATION_STATUS, OutputType.STATUS
+        )
+        attributes["topology"] = self.coordinator.topology
         if self.coordinator.data:
             # UTC keeps last_run stable across CI machines and HA time zones (snapshot tests)
             attributes["last_run"] = dt_util.as_utc(self.coordinator.data.completed_at).isoformat()
-        if status == OPTIMIZATION_STATUS_FAILED:
-            attributes["error"] = str(self.coordinator.last_exception)
-        self._attr_native_value = status
+        if (error := self.coordinator.optimization_error) is not None:
+            attributes["error"] = error
+        self._attr_native_value = self.coordinator.optimization_status
         self._attr_extra_state_attributes = attributes
         super()._handle_coordinator_update()
 
     async def async_added_to_hass(self) -> None:
         """Show the current status as soon as the sensor is added."""
         await super().async_added_to_hass()
-        self._state_info["unrecorded_attributes"] = TOPOLOGY_UNRECORDED_ATTRIBUTES
         self._handle_coordinator_update()
 
 

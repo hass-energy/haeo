@@ -15,7 +15,20 @@ from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, SOURC
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
-TOPOLOGY_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"topology"})
+
+
+def output_attributes(
+    element_title: str, element_type: str, output_name: str, field_type: OutputType
+) -> dict[str, object]:
+    """Return the attributes every HAEO output sensor carries, which the frontend cards read."""
+    return {
+        "element_name": element_title,
+        "element_type": element_type,
+        "output_name": output_name,
+        "field_type": field_type,
+        SOURCE_ROLE_KEY: SOURCE_ROLE_OUTPUT,
+        "advanced": False,
+    }
 
 
 class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
@@ -78,14 +91,7 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updates from the coordinator."""
 
-        attributes: dict[str, object] = {
-            "element_name": self._element_title,
-            "element_type": self._element_type,
-            "output_name": self._output_name,
-            "field_type": self._output_type,
-            SOURCE_ROLE_KEY: SOURCE_ROLE_OUTPUT,
-            "advanced": False,
-        }
+        attributes = output_attributes(self._element_title, self._element_type, self._output_name, self._output_type)
         native_value: StateType | None = None
 
         # Navigate the nested structure: subentry -> device -> outputs
@@ -152,4 +158,4 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
         return [{"time": point["time"], "value": float(point["value"]) * 100.0} for point in forecast]
 
 
-__all__ = ["HaeoSensor"]
+__all__ = ["HaeoSensor", "output_attributes"]
