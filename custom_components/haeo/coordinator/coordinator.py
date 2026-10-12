@@ -698,6 +698,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Set flag to prevent concurrent optimization triggers from callbacks
         # This is cleared in the finally block
         self._optimization_in_progress = True
+        # This optimization reads every input as it is now, so earlier requests are met
+        self._pending_refresh = False
 
         try:
             # Mark optimization start time immediately to prevent concurrent triggers
@@ -855,8 +857,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         finally:
             # Always clear the in-progress flag
             self._optimization_in_progress = False
-            # Clear pending flag - the next state change will trigger a new optimization
-            self._pending_refresh = False
+            # Inputs that changed while this optimization ran are not in its result,
+            # so request another, which the debounce window spaces out
+            if self._pending_refresh:
+                self._pending_refresh = False
+                self.signal_optimization_stale()
 
 
 __all__ = [
