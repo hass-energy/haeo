@@ -1,6 +1,5 @@
 """Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
-import asyncio
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -12,6 +11,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON, EntityCategory, UnitOfTime
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import EventStateChangedData, async_call_later, async_track_state_change_event
 from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
@@ -64,9 +64,9 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-# Optimizations that must fail in a row before HAEO raises a repair issue, so a
-# brief failure, such as inputs still loading after a restart, does not raise one
-FAILURES_BEFORE_REPAIR_ISSUE = 3
+# How long optimizations must keep failing before HAEO raises a repair issue, so a
+# brief failure, such as an input that is unavailable for a moment, does not raise one
+FAILURE_SECONDS_BEFORE_REPAIR_ISSUE = 300
 
 
 class ForecastPoint(TypedDict):
@@ -324,9 +324,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._debounce_timer: CALLBACK_TYPE | None = None
         self._pending_refresh: bool = False
         self._optimization_in_progress: bool = False  # Prevent concurrent optimizations
-        self._optimization_lock = asyncio.Lock()
-        self._consecutive_failures = 0
-        self._reported_error: str | None = None
+        self._failing_since: float | None = None
+        self._failure_issue_raised = False
         self._pending_element_updates: dict[str, ElementConfigData] = {}
 
         # No update_interval - we're event-driven from input entities
@@ -695,45 +694,47 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
     @property
     def optimization_error(self) -> str | None:
         """Return why the latest optimization failed, or None if it did not fail."""
-        if self.last_update_success or self.last_exception is None:
+        error = self.last_exception
+        if self.last_update_success or error is None:
             return None
-        return str(self.last_exception) or type(self.last_exception).__name__
+        message = str(error)
+        if isinstance(error, HomeAssistantError):
+            return message or type(error).__name__
+        # Other exceptions often need their type to make sense, such as a KeyError
+        return f"{type(error).__name__}: {message}" if message else type(error).__name__
 
     @callback
     def _async_refresh_finished(self) -> None:
-        """Track consecutive failed optimizations and report them.
+        """Report failed optimizations.
 
-        Home Assistant only notifies listeners when a refresh changes from failing
-        to succeeding or back, so repeated failures notify them here, keeping the
-        reported error current. A repair issue is raised once optimizations keep
-        failing, again only when the error changes, and dismissed on success.
+        Home Assistant only notifies listeners when a refresh switches between
+        failing and succeeding, so a failure that follows another failure notifies
+        them here, keeping the reported error current. Once optimizations have kept
+        failing for a while, a repair issue is raised, and the next success
+        dismisses it.
         """
         super()._async_refresh_finished()
         if self.last_update_success:
-            self._consecutive_failures = 0
-            self._reported_error = None
+            self._failing_since = None
+            self._failure_issue_raised = False
             dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
             return
-        self._consecutive_failures += 1
-        if self._consecutive_failures > 1:
-            self.async_update_listeners()
-        error = self.optimization_error
-        if self._consecutive_failures >= FAILURES_BEFORE_REPAIR_ISSUE and error != self._reported_error:
-            self._reported_error = error
-            create_optimization_persistent_failure_issue(self.hass, self.config_entry.entry_id, str(error))
+        now = time.time()
+        if self._failing_since is None:
+            self._failing_since = now
+            return
+        self.async_update_listeners()
+        if not self._failure_issue_raised and now - self._failing_since >= FAILURE_SECONDS_BEFORE_REPAIR_ISSUE:
+            self._failure_issue_raised = True
+            create_optimization_persistent_failure_issue(
+                self.hass, self.config_entry.entry_id, str(self.optimization_error)
+            )
 
     async def _async_update_data(self) -> CoordinatorData:
         """Update data from input entities and run optimization.
 
-        Optimizations run one at a time. A refresh requested while one is running
-        waits for it and then optimizes with the inputs as they are by then, so
-        its result is never a stale copy reported as a fresh success.
+        Home Assistant runs one refresh at a time, so optimizations never overlap.
         """
-        async with self._optimization_lock:
-            return await self._async_optimize()
-
-    async def _async_optimize(self) -> CoordinatorData:
-        """Load the inputs, run the optimization, and build the outputs."""
         start_time = time.time()
         started_at = dt_util.utc_from_timestamp(start_time).astimezone()
 

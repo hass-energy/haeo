@@ -11,6 +11,7 @@ from typing import Any, Union, get_args, get_origin, get_type_hints  # noqa: TID
 
 import pytest
 
+from custom_components.haeo.const import OUTPUT_NAME_OPTIMIZATION_STATUS
 from custom_components.haeo.core.model.elements import ELEMENTS
 from custom_components.haeo.core.model.reactive import OutputMethod
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES, ELEMENT_OUTPUT_NAMES
@@ -86,8 +87,8 @@ def test_no_unused_translations() -> None:
 
     sensor_translations = translations.get("entity", {}).get("sensor", {})
 
-    # Known non-element sensor translation keys (e.g., horizon entity)
-    known_non_element_keys = {"horizon"}
+    # Sensors that are not element outputs: the horizon and optimization status sensors
+    known_non_element_keys = {"horizon", OUTPUT_NAME_OPTIMIZATION_STATUS}
 
     sensor_output_names = _sensor_output_names()
     # Check for unused translations using list comprehension
