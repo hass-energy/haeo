@@ -68,9 +68,9 @@ class BatteryElementConfig(TypedDict):
     capacity: NDArray[np.float64] | float
     initial_charge: float
     salvage_value: NotRequired[float]
-    reserve_level: NotRequired[NDArray[np.floating[Any]] | float | None]
-    reserve_mask: NotRequired[NDArray[np.floating[Any]] | float | None]
-    reserve_price: NotRequired[NDArray[np.floating[Any]] | float | None]
+    reserve_level: NotRequired[NDArray[np.float64] | float | None]
+    reserve_mask: NotRequired[NDArray[np.float64] | float | None]
+    reserve_price: NotRequired[NDArray[np.float64] | float | None]
     outbound_tags: NotRequired[set[int] | None]
     inbound_tags: NotRequired[set[int] | None]
 
@@ -99,9 +99,9 @@ class Battery(NetworkElement[BatteryOutputName]):
         capacity: NDArray[np.float64] | float,
         initial_charge: float,
         salvage_value: float = 0.0,
-        reserve_level: NDArray[np.floating[Any]] | float | None = None,
-        reserve_mask: NDArray[np.floating[Any]] | float | None = None,
-        reserve_price: NDArray[np.floating[Any]] | float | None = None,
+        reserve_level: NDArray[np.float64] | float | None = None,
+        reserve_mask: NDArray[np.float64] | float | None = None,
+        reserve_price: NDArray[np.float64] | float | None = None,
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
     ) -> None:
@@ -211,18 +211,18 @@ class Battery(NetworkElement[BatteryOutputName]):
         return self.power_consumption
 
     @constraint(output=True, unit="$/kWh")
-    def battery_reserve_floor(self) -> list[highs_linear_expression] | None:
+    def battery_reserve_floor(self) -> list[highs_linear_expression]:
         """Constraint: shortfall covers the drop below reserve at masked boundaries.
 
         Output: shadow price indicating the marginal cost of the reserve.
         """
         if self.reserve_shortfall is None:
-            return None
+            return []
         mask = self.reserve_mask[1:]
         return list(self.reserve_shortfall[1:] >= mask * self.reserve_level[1:] - mask * self.stored_energy[1:])
 
     @constraint
-    def battery_reserve_shortfall_limit(self) -> list[highs_linear_expression] | None:
+    def battery_reserve_shortfall_limit(self) -> list[highs_linear_expression]:
         """Constraint: shortfall never exceeds the masked reserve level.
 
         Stored energy is never negative, so the drop below reserve is at
@@ -231,7 +231,7 @@ class Battery(NetworkElement[BatteryOutputName]):
         reserve is unpriced.
         """
         if self.reserve_shortfall is None:
-            return None
+            return []
         limit = np.maximum(self.reserve_mask[1:] * self.reserve_level[1:], 0.0)
         return list(self.reserve_shortfall[1:] <= limit)
 
