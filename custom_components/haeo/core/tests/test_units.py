@@ -5,7 +5,6 @@ import pytest
 from custom_components.haeo.core.units import (
     DeviceClass,
     UnitOfMeasurement,
-    _convert_value,
     base_unit_for_device_class,
     convert_to_base_unit,
     currency_symbol,
@@ -74,7 +73,7 @@ def test_convert_value(
     expected: float,
 ) -> None:
     """Test unit conversion to base units for various device classes and units."""
-    assert _convert_value(value, unit, device_class) == pytest.approx(expected)
+    assert convert_to_base_unit(value, unit, device_class)[0] == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(
@@ -121,6 +120,26 @@ def test_convert_value(
             "unknown_unit",
             None,
             (12.0, "unknown_unit", None),
+        ),
+        # Reciprocal efficiency units cannot convert, so they keep their own unit
+        (
+            4.0,
+            "mi/kWh",
+            "energy_distance",
+            (4.0, "mi/kWh", DeviceClass.ENERGY_DISTANCE),
+        ),
+        (
+            6.0,
+            "km/kWh",
+            "energy_distance",
+            (6.0, "km/kWh", DeviceClass.ENERGY_DISTANCE),
+        ),
+        # A power sensor in a unit with no kW conversion is not reported as kW
+        (
+            3.0,
+            "kVA",
+            "power",
+            (3.0, "kVA", DeviceClass.POWER),
         ),
     ],
 )

@@ -261,15 +261,16 @@ def _load_last_off(
 ) -> None:
     """Load when an entity-driven availability field's source was last off.
 
-    The time comes from the source state's injected last off attribute and is
+    The time comes from the source states' injected last off attributes and is
     stored beside the field under :func:`last_off_field`; it is left out when
-    the state carries none.
+    no state carries one. With several sources the latest time counts, as
+    the field reads on while any source does.
     """
-    if hint.output_type is not OutputType.AVAILABILITY or not is_entity_value(value) or not value["value"]:
+    if hint.output_type is not OutputType.AVAILABILITY or not is_entity_value(value):
         return
-    last_off = read_last_off(get_state(value["value"][0]))
-    if last_off is not None:
-        _section_dict(loaded, section_name)[last_off_field(field_name)] = last_off
+    times = [t for entity_id in value["value"] if (t := read_last_off(get_state(entity_id))) is not None]
+    if times:
+        _section_dict(loaded, section_name)[last_off_field(field_name)] = max(times)
 
 
 class _Sentinel:
