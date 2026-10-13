@@ -19,6 +19,7 @@ from pathlib import Path
 
 from homeassistant.util.json import JsonValueType
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
@@ -171,18 +172,19 @@ def _load_configs(
     return load_element_configs(_participants_from_config(config), sm, forecast_times)
 
 
-def _load_shifted_configs(
+def _load_shifted_horizon(
     config: dict[str, JsonValueType],
     sm: _ScenarioStateMachine,
     frozen_dt: datetime,
     shift_seconds: int,
-) -> dict[str, ElementConfigData]:
-    """Load element configs with time shifted forward."""
+) -> tuple[NDArray[np.float64], dict[str, ElementConfigData]]:
+    """Return the period widths (hours) and element configs for a horizon shifted forward."""
     shifted_epoch = frozen_dt.timestamp() + shift_seconds
     shifted_dt = datetime.fromtimestamp(shifted_epoch, tz=UTC)
     shifted_periods = preset_periods_seconds(config_horizon_preset(config), start_time=shifted_dt)
     shifted_forecast_times = generate_forecast_timestamps(shifted_periods, start_time=shifted_epoch)
-    return load_element_configs(_participants_from_config(config), sm, shifted_forecast_times)
+    configs = load_element_configs(_participants_from_config(config), sm, shifted_forecast_times)
+    return np.asarray(shifted_periods, dtype=float) / 3600, configs
 
 
 # ---------------------------------------------------------------------------
@@ -278,15 +280,9 @@ def test_time_shift(scenario_path: Path, options: SolveOptions, benchmark: Bench
     sm = _ScenarioStateMachine(inputs)
 
     periods_seconds = preset_periods_seconds(config_horizon_preset(config), start_time=frozen_dt)
-    shift_seconds = periods_seconds[0]
-    shifted_dt = datetime.fromtimestamp(frozen_dt.timestamp() + shift_seconds, tz=UTC)
-    shifted_periods_seconds = preset_periods_seconds(config_horizon_preset(config), start_time=shifted_dt)
     horizons = [
-        (np.asarray(periods_seconds, dtype=float) / 3600, _load_configs(config, sm, frozen_dt)),
-        (
-            np.asarray(shifted_periods_seconds, dtype=float) / 3600,
-            _load_shifted_configs(config, sm, frozen_dt, shift_seconds),
-        ),
+        _load_shifted_horizon(config, sm, frozen_dt, 0),
+        _load_shifted_horizon(config, sm, frozen_dt, periods_seconds[0]),
     ]
 
     network, updaters = _build_network(config, sm, frozen_dt, options=options)

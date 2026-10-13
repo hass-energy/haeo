@@ -86,10 +86,11 @@ def update_row(
     is rebuilt identically has the same terms in the same order, so comparing the
     term lists first skips the coefficient diff for every unchanged row.
     """
-    if applied.bounds == expr.bounds and applied.idxs == expr.idxs and applied.vals == expr.vals:
+    bounds_changed = applied.bounds != expr.bounds
+    if not bounds_changed and applied.idxs == expr.idxs and applied.vals == expr.vals:
         return
 
-    if applied.bounds != expr.bounds:
+    if bounds_changed:
         lower, upper = expr.bounds if expr.bounds is not None else (float("-inf"), float("inf"))
         solver.changeRowBounds(cons.index, lower, upper)
 
