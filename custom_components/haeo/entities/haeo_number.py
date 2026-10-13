@@ -86,6 +86,9 @@ class HaeoInputNumber(NumberEntity):
         # triggered, so only sibling entities sharing the store react.
         self._suppress_store_change = False
 
+        # Set while a reload from source entities is queued but has not started.
+        self._reload_scheduled = False
+
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
@@ -227,7 +230,7 @@ class HaeoInputNumber(NumberEntity):
             self._sync_from_store()
             self.async_write_ha_state()
         else:
-            self.hass.async_create_task(self._async_load_sync_and_update())
+            self._schedule_reload()
 
     @callback
     def _handle_store_change(self) -> None:
@@ -240,10 +243,25 @@ class HaeoInputNumber(NumberEntity):
     @callback
     def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
         """Handle source entity state change."""
-        self.hass.async_create_task(self._async_load_sync_and_update())
+        self._schedule_reload()
+
+    @callback
+    def _schedule_reload(self) -> None:
+        """Queue one reload from source entities for the next event loop iteration.
+
+        Forecast integrations write all of their entities in a single pass, and a
+        field reads every one of its sources on each reload. Deferring the reload
+        lets every change in that pass arrive first, so they share one reload
+        rather than each re-reading all of the sources.
+        """
+        if self._reload_scheduled:
+            return
+        self._reload_scheduled = True
+        self.hass.async_create_task(self._async_load_sync_and_update(), eager_start=False)
 
     async def _async_load_sync_and_update(self) -> None:
         """Load data, sync attributes, and write state."""
+        self._reload_scheduled = False
         if await self._async_load_and_sync():
             self.async_write_ha_state()
 

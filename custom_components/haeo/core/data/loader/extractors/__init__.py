@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import NamedTuple
 
 from custom_components.haeo.core.state import EntityState
-from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement, convert_to_base_unit
+from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement, base_unit_conversion, convert_to_base_unit
 
 from . import (
     aemo_nem,
@@ -114,15 +114,8 @@ def extract(state: EntityState) -> ExtractedData:
 
     # Convert values to base units
     if isinstance(data, Sequence):
-        converted_data: list[tuple[int, float]] = []
-        base_unit: UnitOfMeasurement | str | None = unit_str
-        for ts, point_value in data:
-            converted_value, base_unit, _ = convert_to_base_unit(
-                point_value,
-                unit_str,
-                device_class,
-            )
-            converted_data.append((ts, converted_value))
+        factor, base_unit, _ = base_unit_conversion(unit_str, device_class)
+        converted_data = [(ts, point_value * factor) for ts, point_value in data]
 
         # Separate duplicate timestamps to prevent interpolation (also converts int timestamps to float)
         separated_data = separate_duplicate_timestamps(converted_data)

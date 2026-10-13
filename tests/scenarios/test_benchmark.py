@@ -13,6 +13,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import itertools
 import json
 from pathlib import Path
 
@@ -267,20 +268,35 @@ def test_update_all(scenario_path: Path, options: SolveOptions, benchmark: Bench
 
 @_apply_marks
 def test_time_shift(scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
-    """Shift forecast times forward one tick and re-optimize."""
+    """Roll the horizon forward one tick and re-optimize, as each optimization cycle does.
+
+    Rounds alternate between the original and the shifted horizon, so every round
+    changes the period widths and forecasts rather than re-solving unchanged inputs.
+    """
     config, inputs, freeze_timestamp = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
 
     periods_seconds = preset_periods_seconds(config_horizon_preset(config), start_time=frozen_dt)
     shift_seconds = periods_seconds[0]
-    shifted_configs = _load_shifted_configs(config, sm, frozen_dt, shift_seconds)
+    shifted_dt = datetime.fromtimestamp(frozen_dt.timestamp() + shift_seconds, tz=UTC)
+    shifted_periods_seconds = preset_periods_seconds(config_horizon_preset(config), start_time=shifted_dt)
+    horizons = [
+        (np.asarray(periods_seconds, dtype=float) / 3600, _load_configs(config, sm, frozen_dt)),
+        (
+            np.asarray(shifted_periods_seconds, dtype=float) / 3600,
+            _load_shifted_configs(config, sm, frozen_dt, shift_seconds),
+        ),
+    ]
 
     network, updaters = _build_network(config, sm, frozen_dt, options=options)
     network.optimize()  # prime
+    rounds = itertools.count(1)
 
     def run() -> float:
-        for elem_name, elem_config in shifted_configs.items():
+        periods_hours, configs = horizons[next(rounds) % 2]
+        network.update_periods(periods_hours)
+        for elem_name, elem_config in configs.items():
             updater = updaters.get(elem_name)
             if updater is not None:
                 updater(elem_config)

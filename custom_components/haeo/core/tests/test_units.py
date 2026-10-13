@@ -5,7 +5,7 @@ import pytest
 from custom_components.haeo.core.units import (
     DeviceClass,
     UnitOfMeasurement,
-    _convert_value,
+    _scale_factor,
     base_unit_for_device_class,
     convert_to_base_unit,
     currency_symbol,
@@ -56,14 +56,14 @@ def test_base_unit_for_device_class(device_class: DeviceClass | None, expected: 
         (100.0, None, DeviceClass.POWER, 100.0),
     ],
 )
-def test_convert_value(
+def test_scale_factor(
     value: float,
     unit: UnitOfMeasurement | None,
     device_class: DeviceClass | None,
     expected: float,
 ) -> None:
     """Test unit conversion to base units for various device classes and units."""
-    assert _convert_value(value, unit, device_class) == pytest.approx(expected)
+    assert value * _scale_factor(unit, device_class) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(
