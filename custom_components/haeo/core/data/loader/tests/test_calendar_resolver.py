@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
-from custom_components.haeo.core.data.loader.calendar_resolver import is_calendar_boundary_data, resolve_calendar_field
+from custom_components.haeo.core.data.loader.calendar_resolver import resolve_calendar_field
 from custom_components.haeo.core.schema.calendar_value import CalendarValue, as_calendar_value
 from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
 
@@ -41,7 +41,6 @@ def test_distance_event_produces_boundary_arrays() -> None:
     result = resolve_calendar_field(value, CalendarFieldHint(parser="distance"), FakeStateMachine({}), BOUNDARY_TIMES)
 
     assert result is not None
-    assert is_calendar_boundary_data(result)
     np.testing.assert_allclose(result["presence"], [0.0, 1.0, 0.0, 0.0])
     np.testing.assert_allclose(result["value_span"], [0.0, 50.0, 0.0, 0.0])
     np.testing.assert_allclose(result["value_edge_start"], [0.0, 50.0, 0.0, 0.0])
@@ -136,13 +135,6 @@ def test_entity_events_attribute_is_used_when_present() -> None:
 
     assert result is not None
     np.testing.assert_allclose(result["value_span"][0], 5.0)
-
-
-def test_is_calendar_boundary_data_rejects_other_values() -> None:
-    """The boundary-data check rejects unrelated dicts and scalars."""
-    assert not is_calendar_boundary_data({"presence": []})
-    assert not is_calendar_boundary_data(1.0)
-    assert not is_calendar_boundary_data(None)
 
 
 @pytest.mark.parametrize(

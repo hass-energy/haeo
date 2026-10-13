@@ -401,3 +401,21 @@ def test_negative_price_update_is_rejected(param: str, value: np.ndarray) -> Non
 
     with pytest.raises(ValueError, match=f"{param} must be non-negative"):
         network.optimize()
+
+
+def test_scalar_parameter_updates_are_broadcast() -> None:
+    """A window flag and price updated to plain floats apply to every period or boundary."""
+    network, load = _build_network(
+        in_window=[1.0, 1.0],
+        window_start=[1.0, 0.0, 0.0],
+        requirement=[0.0, 0.0, 5.0],
+        max_supply_power=[1.0, 1.0],
+    )
+    network.optimize()
+
+    load["in_window"] = 1.0
+    load["deficit_price"] = 2.0
+    cost = network.optimize()
+
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_shortfall"), [0.0, 0.0, 3.0], atol=1e-9)
+    assert cost == pytest.approx(2.0 * 0.1 + 3.0 * 2.0)
