@@ -68,6 +68,7 @@ Most Device Layer elements create multiple Model Layer elements:
 | Grid           | `node` + `connection`    |
 | Solar          | `node` + `connection`    |
 | Load           | `node` + `connection`    |
+| Junction       | `node` only              |
 | Node           | `node` only              |
 | Connection     | `connection` only        |
 

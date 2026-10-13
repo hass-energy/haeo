@@ -10,15 +10,17 @@ This is intended for soft, price-based incentives rather than hard operating lim
 
 ### Parameters
 
-| Parameter              | Description                              | Units  |
-| ---------------------- | ---------------------------------------- | ------ |
-| $E_{\text{dis}}(t)$    | Discharge energy threshold               | kWh    |
-| $E_{\text{chg}}(t)$    | Charge capacity threshold                | kWh    |
-| $c_{\text{dis}}(t)$    | Discharge threshold penalty price        | \$/kWh |
-| $c_{\text{chg}}(t)$    | Charge threshold penalty price           | \$/kWh |
-| $E_{\text{stored}}(t)$ | Battery stored energy (model coordinate) | kWh    |
+| Parameter              | Description                                     | Units    |
+| ---------------------- | ----------------------------------------------- | -------- |
+| $E_{\text{dis}}(t)$    | Discharge energy threshold                      | kWh      |
+| $E_{\text{chg}}(t)$    | Charge capacity threshold                       | kWh      |
+| $c_{\text{dis}}(t)$    | Holding cost rate below the discharge threshold | \$/kWh/h |
+| $c_{\text{chg}}(t)$    | Holding cost rate above the charge threshold    | \$/kWh/h |
+| $E_{\text{stored}}(t)$ | Battery stored energy at the end of period $t$  | kWh      |
+| $\Delta t(t)$          | Duration of period $t$                          | h        |
 
 Thresholds are provided in the model coordinate system.
+The prices are rates: they cost energy outside a threshold per hour it stays there, not per kWh moved.
 
 ## Rationale and usage
 
@@ -64,13 +66,21 @@ $$
 ### Cost contribution
 
 $$
-\text{Cost} = \sum_{t} \left[ S_{\text{dis}}(t) \cdot c_{\text{dis}}(t) + S_{\text{chg}}(t) \cdot c_{\text{chg}}(t) \right]
+\text{Cost} = \sum_{t} \left[ S_{\text{dis}}(t) \cdot c_{\text{dis}}(t) + S_{\text{chg}}(t) \cdot c_{\text{chg}}(t) \right] \Delta t(t)
 $$
+
+Each term is kWh × \$/kWh/h × h, so the cost is in \$.
+Multiplying by the period duration integrates the penalty over time.
+A deficit therefore costs the same per hour whether the horizon uses short or long periods,
+and the total grows with how long the battery stays outside the threshold.
+For example, holding 1 kWh below the discharge threshold for 72 hours at 0.02 \$/kWh/h costs \$1.44.
 
 ## Physical interpretation
 
-SOC pricing models economic penalties for operating outside discharge and charge thresholds.
+SOC pricing models a holding cost for keeping energy outside the discharge and charge thresholds.
 These are soft constraints: the optimizer can violate thresholds when prices justify it.
+Because the cost accrues per hour, short excursions that are quickly reversed are cheap,
+while excursions that last for the rest of the horizon are expensive.
 
 ## Pricing partitions with opposing thresholds
 

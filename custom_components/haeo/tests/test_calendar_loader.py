@@ -1,10 +1,9 @@
 """Tests for the calendar input loader and event-injecting state machine."""
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 import logging
-from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
@@ -32,13 +31,13 @@ ENTITY_ID = "calendar.trips"
 class _MemStorage:
     """In-memory storage double implementing the Storage protocol."""
 
-    def __init__(self, value: Any) -> None:
+    def __init__(self, value: object) -> None:
         self.value = value
 
-    def read(self) -> Any:
+    def read(self) -> object:
         return self.value
 
-    async def write(self, value: Any) -> None:
+    async def write(self, value: object) -> None:
         self.value = value
 
 
@@ -59,7 +58,7 @@ def _calendar_store(
     )
 
 
-def _presence(store: InputStore) -> Any:
+def _presence(store: InputStore) -> np.ndarray:
     """Return the resolved presence array of a loaded calendar store."""
     value = store.value
     assert isinstance(value, dict)
@@ -144,7 +143,9 @@ def test_state_machine_injects_events_for_known_calendars() -> None:
     assert state.state == "on"
     assert state.attributes["existing"] == 1
     assert state.attributes[CALENDAR_EVENTS_ATTRIBUTE] == events
-    assert state.as_dict()["attributes"][CALENDAR_EVENTS_ATTRIBUTE] == events
+    serialized_attributes = state.as_dict()["attributes"]
+    assert isinstance(serialized_attributes, Mapping)
+    assert serialized_attributes[CALENDAR_EVENTS_ATTRIBUTE] == events
 
 
 def test_state_machine_passes_through_other_entities() -> None:

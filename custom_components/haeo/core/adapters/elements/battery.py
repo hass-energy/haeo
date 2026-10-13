@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 import numpy as np
 
@@ -87,7 +87,7 @@ class BatteryAdapter:
 
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
-    connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
+    connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = True
     can_sink: bool = True
 
@@ -176,6 +176,8 @@ class BatteryAdapter:
                     "charge_capacity_price": overcharge_cost,
                 }
 
+        # Efficiency sits next to the battery and the power limit at the bus end,
+        # where the battery terminals are metered, in both directions.
         discharge_segments: dict[str, SegmentSpec] = {
             "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_source_target},
             "power_limit": {"segment_type": "power_limit", "max_power": max_discharge},
@@ -201,8 +203,8 @@ class BatteryAdapter:
                 "source": extract_connection_target(config[CONF_CONNECTION]),
                 "target": name,
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_target_source},
                     "power_limit": {"segment_type": "power_limit", "max_power": max_charge},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": efficiency_target_source},
                 },
             }
         )
@@ -214,13 +216,15 @@ class BatteryAdapter:
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         config: BatteryConfigData,
-        **_kwargs: Any,
+        **_kwargs: object,
     ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
         """Map model outputs to battery-specific output names."""
         discharge_conn = model_outputs.get(f"{name}:discharge")
         charge_conn = model_outputs.get(f"{name}:charge")
         period_count = len(expect_output_data(model_outputs[name][model_battery.BATTERY_POWER_CHARGE]).values)
 
+        # Each connection reports power at its measured point, where its power limit
+        # applies: the battery terminals.
         power_discharge = replace(connection_power(discharge_conn, period_count), type=OutputType.POWER)
         power_charge = replace(connection_power(charge_conn, period_count), type=OutputType.POWER, direction="-")
 

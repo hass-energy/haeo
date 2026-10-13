@@ -25,6 +25,7 @@ export type ElementType =
   | "deferrable_load"
   | "grid"
   | "inverter"
+  | "junction"
   | "load"
   | "node"
   | "solar"

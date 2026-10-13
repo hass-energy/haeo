@@ -1,15 +1,21 @@
 """Tests for the HAEO sensor platform."""
 
+from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any, Literal
+
+# Coordinator output fixtures use runtime string keys that cannot satisfy the
+# Literal key types of SubentryDevices.
+from typing import Any, Literal  # noqa: TID251
 from unittest.mock import Mock
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import ConfigEntryState, ConfigSubentry
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers.translation import async_get_translations
 from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -25,14 +31,17 @@ from custom_components.haeo.const import (
 from custom_components.haeo.coordinator import CoordinatorData, CoordinatorOutput, ForecastPoint, OptimizationContext
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_STATE_OF_CHARGE
 from custom_components.haeo.core.adapters.elements.load import LOAD_POWER
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.model import OutputData, OutputType
+from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER
+from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.core.schema.elements.battery import SECTION_LIMITS
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.entities import HaeoSensor
 from custom_components.haeo.entities.haeo_sensor import FORECAST_UNRECORDED_ATTRIBUTES
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.sensor import async_setup_entry
 
 
@@ -134,16 +143,9 @@ def config_entry(hass: HomeAssistant) -> MockConfigEntry:
         domain=DOMAIN,
         title="Mock Network",
         data={
-            HUB_SECTION_COMMON: {CONF_NAME: "Mock Network"},
-            HUB_SECTION_TIERS: {
-                "tier_1_count": 5,
-                "tier_1_duration": 1,
-                "tier_2_count": 11,
-                "tier_2_duration": 5,
-                "tier_3_count": 0,
-                "tier_3_duration": 30,
-                "tier_4_count": 0,
-                "tier_4_duration": 60,
+            HUB_SECTION_COMMON: {
+                CONF_NAME: "Mock Network",
+                CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS),
             },
             HUB_SECTION_ADVANCED: {},
         },
@@ -773,3 +775,182 @@ def test_handle_coordinator_update_sets_fixed_attribute(device_entry: DeviceEntr
     attributes = sensor.extra_state_attributes
     assert attributes is not None
     assert attributes["fixed"] is True
+
+
+@pytest.mark.parametrize(("advanced", "enabled_default"), [(True, False), (False, True)])
+def test_advanced_outputs_are_disabled_by_default(
+    device_entry: DeviceEntry,
+    *,
+    advanced: bool,
+    enabled_default: bool,
+) -> None:
+    """Sensors for advanced outputs ship disabled in the entity registry."""
+    output = replace(
+        _make_output(
+            type_=OutputType.SHADOW_PRICE,
+            unit="$/kWh",
+            state=0.0,
+            forecast=None,
+            entity_category=None,
+            device_class=None,
+            state_class=None,
+            options=None,
+        ),
+        advanced=advanced,
+    )
+
+    sensor = HaeoSensor(
+        _create_mock_coordinator(),
+        device_entry=device_entry,
+        subentry_key="battery",
+        device_key=ElementType.BATTERY,
+        element_title="Battery",
+        element_type=BATTERY_TYPE,
+        output_name=LOAD_POWER,
+        output_data=output,
+        unique_id="sensor-id",
+    )
+
+    assert sensor.entity_registry_enabled_default is enabled_default
+
+
+async def test_async_setup_entry_flattens_connection_endpoints_into_placeholders(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """The connection power sensor's translated name resolves from the nested endpoints section.
+
+    Home Assistant raises on a missing placeholder, which drops the sensor when it is added.
+    """
+    connection_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.CONNECTION,
+                CONF_NAME: "ACEV to EV1",
+                "endpoints": {
+                    "source": as_connection_target("ACEV Charger"),
+                    "target": as_connection_target("EV1 Port"),
+                },
+                "efficiency": {"efficiency_source_target": {"type": "constant", "value": 100.0}},
+            }
+        ),
+        subentry_type=ElementType.CONNECTION,
+        title="ACEV to EV1",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, connection_subentry)
+
+    coordinator = _create_mock_coordinator()
+    coordinator.data = _make_coordinator_data(
+        {
+            "ACEV to EV1": {
+                ElementType.CONNECTION: {
+                    CONNECTION_POWER: _make_output(
+                        type_=OutputType.POWER_FLOW,
+                        unit="kW",
+                        state=11.14,
+                        forecast=None,
+                        entity_category=None,
+                        device_class=SensorDeviceClass.POWER,
+                        state_class=SensorStateClass.MEASUREMENT,
+                        options=None,
+                    )
+                },
+            },
+        }
+    )
+    config_entry.runtime_data = _create_mock_runtime_data(coordinator)
+
+    async_add_entities = Mock()
+
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    sensors = [s for s in async_add_entities.call_args.args[0] if isinstance(s, HaeoSensor)]
+    assert len(sensors) == 1
+    translations = await async_get_translations(hass, "en", "entity", integrations=[DOMAIN])
+    name = translations[f"component.{DOMAIN}.entity.sensor.{sensors[0].translation_key}.name"]
+    assert name.format(**sensors[0].translation_placeholders) == "ACEV Charger to EV1 Port power"
+
+
+def _coordinator_without_data() -> tuple[Mock, list[Callable[[], None]]]:
+    """Return a coordinator whose first optimization failed, and its registered listeners."""
+    coordinator = _create_mock_coordinator()
+    coordinator.data = None
+    coordinator.last_update_success = False
+    listeners: list[Callable[[], None]] = []
+
+    def add_listener(update_callback: Callable[[], None]) -> Callable[[], None]:
+        listeners.append(update_callback)
+        return lambda: listeners.remove(update_callback)
+
+    coordinator.async_add_listener = add_listener
+    return coordinator, listeners
+
+
+def _status_outputs(network_key: str) -> dict[str, Any]:
+    return {
+        network_key: {
+            network_key: {
+                OUTPUT_NAME_OPTIMIZATION_STATUS: _make_output(
+                    type_=OutputType.STATUS,
+                    unit=None,
+                    state="success",
+                    forecast=None,
+                    entity_category=None,
+                    device_class=SensorDeviceClass.ENUM,
+                    state_class=None,
+                    options=("failed", "pending", "success"),
+                ),
+            },
+        },
+    }
+
+
+async def test_outputs_added_after_failed_first_optimization(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Without data at setup only the horizon is added, and outputs follow the first successful update once."""
+    coordinator, listeners = _coordinator_without_data()
+    config_entry.runtime_data = _create_mock_runtime_data(coordinator)
+    config_entry.mock_state(hass, ConfigEntryState.LOADED)
+    async_add_entities = Mock()
+
+    await async_setup_entry(hass, config_entry, async_add_entities)
+    (horizon_only,) = async_add_entities.call_args.args
+    assert [type(entity).__name__ for entity in horizon_only] == ["HaeoHorizonEntity"]
+
+    # A failed update adds nothing
+    for listener in list(listeners):
+        listener()
+    assert async_add_entities.call_count == 1
+
+    coordinator.data = _make_coordinator_data(_status_outputs(config_entry.title))
+    for _ in range(2):
+        for listener in list(listeners):
+            listener()
+
+    assert async_add_entities.call_count == 2
+    (outputs,) = async_add_entities.call_args.args
+    assert [sensor.translation_key for sensor in outputs] == [OUTPUT_NAME_OPTIMIZATION_STATUS]
+
+
+async def test_outputs_not_added_while_entry_unloads(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """An update that finishes while the entry is unloading adds no entities, and unloading removes the listener."""
+    coordinator, listeners = _coordinator_without_data()
+    config_entry.runtime_data = _create_mock_runtime_data(coordinator)
+    config_entry.mock_state(hass, ConfigEntryState.LOADED)
+    async_add_entities = Mock()
+    await async_setup_entry(hass, config_entry, async_add_entities)
+
+    config_entry.mock_state(hass, ConfigEntryState.UNLOAD_IN_PROGRESS)
+    coordinator.data = _make_coordinator_data(_status_outputs(config_entry.title))
+    for listener in list(listeners):
+        listener()
+    assert async_add_entities.call_count == 1
+
+    await config_entry._async_process_on_unload(hass)
+    assert listeners == []

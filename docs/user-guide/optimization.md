@@ -38,8 +38,7 @@ When status is `failed`, check the Home Assistant logs for detailed error messag
 **Entity ID**: `sensor.{network_name}_optimization_duration`
 
 Time taken to solve the optimization in seconds.
-If this value climbs higher than you expect, adjust the interval tiers or simplify the network.
-Review the [custom tier guidance](configuration.md#custom-tiers) before changing that value.
+If this value climbs higher than you expect, choose a shorter [planning horizon](configuration.md#planning-horizon) or simplify the network.
 
 ## Element Sensors
 
@@ -61,7 +60,7 @@ They translate physical limits into dollar-per-kilowatt-hour signals that explai
 
 Available sensors include:
 
-- **Nodes**: `sensor.{node_name}_power_balance` reports the local spot price for energy at each node.
+- **Junctions and nodes**: `sensor.{name}_power_balance` reports the local spot price for energy at each junction or node.
 - **Batteries**: `sensor.{battery_name}_power_balance`, `sensor.{battery_name}_soc_min`, `sensor.{battery_name}_soc_max`, `sensor.{battery_name}_energy_in_flow`, and `sensor.{battery_name}_energy_out_flow` quantify the value of stored energy, SOC bounds, and charge/discharge headroom.
 - **Grid**: `sensor.{grid_name}_power_max_import_price` and `sensor.{grid_name}_power_max_export_price` indicate when import or export limits restrict the optimization.
 - **Inverter**: `sensor.{inverter_name}_max_power_dc_to_ac_price` and `sensor.{inverter_name}_max_power_ac_to_dc_price` appear when the inverter's per-direction caps are binding.
@@ -132,10 +131,9 @@ Monitor the optimization duration sensor to keep solve times reasonable (typical
 
 If optimization takes too long:
 
-1. **Adjust interval tiers**: Reduce tier 4 count or increase tier durations for faster solving (see [custom tier guidance](configuration.md#custom-tiers))
-2. **Increase tier durations**: Fewer time steps reduce problem size
-3. **Simplify network**: Remove unnecessary elements or connections
-4. **Check configuration**: Verify all sensors are available and providing valid data
+1. **Shorten the horizon**: Choose a shorter [planning horizon](configuration.md#planning-horizon) preset, or a forecast sensor with fewer periods
+2. **Simplify network**: Remove unnecessary elements or connections
+3. **Check configuration**: Verify all sensors are available and providing valid data
 
 ### Update Frequency
 

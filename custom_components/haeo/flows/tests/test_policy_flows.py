@@ -1,13 +1,13 @@
 """Tests for the policy element config flow."""
 
 from types import MappingProxyType
-from typing import Any
 from unittest.mock import Mock
 
-from homeassistant.config_entries import ConfigSubentry
+from homeassistant.config_entries import ConfigSubentry, SubentryFlowResult
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.selector import ChooseSelectorConfig, Selector
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 import voluptuous as vol
@@ -16,6 +16,7 @@ from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRAT
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.constant_value import as_constant_value
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.inverter import ELEMENT_TYPE as INVERTER_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.load import ELEMENT_TYPE as LOAD_ELEMENT_TYPE
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE
@@ -27,6 +28,7 @@ from custom_components.haeo.core.schema.elements.policy import (
     CONF_RULES,
     CONF_SOURCE,
     CONF_TARGET,
+    PolicyConfigData,
     PolicyRuleConfig,
 )
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
@@ -105,7 +107,7 @@ def _make_policy_subentry(rules: list[PolicyRuleConfig]) -> ConfigSubentry:
     )
 
 
-def _get_suggested_value(result: Any, field_name: str) -> Any:
+def _get_suggested_value(result: SubentryFlowResult, field_name: str) -> object:
     """Extract the suggested_value for a field from a flow result's data_schema."""
     data_schema = result.get("data_schema")
     assert data_schema is not None
@@ -117,7 +119,7 @@ def _get_suggested_value(result: Any, field_name: str) -> Any:
     return None
 
 
-def _get_selector(result: Any, field_name: str) -> Any:
+def _get_selector(result: SubentryFlowResult, field_name: str) -> Selector[ChooseSelectorConfig] | None:
     """Extract selector instance for a field from a flow result's data_schema."""
     data_schema = result.get("data_schema")
     assert data_schema is not None
@@ -127,10 +129,12 @@ def _get_selector(result: Any, field_name: str) -> Any:
     return None
 
 
-def _get_entity_include_entities(selector: Any) -> list[str] | None:
+def _get_entity_include_entities(selector: Selector[ChooseSelectorConfig]) -> list[str] | None:
     """Extract include_entities from the entity branch of a choose selector."""
     entity_choice = selector.config["choices"][CHOICE_ENTITY]
-    entity_config = entity_choice["selector"]["entity"]
+    entity_selector = entity_choice["selector"]
+    assert isinstance(entity_selector, dict)
+    entity_config = entity_selector["entity"]
     included = entity_config.get("include_entities")
     return list(included) if included is not None else None
 
@@ -1346,7 +1350,11 @@ async def test_user_step_stores_enabled_true_by_default(
 
 def test_extract_policy_rules_includes_disabled_with_enabled_flag() -> None:
     """Disabled rules are included by extract_policy_rules with enabled=False."""
-    config: dict[str, Any] = {
+    # The third rule carries an unloaded schema-mode price dict to verify that
+    # extract_policy_rules passes prices through untouched.
+    config: PolicyConfigData = {
+        "element_type": ElementType.POLICY,
+        "name": "Policies",
         "rules": [
             {"name": "Active", "source": ["Solar"], "target": ["Grid"], "price": 0.02, "enabled": True},
             {"name": "Disabled", "source": ["Grid"], "target": ["Battery"], "price": 0.05, "enabled": False},
@@ -1355,7 +1363,7 @@ def test_extract_policy_rules_includes_disabled_with_enabled_flag() -> None:
                 "enabled": True,
                 "source": ["Solar"],
                 "target": ["Battery"],
-                "price": {"type": "constant", "value": 0.0},
+                "price": {"type": "constant", "value": 0.0},  # type: ignore[typeddict-item]
             },
         ],
     }
@@ -1415,7 +1423,7 @@ def test_parse_rule_input_stores_enabled() -> None:
         [],
     ],
 )
-def test_validate_rule_requires_non_empty_price(price_input: Any) -> None:
+def test_validate_rule_requires_non_empty_price(price_input: object) -> None:
     """Rule validation rejects missing or empty list price input."""
     flow = PolicySubentryFlowHandler()
     errors: dict[str, str] = {}

@@ -6,14 +6,15 @@ commands. These tests fail if a gate is added to one and not the other, which is
 the failure mode the shared script exists to prevent.
 """
 
+import os
 from pathlib import Path
 import re
-from typing import Any
+from typing import TypedDict
 
 import pytest
 import yaml
 
-from tools.check import GATES, GATES_BY_NAME, selected_gates
+from tools.check import GATES, GATES_BY_NAME, bundle_is_stale, selected_gates
 
 WORKFLOW = Path(__file__).parent.parent / ".github" / "workflows" / "ci.yml"
 
@@ -22,9 +23,29 @@ WORKFLOW = Path(__file__).parent.parent / ".github" / "workflows" / "ci.yml"
 ACTION_ONLY_JOBS = {"hassfest", "hacs", "ci-passed"}
 
 
-def workflow() -> dict[str, Any]:
+class WorkflowStep(TypedDict, total=False):
+    """The part of a CI workflow step these tests read."""
+
+    run: str
+
+
+class WorkflowJob(TypedDict, total=False):
+    """The parts of a CI workflow job these tests read."""
+
+    steps: list[WorkflowStep]
+    needs: list[str]
+
+
+class Workflow(TypedDict):
+    """The part of the CI workflow these tests read."""
+
+    jobs: dict[str, WorkflowJob]
+
+
+def workflow() -> Workflow:
     """Return the parsed CI workflow."""
-    return yaml.safe_load(WORKFLOW.read_text())
+    parsed: Workflow = yaml.safe_load(WORKFLOW.read_text())
+    return parsed
 
 
 def gate_invocations() -> dict[str, str]:
@@ -80,7 +101,7 @@ def test_gates_without_a_command_explain_why() -> None:
 def test_required_check_depends_on_every_gate_job() -> None:
     """The single required check must aggregate each gate's job."""
     jobs = workflow()["jobs"]
-    needs = set(jobs["ci-passed"]["needs"])
+    needs = set(jobs["ci-passed"].get("needs", []))
     gate_jobs = {job for job in jobs if job not in ACTION_ONLY_JOBS} | {"hassfest", "hacs"}
 
     assert gate_jobs <= needs, f"jobs missing from the CI passed check: {sorted(gate_jobs - needs)}"
@@ -102,3 +123,33 @@ def test_unknown_gate_selection_lists_the_alternatives() -> None:
     """A typo names what was available rather than failing opaquely."""
     with pytest.raises(SystemExit, match="unknown gate 'nope'"):
         selected_gates(["nope"], fast=False)
+
+
+def test_bundle_is_stale_when_missing(tmp_path: Path) -> None:
+    """A bundle that was never built must be built."""
+    source = tmp_path / "src" / "card.ts"
+    source.parent.mkdir()
+    source.write_text("")
+
+    assert bundle_is_stale(tmp_path / "dist" / "bundle.mjs", [tmp_path / "src"])
+
+
+@pytest.mark.parametrize(
+    ("source_age", "expected"),
+    [pytest.param(-10, False, id="sources_older"), pytest.param(10, True, id="source_newer")],
+)
+def test_bundle_is_stale_compares_against_sources(tmp_path: Path, source_age: int, expected: bool) -> None:
+    """A bundle is rebuilt only when a file it is built from changed after it, including nested and single files."""
+    bundle = tmp_path / "dist" / "bundle.mjs"
+    bundle.parent.mkdir()
+    bundle.write_text("")
+    nested = tmp_path / "src" / "topology" / "layout.ts"
+    nested.parent.mkdir(parents=True)
+    nested.write_text("")
+    config = tmp_path / "package.json"
+    config.write_text("")
+    built = bundle.stat().st_mtime
+    os.utime(config, (built - 10, built - 10))
+    os.utime(nested, (built + source_age, built + source_age))
+
+    assert bundle_is_stale(bundle, [tmp_path / "src", config]) is expected

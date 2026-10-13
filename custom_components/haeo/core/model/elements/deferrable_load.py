@@ -14,7 +14,7 @@ The problem shape never depends on the number of windows: every variable and
 constraint is sized by the horizon, and windows only change parameter values.
 """
 
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import Final, Literal, NotRequired, TypedDict
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
@@ -70,12 +70,12 @@ class DeferrableLoadElementConfig(TypedDict):
 
     element_type: DeferrableLoadElementTypeName
     name: str
-    in_window: NDArray[np.floating[Any]] | float
-    window_start: NDArray[np.floating[Any]] | float
-    requirement: NDArray[np.floating[Any]] | float
-    deficit_price: NDArray[np.floating[Any]] | float
+    in_window: NDArray[np.float64] | float
+    window_start: NDArray[np.float64] | float
+    requirement: NDArray[np.float64] | float
+    deficit_price: NDArray[np.float64] | float
     initial_energy: NotRequired[float]
-    overage_price: NotRequired[NDArray[np.floating[Any]] | float | None]
+    overage_price: NotRequired[NDArray[np.float64] | float | None]
     outbound_tags: NotRequired[set[int] | None]
     inbound_tags: NotRequired[set[int] | None]
 
@@ -117,15 +117,15 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         solver: Highs,
-        in_window: NDArray[np.floating[Any]] | float,
-        window_start: NDArray[np.floating[Any]] | float,
-        requirement: NDArray[np.floating[Any]] | float,
-        deficit_price: NDArray[np.floating[Any]] | float,
+        in_window: NDArray[np.float64] | float,
+        window_start: NDArray[np.float64] | float,
+        requirement: NDArray[np.float64] | float,
+        deficit_price: NDArray[np.float64] | float,
         initial_energy: float = 0.0,
-        overage_price: NDArray[np.floating[Any]] | float | None = None,
+        overage_price: NDArray[np.float64] | float | None = None,
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
     ) -> None:
@@ -257,14 +257,14 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         return list(delivered_at_end <= self._settled_requirement())
 
     @constraint
-    def deferrable_load_overage_limit(self) -> list[highs_linear_expression] | None:
+    def deferrable_load_overage_limit(self) -> list[highs_linear_expression]:
         """Constraint: overage never exceeds the energy delivered at a window end.
 
         This pins the overage to zero away from window ends and keeps it
         bounded even where it is unpriced.
         """
         if self.overage is None:
-            return None
+            return []
         return list(self.overage - self._window_end() * self.energy[1:] <= 0.0)
 
     def element_power_produced(self) -> HighspyArray | None:

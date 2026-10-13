@@ -1,6 +1,6 @@
 """Section types for efficiency configuration."""
 
-from typing import Any, Final, TypedDict
+from typing import Final, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -13,7 +13,7 @@ CONF_EFFICIENCY_SOURCE_TARGET: Final = "efficiency_source_target"
 CONF_EFFICIENCY_TARGET_SOURCE: Final = "efficiency_target_source"
 
 type EfficiencyValueConfig = EntityValue | ConstantValue | NoneValue
-type EfficiencyValueData = NDArray[np.floating[Any]] | float
+type EfficiencyValueData = NDArray[np.float64] | float
 
 
 class EfficiencyConfig(TypedDict, total=False):

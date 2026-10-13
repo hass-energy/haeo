@@ -64,17 +64,7 @@ Optimization settings are stored in `data` under section keys, not in `options`.
         "integration_type": "hub",  # Marker to identify hub entries
         "common": {
             "name": "Home Energy System",
-            "horizon_preset": "custom",
-        },
-        "tiers": {
-            "tier_1_count": 5,
-            "tier_1_duration": 1,
-            "tier_2_count": 11,
-            "tier_2_duration": 5,
-            "tier_3_count": 46,
-            "tier_3_duration": 30,
-            "tier_4_count": 48,
-            "tier_4_duration": 60,
+            "horizon": {"type": "preset", "value": "5_days"},
         },
         "advanced": {
             "advanced_mode": False,
@@ -87,11 +77,14 @@ Optimization settings are stored in `data` under section keys, not in `options`.
 
 Optimization settings are stored in `data` (user-editable), alongside the hub marker.
 The hub flow implementation is in `custom_components/haeo/flows/hub.py`.
-The form uses sectioned schemas (`common`, `advanced`) and an optional `custom_tiers` step when users select a custom planning horizon.
+The form uses sectioned schemas (`common`, `advanced`).
+The planning horizon field is a `ChooseSelector` between a preset and a forecast sensor, built in `custom_components/haeo/flows/horizon.py`.
+The stored `horizon` is either a preset value as shown above or an entity value such as `{"type": "entity", "value": ["sensor.planning_horizon"]}`.
+The hub and options flows both validate a forecast sensor with `validate_horizon()` before saving it.
 
 ### Key implementation points
 
-- Hub flow uses a standard config flow pattern with a user step and optional custom tiers step
+- Hub flow uses a standard config flow pattern with a single user step
 - Prevents duplicate hub names by checking existing entries
 - Stores optimization settings in `data` sections so options flow can update them in-place
 - Hub marker in `data` allows coordinator to identify hub entries
@@ -165,18 +158,22 @@ The element flow mixin is in `custom_components/haeo/flows/element_flow.py`.
 ### Connection endpoint filtering
 
 Connection elements require selecting source and target endpoints from other configured elements.
-The element flow filters available elements based on connectivity level and Advanced Mode setting.
+The element flow filters available elements based on connectivity level and the **Expose raw model elements** hub setting.
 
 Each element type in the `ELEMENT_TYPES` registry defines a connectivity level that controls when it appears in connection selectors.
 The `ConnectivityLevel` enum has three values:
 
 - **`ALWAYS`**: Always shown in connection selectors
-- **`ADVANCED`**: Only shown when Advanced Mode is enabled
+- **`ADVANCED`**: Only shown when **Expose raw model elements** is enabled
 - **`NEVER`**: Never shown in connection selectors
 
-This filtering ensures connection endpoints are appropriate for the user's configuration level.
-It prevents invalid connection topologies by excluding elements that shouldn't be connection endpoints.
-See [`custom_components/haeo/elements/__init__.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/elements/__init__.py) for the connectivity level assigned to each element type.
+An element is an endpoint only if a connection to it goes through the same constraints as any other power flow.
+Plain balance points are endpoints.
+An element that applies its own prices, forecasts, limits, or efficiencies on its own connection is `NEVER`, because a connection made directly to it would bypass them.
+Each adapter in `core/adapters/elements/` declares its level in its `connectivity` attribute.
+
+Existing configurations that already connect to a `NEVER` element are reported through the `invalid_connection_endpoints` repair issue.
+`find_invalid_connection_endpoints()` in `validation.py` reads endpoints from the model connections each adapter produces, so it checks every element type the same way.
 
 ### Element-specific implementations
 
@@ -187,6 +184,7 @@ Each element type has its own flow class in `custom_components/haeo/flows/elemen
 - `ConnectionSubentryFlowHandler` - Connection configuration
 - `GridSubentryFlowHandler` - Grid configuration
 - `InverterSubentryFlowHandler` - Inverter configuration
+- `JunctionSubentryFlowHandler` - Junction configuration
 - `LoadSubentryFlowHandler` - Load configuration
 - `NodeSubentryFlowHandler` - Network node configuration
 - `SolarSubentryFlowHandler` - Solar system configuration
@@ -371,7 +369,7 @@ The options flow implementation is in `custom_components/haeo/flows/options.py`.
 
 ### Key points
 
-- Options flow edits hub-level optimization settings (planning horizon preset, tier configuration, debounce window, advanced mode, forecast recording)
+- Options flow edits hub-level optimization settings (planning horizon, debounce window, expose raw model elements, forecast recording)
 - Element configuration happens via separate config entries
 - Settings stored in `config_entry.data` under section keys
 - Changes trigger coordinator reload to apply new parameters

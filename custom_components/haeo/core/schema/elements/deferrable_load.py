@@ -1,6 +1,6 @@
 """Deferrable load element schema definitions."""
 
-from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
+from typing import Annotated, Final, Literal, NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -79,7 +79,7 @@ class PowerConfig(TypedDict, total=False):
 class PowerData(TypedDict, total=False):
     """Loaded power limit values."""
 
-    max_power: NDArray[np.floating[Any]] | float
+    max_power: NDArray[np.float64] | float
 
 
 # --- Pricing section ---
@@ -95,8 +95,8 @@ class PricingConfig(TypedDict):
 class PricingData(TypedDict):
     """Loaded pricing values."""
 
-    deficit_price: NDArray[np.floating[Any]] | float
-    overage_price: NotRequired[NDArray[np.floating[Any]] | float]
+    deficit_price: NDArray[np.float64] | float
+    overage_price: NotRequired[NDArray[np.float64] | float]
 
 
 # --- Main element schemas ---

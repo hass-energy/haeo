@@ -88,6 +88,11 @@ This blocking operation is tracked for diagnostics timing.
 On the first optimization cycle, the coordinator calls `create_network()` from `coordinator/network.py` to build the complete network from configuration.
 On subsequent cycles, it calls pre-built `ElementUpdater` closures to update element parameters without recreating the network.
 
+Period durations are applied the same way.
+Each cycle copies the horizon manager's current period durations onto the network before handing the solve to the executor.
+A horizon change only signals that an optimization is needed and never touches the network itself.
+At a period boundary the input stores reload first and the last of them can start the optimization immediately, so a horizon-change callback that updated the network would race the solve already running in the executor thread.
+
 The warm start pattern works by:
 
 1. Elements declare parameters using `TrackedParam` descriptors
@@ -148,7 +153,7 @@ When any input entity updates its state (due to external sensor changes or user 
 **Horizon boundary crossings**
 
 The coordinator subscribes to the [HorizonManager](horizon-manager.md).
-When the forecast horizon advances (at period boundaries like every 1 minute for the finest tier), the manager notifies the coordinator to refresh.
+When the forecast horizon advances (at each period boundary of a preset horizon, or when the horizon sensor changes), the manager notifies the coordinator to refresh.
 
 **Manual refresh**
 

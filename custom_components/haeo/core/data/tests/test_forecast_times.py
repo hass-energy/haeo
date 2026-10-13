@@ -7,90 +7,16 @@ from zoneinfo import ZoneInfo
 from freezegun import freeze_time
 import pytest
 
+from conftest import FakeEntityState
 from custom_components.haeo.core.data.forecast_times import (
     calculate_aligned_tier_counts,
     calculate_total_steps,
+    forecast_boundaries,
     generate_forecast_timestamps,
-    generate_forecast_timestamps_from_config,
     minutes_to_next_boundary,
-    tiers_to_periods_seconds,
+    periods_seconds_from_boundaries,
+    preset_periods_seconds,
 )
-
-
-class TierTestCase(TypedDict):
-    """Test case for tiers_to_periods_seconds."""
-
-    description: str
-    config: dict[str, int]
-    expected: list[int]
-
-
-TIER_TEST_CASES: dict[str, TierTestCase] = {
-    "single_tier": {
-        "description": "single tier with 3 intervals of 60 seconds",
-        "config": {
-            "tier_1_count": 3,
-            "tier_1_duration": 1,  # 1 minute = 60 seconds
-            "tier_2_count": 0,
-            "tier_2_duration": 5,
-            "tier_3_count": 0,
-            "tier_3_duration": 30,
-            "tier_4_count": 0,
-            "tier_4_duration": 60,
-        },
-        "expected": [60, 60, 60],
-    },
-    "multiple_tiers": {
-        "description": "multiple tiers with different intervals",
-        "config": {
-            "tier_1_count": 2,
-            "tier_1_duration": 1,  # 60 seconds each
-            "tier_2_count": 1,
-            "tier_2_duration": 5,  # 300 seconds
-            "tier_3_count": 0,
-            "tier_3_duration": 30,
-            "tier_4_count": 0,
-            "tier_4_duration": 60,
-        },
-        "expected": [60, 60, 300],
-    },
-    "all_tiers": {
-        "description": "all four tiers populated",
-        "config": {
-            "tier_1_count": 1,
-            "tier_1_duration": 1,  # 60s
-            "tier_2_count": 1,
-            "tier_2_duration": 5,  # 300s
-            "tier_3_count": 1,
-            "tier_3_duration": 30,  # 1800s
-            "tier_4_count": 1,
-            "tier_4_duration": 60,  # 3600s
-        },
-        "expected": [60, 300, 1800, 3600],
-    },
-    "empty_tiers": {
-        "description": "all tiers with zero count",
-        "config": {
-            "tier_1_count": 0,
-            "tier_1_duration": 1,
-            "tier_2_count": 0,
-            "tier_2_duration": 5,
-            "tier_3_count": 0,
-            "tier_3_duration": 30,
-            "tier_4_count": 0,
-            "tier_4_duration": 60,
-        },
-        "expected": [],
-    },
-}
-
-
-@pytest.mark.parametrize("case_id", TIER_TEST_CASES.keys())
-def test_tiers_to_periods_seconds(case_id: str) -> None:
-    """Verify tier configuration converts to correct period durations."""
-    case = TIER_TEST_CASES[case_id]
-    result = tiers_to_periods_seconds(case["config"])
-    assert result == case["expected"], case["description"]
 
 
 class TimestampTestCase(TypedDict):
@@ -151,29 +77,6 @@ def test_generate_forecast_timestamps_default_start_time() -> None:
     expected_start = 1735732800.0  # 2025-01-01 12:00:00 UTC (rounded from 12:00:30)
 
     result = generate_forecast_timestamps(periods_seconds)
-
-    assert result[0] == expected_start
-    assert len(result) == 3  # 2 periods + 1 = 3 boundaries
-    assert result[1] == expected_start + 60.0
-    assert result[2] == expected_start + 120.0
-
-
-@freeze_time(datetime(2025, 1, 1, 12, 0, 30, tzinfo=UTC))
-def test_generate_forecast_timestamps_from_config() -> None:
-    """Verify timestamps generated from config use proper rounding."""
-    config = {
-        "tier_1_count": 2,
-        "tier_1_duration": 1,  # 60 seconds each
-        "tier_2_count": 0,
-        "tier_2_duration": 5,
-        "tier_3_count": 0,
-        "tier_3_duration": 30,
-        "tier_4_count": 0,
-        "tier_4_duration": 60,
-    }
-    expected_start = 1735732800.0  # 2025-01-01 12:00:00 UTC (rounded from 12:00:30)
-
-    result = generate_forecast_timestamps_from_config(config)
 
     assert result[0] == expected_start
     assert len(result) == 3  # 2 periods + 1 = 3 boundaries
@@ -314,49 +217,6 @@ def test_alignment_no_extra_steps() -> None:
     assert tier_counts[3] == total_steps - (tier_counts[0] + tier_counts[1] + tier_counts[2])
 
 
-def test_tiers_to_periods_with_custom() -> None:
-    """Test that tiers_to_periods_seconds uses fixed counts for custom preset."""
-    config = {
-        "horizon_preset": "custom",
-        "tier_1_count": 5,
-        "tier_1_duration": 1,
-        "tier_2_count": 11,
-        "tier_2_duration": 5,
-        "tier_3_count": 46,
-        "tier_3_duration": 30,
-        "tier_4_count": 48,
-        "tier_4_duration": 60,
-    }
-
-    periods = tiers_to_periods_seconds(config)
-
-    # Should have exactly the specified number of periods
-    assert len(periods) == 5 + 11 + 46 + 48  # 110 periods
-    # Verify the pattern: 5x60s, 11x300s, 46x1800s, 48x3600s
-    assert periods[:5] == [60] * 5
-    assert periods[5:16] == [300] * 11
-
-
-def test_tiers_to_periods_with_missing_tiers() -> None:
-    """Test that tiers_to_periods_seconds handles missing tier configs gracefully."""
-    # Config with only T1 and T2, missing T3 and T4
-    config = {
-        "horizon_preset": "custom",
-        "tier_1_count": 3,
-        "tier_1_duration": 1,
-        "tier_2_count": 2,
-        "tier_2_duration": 5,
-        # tier_3 and tier_4 deliberately omitted
-    }
-
-    periods = tiers_to_periods_seconds(config)
-
-    # Should have only the specified tiers
-    assert len(periods) == 3 + 2  # 5 periods total
-    assert periods[:3] == [60] * 3  # T1: 3x60s
-    assert periods[3:5] == [300] * 2  # T2: 2x300s
-
-
 @pytest.mark.parametrize("preset", ["2_days", "3_days", "5_days", "7_days"])
 def test_preset_produces_constant_step_count_for_all_minutes(preset: str) -> None:
     """Verify each preset produces the same step count regardless of starting minute.
@@ -365,16 +225,9 @@ def test_preset_produces_constant_step_count_for_all_minutes(preset: str) -> Non
     but the total number of steps must remain constant for a given preset. This ensures
     consistent solver performance regardless of when optimization starts.
     """
-    config = {
-        "horizon_preset": preset,
-        "tier_1_duration": 1,
-        "tier_2_duration": 5,
-        "tier_3_duration": 30,
-        "tier_4_duration": 60,
-    }
 
     with freeze_time(datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)):
-        periods = tiers_to_periods_seconds(config)
+        periods = preset_periods_seconds(preset)
         assert len(periods) > 0
         assert periods[0] == 60
 
@@ -382,7 +235,7 @@ def test_preset_produces_constant_step_count_for_all_minutes(preset: str) -> Non
 
     for minute in range(60):
         with freeze_time(datetime(2025, 1, 1, 12, minute, 0, tzinfo=UTC)):
-            periods = tiers_to_periods_seconds(config)
+            periods = preset_periods_seconds(preset)
             step_counts.append(len(periods))
 
     # All minutes should produce the same step count
@@ -402,13 +255,6 @@ PRESET_HORIZON_MINUTES = {
 
 
 ADELAIDE = ZoneInfo("Australia/Adelaide")
-PRESET_CONFIG_5_DAYS = {
-    "horizon_preset": "5_days",
-    "tier_1_duration": 1,
-    "tier_2_duration": 5,
-    "tier_3_duration": 30,
-    "tier_4_duration": 60,
-}
 
 
 def _t4_boundary_local_minutes(
@@ -431,7 +277,7 @@ def test_adelaide_utc_start_time_misaligns_t4_to_half_hour() -> None:
     local_noon = datetime(2025, 6, 2, 12, 0, 0, tzinfo=ADELAIDE)
     utc_start = local_noon.astimezone(UTC)
 
-    periods = tiers_to_periods_seconds(PRESET_CONFIG_5_DAYS, start_time=utc_start)
+    periods = preset_periods_seconds("5_days", start_time=utc_start)
     t4_minutes = _t4_boundary_local_minutes(periods, utc_start.timestamp(), ADELAIDE)
 
     assert t4_minutes, "expected at least one T4 boundary"
@@ -442,7 +288,7 @@ def test_adelaide_local_start_time_aligns_t4_to_hour() -> None:
     """Local start_time at Adelaide noon aligns T4 to :00 local."""
     local_noon = datetime(2025, 6, 2, 12, 0, 0, tzinfo=ADELAIDE)
 
-    periods = tiers_to_periods_seconds(PRESET_CONFIG_5_DAYS, start_time=local_noon)
+    periods = preset_periods_seconds("5_days", start_time=local_noon)
     t4_minutes = _t4_boundary_local_minutes(periods, local_noon.timestamp(), ADELAIDE)
 
     assert t4_minutes, "expected at least one T4 boundary"
@@ -457,20 +303,118 @@ def test_preset_produces_exact_horizon_duration(preset: str) -> None:
     The trailing step ensures that for N whole-day horizons, the optimization
     ends at the same minute of the hour it started.
     """
-    config = {
-        "horizon_preset": preset,
-        "tier_1_duration": 1,
-        "tier_2_duration": 5,
-        "tier_3_duration": 30,
-        "tier_4_duration": 60,
-    }
     expected_seconds = PRESET_HORIZON_MINUTES[preset] * 60
 
     # Test all 60 possible start minutes
     for minute in range(60):
         with freeze_time(datetime(2025, 1, 1, 12, minute, 0, tzinfo=UTC)):
-            periods = tiers_to_periods_seconds(config)
+            periods = preset_periods_seconds(preset)
             total_seconds = sum(periods)
             assert total_seconds == expected_seconds, (
                 f"Preset {preset}: minute {minute} produced {total_seconds}s, expected {expected_seconds}s"
             )
+
+
+def _forecast_state(forecast: object) -> FakeEntityState:
+    """Return an entity state with the given forecast attribute."""
+    return FakeEntityState(entity_id="sensor.horizon", state="0", attributes={"forecast": forecast})
+
+
+@pytest.mark.parametrize(
+    ("forecast", "expected"),
+    [
+        pytest.param(
+            [
+                {"time": "2025-01-01T12:00:00+00:00", "value": 0},
+                {"time": "2025-01-01T12:30:00+00:00", "value": 1},
+                {"time": "2025-01-01T13:30:00+00:00", "value": 2.5},
+            ],
+            (1735732800.0, 1735734600.0, 1735738200.0),
+            id="iso_strings",
+        ),
+        pytest.param(
+            [
+                {"time": datetime(2025, 1, 1, 12, 0, tzinfo=UTC), "value": 0},
+                {"time": datetime(2025, 1, 1, 12, 5, tzinfo=UTC), "value": 0},
+            ],
+            (1735732800.0, 1735733100.0),
+            id="datetimes",
+        ),
+        pytest.param(
+            [{"time": datetime(2025, 1, 1, 12, 0, tzinfo=UTC)}, {"time": datetime(2025, 1, 1, 13, 0, tzinfo=UTC)}],
+            (1735732800.0, 1735736400.0),
+            id="horizon_sensor_times_only",
+        ),
+    ],
+)
+def test_forecast_boundaries_reads_forecast_times(forecast: object, expected: tuple[float, ...]) -> None:
+    """Each forecast point's time is a period boundary."""
+    assert forecast_boundaries(_forecast_state(forecast)) == expected
+
+
+@pytest.mark.parametrize(
+    ("state", "match"),
+    [
+        pytest.param(
+            FakeEntityState(entity_id="sensor.horizon", state="0", attributes={}),
+            "has no forecast of times",
+            id="no_forecast",
+        ),
+        pytest.param(_forecast_state("2025-01-01T12:00:00+00:00"), "has no forecast of times", id="string_forecast"),
+        pytest.param(
+            _forecast_state([{"time": "2025-01-01T12:00:00+00:00"}, {"value": 0}]),
+            "has no forecast of times",
+            id="point_without_time",
+        ),
+        pytest.param(
+            _forecast_state([{"time": "2025-01-01T12:00:00+00:00", "value": 0}]),
+            "at least two increasing times",
+            id="single_point",
+        ),
+        pytest.param(
+            _forecast_state(
+                [
+                    {"time": "2025-01-01T12:00:00+00:00", "value": 0},
+                    {"time": "2025-01-01T12:00:00+00:00", "value": 0},
+                ]
+            ),
+            "at least two increasing times",
+            id="repeated_time",
+        ),
+        pytest.param(
+            _forecast_state(
+                [
+                    {"time": "2025-01-01T13:00:00+00:00", "value": 0},
+                    {"time": "2025-01-01T12:00:00+00:00", "value": 0},
+                ]
+            ),
+            "at least two increasing times",
+            id="decreasing_times",
+        ),
+    ],
+)
+def test_forecast_boundaries_rejects_unusable_forecasts(state: FakeEntityState, match: str) -> None:
+    """A state without a usable forecast of times raises ValueError naming the entity."""
+    with pytest.raises(ValueError, match=f"sensor.horizon .*{match}"):
+        forecast_boundaries(state)
+
+
+@pytest.mark.parametrize(
+    ("boundaries", "expected"),
+    [
+        pytest.param((0.0, 60.0), [60], id="single_period"),
+        pytest.param((1000.0, 1300.0, 3100.0, 6700.0), [300, 1800, 3600], id="mixed_periods"),
+        pytest.param((0.0,), [], id="single_boundary"),
+    ],
+)
+def test_periods_seconds_from_boundaries(boundaries: tuple[float, ...], expected: list[int]) -> None:
+    """Periods are the gaps between consecutive boundaries."""
+    assert periods_seconds_from_boundaries(boundaries) == expected
+
+
+@pytest.mark.parametrize("preset", ["2_days", "3_days", "5_days", "7_days"])
+def test_preset_periods_seconds_defaults_to_now(preset: str) -> None:
+    """Without a start time the preset aligns to the current time."""
+    now = datetime(2025, 1, 1, 12, 17, 0, tzinfo=UTC)
+    with freeze_time(now):
+        assert preset_periods_seconds(preset) == preset_periods_seconds(preset, start_time=now)
