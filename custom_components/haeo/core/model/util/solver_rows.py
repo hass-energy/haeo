@@ -1,13 +1,13 @@
 """Add and update blocks of HiGHS constraint rows."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Final
 
 from highspy import Highs, HighsStatus
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.model.linear import LinearArray, Rows
+from custom_components.haeo.core.model.linear import Rows
 
 # HiGHS drops matrix coefficients smaller than its small_matrix_value option
 # (default 1e-9) and reports a warning, so terms this small are removed before
@@ -39,17 +39,6 @@ class AppliedRows:
     def is_free(self) -> bool:
         """Return whether every row is unbounded, so the block is in the LP but does not bind."""
         return bool(np.all(np.isneginf(self.lower) & np.isposinf(self.upper)))
-
-    def with_bounds(self, lower: float, upper: float) -> Rows:
-        """Return the same rows with every row given the bounds ``lower`` and ``upper``."""
-        n = len(self)
-        width = int(np.max(np.diff(self.starts, append=len(self.index)), initial=0))
-        cols = np.zeros((n, width), dtype=np.int64)
-        coefs = np.zeros((n, width))
-        position = np.arange(len(self.index)) - self.starts[self.row_of]
-        cols[self.row_of, position] = self.index
-        coefs[self.row_of, position] = self.values
-        return Rows(LinearArray(cols, coefs, np.zeros(n)), np.full(n, lower), np.full(n, upper))
 
 
 def applied_form(rows: Rows) -> AppliedRows:
@@ -106,6 +95,20 @@ def add_rows(solver: Highs, rows: Rows) -> tuple[NDArray[np.int32], AppliedRows]
     return np.arange(first_row, first_row + len(applied), dtype=np.int32), applied
 
 
+def change_bounds(
+    solver: Highs,
+    indices: NDArray[np.int32],
+    applied: AppliedRows,
+    lower: float,
+    upper: float,
+) -> AppliedRows:
+    """Give every row the bounds ``lower`` and ``upper``, leaving its coefficients alone."""
+    count = len(applied)
+    new_lower, new_upper = np.full(count, lower), np.full(count, upper)
+    solver.changeRowsBounds(count, indices, new_lower, new_upper)
+    return replace(applied, lower=new_lower, upper=new_upper)
+
+
 def update_rows(solver: Highs, indices: NDArray[np.int32], applied: AppliedRows, rows: Rows) -> AppliedRows:
     """Change rows from the applied form they hold to ``rows``, returning the new applied form.
 
@@ -147,4 +150,4 @@ def update_rows(solver: Highs, indices: NDArray[np.int32], applied: AppliedRows,
     return new
 
 
-__all__ = ["SMALL_MATRIX_VALUE", "AppliedRows", "add_rows", "applied_form", "update_rows"]
+__all__ = ["SMALL_MATRIX_VALUE", "AppliedRows", "add_rows", "applied_form", "change_bounds", "update_rows"]

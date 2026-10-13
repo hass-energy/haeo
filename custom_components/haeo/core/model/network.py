@@ -25,7 +25,7 @@ from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
 from .linear import INF, LinearArray, total
 from .solver import Solver
-from .util.solver_rows import AppliedRows, add_rows, update_rows
+from .util.solver_rows import AppliedRows, add_rows, change_bounds, update_rows
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -515,8 +515,7 @@ class Network:
         """Relax the lex constraint bounds so it is inactive."""
         if self._lex_row is not None:
             indices, applied = self._lex_row
-            relaxed = update_rows(self._solver, indices, applied, applied.with_bounds(-INF, INF))
-            self._lex_row = (indices, relaxed)
+            self._lex_row = (indices, change_bounds(self._solver, indices, applied, -INF, INF))
 
     def constraints(self) -> dict[str, dict[str, NDArray[np.int32]]]:
         """Return all constraints from all elements in the network.

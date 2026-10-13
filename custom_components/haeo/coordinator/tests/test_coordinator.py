@@ -595,9 +595,9 @@ def test_forecast_datetimes_are_in_home_assistant_time_zone() -> None:
 
     times = _forecast_datetimes([base_time.timestamp(), (base_time + timedelta(minutes=30)).timestamp()])
 
-    assert times == (base_time, base_time + timedelta(minutes=30))
-    assert times is not None
-    assert all(time.tzinfo == dt_util.get_default_time_zone() for time in times)
+    local_tz = dt_util.get_default_time_zone()
+    assert times == (base_time.astimezone(local_tz), (base_time + timedelta(minutes=30)).astimezone(local_tz))
+    assert [time.tzinfo for time in times or ()] == [local_tz, local_tz]
 
 
 def test_forecast_datetimes_out_of_range_returns_none() -> None:

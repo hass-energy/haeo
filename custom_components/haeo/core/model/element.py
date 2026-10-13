@@ -301,7 +301,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         """
         return LinearArray.sum_of(
             [
-                LinearArray.constants(np.zeros(self.n_periods)),
+                LinearArray.zeros(self.n_periods),
                 *(
                     conn.power_into_source if end == "source" else conn.power_into_target
                     for conn, end in self._connections
@@ -313,7 +313,7 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         """Return the net power from connections for a specific tag."""
         return LinearArray.sum_of(
             [
-                LinearArray.constants(np.zeros(self.n_periods)),
+                LinearArray.zeros(self.n_periods),
                 *(
                     conn.power_into_source_for_tag(tag) if end == "source" else conn.power_into_target_for_tag(tag)
                     for conn, end in self._connections

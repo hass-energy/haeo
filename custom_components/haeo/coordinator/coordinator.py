@@ -180,13 +180,14 @@ def _build_coordinator_output(
       These have n+1 values representing the state at each time boundary.
       Use all n+1 timestamps.
 
-    The forecast_times tuple contains n+1 times (all boundaries).
-    Each output type zips its values with however many times it needs.
+    The forecast_times tuple contains n+1 datetimes (all boundaries), from
+    ``_forecast_datetimes``. Each output type zips its values with however
+    many times it needs.
 
-    Example with 3 periods of 300 seconds starting at t=0:
-      - forecast_times: [0, 300, 600, 900] (n+1 = 4 boundaries)
-      - Interval values (n=3): zip with [0, 300, 600]
-      - Boundary values (n=4): zip with [0, 300, 600, 900]
+    Example with 3 periods of 5 minutes starting at 12:00:
+      - forecast_times: [12:00, 12:05, 12:10, 12:15] (n+1 = 4 boundaries)
+      - Interval values (n=3): zip with [12:00, 12:05, 12:10]
+      - Boundary values (n=4): zip with [12:00, 12:05, 12:10, 12:15]
     """
 
     values = tuple(output_data.values)

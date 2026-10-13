@@ -23,11 +23,6 @@ type Values = float | NDArray[np.float64]
 """A scalar, or one value per row."""
 
 
-def _row_values(value: Values, n_rows: int) -> NDArray[np.float64]:
-    """Broadcast a scalar or per-row value to one float per row."""
-    return np.broadcast_to(np.asarray(value, dtype=np.float64), (n_rows,))
-
-
 # Rows shown at each end of a long array's repr
 _REPR_EDGE_ROWS: Final = 3
 
@@ -93,8 +88,16 @@ class LinearArray:
         )
 
     @classmethod
+    def zeros(cls, count: int) -> Self:
+        """Return ``count`` rows that are all zero, the starting point of a sum that may have no terms."""
+        return cls.constants(np.zeros(count))
+
+    @classmethod
     def sum_of(cls, items: Sequence["LinearArray"]) -> Self:
         """Return the row-wise sum of arrays with the same number of rows."""
+        if not items:
+            msg = "sum_of needs at least one array; start from LinearArray.zeros(count) when there may be none"
+            raise ValueError(msg)
         return cls(
             cols=np.concatenate([item.cols for item in items], axis=1),
             coefs=np.concatenate([item.coefs for item in items], axis=1),
@@ -113,10 +116,28 @@ class LinearArray:
         ]
         return _format_rows("LinearArray", lines)
 
-    def __getitem__(self, key: int | slice) -> Self:
+    def __getitem__(self, key: int | np.integer | slice) -> Self:
         """Return the selected rows. An integer selects a single row, kept as an array of one."""
-        rows = slice(key, key + 1 or None) if isinstance(key, int) else key
+        rows = key if isinstance(key, slice) else slice(int(key), int(key) + 1 or None)
         return type(self)(cols=self.cols[rows], coefs=self.coefs[rows], constant=self.constant[rows])
+
+    def _with_rows(self, count: int) -> Self:
+        """Return this array repeated to ``count`` rows when it has one row, as numpy broadcasts."""
+        if len(self) == count or count == 1:
+            return self
+        if len(self) != 1:
+            msg = f"Cannot combine {len(self)} rows with {count} rows"
+            raise ValueError(msg)
+        width = self.cols.shape[1]
+        return type(self)(
+            cols=np.broadcast_to(self.cols, (count, width)),
+            coefs=np.broadcast_to(self.coefs, (count, width)),
+            constant=np.broadcast_to(self.constant, (count,)),
+        )
+
+    def _with_rows_of(self, values: NDArray[np.float64]) -> Self:
+        """Return this array matched to the number of rows of per-row values."""
+        return self._with_rows(len(values)) if values.ndim else self
 
     def __neg__(self) -> Self:
         """Return the negated expressions."""
@@ -125,14 +146,15 @@ class LinearArray:
     def __add__(self, other: "LinearArray | Values") -> Self:
         """Add expressions row by row, or add values to the constants."""
         if isinstance(other, LinearArray):
+            left, right = self._with_rows(len(other)), other._with_rows(len(self))
             return type(self)(
-                cols=np.concatenate([self.cols, other.cols], axis=1),
-                coefs=np.concatenate([self.coefs, other.coefs], axis=1),
-                constant=self.constant + other.constant,
+                cols=np.concatenate([left.cols, right.cols], axis=1),
+                coefs=np.concatenate([left.coefs, right.coefs], axis=1),
+                constant=left.constant + right.constant,
             )
-        return type(self)(
-            cols=self.cols, coefs=self.coefs, constant=self.constant + np.asarray(other, dtype=np.float64)
-        )
+        values = np.asarray(other, dtype=np.float64)
+        rows = self._with_rows_of(values)
+        return type(self)(cols=rows.cols, coefs=rows.coefs, constant=rows.constant + values)
 
     def __radd__(self, other: Values) -> Self:
         """Add values to the constants."""
@@ -142,9 +164,7 @@ class LinearArray:
         """Subtract expressions row by row, or subtract values from the constants."""
         if isinstance(other, LinearArray):
             return self + (-other)
-        return type(self)(
-            cols=self.cols, coefs=self.coefs, constant=self.constant - np.asarray(other, dtype=np.float64)
-        )
+        return self + -np.asarray(other, dtype=np.float64)
 
     def __rsub__(self, other: Values) -> Self:
         """Subtract the expressions from values."""
@@ -153,10 +173,11 @@ class LinearArray:
     def __mul__(self, scale: Values) -> Self:
         """Scale each row by a scalar or by one value per row."""
         factor = np.asarray(scale, dtype=np.float64)
+        rows = self._with_rows_of(factor)
         return type(self)(
-            cols=self.cols,
-            coefs=self.coefs * (factor[:, None] if factor.ndim else factor),
-            constant=self.constant * factor,
+            cols=rows.cols,
+            coefs=rows.coefs * (factor[:, None] if factor.ndim else factor),
+            constant=rows.constant * factor,
         )
 
     def __rmul__(self, scale: Values) -> Self:
@@ -173,9 +194,8 @@ class LinearArray:
 
     def column_coefficients(self, n_columns: int) -> NDArray[np.float64]:
         """Return each column's coefficient summed over every term of every row."""
-        coefficients = np.zeros(n_columns)
-        np.add.at(coefficients, self.cols.ravel(), self.coefs.ravel())
-        return coefficients
+        weighted = np.bincount(self.cols.ravel(), weights=self.coefs.ravel(), minlength=n_columns)
+        return weighted.astype(np.float64, copy=False)
 
     def value(self, column_values: NDArray[np.float64]) -> NDArray[np.float64]:
         """Evaluate each row at the given column values."""
@@ -183,17 +203,17 @@ class LinearArray:
 
     def __le__(self, other: "LinearArray | Values") -> "Rows":  # type: ignore[override]
         """Return rows bounding each expression above."""
-        expr = self - other if isinstance(other, LinearArray) else self - _row_values(other, len(self))
-        return Rows(expr.without_constant(), np.full(len(self), -INF), -expr.constant)
+        expr = self - other
+        return Rows(expr.without_constant(), np.full(len(expr), -INF), -expr.constant)
 
     def __ge__(self, other: "LinearArray | Values") -> "Rows":  # type: ignore[override]
         """Return rows bounding each expression below."""
-        expr = self - other if isinstance(other, LinearArray) else self - _row_values(other, len(self))
-        return Rows(expr.without_constant(), -expr.constant, np.full(len(self), INF))
+        expr = self - other
+        return Rows(expr.without_constant(), -expr.constant, np.full(len(expr), INF))
 
     def __eq__(self, other: "LinearArray | Values") -> "Rows":  # type: ignore[override]
         """Return rows fixing each expression."""
-        expr = self - other if isinstance(other, LinearArray) else self - _row_values(other, len(self))
+        expr = self - other
         return Rows(expr.without_constant(), -expr.constant, -expr.constant)
 
     __hash__ = None  # type: ignore[assignment]
@@ -207,7 +227,7 @@ class LinearArray:
         return type(self)(cols=self.cols, coefs=self.coefs, constant=np.zeros(len(self)))
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class Rows:
     """Constraint rows: ``lower <= expr <= upper`` for each row of ``expr``."""
 
