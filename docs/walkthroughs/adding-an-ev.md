@@ -89,8 +89,8 @@ create_calendar_event(
 
 !!! tip "Distance format"
 
-    Enter a number followed by a unit — `50 km`, `30 mi`, and similar forms are recognized.
-    Events without a parsable distance are ignored.
+    Enter only a number followed by a unit, such as `50 km` or `30 mi`.
+    An event without a distance still marks the car away for its duration, but asks for no trip energy.
 
 ## Step 3: Add the EV element
 
@@ -154,7 +154,7 @@ The EV element adds to the existing base system elements (Inverter, Battery, Sol
 ### Key EV sensors
 
 - `sensor.commuter_ev_charge_power` — Optimal charging power (kW)
-- `sensor.commuter_ev_discharge_power` — V2G discharge power (kW), if configured
+- `sensor.commuter_ev_discharge_power` — V2G discharge power (kW), which stays at 0 without a max discharge rate
 - `sensor.commuter_ev_energy_stored` — Current energy in the EV battery (kWh)
 - `sensor.commuter_ev_state_of_charge` — EV battery percentage (%)
 - `sensor.commuter_ev_trip_energy_delivered` — Energy used by the current trip, reset at each trip start (kWh)

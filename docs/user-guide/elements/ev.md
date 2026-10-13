@@ -203,14 +203,6 @@ The EV element creates one device with the following sensors:
 | Discharge power | kW   | Current discharging power      |
 | Active power    | kW   | Net power (discharge − charge) |
 
-!!! note "Charge power is measured on the network side"
-
-    The max charge rate limits energy delivered into the battery, after charge
-    efficiency losses. The charge power sensor reports power drawn from your
-    home network, so with 95% efficiency a 7.4 kW limit shows as up to
-    7.79 kW at the wall. Account for this when driving a charger from this
-    sensor.
-
 ### Energy sensors
 
 | Sensor                | Unit | Description                                                                 |

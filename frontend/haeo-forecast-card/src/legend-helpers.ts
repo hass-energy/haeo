@@ -1,5 +1,3 @@
-import { mdiCarElectric, mdiCarElectricOutline } from "@mdi/js";
-
 import { mdiIcons } from "./mdi-icons";
 
 import { classifyPowerSeries } from "./power-series-classification";
@@ -29,8 +27,10 @@ export function seriesIconPath(series: ForecastSeries): string {
       ? (icons["mdiWeatherSunnyAlert"] ?? fallback)
       : (icons["mdiSolarPowerVariant"] ?? icons["mdiWeatherSunny"] ?? fallback);
   }
-  if (series.elementType === "ev" || element.includes("car")) {
-    return category.group === "production" ? mdiCarElectric : mdiCarElectricOutline;
+  if (series.elementType === "ev") {
+    return category.subgroup === "potential"
+      ? (icons["mdiCarElectricOutline"] ?? fallback)
+      : (icons["mdiCarElectric"] ?? fallback);
   }
   if (element.includes("battery")) {
     return category.group === "production"
