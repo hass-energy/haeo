@@ -1,6 +1,5 @@
 """Tests for deferrable load element config flow."""
 
-from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.core import HomeAssistant
@@ -24,12 +23,13 @@ from custom_components.haeo.core.schema.elements.deferrable_load import (
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import get_input_fields
+from custom_components.haeo.elements.input_fields import is_number_field_info
 from custom_components.haeo.flows.conftest import create_flow
 
 
-def _user_input(**overrides: Any) -> dict[str, Any]:
+def _user_input(**overrides: object) -> dict[str, object]:
     """Build sectioned deferrable load user input."""
-    data = {
+    data: dict[str, object] = {
         CONF_NAME: "Pool Pump",
         CONF_CONNECTION: "TestNode",
         SECTION_SCHEDULE: {CONF_WINDOW_CALENDAR: "calendar.pool_pump"},
@@ -79,4 +79,5 @@ def test_penalty_prices_cannot_be_negative(field: str) -> None:
     """Penalty price inputs are bounded below by zero so the optimization stays bounded."""
     field_info = get_input_fields(ELEMENT_TYPE)[SECTION_PRICING][field]
 
+    assert is_number_field_info(field_info)
     assert field_info.entity_description.native_min_value == 0.0
