@@ -107,12 +107,12 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     """
 
     # Parameters
-    in_window: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    window_start: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    requirement: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    in_window: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    window_start: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    requirement: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
     initial_energy: TrackedParam[float] = TrackedParam()
-    deficit_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    overage_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    deficit_price: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    overage_price: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
 
     def __init__(
         self,
@@ -173,6 +173,20 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         """
         return self.delivered * (1.0 / self.periods)
 
+    def _in_window(self) -> NDArray[np.float64]:
+        """Return the per-period window flag.
+
+        A parameter update can set a plain float, as the model config allows.
+        """
+        return broadcast_to_sequence(self.in_window, self.n_periods)
+
+    def _boundaries(self, value: NDArray[np.float64] | float) -> NDArray[np.float64]:
+        """Broadcast a per-boundary parameter to every boundary.
+
+        A parameter update can set a plain float, as the model config allows.
+        """
+        return broadcast_to_sequence(value, self.n_periods + 1)
+
     def _carry(self) -> NDArray[np.float64]:
         """Return 1 for each period that continues the window of the boundary before it.
 
@@ -180,13 +194,13 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         and no window starts at its opening boundary. Every other period
         starts the accumulator from zero.
         """
-        return self.in_window * (1.0 - self.window_start[:-1])
+        return self._in_window() * (1.0 - self._boundaries(self.window_start)[:-1])
 
     def _window_end(self) -> NDArray[np.float64]:
         """Return 1 at boundaries 1..T where a window ends."""
-        in_window = self.in_window
+        in_window = self._in_window()
         next_in_window = np.append(in_window[1:], 0.0)
-        next_continues = next_in_window * (1.0 - self.window_start[1:])
+        next_continues = next_in_window * (1.0 - self._boundaries(self.window_start)[1:])
         return in_window * (1.0 - next_continues)
 
     def _settled_requirement(self) -> NDArray[np.float64]:
@@ -197,7 +211,7 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         energy, so a sunk telemetry overshoot is neither priced nor capped.
         """
         window_end = self._window_end()
-        settled = window_end * self.requirement[1:]
+        settled = window_end * self._boundaries(self.requirement)[1:]
         carry = self._carry()
         if carry[0] > 0.0:
             first_end = int(np.argmax(window_end > 0.0))
@@ -221,7 +235,7 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     @constraint
     def deferrable_load_window(self) -> list[highs_linear_expression]:
         """Constraint: no energy is delivered outside windows."""
-        return list((1.0 - self.in_window) * self.delivered <= 0.0)
+        return list((1.0 - self._in_window()) * self.delivered <= 0.0)
 
     @constraint(output=True, unit="$/kWh")
     def deferrable_load_requirement(self) -> list[highs_linear_expression]:
@@ -278,16 +292,16 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     @cost
     def deferrable_load_shortfall_cost(self) -> highs_linear_expression:
         """Cost: each window's shortfall priced at its end boundary."""
-        require_non_negative("deficit_price", self.deficit_price)
-        return (self.deficit_price[1:] * self.shortfall).sum()
+        require_non_negative("deficit_price", self._boundaries(self.deficit_price))
+        return (self._boundaries(self.deficit_price)[1:] * self.shortfall).sum()
 
     @cost
     def deferrable_load_overage_cost(self) -> highs_linear_expression | None:
         """Cost: each window's overage priced at its end boundary."""
         if self.overage is None:
             return None
-        require_non_negative("overage_price", self.overage_price)
-        return (self.overage_price[1:] * self.overage).sum()
+        require_non_negative("overage_price", self._boundaries(self.overage_price))
+        return (self._boundaries(self.overage_price)[1:] * self.overage).sum()
 
     # Output methods
 

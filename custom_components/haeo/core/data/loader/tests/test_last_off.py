@@ -40,7 +40,13 @@ def test_is_off_state(raw: str, *, expected: bool) -> None:
             400.0,
             id="latest_off_wins",
         ),
-        pytest.param([("off", 100.0), ("unavailable", 150.0), ("on", 200.0)], 150.0, id="off_ends_at_restart"),
+        pytest.param([("off", 100.0), ("unavailable", 150.0), ("on", 200.0)], 200.0, id="unavailable_stays_off"),
+        pytest.param(
+            [("off", 100.0), ("unknown", 150.0), ("off", 160.0), ("on", 200.0)],
+            200.0,
+            id="restart_while_off_stays_off",
+        ),
+        pytest.param([("off", 100.0), ("unavailable", 150.0)], None, id="unavailable_after_off_is_not_on"),
         pytest.param([("on", 100.0), ("unavailable", 150.0), ("on", 200.0)], None, id="restart_is_not_off"),
         pytest.param([("on", 100.0), ("off", 200.0)], None, id="still_off"),
         pytest.param([("on", 100.0)], None, id="never_off"),
@@ -48,7 +54,7 @@ def test_is_off_state(raw: str, *, expected: bool) -> None:
     ],
 )
 def test_last_off_time(changes: list[tuple[str, float]], expected: float | None) -> None:
-    """The last off time is when the latest off reading gave way to another state."""
+    """The last off time is when the latest off reading gave way to an on reading."""
     assert last_off_time(changes) == expected
 
 

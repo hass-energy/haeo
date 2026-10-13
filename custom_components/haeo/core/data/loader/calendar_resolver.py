@@ -70,17 +70,6 @@ class CalendarBoundaryData(TypedDict):
     open_since: float | None
 
 
-def is_calendar_boundary_data(value: object) -> bool:
-    """Return True when *value* looks like resolved calendar boundary data."""
-    return isinstance(value, dict) and set(value) == {
-        "presence",
-        "value_span",
-        "value_edge_start",
-        "value_edge_end",
-        "open_since",
-    }
-
-
 def _convert_distance(value: float, from_unit: str, to_unit: str) -> float:
     """Convert a distance between length units via their kilometre factors."""
     km, _, _ = convert_to_base_unit(value, from_unit, DeviceClass.DISTANCE)
@@ -172,6 +161,5 @@ def resolve_calendar_field(
 
 __all__ = [
     "CalendarBoundaryData",
-    "is_calendar_boundary_data",
     "resolve_calendar_field",
 ]

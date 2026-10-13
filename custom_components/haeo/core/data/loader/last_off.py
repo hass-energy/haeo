@@ -8,7 +8,6 @@ the same value.
 """
 
 from collections.abc import Sequence
-from itertools import pairwise
 from typing import Final
 
 from custom_components.haeo.core.state import EntityState
@@ -38,6 +37,18 @@ def is_off_state(raw: str) -> bool:
         return False
 
 
+def is_on_state(raw: str) -> bool:
+    """Return True when a state string reads as on ('on', 'true', or 1).
+
+    States that do not parse as a number, such as 'unavailable' or 'unknown',
+    are not on.
+    """
+    try:
+        return parse_scalar_state(raw) >= _OFF_THRESHOLD
+    except ValueError:
+        return False
+
+
 def last_off_time(changes: Sequence[tuple[str, float]]) -> float | None:
     """Return when the most recent off reading ended.
 
@@ -45,15 +56,20 @@ def last_off_time(changes: Sequence[tuple[str, float]]) -> float | None:
         changes: Chronological ``(state, changed_at)`` pairs, POSIX seconds.
 
     Returns:
-        The time of the change that followed the latest off reading, or None
-        when no off reading was followed by another state. Unparseable states
-        never count as off, so a restart that briefly reads 'unavailable'
-        between two on readings leaves no off time.
+        The time of the first on reading after the latest off reading that
+        was followed by one, or None when no off reading was. Unparseable
+        states neither start nor end an off reading, so an unplugged car whose
+        integration reads 'unavailable' for a while stays off until it reads
+        on, and a restart that briefly reads 'unavailable' between two on
+        readings leaves no off time.
 
     """
-    for (state, _changed_at), (_next_state, next_changed_at) in reversed(list(pairwise(changes))):
-        if is_off_state(state):
-            return next_changed_at
+    first_on_after: float | None = None
+    for state, changed_at in reversed(changes):
+        if is_on_state(state):
+            first_on_after = changed_at
+        elif is_off_state(state) and first_on_after is not None:
+            return first_on_after
     return None
 
 
@@ -67,4 +83,4 @@ def read_last_off(state: EntityState | None) -> float | None:
     return float(value)
 
 
-__all__ = ["LAST_OFF_ATTRIBUTE", "is_off_state", "last_off_field", "last_off_time", "read_last_off"]
+__all__ = ["LAST_OFF_ATTRIBUTE", "is_off_state", "is_on_state", "last_off_field", "last_off_time", "read_last_off"]

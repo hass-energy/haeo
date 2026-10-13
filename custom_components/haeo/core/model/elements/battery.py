@@ -86,9 +86,9 @@ class Battery(NetworkElement[BatteryOutputName]):
     capacity: TrackedParam[NDArray[np.float64]] = TrackedParam()
     initial_charge: TrackedParam[float] = TrackedParam()
     salvage_value: TrackedParam[float] = TrackedParam()
-    reserve_level: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    reserve_mask: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    reserve_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    reserve_level: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    reserve_mask: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    reserve_price: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
 
     def __init__(
         self,
@@ -210,6 +210,13 @@ class Battery(NetworkElement[BatteryOutputName]):
         """Return power consumed by charging the battery."""
         return self.power_consumption
 
+    def _boundaries(self, value: NDArray[np.float64] | float) -> NDArray[np.float64]:
+        """Broadcast a per-boundary parameter to every boundary.
+
+        A parameter update can set a plain float, as the model config allows.
+        """
+        return broadcast_to_sequence(value, self.n_periods + 1)
+
     @constraint(output=True, unit="$/kWh")
     def battery_reserve_floor(self) -> list[highs_linear_expression]:
         """Constraint: shortfall covers the drop below reserve at masked boundaries.
@@ -218,8 +225,9 @@ class Battery(NetworkElement[BatteryOutputName]):
         """
         if self.reserve_shortfall is None:
             return []
-        mask = self.reserve_mask[1:]
-        return list(self.reserve_shortfall[1:] >= mask * self.reserve_level[1:] - mask * self.stored_energy[1:])
+        mask = self._boundaries(self.reserve_mask)[1:]
+        level = self._boundaries(self.reserve_level)[1:]
+        return list(self.reserve_shortfall[1:] >= mask * level - mask * self.stored_energy[1:])
 
     @constraint
     def battery_reserve_shortfall_limit(self) -> list[highs_linear_expression]:
@@ -232,7 +240,7 @@ class Battery(NetworkElement[BatteryOutputName]):
         """
         if self.reserve_shortfall is None:
             return []
-        limit = np.maximum(self.reserve_mask[1:] * self.reserve_level[1:], 0.0)
+        limit = np.maximum(self._boundaries(self.reserve_mask)[1:] * self._boundaries(self.reserve_level)[1:], 0.0)
         return list(self.reserve_shortfall[1:] <= limit)
 
     @cost
@@ -251,8 +259,8 @@ class Battery(NetworkElement[BatteryOutputName]):
         """
         if self.reserve_shortfall is None:
             return None
-        require_non_negative("reserve_price", self.reserve_price)
-        return (self.reserve_price[1:] * self.reserve_shortfall[1:]).sum()
+        require_non_negative("reserve_price", self._boundaries(self.reserve_price))
+        return (self._boundaries(self.reserve_price)[1:] * self.reserve_shortfall[1:]).sum()
 
     # Output methods
 
@@ -283,6 +291,8 @@ class Battery(NetworkElement[BatteryOutputName]):
         else:
             values = tuple(
                 float(v * m)
-                for v, m in zip(self.extract_values(self.reserve_shortfall), self.reserve_mask, strict=True)
+                for v, m in zip(
+                    self.extract_values(self.reserve_shortfall), self._boundaries(self.reserve_mask), strict=True
+                )
             )
         return OutputData(type=OutputType.ENERGY, unit="kWh", values=values)
