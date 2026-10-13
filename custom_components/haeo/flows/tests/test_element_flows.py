@@ -311,6 +311,18 @@ async def test_element_flow_user_step_duplicate_name(
     assert result.get("errors") == {CONF_NAME: "name_exists"}
 
 
+async def _open_settings_step(flow: Any) -> Any:
+    """Start reconfiguring and return the step that edits the element's settings.
+
+    A flow whose reconfigure step is a menu edits the settings in its user step.
+    """
+    result = await flow.async_step_reconfigure(user_input=None)
+    if result.get("type") == FlowResultType.MENU:
+        assert "user" in result.get("menu_options", [])
+        return flow.async_step_user
+    return flow.async_step_reconfigure
+
+
 @pytest.mark.parametrize("element_type", SINGLE_STEP_ELEMENT_TYPES)
 async def test_element_flow_reconfigure_success(
     hass: HomeAssistant,
@@ -331,15 +343,15 @@ async def test_element_flow_reconfigure_success(
     flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT, "reason": "reconfigure_successful"})
 
-    result = await flow.async_step_reconfigure(user_input=None)
+    settings_step = await _open_settings_step(flow)
+    result = await settings_step(user_input=None)
     assert result.get("type") == FlowResultType.FORM
     # Some flows reuse "user" step_id for reconfigure, others use "reconfigure"
     assert result.get("step_id") in ("reconfigure", "user")
 
     reconfigure_input = deepcopy(existing_config)
 
-    # Single-step flow: submit values directly
-    result = await flow.async_step_reconfigure(user_input=reconfigure_input)
+    result = await settings_step(user_input=reconfigure_input)
 
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
@@ -372,8 +384,8 @@ async def test_element_flow_reconfigure_rename(
     original_name = renamed_input[CONF_NAME]
     renamed_input[CONF_NAME] = f"{original_name} Updated"
 
-    # Single-step flow: submit values directly
-    result = await flow.async_step_reconfigure(user_input=renamed_input)
+    settings_step = await _open_settings_step(flow)
+    result = await settings_step(user_input=renamed_input)
 
     assert result.get("type") == FlowResultType.ABORT
     assert result.get("reason") == "reconfigure_successful"
@@ -405,7 +417,8 @@ async def test_element_flow_reconfigure_missing_name(
     invalid_input = deepcopy(existing_config)
     invalid_input[CONF_NAME] = ""
 
-    result = await flow.async_step_reconfigure(user_input=invalid_input)
+    settings_step = await _open_settings_step(flow)
+    result = await settings_step(user_input=invalid_input)
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_NAME: "missing_name"}
 
@@ -444,6 +457,7 @@ async def test_element_flow_reconfigure_duplicate_name(
     duplicate_input = deepcopy(secondary_config)
     duplicate_input[CONF_NAME] = primary_config[CONF_NAME]
 
-    result = await flow.async_step_reconfigure(user_input=duplicate_input)
+    settings_step = await _open_settings_step(flow)
+    result = await settings_step(user_input=duplicate_input)
     assert result.get("type") == FlowResultType.FORM
     assert result.get("errors") == {CONF_NAME: "name_exists"}

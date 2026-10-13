@@ -68,6 +68,14 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 
+# Battery partition keys written by this migration, which v1.4 replaces with holding costs
+BATTERY_SECTION_PARTITIONING = "partitioning"
+BATTERY_SECTION_UNDERCHARGE = "undercharge"
+BATTERY_SECTION_OVERCHARGE = "overcharge"
+BATTERY_CONF_CONFIGURE_PARTITIONS = "configure_partitions"
+BATTERY_CONF_PARTITION_PERCENTAGE = "percentage"
+BATTERY_CONF_PARTITION_COST = "cost"
+
 
 @dataclass(frozen=True)
 class HubMigrationStep:
@@ -243,13 +251,13 @@ def _migrate_element_to_sectioned(data: Mapping[str, object]) -> dict[str, objec
         if (legacy_efficiency := get_value("efficiency")) is not None:
             efficiency.setdefault(battery.CONF_EFFICIENCY_SOURCE_TARGET, to_schema_value(legacy_efficiency))
             efficiency.setdefault(battery.CONF_EFFICIENCY_TARGET_SOURCE, to_schema_value(legacy_efficiency))
-        add_if_present(partitioning, battery.CONF_CONFIGURE_PARTITIONS)
-        if isinstance(undercharge_raw := data.get(battery.SECTION_UNDERCHARGE), dict):
+        add_if_present(partitioning, BATTERY_CONF_CONFIGURE_PARTITIONS)
+        if isinstance(undercharge_raw := data.get(BATTERY_SECTION_UNDERCHARGE), dict):
             undercharge.update(undercharge_raw)
-        if isinstance(overcharge_raw := data.get(battery.SECTION_OVERCHARGE), dict):
+        if isinstance(overcharge_raw := data.get(BATTERY_SECTION_OVERCHARGE), dict):
             overcharge.update(overcharge_raw)
-        convert_section_values(undercharge, (battery.CONF_PARTITION_PERCENTAGE, battery.CONF_PARTITION_COST))
-        convert_section_values(overcharge, (battery.CONF_PARTITION_PERCENTAGE, battery.CONF_PARTITION_COST))
+        convert_section_values(undercharge, (BATTERY_CONF_PARTITION_PERCENTAGE, BATTERY_CONF_PARTITION_COST))
+        convert_section_values(overcharge, (BATTERY_CONF_PARTITION_PERCENTAGE, BATTERY_CONF_PARTITION_COST))
 
         migrated |= {
             battery.SECTION_STORAGE: storage,
@@ -257,9 +265,9 @@ def _migrate_element_to_sectioned(data: Mapping[str, object]) -> dict[str, objec
             SECTION_POWER_LIMITS: power_limits,
             SECTION_PRICING: pricing,
             SECTION_EFFICIENCY: efficiency,
-            battery.SECTION_PARTITIONING: partitioning,
-            battery.SECTION_UNDERCHARGE: undercharge,
-            battery.SECTION_OVERCHARGE: overcharge,
+            BATTERY_SECTION_PARTITIONING: partitioning,
+            BATTERY_SECTION_UNDERCHARGE: undercharge,
+            BATTERY_SECTION_OVERCHARGE: overcharge,
         }
         return migrated
 

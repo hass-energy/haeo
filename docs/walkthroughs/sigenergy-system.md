@@ -281,7 +281,7 @@ See [Junction](../user-guide/elements/junction.md#hybrid-inverter-example) for m
 
     ---
 
-    Review battery settings and partition options.
+    Review battery settings and holding costs.
 
     [:material-arrow-right: Battery guide](../user-guide/elements/battery.md)
 

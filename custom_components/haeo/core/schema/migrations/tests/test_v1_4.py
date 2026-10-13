@@ -22,11 +22,12 @@ from custom_components.haeo.core.schema import (
     as_none_value,
     get_connection_target_name,
 )
-from custom_components.haeo.core.schema.elements import connection, junction, node
+from custom_components.haeo.core.schema.elements import battery, connection, junction, node
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.migrations.v1_4 import (
     junction_config,
     merge_reverse_into_existing,
+    migrate_battery_partitions,
     migrate_connection_config,
     migrate_hub_horizon,
     node_is_junction,
@@ -252,3 +253,87 @@ def test_migrate_hub_horizon(stored_preset: str | None, expected_preset: str) ->
         HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: as_horizon_preset_value(expected_preset)},
         HUB_SECTION_ADVANCED: {},
     }
+
+
+def _battery(
+    limits: Mapping[str, object],
+    undercharge: dict[str, object] | None = None,
+    overcharge: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Return a battery config as v1.3 stored it."""
+    return {
+        CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+        CONF_NAME: "Battery",
+        battery.SECTION_STORAGE: {battery.CONF_CAPACITY: as_constant_value(10.0)},
+        battery.SECTION_LIMITS: dict(limits),
+        "partitioning": {"configure_partitions": True},
+        "undercharge": undercharge or {},
+        "overcharge": overcharge or {},
+    }
+
+
+def _holding_cost(name: str, direction: str, threshold: object, cost: object) -> dict[str, object]:
+    return {"name": name, "enabled": True, "direction": direction, "threshold": threshold, "cost": cost}
+
+
+def test_migrate_battery_partitions_to_holding_costs() -> None:
+    """A partition's percentage becomes the hard limit, and its cost a holding cost past the old limit."""
+    migrated = migrate_battery_partitions(
+        _battery(
+            {
+                battery.CONF_MIN_CHARGE_PERCENTAGE: as_entity_value(["sensor.reserve"]),
+                battery.CONF_MAX_CHARGE_PERCENTAGE: as_constant_value(90.0),
+            },
+            undercharge={"percentage": as_constant_value(5.0), "cost": as_constant_value(0.02)},
+            overcharge={"percentage": as_constant_value(100.0), "cost": as_entity_value(["sensor.rate"])},
+        )
+    )
+
+    assert migrated == {
+        CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+        CONF_NAME: "Battery",
+        battery.SECTION_STORAGE: {battery.CONF_CAPACITY: as_constant_value(10.0)},
+        battery.SECTION_LIMITS: {
+            battery.CONF_MIN_CHARGE_PERCENTAGE: as_constant_value(5.0),
+            battery.CONF_MAX_CHARGE_PERCENTAGE: as_constant_value(100.0),
+        },
+        battery.CONF_HOLDING_COSTS: [
+            _holding_cost("Undercharge", "below", as_entity_value(["sensor.reserve"]), as_constant_value(0.02)),
+            _holding_cost("Overcharge", "above", as_constant_value(90.0), as_entity_value(["sensor.rate"])),
+        ],
+    }
+
+
+def test_migrate_battery_partitions_defaults_unset_limits() -> None:
+    """A partition past an unset limit measures its holding cost from that limit's default."""
+    migrated = migrate_battery_partitions(
+        _battery(
+            {battery.CONF_MIN_CHARGE_PERCENTAGE: as_none_value()},
+            undercharge={"percentage": as_constant_value(0.0), "cost": as_constant_value(0.02)},
+            overcharge={"percentage": as_constant_value(95.0), "cost": as_constant_value(0.01)},
+        )
+    )
+
+    assert migrated[battery.CONF_HOLDING_COSTS] == [
+        _holding_cost("Undercharge", "below", as_constant_value(0.0), as_constant_value(0.02)),
+        _holding_cost("Overcharge", "above", as_constant_value(100.0), as_constant_value(0.01)),
+    ]
+
+
+@pytest.mark.parametrize(
+    "undercharge",
+    [
+        pytest.param({}, id="empty"),
+        pytest.param({"percentage": as_constant_value(5.0)}, id="no_cost"),
+        pytest.param({"percentage": as_none_value(), "cost": as_constant_value(0.02)}, id="no_percentage"),
+    ],
+)
+def test_migrate_battery_partitions_skips_inactive_partitions(undercharge: dict[str, object]) -> None:
+    """A partition without both a percentage and a cost had no effect and is dropped with the limits unchanged."""
+    limits = {battery.CONF_MIN_CHARGE_PERCENTAGE: as_constant_value(10.0)}
+
+    migrated = migrate_battery_partitions(_battery(limits, undercharge=undercharge))
+
+    assert battery.CONF_HOLDING_COSTS not in migrated
+    assert migrated[battery.SECTION_LIMITS] == limits
+    assert not {"partitioning", "undercharge", "overcharge"} & migrated.keys()

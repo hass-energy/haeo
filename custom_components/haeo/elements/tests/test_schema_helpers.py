@@ -31,7 +31,6 @@ def test_get_input_field_schema_info_marks_optional_fields() -> None:
 
     assert schema_info[battery.SECTION_STORAGE][battery.CONF_CAPACITY].is_optional is False
     assert schema_info[battery.SECTION_LIMITS][battery.CONF_MIN_CHARGE_PERCENTAGE].is_optional is True
-    assert schema_info[battery.SECTION_UNDERCHARGE][battery.CONF_PARTITION_COST].is_optional is True
 
 
 def test_get_input_field_schema_info_missing_section() -> None:

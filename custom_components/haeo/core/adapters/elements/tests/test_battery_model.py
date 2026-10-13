@@ -27,6 +27,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_HOLDING_COST,
     connection,
 )
 from custom_components.haeo.core.model.output_data import OutputData
@@ -55,7 +56,7 @@ class OutputsCase(TypedDict):
 
 CREATE_CASES: Sequence[CreateCase] = [
     {
-        "description": "Battery with SOC pricing thresholds",
+        "description": "Battery with holding costs",
         "data": BatteryConfigData(
             element_type=ElementType.BATTERY,
             name="battery_main",
@@ -79,22 +80,29 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
-            partitioning={},
-            undercharge={
-                "percentage": np.array([0.05, 0.05]),
-                "cost": np.array([0.03]),
-            },
-            overcharge={
-                "percentage": np.array([0.95, 0.95]),
-                "cost": np.array([0.04]),
-            },
+            holding_costs=[
+                {
+                    "name": "Reserve",
+                    "enabled": True,
+                    "direction": "below",
+                    "threshold": np.array([0.2, 0.2]),
+                    "cost": np.array([0.03]),
+                },
+                {
+                    "name": "Headroom",
+                    "enabled": True,
+                    "direction": "above",
+                    "threshold": np.array([0.7, 0.7]),
+                    "cost": np.array([0.04]),
+                },
+            ],
         ),
         "model": [
             {
                 "element_type": MODEL_ELEMENT_TYPE_BATTERY,
                 "name": "battery_main",
-                "capacity": [9.0, 9.0],
-                "initial_charge": 4.5,
+                "capacity": [8.0, 8.0],
+                "initial_charge": 4.0,
                 "salvage_value": 0.0,
             },
             {
@@ -105,13 +113,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "segments": {
                     "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
-                    "soc_pricing": {
-                        "segment_type": "soc_pricing",
-                        "discharge_energy_threshold": [0.5],
-                        "discharge_energy_price": [0.03],
-                        "charge_capacity_threshold": [8.5],
-                        "charge_capacity_price": [0.04],
-                    },
                 },
             },
             {
@@ -123,6 +124,22 @@ CREATE_CASES: Sequence[CreateCase] = [
                     "power_limit": {"segment_type": "power_limit", "max_power": [5.0]},
                     "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                 },
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_HOLDING_COST,
+                "name": "battery_main:holding_cost:0",
+                "storage": "battery_main",
+                "direction": "below",
+                "threshold": [1.0],
+                "price": [0.03],
+            },
+            {
+                "element_type": MODEL_ELEMENT_TYPE_HOLDING_COST,
+                "name": "battery_main:holding_cost:1",
+                "storage": "battery_main",
+                "direction": "above",
+                "threshold": [6.0],
+                "price": [0.04],
             },
         ],
     },
@@ -151,9 +168,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
-            partitioning={},
-            undercharge={},
-            overcharge={},
         ),
         "model": [
             {
@@ -210,9 +224,6 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
-            partitioning={},
-            undercharge={},
-            overcharge={},
         ),
         "model": [
             {
@@ -274,9 +285,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
-            partitioning={},
-            undercharge={},
-            overcharge={},
         ),
         "model_outputs": {
             "battery_no_balance": {
@@ -355,9 +363,6 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
-            partitioning={},
-            undercharge={},
-            overcharge={},
         ),
         "model_outputs": {
             "battery_no_balance": {
@@ -406,7 +411,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         },
     },
     {
-        "description": "Battery outputs include undercharge offset",
+        "description": "Battery outputs include the energy below the min charge level",
         "name": "battery_with_thresholds",
         "data": BatteryConfigData(
             element_type=ElementType.BATTERY,
@@ -431,15 +436,22 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
-            partitioning={},
-            undercharge={
-                "percentage": np.array([0.05, 0.05]),
-                "cost": np.array([0.03]),
-            },
-            overcharge={
-                "percentage": np.array([0.95, 0.95]),
-                "cost": np.array([0.04]),
-            },
+            holding_costs=[
+                {
+                    "name": "Reserve",
+                    "enabled": True,
+                    "direction": "below",
+                    "threshold": np.array([0.2, 0.2]),
+                    "cost": np.array([0.03]),
+                },
+                {
+                    "name": "Headroom",
+                    "enabled": True,
+                    "direction": "above",
+                    "threshold": np.array([0.7, 0.7]),
+                    "cost": np.array([0.04]),
+                },
+            ],
         ),
         "model_outputs": {
             "battery_with_thresholds": {
@@ -449,7 +461,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 battery_model.BATTERY_POWER_DISCHARGE: OutputData(
                     type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"
                 ),
-                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(3.5, 3.5)),
+                battery_model.BATTERY_ENERGY_STORED: OutputData(type=OutputType.ENERGY, unit="kWh", values=(3.0, 3.0)),
                 battery_model.BATTERY_POWER_BALANCE: OutputData(
                     type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.1,)
                 ),

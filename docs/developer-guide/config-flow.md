@@ -130,17 +130,15 @@ Element configuration is sectioned, with optional sections only present when con
             "efficiency_source_target": 95.0,
             "efficiency_target_source": 95.0,
         },
-        "partitioning": {
-            "configure_partitions": True,
-        },
-        "undercharge": {
-            "percentage": 5.0,
-            "cost": 1.5,
-        },
-        "overcharge": {
-            "percentage": 95.0,
-            "cost": 1.0,
-        },
+        "holding_costs": [
+            {
+                "name": "Reserve",
+                "enabled": True,
+                "direction": "below",
+                "threshold": 10.0,
+                "cost": 0.02,
+            },
+        ],
     },
 }
 ```
@@ -218,8 +216,8 @@ Most elements configure all inputs in a single step:
 3. Based on selection, user either picks entities from a dropdown or enters a constant value inline
 4. Submit creates the element with all configuration
 
-Some elements add a follow-up step when optional settings are enabled.
-For example, the battery flow presents a second step for undercharge and overcharge partitions when the user enables partitioning.
+Some elements hold a list of items that are managed after the element is created.
+For example, reconfiguring a battery shows a menu to edit its settings or to add, edit, or delete its holding costs, the same way the policy flow manages its rules.
 
 ### UI Sections
 

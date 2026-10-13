@@ -13,7 +13,7 @@ A battery in HAEO's model layer is a single-section energy storage device with:
 
 !!! note "Multi-Section Batteries"
 
-    Complex battery behavior (undercharge/overcharge ranges and cost penalties) is implemented at the [device adapter layer](../../device-layer/battery.md) using SOC pricing on the connection.
+    Preferences on the stored energy are [holding cost](holding-cost.md) elements that reference the battery, composed at the [device adapter layer](../../device-layer/battery.md).
     For explicit multi-section modeling, compose [Battery Section](../../device-layer/battery_section.md) elements with Connection elements.
 
 ## Model Formulation
@@ -110,7 +110,7 @@ $$
 -v_{\text{salvage}} \cdot \left(E_{\text{in}}(T) - E_{\text{out}}(T)\right)
 $$
 
-Other costs (efficiency losses, degradation penalties, SOC pricing) are applied through [Connection](../connections/index.md) elements in the device adapter layer.
+Other costs are applied by other elements: efficiency losses and degradation penalties through [Connection](../connections/index.md) elements, and preferences on the stored energy through [holding cost](holding-cost.md) elements.
 
 ## Physical Interpretation
 
@@ -203,7 +203,7 @@ The single-section battery model is a building block for more complex battery be
 - **Efficiency losses**: Applied through Connection efficiency parameters
 - **Power limits**: Applied through Connection max_power constraints
 - **Cost penalties**: Applied through Connection price parameters
-- **SOC pricing incentives**: Applied through Connection SOC pricing segments
+- **Stored energy preferences**: Applied through [holding cost](holding-cost.md) elements
 
 See the [Battery Device Layer documentation](../../device-layer/battery.md) for how these are composed.
 

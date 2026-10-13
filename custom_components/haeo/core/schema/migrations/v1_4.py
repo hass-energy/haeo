@@ -1,7 +1,8 @@
 """Pure config transformation logic for the v1.4 migration.
 
 Connections become unidirectional, nodes that neither source nor sink power
-become junctions, and the hub's horizon preset and tiers become a horizon choice.
+become junctions, the hub's horizon preset and tiers become a horizon choice,
+and battery partitions become holding costs.
 """
 
 from __future__ import annotations
@@ -19,14 +20,22 @@ from custom_components.haeo.core.const import (
     HUB_SECTION_TIERS,
 )
 from custom_components.haeo.core.schema import (
+    as_constant_value,
     get_connection_target_name,
     is_connection_target,
     is_constant_value,
     is_none_value,
     normalize_connection_target,
 )
-from custom_components.haeo.core.schema.elements import connection, junction, node
+from custom_components.haeo.core.schema.elements import battery, connection, junction, node
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
+from custom_components.haeo.core.schema.migrations.v1_3 import (
+    BATTERY_CONF_PARTITION_COST,
+    BATTERY_CONF_PARTITION_PERCENTAGE,
+    BATTERY_SECTION_OVERCHARGE,
+    BATTERY_SECTION_PARTITIONING,
+    BATTERY_SECTION_UNDERCHARGE,
+)
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -225,12 +234,61 @@ def migrate_hub_horizon(data: Mapping[str, object]) -> dict[str, object]:
     return migrated
 
 
+# (partition section, limit it moved past, holding cost direction, holding cost name, limit default %)
+_PARTITIONS: tuple[tuple[str, str, battery.HoldingCostDirection, str, float], ...] = (
+    (BATTERY_SECTION_UNDERCHARGE, battery.CONF_MIN_CHARGE_PERCENTAGE, "below", "Undercharge", 0.0),
+    (BATTERY_SECTION_OVERCHARGE, battery.CONF_MAX_CHARGE_PERCENTAGE, "above", "Overcharge", 100.0),
+)
+
+
+def migrate_battery_partitions(data: Mapping[str, object]) -> dict[str, object]:
+    """Replace a battery's undercharge and overcharge partitions with holding costs.
+
+    A partition's percentage was the hard limit, and its cost applied past the min
+    or max charge percentage. The partition percentage becomes the min or max charge
+    percentage, and its cost becomes a holding cost past the old min or max charge
+    percentage. A partition only applied when both its percentage and cost were set.
+    """
+    migrated = {
+        key: value
+        for key, value in data.items()
+        if key not in (BATTERY_SECTION_PARTITIONING, BATTERY_SECTION_UNDERCHARGE, BATTERY_SECTION_OVERCHARGE)
+    }
+    limits = _section_dict(data, battery.SECTION_LIMITS)
+    holding_costs: list[dict[str, object]] = []
+    for section, limit_key, direction, name, limit_default in _PARTITIONS:
+        partition = _section_dict(data, section)
+        percentage = partition.get(BATTERY_CONF_PARTITION_PERCENTAGE)
+        cost = partition.get(BATTERY_CONF_PARTITION_COST)
+        if not (_is_configured_value(percentage) and _is_configured_value(cost)):
+            continue
+        threshold = limits.get(limit_key)
+        holding_costs.append(
+            {
+                battery.CONF_HOLDING_COST_NAME: name,
+                battery.CONF_ENABLED: True,
+                battery.CONF_DIRECTION: direction,
+                battery.CONF_THRESHOLD: threshold
+                if _is_configured_value(threshold)
+                else as_constant_value(limit_default),
+                battery.CONF_COST: cost,
+            }
+        )
+        limits[limit_key] = percentage
+
+    migrated[battery.SECTION_LIMITS] = limits
+    if holding_costs:
+        migrated[battery.CONF_HOLDING_COSTS] = holding_costs
+    return migrated
+
+
 __all__ = [
     "REVERSE_TO_FORWARD",
     "endpoint_name",
     "endpoints_match_reverse",
     "junction_config",
     "merge_reverse_into_existing",
+    "migrate_battery_partitions",
     "migrate_connection_config",
     "migrate_hub_horizon",
     "node_is_junction",

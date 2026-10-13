@@ -42,6 +42,7 @@ _NON_NEGATIVE_OUTPUT_TYPES = frozenset(
         OutputType.ENERGY,
         OutputType.STATE_OF_CHARGE,
         OutputType.EFFICIENCY,
+        OutputType.PRICE_RATE,
     }
 )
 

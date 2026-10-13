@@ -35,10 +35,12 @@ def set_forecast_sensor(
 
 def optimize_participants(
     participants: Mapping[str, ElementConfigData],
+    *,
+    periods: int = 1,
 ) -> Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]:
-    """Build a one-hour network from element configs through their adapters, optimize it, and return model outputs."""
+    """Build a network of one-hour periods from element configs through their adapters, optimize, and return outputs."""
     compiled = compile_policies(collect_model_elements(participants), [])
-    network = Network(name="test", periods=np.array([1.0]))
+    network = Network(name="test", periods=np.ones(periods))
     for element in compiled["elements"]:
         network.add(element)
     network.optimize()
@@ -50,12 +52,15 @@ def bus_node(name: str) -> NodeConfigData:
     return NodeConfigData(element_type=ElementType.NODE, name=name, role={"is_source": False, "is_sink": False})
 
 
-def grid_at(name: str, bus: str, *, import_price: float, export_price: float) -> GridConfigData:
-    """Return an unconstrained grid on the given bus."""
+def grid_at(name: str, bus: str, *, import_price: float, export_price: float, periods: int = 1) -> GridConfigData:
+    """Return an unconstrained grid on the given bus with constant prices."""
     return GridConfigData(
         element_type=ElementType.GRID,
         name=name,
         connection=as_connection_target(bus),
-        pricing={"price_source_target": np.array([import_price]), "price_target_source": np.array([export_price])},
+        pricing={
+            "price_source_target": np.full(periods, import_price),
+            "price_target_source": np.full(periods, export_price),
+        },
         power_limits={},
     )

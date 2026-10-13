@@ -1,17 +1,12 @@
 """Tests for input field localization."""
 
-from custom_components.haeo.core.schema.elements.battery import (
-    CONF_CAPACITY,
-    CONF_PARTITION_COST,
-    SECTION_OVERCHARGE,
-    SECTION_STORAGE,
-    SECTION_UNDERCHARGE,
-)
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements.battery import CONF_COST, CONF_HOLDING_COSTS, CONF_THRESHOLD
 from custom_components.haeo.core.schema.elements.battery import ELEMENT_TYPE as BATTERY_TYPE
 from custom_components.haeo.core.schema.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, SECTION_PRICING
 from custom_components.haeo.core.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
-from custom_components.haeo.elements import get_input_fields
+from custom_components.haeo.elements import get_input_fields, get_list_input_fields
 from custom_components.haeo.elements.input_fields import (
     is_number_field_info,
     is_switch_field_info,
@@ -22,15 +17,15 @@ from custom_components.haeo.elements.input_fields import (
 
 def test_localize_input_fields_replaces_currency_placeholder() -> None:
     """Monetary units take the currency symbol and every other field is returned unchanged."""
-    fields = get_input_fields(BATTERY_TYPE)
+    fields = get_list_input_fields({CONF_ELEMENT_TYPE: BATTERY_TYPE, CONF_HOLDING_COSTS: [{}]})
 
     localized = localize_input_fields(fields, "€")
 
-    for section in (SECTION_UNDERCHARGE, SECTION_OVERCHARGE):
-        cost = localized[section][CONF_PARTITION_COST]
-        assert is_number_field_info(cost)
-        assert cost.entity_description.native_unit_of_measurement == "€/kWh/h"
-    assert localized[SECTION_STORAGE][CONF_CAPACITY] is fields[SECTION_STORAGE][CONF_CAPACITY]
+    cost = localized[f"{CONF_HOLDING_COSTS}.0"][CONF_COST]
+    assert is_number_field_info(cost)
+    assert cost.entity_description.native_unit_of_measurement == "€/kWh/h"
+    threshold = fields[f"{CONF_HOLDING_COSTS}.0"][CONF_THRESHOLD]
+    assert localized[f"{CONF_HOLDING_COSTS}.0"][CONF_THRESHOLD] is threshold
 
 
 def test_localize_input_field_leaves_switch_fields_unchanged() -> None:

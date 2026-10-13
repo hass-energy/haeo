@@ -30,7 +30,7 @@ See individual element pages for details on which connections are created.
 When adapters create multiple model elements or devices, they use a colon-separated naming convention:
 
 - Main element: `{name}` (e.g., `Battery`)
-- Sub-elements: `{name}:{subname}` (e.g., `Battery:connection`, `Battery:undercharge`)
+- Sub-elements: `{name}:{subname}` (e.g., `Battery:discharge`, `Battery:holding_cost:0`)
 
 This prevents naming collisions and groups related components visually in Home Assistant.
 

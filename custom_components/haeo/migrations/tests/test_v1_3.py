@@ -159,7 +159,7 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
         battery.CONF_MAX_CHARGE_PERCENTAGE: 0.9,
         battery.CONF_EFFICIENCY_SOURCE_TARGET: 0.85,
         battery.CONF_EFFICIENCY_TARGET_SOURCE: 0.88,
-        battery.CONF_CONFIGURE_PARTITIONS: True,
+        schema_migrations.BATTERY_CONF_CONFIGURE_PARTITIONS: True,
         "max_charge_power": 4.2,
         "max_discharge_power": 6.1,
         "discharge_cost": 0.25,
@@ -167,8 +167,8 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
         "efficiency": 0.92,
         SECTION_POWER_LIMITS: {CONF_MAX_POWER_SOURCE_TARGET: 7.0},
         SECTION_PRICING: {CONF_PRICE_SOURCE_TARGET: 0.33},
-        battery.SECTION_UNDERCHARGE: {battery.CONF_PARTITION_PERCENTAGE: 0.1},
-        battery.SECTION_OVERCHARGE: {battery.CONF_PARTITION_COST: 0.2},
+        schema_migrations.BATTERY_SECTION_UNDERCHARGE: {schema_migrations.BATTERY_CONF_PARTITION_PERCENTAGE: 0.1},
+        schema_migrations.BATTERY_SECTION_OVERCHARGE: {schema_migrations.BATTERY_CONF_PARTITION_COST: 0.2},
     }
     subentry = _create_subentry(data, subentry_type=battery.ELEMENT_TYPE)
 
@@ -183,8 +183,12 @@ def test_migrate_subentry_battery_with_legacy_fields() -> None:
     assert _section(migrated, SECTION_PRICING)[CONF_PRICE_TARGET_SOURCE] == as_constant_value(0.15)
     assert _section(migrated, SECTION_EFFICIENCY)[battery.CONF_EFFICIENCY_SOURCE_TARGET] == as_constant_value(0.85)
     assert _section(migrated, SECTION_EFFICIENCY)[battery.CONF_EFFICIENCY_TARGET_SOURCE] == as_constant_value(0.88)
-    assert _section(migrated, battery.SECTION_UNDERCHARGE)[battery.CONF_PARTITION_PERCENTAGE] == as_constant_value(0.1)
-    assert _section(migrated, battery.SECTION_OVERCHARGE)[battery.CONF_PARTITION_COST] == as_constant_value(0.2)
+    assert _section(migrated, schema_migrations.BATTERY_SECTION_UNDERCHARGE)[
+        schema_migrations.BATTERY_CONF_PARTITION_PERCENTAGE
+    ] == as_constant_value(0.1)
+    assert _section(migrated, schema_migrations.BATTERY_SECTION_OVERCHARGE)[
+        schema_migrations.BATTERY_CONF_PARTITION_COST
+    ] == as_constant_value(0.2)
 
 
 def test_migrate_subentry_battery_without_salvage_value_stays_valid() -> None:

@@ -17,7 +17,6 @@
         "max_charge_percentage": { "type": "constant", "value": 100.0 },
         "min_charge_percentage": { "type": "constant", "value": 10.0 }
       },
-      "partitioning": {},
       "power_limits": {
         "max_power_source_target": { "type": "entity", "value": ["sensor.sigen_plant_ess_rated_discharging_power"] },
         "max_power_target_source": { "type": "entity", "value": ["sensor.sigen_plant_ess_rated_charging_power"] }

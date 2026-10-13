@@ -130,8 +130,8 @@ Most elements are configured in a single step where you enter:
 2. **Connection target**: Which element this connects to (for elements that require connections)
 3. **Input fields**: For each field, choose how to provide the value
 
-Some elements add a follow-up step when optional settings are enabled.
-For example, the battery flow adds a partitions step when you enable undercharge and overcharge configuration.
+Some elements hold a list of items that you manage by reconfiguring the element.
+For example, reconfiguring a battery lets you add, edit, or delete its holding costs.
 
 #### Input field options
 

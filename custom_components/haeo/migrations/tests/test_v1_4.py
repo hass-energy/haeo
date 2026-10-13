@@ -25,7 +25,7 @@ from custom_components.haeo.core.const import (
     HUB_SECTION_TIERS,
 )
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value
-from custom_components.haeo.core.schema.elements import connection, junction, node
+from custom_components.haeo.core.schema.elements import battery, connection, junction, node
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import (
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -293,6 +293,37 @@ async def test_async_migrate_entry_removes_reverse_field_entities(hass: HomeAssi
     assert registry.async_get(reverse_entity_id) is None
     assert registry.async_get(forward_entity_id) is not None
     assert len(entry.subentries) == 2
+
+
+async def test_async_migrate_entry_replaces_battery_partitions(hass: HomeAssistant) -> None:
+    """Battery partitions become holding costs and their input entities are removed."""
+    entry = _add_hub(hass)
+    subentry = _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Battery",
+            battery.SECTION_LIMITS: {battery.CONF_MIN_CHARGE_PERCENTAGE: as_constant_value(10.0)},
+            "partitioning": {"configure_partitions": True},
+            "undercharge": {"percentage": as_constant_value(5.0), "cost": as_constant_value(0.02)},
+            "overcharge": {},
+        }
+    )
+    hass.config_entries.async_add_subentry(entry, subentry)
+    partition_entity_ids = [
+        _register_number(hass, entry, subentry, "undercharge_partition.percentage"),
+        _register_number(hass, entry, subentry, "cost"),
+    ]
+    limit_entity_id = _register_number(hass, entry, subentry, battery.CONF_MIN_CHARGE_PERCENTAGE)
+
+    assert await v1_4.async_migrate_entry(hass, entry)
+
+    data = entry.subentries[subentry.subentry_id].data
+    assert data[battery.SECTION_LIMITS] == {battery.CONF_MIN_CHARGE_PERCENTAGE: as_constant_value(5.0)}
+    assert [cost["name"] for cost in data[battery.CONF_HOLDING_COSTS]] == ["Undercharge"]
+    assert "undercharge" not in data
+    registry = er.async_get(hass)
+    assert all(registry.async_get(entity_id) is None for entity_id in partition_entity_ids)
+    assert registry.async_get(limit_entity_id) is not None
 
 
 async def test_async_migrate_entry_skips_when_already_current(hass: HomeAssistant) -> None:

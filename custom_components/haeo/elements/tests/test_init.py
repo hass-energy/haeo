@@ -99,9 +99,6 @@ def test_is_element_config_schema_valid_battery() -> None:
             "salvage_value": as_constant_value(0.0),
         },
         battery.SECTION_EFFICIENCY: {},
-        battery.SECTION_PARTITIONING: {},
-        battery.SECTION_UNDERCHARGE: {},
-        battery.SECTION_OVERCHARGE: {},
     }
     assert is_element_config_schema(valid_config) is True
 
@@ -126,9 +123,6 @@ def test_is_element_config_schema_valid_battery_without_salvage_value() -> None:
         },
         battery.SECTION_PRICING: {},
         battery.SECTION_EFFICIENCY: {},
-        battery.SECTION_PARTITIONING: {},
-        battery.SECTION_UNDERCHARGE: {},
-        battery.SECTION_OVERCHARGE: {},
     }
     assert is_element_config_schema(valid_config) is True
 

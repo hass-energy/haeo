@@ -1,7 +1,7 @@
 # Battery Modeling
 
 The Battery device composes a single [Battery model](../model-layer/elements/battery.md) element and two [Connections](../model-layer/connections/connection.md), one for discharging and one for charging.
-SOC preferences are encoded directly in the discharge connection via the SOC pricing segment.
+Each holding cost adds a [Holding cost](../model-layer/elements/holding-cost.md) element on the battery's stored energy.
 
 ## Model Elements Created
 
@@ -11,21 +11,24 @@ graph LR
         Battery["Battery element"]
         Discharge["Connection battery_main:discharge"]
         Charge["Connection battery_main:charge"]
+        Holding["Holding cost battery_main:holding_cost:0"]
     end
     Target[ConnectionTarget]
     Battery --> Discharge
     Discharge --> Target
     Target --> Charge
     Charge --> Battery
+    Holding -.-> Battery
 ```
 
-The adapter creates three model elements:
+The adapter creates three model elements, and one more for each holding cost:
 
-| Model Element                                          | Name               | Parameters From Configuration                    |
-| ------------------------------------------------------ | ------------------ | ------------------------------------------------ |
-| [Battery](../model-layer/elements/battery.md)          | `{name}`           | Capacity range, initial charge, salvage value    |
-| [Connection](../model-layer/connections/connection.md) | `{name}:discharge` | Efficiency, power limits, SOC pricing (optional) |
-| [Connection](../model-layer/connections/connection.md) | `{name}:charge`    | Power limits, efficiency                         |
+| Model Element                                           | Name                      | Parameters From Configuration                 |
+| ------------------------------------------------------- | ------------------------- | --------------------------------------------- |
+| [Battery](../model-layer/elements/battery.md)           | `{name}`                  | Capacity range, initial charge, salvage value |
+| [Connection](../model-layer/connections/connection.md)  | `{name}:discharge`        | Efficiency, power limits                      |
+| [Connection](../model-layer/connections/connection.md)  | `{name}:charge`           | Power limits, efficiency                      |
+| [Holding cost](../model-layer/elements/holding-cost.md) | `{name}:holding_cost:{i}` | Direction, threshold, price                   |
 
 ## Architecture Details
 
@@ -33,8 +36,8 @@ The adapter creates three model elements:
 
 The battery model tracks stored energy within a bounded range:
 
-- **Lower bound**: undercharge percentage when configured, otherwise `min_charge_percentage`
-- **Upper bound**: overcharge percentage when configured, otherwise `max_charge_percentage`
+- **Lower bound**: `min_charge_percentage` (0% when unset)
+- **Upper bound**: `max_charge_percentage` (100% when unset)
 
 The model capacity is:
 
@@ -53,10 +56,10 @@ In the model the terminals are the bus end of the battery's connections, and eff
 
 Each connection therefore places its efficiency segment next to the battery and its power-limit segment at the bus end:
 
-| Connection         | Segment order                                 | Power limit applies to     |
-| ------------------ | --------------------------------------------- | -------------------------- |
-| `{name}:discharge` | efficiency, power limit, SOC pricing (if set) | Power delivered to the bus |
-| `{name}:charge`    | power limit, efficiency                       | Power drawn from the bus   |
+| Connection         | Segment order           | Power limit applies to     |
+| ------------------ | ----------------------- | -------------------------- |
+| `{name}:discharge` | efficiency, power limit | Power delivered to the bus |
+| `{name}:charge`    | power limit, efficiency | Power drawn from the bus   |
 
 With discharge efficiency $\eta_d$, charge efficiency $\eta_c$, and terminal powers $P_d$ and $P_c$:
 
@@ -70,19 +73,20 @@ $$
 
 The charge, discharge, and active power sensors all report terminal power, so they match what a meter on the battery would read.
 
-### SOC pricing segment
+### Holding costs
 
-When undercharge or overcharge costs are configured, the connection includes the SOC pricing segment:
+Each holding cost becomes a holding cost element that references the battery.
+Its threshold is converted from a state of charge to the battery's model coordinate at the end of each period:
 
-- **Undercharge penalty** applies while SOC is below `min_charge_percentage`
-- **Overcharge penalty** applies while SOC is above `max_charge_percentage`
+$$
+E_{\text{th}}(t) = (\text{threshold\%}(t) - \text{lower\%}(t)) \cdot C(t)
+$$
 
-Both costs are holding rates in \$/kWh/h.
-The penalty for each period is the energy outside the threshold multiplied by the rate and the period duration in hours.
-See the [SOC pricing segment](../model-layer/segments/soc-pricing.md) for the formulation.
+A holding cost below the threshold charges its rate for the energy missing below it, and one above charges for the energy stored above it, for each hour that lasts.
+These are soft constraints driven by cost: the battery goes past a threshold when prices justify it, but never past the lower or upper bound.
+See the [holding cost element](../model-layer/elements/holding-cost.md) for the formulation.
 
-These are soft constraints driven by cost.
-The battery can operate outside the preferred range when prices justify it, but it will never exceed the configured lower/upper bounds.
+A disabled holding cost keeps its element with a zero price, so switching it back on updates a price rather than rebuilding the network.
 
 ### Salvage value
 
@@ -100,21 +104,20 @@ Battery creates a single Home Assistant device:
 
 ## Parameter mapping
 
-| User Configuration          | Model Element(s)      | Model Parameter                            | Notes                          |
-| --------------------------- | --------------------- | ------------------------------------------ | ------------------------------ |
-| `capacity`                  | Battery               | Capacity range from lower/upper SOC bounds | kWh, boundaries                |
-| `initial_charge_percentage` | Battery               | `initial_charge` (offset by lower bound)   | kWh                            |
-| `min_charge_percentage`     | Battery + SOC pricing | Preferred minimum SOC threshold            | Penalty threshold              |
-| `max_charge_percentage`     | Battery + SOC pricing | Preferred maximum SOC threshold            | Penalty threshold              |
-| Undercharge percentage      | Battery               | Lower bound for SOC range                  | Hard minimum                   |
-| Overcharge percentage       | Battery               | Upper bound for SOC range                  | Hard maximum                   |
-| Undercharge cost            | SOC pricing segment   | `discharge_energy_price`                   | \$/kWh/h below min SOC         |
-| Overcharge cost             | SOC pricing segment   | `charge_capacity_price`                    | \$/kWh/h above max SOC         |
-| `salvage_value`             | Battery               | `salvage_value`                            | Terminal value for stored kWh  |
-| `efficiency_source_target`  | Efficiency segment    | `efficiency_source_target`                 | Battery to network (discharge) |
-| `efficiency_target_source`  | Efficiency segment    | `efficiency_target_source`                 | Network to battery (charge)    |
-| `max_power_target_source`   | Power-limit segment   | `max_power_target_source`                  | Network to battery             |
-| `max_power_source_target`   | Power-limit segment   | `max_power_source_target`                  | Battery to network             |
+| User Configuration            | Model Element(s)       | Model Parameter                            | Notes                          |
+| ----------------------------- | ---------------------- | ------------------------------------------ | ------------------------------ |
+| `capacity`                    | Battery                | Capacity range from lower/upper SOC bounds | kWh, boundaries                |
+| `initial_charge_percentage`   | Battery                | `initial_charge` (offset by lower bound)   | kWh                            |
+| `min_charge_percentage`       | Battery, holding costs | Lower bound for SOC range                  | Hard minimum                   |
+| `max_charge_percentage`       | Battery                | Upper bound for SOC range                  | Hard maximum                   |
+| Holding cost direction        | Holding cost           | `direction`                                | Above or below                 |
+| Holding cost state of charge  | Holding cost           | `threshold` (offset by lower bound)        | kWh                            |
+| Holding cost cost and enabled | Holding cost           | `price` (zero when disabled)               | \$/kWh/h                       |
+| `salvage_value`               | Battery                | `salvage_value`                            | Terminal value for stored kWh  |
+| `efficiency_source_target`    | Efficiency segment     | `efficiency_source_target`                 | Battery to network (discharge) |
+| `efficiency_target_source`    | Efficiency segment     | `efficiency_target_source`                 | Network to battery (charge)    |
+| `max_power_target_source`     | Power-limit segment    | `max_power_target_source`                  | Network to battery             |
+| `max_power_source_target`     | Power-limit segment    | `max_power_source_target`                  | Battery to network             |
 
 ## Output Mapping
 
@@ -154,6 +157,14 @@ See [Battery Configuration](../../user-guide/elements/battery.md#sensors-created
     Mathematical formulation for battery storage.
 
     [:material-arrow-right: Battery model](../model-layer/elements/battery.md)
+
+- :material-timer-sand:{ .lg .middle } **Holding cost model**
+
+    ---
+
+    How a holding cost prices energy past a threshold.
+
+    [:material-arrow-right: Holding cost formulation](../model-layer/elements/holding-cost.md)
 
 - :material-connection:{ .lg .middle } **Connection model**
 

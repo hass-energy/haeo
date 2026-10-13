@@ -1,7 +1,8 @@
 """Migration helpers for config entry version 1.4.
 
-Splits bidirectional connections, turns pure-junction nodes into junctions, and
-replaces the hub's horizon preset and tiers with a horizon choice.
+Splits bidirectional connections, turns pure-junction nodes into junctions,
+replaces the hub's horizon preset and tiers with a horizon choice, and replaces
+battery partitions with holding costs.
 """
 
 from __future__ import annotations
@@ -20,13 +21,14 @@ from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.adapters.elements.junction import JUNCTION_DEVICE_JUNCTION, JUNCTION_POWER_BALANCE
 from custom_components.haeo.core.adapters.elements.node import NODE_DEVICE_NODE, NODE_POWER_BALANCE
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, HUB_SECTION_ADVANCED
-from custom_components.haeo.core.schema.elements import connection, junction, node
+from custom_components.haeo.core.schema.elements import battery, connection, junction, node
 from custom_components.haeo.core.schema.migrations.v1_4 import (
     REVERSE_TO_FORWARD,
     endpoint_name,
     endpoints_match_reverse,
     junction_config,
     merge_reverse_into_existing,
+    migrate_battery_partitions,
     migrate_connection_config,
     migrate_hub_horizon,
     node_is_junction,
@@ -40,6 +42,18 @@ _CONNECTION_TYPE = connection.ELEMENT_TYPE
 _UNIQUE_ID_PART_COUNT = 3
 
 _REVERSE_FIELDS: frozenset[str] = frozenset(reverse_key for reverse_key, _ in REVERSE_TO_FORWARD)
+# A partition field was keyed by its name alone unless both partitions had it, then by its partition
+_PARTITION_UNIQUE_KEYS: frozenset[str] = frozenset(
+    {
+        *(
+            f"{partition}_partition.{field}"
+            for partition in ("undercharge", "overcharge")
+            for field in ("percentage", "cost")
+        ),
+        "percentage",
+        "cost",
+    }
+)
 
 
 def _collect_subentry_names(entry: ConfigEntry) -> set[str]:
@@ -82,6 +96,29 @@ def _remove_reverse_field_entities(hass: HomeAssistant, entry: ConfigEntry, conn
             _LOGGER.info(
                 "Removing %s because connections no longer have reverse-direction fields", entity_entry.entity_id
             )
+            registry.async_remove(entity_entry.entity_id)
+
+
+def _replace_battery_partitions(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Replace battery partitions with holding costs and remove the partition input entities.
+
+    The holding costs create their own entities, named after them, when the integration sets up.
+    """
+    battery_ids: set[str] = set()
+    for subentry in list(entry.subentries.values()):
+        if subentry.subentry_type != battery.ELEMENT_TYPE:
+            continue
+        battery_ids.add(subentry.subentry_id)
+        hass.config_entries.async_update_subentry(entry, subentry, data=migrate_battery_partitions(subentry.data))
+
+    registry = er.async_get(hass)
+    for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        parts = entity_entry.unique_id.split("_", 2)
+        if len(parts) != _UNIQUE_ID_PART_COUNT:
+            continue
+        _, subentry_id, unique_key = parts
+        if subentry_id in battery_ids and unique_key in _PARTITION_UNIQUE_KEYS:
+            _LOGGER.info("Removing %s because batteries no longer have partitions", entity_entry.entity_id)
             registry.async_remove(entity_entry.entity_id)
 
 
@@ -248,6 +285,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _remove_reverse_field_entities(hass, entry, connection_ids)
     await _replace_nodes_with_junctions(hass, entry)
+    _replace_battery_partitions(hass, entry)
 
     hass.config_entries.async_update_entry(entry, data=migrate_hub_horizon(entry.data), minor_version=MINOR_VERSION)
     _LOGGER.info("Migration complete for %s entry %s", DOMAIN, entry.entry_id)

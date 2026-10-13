@@ -37,7 +37,6 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
     SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_STORAGE,
 )
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
@@ -121,7 +120,6 @@ def _battery_config(
         SECTION_POWER_LIMITS: power_limits,
         SECTION_PRICING: pricing,
         SECTION_EFFICIENCY: efficiency_section,
-        SECTION_PARTITIONING: {},
     }
 
 

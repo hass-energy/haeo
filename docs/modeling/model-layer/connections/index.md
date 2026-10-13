@@ -29,11 +29,10 @@ classDiagram
 
 **[Connection](connection.md)**:
 Composable bidirectional connection with ordered segments.
-Use segments to apply limits, efficiency losses, pricing, or SOC penalties.
+Use segments to apply limits, efficiency losses, or pricing.
 
 ## Segment types
 
-- **[SOC pricing segment](../segments/soc-pricing.md)** applies SOC penalty costs.
 - **[Efficiency segment](../segments/efficiency.md)** applies direction-specific efficiency multipliers.
 - **[Power limit segment](../segments/power-limit.md)** enforces directional limits and time-slice coupling.
 - **[Pricing segment](../segments/pricing.md)** adds directional cost terms to the objective.

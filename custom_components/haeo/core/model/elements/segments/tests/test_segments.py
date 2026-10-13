@@ -11,7 +11,7 @@ from typing import (
 )
 
 from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
+from highspy.highs import highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 import pytest
@@ -23,12 +23,10 @@ from custom_components.haeo.core.model.elements.segments import (
     EfficiencySegment,
     PowerLimitSegment,
     PricingSegment,
-    SocPricingSegment,
     is_efficiency_spec,
     is_passthrough_spec,
     is_power_limit_spec,
     is_pricing_spec,
-    is_soc_pricing_spec,
 )
 from custom_components.haeo.core.model.elements.segments.segment import FlowProvider, FlowVariables, Segment
 from custom_components.haeo.core.model.output_data import OutputData
@@ -37,7 +35,6 @@ from custom_components.haeo.core.model.tests import test_data
 from custom_components.haeo.core.model.tests.test_data.segment_types import (
     ConnectionScenario,
     ExpectedValue,
-    SegmentErrorScenario,
     SegmentScenario,
 )
 
@@ -123,12 +120,8 @@ def _assert_expected_outputs(actual: dict[str, ExpectedValue], expected: dict[st
 def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
     h = create_solver()
     periods = np.asarray(case["periods"], dtype=np.float64)
-    endpoint_factory = case.get("endpoint_factory")
-    if endpoint_factory is None:
-        source = DummyElement("source", periods, h)
-        target = DummyElement("target", periods, h)
-    else:
-        source, target = endpoint_factory(h, periods)
+    source = DummyElement("source", periods, h)
+    target = DummyElement("target", periods, h)
 
     power_in = h.addVariables(len(periods), lb=0, name_prefix="test_", out_array=True)
     tagged_power = {0: power_in}
@@ -267,47 +260,6 @@ def test_connection_scenarios(case: ConnectionScenario) -> None:
     _assert_expected_outputs(outputs, case["expected_outputs"])
 
 
-@pytest.mark.parametrize("case", test_data.SEGMENT_ERROR_SCENARIOS, ids=lambda c: c["description"])
-def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
-    """Segments should raise errors for invalid configurations."""
-    h = create_solver()
-    periods = np.asarray(case["periods"], dtype=np.float64)
-    endpoint_factory = case.get("endpoint_factory")
-    if endpoint_factory is None:
-        source = DummyElement("source", periods, h)
-        target = DummyElement("target", periods, h)
-    else:
-        source, target = endpoint_factory(h, periods)
-
-    match = case["match"]
-    pv = h.addVariables(len(periods), lb=0, name_prefix="err_", out_array=True)
-    tagged_pv: dict[int, HighspyArray] = {0: pv}
-    if match is None:
-        with pytest.raises(case["error"]):
-            case["factory"](
-                "seg",
-                len(periods),
-                periods,
-                h,
-                spec=case["spec"],
-                source_element=source,
-                target_element=target,
-                upstream=FlowVariables(tagged_pv),
-            )
-    else:
-        with pytest.raises(case["error"], match=match):
-            case["factory"](
-                "seg",
-                len(periods),
-                periods,
-                h,
-                spec=case["spec"],
-                source_element=source,
-                target_element=target,
-                upstream=FlowVariables(tagged_pv),
-            )
-
-
 def test_segment_spec_typeguards() -> None:
     """Type guard helpers identify segment specs by type."""
     assert is_efficiency_spec(
@@ -316,7 +268,6 @@ def test_segment_spec_typeguards() -> None:
     assert is_passthrough_spec({"segment_type": "passthrough"})
     assert is_power_limit_spec({"segment_type": "power_limit"})
     assert is_pricing_spec({"segment_type": "pricing", "price_source_target": None, "price_target_source": None})
-    assert is_soc_pricing_spec({"segment_type": "soc_pricing"})
 
 
 def test_segment_outputs_and_cost_coverage() -> None:
@@ -375,32 +326,6 @@ def test_multiple_cost_methods_aggregate() -> None:
     # Expression should reference indices from both variables
     idxs = set(result.idxs)
     assert len(idxs) >= 2
-
-
-def test_soc_pricing_cost_none_without_prices() -> None:
-    """SOC pricing cost returns None when no prices are configured."""
-    h = create_solver()
-    periods = np.asarray([1.0], dtype=np.float64)
-    stored_energy = h.addVariables(2, lb=0, name_prefix="battery_e_", out_array=True)
-    battery = DummyElement("battery", periods, h)
-    battery.stored_energy = stored_energy  # type: ignore[attr-defined]
-    target = DummyElement("target", periods, h)
-    pv = h.addVariables(len(periods), lb=0, name_prefix="soc_test_", out_array=True)
-    segment = SocPricingSegment(
-        "seg",
-        len(periods),
-        periods,
-        h,
-        spec={"segment_type": "soc_pricing"},
-        source_element=battery,
-        target_element=target,
-        upstream=FlowVariables({0: pv}),
-    )
-
-    # Apply with dummy variables
-    pv = h.addVariables(len(periods), lb=0, name_prefix="soc_test_", out_array=True)
-
-    assert segment.cost() is None
 
 
 def test_tag_transfer_cost_none_when_no_tags_match() -> None:

@@ -535,15 +535,14 @@ async def test_unique_id_disambiguates_reused_section_field_names(
             translation_key="enabled",
         ),
         output_type=OutputType.STATUS,
-        device_type="undercharge_toggle",
     )
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
                 "element_type": "battery",
                 CONF_NAME: "Test Battery",
-                "undercharge": {"enabled": as_constant_value(True)},
-                "overcharge": {"enabled": as_constant_value(False)},
+                "first": {"enabled": as_constant_value(True)},
+                "second": {"enabled": as_constant_value(False)},
             }
         ),
         subentry_type="battery",
@@ -559,10 +558,10 @@ async def test_unique_id_disambiguates_reused_section_field_names(
         field_info,
         device_entry,
         horizon_manager,
-        field_path=("undercharge", "enabled"),
+        field_path=("first", "enabled"),
     )
 
-    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_undercharge_toggle.enabled"
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_first.enabled"
     assert entity.unique_id == expected_unique_id
 
 

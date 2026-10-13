@@ -28,9 +28,6 @@ def _base_battery_config() -> dict[str, object]:
         "power_limits": {},
         "pricing": {},
         "efficiency": {},
-        "partitioning": {},
-        "undercharge": {},
-        "overcharge": {},
     }
 
 

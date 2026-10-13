@@ -394,7 +394,7 @@ def add_battery(
         page,
         et,
         fields,
-        collapsed_sections=frozenset({"efficiency", "partitioning"}),
+        collapsed_sections=frozenset({"efficiency"}),
     )
 
     with page.expect_config_reload():

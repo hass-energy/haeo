@@ -17,6 +17,7 @@ from custom_components.haeo.core.adapters.elements.battery import adapter as bat
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_HOLDING_COST,
     ModelElementConfig,
 )
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
@@ -69,9 +70,7 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
     power_limits: dict[str, object] = {}
     pricing: dict[str, object] = {}
     efficiency: dict[str, object] = {}
-    partitioning: dict[str, object] = {}
-    undercharge: dict[str, object] = {}
-    overcharge: dict[str, object] = {}
+    holding_costs: list[object] = []
 
     for key, value in flat.items():
         if key in (
@@ -94,8 +93,6 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             limits[key] = to_schema_value(value)
         elif key in ("efficiency_source_target", "efficiency_target_source"):
             efficiency[key] = to_schema_value(value)
-        elif key == "configure_partitions":
-            partitioning[key] = value
         elif key in (
             "max_power_source_target",
             "max_power_target_source",
@@ -103,10 +100,8 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             power_limits[key] = to_schema_value(value)
         elif key in ("salvage_value",):
             pricing[key] = to_schema_value(value)
-        elif key == "undercharge" and isinstance(value, dict):
-            undercharge.update({subkey: to_schema_value(subvalue) for subkey, subvalue in value.items()})
-        elif key == "overcharge" and isinstance(value, dict):
-            overcharge.update({subkey: to_schema_value(subvalue) for subkey, subvalue in value.items()})
+        elif key == battery.CONF_HOLDING_COSTS and isinstance(value, list):
+            holding_costs.extend(value)
 
     pricing.setdefault("salvage_value", as_constant_value(0.0))
 
@@ -118,10 +113,9 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
         battery.SECTION_POWER_LIMITS: power_limits,
         battery.SECTION_PRICING: pricing,
         battery.SECTION_EFFICIENCY: efficiency,
-        battery.SECTION_PARTITIONING: partitioning,
-        battery.SECTION_UNDERCHARGE: undercharge,
-        battery.SECTION_OVERCHARGE: overcharge,
     }
+    if holding_costs:
+        config[battery.CONF_HOLDING_COSTS] = holding_costs
     return config  # type: ignore[return-value]
 
 
@@ -133,9 +127,7 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
     power_limits: dict[str, object] = {}
     pricing: dict[str, object] = {}
     efficiency: dict[str, object] = {}
-    partitioning: dict[str, object] = {}
-    undercharge: dict[str, object] = {}
-    overcharge: dict[str, object] = {}
+    holding_costs: list[object] = []
 
     for key, value in flat.items():
         if key in (
@@ -158,8 +150,6 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
             limits[key] = value
         elif key in ("efficiency_source_target", "efficiency_target_source"):
             efficiency[key] = value
-        elif key == "configure_partitions":
-            partitioning[key] = value
         elif key in (
             "max_power_source_target",
             "max_power_target_source",
@@ -167,10 +157,8 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
             power_limits[key] = value
         elif key in ("salvage_value",):
             pricing[key] = value
-        elif key == "undercharge" and isinstance(value, dict):
-            undercharge.update(value)
-        elif key == "overcharge" and isinstance(value, dict):
-            overcharge.update(value)
+        elif key == battery.CONF_HOLDING_COSTS and isinstance(value, list):
+            holding_costs.extend(value)
 
     pricing.setdefault(battery.CONF_SALVAGE_VALUE, 0.0)
 
@@ -182,10 +170,9 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
         battery.SECTION_POWER_LIMITS: power_limits,
         battery.SECTION_PRICING: pricing,
         battery.SECTION_EFFICIENCY: efficiency,
-        battery.SECTION_PARTITIONING: partitioning,
-        battery.SECTION_UNDERCHARGE: undercharge,
-        battery.SECTION_OVERCHARGE: overcharge,
     }
+    if holding_costs:
+        config[battery.CONF_HOLDING_COSTS] = holding_costs
     return config  # type: ignore[return-value]
 
 
@@ -347,8 +334,15 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
             "salvage_value": 0.01,
             "efficiency_source_target": 0.95,
             "efficiency_target_source": 0.94,
-            "undercharge": {"partition_percentage": 0.1, "partition_cost": 0.2},
-            "overcharge": {"partition_percentage": 0.05, "partition_cost": 0.15},
+            "holding_costs": [
+                {
+                    "name": "Reserve",
+                    "enabled": True,
+                    "direction": "below",
+                    "threshold": as_constant_value(20.0),
+                    "cost": as_constant_value(0.02),
+                }
+            ],
         }
     )
 
@@ -399,7 +393,6 @@ def test_model_elements_defaults_salvage_value_when_missing() -> None:
         battery.SECTION_POWER_LIMITS: {},
         battery.SECTION_PRICING: {},
         battery.SECTION_EFFICIENCY: {},
-        battery.SECTION_PARTITIONING: {},
     }
 
     elements = battery_adapter.model_elements(config_data)
@@ -441,8 +434,31 @@ def test_model_elements_passes_efficiency_when_present() -> None:
     np.testing.assert_array_equal(efficiency_target_source, [0.95, 0.95])
 
 
-def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
-    """SOC pricing is added when only overcharge inputs are configured."""
+def test_model_elements_hard_limits_bound_battery_range() -> None:
+    """The battery's stored energy is measured from the min charge level and spans to the max charge level."""
+    config_data: battery.BatteryConfigData = _wrap_data(
+        {
+            "name": "test_battery",
+            "connection": "main_bus",
+            "capacity": np.array([10.0, 10.0, 10.0]),
+            "initial_charge_percentage": 0.5,
+            "min_charge_percentage": np.array([0.1, 0.1, 0.2]),
+            "max_charge_percentage": np.array([0.9, 0.9, 0.9]),
+        }
+    )
+
+    elements = battery_adapter.model_elements(config_data)
+
+    battery_element = next(element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_BATTERY)
+    np.testing.assert_allclose(battery_element["capacity"], [8.0, 8.0, 7.0])
+    assert battery_element["initial_charge"] == pytest.approx(4.0)
+
+
+def test_model_elements_adds_a_holding_cost_per_rule() -> None:
+    """Each holding cost becomes a holding cost element measured from the min charge level.
+
+    A disabled holding cost keeps its element with a zero price, so switching it on only updates a price.
+    """
     config_data: battery.BatteryConfigData = _wrap_data(
         {
             "name": "test_battery",
@@ -450,22 +466,75 @@ def test_model_elements_overcharge_only_adds_soc_pricing() -> None:
             "capacity": np.array([10.0, 10.0, 10.0]),
             "initial_charge_percentage": 0.5,
             "min_charge_percentage": np.array([0.1, 0.1, 0.1]),
-            "max_charge_percentage": np.array([0.9, 0.9, 0.9]),
-            "overcharge": {
-                "percentage": np.array([0.95, 0.95, 0.95]),
-                "cost": np.array([0.2, 0.2]),
-            },
+            "holding_costs": [
+                {
+                    "name": "Reserve",
+                    "enabled": True,
+                    "direction": "below",
+                    "threshold": np.array([0.3, 0.3, 0.4]),
+                    "cost": np.array([0.02, 0.03]),
+                },
+                {
+                    "name": "Headroom",
+                    "enabled": False,
+                    "direction": "above",
+                    "threshold": np.array([0.9, 0.9, 0.9]),
+                    "cost": np.array([0.01, 0.01]),
+                },
+            ],
         }
     )
 
     elements = battery_adapter.model_elements(config_data)
-    connection = _get_connection(elements, "test_battery:discharge")
-    segments = connection.get("segments")
-    assert segments is not None
-    soc_pricing = segments.get("soc_pricing")
-    assert soc_pricing is not None
-    assert soc_pricing.get("discharge_energy_threshold") is None
-    assert soc_pricing.get("charge_capacity_threshold") is not None
+
+    holding_costs = [element for element in elements if element["element_type"] == MODEL_ELEMENT_TYPE_HOLDING_COST]
+    assert [(cost["name"], cost["storage"], cost["direction"]) for cost in holding_costs] == [
+        ("test_battery:holding_cost:0", "test_battery", "below"),
+        ("test_battery:holding_cost:1", "test_battery", "above"),
+    ]
+    np.testing.assert_allclose(holding_costs[0]["threshold"], [2.0, 3.0])
+    np.testing.assert_allclose(holding_costs[0]["price"], [0.02, 0.03])
+    np.testing.assert_allclose(holding_costs[1]["threshold"], [8.0, 8.0])
+    np.testing.assert_allclose(holding_costs[1]["price"], [0.0, 0.0])
+
+
+def test_holding_cost_keeps_a_reserve_until_late() -> None:
+    """A holding cost below a threshold keeps the reserve until discharging it pays for the time it stays used.
+
+    Exporting earns 1 per kWh. Holding a kWh below 50% costs 0.75 per hour, so only the 5 kWh above 50%
+    are exported in the first hour (a reserve kWh used then would cost 1.5), and the reserve in the last
+    hour, when it stays used for one hour.
+    """
+    config = _wrap_data(
+        {
+            "name": "battery",
+            "connection": "bus",
+            "capacity": np.array([10.0, 10.0, 10.0]),
+            "initial_charge_percentage": 1.0,
+            "max_power_source_target": np.array([10.0, 10.0]),
+            "holding_costs": [
+                {
+                    "name": "Reserve",
+                    "enabled": True,
+                    "direction": "below",
+                    "threshold": np.array([0.5, 0.5, 0.5]),
+                    "cost": np.array([0.75, 0.75]),
+                }
+            ],
+        }
+    )
+    model_outputs = optimize_participants(
+        {
+            "bus": bus_node("bus"),
+            "battery": config,
+            "grid": grid_at("grid", "bus", import_price=2.0, export_price=1.0, periods=2),
+        },
+        periods=2,
+    )
+
+    outputs = battery_adapter.outputs("battery", model_outputs, config=config)[BATTERY_DEVICE_BATTERY]
+
+    assert outputs[BATTERY_ENERGY_STORED].values == pytest.approx([10.0, 5.0, 0.0])
 
 
 def _battery_at_bus(*, efficiency: float, cap: float, salvage_value: float) -> battery.BatteryConfigData:
