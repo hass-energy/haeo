@@ -28,6 +28,40 @@ def _row_values(value: Values, n_rows: int) -> NDArray[np.float64]:
     return np.broadcast_to(np.asarray(value, dtype=np.float64), (n_rows,))
 
 
+# Rows shown at each end of a long array's repr
+_REPR_EDGE_ROWS: Final = 3
+
+
+def _format_number(value: float) -> str:
+    """Format a coefficient or bound compactly, showing negative zero as zero."""
+    return f"{value + 0.0:g}"
+
+
+def _format_terms(cols: NDArray[np.int64], coefs: NDArray[np.float64], constant: float) -> str:
+    """Format one row's terms as ``2·x5 - x7 + 1.5``, omitting zero terms."""
+    parts: list[str] = []
+    for col, coef in zip(cols.tolist(), coefs.tolist(), strict=True):
+        if coef == 0.0:
+            continue
+        magnitude = "" if abs(coef) == 1.0 else f"{_format_number(abs(coef))}·"
+        sign = "-" if coef < 0 else "+"
+        parts.append(f"{sign} {magnitude}x{col}")
+    if constant != 0.0 or not parts:
+        parts.append(f"{'-' if constant < 0 else '+'} {_format_number(abs(constant))}")
+    text = " ".join(parts)
+    return text[2:] if text.startswith("+ ") else "-" + text[2:]
+
+
+def _format_rows(name: str, lines: list[str]) -> str:
+    """Format numbered rows, eliding the middle of long arrays."""
+    numbered = [f"  [{i}] {line}" for i, line in enumerate(lines)]
+    if len(numbered) > 2 * _REPR_EDGE_ROWS:
+        hidden = len(numbered) - 2 * _REPR_EDGE_ROWS
+        numbered = [*numbered[:_REPR_EDGE_ROWS], f"  ... {hidden} more rows", *numbered[-_REPR_EDGE_ROWS:]]
+    count = f"{len(lines)} row" if len(lines) == 1 else f"{len(lines)} rows"
+    return "\n".join([f"{name}({count})", *numbered])
+
+
 @dataclass(frozen=True, slots=True, eq=False)
 class LinearArray:
     """One linear expression per row: ``sum(coefs[i, j] * x[cols[i, j]]) + constant[i]``."""
@@ -70,6 +104,14 @@ class LinearArray:
     def __len__(self) -> int:
         """Return the number of rows."""
         return len(self.constant)
+
+    def __repr__(self) -> str:
+        """Show each row as an expression over columns ``x<index>``, eliding the middle of long arrays."""
+        lines = [
+            _format_terms(cols, coefs, constant)
+            for cols, coefs, constant in zip(self.cols, self.coefs, self.constant.tolist(), strict=True)
+        ]
+        return _format_rows("LinearArray", lines)
 
     def __getitem__(self, key: int | slice) -> Self:
         """Return the selected rows. An integer selects a single row, kept as an array of one."""
@@ -196,6 +238,25 @@ class Rows:
     def __len__(self) -> int:
         """Return the number of rows."""
         return len(self.lower)
+
+    def __repr__(self) -> str:
+        """Show each row with its bounds, eliding the middle of long blocks."""
+        lines: list[str] = []
+        for cols, coefs, lower, upper in zip(
+            self.expr.cols, self.expr.coefs, self.lower.tolist(), self.upper.tolist(), strict=True
+        ):
+            terms = _format_terms(cols, coefs, 0.0)
+            if lower == upper:
+                lines.append(f"{terms} == {_format_number(upper)}")
+            elif lower == -INF and upper == INF:
+                lines.append(f"{terms} (free)")
+            elif lower == -INF:
+                lines.append(f"{terms} <= {_format_number(upper)}")
+            elif upper == INF:
+                lines.append(f"{terms} >= {_format_number(lower)}")
+            else:
+                lines.append(f"{_format_number(lower)} <= {terms} <= {_format_number(upper)}")
+        return _format_rows("Rows", lines)
 
 
 @overload
