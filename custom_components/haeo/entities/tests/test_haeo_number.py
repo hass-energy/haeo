@@ -14,6 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import EntityPlatform
+import numpy as np
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -27,6 +28,8 @@ from custom_components.haeo.core.schema import (
     as_constant_value,
     as_entity_value,
     as_none_value,
+    as_reserve_value,
+    is_reserve_value,
 )
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
@@ -179,6 +182,8 @@ def _create_subentry(name: str, data: dict[str, object]) -> ConfigSubentry:
     def schema_value(value: object) -> SchemaValue:
         if value is None:
             return as_none_value()
+        if is_reserve_value(value):
+            return value
         if isinstance(value, bool):
             return as_constant_value(value)
         if isinstance(value, (int, float)):
@@ -739,6 +744,39 @@ async def test_driven_mode_ignores_user_set_value(
     # Value should NOT change in driven mode
     assert entity.native_value == 10.0
     entity.async_write_ha_state.assert_called_once()
+
+
+async def test_derived_mode_mirrors_store_and_ignores_edits(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """A derived entity shows each value pushed into its store, and user edits and horizon changes leave it alone."""
+    field_info = InputFieldInfo(
+        field_name="percentage",
+        entity_description=NumberEntityDescription(key="percentage", native_unit_of_measurement="%"),
+        output_type=OutputType.STATE_OF_CHARGE,
+        time_series=True,
+        boundaries=True,
+    )
+    subentry = _create_subentry("Test Battery", {"percentage": as_reserve_value(12.0)})
+    config_entry.runtime_data = None
+    entity = _make_entity(hass, config_entry, subentry, field_info, device_entry, horizon_manager)
+    await _add_entity_to_hass(hass, entity)
+
+    assert entity.entity_mode == InputMode.DERIVED
+    assert entity.native_value is None
+
+    entity.store.set_derived(np.array([0.3, 0.2, 0.1]), (0.0, 300.0, 600.0))
+    await entity.async_set_native_value(99.0)
+    entity._handle_horizon_change()
+
+    state = hass.states.get(entity.entity_id)
+    assert state is not None
+    assert float(state.state) == pytest.approx(30.0)
+    assert [point["value"] for point in state.attributes["forecast"]] == pytest.approx([30.0, 20.0, 10.0])
+    assert state.attributes["config_mode"] == "derived"
 
 
 # --- Tests for unique ID generation ---

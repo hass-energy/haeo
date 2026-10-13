@@ -11,6 +11,8 @@ An ``InputStore`` is the single source of truth for one field's value:
 - DRIVEN stores resolve from source entities through ``async_load``.
 - EDITABLE stores hold a constant that is persisted through the storage on
   ``set_value``.
+- DERIVED stores hold a value computed from other stores, pushed in through
+  ``set_derived``.
 - Consumers (the coordinator) read the resolved ``value`` and subscribe to
   changes via ``add_listener``.
 """
@@ -37,6 +39,7 @@ class InputMode(Enum):
 
     EDITABLE = "editable"
     DRIVEN = "driven"
+    DERIVED = "derived"
 
 
 class InputStore:
@@ -258,6 +261,24 @@ class InputStore:
         if self._mode == InputMode.EDITABLE:
             self._resolve_from_constant(mark_ready=True)
 
+    def set_derived(self, value: np.ndarray, forecast_timestamps: tuple[float, ...]) -> None:
+        """Set a value computed from other stores for the given forecast timestamps.
+
+        Listeners are notified only when the value or its timestamps change.
+        """
+        changed = (
+            not isinstance(self._value, np.ndarray)
+            or forecast_timestamps != self._loaded_timestamps
+            or not np.array_equal(self._value, value)
+        )
+        self._value = value
+        self._available = True
+        self._loaded_timestamps = forecast_timestamps
+        self._data_ready.set()
+        self._settled.set()
+        if changed:
+            self._notify()
+
     async def async_load(self, sm: StateMachine) -> bool:
         """Resolve data from source entities via the provided state machine.
 
@@ -351,6 +372,7 @@ def create_input_store(
     - {"type": "constant", "value": X} → EDITABLE mode with that value
     - bare bool/int/float → EDITABLE mode with that value
     - {"type": "none"} or None → EDITABLE mode with no value
+    - {"type": "reserve", "value": X} → DERIVED mode, set by the reserve resolver
 
     When ``negate`` is True, values resolved from source entities are negated.
     Constant values are already stored negated, so the flag only changes the
@@ -375,6 +397,15 @@ def create_input_store(
                 get_forecast_timestamps=get_forecast_timestamps,
                 storage=storage,
                 initial_value=constant if isinstance(constant, bool) else float(constant),
+                negate=negate,
+            )
+        case {"type": "reserve"}:
+            return InputStore(
+                mode=InputMode.DERIVED,
+                source_entity_ids=[],
+                hint=hint,
+                get_forecast_timestamps=get_forecast_timestamps,
+                storage=storage,
                 negate=negate,
             )
         case {"type": "none"} | None:

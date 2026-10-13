@@ -12,7 +12,12 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.core.schema import (
+    as_connection_target,
+    as_constant_value,
+    as_entity_value,
+    as_reserve_value,
+)
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
@@ -310,10 +315,20 @@ async def test_partition_flow_with_entity_links_creates_entry(hass: HomeAssistan
     assert overcharge[CONF_PARTITION_PERCENTAGE] == as_entity_value(["sensor.overcharge_pct"])
 
 
+@pytest.mark.parametrize(
+    ("undercharge_percentage", "expected_undercharge_percentage"),
+    [
+        pytest.param(5.0, as_constant_value(5.0), id="constant"),
+        pytest.param(as_reserve_value(12.0), as_reserve_value(12.0), id="reserve"),
+    ],
+)
 async def test_partition_flow_with_constant_values_creates_entry(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    undercharge_percentage: object,
+    expected_undercharge_percentage: object,
 ) -> None:
-    """Complete flow with constant partition values creates entry."""
+    """Complete flow with constant or reserve partition values creates entry."""
     add_participant(hass, hub_entry, "main_bus", node.ELEMENT_TYPE)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
@@ -341,7 +356,7 @@ async def test_partition_flow_with_constant_values_creates_entry(
     await flow.async_step_user(user_input=_wrap_main_input(step1_input))
 
     partition_input = {
-        CONF_PARTITION_PERCENTAGE: 5.0,
+        CONF_PARTITION_PERCENTAGE: undercharge_percentage,
         CONF_PARTITION_COST: 0.10,
     }
     partition_input_overcharge = {
@@ -357,7 +372,7 @@ async def test_partition_flow_with_constant_values_creates_entry(
     created_data = flow.async_create_entry.call_args.kwargs["data"]
     undercharge = created_data[SECTION_UNDERCHARGE]
     overcharge = created_data[SECTION_OVERCHARGE]
-    assert undercharge[CONF_PARTITION_PERCENTAGE] == as_constant_value(5.0)
+    assert undercharge[CONF_PARTITION_PERCENTAGE] == expected_undercharge_percentage
     assert overcharge[CONF_PARTITION_PERCENTAGE] == as_constant_value(95.0)
     assert undercharge[CONF_PARTITION_COST] == as_constant_value(0.10)
     assert overcharge[CONF_PARTITION_COST] == as_constant_value(0.10)

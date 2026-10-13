@@ -15,7 +15,7 @@ import pytest
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.input_store import InputMode, InputStore, create_input_store
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import as_constant_value, as_entity_value
+from custom_components.haeo.core.schema import as_constant_value, as_entity_value, as_reserve_value
 from custom_components.haeo.core.schema.field_hints import FieldHint
 
 FORECAST_TIMESTAMPS: tuple[float, ...] = (0.0, 300.0, 600.0)
@@ -390,3 +390,42 @@ def test_horizon_start_scalar_returns_none() -> None:
     store.refresh()
 
     assert store.horizon_start is None
+
+
+# --- Derived values ---
+
+
+def test_derived_store_waits_for_a_value() -> None:
+    """A reserve value builds a derived store that is unavailable until a value is set."""
+    store = _make_store(storage_value=as_reserve_value(12.0), output_type=OutputType.STATE_OF_CHARGE, time_series=True)
+
+    assert store.mode == InputMode.DERIVED
+    assert store.source_entity_ids == []
+    assert store.available is False
+    assert store.is_ready() is False
+
+
+@pytest.mark.parametrize(
+    ("second_value", "second_timestamps", "expected_notifications"),
+    [
+        pytest.param([0.2, 0.3, 0.4], FORECAST_TIMESTAMPS, 1, id="unchanged_value_is_quiet"),
+        pytest.param([0.2, 0.3, 0.5], FORECAST_TIMESTAMPS, 2, id="changed_value_notifies"),
+        pytest.param([0.2, 0.3, 0.4], (300.0, 600.0, 900.0), 2, id="changed_horizon_notifies"),
+    ],
+)
+def test_set_derived_notifies_on_change(
+    second_value: list[float], second_timestamps: tuple[float, ...], expected_notifications: int
+) -> None:
+    """Setting a derived value marks the store ready and notifies only when something changed."""
+    store = _make_store(storage_value=as_reserve_value(12.0), output_type=OutputType.STATE_OF_CHARGE, time_series=True)
+    notifications: list[None] = []
+    store.add_listener(lambda: notifications.append(None))
+
+    store.set_derived(np.array([0.2, 0.3, 0.4]), FORECAST_TIMESTAMPS)
+    store.set_derived(np.array(second_value), second_timestamps)
+
+    assert len(notifications) == expected_notifications
+    assert store.available is True
+    assert store.is_ready() is True
+    assert store.forecast_timestamps == second_timestamps
+    assert store.display_values == pytest.approx(tuple(v * 100 for v in second_value))

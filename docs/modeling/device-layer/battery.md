@@ -33,7 +33,7 @@ The adapter creates three model elements:
 
 The battery model tracks stored energy within a bounded range:
 
-- **Lower bound**: undercharge percentage when configured, otherwise `min_charge_percentage`
+- **Lower bound**: the lower of the undercharge percentage and `min_charge_percentage` when undercharge is configured, otherwise `min_charge_percentage`
 - **Upper bound**: overcharge percentage when configured, otherwise `max_charge_percentage`
 
 The model capacity is:
@@ -74,7 +74,7 @@ The charge, discharge, and active power sensors all report terminal power, so th
 
 When undercharge or overcharge costs are configured, the connection includes the SOC pricing segment:
 
-- **Undercharge penalty** applies while SOC is below `min_charge_percentage`
+- **Undercharge penalty** applies while SOC is below the higher of the undercharge percentage and `min_charge_percentage`
 - **Overcharge penalty** applies while SOC is above `max_charge_percentage`
 
 Both costs are holding rates in \$/kWh/h.
@@ -106,9 +106,9 @@ Battery creates a single Home Assistant device:
 | `initial_charge_percentage` | Battery               | `initial_charge` (offset by lower bound)   | kWh                            |
 | `min_charge_percentage`     | Battery + SOC pricing | Preferred minimum SOC threshold            | Penalty threshold              |
 | `max_charge_percentage`     | Battery + SOC pricing | Preferred maximum SOC threshold            | Penalty threshold              |
-| Undercharge percentage      | Battery               | Lower bound for SOC range                  | Hard minimum                   |
+| Undercharge percentage      | Battery + SOC pricing | Other edge of the priced band              | Hard minimum when lower        |
 | Overcharge percentage       | Battery               | Upper bound for SOC range                  | Hard maximum                   |
-| Undercharge cost            | SOC pricing segment   | `discharge_energy_price`                   | \$/kWh/h below min SOC         |
+| Undercharge cost            | SOC pricing segment   | `discharge_energy_price`                   | \$/kWh/h below the band top    |
 | Overcharge cost             | SOC pricing segment   | `charge_capacity_price`                    | \$/kWh/h above max SOC         |
 | `salvage_value`             | Battery               | `salvage_value`                            | Terminal value for stored kWh  |
 | `efficiency_source_target`  | Efficiency segment    | `efficiency_source_target`                 | Battery to network (discharge) |

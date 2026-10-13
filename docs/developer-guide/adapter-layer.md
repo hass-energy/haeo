@@ -110,6 +110,22 @@ To add a new Device Layer element:
 
 See existing adapter modules in [`custom_components/haeo/core/adapters/elements/`](https://github.com/hass-energy/haeo/tree/main/custom_components/haeo/core/adapters/elements) for implementation patterns.
 
+## Backup reserve
+
+A field configured with a reserve value is derived from the rest of the network rather than loaded from an entity.
+[`core/adapters/reserve.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/adapters/reserve.py) computes it from two optional adapter protocols:
+
+- `ReserveContributor.reserve_energy` returns the energy an element draws from the reserve in each period, positive for demand and negative for generation.
+    Loads and solar implement it.
+- `ReserveHolder` turns a share of the reserve into the field's value.
+    The battery implements it, converting energy into an undercharge SOC level.
+
+The reserve at each boundary is the windowed maximum drawdown of the summed net energy.
+At runtime a `ReserveResolver` in `input_stores.py` recomputes it into a derived input store whenever another store changes, and the diagnostics replay loaders apply the same calculation.
+
+An element whose demand is scheduled rather than forecast joins the reserve by implementing `reserve_energy`.
+A deferrable load, for example, would report each window's required energy in the period where the window closes, since that is the latest the energy must be delivered.
+
 ## Integration Points
 
 The adapter layer integrates at two points in HAEO's execution:

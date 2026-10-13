@@ -13,9 +13,11 @@ from custom_components.haeo.core.schema import (
     ConstantValue,
     EntityValue,
     NoneValue,
+    ReserveValue,
     as_constant_value,
     as_entity_value,
     as_none_value,
+    as_reserve_value,
 )
 from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldDefaults, InputFieldInfo
@@ -23,6 +25,7 @@ from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
     CHOICE_ENTITY,
     CHOICE_NONE,
+    CHOICE_RESERVE,
     NormalizingChooseSelector,
     SectionDefinition,
     boolean_selector_from_field,
@@ -1350,3 +1353,79 @@ def test_convert_sectioned_choose_data_to_config_handles_non_mapping_section(
     config = convert_sectioned_choose_data_to_config({"inputs": "invalid"}, input_fields, sections)
 
     assert config == {"inputs": {}}
+
+
+# --- Tests for the reserve choice ---
+
+
+def test_build_choose_field_entries_offers_reserve_when_value_type_allows(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """A field whose schema type accepts a reserve value gets a reserve choice."""
+    entries = build_choose_field_entries(
+        _field_map(number_field),
+        field_schema={
+            number_field.field_name: FieldSchemaInfo(
+                value_type=EntityValue | ConstantValue | ReserveValue, is_optional=False
+            )
+        },
+        inclusion_map={},
+    )
+
+    _marker, selector = entries[number_field.field_name]
+    assert list(selector.config["choices"]) == [CHOICE_CONSTANT, CHOICE_ENTITY, CHOICE_RESERVE]
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        pytest.param({"active_choice": CHOICE_RESERVE, CHOICE_RESERVE: 12}, as_reserve_value(12.0), id="reserve"),
+        pytest.param(as_reserve_value(6.0), as_reserve_value(6.0), id="stored_reserve"),
+        pytest.param({"active_choice": CHOICE_CONSTANT, CHOICE_CONSTANT: 12}, 12, id="constant"),
+        pytest.param(12, 12, id="bare_number_is_constant"),
+    ],
+)
+def test_choose_selector_tags_reserve_choice(
+    number_field: InputFieldInfo[NumberEntityDescription], data: object, expected: object
+) -> None:
+    """A reserve window is returned as a reserve value so it is not mistaken for a constant."""
+    selector = build_choose_selector(
+        number_field,
+        allowed_choices=frozenset({CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_RESERVE}),
+        preferred_choice=CHOICE_CONSTANT,
+    )
+
+    assert selector(data) == expected
+
+
+def test_choose_selector_rejects_non_positive_reserve_window(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """The reserve window must cover some time."""
+    selector = build_choose_selector(number_field, allowed_choices=frozenset({CHOICE_CONSTANT, CHOICE_RESERVE}))
+
+    with pytest.raises(vol.Invalid):
+        selector({"active_choice": CHOICE_RESERVE, CHOICE_RESERVE: 0})
+
+
+def test_reserve_value_round_trips_through_flow_helpers(
+    number_field: InputFieldInfo[NumberEntityDescription],
+) -> None:
+    """A stored reserve reselects the reserve choice, prefills its window, and is stored unchanged."""
+    allowed = frozenset({CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_RESERVE})
+    current = {number_field.field_name: as_reserve_value(8.0)}
+    fields = _field_map(number_field)
+
+    preferred = get_preferred_choice(number_field, current, allowed_choices=allowed)
+    default = get_choose_default(number_field, current)
+    preprocessed = preprocess_choose_selector_input(dict(current), fields)
+    raw = preprocess_choose_selector_input(
+        {number_field.field_name: {"active_choice": CHOICE_RESERVE, CHOICE_RESERVE: 8}}, fields
+    )
+
+    assert preferred == CHOICE_RESERVE
+    assert default == 8.0
+    assert preprocessed == current
+    assert raw == current
+    assert is_valid_choose_value(as_reserve_value(8.0))
+    assert convert_choose_data_to_config(current, fields) == current

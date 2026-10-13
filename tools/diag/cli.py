@@ -30,6 +30,7 @@ from tabulate import tabulate
 from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
 from custom_components.haeo.core.adapters.policy_compilation import CompiledPolicyRule, compile_policies
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements, is_element_type
+from custom_components.haeo.core.adapters.reserve import apply_reserves
 from custom_components.haeo.core.const import (
     CONF_ELEMENT_TYPE,
     CONF_HORIZON,
@@ -1109,6 +1110,7 @@ def run_diagnostics(
 
     negated_paths = negated_price_paths(normalized_participants)
     loaded_participants: dict[str, ElementConfigData] = {}
+    loaded_schemas: dict[str, ElementConfigSchema] = {}
     for element_name, element_config in normalized_participants.items():
         try:
             if not _is_element_config_schema(element_config):
@@ -1121,6 +1123,7 @@ def run_diagnostics(
                 forecast_times,
                 negated_paths=negated_paths.get(element_name, frozenset()),
             )
+            loaded_schemas[element_name] = element_config
             print(f"  Loaded: {element_name} ({element_config.get(CONF_ELEMENT_TYPE)})")
         except Exception as e:
             print(f"  Warning: Failed to load {element_name}: {e}")
@@ -1128,6 +1131,8 @@ def run_diagnostics(
     if not loaded_participants:
         print("Error: No elements loaded")
         sys.exit(1)
+
+    apply_reserves(loaded_schemas, loaded_participants, forecast_times)
 
     # Create network and run optimization
     print("\nCreating network...")

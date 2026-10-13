@@ -11,6 +11,7 @@ from numbers import Real
 from typing import Any  # noqa: TID251  # voluptuous schema dicts and HA Selector overrides are Any by design
 
 from homeassistant.components.number import NumberEntityDescription
+from homeassistant.const import UnitOfTime
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers.selector import (
     BooleanSelector,
@@ -33,15 +34,18 @@ from custom_components.haeo.core.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
+    VALUE_TYPE_RESERVE,
     SchemaValue,
     as_constant_value,
     as_entity_value,
     as_none_value,
+    as_reserve_value,
     get_schema_value_kinds,
     is_calendar_value,
     is_constant_value,
     is_entity_value,
     is_none_value,
+    is_reserve_value,
     is_schema_value,
 )
 from custom_components.haeo.elements.field_schema import FieldSchemaInfo
@@ -56,6 +60,11 @@ from custom_components.haeo.elements.input_fields import (
 CHOICE_ENTITY = VALUE_TYPE_ENTITY
 CHOICE_CONSTANT = VALUE_TYPE_CONSTANT
 CHOICE_NONE = VALUE_TYPE_NONE
+CHOICE_RESERVE = VALUE_TYPE_RESERVE
+
+# Window choices for a reserve, in hours
+RESERVE_WINDOW_MIN_HOURS = 0.5
+RESERVE_WINDOW_STEP_HOURS = 0.5
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +166,8 @@ def _get_allowed_choices(field_schema: FieldSchemaInfo, field_info: AnyInputFiel
         choices.add(CHOICE_ENTITY)
     if VALUE_TYPE_CONSTANT in kinds:
         choices.add(CHOICE_CONSTANT)
+    if VALUE_TYPE_RESERVE in kinds:
+        choices.add(CHOICE_RESERVE)
     if VALUE_TYPE_NONE in kinds and not field_info.force_required:
         choices.add(CHOICE_NONE)
     return frozenset(choices)
@@ -183,6 +194,8 @@ def get_preferred_choice(
             return CHOICE_ENTITY
         if is_constant_value(value) and CHOICE_CONSTANT in choices:
             return CHOICE_CONSTANT
+        if is_reserve_value(value) and CHOICE_RESERVE in choices:
+            return CHOICE_RESERVE
         if is_none_value(value) and CHOICE_NONE in choices:
             return CHOICE_NONE
 
@@ -211,10 +224,16 @@ class NormalizingChooseSelector(ChooseSelector):  # type: ignore[type-arg]
     {"active_choice": "none", "constant": 100}
 
     Converts to expected format before delegating to ChooseSelector.
+    A reserve choice is returned as a reserve schema value, since its window
+    length could not otherwise be told apart from a constant.
     """
 
     def __call__(self, data: Any) -> Any:  # matches upstream Selector.__call__(self, data: Any) -> Any signature
         """Normalize data before validation."""
+        if is_reserve_value(data):
+            return data
+        if isinstance(data, Mapping) and data.get("active_choice") == CHOICE_RESERVE:
+            return as_reserve_value(super().__call__(data))  # type: ignore[misc]
         normalized = self._normalize(data)
         return super().__call__(normalized)  # type: ignore[misc]
 
@@ -281,11 +300,23 @@ def build_choose_selector(
         choice_map[CHOICE_ENTITY] = entity_choice
     if CHOICE_CONSTANT in allowed_choices:
         choice_map[CHOICE_CONSTANT] = constant_choice
+    if CHOICE_RESERVE in allowed_choices:
+        reserve_selector = NumberSelector(
+            NumberSelectorConfig(
+                mode=NumberSelectorMode.BOX,
+                min=RESERVE_WINDOW_MIN_HOURS,
+                step=RESERVE_WINDOW_STEP_HOURS,
+                unit_of_measurement=UnitOfTime.HOURS,
+            )
+        )
+        choice_map[CHOICE_RESERVE] = ChooseSelectorChoiceConfig(selector=reserve_selector.serialize()["selector"])
     if CHOICE_NONE in allowed_choices:
         none_selector = ConstantSelector(ConstantSelectorConfig(value=""))
         choice_map[CHOICE_NONE] = ChooseSelectorChoiceConfig(selector=none_selector.serialize()["selector"])
 
-    choice_order = [choice for choice in (CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_NONE) if choice in choice_map]
+    choice_order = [
+        choice for choice in (CHOICE_ENTITY, CHOICE_CONSTANT, CHOICE_RESERVE, CHOICE_NONE) if choice in choice_map
+    ]
 
     if not choice_order:
         msg = f"No allowed choices for field '{field_info.field_name}'"
@@ -604,6 +635,8 @@ def get_choose_default(
         return current_value["value"]
     if is_constant_value(current_value):
         return current_value["value"]
+    if is_reserve_value(current_value):
+        return current_value["value"]
     if is_none_value(current_value):
         return None
 
@@ -629,6 +662,7 @@ def convert_choose_data_to_config(
     After preprocessing, the user input contains:
     - Entity selection: list of entity IDs (e.g., ["sensor.x"])
     - Constant: scalar value (e.g., 10.0 or True)
+    - Reserve: reserve schema value
     - Disabled/None choice: None
 
     Args:
@@ -640,6 +674,7 @@ def convert_choose_data_to_config(
         Config dict with discriminated schema values:
         - Entity fields: stored as {"type": "entity", "value": list[str]}
         - Constant fields: stored as {"type": "constant", "value": scalar}
+        - Reserve fields: stored as {"type": "reserve", "value": window_hours}
         - Disabled fields: stored as {"type": "none"}
 
     """
@@ -655,6 +690,11 @@ def convert_choose_data_to_config(
         # Disabled/none choice
         if value is None:
             config[field_name] = as_none_value()
+            continue
+
+        # Reserve choice: already a reserve schema value
+        if is_reserve_value(value):
+            config[field_name] = value
             continue
 
         # Entity selection: list of entity IDs
@@ -729,6 +769,11 @@ def preprocess_choose_selector_input(
                 result[field_name] = value.get(CHOICE_ENTITY, [])
             elif choice == CHOICE_CONSTANT:
                 result[field_name] = value.get(CHOICE_CONSTANT)
+            elif choice == CHOICE_RESERVE:
+                result[field_name] = as_reserve_value(float(value[CHOICE_RESERVE]))
+        # Reserve values keep their type so they are not mistaken for constants
+        elif is_reserve_value(value):
+            continue
         # Handle discriminated schema values
         elif is_schema_value(value):
             if is_entity_value(value) or is_constant_value(value) or is_calendar_value(value):
@@ -757,6 +802,8 @@ def is_valid_choose_value(value: object) -> bool:
     """
     if value is None:
         return False
+    if is_reserve_value(value):
+        return True
     # Entity selection: list of entity IDs
     if isinstance(value, list):
         return bool(value)
@@ -830,6 +877,7 @@ __all__ = [
     "CHOICE_CONSTANT",
     "CHOICE_ENTITY",
     "CHOICE_NONE",
+    "CHOICE_RESERVE",
     "NormalizingChooseSelector",
     "SectionDefinition",
     "as_mapping",

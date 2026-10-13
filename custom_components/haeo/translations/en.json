@@ -169,7 +169,7 @@
               "data": { "cost": "Undercharge cost", "percentage": "Undercharge percentage" },
               "data_description": {
                 "cost": "Holding cost per kWh stored below the undercharge percentage, charged for every hour it stays there. For example, 0.02 means keeping 1 kWh below this level for 10 hours costs 0.20.",
-                "percentage": "State of charge below which the undercharge cost applies."
+                "percentage": "The undercharge cost applies between this and the min charge percentage, and the battery never goes below the lower of the two. Choose Reserve to derive it from your loads and solar: enough charge above the min charge percentage to run your loads through a grid outage lasting the given number of hours."
               },
               "name": "Undercharge settings"
             }
@@ -642,7 +642,7 @@
   "selector": {
     "horizon_preset": { "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days" } },
     "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
-    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },
+    "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None", "reserve": "Reserve" } },
     "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }
   },
   "services": {

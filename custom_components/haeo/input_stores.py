@@ -11,13 +11,17 @@ reads their resolved values to feed the optimization.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.core.data.input_store import InputStore, create_input_store
+from custom_components.haeo.core.adapters.reserve import resolve_reserves
+from custom_components.haeo.core.data.input_store import InputMode, InputStore, create_input_store
+from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema import is_none_value
+from custom_components.haeo.core.schema.elements import ElementConfigSchema
 from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 from custom_components.haeo.elements import (
@@ -77,6 +81,55 @@ class SubentryStorage:
             field_path=self._field_path,
             value=value,
         )
+
+
+class ReserveResolver:
+    """Keeps derived reserve stores up to date with the stores they are computed from.
+
+    Whenever a source store changes, every element's config is assembled from
+    the source stores and the reserve is recomputed. Sources still loading for
+    an older horizon are waited for, so the reserve always matches the horizon
+    of the values it was computed from.
+    """
+
+    def __init__(
+        self,
+        participants: Mapping[str, ElementConfigSchema],
+        stores: InputStoreMap,
+        get_forecast_timestamps: Callable[[], tuple[float, ...]],
+    ) -> None:
+        """Initialize the resolver."""
+        self._participants = participants
+        self._derived = {key: store for key, store in stores.items() if store.mode == InputMode.DERIVED}
+        self._sources = {key: store for key, store in stores.items() if store.mode != InputMode.DERIVED}
+        self._get_forecast_timestamps = get_forecast_timestamps
+
+    def start(self) -> None:
+        """Recompute now and whenever a source store changes."""
+        for store in self._sources.values():
+            store.add_listener(self.update)
+        self.update()
+
+    def update(self) -> None:
+        """Recompute the derived stores once every source store holds a value for the current horizon."""
+        forecast_timestamps = self._get_forecast_timestamps()
+        if not all(
+            store.available and (not store.time_series or store.forecast_timestamps == forecast_timestamps)
+            for store in self._sources.values()
+        ):
+            return
+
+        loaded = {
+            name: load_element_config_from_values(
+                name,
+                config,
+                {path: store.value for (element, path), store in self._sources.items() if element == name},
+                forecast_timestamps,
+            )
+            for name, config in self._participants.items()
+        }
+        for key, value in resolve_reserves(self._participants, loaded, forecast_timestamps).items():
+            self._derived[key].set_derived(value, forecast_timestamps)
 
 
 def _hint_from_field_info(field_info: AnyInputFieldInfo) -> FieldHint:
@@ -145,7 +198,22 @@ def build_input_stores(
             )
             stores[(subentry.title, field_path)] = store
 
+    if any(store.mode == InputMode.DERIVED for store in stores.values()):
+        participants = {
+            subentry.title: subentry.data
+            for subentry in config_entry.subentries.values()
+            if is_element_config_schema(subentry.data)
+        }
+        ReserveResolver(participants, stores, horizon_manager.get_forecast_timestamps).start()
+
     return stores
 
 
-__all__ = ["InputStoreKey", "InputStoreMap", "SubentryStorage", "build_input_stores", "input_error_placeholders"]
+__all__ = [
+    "InputStoreKey",
+    "InputStoreMap",
+    "ReserveResolver",
+    "SubentryStorage",
+    "build_input_stores",
+    "input_error_placeholders",
+]

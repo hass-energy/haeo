@@ -5,6 +5,7 @@ from dataclasses import replace
 from typing import Final, Literal
 
 import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
@@ -124,7 +125,7 @@ class BatteryAdapter:
         undercharge_percentage = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
         overcharge_percentage = overcharge.get(CONF_PARTITION_PERCENTAGE) if overcharge_cost is not None else None
 
-        lower_ratio = undercharge_percentage if undercharge_percentage is not None else min_charge_percentage
+        lower_ratio = _lower_ratio(config)
         upper_ratio = overcharge_percentage if overcharge_percentage is not None else max_charge_percentage
 
         lower_ratio_first = float(lower_ratio[0]) if isinstance(lower_ratio, np.ndarray) else float(lower_ratio)
@@ -150,9 +151,13 @@ class BatteryAdapter:
 
         soc_pricing_spec: SocPricingSegmentSpec | None = None
         if undercharge_percentage is not None and undercharge_cost is not None:
-            min_ratio_series = broadcast_to_sequence(min_charge_percentage, n_periods + 1)[1:]
+            # The band between the undercharge and min charge percentages is priced,
+            # whichever way round they are, so a reserve above min charge is a soft floor.
+            band_top_series = broadcast_to_sequence(
+                np.maximum(undercharge_percentage, min_charge_percentage), n_periods + 1
+            )[1:]
             lower_ratio_series = broadcast_to_sequence(lower_ratio, n_periods + 1)[1:]
-            discharge_energy_threshold = (min_ratio_series - lower_ratio_series) * capacity[1:]
+            discharge_energy_threshold = (band_top_series - lower_ratio_series) * capacity[1:]
             soc_pricing_spec = {
                 "segment_type": "soc_pricing",
                 "discharge_energy_threshold": discharge_energy_threshold,
@@ -211,6 +216,31 @@ class BatteryAdapter:
 
         return elements
 
+    def reserve_capacity(self, config: BatteryConfigData) -> NDArray[np.float64]:
+        """Return the battery capacity at each boundary in kWh."""
+        return np.asarray(config[SECTION_STORAGE][CONF_CAPACITY], dtype=float)
+
+    def reserve_level(self, config: BatteryConfigData, energy: NDArray[np.float64]) -> NDArray[np.float64]:
+        """Return the SOC ratio at each boundary that holds ``energy`` kWh above the min charge percentage.
+
+        The stored energy must cover the reserve after discharge losses, so it is
+        scaled up by the discharge efficiency. The level never exceeds a full battery.
+        """
+        capacity = self.reserve_capacity(config)
+        n_boundaries = len(capacity)
+        min_charge_percentage = broadcast_to_sequence(
+            config[SECTION_LIMITS].get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE]),
+            n_boundaries,
+        )
+        efficiency = broadcast_to_sequence(
+            config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET, 1.0), n_boundaries
+        )
+        stored_capacity = efficiency * capacity
+        reserve_ratio = np.divide(
+            energy, stored_capacity, out=np.zeros(n_boundaries, dtype=float), where=stored_capacity > 0
+        )
+        return np.minimum(min_charge_percentage + reserve_ratio, 1.0)
+
     def outputs(
         self,
         name: str,
@@ -265,23 +295,23 @@ class BatteryAdapter:
 adapter = BatteryAdapter()
 
 
+def _lower_ratio(config: BatteryConfigData) -> NDArray[np.float64] | float:
+    """Return the hard lower SOC limit: the lower of the min charge and priced undercharge percentages."""
+    min_charge_percentage = config[SECTION_LIMITS].get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
+    undercharge = config.get(SECTION_UNDERCHARGE, {})
+    undercharge_percentage = undercharge.get(CONF_PARTITION_PERCENTAGE)
+    if undercharge_percentage is None or undercharge.get(CONF_PARTITION_COST) is None:
+        return min_charge_percentage
+    return np.minimum(undercharge_percentage, min_charge_percentage)
+
+
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate total energy stored including inaccessible energy below min SOC."""
     # Capacity and ratio fields are already boundaries (n+1 values)
     capacity = config[SECTION_STORAGE][CONF_CAPACITY]
 
-    # Get time-varying min ratio (also boundaries)
-    min_charge_percentage = config[SECTION_LIMITS].get(
-        CONF_MIN_CHARGE_PERCENTAGE,
-        DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE],
-    )
-    undercharge = config.get(SECTION_UNDERCHARGE, {})
-    undercharge_cost = undercharge.get(CONF_PARTITION_COST)
-    undercharge_pct = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
-    unusable_ratio = undercharge_pct if undercharge_pct is not None else min_charge_percentage
-
     # Both energy values and capacity/ratios are now boundaries (n+1 values)
-    inaccessible_energy = unusable_ratio * capacity
+    inaccessible_energy = _lower_ratio(config) * capacity
     total_values = np.asarray(aggregate_energy.values, dtype=float) + inaccessible_energy
 
     return OutputData(

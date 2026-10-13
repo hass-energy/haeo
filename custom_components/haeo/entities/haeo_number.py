@@ -198,6 +198,9 @@ class HaeoInputNumber(NumberEntity):
             with self._suppress_self_notifications():
                 self._store.refresh()
             self._sync_from_store()
+        elif self._store.mode == InputMode.DERIVED:
+            # Derived stores are recomputed from other stores and notify on change
+            self._sync_from_store()
         else:
             # Subscribe to source entity changes for DRIVEN mode
             self.async_on_remove(
@@ -226,7 +229,7 @@ class HaeoInputNumber(NumberEntity):
                 self._store.refresh()
             self._sync_from_store()
             self.async_write_ha_state()
-        else:
+        elif self._store.mode == InputMode.DRIVEN:
             self.hass.async_create_task(self._async_load_sync_and_update())
 
     @callback
@@ -301,7 +304,7 @@ class HaeoInputNumber(NumberEntity):
 
     @property
     def entity_mode(self) -> InputMode:
-        """Return the entity's operating mode (EDITABLE or DRIVEN)."""
+        """Return the entity's operating mode."""
         return self._store.mode
 
     @property
@@ -312,10 +315,10 @@ class HaeoInputNumber(NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Handle user setting a value.
 
-        In DRIVEN mode, user changes are effectively ignored.
+        In DRIVEN and DERIVED modes, user changes are effectively ignored.
         In EDITABLE mode, the store is updated and persisted to config entry.
         """
-        if self._store.mode == InputMode.DRIVEN:
+        if self._store.mode != InputMode.EDITABLE:
             self.async_write_ha_state()
             return
 
