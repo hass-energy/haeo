@@ -18,7 +18,9 @@ from custom_components.haeo.core.model.elements import (
 )
 from custom_components.haeo.core.model.elements.battery import Battery
 from custom_components.haeo.core.model.elements.connection import Connection, ConnectionElementConfig
-from custom_components.haeo.core.model.elements.segments import PowerLimitSegment, PricingSegment
+from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as POLICY_PRICING_ELEMENT_TYPE
+from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
+from custom_components.haeo.core.model.elements.segments import EfficiencySegment, PowerLimitSegment, PricingSegment
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.connection import (
@@ -621,3 +623,152 @@ def test_solver_structure_unchanged_after_update() -> None:
     # Structure should still be identical
     assert num_vars_1 == num_vars_3, f"Variables grew from {num_vars_1} to {num_vars_3}"
     assert num_cons_1 == num_cons_3, f"Constraints grew from {num_cons_1} to {num_cons_3}"
+
+
+@pytest.mark.parametrize(
+    ("initial_efficiency", "updated_efficiency"),
+    [
+        pytest.param(0.9, 0.5, id="changed"),
+        pytest.param(None, 0.5, id="from_lossless"),
+        pytest.param(0.5, None, id="to_lossless"),
+    ],
+)
+def test_efficiency_update_reaches_downstream_constraints(
+    initial_efficiency: float | None, updated_efficiency: float | None
+) -> None:
+    """An efficiency changed after a solve reaches every constraint downstream of it.
+
+    The power limit after the efficiency segment, the pricing segment's cost, and
+    the load's power balance all read the post-efficiency flow, so the battery must
+    draw ``delivered / efficiency`` once the efficiency changes. The update only
+    changes coefficients, so the LP keeps its rows and columns.
+    """
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add(
+        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 20.0, "initial_charge": 20.0}
+    )
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "load", "is_source": False, "is_sink": True})
+    connection = network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "discharge",
+            "source": "battery",
+            "target": "load",
+            "tags": {1},
+            "segments": {
+                "efficiency": {"segment_type": "efficiency", "efficiency": initial_efficiency},
+                "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
+                "pricing": {"segment_type": "pricing", "price": -1.0},
+            },
+        }
+    )
+
+    network.optimize()
+    initial_efficiency_value = 1.0 if initial_efficiency is None else initial_efficiency
+    assert connection.extract_values(connection.total_power_in) == pytest.approx((5.0 / initial_efficiency_value,))
+    structure = (network._solver.numVariables, network._solver.numConstrs)
+
+    efficiency = connection.segments["efficiency"]
+    assert isinstance(efficiency, EfficiencySegment)
+    efficiency.efficiency = None if updated_efficiency is None else np.array([updated_efficiency])
+    network.optimize()
+
+    updated_efficiency_value = 1.0 if updated_efficiency is None else updated_efficiency
+    assert connection.extract_values(connection.total_power_in) == pytest.approx((5.0 / updated_efficiency_value,))
+    assert connection.extract_values(connection.total_power_out) == pytest.approx((5.0,))
+    assert (network._solver.numVariables, network._solver.numConstrs) == structure
+
+
+def test_power_limit_removed_after_solve_stops_binding() -> None:
+    """A power limit cleared after a solve no longer limits flow, and can be set again.
+
+    The cleared constraint keeps its rows with free bounds, so the LP keeps its shape.
+    """
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add(
+        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 20.0, "initial_charge": 20.0}
+    )
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "load", "is_source": False, "is_sink": True})
+    connection = network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "discharge",
+            "source": "battery",
+            "target": "load",
+            "tags": {1},
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": 5.0},
+                "pricing": {"segment_type": "pricing", "price": -1.0},
+            },
+        }
+    )
+    power_limit = connection.segments["power_limit"]
+    assert isinstance(power_limit, PowerLimitSegment)
+
+    network.optimize()
+    structure = (network._solver.numVariables, network._solver.numConstrs)
+    assert connection.extract_values(connection.total_power_in) == pytest.approx((5.0,))
+
+    power_limit.max_power = None
+    network.optimize()
+    assert connection.extract_values(connection.total_power_in) == pytest.approx((20.0,))
+    assert "power_limit" not in power_limit.outputs()
+
+    power_limit.max_power = np.array([8.0])
+    network.optimize()
+    assert connection.extract_values(connection.total_power_in) == pytest.approx((8.0,))
+    assert (network._solver.numVariables, network._solver.numConstrs) == structure
+
+
+def test_efficiency_update_reaches_policy_pricing() -> None:
+    """A policy price on a lossy connection follows an efficiency change after a solve.
+
+    The policy prices the connection's measured point, after its efficiency loss.
+    A feed caps the power drawn at 10 and delivering power earns 1 per kWh, so the
+    optimizer draws 10, delivers 10 x efficiency, and pays 0.1 on the delivered power.
+    """
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "store", "is_source": False, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "bus", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "feed",
+            "source": "grid",
+            "target": "store",
+            "tags": {0},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": np.array([10.0])}},
+        }
+    )
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "discharge",
+            "source": "store",
+            "target": "bus",
+            "tags": {0},
+            "segments": {
+                "efficiency": {"segment_type": "efficiency", "efficiency": np.array([0.5])},
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([100.0])},
+                "pricing": {"segment_type": "pricing", "price": np.array([-1.0])},
+            },
+        }
+    )
+    network.add(
+        PolicyPricingElementConfig(
+            element_type=POLICY_PRICING_ELEMENT_TYPE,
+            name="discharge_cost",
+            price=0.1,
+            terms=[PolicyPricingTerm(connection="discharge", tag=0)],
+        )
+    )
+    assert network.optimize() == pytest.approx(-10 * 0.5 + 0.1 * 10 * 0.5)
+    structure = (network._solver.numVariables, network._solver.numConstrs)
+
+    efficiency = network.elements["discharge"]["efficiency"]
+    assert isinstance(efficiency, EfficiencySegment)
+    efficiency.efficiency = np.array([0.25])
+
+    assert network.optimize() == pytest.approx(-10 * 0.25 + 0.1 * 10 * 0.25)
+    assert (network._solver.numVariables, network._solver.numConstrs) == structure

@@ -50,7 +50,7 @@ It delivers a global optimum when a feasible solution exists and scales well as 
 
 !!! info "Pure LP first; MILP as a last resort"
 
-    HAEO optimizes with **pure linear programming (LP)** wherever possible—fast solves over the tiered horizon, with power policies compiled into the LP.
+    HAEO optimizes with **pure linear programming (LP)** wherever possible—fast solves over the multi-resolution horizon, with power policies compiled into the LP.
 
     **Mixed-integer programming (MILP) is a tool of last resort**: we look for linear encodings first (penalties, slacks, forecast-shaped loads) and add integers only when LP cannot deliver the same outcome.
     **Deferrable loads are planned** along those lines: keep the network LP, and introduce a minimal integer part only if a discrete **run-now** decision cannot be modeled linearly; future intervals stay on the continuous time grid.
@@ -137,21 +137,14 @@ This validation ensures the network forms a valid directed graph before attempti
 
 ## Time Discretization
 
-The optimization horizon is divided into discrete intervals with variable durations:
+The optimization horizon is divided into $T$ discrete periods (time steps) whose durations can vary.
+The horizon is defined by its $T + 1$ period boundaries, which come from the hub's planning horizon setting:
 
-- **Tiers**: Groups of intervals with the same duration (up to 4 tiers)
-- **Intervals**: Individual time steps within each tier
-- **Duration**: Each tier specifies a duration in minutes for its intervals
-- **Time steps**: $T = \sum_{\text{tier}} \text{count}_{\text{tier}}$
+- **Presets** cover 2 to 7 days with 1-minute periods near-term, growing to 5, 30, and 60 minutes further out.
+    Each change in period length is aligned to a clock boundary of the next length.
+- **Forecast sensors** list the boundaries directly, so a forecast with $T + 1$ points defines $T$ periods of any lengths.
 
-For example, the default configuration creates:
-
-- Tier 1: 5 intervals × 1 minute = 5 minutes (high resolution near-term)
-- Tier 2: 5 intervals × 5 minutes = 25 minutes
-- Tier 3: 46 intervals × 30 minutes ≈ 23 hours
-- Tier 4: 48 intervals × 60 minutes = 48 hours (low resolution long-term)
-
-This yields $T = 104$ intervals spanning approximately 72 hours.
+Fine near-term periods give precise control over immediate decisions, while coarse distant periods keep the problem small across a multi-day lookahead.
 Each decision variable exists for every time step, but interval durations vary.
 
 ## Power and Energy Discretization
@@ -197,7 +190,7 @@ $$
 \text{Cost} = P(t) \times \Delta t_t \times \text{price}(t)
 $$
 
-Where $\Delta t_t$ is the duration of interval $t$ in hours (varies by tier).
+Where $\Delta t_t$ is the duration of interval $t$ in hours (varies across the horizon).
 
 ## Decision Variables and Constraints
 

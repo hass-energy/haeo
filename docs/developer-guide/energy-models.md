@@ -75,6 +75,16 @@ class Battery(Element[BatteryOutputName]):
 ```
 
 When a `TrackedParam` value changes, the system automatically invalidates dependent constraints for rebuilding.
+Dependencies are recorded per object, so a constraint that reads another element's parameter is invalidated too.
+Use `@computed` for a cached value computed from parameters that constraints and costs build on, such as a segment's transformed flow.
+Anything that reads a `@computed` method depends on it and is rebuilt when it changes.
+
+A constraint returns the same rows on every call so the LP keeps its shape and later optimizations still warm start.
+When part of a constraint does not currently apply, such as a power limit with no maximum set,
+return those rows as expressions without a comparison.
+They are added as free rows that do not bind, and become binding later by changing only their bounds.
+A constraint whose rows are all free has no shadow price and is not listed by `constraints()`.
+A constraint with no rows at all returns an empty list; returning `None` is an error.
 
 ### @constraint decorator
 
@@ -209,13 +219,15 @@ See the [tagged power formulation](../modeling/tagged-power.md) for the mathemat
 
 Connections create the **only LP variables** for power flow (one per time step).
 Each connection is unidirectional (source → target). Bidirectional paths use two connections.
-Segments are functional transforms that receive a `power_in` expression at construction
-and expose a `power_out` expression. Most segments are identity transforms that add
+Segments are functional transforms that read a `power_in` flow from their upstream, the segment before them,
+and expose a `power_out` flow. Most segments are identity transforms that add
 constraints or costs as side effects. Subclasses that transform the flow
-override the output expression.
+override the output expression, computing it in a `@computed` method so that
+downstream constraints are rebuilt when the transforming parameter changes.
 
-When adding a new segment type, implement `__init__` accepting `power_in`.
-Store the input for constraint/cost methods to reference. Avoid creating
+When adding a new segment type, implement `__init__` accepting its `upstream`
+and pass it to `Segment`. Read `self.power_in` inside constraint and cost methods rather
+than storing the flow, so the dependency on upstream parameters is recorded. Avoid creating
 power flow LP variables — the Connection owns those. Auxiliary variables
 (e.g., slack variables for penalty terms) are acceptable.
 

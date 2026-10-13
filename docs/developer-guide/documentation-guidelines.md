@@ -449,7 +449,8 @@ Primitives are defined in `tests/guides/primitives/` and include:
 - `add_grid(page, name=..., ...)` — Add a grid element
 - `add_load(page, name=..., connection=..., ...)` — Add a load element
 - `add_inverter(page, name=..., connection=..., ...)` — Add an inverter element
-- `add_node(page, name=..., connection=..., ...)` — Add a node element
+- `add_junction(page, name=...)` — Add a junction element
+- `add_node(page, name=...)` — Add a node element
 - `verify_setup(page)` — Navigate to the integration and verify the setup
 
 ### Generating screenshots

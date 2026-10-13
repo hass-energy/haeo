@@ -8,10 +8,11 @@ CONF_NAME: Final = "name"
 
 # Hub configuration keys
 CONF_DEBOUNCE_SECONDS: Final = "debounce_seconds"
+CONF_HORIZON: Final = "horizon"
 CONF_HORIZON_PRESET: Final = "horizon_preset"
 CONF_ADVANCED_MODE: Final = "advanced_mode"
 
-# Interval tier configuration (4 tiers with count and duration each)
+# Interval tier configuration from before horizon presets, read only by migrations
 # Each tier specifies: count = number of intervals, duration = minutes per interval
 CONF_TIER_1_COUNT: Final = "tier_1_count"
 CONF_TIER_1_DURATION: Final = "tier_1_duration"
@@ -44,8 +45,17 @@ HUB_SECTION_COMMON: Final = "common"
 HUB_SECTION_ADVANCED: Final = "advanced"
 HUB_SECTION_TIERS: Final = "tiers"
 
-# Horizon presets
+# Horizon presets and the number of days each covers
+HORIZON_PRESET_2_DAYS: Final = "2_days"
+HORIZON_PRESET_3_DAYS: Final = "3_days"
 HORIZON_PRESET_5_DAYS: Final = "5_days"
+HORIZON_PRESET_7_DAYS: Final = "7_days"
+HORIZON_PRESET_DAYS: Final[dict[str, int]] = {
+    HORIZON_PRESET_2_DAYS: 2,
+    HORIZON_PRESET_3_DAYS: 3,
+    HORIZON_PRESET_5_DAYS: 5,
+    HORIZON_PRESET_7_DAYS: 7,
+}
 
 
 class ConnectivityLevel(enum.StrEnum):

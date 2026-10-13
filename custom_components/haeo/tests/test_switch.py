@@ -3,7 +3,6 @@
 from collections.abc import Mapping
 from dataclasses import replace
 from types import MappingProxyType
-from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
@@ -15,7 +14,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.data.input_store import InputMode
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements.grid import (
@@ -38,10 +37,11 @@ from custom_components.haeo.core.schema.elements.solar import (
 )
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
 from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import InputFieldGroups, get_input_fields
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import build_input_stores
 from custom_components.haeo.switch import async_setup_entry
@@ -67,16 +67,9 @@ def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
-            HUB_SECTION_TIERS: {
-                "tier_1_count": 2,
-                "tier_1_duration": 5,
-                "tier_2_count": 0,
-                "tier_2_duration": 15,
-                "tier_3_count": 0,
-                "tier_3_duration": 30,
-                "tier_4_count": 0,
-                "tier_4_duration": 60,
+            HUB_SECTION_COMMON: {
+                CONF_NAME: "Test Network",
+                CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS),
             },
             HUB_SECTION_ADVANCED: {},
         },
@@ -165,7 +158,10 @@ async def test_setup_raises_error_when_runtime_data_missing(hass: HomeAssistant)
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Network",
-        data={HUB_SECTION_COMMON: {CONF_NAME: "Test"}, HUB_SECTION_ADVANCED: {}, HUB_SECTION_TIERS: {}},
+        data={
+            HUB_SECTION_COMMON: {CONF_NAME: "Test", CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS)},
+            HUB_SECTION_ADVANCED: {},
+        },
         entry_id="test_missing_runtime",
     )
     entry.add_to_hass(hass)
@@ -312,7 +308,7 @@ async def test_setup_skips_calendar_driven_switch_fields(
         },
     )
 
-    def calendar_input_fields(element_config: Mapping[str, Any]) -> InputFieldGroups:
+    def calendar_input_fields(element_config: Mapping[str, object]) -> InputFieldGroups:
         return {
             section: {
                 name: replace(info, calendar=CalendarFieldHint()) if name == CONF_CURTAILMENT else info

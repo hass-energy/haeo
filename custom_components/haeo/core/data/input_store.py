@@ -19,13 +19,14 @@ import asyncio
 from collections.abc import Callable
 from enum import Enum
 import logging
-from typing import Any, Literal
+from typing import Literal
 
 import numpy as np
 
 from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
 from custom_components.haeo.core.data.loader.config_loader import is_percent_field, resolve_constant, resolve_field
 from custom_components.haeo.core.data.storage import Storage
+from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema import as_calendar_value, as_entity_value, is_calendar_value
 from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.state import EntityState, StateMachine
@@ -93,9 +94,12 @@ class InputStore:
         self._constant: float | bool | None = initial_value
         self._value: InputValue | None = None
         self._available = False
+        self._error: InputError | None = None
         self._loaded_timestamps: tuple[float, ...] = ()
         self._captured_source_states: dict[str, EntityState] = {}
         self._data_ready = asyncio.Event()
+        # Set once the store has data or has rejected its source's value
+        self._settled = asyncio.Event()
         self._listeners: list[Callable[[], None]] = []
 
         if mode == InputMode.EDITABLE and initial_value is not None:
@@ -154,6 +158,11 @@ class InputStore:
         optimization should be skipped).
         """
         return self._available
+
+    @property
+    def error(self) -> InputError | None:
+        """Return why the source's last value was rejected, if it was."""
+        return self._error
 
     @property
     def native_value(self) -> float | bool | None:
@@ -215,9 +224,14 @@ class InputStore:
         """Wait for data to be ready."""
         await self._data_ready.wait()
 
+    async def wait_settled(self) -> None:
+        """Wait until the store has data or has rejected its source's value."""
+        await self._settled.wait()
+
     def mark_ready(self) -> None:
         """Explicitly mark the store as ready."""
         self._data_ready.set()
+        self._settled.set()
 
     # --- Change notification ---
 
@@ -250,7 +264,7 @@ class InputStore:
         self._constant = value
         self._resolve_from_constant(mark_ready=True)
 
-    async def persist(self, schema_value: Any) -> None:
+    async def persist(self, schema_value: object) -> None:
         """Persist a schema value through the bound storage."""
         await self._storage.write(schema_value)
 
@@ -260,15 +274,15 @@ class InputStore:
             self._resolve_from_constant(mark_ready=True)
 
     async def async_load(self, sm: StateMachine) -> bool:
-        """Resolve data from source entities and notify listeners on success.
+        """Resolve data from source entities and notify listeners.
 
         Returns True if data was successfully loaded, False otherwise. Does not
         modify state on failure (keeps previous values).
         """
-        if not self.resolve_from_sources(sm):
-            return False
-        self.notify_listeners()
-        return True
+        loaded = self.resolve_from_sources(sm)
+        if loaded or self._error is not None:
+            self.notify_listeners()
+        return loaded
 
     def resolve_from_sources(self, sm: StateMachine) -> bool:
         """Resolve data from source entities without notifying listeners.
@@ -276,7 +290,9 @@ class InputStore:
         Lets a caller reload several stores before any listener runs, then
         notify each with :meth:`notify_listeners`. Returns True if data was
         successfully loaded, False otherwise. Does not modify state on failure
-        (keeps previous values).
+        (keeps previous values). A rejected value is recorded in :attr:`error`
+        and should still be notified, so consumers report it rather than
+        silently keeping the previous value.
         """
         self._captured_source_states = {
             eid: state for eid in self._source_entity_ids if (state := sm.get(eid)) is not None
@@ -295,13 +311,20 @@ class InputStore:
             schema_value = as_entity_value(self._source_entity_ids)
 
         forecast_timestamps = self._get_forecast_timestamps()
+        self._error = None
         try:
             resolved = resolve_field(
                 schema_value,
                 self._hint,
                 sm,
                 list(forecast_timestamps),
+                negate=self._negate,
             )
+        except InputError as err:
+            self._error = err
+            self._available = False
+            self._settled.set()
+            return False
         except Exception:
             _LOGGER.debug(
                 "Load failed from sources %s; keeping previous value",
@@ -323,13 +346,11 @@ class InputStore:
             self._available = False
             return False
 
-        if self._negate and not isinstance(resolved, (bool, dict)):
-            resolved = -resolved
-
         self._value = resolved
         self._available = True
         self._loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
         self._data_ready.set()
+        self._settled.set()
         return True
 
     def _resolve_from_constant(self, *, mark_ready: bool) -> None:
@@ -346,6 +367,7 @@ class InputStore:
 
         if mark_ready:
             self._data_ready.set()
+            self._settled.set()
             self.notify_listeners()
 
 

@@ -13,7 +13,8 @@ from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from functools import wraps
 from pathlib import Path
-from typing import Any
+
+from playwright.sync_api import Page
 
 # Block screenshot capture until the page has visually settled: web fonts loaded,
 # every <img> (including those inside shadow roots, which HA uses heavily) either
@@ -104,7 +105,7 @@ class ScreenshotContext:
         if self._stack:
             self._stack.pop()
 
-    def capture(self, page: Any, step: str) -> Path:
+    def capture(self, page: Page, step: str) -> Path:
         """Capture a screenshot with hierarchical naming.
 
         Args:
@@ -193,7 +194,7 @@ def screenshot_context(output_dir: Path) -> Iterator[ScreenshotContext]:
         _holder.current = previous
 
 
-def guide_step[F: Callable[..., Any]](func: F) -> F:
+def guide_step[F: Callable[..., None]](func: F) -> F:
     """Wrap a guide function to push its name onto the screenshot context stack.
 
     All screenshots taken within the function get hierarchical names.
@@ -208,7 +209,7 @@ def guide_step[F: Callable[..., Any]](func: F) -> F:
     """
 
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
+    def wrapper(*args: object, **kwargs: object) -> None:
         ctx = ScreenshotContext.current()
         if ctx is None:
             # No context active, just call the function

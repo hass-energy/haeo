@@ -1,11 +1,10 @@
 """Test data for Amber Electric forecast sensors."""
 
 from datetime import UTC, datetime
-from typing import Any
 
 import numpy as np
 
-VALID: list[dict[str, Any]] = [
+VALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.amber_forecast",
         "state": "0.13",
@@ -90,7 +89,7 @@ VALID: list[dict[str, Any]] = [
     },
 ]
 
-INVALID: list[dict[str, Any]] = [
+INVALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.amber_invalid",
         "state": "0.13",

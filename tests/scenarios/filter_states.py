@@ -12,7 +12,6 @@ import json
 from pathlib import Path
 import re
 import sys
-from typing import Any
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 from urllib.parse import quote, urljoin
@@ -27,7 +26,7 @@ def get_home_assistant_token() -> str:
     )
 
 
-def fetch_home_assistant_states(url: str, token: str) -> list[dict[str, Any]]:
+def fetch_home_assistant_states(url: str, token: str) -> list[dict[str, object]]:
     """Fetch states from Home Assistant API."""
     try:
         # Construct the full URL for the history endpoint
@@ -51,7 +50,7 @@ def fetch_home_assistant_states(url: str, token: str) -> list[dict[str, Any]]:
             msg = "Home Assistant API returned unexpected payload"
             raise TypeError(msg)
 
-        state_list: list[dict[str, Any]] = []
+        state_list: list[dict[str, object]] = []
         for item in raw:
             if not isinstance(item, dict):
                 msg = "Encountered non-object state entry"
@@ -128,7 +127,10 @@ def main() -> None:
     input_count = len(data)
     print(f"Loaded {input_count} states from {source_name}")
 
-    filtered = sorted([e for e in data if e["entity_id"] in patterns or not patterns], key=lambda x: x["entity_id"])
+    filtered = sorted(
+        [e for e in data if e["entity_id"] in patterns or not patterns],
+        key=lambda x: str(x["entity_id"]),
+    )
 
     output_count = len(filtered)
     print(f"Filtered to {output_count} states ({output_count / input_count * 100:.1f}% of original)")

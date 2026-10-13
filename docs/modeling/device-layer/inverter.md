@@ -1,6 +1,6 @@
 # Inverter Modeling
 
-The Inverter device composes a [Node](../model-layer/elements/node.md) (as a DC bus junction) with an implicit [Connection](../model-layer/connections/connection.md) to model bidirectional DC/AC power conversion with separate efficiency and power limits per direction.
+The Inverter device composes a [Node](../model-layer/elements/node.md) (as a DC bus junction) with two [Connections](../model-layer/connections/connection.md), one per direction, to model bidirectional DC/AC power conversion with separate efficiency and power limits per direction.
 
 ## Model Elements Created
 
@@ -8,21 +8,38 @@ The Inverter device composes a [Node](../model-layer/elements/node.md) (as a DC 
 graph LR
     subgraph "Device"
         SS["Node<br/>(is_source=false, is_sink=false)"]
-        Conn["Connection<br/>{name}:connection"]
+        Inv["Connection<br/>{name}:dc_to_ac"]
+        Rect["Connection<br/>{name}:ac_to_dc"]
     end
 
     DCDevices["DC Devices<br/>(Battery, PV)"]
     ACNode["Connection Target<br/>(AC Bus)"]
 
     DCDevices -->|connect to| SS
-    SS <-->|linked via| Conn
-    Conn <-->|connects to| ACNode
+    SS --> Inv
+    Inv --> ACNode
+    ACNode --> Rect
+    Rect --> SS
 ```
 
-| Model Element                                          | Name                | Parameters From Configuration                  |
-| ------------------------------------------------------ | ------------------- | ---------------------------------------------- |
-| [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=false, is_sink=false (pure junction) |
-| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | efficiency and power-limit segment values      |
+| Model Element                                          | Name              | Parameters From Configuration                  |
+| ------------------------------------------------------ | ----------------- | ---------------------------------------------- |
+| [Node](../model-layer/elements/node.md)                | `{name}`          | is_source=false, is_sink=false (pure junction) |
+| [Connection](../model-layer/connections/connection.md) | `{name}:dc_to_ac` | Inverting efficiency and power limit           |
+| [Connection](../model-layer/connections/connection.md) | `{name}:ac_to_dc` | Rectifying efficiency and power limit          |
+
+## Metered terminal convention
+
+Inverters are rated, metered, and controlled on the AC side.
+Each connection therefore places its efficiency segment next to the DC bus and its power-limit segment at the AC end:
+
+| Connection        | Segment order           | Power limit applies to         |
+| ----------------- | ----------------------- | ------------------------------ |
+| `{name}:dc_to_ac` | efficiency, power limit | Power delivered to the AC side |
+| `{name}:ac_to_dc` | power limit, efficiency | Power drawn from the AC side   |
+
+The DC to AC, AC to DC, and active power sensors all report AC-side power.
+The DC bus supplies the DC to AC power plus the inverting loss, and receives the AC to DC power less the rectifying loss.
 
 ## Devices Created
 
@@ -52,9 +69,9 @@ The adapter transforms user configuration into connection segments:
 
 | Sensor                     | Unit   | Update    | Description                              |
 | -------------------------- | ------ | --------- | ---------------------------------------- |
-| `power_dc_to_ac`           | kW     | Real-time | Power flowing from DC to AC (inverting)  |
-| `power_ac_to_dc`           | kW     | Real-time | Power flowing from AC to DC (rectifying) |
-| `power_active`             | kW     | Real-time | Net power (DC to AC - AC to DC)          |
+| `power_dc_to_ac`           | kW     | Real-time | AC power out of the inverter (inverting) |
+| `power_ac_to_dc`           | kW     | Real-time | AC power into the inverter (rectifying)  |
+| `power_active`             | kW     | Real-time | Net AC power (DC to AC - AC to DC)       |
 | `dc_bus_power_balance`     | \$/kWh | Real-time | DC bus power balance shadow price        |
 | `max_power_dc_to_ac_price` | \$/kWh | Real-time | Max DC to AC power shadow price          |
 | `max_power_ac_to_dc_price` | \$/kWh | Real-time | Max AC to DC power shadow price          |
@@ -110,7 +127,7 @@ while the AC side connects to your home's AC network.
     Set slightly lower values to account for real-world losses.
 - **Separate Efficiencies**: Rectifying (AC to DC) efficiency may differ from inverting (DC to AC).
     Measure or consult specifications for accurate values.
-- **Power Limits**: Configure limits matching your inverter's continuous power rating.
+- **Power Limits**: Configure limits matching your inverter's continuous AC power rating.
     Peak/surge ratings should not be used as they are not sustainable.
 - **DC Bus Connections**: Other elements (batteries, PV) should connect to the inverter's DC bus by specifying the inverter name as their connection target.
 
