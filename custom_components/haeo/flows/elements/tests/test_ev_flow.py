@@ -27,7 +27,6 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_ENERGY_PER_DISTANCE,
     CONF_MAX_CHARGE_RATE,
     CONF_ODOMETER,
-    CONF_ODOMETER_AT_DISCONNECT,
     CONF_PUBLIC_CHARGING_PRICE,
     CONF_RESERVE_PRICE,
     CONF_TRIP_CALENDAR,
@@ -131,7 +130,6 @@ async def test_reconfigure_defaults_surface_calendar_entity(
         SECTION_CHARGING: {CONF_MAX_CHARGE_RATE: as_constant_value(7.4)},
         SECTION_TRIP: {
             CONF_TRIP_CALENDAR: as_calendar_value("calendar.ev_trips"),
-            CONF_ODOMETER_AT_DISCONNECT: as_entity_value(["sensor.odo_disc"]),
         },
         SECTION_PUBLIC_CHARGING: {},
         SECTION_POWER_LIMITS: {},
@@ -156,7 +154,6 @@ async def test_reconfigure_defaults_surface_calendar_entity(
     input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
     defaults = flow._build_defaults("Test EV", input_fields, dict(existing_subentry.data))
     assert defaults[SECTION_TRIP][CONF_TRIP_CALENDAR] == "calendar.ev_trips"
-    assert defaults[SECTION_TRIP][CONF_ODOMETER_AT_DISCONNECT] == ["sensor.odo_disc"]
 
 
 async def test_new_entry_leaves_plugged_in_sensor_unset(

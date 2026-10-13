@@ -832,29 +832,35 @@ def test_entity_significantly_negative_value_raises(
     assert exc_info.value.translation_placeholders == {"value": f"{sensor_value:g}"}
 
 
-# -- availability last off tests --
+# -- source history tests --
 
 _PLUG = "binary_sensor.ev_plug"
+_ODOMETER = "sensor.ev_odometer"
 
 
-def _ev_trip_config(connected: object) -> dict[str, object]:
-    return {"element_type": "ev", "name": "EV", "trip": {"connected": connected}}
+def _ev_trip_config(**trip: object) -> dict[str, object]:
+    return {"element_type": "ev", "name": "EV", "trip": trip}
 
 
 @pytest.mark.parametrize(
     ("connected", "attributes", "expected"),
     [
-        pytest.param({"type": "entity", "value": [_PLUG]}, {"haeo_last_off": 1800.0}, 1800.0, id="injected"),
+        pytest.param(
+            {"type": "entity", "value": [_PLUG]},
+            {"haeo_off_periods": [[1800.0, 3600.0]]},
+            [(1800.0, 3600.0)],
+            id="injected",
+        ),
         pytest.param({"type": "entity", "value": [_PLUG]}, {}, None, id="no_history"),
-        pytest.param({"type": "constant", "value": 1.0}, {"haeo_last_off": 1800.0}, None, id="constant_input"),
+        pytest.param({"type": "constant", "value": 1.0}, {"haeo_off_periods": [[1800.0, None]]}, None, id="constant"),
     ],
 )
-def test_availability_field_loads_last_off_from_source_state(
-    connected: object, attributes: dict[str, object], expected: float | None
+def test_availability_field_loads_off_periods_from_source_state(
+    connected: object, attributes: dict[str, object], expected: list[tuple[float, float | None]] | None
 ) -> None:
-    """Both loaders read an availability source's injected last off time beside the field."""
+    """Both loaders read an availability source's injected off periods beside the field."""
     states = {_PLUG: FakeEntityState(_PLUG, "on", attributes)}
-    config = _ev_trip_config(connected)
+    config = _ev_trip_config(connected=connected)
 
     from_states = load_element_config("EV", config, FakeStateMachine(states), FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts
     from_values = load_element_config_from_values(
@@ -867,19 +873,32 @@ def test_availability_field_loads_last_off_from_source_state(
 
     for result in (from_states, from_values):
         trip = _dict(_dict(result)["trip"])
-        assert trip.get("connected_last_off") == expected
+        assert trip.get("connected_off_periods") == expected
         np.testing.assert_allclose(_ndarray(trip["connected"]), [1.0, 1.0, 1.0])
 
 
-def test_availability_field_with_several_sources_loads_latest_last_off() -> None:
-    """With several plug sensors the latest last off time counts, wherever it comes from."""
+def test_availability_field_with_several_sources_loads_when_all_were_off() -> None:
+    """With several plug sensors the car was unplugged only while every sensor read off."""
     other_plug = "binary_sensor.ev_plug_garage"
     states = {
-        _PLUG: FakeEntityState(_PLUG, "off", {}),
-        other_plug: FakeEntityState(other_plug, "on", {"haeo_last_off": 1800.0}),
+        _PLUG: FakeEntityState(_PLUG, "on", {"haeo_off_periods": [[1000.0, 3000.0]]}),
+        other_plug: FakeEntityState(other_plug, "on", {"haeo_off_periods": [[2000.0, None]]}),
     }
-    config = _ev_trip_config({"type": "entity", "value": [_PLUG, other_plug]})
+    config = _ev_trip_config(connected={"type": "entity", "value": [_PLUG, other_plug]})
 
     result = load_element_config("EV", config, FakeStateMachine(states), FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts
 
-    assert _dict(_dict(result)["trip"]).get("connected_last_off") == 1800.0
+    assert _dict(_dict(result)["trip"]).get("connected_off_periods") == [(2000.0, 3000.0)]
+
+
+def test_distance_field_loads_readings_in_base_unit() -> None:
+    """A distance source's injected readings load beside the field, converted like its value."""
+    attributes = {"unit_of_measurement": "mi", "device_class": "distance", "haeo_readings": [[1000.0, 10.0]]}
+    states = {_ODOMETER: FakeEntityState(_ODOMETER, "20", attributes)}
+    config = _ev_trip_config(odometer={"type": "entity", "value": [_ODOMETER]})
+
+    result = load_element_config("EV", config, FakeStateMachine(states), FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts
+
+    trip = _dict(_dict(result)["trip"])
+    assert trip["odometer"] == pytest.approx(32.18688)
+    assert trip.get("odometer_readings") == [(1000.0, pytest.approx(16.09344))]
