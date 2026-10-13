@@ -24,7 +24,7 @@ from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, class
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.last_off_history import async_last_off_state_machine
+from custom_components.haeo.last_off_history import LastOffStateMachine, async_last_off_times
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -88,6 +88,7 @@ class HaeoInputNumber(NumberEntity):
         # Suppresses reacting to store change notifications this entity itself
         # triggered, so only sibling entities sharing the store react.
         self._suppress_store_change = False
+        self._last_off: dict[str, float] = {}
 
         # Set device_entry to link entity to device
         self.device_entry = device_entry
@@ -243,21 +244,27 @@ class HaeoInputNumber(NumberEntity):
     @callback
     def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
         """Handle source entity state change."""
-        self.hass.async_create_task(self._async_load_sync_and_update())
+        self.hass.async_create_task(self._async_load_sync_and_update(source_changed=True))
 
-    async def _async_load_sync_and_update(self) -> None:
+    async def _async_load_sync_and_update(self, *, source_changed: bool = False) -> None:
         """Load data, sync attributes, and write state."""
-        if await self._async_load_and_sync():
+        if await self._async_load_and_sync(source_changed=source_changed):
             self.async_write_ha_state()
 
-    async def _async_load_and_sync(self) -> bool:
+    async def _async_load_and_sync(self, *, source_changed: bool = True) -> bool:
         """Load data from store via HA state machine and sync entity attributes.
+
+        An availability input injects its sources' last off times. Their
+        history only changes when a source does, so the recorder is queried
+        again only on a source change, and a horizon change reuses the times.
 
         Returns True if loading succeeded and state was synced.
         """
         sm: StateMachine = HomeAssistantStateMachine(self.hass)
         if self._store.hint.output_type is OutputType.AVAILABILITY:
-            sm = await async_last_off_state_machine(self.hass, sm, self._store.source_entity_ids)
+            if source_changed:
+                self._last_off = await async_last_off_times(self.hass, self._store.source_entity_ids)
+            sm = LastOffStateMachine(sm, self._last_off)
         with self._suppress_self_notifications():
             loaded = await self._store.async_load(sm)
         if not loaded:
