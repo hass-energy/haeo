@@ -76,6 +76,7 @@ add_local_calendar(page, calendar_name="EV Trips")
 
 Create an event for each planned trip.
 The event's start and end mark when the car is away; the **location field carries the trip distance** (e.g., `50 km`).
+The commute happens every day, so set the event to repeat daily and each day's trip is planned without adding it again.
 
 ```guide
 create_calendar_event(
@@ -84,6 +85,7 @@ create_calendar_event(
     location="50 km",
     start_time="09:00",
     end_time="17:00",
+    recurrence="Daily",
 )
 ```
 

@@ -943,9 +943,12 @@ class HAPage:
         """Return the visible search input of an open entity picker dropdown.
 
         Newer frontends render the picker as an inline panel with a "Search"
-        textbox; older ones use a vaadin-combo-box-overlay input.
+        textbox; older ones use a vaadin-combo-box-overlay input. The lookup
+        stays inside the open dialog so a "Search" box elsewhere on the page,
+        such as the integrations search behind the dialog, cannot match.
         """
-        search_input = self.page.get_by_role("textbox", name="Search").first
+        dialog = self.page.locator("ha-dialog[open]").last
+        search_input = dialog.get_by_role("textbox", name="Search", exact=True)
         try:
             search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
         except PlaywrightTimeoutError:
