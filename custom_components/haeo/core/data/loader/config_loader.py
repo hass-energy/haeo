@@ -30,10 +30,11 @@ from custom_components.haeo.core.schema.field_hints import (
 from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 from custom_components.haeo.core.state import EntityState, StateMachine
+from custom_components.haeo.core.units import DeviceClass, convert_to_base_unit
 
 from .calendar_resolver import CalendarBoundaryData, resolve_calendar_field
-from .last_off import last_off_field, read_last_off
 from .sensor_loader import load_sensors
+from .source_history import Reading, all_off, off_periods_field, read_off_periods, read_readings, readings_field
 
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
 
@@ -119,7 +120,7 @@ def load_element_config(
             else:
                 _section_dict(loaded, section_name)[field_name] = resolved
 
-            _load_last_off(loaded, section_name, field_name, value, hint, sm.get)
+            _load_source_history(loaded, section_name, field_name, value, hint, sm.get)
 
     # Resolve list-based input fields (e.g. policy rules with entity prices)
     list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
@@ -215,7 +216,7 @@ def load_element_config_from_values(
                     _section_dict(loaded, section_name)[field_name] = resolved
                 section_config = element_config.get(section_name)
                 if isinstance(section_config, Mapping):
-                    _load_last_off(
+                    _load_source_history(
                         loaded, section_name, field_name, section_config.get(field_name), hint, source_states.get
                     )
                 continue
@@ -251,7 +252,7 @@ def load_element_config_from_values(
     return loaded  # type: ignore[return-value]
 
 
-def _load_last_off(
+def _load_source_history(
     loaded: dict[str, object],
     section_name: str,
     field_name: str,
@@ -259,18 +260,34 @@ def _load_last_off(
     hint: FieldHint,
     get_state: Callable[[str], EntityState | None],
 ) -> None:
-    """Load when an entity-driven availability field's source was last off.
+    """Load the injected history of an entity-driven field's sources beside the field.
 
-    The time comes from the source states' injected last off attributes and is
-    stored beside the field under :func:`last_off_field`; it is left out when
-    no state carries one. With several sources the latest time counts, as
-    the field reads on while any source does.
+    An availability field gets the periods its sources were all off, under
+    :func:`off_periods_field`, as the field reads on while any source does.
+    A distance field gets its source's readings in base units, under
+    :func:`readings_field`. Sources without injected history are left out,
+    and so is the key when none has any.
     """
-    if hint.output_type is not OutputType.AVAILABILITY or not is_entity_value(value):
+    if not is_entity_value(value) or not value["value"]:
         return
-    times = [t for entity_id in value["value"] if (t := read_last_off(get_state(entity_id))) is not None]
-    if times:
-        _section_dict(loaded, section_name)[last_off_field(field_name)] = max(times)
+    entity_ids = value["value"]
+    if hint.output_type is OutputType.AVAILABILITY:
+        found = [periods for entity_id in entity_ids if (periods := read_off_periods(get_state(entity_id))) is not None]
+        if found:
+            _section_dict(loaded, section_name)[off_periods_field(field_name)] = all_off(found)
+    elif hint.output_type is OutputType.DISTANCE:
+        state = get_state(entity_ids[0])
+        history = read_readings(state)
+        if state is not None and history is not None:
+            _section_dict(loaded, section_name)[readings_field(field_name)] = _readings_in_base_unit(history, state)
+
+
+def _readings_in_base_unit(history: list[Reading], state: EntityState) -> list[Reading]:
+    """Convert recorded readings to the base unit of the state's unit and device class."""
+    unit_attr = state.attributes.get("unit_of_measurement")
+    unit = unit_attr if isinstance(unit_attr, str) else None
+    device_class = DeviceClass.of(state.attributes.get("device_class"))
+    return [(changed_at, convert_to_base_unit(reading, unit, device_class)[0]) for changed_at, reading in history]
 
 
 class _Sentinel:

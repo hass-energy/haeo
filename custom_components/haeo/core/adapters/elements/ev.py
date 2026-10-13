@@ -15,6 +15,7 @@ from custom_components.haeo.core.adapters.calendar_windows import (
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
+from custom_components.haeo.core.data.loader.source_history import value_at
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as model_battery
 from custom_components.haeo.core.model.const import OutputType
@@ -36,13 +37,13 @@ from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.ev import (
     CONF_CAPACITY,
     CONF_CONNECTED,
-    CONF_CONNECTED_LAST_OFF,
+    CONF_CONNECTED_OFF_PERIODS,
     CONF_CURRENT_SOC,
     CONF_ENERGY_PER_DISTANCE,
     CONF_MAX_CHARGE_RATE,
     CONF_MAX_DISCHARGE_RATE,
     CONF_ODOMETER,
-    CONF_ODOMETER_AT_DISCONNECT,
+    CONF_ODOMETER_READINGS,
     CONF_PUBLIC_CHARGING_PRICE,
     CONF_RESERVE_PRICE,
     CONF_RESERVE_SOC,
@@ -143,11 +144,11 @@ class EvAdapter:
         When the plugged-in sensor reports the car at home while the calendar
         says a trip is open, the car has not left yet: it is home for the
         current interval and the trip still happens in the rest of its
-        window. Only when the sensor last read unplugged during the open trip
-        (and, with odometer readings, the car drove since disconnecting) did
-        the car leave and come back early; that trip is then over, its
-        remaining energy dropped and the car home until the trip's scheduled
-        end.
+        window. Only when the sensor read unplugged after the trip opened
+        (and, with an odometer, the car drove since its first unplug) did the
+        car leave and come back early; that trip is then over, its remaining
+        energy dropped and the car home until the trip's scheduled end.
+        Unplugging again within the window resumes the trip.
         """
         name = config["name"]
         vehicle = config[SECTION_VEHICLE]
@@ -180,7 +181,7 @@ class EvAdapter:
         connected_flag = _combine_connected(calendar, connected_live, ended_periods)
         away_flag = _invert_flag(connected_flag)
 
-        trip_initial = _trip_progress_energy(trip, trip_windows, energy_per_distance, connected_flag)
+        trip_initial = _trip_progress_energy(trip, trip_windows, calendar, energy_per_distance, connected_flag)
 
         # Home charging limits zeroed while away via connected_flag
         home_max_charge = _apply_connected_mask(max_charge, connected_flag)
@@ -412,19 +413,48 @@ def _is_plugged_in(connected_live: NDArray[np.float64] | float | None) -> bool:
     return connected_live is not None and float(np.atleast_1d(connected_live)[0]) >= _CONNECTED_THRESHOLD
 
 
+def _departure(trip: TripData, open_since: float) -> float | None:
+    """Return when the car first left on the trip open since *open_since*.
+
+    The trip starts at its first unplug: the start of the first period the
+    plugged-in sensor read unplugged that was still running when the trip
+    opened or began after it. A later unplug within the same trip, after
+    ducking home, resumes the trip rather than starting a new one. Returns
+    None when the car has not left.
+    """
+    for start, end in trip.get(CONF_CONNECTED_OFF_PERIODS, []):
+        if end is None or end >= open_since:
+            return start
+    return None
+
+
+def _distance_since(trip: TripData, departure: float) -> float | None:
+    """Return the distance driven since *departure* from the odometer and its readings.
+
+    Returns None without odometer readings from before the departure, and
+    for a negative or non-finite distance (a reset or stale sensor).
+    """
+    odometer = trip.get(CONF_ODOMETER)
+    at_departure = value_at(trip.get(CONF_ODOMETER_READINGS, []), departure)
+    if odometer is None or at_departure is None:
+        return None
+    driven = float(odometer) - at_departure
+    return driven if np.isfinite(driven) and driven >= 0.0 else None
+
+
 def _returned_early(
     windows: CalendarWindows | None,
     calendar: CalendarBoundaryData | None,
     trip: TripData,
 ) -> bool:
-    """Return True when the car left during the open trip and is back already.
+    """Return True when the car left on the open trip and is back already.
 
     A car plugged in while a trip is open has either not left yet or come
-    back early. It came back early only when the plugged-in sensor last read
-    unplugged at or after the open trip's start, and, when odometer readings
-    are configured, the car drove since it disconnected; a brief unplug
-    without driving does not end the trip. Without that history the car has
-    not left yet.
+    back early. It came back early when it unplugged after the trip opened
+    and has since plugged back in, and, when odometer readings are
+    configured, it drove since its first unplug; a brief unplug without
+    driving does not end the trip. Unplugging again within the trip resumes
+    it.
     """
     if windows is None or calendar is None or windows.in_window[0] <= 0.0:
         return False
@@ -432,16 +462,16 @@ def _returned_early(
         return False
 
     open_since = calendar["open_since"]
-    last_off = trip.get(CONF_CONNECTED_LAST_OFF)
-    if open_since is None or last_off is None or last_off < open_since:
+    if open_since is None:
+        return False
+    departure = _departure(trip, open_since)
+    if departure is None:
         return False
 
-    odometer = trip.get(CONF_ODOMETER)
-    odometer_at_disconnect = trip.get(CONF_ODOMETER_AT_DISCONNECT)
-    if odometer is None or odometer_at_disconnect is None:
+    if trip.get(CONF_ODOMETER) is None:
         return True
-    driven = float(odometer) - float(odometer_at_disconnect)
-    return bool(np.isfinite(driven)) and driven > 0.0
+    driven = _distance_since(trip, departure)
+    return driven is not None and driven > 0.0
 
 
 def _ended_trip_periods(
@@ -503,32 +533,31 @@ def _combine_connected(
 def _trip_progress_energy(
     trip: TripData,
     windows: CalendarWindows | None,
+    calendar: CalendarBoundaryData | None,
     energy_per_distance: float,
     connected_flag: NDArray[np.float64] | float | None,
 ) -> float:
     """Energy already consumed on the open trip, from odometer readings.
 
     Only applies while the EV is away during a trip window that covers the
-    current interval: the distance driven since disconnect counts toward that
-    trip's requirement so the optimizer does not plan driving energy that was
-    already used. That energy already left the pack, which the live state of
+    current interval: the distance driven since the trip's first unplug
+    counts toward that trip's requirement so the optimizer does not plan
+    driving energy that was already used. Counting from the first unplug
+    keeps a trip that resumes after ducking home from asking for its full
+    energy again. That energy already left the pack, which the live state of
     charge reflects, so it is never drawn again. Driving further than planned
     leaves the trip complete without being priced, and the credit never
-    reaches trips that have not started yet. A negative or non-finite
-    distance (a reset or stale sensor) credits nothing.
+    reaches trips that have not started yet.
     """
-    if windows is None or connected_flag is None or windows.in_window[0] <= 0.0:
+    if windows is None or calendar is None or connected_flag is None or windows.in_window[0] <= 0.0:
         return 0.0
     if float(np.atleast_1d(connected_flag)[0]) >= _CONNECTED_THRESHOLD:
         return 0.0
 
-    odometer = trip.get(CONF_ODOMETER)
-    odometer_at_disconnect = trip.get(CONF_ODOMETER_AT_DISCONNECT)
-    if odometer is None or odometer_at_disconnect is None:
-        return 0.0
-
-    driven = float(odometer) - float(odometer_at_disconnect)
-    if not np.isfinite(driven) or driven <= 0.0:
+    open_since = calendar["open_since"]
+    departure = None if open_since is None else _departure(trip, open_since)
+    driven = None if departure is None else _distance_since(trip, departure)
+    if driven is None or driven <= 0.0:
         return 0.0
     return driven * energy_per_distance
 
