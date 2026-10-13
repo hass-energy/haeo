@@ -110,6 +110,12 @@ from custom_components.haeo.core.adapters.elements.node import (
     NodeOutputName,
 )
 from custom_components.haeo.core.adapters.elements.policy import POLICY_DEVICE_NAMES, PolicyDeviceName
+from custom_components.haeo.core.adapters.elements.schedulable_load import (
+    SCHEDULABLE_LOAD_DEVICE_NAMES,
+    SCHEDULABLE_LOAD_ELEMENT_OUTPUT_NAMES,
+    SchedulableLoadDeviceName,
+    SchedulableLoadElementOutputName,
+)
 from custom_components.haeo.core.adapters.elements.solar import (
     SOLAR_DEVICE_NAMES,
     SOLAR_OUTPUT_NAMES,
@@ -151,6 +157,10 @@ from custom_components.haeo.core.schema.elements.load import LoadConfigData
 from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.node import NodeConfigData
 from custom_components.haeo.core.schema.elements.policy import PolicyConfigData
+from custom_components.haeo.core.schema.elements.schedulable_load import (
+    OPTIONAL_INPUT_FIELDS as SCHEDULABLE_LOAD_OPTIONAL_INPUT_FIELDS,
+)
+from custom_components.haeo.core.schema.elements.schedulable_load import SchedulableLoadConfigData
 from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData
 from custom_components.haeo.core.schema.field_hints import extract_field_hints, extract_list_field_hints
@@ -174,6 +184,7 @@ type ElementOutputName = (
     | LoadOutputName
     | NodeOutputName
     | JunctionOutputName
+    | SchedulableLoadElementOutputName
     | SolarOutputName
     | NetworkOutputName
 )
@@ -189,6 +200,7 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
     | LOAD_OUTPUT_NAMES
     | NODE_OUTPUT_NAMES
     | JUNCTION_OUTPUT_NAMES
+    | SCHEDULABLE_LOAD_ELEMENT_OUTPUT_NAMES
     | SOLAR_OUTPUT_NAMES
     | NETWORK_OUTPUT_NAMES
 )
@@ -204,6 +216,7 @@ type ElementDeviceName = (
     | LoadDeviceName
     | NodeDeviceName
     | JunctionDeviceName
+    | SchedulableLoadDeviceName
     | SolarDeviceName
     | PolicyDeviceName
     | NetworkDeviceName
@@ -222,6 +235,7 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | LOAD_DEVICE_NAMES
     | NODE_DEVICE_NAMES
     | JUNCTION_DEVICE_NAMES
+    | SCHEDULABLE_LOAD_DEVICE_NAMES
     | SOLAR_DEVICE_NAMES
     | POLICY_DEVICE_NAMES
     | NETWORK_DEVICE_NAMES
@@ -239,6 +253,7 @@ ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
     ElementType.JUNCTION: frozenset(JUNCTION_DEVICE_NAMES),
     ElementType.NODE: frozenset(NODE_DEVICE_NAMES),
     ElementType.POLICY: frozenset(POLICY_DEVICE_NAMES),
+    ElementType.SCHEDULABLE_LOAD: frozenset(SCHEDULABLE_LOAD_DEVICE_NAMES),
     ElementType.SOLAR: frozenset(SOLAR_DEVICE_NAMES),
     ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
 }
@@ -265,6 +280,7 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     ElementType.JUNCTION: JunctionConfigData,
     ElementType.NODE: NodeConfigData,
     ElementType.POLICY: PolicyConfigData,
+    ElementType.SCHEDULABLE_LOAD: SchedulableLoadConfigData,
     ElementType.SOLAR: SolarConfigData,
 }
 
@@ -279,6 +295,7 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.LOAD: LOAD_OPTIONAL_INPUT_FIELDS,
     ElementType.JUNCTION: JUNCTION_OPTIONAL_INPUT_FIELDS,
     ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
+    ElementType.SCHEDULABLE_LOAD: SCHEDULABLE_LOAD_OPTIONAL_INPUT_FIELDS,
     ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
 }
 

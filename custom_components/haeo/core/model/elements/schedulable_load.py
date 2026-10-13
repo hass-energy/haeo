@@ -69,7 +69,7 @@ type SchedulableLoadOutputName = (
     Literal[
         "schedulable_load_power",
         "schedulable_load_start",
-        "schedulable_load_missed",
+        "schedulable_load_energy_missed",
     ]
     | SchedulableLoadConstraintName
 )
@@ -80,7 +80,7 @@ SCHEDULABLE_LOAD_OUTPUT_NAMES: Final[frozenset[SchedulableLoadOutputName]] = fro
         # Base outputs
         SCHEDULABLE_LOAD_POWER := "schedulable_load_power",
         SCHEDULABLE_LOAD_START := "schedulable_load_start",
-        SCHEDULABLE_LOAD_MISSED := "schedulable_load_missed",
+        SCHEDULABLE_LOAD_ENERGY_MISSED := "schedulable_load_energy_missed",
         # Constraint shadow prices
         SCHEDULABLE_LOAD_POWER_BALANCE := ELEMENT_POWER_BALANCE,
         SCHEDULABLE_LOAD_PROFILE := "schedulable_load_profile",
@@ -341,12 +341,13 @@ class SchedulableLoad(NetworkElement[SchedulableLoadOutputName]):
 
     @output
     def schedulable_load_start(self) -> OutputData:
-        """Output: weight of the run starting at each boundary."""
+        """Output: weight of the run starting at each boundary, 1 for a planned start."""
         values = (*self.extract_values(self.start), 0.0)
-        return OutputData(type=OutputType.STATUS, unit=None, values=values)
+        return OutputData(type=OutputType.AVAILABILITY, unit=None, values=values)
 
     @output
-    def schedulable_load_missed(self) -> OutputData:
-        """Output: runs missed by each window, at its end boundary."""
-        values = (0.0, *self.extract_values(self.missed))
-        return OutputData(type=OutputType.STATUS, unit=None, values=values)
+    def schedulable_load_energy_missed(self) -> OutputData:
+        """Output: profile energy of the runs missed by each window, at its end boundary."""
+        total = self._run_total_energy()
+        values = (0.0, *(total * missed for missed in self.extract_values(self.missed)))
+        return OutputData(type=OutputType.ENERGY, unit="kWh", values=values)

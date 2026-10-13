@@ -16,5 +16,6 @@ class ElementType(StrEnum):
     JUNCTION = "junction"
     LOAD = "load"
     NODE = "node"
+    SCHEDULABLE_LOAD = "schedulable_load"
     SOLAR = "solar"
     POLICY = "policy"

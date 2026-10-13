@@ -101,6 +101,13 @@ OUTPUT_TYPE_DEFAULTS: dict[OutputType, OutputTypeMetadata] = {
         max_value=10_000_000.0,
         step=0.1,
     ),
+    OutputType.DURATION: OutputTypeMetadata(
+        unit=UnitOfMeasurement.HOUR,
+        device_class=NumberDeviceClass.DURATION,
+        min_value=0.0,
+        max_value=168.0,
+        step=0.01,
+    ),
     OutputType.ENERGY_PER_DISTANCE: OutputTypeMetadata(
         unit=UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER,
         device_class=None,

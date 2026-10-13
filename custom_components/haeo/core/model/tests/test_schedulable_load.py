@@ -154,7 +154,7 @@ def test_each_window_gets_one_run() -> None:
     network.optimize()
 
     np.testing.assert_allclose(_outputs(load, "schedulable_load_power"), [1.0, 0.0, 0.0, 1.0], atol=1e-9)
-    np.testing.assert_allclose(_outputs(load, "schedulable_load_missed"), [0.0] * 5, atol=1e-9)
+    np.testing.assert_allclose(_outputs(load, "schedulable_load_energy_missed"), [0.0] * 5, atol=1e-9)
 
 
 def test_window_too_short_books_missed_run() -> None:
@@ -170,7 +170,7 @@ def test_window_too_short_books_missed_run() -> None:
     cost = network.optimize()
 
     np.testing.assert_allclose(_outputs(load, "schedulable_load_power"), [0.0, 0.0, 0.0], atol=1e-9)
-    np.testing.assert_allclose(_outputs(load, "schedulable_load_missed"), [0.0, 1.0, 0.0, 0.0], atol=1e-9)
+    np.testing.assert_allclose(_outputs(load, "schedulable_load_energy_missed"), [0.0, 4.0, 0.0, 0.0], atol=1e-9)
     assert cost == pytest.approx(5.0 * 4.0)
 
 
@@ -218,7 +218,7 @@ def test_window_already_started_needs_no_run() -> None:
     cost = network.optimize()
 
     np.testing.assert_allclose(_outputs(load, "schedulable_load_power"), [0.0, 0.0], atol=1e-9)
-    np.testing.assert_allclose(_outputs(load, "schedulable_load_missed"), [0.0, 0.0, 0.0], atol=1e-9)
+    np.testing.assert_allclose(_outputs(load, "schedulable_load_energy_missed"), [0.0, 0.0, 0.0], atol=1e-9)
     assert cost == pytest.approx(0.0)
 
 
@@ -247,7 +247,7 @@ def test_integer_mode_controls_fractional_starts(
     network.optimize()
 
     np.testing.assert_allclose(_outputs(load, "schedulable_load_start")[:-1], expected_start, atol=1e-6)
-    assert _outputs(load, "schedulable_load_missed")[-1] == pytest.approx(expected_missed, abs=1e-6)
+    assert _outputs(load, "schedulable_load_energy_missed")[-1] == pytest.approx(2.0 * expected_missed, abs=1e-6)
 
 
 def test_integer_solve_keeps_shadow_prices() -> None:

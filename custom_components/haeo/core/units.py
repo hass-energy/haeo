@@ -16,6 +16,7 @@ class DeviceClass(StrEnum):
     MONETARY = "monetary"
     DISTANCE = "distance"
     ENERGY_DISTANCE = "energy_distance"
+    DURATION = "duration"
 
     @classmethod
     def of(cls, value: object) -> "DeviceClass | None":
@@ -52,6 +53,10 @@ class UnitOfMeasurement(StrEnum):
     WATT_HOUR_PER_KILOMETER = "Wh/km"
     KILO_WATT_HOUR_PER_KILOMETER = "kWh/km"
     KILO_WATT_HOUR_PER_100_KILOMETER = "kWh/100km"
+    SECOND = "s"
+    MINUTE = "min"
+    HOUR = "h"
+    DAY = "d"
 
     @classmethod
     def of(cls, value: object) -> "UnitOfMeasurement | None":
@@ -68,6 +73,7 @@ BASE_UNITS: Final[dict[DeviceClass, UnitOfMeasurement]] = {
     DeviceClass.ENERGY_STORAGE: UnitOfMeasurement.KILO_WATT_HOUR,
     DeviceClass.DISTANCE: UnitOfMeasurement.KILOMETER,
     DeviceClass.ENERGY_DISTANCE: UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER,
+    DeviceClass.DURATION: UnitOfMeasurement.HOUR,
 }
 
 _POWER_TO_KW: Final[dict[UnitOfMeasurement, float]] = {
@@ -103,6 +109,15 @@ _ENERGY_DISTANCE_TO_KWH_PER_KM: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER: 1.0,
     UnitOfMeasurement.KILO_WATT_HOUR_PER_100_KILOMETER: 0.01,
 }
+
+_TIME_TO_HOURS: Final[dict[UnitOfMeasurement, float]] = {
+    UnitOfMeasurement.SECOND: 1.0 / 3600.0,
+    UnitOfMeasurement.MINUTE: 1.0 / 60.0,
+    UnitOfMeasurement.HOUR: 1.0,
+    UnitOfMeasurement.DAY: 24.0,
+}
+
+DURATION_UNITS: Final[tuple[UnitOfMeasurement, ...]] = tuple(_TIME_TO_HOURS)
 
 ENERGY_DISTANCE_UNITS: Final[tuple[UnitOfMeasurement, ...]] = tuple(_ENERGY_DISTANCE_TO_KWH_PER_KM)
 
@@ -191,6 +206,9 @@ def _infer_device_class_from_unit(unit: UnitOfMeasurement | None) -> DeviceClass
     if unit in _ENERGY_DISTANCE_TO_KWH_PER_KM:
         return DeviceClass.ENERGY_DISTANCE
 
+    if unit in _TIME_TO_HOURS:
+        return DeviceClass.DURATION
+
     return None
 
 
@@ -227,6 +245,10 @@ def _convert_value(
 
     if effective_device_class == DeviceClass.ENERGY_DISTANCE:
         factor = _ENERGY_DISTANCE_TO_KWH_PER_KM.get(from_unit)
+        return value * factor if factor is not None else value
+
+    if effective_device_class == DeviceClass.DURATION:
+        factor = _TIME_TO_HOURS.get(from_unit)
         return value * factor if factor is not None else value
 
     return value

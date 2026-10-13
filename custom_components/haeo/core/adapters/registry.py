@@ -19,6 +19,7 @@ from custom_components.haeo.core.adapters.elements.junction import adapter as ju
 from custom_components.haeo.core.adapters.elements.load import adapter as load_adapter
 from custom_components.haeo.core.adapters.elements.node import adapter as node_adapter
 from custom_components.haeo.core.adapters.elements.policy import adapter as policy_adapter
+from custom_components.haeo.core.adapters.elements.schedulable_load import adapter as schedulable_load_adapter
 from custom_components.haeo.core.adapters.elements.solar import adapter as solar_adapter
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName
@@ -91,6 +92,7 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
     ElementType.NODE: node_adapter,
     ElementType.BATTERY_SECTION: battery_section_adapter,
     ElementType.POLICY: policy_adapter,
+    ElementType.SCHEDULABLE_LOAD: schedulable_load_adapter,
 }
 
 

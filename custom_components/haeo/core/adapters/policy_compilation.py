@@ -39,6 +39,7 @@ from numpy.typing import NDArray
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+    MODEL_ELEMENT_TYPE_SCHEDULABLE_LOAD,
     ModelElementConfig,
 )
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
@@ -47,9 +48,13 @@ from custom_components.haeo.core.model.elements.deferrable_load import Deferrabl
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
+from custom_components.haeo.core.model.elements.schedulable_load import SchedulableLoadElementConfig
 
-# Non-connection element configs (nodes, batteries, deferrable loads) that can carry tags
-_TaggableConfig = NodeElementConfig | BatteryElementConfig | DeferrableLoadElementConfig
+# Non-connection element configs (nodes, batteries, loads) that can carry tags
+_TaggableConfig = NodeElementConfig | BatteryElementConfig | DeferrableLoadElementConfig | SchedulableLoadElementConfig
+
+# Model element types that only ever absorb power
+_SINK_ONLY_TYPES: frozenset[str] = frozenset({MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD, MODEL_ELEMENT_TYPE_SCHEDULABLE_LOAD})
 
 # A rule grouping identifies a rule by its source/destination sets,
 # independent of price. Rules with the same grouping share VLAN structure.
@@ -122,11 +127,11 @@ def compile_policies(
     # Capability sets for wildcard expansion: nodes that can only produce
     # should not appear as destinations, and nodes that can only consume
     # should not appear as sources. Batteries default to both, and
-    # deferrable loads only ever absorb power.
+    # deferrable and schedulable loads only ever absorb power.
     source_names = {
         name
         for name, elem in by_name.items()
-        if elem["element_type"] != MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD and elem.get("is_source", True)
+        if elem["element_type"] not in _SINK_ONLY_TYPES and elem.get("is_source", True)
     }
     sink_names = {name for name, elem in by_name.items() if elem.get("is_sink", True)}
 

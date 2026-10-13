@@ -29,12 +29,14 @@ from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
     MODEL_ELEMENT_TYPE_NODE,
+    MODEL_ELEMENT_TYPE_SCHEDULABLE_LOAD,
 )
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.elements.deferrable_load import DeferrableLoadElementConfig
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig
+from custom_components.haeo.core.model.elements.schedulable_load import SchedulableLoadElementConfig
 from custom_components.haeo.core.model.elements.segments import SegmentSpec
 from custom_components.haeo.core.model.network import Network
 
@@ -334,25 +336,46 @@ def test_wildcard_excludes_sink_only_from_sources() -> None:
     assert sw.get("outbound_tags") is None
 
 
-def test_wildcard_treats_deferrable_load_as_sink_only() -> None:
-    """Wildcard expansion treats a deferrable load as a sink, never a source."""
+@pytest.mark.parametrize(
+    "load",
+    [
+        pytest.param(
+            DeferrableLoadElementConfig(
+                element_type=MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+                name="load",
+                in_window=1.0,
+                window_start=0.0,
+                requirement=5.0,
+                deficit_price=1.0,
+            ),
+            id="deferrable",
+        ),
+        pytest.param(
+            SchedulableLoadElementConfig(
+                element_type=MODEL_ELEMENT_TYPE_SCHEDULABLE_LOAD,
+                name="load",
+                profile_power=np.array([1.0]),
+                profile_duration=np.array([1.0]),
+                in_window=1.0,
+                window_start=0.0,
+                deficit_price=1.0,
+            ),
+            id="schedulable",
+        ),
+    ],
+)
+def test_wildcard_treats_window_loads_as_sink_only(load: ModelElementConfig) -> None:
+    """Wildcard expansion treats deferrable and schedulable loads as sinks, never sources."""
     elements: list[ModelElementConfig] = [
         _node("grid", is_source=True),
-        DeferrableLoadElementConfig(
-            element_type=MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
-            name="ev",
-            in_window=1.0,
-            window_start=0.0,
-            requirement=5.0,
-            deficit_price=1.0,
-        ),
-        _conn("grid_ev", "grid", "ev"),
+        load,
+        _conn("grid_load", "grid", "load"),
     ]
     policies = [_policy(["*"], ["*"], 0.05)]
     result = compile_policies(elements, policies)
-    ev = next(e for e in result["elements"] if e["name"] == "ev" and e["element_type"] == "deferrable_load")
-    assert ev.get("outbound_tags") is None
-    assert _outbound_tag(result, "grid") in (ev.get("inbound_tags") or set())
+    compiled = next(e for e in result["elements"] if e["name"] == "load" and e["element_type"] == load["element_type"])
+    assert compiled.get("outbound_tags") is None
+    assert _outbound_tag(result, "grid") in (compiled.get("inbound_tags") or set())
 
 
 def test_wildcard_excludes_source_only_from_destinations() -> None:
