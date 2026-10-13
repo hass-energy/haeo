@@ -109,6 +109,8 @@ class DeferrableLoadAdapter:
         load: DeferrableLoadElementConfig = {
             "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
             "name": name,
+            "is_source": False,
+            "is_sink": True,
             "in_window": windows.in_window,
             "window_start": windows.window_start,
             "requirement": windows.requirement,
