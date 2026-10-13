@@ -28,7 +28,7 @@ EV configuration uses a sectioned flow where you enter the name, connection, tri
 The choices offered depend on the field:
 
 - **Current state of charge** accepts only "Entity", since it must track the live battery level.
-- **Connected sensor**, **odometer**, and **odometer at disconnect** accept "Entity" or "None".
+- **Connected sensor** and **odometer** accept "Entity" or "None".
     A constant connected state would pin the current interval permanently.
 - **Trip calendar** accepts a calendar entity or "None".
 - The remaining numeric fields accept "Entity" to link to a sensor or "Constant" to enter a fixed value, and optional ones also accept "None".
@@ -37,26 +37,25 @@ Fields configured with "Constant" create input entities that you can adjust at r
 
 ## Configuration fields
 
-| Field                                                    | Type       | Required | Default               | Description                                      |
-| -------------------------------------------------------- | ---------- | -------- | --------------------- | ------------------------------------------------ |
-| **[Name](#name)**                                        | String     | Yes      | -                     | Unique identifier (e.g., "Tesla Model 3")        |
-| **[Connection](#connection)**                            | Select     | Yes      | -                     | Junction or inverter the charger is attached to  |
-| **[Trip calendar](#trip-calendar)**                      | Entity     | No       | -                     | Calendar entity with trip events                 |
-| **[Connected sensor](#connected-sensor)**                | Entity     | No       | -                     | Binary sensor reporting when plugged in          |
-| **[Odometer](#odometer)**                                | Entity     | No       | -                     | Sensor reporting current odometer reading        |
-| **[Odometer at disconnect](#odometer-at-disconnect)**    | Entity     | No       | -                     | Sensor reporting odometer when last disconnected |
-| **[Reserve state of charge](#reserve)**                  | Percentage | No       | -                     | Buffer to keep in the pack while away            |
-| **[Reserve shortfall price](#reserve)**                  | Price      | No       | Public charging price | Cost per kWh of dipping below the reserve        |
-| **[Battery capacity](#battery-capacity)**                | Energy     | Yes      | -                     | Total usable battery capacity                    |
-| **[Energy per distance](#energy-per-distance)**          | Ratio      | Yes      | -                     | Energy consumption rate (e.g. kWh/km)            |
-| **[Current state of charge](#current-state-of-charge)**  | Percentage | Yes      | -                     | Sensor reporting current SOC (0–100%)            |
-| **[Max charge rate](#max-charge-and-discharge-rate)**    | Power      | Yes      | -                     | Maximum home charging power                      |
-| **[Max discharge rate](#max-charge-and-discharge-rate)** | Power      | No       | -                     | Maximum V2G discharge power                      |
-| **[Public charging price](#public-charging-price)**      | Price      | No       | \$10/kWh              | Cost per kWh for public charging                 |
-| **[Max charge power](#power-limits)**                    | Power      | No       | -                     | Overall max charge power limit                   |
-| **[Max discharge power](#power-limits)**                 | Power      | No       | -                     | Overall max discharge power limit                |
-| **[Charge efficiency](#efficiency)**                     | Percentage | No       | 95%                   | Efficiency when charging                         |
-| **[Discharge efficiency](#efficiency)**                  | Percentage | No       | 95%                   | Efficiency when discharging                      |
+| Field                                                    | Type       | Required | Default               | Description                                     |
+| -------------------------------------------------------- | ---------- | -------- | --------------------- | ----------------------------------------------- |
+| **[Name](#name)**                                        | String     | Yes      | -                     | Unique identifier (e.g., "Tesla Model 3")       |
+| **[Connection](#connection)**                            | Select     | Yes      | -                     | Junction or inverter the charger is attached to |
+| **[Trip calendar](#trip-calendar)**                      | Entity     | No       | -                     | Calendar entity with trip events                |
+| **[Connected sensor](#connected-sensor)**                | Entity     | No       | -                     | Binary sensor reporting when plugged in         |
+| **[Odometer](#odometer)**                                | Entity     | No       | -                     | Sensor reporting current odometer reading       |
+| **[Reserve state of charge](#reserve)**                  | Percentage | No       | -                     | Buffer to keep in the pack while away           |
+| **[Reserve shortfall price](#reserve)**                  | Price      | No       | Public charging price | Cost per kWh of dipping below the reserve       |
+| **[Battery capacity](#battery-capacity)**                | Energy     | Yes      | -                     | Total usable battery capacity                   |
+| **[Energy per distance](#energy-per-distance)**          | Ratio      | Yes      | -                     | Energy consumption rate (e.g. kWh/km)           |
+| **[Current state of charge](#current-state-of-charge)**  | Percentage | Yes      | -                     | Sensor reporting current SOC (0–100%)           |
+| **[Max charge rate](#max-charge-and-discharge-rate)**    | Power      | Yes      | -                     | Maximum home charging power                     |
+| **[Max discharge rate](#max-charge-and-discharge-rate)** | Power      | No       | -                     | Maximum V2G discharge power                     |
+| **[Public charging price](#public-charging-price)**      | Price      | No       | \$10/kWh              | Cost per kWh for public charging                |
+| **[Max charge power](#power-limits)**                    | Power      | No       | -                     | Overall max charge power limit                  |
+| **[Max discharge power](#power-limits)**                 | Power      | No       | -                     | Overall max discharge power limit               |
+| **[Charge efficiency](#efficiency)**                     | Percentage | No       | 95%                   | Efficiency when charging                        |
+| **[Discharge efficiency](#efficiency)**                  | Percentage | No       | 95%                   | Efficiency when discharging                     |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -94,13 +93,14 @@ The trip calendar is authoritative for future availability; this sensor pins the
 If the sensor reports the car plugged in while a trip event is still open, HAEO assumes the car has not left yet.
 It is home for the current interval, and the trip still happens in the rest of the event, with its energy due by the event's end.
 
-HAEO treats the trip as done early only when Home Assistant's history shows the sensor unplugged at some point since the trip event started.
-When the [odometer](#odometer) and [odometer at disconnect](#odometer-at-disconnect) sensors are configured, the car must also have driven since it disconnected, so a brief unplug without driving does not count.
-A trip done early counts the car as home until the event's scheduled end, and the rest of the trip asks for no energy or public charging.
-Readings of `unavailable` or `unknown`, such as during a Home Assistant restart, never count as unplugged.
+The trip starts the first time the car unplugs after the trip event starts, or the unplug already under way when it starts.
+Plugging back in after that ends the trip early: the car counts as home until the event's scheduled end, and the rest of the trip asks for no energy or public charging.
+When the [odometer](#odometer) is configured, the car must also have driven since the trip started, so a brief unplug without driving does not end it.
+Unplugging again before the event ends resumes the same trip, so ducking home for a few minutes in the middle of a day of driving does not ask for the whole trip's energy again.
+Readings of `unavailable` or `unknown`, such as during a Home Assistant restart, neither start nor end an unplug.
 
 This history comes from the [recorder](https://www.home-assistant.io/integrations/recorder/), which Home Assistant enables by default, and covers the last seven days.
-If the recorder is disabled or excludes the connected sensor, a car plugged in during a trip event is always treated as not yet departed.
+If the recorder is disabled or excludes the connected sensor, HAEO only sees unplugs since Home Assistant started.
 
 This field takes a sensor or nothing; there is no constant option.
 If you select more than one entity, the car counts as plugged in when any of them reports `on`.
@@ -113,13 +113,8 @@ Select the sensor reporting the vehicle's current odometer reading.
 HAEO uses this to track how much energy the car has consumed mid-trip.
 Any length unit Home Assistant supports (for example `km`, `mi`, or `m`) is accepted and converted to kilometres.
 
-### Odometer at disconnect
-
-Select the sensor reporting the odometer reading when the car was last disconnected.
-Combined with the current odometer, this lets HAEO calculate energy already consumed during an ongoing trip and reduce the remaining requirement.
-It uses the same length unit conversion as the odometer.
-
-The distance driven since disconnect is credited only to the trip whose calendar window is open now.
+HAEO reads the odometer at the start of the trip from Home Assistant's history, so no separate sensor for it is needed.
+The distance driven since the trip started is credited only to the trip whose calendar window is open now.
 That energy has already left the battery, which the current state of charge shows, so HAEO never draws it again.
 
 - **Less than planned**: the rest of the trip's energy stays reserved until the trip's end.
