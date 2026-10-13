@@ -13,7 +13,7 @@ from pytest_homeassistant_custom_component.components.recorder.common import asy
 
 from custom_components.haeo.core.data.loader.last_off import LAST_OFF_ATTRIBUTE
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
-from custom_components.haeo.last_off_history import LOOKBACK, async_last_off, async_last_off_state_machine
+from custom_components.haeo.last_off_history import LOOKBACK, LastOffStateMachine, async_last_off, async_last_off_times
 
 PLUG = "binary_sensor.ev_plug"
 
@@ -102,9 +102,8 @@ async def test_state_machine_injects_last_off(hass: HomeAssistant, freezer: Froz
     hass.states.async_set("binary_sensor.other", "on")
     await async_wait_recording_done(hass)
 
-    sm = await async_last_off_state_machine(
-        hass, HomeAssistantStateMachine(hass), [PLUG, "binary_sensor.other", "binary_sensor.missing"]
-    )
+    last_off = await async_last_off_times(hass, [PLUG, "binary_sensor.other", "binary_sensor.missing"])
+    sm = LastOffStateMachine(HomeAssistantStateMachine(hass), last_off)
 
     plug = sm.get(PLUG)
     assert plug is not None

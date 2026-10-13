@@ -39,6 +39,8 @@ def _build_network(
             "deficit_price": deficit_price,
             "initial_energy": initial_energy,
             "overage_price": overage_price,
+            "is_source": False,
+            "is_sink": True,
         }
     )
     segments: dict[str, SegmentSpec] = {

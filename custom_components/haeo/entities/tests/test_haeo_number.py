@@ -1363,3 +1363,39 @@ async def test_driven_availability_captures_last_off(
     assert entity.native_value == 1.0
     captured = entity.store.captured_source_states["binary_sensor.plug"]
     assert captured.attributes[LAST_OFF_ATTRIBUTE] == 1234.0
+
+
+async def test_driven_availability_queries_history_only_when_its_source_changes(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """A horizon change reuses the last off times; a source change queries the recorder again."""
+    field_info = InputFieldInfo(
+        field_name="connected",
+        entity_description=NumberEntityDescription(
+            key="connected",
+            translation_key="connected",
+            native_min_value=0.0,
+            native_max_value=1.0,
+            native_step=1.0,
+        ),
+        output_type=OutputType.AVAILABILITY,
+        time_series=True,
+    )
+    hass.states.async_set("binary_sensor.plug", "on")
+    subentry = _create_subentry("Test EV", {"connected": ["binary_sensor.plug"]})
+    config_entry.runtime_data = None
+    entity = _make_entity(hass, config_entry, subentry, field_info, device_entry, horizon_manager)
+
+    with patch("custom_components.haeo.last_off_history.async_last_off", AsyncMock(return_value=1234.0)) as query:
+        await _add_entity_to_hass(hass, entity)
+        entity._handle_horizon_change()
+        await hass.async_block_till_done()
+        assert query.await_count == 1
+        assert entity.store.captured_source_states["binary_sensor.plug"].attributes[LAST_OFF_ATTRIBUTE] == 1234.0
+
+        hass.states.async_set("binary_sensor.plug", "off")
+        await hass.async_block_till_done()
+        assert query.await_count == 2

@@ -170,6 +170,7 @@ $P(t)$ is drawn from the network through the element power balance, like any oth
 
 The Element base class creates per-tag power balance constraints for all elements with tagged connections.
 The load draws its power from `inbound_tags`.
+Its config declares `is_source=false` and `is_sink=true`, so policies can deliver power to the load but never draw from it.
 See the [tagged power formulation](../../tagged-power.md#per-tag-balance) for details.
 
 ### Cost contribution

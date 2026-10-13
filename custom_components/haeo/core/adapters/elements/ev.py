@@ -382,6 +382,8 @@ def _trip_load(
     return {
         "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
         "name": name,
+        "is_source": False,
+        "is_sink": True,
         "in_window": in_window,
         "window_start": window_start,
         "requirement": requirement,

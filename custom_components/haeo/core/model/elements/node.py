@@ -61,12 +61,11 @@ class Node(NetworkElement[NodeOutputName]):
             periods=periods,
             solver=solver,
             output_names=NODE_OUTPUT_NAMES,
+            is_source=is_source,
+            is_sink=is_sink,
             outbound_tags=outbound_tags,
             inbound_tags=inbound_tags,
         )
-        self.is_source = is_source
-        self.is_sink = is_sink
-
         n = self.n_periods
         self._produced = (
             solver.addVariables(n, lb=0, name_prefix=f"{name}_prod_", out_array=True) if is_source else None
