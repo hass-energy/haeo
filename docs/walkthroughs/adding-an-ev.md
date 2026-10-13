@@ -103,7 +103,7 @@ page.navigate_to_integration("HAEO")
 ```
 
 Configure the EV with battery details, charging rate, and the trip calendar.
-The EV connects to the **Switchboard** — the node HAEO automatically created
+The EV connects to the **Switchboard** — the junction HAEO automatically created
 with your hub — where the home charger is wired.
 
 ```guide
