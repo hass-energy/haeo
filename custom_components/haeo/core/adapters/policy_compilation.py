@@ -36,11 +36,7 @@ from typing import NotRequired, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.model.elements import (
-    MODEL_ELEMENT_TYPE_CONNECTION,
-    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
-    ModelElementConfig,
-)
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, ModelElementConfig
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.elements.deferrable_load import DeferrableLoadElementConfig
@@ -119,15 +115,11 @@ def compile_policies(
 
     names: set[str] = set(by_name.keys())
 
-    # Capability sets for wildcard expansion: nodes that can only produce
-    # should not appear as destinations, and nodes that can only consume
-    # should not appear as sources. Batteries default to both, and
-    # deferrable loads only ever absorb power.
-    source_names = {
-        name
-        for name, elem in by_name.items()
-        if elem["element_type"] != MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD and elem.get("is_source", True)
-    }
+    # Capability sets for wildcard expansion: elements that can only produce
+    # should not appear as destinations, and elements that can only consume
+    # should not appear as sources. An element that leaves a flag out can do
+    # both, as a battery does.
+    source_names = {name for name, elem in by_name.items() if elem.get("is_source", True)}
     sink_names = {name for name, elem in by_name.items() if elem.get("is_sink", True)}
 
     # Directed graph: edges follow connection direction (source → target)

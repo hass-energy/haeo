@@ -76,6 +76,8 @@ class DeferrableLoadElementConfig(TypedDict):
     deficit_price: NDArray[np.float64] | float
     initial_energy: NotRequired[float]
     overage_price: NotRequired[NDArray[np.float64] | float | None]
+    is_source: Literal[False]
+    is_sink: Literal[True]
     outbound_tags: NotRequired[set[int] | None]
     inbound_tags: NotRequired[set[int] | None]
 
@@ -126,6 +128,8 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         deficit_price: NDArray[np.float64] | float,
         initial_energy: float = 0.0,
         overage_price: NDArray[np.float64] | float | None = None,
+        is_source: Literal[False],
+        is_sink: Literal[True],
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
     ) -> None:
@@ -135,6 +139,8 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
             periods=periods,
             solver=solver,
             output_names=DEFERRABLE_LOAD_OUTPUT_NAMES,
+            is_source=is_source,
+            is_sink=is_sink,
             outbound_tags=outbound_tags,
             inbound_tags=inbound_tags,
         )

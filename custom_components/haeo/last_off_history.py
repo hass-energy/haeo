@@ -1,10 +1,10 @@
 """Look up when availability sources were last off from the recorder.
 
 An availability input (such as an EV's plugged-in sensor) only reports what
-its source says now. The recorder keeps the source's recent history, so each
-load queries it for the end of the latest off reading and injects that into
-the source state as the core last off attribute. Nothing is stored between
-loads: every load asks the recorder again.
+its source says now. The recorder keeps the source's recent history, so the
+input queries it for the end of the latest off reading and injects that into
+the source state as the core last off attribute. The history only changes
+when the source does, so the input queries again only on a source change.
 
 The lookup is best effort. Without the recorder, without history for the
 entity (excluded from recording, or no off reading inside the lookback), or
@@ -54,15 +54,10 @@ class LastOffStateMachine(StateMachine):
         return AnnotatedState(state, {LAST_OFF_ATTRIBUTE: last_off})
 
 
-async def async_last_off_state_machine(
-    hass: HomeAssistant,
-    base: StateMachine,
-    entity_ids: Sequence[str],
-) -> LastOffStateMachine:
-    """Look up each entity's last off time and wrap *base* to inject them."""
+async def async_last_off_times(hass: HomeAssistant, entity_ids: Sequence[str]) -> dict[str, float]:
+    """Look up each entity's last off time, leaving out entities without one."""
     found = await asyncio.gather(*(async_last_off(hass, entity_id) for entity_id in entity_ids))
-    last_off = {entity_id: value for entity_id, value in zip(entity_ids, found, strict=True) if value is not None}
-    return LastOffStateMachine(base, last_off)
+    return {entity_id: value for entity_id, value in zip(entity_ids, found, strict=True) if value is not None}
 
 
 async def async_last_off(hass: HomeAssistant, entity_id: str) -> float | None:
@@ -100,4 +95,4 @@ def _state_changes(hass: HomeAssistant, start: datetime, entity_id: str) -> list
     ).get(entity_id, [])
 
 
-__all__ = ["LOOKBACK", "LastOffStateMachine", "async_last_off", "async_last_off_state_machine"]
+__all__ = ["LOOKBACK", "LastOffStateMachine", "async_last_off", "async_last_off_times"]
