@@ -10,7 +10,7 @@ from custom_components.haeo.core.data.loader.last_off import (
     last_off_time,
     read_last_off,
 )
-from custom_components.haeo.core.schema.elements.ev import CONF_CONNECTED, CONF_CONNECTED_LAST_OFF
+from custom_components.haeo.core.schema.elements.ev import CONF_CONNECTED, CONF_CONNECTED_LAST_OFF_AGE
 
 
 @pytest.mark.parametrize(
@@ -74,4 +74,4 @@ def test_read_last_off_without_state() -> None:
 
 def test_ev_last_off_key_matches_loader_convention() -> None:
     """The EV schema's last off key is the one the loader writes for the connected field."""
-    assert last_off_field(CONF_CONNECTED) == CONF_CONNECTED_LAST_OFF
+    assert last_off_field(CONF_CONNECTED) == CONF_CONNECTED_LAST_OFF_AGE

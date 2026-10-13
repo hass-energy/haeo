@@ -22,8 +22,12 @@ _OFF_THRESHOLD: Final = 0.5
 
 
 def last_off_field(field_name: str) -> str:
-    """Return the loaded config key holding an availability field's last off time."""
-    return f"{field_name}_last_off"
+    """Return the loaded config key holding an availability field's last off age.
+
+    The age is how many seconds before the horizon start the source's most
+    recent off reading ended.
+    """
+    return f"{field_name}_last_off_age"
 
 
 def is_off_state(raw: str) -> bool:

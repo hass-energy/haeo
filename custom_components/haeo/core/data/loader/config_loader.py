@@ -119,7 +119,7 @@ def load_element_config(
             else:
                 _section_dict(loaded, section_name)[field_name] = resolved
 
-            _load_last_off(loaded, section_name, field_name, value, hint, sm.get)
+            _load_last_off(loaded, section_name, field_name, value, hint, sm.get, forecast_times[0])
 
     # Resolve list-based input fields (e.g. policy rules with entity prices)
     list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
@@ -179,7 +179,8 @@ def load_element_config_from_values(
         element_name: Display name for the element.
         element_config: Raw element config dict (sectioned format).
         field_values: Map of field path to its resolved value.
-        forecast_times: Boundary timestamps (used only for type-driven defaults).
+        forecast_times: Boundary timestamps, used for type-driven defaults
+            and as the horizon start that last off ages count back from.
         source_states: Source entity states captured when the values resolved,
             read for the last off time of availability fields.
 
@@ -216,7 +217,13 @@ def load_element_config_from_values(
                 section_config = element_config.get(section_name)
                 if isinstance(section_config, Mapping):
                     _load_last_off(
-                        loaded, section_name, field_name, section_config.get(field_name), hint, source_states.get
+                        loaded,
+                        section_name,
+                        field_name,
+                        section_config.get(field_name),
+                        hint,
+                        source_states.get,
+                        forecast_times[0],
                     )
                 continue
 
@@ -258,18 +265,19 @@ def _load_last_off(
     value: object,
     hint: FieldHint,
     get_state: Callable[[str], EntityState | None],
+    horizon_start: float,
 ) -> None:
-    """Load when an entity-driven availability field's source was last off.
+    """Load how long before the horizon start an availability field's source was last off.
 
     The time comes from the source state's injected last off attribute and is
-    stored beside the field under :func:`last_off_field`; it is left out when
-    the state carries none.
+    stored beside the field under :func:`last_off_field` as seconds before
+    the horizon start; it is left out when the state carries none.
     """
     if hint.output_type is not OutputType.AVAILABILITY or not is_entity_value(value) or not value["value"]:
         return
     last_off = read_last_off(get_state(value["value"][0]))
     if last_off is not None:
-        _section_dict(loaded, section_name)[last_off_field(field_name)] = last_off
+        _section_dict(loaded, section_name)[last_off_field(field_name)] = horizon_start - last_off
 
 
 class _Sentinel:

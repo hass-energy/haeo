@@ -844,7 +844,7 @@ def _ev_trip_config(connected: object) -> dict[str, object]:
 @pytest.mark.parametrize(
     ("connected", "attributes", "expected"),
     [
-        pytest.param({"type": "entity", "value": [_PLUG]}, {"haeo_last_off": 1800.0}, 1800.0, id="injected"),
+        pytest.param({"type": "entity", "value": [_PLUG]}, {"haeo_last_off": 1800.0}, -1800.0, id="injected"),
         pytest.param({"type": "entity", "value": [_PLUG]}, {}, None, id="no_history"),
         pytest.param({"type": "constant", "value": 1.0}, {"haeo_last_off": 1800.0}, None, id="constant_input"),
     ],
@@ -852,7 +852,10 @@ def _ev_trip_config(connected: object) -> dict[str, object]:
 def test_availability_field_loads_last_off_from_source_state(
     connected: object, attributes: dict[str, object], expected: float | None
 ) -> None:
-    """Both loaders read an availability source's injected last off time beside the field."""
+    """Both loaders store an availability source's injected last off time as an age beside the field.
+
+    The age counts back from the horizon start, so a last off after it is negative.
+    """
     states = {_PLUG: FakeEntityState(_PLUG, "on", attributes)}
     config = _ev_trip_config(connected)
 
@@ -867,5 +870,5 @@ def test_availability_field_loads_last_off_from_source_state(
 
     for result in (from_states, from_values):
         trip = _dict(_dict(result)["trip"])
-        assert trip.get("connected_last_off") == expected
+        assert trip.get("connected_last_off_age") == expected
         np.testing.assert_allclose(_ndarray(trip["connected"]), [1.0, 1.0, 1.0])

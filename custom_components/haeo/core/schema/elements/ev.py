@@ -42,9 +42,10 @@ CONF_MAX_DISCHARGE_RATE: Final = "max_discharge_rate"
 
 # Trip section field names
 CONF_CONNECTED: Final = "connected"
-# Loaded beside the connected field: when the plugged-in sensor last read
-# unplugged, from Home Assistant's history (POSIX seconds).
-CONF_CONNECTED_LAST_OFF: Final = "connected_last_off"
+# Loaded beside the connected field: how many seconds before the horizon start
+# the plugged-in sensor last stopped reading unplugged, from Home Assistant's
+# history.
+CONF_CONNECTED_LAST_OFF_AGE: Final = "connected_last_off_age"
 CONF_TRIP_CALENDAR: Final = "trip_calendar"
 CONF_ODOMETER: Final = "odometer"
 CONF_ODOMETER_AT_DISCONNECT: Final = "odometer_at_disconnect"
@@ -132,7 +133,7 @@ class TripData(TypedDict, total=False):
 
     trip_calendar: CalendarBoundaryData
     connected: NDArray[np.float64] | float
-    connected_last_off: float
+    connected_last_off_age: float
     odometer: float
     odometer_at_disconnect: float
     reserve_soc: float
@@ -305,7 +306,7 @@ class EvConfigData(ConnectedCommonData):
 __all__ = [
     "CONF_CAPACITY",
     "CONF_CONNECTED",
-    "CONF_CONNECTED_LAST_OFF",
+    "CONF_CONNECTED_LAST_OFF_AGE",
     "CONF_CURRENT_SOC",
     "CONF_ENERGY_PER_DISTANCE",
     "CONF_MAX_CHARGE_RATE",

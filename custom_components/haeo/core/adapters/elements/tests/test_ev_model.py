@@ -44,7 +44,7 @@ def _boundary_data(
     presence: list[float],
     value_edge_start: list[float],
     value_edge_end: list[float],
-    open_since: float | None = None,
+    open_age: float | None = None,
 ) -> CalendarBoundaryData:
     """Build calendar boundary data with a derived value_span.
 
@@ -57,7 +57,7 @@ def _boundary_data(
         value_span=np.asarray(span, dtype=np.float64),
         value_edge_start=np.array(value_edge_start, dtype=np.float64),
         value_edge_end=np.array(value_edge_end, dtype=np.float64),
-        open_since=open_since,
+        open_age=open_age,
     )
 
 
@@ -569,7 +569,7 @@ def test_odometer_overshoot_beyond_trip_stays_feasible() -> None:
 
 
 # The open trip in _open_trip_config began an hour before the horizon start.
-_OPEN_TRIP_START = -3600.0
+_OPEN_TRIP_AGE = 3600.0
 
 
 def _open_trip_config(**trip: object) -> EvConfigData:
@@ -580,7 +580,7 @@ def _open_trip_config(**trip: object) -> EvConfigData:
                 presence=[1.0, 1.0, 0.0, 0.0, 0.0],
                 value_edge_start=[30.0, 0.0, 0.0, 0.0, 0.0],
                 value_edge_end=[0.0, 0.0, 30.0, 0.0, 0.0],
-                open_since=_OPEN_TRIP_START,
+                open_age=_OPEN_TRIP_AGE,
             ),
             **trip,
         },
@@ -622,9 +622,9 @@ def test_odometer_garbage_credits_nothing(odometer: float | None, odometer_at_di
     "trip",
     [
         pytest.param({}, id="no_unplug_history"),
-        pytest.param({"connected_last_off": _OPEN_TRIP_START - 600.0}, id="unplugged_before_trip_start"),
+        pytest.param({"connected_last_off_age": _OPEN_TRIP_AGE + 600.0}, id="unplugged_before_trip_start"),
         pytest.param(
-            {"connected_last_off": 0.0, "odometer": 10_000.0, "odometer_at_disconnect": 10_000.0},
+            {"connected_last_off_age": 0.0, "odometer": 10_000.0, "odometer_at_disconnect": 10_000.0},
             id="brief_unplug_without_driving",
         ),
     ],
@@ -653,10 +653,10 @@ def test_plugged_in_during_open_trip_has_not_left_yet(trip: dict[str, object]) -
 @pytest.mark.parametrize(
     "trip",
     [
-        pytest.param({"connected_last_off": 0.0}, id="unplugged_during_trip"),
-        pytest.param({"connected_last_off": _OPEN_TRIP_START}, id="unplugged_at_trip_start"),
+        pytest.param({"connected_last_off_age": 0.0}, id="unplugged_during_trip"),
+        pytest.param({"connected_last_off_age": _OPEN_TRIP_AGE}, id="unplugged_at_trip_start"),
         pytest.param(
-            {"connected_last_off": 0.0, "odometer": 10_010.0, "odometer_at_disconnect": 10_000.0},
+            {"connected_last_off_age": 0.0, "odometer": 10_010.0, "odometer_at_disconnect": 10_000.0},
             id="unplugged_and_drove",
         ),
     ],
@@ -683,7 +683,7 @@ def test_plugged_in_after_leaving_during_open_trip_ends_the_trip(trip: dict[str,
 
 def test_unplug_history_ignored_while_unplugged() -> None:
     """An unplugged car during an open trip is away whatever its unplug history says."""
-    config = _open_trip_config(connected=0.0, connected_last_off=0.0)
+    config = _open_trip_config(connected=0.0, connected_last_off_age=0.0)
     elements = _elements(config)
 
     np.testing.assert_allclose(elements.trip["requirement"], [0.0, 0.0, 6.0, 0.0, 0.0])
@@ -698,10 +698,10 @@ def test_returning_early_keeps_later_trips() -> None:
                 presence=[1.0, 1.0, 1.0, 0.0, 0.0],
                 value_edge_start=[30.0, 20.0, 0.0, 0.0, 0.0],
                 value_edge_end=[0.0, 30.0, 0.0, 20.0, 0.0],
-                open_since=_OPEN_TRIP_START,
+                open_age=_OPEN_TRIP_AGE,
             ),
             "connected": 1.0,
-            "connected_last_off": 0.0,
+            "connected_last_off_age": 0.0,
         },
     )
     elements = _elements(config)

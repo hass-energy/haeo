@@ -50,10 +50,11 @@ class CalendarBoundaryData(TypedDict):
     while still marking their window present.
 
     Attributes:
-        open_since: POSIX time the window open at the horizon start began, or
-            None when no window is open then. Only events with a positive
-            value count, and overlapping events chain into one window, so a
-            window that began before the horizon keeps its true start.
+        open_age: Seconds before the horizon start that the window open at
+            the horizon start began, or None when no window is open then.
+            Only events with a positive value count, and overlapping events
+            chain into one window, so a window that began before the horizon
+            keeps its true start.
         presence: 1.0 at boundaries covered by any event window, else 0.0.
         value_span: Sum of active window values at each boundary, 0.0 outside.
         value_edge_start: Each window's value placed at its start boundary
@@ -67,7 +68,7 @@ class CalendarBoundaryData(TypedDict):
     value_span: NDArray[np.float64]
     value_edge_start: NDArray[np.float64]
     value_edge_end: NDArray[np.float64]
-    open_since: float | None
+    open_age: float | None
 
 
 def is_calendar_boundary_data(value: object) -> bool:
@@ -77,7 +78,7 @@ def is_calendar_boundary_data(value: object) -> bool:
         "value_span",
         "value_edge_start",
         "value_edge_end",
-        "open_since",
+        "open_age",
     }
 
 
@@ -117,8 +118,8 @@ def _extractor_for(hint: CalendarFieldHint) -> EventValueFn:
     return _extract
 
 
-def _open_since(windows: Sequence[CalendarWindow], at: datetime) -> float | None:
-    """Return when the window open at *at* began, or None when none is open.
+def _open_age(windows: Sequence[CalendarWindow], at: datetime) -> float | None:
+    """Return how many seconds before *at* the window open then began, or None when none is open.
 
     *windows* are sorted by start. Positive-valued events that overlap chain
     into one window; events that only touch stay separate, matching how trip
@@ -130,7 +131,7 @@ def _open_since(windows: Sequence[CalendarWindow], at: datetime) -> float | None
             groups[-1] = (groups[-1][0], max(groups[-1][1], window.end))
         else:
             groups.append((window.start, window.end))
-    return next((start.timestamp() for start, end in groups if start <= at < end), None)
+    return next(((at - start).total_seconds() for start, end in groups if start <= at < end), None)
 
 
 def resolve_calendar_field(
@@ -166,7 +167,7 @@ def resolve_calendar_field(
         value_span=_fused(fuse_windows_to_boundaries(windows, boundaries)),
         value_edge_start=_fused(fuse_window_edges_to_boundaries(windows, boundaries, "start")),
         value_edge_end=_fused(fuse_window_edges_to_boundaries(windows, boundaries, "end")),
-        open_since=_open_since(windows, boundaries[0]),
+        open_age=_open_age(windows, boundaries[0]),
     )
 
 

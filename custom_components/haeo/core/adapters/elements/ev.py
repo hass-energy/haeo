@@ -32,7 +32,7 @@ from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.ev import (
     CONF_CAPACITY,
     CONF_CONNECTED,
-    CONF_CONNECTED_LAST_OFF,
+    CONF_CONNECTED_LAST_OFF_AGE,
     CONF_CURRENT_SOC,
     CONF_ENERGY_PER_DISTANCE,
     CONF_MAX_CHARGE_RATE,
@@ -425,9 +425,9 @@ def _returned_early(
     if not _is_plugged_in(trip.get(CONF_CONNECTED)):
         return False
 
-    open_since = calendar["open_since"]
-    last_off = trip.get(CONF_CONNECTED_LAST_OFF)
-    if open_since is None or last_off is None or last_off < open_since:
+    open_age = calendar["open_age"]
+    last_off_age = trip.get(CONF_CONNECTED_LAST_OFF_AGE)
+    if open_age is None or last_off_age is None or last_off_age > open_age:
         return False
 
     odometer = trip.get(CONF_ODOMETER)
