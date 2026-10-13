@@ -7,7 +7,11 @@ from typing import Final, Literal
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.adapters.calendar_windows import CalendarWindows, calendar_windows
+from custom_components.haeo.core.adapters.calendar_windows import (
+    CalendarWindows,
+    calendar_windows,
+    extend_to_boundaries,
+)
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
@@ -382,7 +386,7 @@ def _trip_load(
         "window_start": window_start,
         "requirement": requirement,
         "initial_energy": initial_energy,
-        "deficit_price": _to_boundaries(deficit_price, n_boundaries),
+        "deficit_price": extend_to_boundaries(deficit_price, n_boundaries),
     }
 
 
@@ -567,7 +571,7 @@ def _reserve_config(
     return _ReserveConfig(
         level=reserve_ratio * np.asarray(capacity, dtype=np.float64),
         mask=mask,
-        price=_to_boundaries(reserve_price, len(capacity)),
+        price=extend_to_boundaries(reserve_price, len(capacity)),
     )
 
 
@@ -584,18 +588,6 @@ def _away_ends(calendar: CalendarBoundaryData) -> NDArray[np.float64]:
     away_end[1:] = away & ~np.append(away[1:], False)
     trip_end = np.asarray(calendar["value_edge_end"], dtype=np.float64) > 0.0
     return (away_end | trip_end).astype(np.float64)
-
-
-def _to_boundaries(
-    value: NDArray[np.float64] | float,
-    n_boundaries: int,
-) -> NDArray[np.float64] | float:
-    """Extend an interval-shaped series to boundary length by repeating the end."""
-    if not isinstance(value, np.ndarray):
-        return value
-    if len(value) == n_boundaries - 1:
-        return np.append(value, value[-1])
-    return value
 
 
 def _apply_connected_mask(

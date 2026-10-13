@@ -64,7 +64,7 @@ E_{\text{trip}} = d \cdot r
 $$
 
 where $d$ is the trip distance and $r$ is the energy-per-distance rate.
-The distance is read from the first of the event's location, summary, or description fields that contains a parseable distance.
+The distance is read from the first of the event's location, summary, or description fields that holds only a distance, such as `50 km`.
 
 Trip windows become the windows of the [deferrable trip load](../model-layer/elements/deferrable_load.md), prepared the same way as for the [deferrable load device](deferrable_load.md#window-scheduling):
 overlapping trips merge into one window with their distances summed, touching trips stay separate, and a trip running past the horizon end is due at the final boundary.
@@ -133,7 +133,7 @@ The car came back early when all of these hold:
 - the plugged-in sensor reports the car plugged in now,
 - a trip window is open at the horizon start,
 - the sensor last read unplugged at or after that window's start, which comes from the calendar event even when it began before the horizon,
-- and, when both odometer readings are configured, $o_{	ext{current}} - o_{	ext{disconnect}} > 0$.
+- and, when both odometer readings are configured, $o_{\text{current}} - o_{\text{disconnect}} > 0$.
 
 Otherwise the car has not left yet.
 The plugged-in sensor pins only the current interval as home, and the open window keeps its requirement, still due at the window's end, so the trip is squeezed into the rest of the window.
@@ -188,18 +188,18 @@ The EV element creates a single Home Assistant device:
 
 The adapter maps model outputs to EV-specific sensor names:
 
-| Model output               | Sensor name                 | Description                                                            |
-| -------------------------- | --------------------------- | ---------------------------------------------------------------------- |
-| `{name}:charge` power      | `power_charge`              | Home charge power                                                      |
-| `{name}:discharge` power   | `power_discharge`           | V2G discharge power                                                    |
-| Calculated                 | `power_active`              | Net power (discharge − charge)                                         |
-| `BATTERY_ENERGY_STORED`    | `energy_stored`             | Energy in EV battery                                                   |
-| Calculated                 | `state_of_charge`           | SOC ratio                                                              |
-| Trip load energy delivered | `trip_energy_delivered`     | Energy used by the current trip                                        |
-| Trip load energy shortfall | `trip_energy_shortfall`     | Expected public top-up energy for each trip, at its end                |
-| Battery reserve shortfall  | `reserve_shortfall`         | Dip below the reserve per trip (only when `reserve_soc` is configured) |
-| Power limit shadow         | `power_max_charge_price`    | Charge limit shadow price                                              |
-| Power limit shadow         | `power_max_discharge_price` | Discharge limit shadow price                                           |
+| Model output               | Sensor name                    | Description                                                            |
+| -------------------------- | ------------------------------ | ---------------------------------------------------------------------- |
+| `{name}:charge` power      | `ev_power_charge`              | Home charge power                                                      |
+| `{name}:discharge` power   | `ev_power_discharge`           | V2G discharge power                                                    |
+| Calculated                 | `ev_power_active`              | Net power (discharge − charge)                                         |
+| `BATTERY_ENERGY_STORED`    | `ev_energy_stored`             | Energy in EV battery                                                   |
+| Calculated                 | `ev_state_of_charge`           | SOC ratio                                                              |
+| Trip load energy delivered | `ev_trip_energy_delivered`     | Energy used by the current trip                                        |
+| Trip load energy shortfall | `ev_trip_energy_shortfall`     | Expected public top-up energy for each trip, at its end                |
+| Battery reserve shortfall  | `ev_reserve_shortfall`         | Dip below the reserve per trip (only when `reserve_soc` is configured) |
+| Power limit shadow         | `ev_power_max_charge_price`    | Charge limit shadow price                                              |
+| Power limit shadow         | `ev_power_max_discharge_price` | Discharge limit shadow price                                           |
 
 See [EV Configuration](../../user-guide/elements/ev.md#sensors-created) for complete sensor documentation.
 

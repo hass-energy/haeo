@@ -869,3 +869,17 @@ def test_availability_field_loads_last_off_from_source_state(
         trip = _dict(_dict(result)["trip"])
         assert trip.get("connected_last_off") == expected
         np.testing.assert_allclose(_ndarray(trip["connected"]), [1.0, 1.0, 1.0])
+
+
+def test_availability_field_with_several_sources_loads_latest_last_off() -> None:
+    """With several plug sensors the latest last off time counts, wherever it comes from."""
+    other_plug = "binary_sensor.ev_plug_garage"
+    states = {
+        _PLUG: FakeEntityState(_PLUG, "off", {}),
+        other_plug: FakeEntityState(other_plug, "on", {"haeo_last_off": 1800.0}),
+    }
+    config = _ev_trip_config({"type": "entity", "value": [_PLUG, other_plug]})
+
+    result = load_element_config("EV", config, FakeStateMachine(states), FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts
+
+    assert _dict(_dict(result)["trip"]).get("connected_last_off") == 1800.0
