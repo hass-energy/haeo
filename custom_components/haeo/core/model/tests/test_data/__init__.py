@@ -3,30 +3,34 @@
 This module provides factory functions and utilities for creating test element instances.
 """
 
-from highspy import Highs
-from highspy.highs import highs_var
+import numpy as np
+from custom_components.haeo.core.model.linear import LinearArray
+from custom_components.haeo.core.model.solver import Solver
 
 from .connection_types import ConnectionTestCase
 from .element_types import ElementTestCase
 from .segment_types import ConnectionScenario, SegmentErrorScenario, SegmentScenario
 
 
-def highs_sequence(h: Highs, name: str, length: int) -> tuple[list[highs_var], Highs]:
-    """Return a sequence of HiGHS variables for tests with fixed values.
-
-    Args:
-        h: The HiGHS solver instance
-        name: Base name for variables
-        length: Number of variables to create
-
-    Returns:
-        Tuple of (list of variables, solved HiGHS instance)
-
-    """
-    variables = [h.addVariable(lb=float(i + 1), ub=float(i + 1), name=f"{name}_{i}") for i in range(length)]
-    # Solve to get values
+def fixed_variables(h: Solver, length: int) -> LinearArray:
+    """Return variables fixed to 1, 2, ... and solve so they hold those values."""
+    values = np.arange(1.0, length + 1.0, dtype=np.float64)
+    variables = h.add_variables(length, lower=values, upper=values)
     h.run()
-    return variables, h
+    return variables
+
+
+def solution_value(h: Solver, expr: LinearArray) -> float:
+    """Return the value of a single-row expression in the current solution."""
+    (value,) = expr.value(h.column_values()).tolist()
+    return value
+
+
+def minimize(h: Solver, objective: LinearArray) -> None:
+    """Set the objective to minimize the expression's total and solve."""
+    n_columns = h.getNumCol()
+    h.changeColsCost(n_columns, np.arange(n_columns, dtype=np.int32), objective.column_coefficients(n_columns))
+    h.run()
 
 
 # Import modules after defining utilities to avoid circular imports
@@ -102,7 +106,9 @@ __all__ = [
     "connection_segments",
     "connection",
     "CONNECTION_SEGMENT_SCENARIOS",
-    "highs_sequence",
+    "fixed_variables",
+    "minimize",
+    "solution_value",
     "node",
     "segments",
     "SEGMENT_SCENARIOS",

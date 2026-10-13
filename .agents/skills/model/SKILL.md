@@ -39,6 +39,10 @@ Connections are composed of **segments**, so a new kind of loss, limit, or charg
 
 ## Constraints and costs
 
+Build expressions as whole-horizon `LinearArray` values (`core/model/linear.py`), never one Python object per period.
+Arithmetic, comparisons, and `total()` operate on every row at once with numpy, which is what keeps rebuilding the LP cheap.
+A `@constraint` method returns `Rows`, using `free()` for rows that do not currently apply, and a `@cost` method returns a single-row `LinearArray`.
+
 - Express all constraints as linear inequalities or equalities.
     No products of variables, no conditionals on variable values, no absolute values without the standard two-variable split.
 - Document the physical meaning of each constraint.

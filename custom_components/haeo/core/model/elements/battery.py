@@ -2,15 +2,15 @@
 
 from typing import Final, Literal, NotRequired, TypedDict
 
-from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, NetworkElement
+from custom_components.haeo.core.model.linear import LinearArray, Rows
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
+from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 # Model element type for batteries
@@ -85,7 +85,7 @@ class Battery(NetworkElement[BatteryOutputName]):
         name: str,
         periods: NDArray[np.float64],
         *,
-        solver: Highs,
+        solver: Solver,
         capacity: NDArray[np.float64] | float,
         initial_charge: float,
         salvage_value: float = 0.0,
@@ -109,14 +109,14 @@ class Battery(NetworkElement[BatteryOutputName]):
         self.salvage_value = salvage_value
 
         # Create all energy variables (including initial state at t=0)
-        self.energy_in = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_energy_in_", out_array=True)
-        self.energy_out = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_energy_out_", out_array=True)
+        self.energy_in = solver.add_variables(n_periods + 1)
+        self.energy_out = solver.add_variables(n_periods + 1)
 
         # Stored energy is computed from cumulative values (not period-dependent)
         self.stored_energy = self.energy_in - self.energy_out
 
     @property
-    def power_consumption(self) -> HighspyArray:
+    def power_consumption(self) -> LinearArray:
         """Power being consumed to charge the battery.
 
         Computed on-demand so that accessing self.periods triggers dependency tracking
@@ -125,7 +125,7 @@ class Battery(NetworkElement[BatteryOutputName]):
         return (self.energy_in[1:] - self.energy_in[:-1]) * (1.0 / self.periods)
 
     @property
-    def power_production(self) -> HighspyArray:
+    def power_production(self) -> LinearArray:
         """Power being produced by discharging the battery.
 
         Computed on-demand so that accessing self.periods triggers dependency tracking
@@ -134,57 +134,57 @@ class Battery(NetworkElement[BatteryOutputName]):
         return (self.energy_out[1:] - self.energy_out[:-1]) * (1.0 / self.periods)
 
     @constraint
-    def battery_initial_charge(self) -> highs_linear_expression:
+    def battery_initial_charge(self) -> Rows:
         """Constraint: energy_in[0] == initial_charge."""
         return self.energy_in[0] == self.initial_charge
 
     @constraint
-    def battery_initial_discharge(self) -> highs_linear_expression:
+    def battery_initial_discharge(self) -> Rows:
         """Constraint: energy_out[0] == 0."""
         return self.energy_out[0] == 0.0
 
     @constraint(output=True, unit="$/kWh")
-    def battery_energy_in_flow(self) -> list[highs_linear_expression]:
+    def battery_energy_in_flow(self) -> Rows:
         """Constraint: cumulative energy in can only increase.
 
         Output: shadow price indicating the marginal value of energy flow constraints.
         """
-        return list(self.energy_in[1:] >= self.energy_in[:-1])
+        return self.energy_in[:-1] <= self.energy_in[1:]
 
     @constraint(output=True, unit="$/kWh")
-    def battery_energy_out_flow(self) -> list[highs_linear_expression]:
+    def battery_energy_out_flow(self) -> Rows:
         """Constraint: cumulative energy out can only increase.
 
         Output: shadow price indicating the marginal value of energy flow constraints.
         """
-        return list(self.energy_out[1:] >= self.energy_out[:-1])
+        return self.energy_out[:-1] <= self.energy_out[1:]
 
     @constraint(output=True, unit="$/kWh")
-    def battery_soc_max(self) -> list[highs_linear_expression]:
+    def battery_soc_max(self) -> Rows:
         """Constraint: stored energy cannot exceed capacity.
 
         Output: shadow price indicating the marginal value of additional capacity.
         """
-        return list(self.stored_energy[1:] <= self.capacity[1:])
+        return self.stored_energy[1:] <= self.capacity[1:]
 
     @constraint(output=True, unit="$/kWh")
-    def battery_soc_min(self) -> list[highs_linear_expression]:
+    def battery_soc_min(self) -> Rows:
         """Constraint: stored energy cannot be negative.
 
         Output: shadow price indicating the marginal cost of minimum SOC constraint.
         """
-        return list(self.stored_energy[1:] >= 0)
+        return self.stored_energy[1:] >= 0
 
-    def element_power_produced(self) -> HighspyArray:
+    def element_power_produced(self) -> LinearArray:
         """Return power produced by discharging the battery."""
         return self.power_production
 
-    def element_power_consumed(self) -> HighspyArray:
+    def element_power_consumed(self) -> LinearArray:
         """Return power consumed by charging the battery."""
         return self.power_consumption
 
     @cost
-    def battery_salvage_value(self) -> highs_linear_expression:
+    def battery_salvage_value(self) -> LinearArray:
         """Cost: salvage value of stored energy at the end of the horizon."""
         return -self.salvage_value * self.stored_energy[-1]
 

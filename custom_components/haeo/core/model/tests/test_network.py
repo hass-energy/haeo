@@ -3,7 +3,7 @@
 import logging
 from unittest.mock import Mock
 
-from highspy import Highs, HighsModelStatus
+from highspy import HighsModelStatus
 import numpy as np
 import pytest
 
@@ -24,6 +24,7 @@ from custom_components.haeo.core.model.network import (
     SolveOptions,
     _bisect_boundary,
 )
+from custom_components.haeo.core.model.solver import Solver
 
 # Test constants
 HOURS_PER_DAY = 24
@@ -520,7 +521,7 @@ def test_solve_options_defaults() -> None:
 def test_solve_options_apply() -> None:
     """SolveOptions.apply() sets all HiGHS options on the solver."""
     opts = CalibratedOptions(simplex_strategy=4, presolve="on")
-    h = Highs()
+    h = Solver()
     h.setOptionValue("output_flag", False)
     opts.apply(h)
     assert h.getOptionValue("simplex_strategy")[1] == 4
@@ -644,30 +645,31 @@ def test_lex_mode_warm_resolve_with_duplicate_coefficients() -> None:
     assert r1 == pytest.approx(r2)
 
 
+def _lex_row(h: Solver, network: Network) -> tuple[float, float, dict[int, float]]:
+    """Return the lex row's bounds and coefficients as the solver holds them."""
+    assert network._lex_row is not None
+    (row,) = network._lex_row[0].tolist()
+    _, lower, upper, _ = h.getRow(row)
+    _, index, values = h.getRowEntries(row)
+    return lower, upper, {int(i): float(v) for i, v in zip(index, values, strict=True)}
+
+
 def test_update_constraint_sums_duplicate_coefficients() -> None:
-    """Updating the lex row must aggregate duplicate var idxs in both sides."""
+    """Updating the lex row must aggregate duplicate columns on both sides."""
     network = Network(name="test", periods=np.array([1.0]))
-    h: Highs = network._solver
-    v0 = h.addVariable(lb=0.0, ub=10.0, name="v0")
-    v1 = h.addVariable(lb=0.0, ub=10.0, name="v1")
+    h: Solver = network._solver
+    v = h.add_variables(2, upper=10.0)
+    v0, v1 = v[0], v[1]
 
     # Seed the lex constraint with an expression containing a duplicate term
     # (v0 appears twice: 1.0 + 2.0 = 3.0 effective coefficient).
-    seed = 1.0 * v0 + 2.0 * v0 + 1.0 * v1
-    network._constrain_objective(seed, 100.0)
+    network._constrain_objective(v0 * 1.0 + v0 * 2.0 + v1 * 1.0, 100.0)
 
     # Now update with a new expression also containing duplicates:
     # v1 appears twice: 4.0 + 5.0 = 9.0 effective.
-    updated = 4.0 * v1 + 5.0 * v1 + 3.0 * v0
-    network._constrain_objective(updated, 200.0)
+    network._constrain_objective(v1 * 4.0 + v1 * 5.0 + v0 * 3.0, 200.0)
 
-    assert network._lex_row is not None
-    stored = h.getExpr(network._lex_row[0])
-    coeffs: dict[int, float] = {}
-    for idx, val in zip(stored.idxs, stored.vals, strict=True):
-        coeffs[idx] = coeffs.get(idx, 0.0) + val
-    assert coeffs[v0.index] == pytest.approx(3.0)
-    assert coeffs[v1.index] == pytest.approx(9.0)
+    assert _lex_row(h, network) == (float("-inf"), 200.0, {0: pytest.approx(3.0), 1: pytest.approx(9.0)})
 
 
 def test_lex_mode_solves_with_negligible_objective_coefficients() -> None:
@@ -702,21 +704,18 @@ def test_lex_mode_solves_with_negligible_objective_coefficients() -> None:
 def test_lex_row_bound_restored_after_relax() -> None:
     """Constraining to the same value after a relax bounds the lex row again."""
     network = Network(name="test", periods=np.array([1.0]))
-    h: Highs = network._solver
-    v0 = h.addVariable(lb=0.0, ub=10.0, name="v0")
-    objective = 2.0 * v0
+    h: Solver = network._solver
+    objective = h.add_variables(1, upper=10.0) * 2.0
 
     network._constrain_objective(objective, 5.0)
-    assert network._lex_row is not None
-    cons = network._lex_row[0]
-    assert h.getExpr(cons).bounds == (float("-inf"), 5.0)
+    assert _lex_row(h, network)[:2] == (float("-inf"), 5.0)
 
     network._relax_lex_constraint()
-    assert h.getExpr(cons).bounds == (float("-inf"), float("inf"))
+    assert _lex_row(h, network)[:2] == (float("-inf"), float("inf"))
 
     network._constrain_objective(objective, 5.0)
-    assert h.getExpr(cons).bounds == (float("-inf"), 5.0)
-    assert h.numConstrs == 1
+    assert _lex_row(h, network) == (float("-inf"), 5.0, {0: 2.0})
+    assert h.getNumRow() == 1
 
 
 def test_optimize_requires_objectives() -> None:

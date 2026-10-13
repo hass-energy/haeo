@@ -1,0 +1,217 @@
+"""Array-native linear expressions and constraint rows for the LP model.
+
+A ``LinearArray`` holds one linear expression per row over the solver's columns.
+Every row has the same number of terms, so the expressions are stored as a
+column index matrix and a coefficient matrix of shape ``(rows, terms)`` plus a
+constant per row. Arithmetic on whole arrays is then a handful of numpy
+operations, independent of the number of periods.
+
+Comparing a ``LinearArray`` with values produces ``Rows``: the expressions with
+the constants moved into lower and upper row bounds, ready to add to the solver.
+"""
+
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import Final, Self, overload
+
+import numpy as np
+from numpy.typing import NDArray
+
+INF: Final = float("inf")
+
+type Values = float | NDArray[np.float64]
+"""A scalar, or one value per row."""
+
+
+def _row_values(value: Values, n_rows: int) -> NDArray[np.float64]:
+    """Broadcast a scalar or per-row value to one float per row."""
+    return np.broadcast_to(np.asarray(value, dtype=np.float64), (n_rows,))
+
+
+@dataclass(frozen=True, slots=True, eq=False)
+class LinearArray:
+    """One linear expression per row: ``sum(coefs[i, j] * x[cols[i, j]]) + constant[i]``."""
+
+    cols: NDArray[np.int64]
+    coefs: NDArray[np.float64]
+    constant: NDArray[np.float64]
+
+    # numpy scalars and arrays defer to this class's reflected operators
+    __array_ufunc__ = None
+
+    @classmethod
+    def columns(cls, start: int, count: int) -> Self:
+        """Return one row per column for ``count`` consecutive columns from ``start``."""
+        return cls(
+            cols=np.arange(start, start + count, dtype=np.int64)[:, None],
+            coefs=np.ones((count, 1)),
+            constant=np.zeros(count),
+        )
+
+    @classmethod
+    def constants(cls, values: Values) -> Self:
+        """Return rows with no terms, holding only the given constants."""
+        constant = np.asarray(values, dtype=np.float64).reshape(-1)
+        return cls(
+            cols=np.zeros((len(constant), 0), dtype=np.int64),
+            coefs=np.zeros((len(constant), 0)),
+            constant=constant,
+        )
+
+    @classmethod
+    def sum_of(cls, items: Sequence["LinearArray"]) -> Self:
+        """Return the row-wise sum of arrays with the same number of rows."""
+        return cls(
+            cols=np.concatenate([item.cols for item in items], axis=1),
+            coefs=np.concatenate([item.coefs for item in items], axis=1),
+            constant=np.sum([item.constant for item in items], axis=0),
+        )
+
+    def __len__(self) -> int:
+        """Return the number of rows."""
+        return len(self.constant)
+
+    def __getitem__(self, key: int | slice) -> Self:
+        """Return the selected rows. An integer selects a single row, kept as an array of one."""
+        rows = slice(key, key + 1 or None) if isinstance(key, int) else key
+        return type(self)(cols=self.cols[rows], coefs=self.coefs[rows], constant=self.constant[rows])
+
+    def __neg__(self) -> Self:
+        """Return the negated expressions."""
+        return type(self)(cols=self.cols, coefs=-self.coefs, constant=-self.constant)
+
+    def __add__(self, other: "LinearArray | Values") -> Self:
+        """Add expressions row by row, or add values to the constants."""
+        if isinstance(other, LinearArray):
+            return type(self)(
+                cols=np.concatenate([self.cols, other.cols], axis=1),
+                coefs=np.concatenate([self.coefs, other.coefs], axis=1),
+                constant=self.constant + other.constant,
+            )
+        return type(self)(
+            cols=self.cols, coefs=self.coefs, constant=self.constant + np.asarray(other, dtype=np.float64)
+        )
+
+    def __radd__(self, other: Values) -> Self:
+        """Add values to the constants."""
+        return self + other
+
+    def __sub__(self, other: "LinearArray | Values") -> Self:
+        """Subtract expressions row by row, or subtract values from the constants."""
+        if isinstance(other, LinearArray):
+            return self + (-other)
+        return type(self)(
+            cols=self.cols, coefs=self.coefs, constant=self.constant - np.asarray(other, dtype=np.float64)
+        )
+
+    def __rsub__(self, other: Values) -> Self:
+        """Subtract the expressions from values."""
+        return -self + other
+
+    def __mul__(self, scale: Values) -> Self:
+        """Scale each row by a scalar or by one value per row."""
+        factor = np.asarray(scale, dtype=np.float64)
+        return type(self)(
+            cols=self.cols,
+            coefs=self.coefs * (factor[:, None] if factor.ndim else factor),
+            constant=self.constant * factor,
+        )
+
+    def __rmul__(self, scale: Values) -> Self:
+        """Scale each row by a scalar or by one value per row."""
+        return self * scale
+
+    def total(self) -> Self:
+        """Return a single row holding the sum of all rows."""
+        return type(self)(
+            cols=self.cols.reshape(1, -1),
+            coefs=self.coefs.reshape(1, -1),
+            constant=np.array([self.constant.sum()]),
+        )
+
+    def column_coefficients(self, n_columns: int) -> NDArray[np.float64]:
+        """Return each column's coefficient summed over every term of every row."""
+        coefficients = np.zeros(n_columns)
+        np.add.at(coefficients, self.cols.ravel(), self.coefs.ravel())
+        return coefficients
+
+    def value(self, column_values: NDArray[np.float64]) -> NDArray[np.float64]:
+        """Evaluate each row at the given column values."""
+        return (self.coefs * column_values[self.cols]).sum(axis=1) + self.constant
+
+    def __le__(self, other: "LinearArray | Values") -> "Rows":  # type: ignore[override]
+        """Return rows bounding each expression above."""
+        expr = self - other if isinstance(other, LinearArray) else self - _row_values(other, len(self))
+        return Rows(expr.without_constant(), np.full(len(self), -INF), -expr.constant)
+
+    def __ge__(self, other: "LinearArray | Values") -> "Rows":  # type: ignore[override]
+        """Return rows bounding each expression below."""
+        expr = self - other if isinstance(other, LinearArray) else self - _row_values(other, len(self))
+        return Rows(expr.without_constant(), -expr.constant, np.full(len(self), INF))
+
+    def __eq__(self, other: "LinearArray | Values") -> "Rows":  # type: ignore[override]
+        """Return rows fixing each expression."""
+        expr = self - other if isinstance(other, LinearArray) else self - _row_values(other, len(self))
+        return Rows(expr.without_constant(), -expr.constant, -expr.constant)
+
+    __hash__ = None  # type: ignore[assignment]
+
+    def free(self) -> "Rows":
+        """Return rows without bounds, which stay in the LP but do not bind."""
+        return Rows(self.without_constant(), np.full(len(self), -INF), np.full(len(self), INF))
+
+    def without_constant(self) -> Self:
+        """Return the expressions with their constants dropped."""
+        return type(self)(cols=self.cols, coefs=self.coefs, constant=np.zeros(len(self)))
+
+
+@dataclass(frozen=True, slots=True)
+class Rows:
+    """Constraint rows: ``lower <= expr <= upper`` for each row of ``expr``."""
+
+    expr: LinearArray
+    lower: NDArray[np.float64]
+    upper: NDArray[np.float64]
+
+    @staticmethod
+    def concat(blocks: Sequence["Rows"]) -> "Rows":
+        """Stack row blocks, padding shorter rows with zero terms."""
+        if not blocks:
+            return LinearArray.constants(np.zeros(0)).free()
+        width = max(block.expr.cols.shape[1] for block in blocks)
+
+        def padded[T: np.generic](values: NDArray[T]) -> NDArray[T]:
+            return np.pad(values, ((0, 0), (0, width - values.shape[1])))
+
+        return Rows(
+            expr=LinearArray(
+                cols=np.concatenate([padded(block.expr.cols) for block in blocks]),
+                coefs=np.concatenate([padded(block.expr.coefs) for block in blocks]),
+                constant=np.concatenate([block.expr.constant for block in blocks]),
+            ),
+            lower=np.concatenate([block.lower for block in blocks]),
+            upper=np.concatenate([block.upper for block in blocks]),
+        )
+
+    def __len__(self) -> int:
+        """Return the number of rows."""
+        return len(self.lower)
+
+
+@overload
+def total(items: Sequence[LinearArray]) -> LinearArray: ...
+
+
+@overload
+def total(items: Sequence[LinearArray | None]) -> LinearArray | None: ...
+
+
+def total(items: Sequence[LinearArray | None]) -> LinearArray | None:
+    """Return a single row summing every row of every array, or None when there are none."""
+    present = [item.total() for item in items if item is not None]
+    if not present:
+        return None
+    return LinearArray.sum_of(present)
+
+
+__all__ = ["INF", "LinearArray", "Rows", "total"]

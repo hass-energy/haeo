@@ -14,8 +14,6 @@ each with its own segment chain.
 """
 
 from dataclasses import dataclass
-from functools import reduce
-import operator
 from typing import (
     Any,  # noqa: TID251  # source_element/target_element are the connection's endpoint elements,
     # which can be any concrete NetworkElement subtype. Element is invariant in its output-name
@@ -24,12 +22,11 @@ from typing import (
     Protocol,
 )
 
-from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.linear import LinearArray, total
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import (
     OutputMethod,
@@ -39,13 +36,14 @@ from custom_components.haeo.core.model.reactive import (
     applied_constraint,
     cost,
 )
+from custom_components.haeo.core.model.solver import Solver
 
 
 class FlowProvider(Protocol):
     """Anything a segment can read its input flow from: another segment, or a connection's variables."""
 
     @property
-    def power_out(self) -> dict[int, HighspyArray]:
+    def power_out(self) -> dict[int, LinearArray]:
         """Per-tag power flowing out to the next segment."""
         ...
 
@@ -54,7 +52,7 @@ class FlowProvider(Protocol):
 class FlowVariables:
     """The upstream of a connection's first segment: its per-tag LP flow variables."""
 
-    power_out: dict[int, HighspyArray]
+    power_out: dict[int, LinearArray]
 
 
 class Segment:
@@ -71,7 +69,7 @@ class Segment:
         segment_id: str,
         n_periods: int,
         periods: NDArray[np.float64],
-        solver: Highs,
+        solver: Solver,
         *,
         source_element: Element[Any],
         target_element: Element[Any],
@@ -118,28 +116,28 @@ class Segment:
         return self._target_element
 
     @property
-    def power_in(self) -> dict[int, HighspyArray]:
+    def power_in(self) -> dict[int, LinearArray]:
         """Per-tag input power flows, read from upstream."""
         return self._upstream.power_out
 
     @property
-    def total_power_in(self) -> HighspyArray:
+    def total_power_in(self) -> LinearArray:
         """Sum of all tag input flows."""
-        return reduce(operator.add, self.power_in.values())
+        return LinearArray.sum_of(list(self.power_in.values()))
 
     @property
-    def power_out(self) -> dict[int, HighspyArray]:
+    def power_out(self) -> dict[int, LinearArray]:
         """Per-tag output power flows. Identity by default."""
         return self.power_in
 
     @property
-    def total_power_out(self) -> HighspyArray:
+    def total_power_out(self) -> LinearArray:
         """Sum of all tag output flows."""
-        return reduce(operator.add, self.power_out.values())
+        return LinearArray.sum_of(list(self.power_out.values()))
 
-    def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
+    def constraints(self) -> dict[str, NDArray[np.int32]]:
         """Return all constraints from this segment."""
-        result: dict[str, highs_cons | list[highs_cons]] = {}
+        result: dict[str, NDArray[np.int32]] = {}
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if isinstance(attr, ReactiveConstraint):
@@ -166,12 +164,12 @@ class Segment:
         return result
 
     @cost
-    def cost(self) -> highs_linear_expression | None:
+    def cost(self) -> LinearArray | None:
         """Return aggregated primary cost expression from this segment."""
         # Access decorator's internal name to skip self in dir() loop
         this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (_name is set by ReactiveCost.__set_name__, not part of public API)
 
-        costs: list[highs_linear_expression] = []
+        costs: list[LinearArray] = []
         for name in dir(type(self)):
             if name == this_method_name:
                 continue
@@ -182,11 +180,7 @@ class Segment:
             if (cost_value := method()) is not None:
                 costs.append(cost_value)
 
-        if not costs:
-            return None
-        if len(costs) == 1:
-            return costs[0]
-        return sum(costs[1:], costs[0])
+        return total(costs)
 
 
 __all__ = ["Segment"]

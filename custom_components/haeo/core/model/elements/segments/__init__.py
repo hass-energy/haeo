@@ -20,11 +20,11 @@ from typing import (
     TypeGuard,
 )
 
-from highspy import Highs
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.solver import Solver
 
 from .efficiency import EfficiencySegment, EfficiencySegmentSpec
 from .passthrough import PassthroughSegment, PassthroughSegmentSpec
@@ -89,7 +89,7 @@ def create_segment(
     segment_id: str,
     n_periods: int,
     periods: NDArray[np.float64],
-    solver: Highs,
+    solver: Solver,
     spec: SegmentSpec,
     source_element: Element[Any],
     target_element: Element[Any],
