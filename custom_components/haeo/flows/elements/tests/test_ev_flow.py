@@ -1,7 +1,6 @@
 """Tests for EV element config flow."""
 
 from types import MappingProxyType
-from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
@@ -40,11 +39,12 @@ from custom_components.haeo.core.schema.elements.ev import (
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY, SECTION_POWER_LIMITS
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
+from custom_components.haeo.elements.input_fields import is_number_field_info
 from custom_components.haeo.flows.conftest import create_flow
 from custom_components.haeo.flows.field_schema import CHOICE_ENTITY
 
 
-def _user_input(trip: dict[str, Any] | None = None) -> dict[str, Any]:
+def _user_input(trip: dict[str, object] | None = None) -> dict[str, object]:
     """Build sectioned EV user input with sensible defaults."""
     return {
         CONF_NAME: "Test EV",
@@ -191,6 +191,7 @@ def test_penalty_prices_cannot_be_negative(section: str, field: str) -> None:
     """Penalty price inputs are bounded below by zero so the optimization stays bounded."""
     field_info = get_input_fields(ELEMENT_TYPE)[section][field]
 
+    assert is_number_field_info(field_info)
     assert field_info.entity_description.native_min_value == 0.0
 
 

@@ -1,5 +1,6 @@
 """Tests for looking up availability last off times from the recorder."""
 
+from collections.abc import Mapping
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -109,7 +110,9 @@ async def test_state_machine_injects_last_off(hass: HomeAssistant, freezer: Froz
     assert plug is not None
     assert plug.state == "on"
     assert plug.attributes[LAST_OFF_ATTRIBUTE] == pytest.approx(plugged_in.timestamp())
-    assert plug.as_dict()["attributes"][LAST_OFF_ATTRIBUTE] == pytest.approx(plugged_in.timestamp())
+    serialized_attributes = plug.as_dict()["attributes"]
+    assert isinstance(serialized_attributes, Mapping)
+    assert serialized_attributes[LAST_OFF_ATTRIBUTE] == pytest.approx(plugged_in.timestamp())
     other = sm.get("binary_sensor.other")
     assert other is not None
     assert LAST_OFF_ATTRIBUTE not in other.attributes

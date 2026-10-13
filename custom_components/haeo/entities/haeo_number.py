@@ -16,14 +16,7 @@ from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.data.input_store import InputMode, InputStore
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import (
-    as_constant_value,
-    is_connection_target,
-    is_constant_value,
-    is_entity_value,
-    is_none_value,
-    is_schema_value,
-)
+from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.core.state import StateMachine
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo

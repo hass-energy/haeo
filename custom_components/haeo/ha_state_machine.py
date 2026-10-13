@@ -1,7 +1,6 @@
 """Home Assistant-backed state machine adapter."""
 
 from collections.abc import Mapping
-from typing import Any
 
 from homeassistant.core import HomeAssistant
 
@@ -28,7 +27,7 @@ class AnnotatedState:
     history, in the same form diagnostics capture and replay.
     """
 
-    def __init__(self, base: EntityState, extra_attributes: Mapping[str, Any]) -> None:
+    def __init__(self, base: EntityState, extra_attributes: Mapping[str, object]) -> None:
         """Initialize with the base state and the attributes to merge in."""
         self._base = base
         self._extra_attributes = extra_attributes
@@ -44,15 +43,13 @@ class AnnotatedState:
         return self._base.state
 
     @property
-    def attributes(self) -> Mapping[str, Any]:
+    def attributes(self) -> Mapping[str, object]:
         """Entity attributes with the extra attributes merged in."""
         return {**self._base.attributes, **self._extra_attributes}
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> Mapping[str, object]:
         """Return serialized state representation including the extra attributes."""
-        base = self._base.as_dict()
-        attributes = {**base.get("attributes", {}), **self._extra_attributes}
-        return {**base, "attributes": attributes}
+        return {**self._base.as_dict(), "attributes": self.attributes}
 
 
 __all__ = ["AnnotatedState", "HomeAssistantStateMachine"]

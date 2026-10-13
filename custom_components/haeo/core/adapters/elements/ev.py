@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -49,6 +49,7 @@ from custom_components.haeo.core.schema.elements.ev import (
     SECTION_TRIP,
     SECTION_VEHICLE,
     EvConfigData,
+    TripData,
 )
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
@@ -113,7 +114,7 @@ class EvAdapter:
 
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
-    connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
+    connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = True
     can_sink: bool = True
 
@@ -205,16 +206,16 @@ class EvAdapter:
                 "source": target_name,
                 "target": name,
                 "segments": {
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency": efficiency.get(CONF_EFFICIENCY_TARGET_SOURCE),
-                    },
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power": _combine_limits(
                             home_max_charge,
                             power_limits.get(CONF_MAX_POWER_TARGET_SOURCE),
                         ),
+                    },
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency": efficiency.get(CONF_EFFICIENCY_TARGET_SOURCE),
                     },
                 },
             },
@@ -265,7 +266,7 @@ class EvAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         *,
         config: EvConfigData,
-        **_kwargs: Any,
+        **_kwargs: object,
     ) -> Mapping[EvDeviceName, Mapping[EvOutputName, OutputData]]:
         """Map model outputs to EV-specific output names."""
         battery_outputs = model_outputs[name]
@@ -339,7 +340,7 @@ class EvAdapter:
 adapter = EvAdapter()
 
 
-def _public_price(config: EvConfigData) -> NDArray[np.floating[Any]] | float:
+def _public_price(config: EvConfigData) -> NDArray[np.float64] | float:
     """Return the configured public charging price or the high default."""
     public_charging = config.get(SECTION_PUBLIC_CHARGING, {})
     price = public_charging.get(CONF_PUBLIC_CHARGING_PRICE)
@@ -348,7 +349,7 @@ def _public_price(config: EvConfigData) -> NDArray[np.floating[Any]] | float:
     return _non_negative(price)
 
 
-def _non_negative(price: NDArray[np.floating[Any]] | float) -> NDArray[np.floating[Any]] | float:
+def _non_negative(price: NDArray[np.float64] | float) -> NDArray[np.float64] | float:
     """Clamp a penalty price at zero.
 
     A negative price on a trip deficit or reserve shortfall would pay the
@@ -364,7 +365,7 @@ def _trip_load(
     name: str,
     windows: CalendarWindows | None,
     initial_energy: float,
-    deficit_price: NDArray[np.floating[Any]] | float,
+    deficit_price: NDArray[np.float64] | float,
     n_boundaries: int,
 ) -> DeferrableLoadElementConfig:
     """Build the trip deferrable load; without trip windows it requires nothing."""
@@ -386,7 +387,7 @@ def _trip_load(
 
 
 def _plugged_in_flag(
-    connected_live: NDArray[np.floating[Any]] | float | None,
+    connected_live: NDArray[np.float64] | float | None,
 ) -> NDArray[np.float64] | float | None:
     """Normalize the live plugged-in reading to a 0/1 flag.
 
@@ -400,7 +401,7 @@ def _plugged_in_flag(
     return 1.0 if connected_live >= _CONNECTED_THRESHOLD else 0.0
 
 
-def _is_plugged_in(connected_live: NDArray[np.floating[Any]] | float | None) -> bool:
+def _is_plugged_in(connected_live: NDArray[np.float64] | float | None) -> bool:
     """Return True when the live connected sensor reports the car plugged in now."""
     return connected_live is not None and float(np.atleast_1d(connected_live)[0]) >= _CONNECTED_THRESHOLD
 
@@ -408,7 +409,7 @@ def _is_plugged_in(connected_live: NDArray[np.floating[Any]] | float | None) -> 
 def _returned_early(
     windows: CalendarWindows | None,
     calendar: CalendarBoundaryData | None,
-    trip: Mapping[str, Any],
+    trip: TripData,
 ) -> bool:
     """Return True when the car left during the open trip and is back already.
 
@@ -440,7 +441,7 @@ def _returned_early(
 def _ended_trip_periods(
     windows: CalendarWindows | None,
     calendar: CalendarBoundaryData | None,
-    trip: Mapping[str, Any],
+    trip: TripData,
 ) -> int:
     """Return the periods of an open trip the car already came back from.
 
@@ -467,9 +468,9 @@ def _drop_open_trip(windows: CalendarWindows, ended_periods: int) -> CalendarWin
 
 def _combine_connected(
     calendar: CalendarBoundaryData | None,
-    connected_live: NDArray[np.floating[Any]] | float | None,
+    connected_live: NDArray[np.float64] | float | None,
     ended_periods: int,
-) -> NDArray[np.floating[Any]] | float | None:
+) -> NDArray[np.float64] | float | None:
     """Combine calendar presence and the live connected sensor.
 
     The calendar is authoritative for the future (away during trip windows);
@@ -494,10 +495,10 @@ def _combine_connected(
 
 
 def _trip_progress_energy(
-    trip: Mapping[str, Any],
+    trip: TripData,
     windows: CalendarWindows | None,
     energy_per_distance: float,
-    connected_flag: NDArray[np.floating[Any]] | float | None,
+    connected_flag: NDArray[np.float64] | float | None,
 ) -> float:
     """Energy already consumed on the open trip, from odometer readings.
 
@@ -532,7 +533,7 @@ class _ReserveConfig:
 
     level: NDArray[np.float64]
     mask: NDArray[np.float64]
-    price: NDArray[np.floating[Any]] | float
+    price: NDArray[np.float64] | float
 
 
 def _reserve_config(
@@ -586,9 +587,9 @@ def _away_ends(calendar: CalendarBoundaryData) -> NDArray[np.float64]:
 
 
 def _to_boundaries(
-    value: NDArray[np.floating[Any]] | float,
+    value: NDArray[np.float64] | float,
     n_boundaries: int,
-) -> NDArray[np.floating[Any]] | float:
+) -> NDArray[np.float64] | float:
     """Extend an interval-shaped series to boundary length by repeating the end."""
     if not isinstance(value, np.ndarray):
         return value
@@ -598,9 +599,9 @@ def _to_boundaries(
 
 
 def _apply_connected_mask(
-    value: NDArray[np.floating[Any]] | float | None,
-    connected_flag: NDArray[np.floating[Any]] | float | None,
-) -> NDArray[np.floating[Any]] | float | None:
+    value: NDArray[np.float64] | float | None,
+    connected_flag: NDArray[np.float64] | float | None,
+) -> NDArray[np.float64] | float | None:
     """Apply connected flag as a mask to a power limit value.
 
     When connected_flag is 0.0, the result is 0.0 (disabled).
@@ -614,8 +615,8 @@ def _apply_connected_mask(
 
 
 def _invert_flag(
-    flag: NDArray[np.floating[Any]] | float | None,
-) -> NDArray[np.floating[Any]] | float | None:
+    flag: NDArray[np.float64] | float | None,
+) -> NDArray[np.float64] | float | None:
     """Invert a binary flag (1.0 → 0.0, 0.0 → 1.0)."""
     if flag is None:
         return None
@@ -623,9 +624,9 @@ def _invert_flag(
 
 
 def _mask_or_zero(
-    flag: NDArray[np.floating[Any]] | float | None,
+    flag: NDArray[np.float64] | float | None,
     magnitude: float,
-) -> NDArray[np.floating[Any]] | float:
+) -> NDArray[np.float64] | float:
     """Scale a binary mask to a power limit; no mask means no flow."""
     if flag is None:
         return 0.0
@@ -633,13 +634,13 @@ def _mask_or_zero(
 
 
 def _combine_limits(
-    *limits: NDArray[np.floating[Any]] | float | None,
-) -> NDArray[np.floating[Any]] | float | None:
+    *limits: NDArray[np.float64] | float | None,
+) -> NDArray[np.float64] | float | None:
     """Combine multiple power limit values by taking the element-wise minimum.
 
     None values are ignored. If all values are None, returns None.
     """
-    result: NDArray[np.floating[Any]] | float | None = None
+    result: NDArray[np.float64] | float | None = None
     for limit in limits:
         if limit is None:
             continue

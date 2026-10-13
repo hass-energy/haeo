@@ -837,7 +837,7 @@ def test_entity_significantly_negative_value_raises(
 _PLUG = "binary_sensor.ev_plug"
 
 
-def _ev_trip_config(connected: Any) -> dict[str, Any]:
+def _ev_trip_config(connected: object) -> dict[str, object]:
     return {"element_type": "ev", "name": "EV", "trip": {"connected": connected}}
 
 
@@ -850,14 +850,14 @@ def _ev_trip_config(connected: Any) -> dict[str, Any]:
     ],
 )
 def test_availability_field_loads_last_off_from_source_state(
-    connected: Any, attributes: dict[str, Any], expected: float | None
+    connected: object, attributes: dict[str, object], expected: float | None
 ) -> None:
     """Both loaders read an availability source's injected last off time beside the field."""
     states = {_PLUG: FakeEntityState(_PLUG, "on", attributes)}
     config = _ev_trip_config(connected)
 
-    from_states: Any = load_element_config("EV", config, FakeStateMachine(states), FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts
-    from_values: Any = load_element_config_from_values(
+    from_states = load_element_config("EV", config, FakeStateMachine(states), FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts
+    from_values = load_element_config_from_values(
         "EV",
         config,  # type: ignore[arg-type]  # fixtures use loose dicts
         {("trip", "connected"): np.ones(3)},
@@ -866,5 +866,6 @@ def test_availability_field_loads_last_off_from_source_state(
     )
 
     for result in (from_states, from_values):
-        assert result["trip"].get("connected_last_off") == expected
-        np.testing.assert_allclose(result["trip"]["connected"], [1.0, 1.0, 1.0])
+        trip = _dict(_dict(result)["trip"])
+        assert trip.get("connected_last_off") == expected
+        np.testing.assert_allclose(_ndarray(trip["connected"]), [1.0, 1.0, 1.0])
