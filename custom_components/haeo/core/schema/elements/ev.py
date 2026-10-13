@@ -6,6 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
+from custom_components.haeo.core.data.loader.source_history import OffPeriod, Reading
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import CalendarValue, ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
@@ -42,12 +43,14 @@ CONF_MAX_DISCHARGE_RATE: Final = "max_discharge_rate"
 
 # Trip section field names
 CONF_CONNECTED: Final = "connected"
-# Loaded beside the connected field: when the plugged-in sensor last read
-# unplugged, from Home Assistant's history (POSIX seconds).
-CONF_CONNECTED_LAST_OFF: Final = "connected_last_off"
+# Loaded beside the connected field: the periods the plugged-in sensors all
+# read unplugged, from Home Assistant's history.
+CONF_CONNECTED_OFF_PERIODS: Final = "connected_off_periods"
 CONF_TRIP_CALENDAR: Final = "trip_calendar"
 CONF_ODOMETER: Final = "odometer"
-CONF_ODOMETER_AT_DISCONNECT: Final = "odometer_at_disconnect"
+# Loaded beside the odometer field: its recorded readings, from Home
+# Assistant's history.
+CONF_ODOMETER_READINGS: Final = "odometer_readings"
 CONF_RESERVE_SOC: Final = "reserve_soc"
 CONF_RESERVE_PRICE: Final = "reserve_price"
 
@@ -59,7 +62,6 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
         CONF_CONNECTED,
         CONF_TRIP_CALENDAR,
         CONF_ODOMETER,
-        CONF_ODOMETER_AT_DISCONNECT,
         CONF_RESERVE_SOC,
         CONF_RESERVE_PRICE,
         CONF_MAX_DISCHARGE_RATE,
@@ -122,7 +124,6 @@ class TripConfig(TypedDict, total=False):
     trip_calendar: CalendarValue | NoneValue
     connected: EntityValue | NoneValue
     odometer: EntityValue | NoneValue
-    odometer_at_disconnect: EntityValue | NoneValue
     reserve_soc: EntityValue | ConstantValue | NoneValue
     reserve_price: EntityValue | ConstantValue | NoneValue
 
@@ -132,9 +133,9 @@ class TripData(TypedDict, total=False):
 
     trip_calendar: CalendarBoundaryData
     connected: NDArray[np.float64] | float
-    connected_last_off: float
+    connected_off_periods: list[OffPeriod]
     odometer: float
-    odometer_at_disconnect: float
+    odometer_readings: list[Reading]
     reserve_soc: float
     reserve_price: NDArray[np.float64] | float
 
@@ -220,10 +221,6 @@ class EvConfigSchema(ConnectedCommonConfig):
                         output_type=OutputType.DISTANCE,
                         time_series=False,
                     ),
-                    CONF_ODOMETER_AT_DISCONNECT: FieldHint(
-                        output_type=OutputType.DISTANCE,
-                        time_series=False,
-                    ),
                     CONF_RESERVE_SOC: FieldHint(
                         output_type=OutputType.STATE_OF_CHARGE,
                         time_series=False,
@@ -305,13 +302,13 @@ class EvConfigData(ConnectedCommonData):
 __all__ = [
     "CONF_CAPACITY",
     "CONF_CONNECTED",
-    "CONF_CONNECTED_LAST_OFF",
+    "CONF_CONNECTED_OFF_PERIODS",
     "CONF_CURRENT_SOC",
     "CONF_ENERGY_PER_DISTANCE",
     "CONF_MAX_CHARGE_RATE",
     "CONF_MAX_DISCHARGE_RATE",
     "CONF_ODOMETER",
-    "CONF_ODOMETER_AT_DISCONNECT",
+    "CONF_ODOMETER_READINGS",
     "CONF_PUBLIC_CHARGING_PRICE",
     "CONF_RESERVE_PRICE",
     "CONF_RESERVE_SOC",

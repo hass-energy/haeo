@@ -19,7 +19,6 @@
       "trip": {
         "connected": { "type": "entity", "value": ["binary_sensor.ev_plugged_in"] },
         "odometer": { "type": "none" },
-        "odometer_at_disconnect": { "type": "none" },
         "reserve_price": { "type": "none" },
         "reserve_soc": { "type": "constant", "value": 20.0 },
         "trip_calendar": {

@@ -104,10 +104,11 @@ The price defaults to the public charging price.
 When the car is away during a trip window that covers the current interval and the odometer updates, HAEO credits the distance already driven to that trip as the trip load's initial energy:
 
 $$
-E_{\text{initial}} = \max(0,\ o_{\text{current}} - o_{\text{disconnect}}) \cdot r
+E_{\text{initial}} = \max(0,\ o_{\text{current}} - o_{\text{departure}}) \cdot r
 $$
 
-where $o_{\text{current}}$ is the current odometer reading and $o_{\text{disconnect}}$ is the odometer at disconnection.
+where $o_{\text{current}}$ is the current odometer reading and $o_{\text{departure}}$ is the odometer at the trip's first unplug, the latest reading at or before it in the odometer's history.
+The odometer's recorded readings are injected into its state as the `haeo_readings` attribute.
 Odometer readings in any length unit are converted to kilometres first.
 A negative or non-finite difference, or a missing reading, credits nothing.
 
@@ -124,23 +125,29 @@ If the odometer does not update while driving, HAEO conservatively assumes no pr
 
 A car plugged in while the calendar says a trip is open has either not left yet or come back early.
 HAEO keeps no state of its own to tell these apart.
-Instead, each time the plugged-in input loads, the integration asks the recorder when the sensor last read unplugged over the past seven days.
-`off`, `false`, and `0` count as unplugged; `unavailable` and `unknown` do not, so a restart leaves no unplug behind.
-The time the latest unplugged reading ended is injected into the sensor's state as the `haeo_last_off` attribute, so diagnostics capture it and replay the same decision.
+Instead, the integration reads the plugged-in sensor's history over the past seven days from the recorder when the input starts, then extends it as the sensor changes.
+`off`, `false`, and `0` count as unplugged and `on`, `true`, and `1` as plugged in; `unavailable` and `unknown` neither start nor end an unplug, so a restart leaves no unplug behind.
+The periods the sensor read unplugged are injected into its state as the `haeo_off_periods` attribute, so diagnostics capture them and replay the same decision.
+With several plugged-in sensors, the car was unplugged only while all of them read unplugged.
+
+The trip's departure is its first unplug: the start of the first unplugged period still running when the window opened or beginning after it.
+The window's start comes from the calendar event even when it began before the horizon.
+Later unplugs within the window do not move the departure, so a trip that resumes after ducking home keeps counting distance from when it began.
 
 The car came back early when all of these hold:
 
 - the plugged-in sensor reports the car plugged in now,
 - a trip window is open at the horizon start,
-- the sensor last read unplugged at or after that window's start, which comes from the calendar event even when it began before the horizon,
-- and, when both odometer readings are configured, $o_{\text{current}} - o_{\text{disconnect}} > 0$.
+- the car has a departure in that window,
+- and, when the odometer is configured, $o_{\text{current}} - o_{\text{departure}} > 0$.
 
 Otherwise the car has not left yet.
 The plugged-in sensor pins only the current interval as home, and the open window keeps its requirement, still due at the window's end, so the trip is squeezed into the rest of the window.
-Without the recorder, without history for the sensor, or when the lookup fails, this is always the outcome.
+Without the recorder, without history for the sensor, or when the lookup fails, only unplugs since Home Assistant started are seen.
 
 When the car came back early, the open trip is over.
 Its requirement and reserve checks are dropped, and the car counts as home until the trip's scheduled end.
+Unplugging again before the window ends resumes the trip with its requirement, less the distance driven since the departure.
 This keeps a trip that ended early from demanding driving energy or pricing a phantom public top-up.
 Later trips are unaffected.
 
@@ -177,7 +184,7 @@ The EV element creates a single Home Assistant device:
 | `reserve_soc`              | Battery `{name}`              | `reserve_level`             | Fraction of capacity, checked at away ends |
 | `reserve_price`            | Battery `{name}`              | `reserve_price`             | Defaults to the public charging price      |
 | `energy_per_distance`      | Trip energy calculation       | Multiplied by distance      | Wh/km and kWh/100km converted to kWh/km    |
-| `odometer` pair            | Deferrable load `{name}:trip` | `initial_energy`            | Mid-trip progress credit                   |
+| `odometer` and history     | Deferrable load `{name}:trip` | `initial_energy`            | Mid-trip progress credit                   |
 | `public_charging_price`    | Deferrable load `{name}:trip` | `deficit_price`             | Defaults to \$10/kWh                       |
 | `efficiency_source_target` | Connection `{name}:discharge` | Efficiency segment          | Discharge direction                        |
 | `efficiency_target_source` | Connection `{name}:charge`    | Efficiency segment          | Charge direction                           |
