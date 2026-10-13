@@ -150,8 +150,9 @@ class CalendarInputLoader:
 
         Every store resolves before any store notifies its listeners, so a
         listener never runs while another store still holds stale events.
-        A calendar whose fetch fails reads as unavailable, so its stores keep
-        their previous value instead of loading an empty calendar.
+        A calendar whose fetch fails reads as unavailable rather than empty,
+        so its stores become unavailable and optimization stops until a fetch
+        succeeds, as it does for any other unavailable input.
 
         Overlapping calls run one at a time in the order they were made, so
         an older fetch never overwrites the stores after a newer one. Events
