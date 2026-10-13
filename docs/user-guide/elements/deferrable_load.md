@@ -24,12 +24,14 @@ A deferrable load in HAEO represents:
 | Field                                                             | Type   | Required | Default | Description                                   |
 | ----------------------------------------------------------------- | ------ | -------- | ------- | --------------------------------------------- |
 | **[Name](#name)**                                                 | String | Yes      | -       | Unique identifier (e.g., "Pool Pump")         |
-| **[Connection](#connection)**                                     | Select | Yes      | -       | Node to connect to in your energy network     |
+| **[Connection](#connection)**                                     | Select | Yes      | -       | Junction or inverter the load is attached to  |
 | **[Run window calendar](#run-windows)**                           | Entity | Yes      | -       | Calendar entity with run window events        |
 | **[Energy delivered this window](#energy-delivered-this-window)** | Energy | No       | -       | Energy the open window has already received   |
 | **[Shortfall price](#pricing)**                                   | Price  | Yes      | 10      | Cost per kWh the window fails to receive      |
 | **[Overage price](#pricing)**                                     | Price  | No       | -       | Cost per kWh delivered beyond the requirement |
 | **[Max power](#max-power)**                                       | Power  | No       | -       | Maximum power the device can draw             |
+
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
 ### Name
 
@@ -38,7 +40,7 @@ Home Assistant uses it for sensor names, so avoid symbols or abbreviations you w
 
 ### Connection
 
-Select the node in your energy network where the load is connected, typically your main switchboard.
+Select the junction or inverter the load is attached to, typically your main switchboard.
 
 ### Run windows
 
