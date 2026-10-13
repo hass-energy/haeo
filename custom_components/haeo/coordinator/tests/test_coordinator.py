@@ -35,6 +35,7 @@ from custom_components.haeo.coordinator import (
     OptimizationContext,
     _build_coordinator_output,
     _build_optimization_context,
+    _forecast_datetimes,
     detect_currency_symbol,
 )
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
@@ -89,6 +90,8 @@ from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import get_element_configs
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.input_stores import build_input_stores
+
+_TIMES = tuple(datetime(2024, 6, 1, tzinfo=UTC) + timedelta(minutes=30 * i) for i in range(3))
 
 
 @pytest.fixture
@@ -572,7 +575,7 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
     """Forecast data is mapped onto ISO timestamps when lengths match."""
 
     base_time = datetime(2024, 6, 1, tzinfo=UTC)
-    forecast_times = (int(base_time.timestamp()), int((base_time + timedelta(minutes=30)).timestamp()))
+    forecast_times = (base_time, base_time + timedelta(minutes=30))
     output = _build_coordinator_output(
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=(1.2, 3.4)),
@@ -580,28 +583,26 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
         currency_sym="$",
     )
 
-    assert output.forecast is not None
-    assert [item["value"] for item in output.forecast] == [1.2, 3.4]
+    assert output.forecast == [
+        {"time": forecast_times[0], "value": 1.2},
+        {"time": forecast_times[1], "value": 3.4},
+    ]
 
 
-def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.MonkeyPatch) -> None:
-    """ValueError from datetime conversion should clear the forecast payload."""
+def test_forecast_datetimes_are_in_home_assistant_time_zone() -> None:
+    """Horizon timestamps convert to aware datetimes in the configured time zone."""
+    base_time = datetime(2024, 6, 1, tzinfo=UTC)
 
-    class _ErrorDatetime:
-        @staticmethod
-        def fromtimestamp(*_args: Any, **_kwargs: Any) -> None:
-            raise ValueError
+    times = _forecast_datetimes([base_time.timestamp(), (base_time + timedelta(minutes=30)).timestamp()])
 
-    monkeypatch.setattr("custom_components.haeo.coordinator.coordinator.datetime", _ErrorDatetime)
+    assert times == (base_time, base_time + timedelta(minutes=30))
+    assert times is not None
+    assert all(time.tzinfo == dt_util.get_default_time_zone() for time in times)
 
-    output = _build_coordinator_output(
-        SOLAR_POWER,
-        OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0)),
-        forecast_times=(1, 2),
-        currency_sym="$",
-    )
 
-    assert output.forecast is None
+def test_forecast_datetimes_out_of_range_returns_none() -> None:
+    """A timestamp datetime cannot represent leaves the outputs without forecasts."""
+    assert _forecast_datetimes([0.0, 4e11]) is None
 
 
 def test_build_coordinator_output_sets_status_options() -> None:
@@ -625,7 +626,7 @@ def test_build_coordinator_output_skips_forecast_for_single_value() -> None:
     output = _build_coordinator_output(
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=(5.0,)),
-        forecast_times=(1, 2),
+        forecast_times=_TIMES[:2],
         currency_sym="$",
     )
 
@@ -639,7 +640,7 @@ def test_build_coordinator_output_uses_last_value_when_state_last() -> None:
     output = _build_coordinator_output(
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0, 3.0), state_last=True),
-        forecast_times=(1, 2, 3),
+        forecast_times=_TIMES[:3],
         currency_sym="$",
     )
 
@@ -653,7 +654,7 @@ def test_build_coordinator_output_handles_empty_values() -> None:
     output = _build_coordinator_output(
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=()),
-        forecast_times=(1, 2),
+        forecast_times=_TIMES[:2],
         currency_sym="$",
     )
 
