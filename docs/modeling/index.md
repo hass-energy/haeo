@@ -54,7 +54,7 @@ It delivers a global optimum when a feasible solution exists and scales well as 
 
     **Mixed-integer programming (MILP) is a tool of last resort**: we look for linear encodings first (penalties, slacks, forecast-shaped loads) and add integers only when LP cannot deliver the same outcome.
     **Deferrable loads follow that approach**: a [deferrable load](model-layer/elements/deferrable_load.md) is pure LP, with each window's requirement settled at its end and any shortfall priced rather than enforced.
-    Loads that need a discrete **run-now** decision, such as fixed-power appliances that cannot modulate, are still fixed or forecast consumption, or scheduled externally (for example via EMHASS) and passed in as inputs.
+    Loads that need a discrete **run-now** decision use the [schedulable load](model-layer/elements/schedulable_load.md): its starts are continuous except, by default, the decision to start in the current period, which is the only decision acted on before the next optimization.
 
 ## Mathematical Model Structure
 

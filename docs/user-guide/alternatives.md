@@ -22,7 +22,7 @@ This page provides a fair, technical comparison to help you choose the solution 
 | **Horizon resolution**    | Multi-resolution (e.g. 1 min → 60 min) | Uniform optimization timestep                        |
 | **Forecasting**           | Via other HA integrations              | Built-in ML and solar forecasting                    |
 | **Primary use case**      | Battery/solar/grid optimization        | Appliance scheduling + battery/solar                 |
-| **Deferrable appliances** | Planned (LP-first; not yet)            | Core feature (full-horizon MILP)                     |
+| **Deferrable appliances** | LP-first; integer start-now decision   | Core feature (full-horizon MILP)                     |
 | **Multi-element support** | Multiple batteries/arrays/grids        | Limited                                              |
 | **Integration method**    | Native HA sensors                      | Sensors + REST API + shell commands                  |
 
@@ -101,7 +101,7 @@ Beyond scheduling philosophy, the projects differ in scope and integration style
 
 **HAEO** follows the Unix philosophy: do one thing well.
 It focuses on optimization with a flexible graph-based network model, **power policies for source-aware economics**, and relies on other Home Assistant integrations for forecasts and prices.
-The network solve is **pure LP by default**; mixed-integer variables are a **last resort** when linear modeling cannot match the required behaviour (see [Deferrable loads (planned)](#deferrable-loads-planned)).
+The network solve is **pure LP by default**; mixed-integer variables are a **last resort** when linear modeling cannot match the required behaviour (see [Deferrable and schedulable loads](#deferrable-and-schedulable-loads)).
 The flexibility to model diverse topologies through connections (and raw model elements) is its defining software-architecture characteristic.
 
 ## EMHASS
@@ -182,31 +182,29 @@ Preset horizons start with 1-minute periods, giving fine control over the near-t
 
 ### Limitations (today)
 
-- **No deferrable loads yet**: Appliance on/off scheduling is not available in HAEO today; use EMHASS (or fixed/forecast loads) until deferrable support ships
 - **Graph complexity**: Requires understanding topology and connection concepts, which adds initial learning curve
 - **Smaller community**: Less historical deployment volume than EMHASS, though actively developed
 - **Requires HACS**: Additional step before installation (though HACS is very common)
 - **Setup complexity**: Flexibility means more configuration options and decisions
 - **External forecasting dependency**: Relies entirely on other HA integrations for forecast data
 
-### Deferrable loads (planned) {#deferrable-loads-planned}
+### Deferrable and schedulable loads {#deferrable-and-schedulable-loads}
 
 HAEO treats **mixed-integer programming (MILP) as a tool of last resort**.
 The goal is to keep the main solve **pure LP** for performance on Home Assistant hardware, and add integers only when no linear formulation can achieve the same outcome.
 
-Deferrable appliance support is **planned** with that philosophy—it is not a port of EMHASS's full-horizon MILP schedule.
-The current **design direction** (element types, constraints, and UI still open) is:
+Appliance scheduling follows that philosophy rather than porting EMHASS's full-horizon MILP schedule:
 
-- Keep the **multi-resolution LP** for batteries, grid, solar, and policies across the horizon.
-- Prefer **linear** ways to represent deferrable behaviour (forecast-shaped load, penalties, slacks) wherever they are good enough.
-- If a discrete **run-now** decision truly needs integers (for example, whether to start a load this interval), use a **minimal** integer part for that decision—not a separate on/off binary for every future timestep.
-- Leave **later intervals continuous** on the existing time grid.
+- A **[deferrable load](elements/deferrable_load.md)** needs an amount of energy inside each calendar window, at any power up to its limit.
+    It is pure LP.
+- A **[schedulable load](elements/schedulable_load.md)** runs a fixed program once per calendar window and cannot stop once started.
+    Only the decision to **start now** is an integer by default; later starts stay continuous on the existing time grid and are re-decided as they approach the present.
+    Every start can be made integer when a fully valid schedule matters more than solve time.
 
-Treat this as **design intent**, not a committed roadmap.
-Until it ships, EMHASS remains the practical choice for full deferrable MILP scheduling, including feeding published load forecasts into HAEO as described in [Can you use both?](#can-you-use-both).
+The **multi-resolution LP** for batteries, grid, solar, and policies is unchanged across the horizon.
 
-**Tradeoffs (today)**: HAEO optimizes the whole network in LP with policies; EMHASS embeds rich per-slot deferrable MILP in a fixed template.
-That LP-first stance is expected to continue: deferrables will use MILP only where LP cannot substitute.
+**Tradeoffs**: HAEO optimizes the whole network in LP with policies and a minimal integer part; EMHASS embeds rich per-slot deferrable MILP in a fixed template, including on/off loads with minimum run times and several runs per window.
+EMHASS remains the more complete appliance scheduler, and it can feed published load forecasts into HAEO as described in [Can you use both?](#can-you-use-both).
 
 ### Best for
 

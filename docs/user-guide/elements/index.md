@@ -109,6 +109,12 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Load guide](load.md)
 
+- :material-dishwasher:{ .lg .middle } __Schedulable load configuration__
+
+    Appliances that run a fixed program once inside each calendar window.
+
+    [:material-arrow-right: Schedulable load guide](schedulable_load.md)
+
 - :material-source-branch:{ .lg .middle } __Junction configuration__ (Advanced)
 
     Points where connections meet and power balances.
