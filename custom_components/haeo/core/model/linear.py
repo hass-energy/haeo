@@ -184,6 +184,24 @@ class LinearArray:
         """Scale each row by a scalar or by one value per row."""
         return self * scale
 
+    def __rmatmul__(self, matrix: NDArray[np.float64]) -> Self:
+        """Return ``matrix @ self``: row ``i`` is the sum over ``j`` of ``matrix[i, j]`` times row ``j``.
+
+        Use it when each row couples many rows of another array through a
+        coefficient matrix, such as a profile whose energy lands in every period
+        a run overlaps. Zero entries add no terms to the LP.
+        """
+        n_rows, width = self.cols.shape
+        if matrix.ndim != 2 or matrix.shape[1] != n_rows:  # noqa: PLR2004 (a matrix has two dimensions)
+            msg = f"Cannot multiply a {matrix.shape} matrix by {n_rows} rows"
+            raise ValueError(msg)
+        n_out = matrix.shape[0]
+        return type(self)(
+            cols=np.broadcast_to(self.cols.reshape(1, n_rows * width), (n_out, n_rows * width)),
+            coefs=(matrix[:, :, None] * self.coefs[None, :, :]).reshape(n_out, n_rows * width),
+            constant=matrix @ self.constant,
+        )
+
     def total(self) -> Self:
         """Return a single row holding the sum of all rows."""
         return type(self)(

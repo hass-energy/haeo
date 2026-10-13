@@ -52,6 +52,8 @@ Each array stores its terms as a column index matrix and a coefficient matrix, s
 Create variables with `solver.add_variables(count)` and combine them with `+`, `-`, and multiplication by a scalar or one value per row.
 Comparing an array with `<=`, `>=`, or `==` produces `Rows`, which a `@constraint` method returns.
 `total()` sums every row into a single row, which is the form a `@cost` method returns.
+When each row reaches several rows of another array with varying coefficients, build the coefficient matrix with numpy and write `matrix @ array`.
+Printing an array or `Rows` shows each row as an expression over columns, such as `x3 - 0.5·x8 <= 2`.
 
 ### TrackedParam for parameters
 

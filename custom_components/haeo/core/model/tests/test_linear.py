@@ -98,3 +98,19 @@ def test_rows_compare_by_identity() -> None:
 
     assert rows in [rows]
     assert rows != (x <= 1.0)
+
+
+def test_matrix_product_couples_rows_through_coefficients() -> None:
+    """Each row of a matrix product sums the coefficient-weighted rows it reaches, without zero terms."""
+    x, _ = _variables(3)
+    matrix = np.array([[1.0, 0.0, 0.0], [0.5, 2.0, 0.0]])
+
+    assert repr(matrix @ (x + 1.0)) == "LinearArray(2 rows)\n  [0] x0 + 1\n  [1] 0.5·x0 + 2·x1 + 2.5"
+
+
+def test_matrix_product_rejects_mismatched_shapes() -> None:
+    """A matrix must have one column per row it multiplies."""
+    x, _ = _variables(3)
+
+    with pytest.raises(ValueError, match=r"Cannot multiply a \(2, 2\) matrix by 3 rows"):
+        _ = np.ones((2, 2)) @ x
