@@ -23,7 +23,11 @@ from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
-from custom_components.haeo.core.data.loader.calendar import CalendarEventData, capture_calendar_events
+from custom_components.haeo.core.data.loader.calendar import (
+    CALENDAR_EVENTS_ATTRIBUTE,
+    CalendarEventData,
+    capture_calendar_events,
+)
 from custom_components.haeo.core.state import EntityState, StateMachine
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 
@@ -37,8 +41,6 @@ if TYPE_CHECKING:
     from custom_components.haeo.input_stores import InputStoreMap
 
 _LOGGER = logging.getLogger(__name__)
-
-CALENDAR_EVENTS_ATTRIBUTE = "haeo_events"
 
 
 class _CalendarEventState:
@@ -113,9 +115,15 @@ class CalendarInputLoader:
         self._stores: list[InputStore] = [store for store in stores.values() if store.source_kind == "calendar"]
         self._unsubs: list[Callable[[], None]] = []
         self._load_lock = asyncio.Lock()
+        self._tasks: set[asyncio.Task[None]] = set()
 
-    async def async_start(self) -> None:
-        """Subscribe to change sources and perform the initial load."""
+    @callback
+    def start(self) -> None:
+        """Subscribe to change sources and schedule the initial load.
+
+        The initial load runs in the background, so a slow calendar backend
+        cannot block setup; setup waits for the stores with its own timeout.
+        """
         if not self._stores:
             return
 
@@ -123,16 +131,19 @@ class CalendarInputLoader:
 
         @callback
         def _on_state_change(_event: Event[EventStateChangedData]) -> None:
-            self._hass.async_create_task(self.async_load_all())
-
-        @callback
-        def _on_horizon_change() -> None:
-            self._hass.async_create_task(self.async_load_all())
+            self._schedule_load()
 
         self._unsubs.append(async_track_state_change_event(self._hass, entity_ids, _on_state_change))
-        self._unsubs.append(self._horizon_manager.subscribe(_on_horizon_change))
+        self._unsubs.append(self._horizon_manager.subscribe(self._schedule_load))
 
-        await self.async_load_all()
+        self._schedule_load()
+
+    @callback
+    def _schedule_load(self) -> None:
+        """Start a reload that cleanup cancels if it is still running."""
+        task = self._hass.async_create_task(self.async_load_all())
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
 
     async def async_load_all(self) -> None:
         """Fetch events for every calendar, then reload all stores together.
@@ -143,12 +154,17 @@ class CalendarInputLoader:
         their previous value instead of loading an empty calendar.
 
         Overlapping calls run one at a time in the order they were made, so
-        an older fetch never overwrites the stores after a newer one, and
-        events are always resolved against the horizon they were fetched for.
+        an older fetch never overwrites the stores after a newer one. Events
+        are only resolved against the horizon they were fetched for: when the
+        horizon moves during the fetch, the reload it scheduled replaces this
+        one.
         """
         async with self._load_lock:
+            timestamps = self._horizon_manager.get_forecast_timestamps()
             entity_ids = sorted({store.source_entity_ids[0] for store in self._stores})
             fetched = await asyncio.gather(*(self._async_fetch_events(entity_id) for entity_id in entity_ids))
+            if self._horizon_manager.get_forecast_timestamps() != timestamps:
+                return
             states = dict(zip(entity_ids, fetched, strict=True))
             sm = CalendarStateMachine(HomeAssistantStateMachine(self._hass), states)
             changed = [store for store in self._stores if store.resolve_from_sources(sm) or store.error is not None]
@@ -195,10 +211,12 @@ class CalendarInputLoader:
         return capture_calendar_events(events)
 
     def cleanup(self) -> None:
-        """Unsubscribe from all change sources."""
+        """Unsubscribe from all change sources and cancel running reloads."""
         for unsub in self._unsubs:
             unsub()
         self._unsubs.clear()
+        for task in self._tasks:
+            task.cancel()
 
 
-__all__ = ["CALENDAR_EVENTS_ATTRIBUTE", "CalendarInputLoader", "CalendarStateMachine"]
+__all__ = ["CalendarInputLoader", "CalendarStateMachine"]

@@ -23,6 +23,9 @@ if TYPE_CHECKING:
     from custom_components.haeo.core.schema.calendar_value import CalendarValue
     from custom_components.haeo.core.state import StateMachine
 
+# State attribute carrying fetched events, injected by the HA-level calendar loader
+CALENDAR_EVENTS_ATTRIBUTE: Final = "haeo_events"
+
 
 @dataclass(frozen=True)
 class CalendarWindow:
@@ -267,9 +270,9 @@ def load_calendar_events(
     if state is None:
         return []
 
-    # Events are expected in the haeo_events attribute, injected by the
-    # HA-level adapter before the core loader runs.
-    raw_events = state.attributes.get("haeo_events")
+    # Events are expected in the events attribute, injected by the HA-level
+    # adapter before the core loader runs.
+    raw_events = state.attributes.get(CALENDAR_EVENTS_ATTRIBUTE)
     if not isinstance(raw_events, list):
         return []
 

@@ -74,16 +74,6 @@ class CalendarBoundaryData(TypedDict):
     value_edge_end: NDArray[np.float64]
 
 
-def is_calendar_boundary_data(value: object) -> bool:
-    """Return True when *value* looks like resolved calendar boundary data."""
-    return isinstance(value, dict) and set(value) == {
-        "presence",
-        "value_span",
-        "value_edge_start",
-        "value_edge_end",
-    }
-
-
 def _convert_distance(value: float, from_unit: str, to_unit: str) -> float:
     """Convert a distance between supported units via the kilometre table."""
     return value * _KM_PER_UNIT[from_unit] / _KM_PER_UNIT[to_unit]
@@ -156,6 +146,5 @@ def resolve_calendar_field(
 
 __all__ = [
     "CalendarBoundaryData",
-    "is_calendar_boundary_data",
     "resolve_calendar_field",
 ]
