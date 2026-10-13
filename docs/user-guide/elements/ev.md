@@ -83,8 +83,9 @@ An event whose text contains no parsable distance, such as `School pickup`, stil
 
 !!! tip "Distance format"
 
-    The distance is read from the first of the location, summary, or description fields that contains a number followed by a unit.
-    Supported units include `km`, `mi`, `miles`, `m`, and `meters`; all distances are normalized to kilometres.
+    The distance is read from the first of the location, summary, or description fields that holds only a number followed by a length unit, such as `50 km` or `30 mi`.
+    A field with other text around the distance, such as `Commute 50 km`, is not read as a distance.
+    All distances are normalized to kilometres.
 
 ### Connected sensor
 
@@ -136,6 +137,7 @@ Distance never carries over to later trips, so each later trip still reserves it
 ### Reserve
 
 Optionally keep a buffer in the pack while the car is away, so an unplanned detour does not leave you stranded.
+The reserve is checked at the end of each trip on the [trip calendar](#trip-calendar), so it needs one.
 The reserve is priced like a demand charge: for each trip, the cost is on the **lowest battery level hit during the trip window**, not on every interval spent below the reserve.
 Dropping 5 kWh below the reserve for one hour or for the whole trip costs the same — one charge per trip on the depth of the dip.
 
