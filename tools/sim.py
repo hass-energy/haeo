@@ -20,15 +20,20 @@ from pathlib import Path
 import signal
 import sys
 import time
-from typing import Any, TypedDict
+from types import FrameType
+from typing import TYPE_CHECKING, TypedDict
 import webbrowser
 from zoneinfo import ZoneInfo
 
 from freezegun import freeze_time
+from homeassistant.util.json import JsonValueType
 
 from tools.live_hass import LiveHomeAssistant
 from tools.sim_hass import live_sim_home_assistant, setup_haeo_entry, wait_for_sim_idle
-from tools.time_shift import parse_anchor_timestamp, shift_timestamps
+from tools.time_shift import JsonValue, parse_anchor_timestamp, shift_timestamps
+
+if TYPE_CHECKING:
+    from freezegun.api import _freeze_time
 
 PROJECT_ROOT = Path(__file__).parent.parent
 SCENARIOS_DIR = PROJECT_ROOT / "tests" / "scenarios"
@@ -42,9 +47,9 @@ class ScenarioFiles(TypedDict):
     """Paths and data for a scenario directory."""
 
     path: Path
-    config: dict[str, Any]
-    environment: dict[str, Any]
-    inputs: list[dict[str, Any]]
+    config: dict[str, JsonValueType]
+    environment: dict[str, JsonValueType]
+    inputs: list[dict[str, JsonValueType]]
 
 
 def resolve_scenario_path(scenario: str) -> Path:
@@ -75,13 +80,32 @@ def load_scenario(scenario: str) -> ScenarioFiles:
     }
 
 
-def prepare_shifted_states(inputs: list[dict[str, Any]], delta: timedelta) -> list[dict[str, Any]]:
+def _as_json_value(data: JsonValue) -> JsonValueType:
+    """Narrow shift_timestamps' Mapping/Sequence-typed output to dict/list JsonValueType.
+
+    ``shift_timestamps`` (tools/time_shift.py) types its parameter and return value
+    with Mapping/Sequence for covariance, but its implementation only ever builds
+    plain dict/list objects (or passes scalars through unchanged) when given plain
+    dict/list input. This walk mirrors that behavior to narrow the static type to
+    the dict/list shape the rest of this tool expects, without changing any values.
+    """
+    if isinstance(data, dict):
+        return {key: _as_json_value(value) for key, value in data.items()}
+    if isinstance(data, list):
+        return [_as_json_value(item) for item in data]
+    return data  # type: ignore[return-value]  # scalar branch: str|int|float|bool|None only, per shift_timestamps' impl
+
+
+def prepare_shifted_states(
+    inputs: list[dict[str, JsonValueType]],
+    delta: timedelta,
+) -> list[dict[str, JsonValueType]]:
     """Return HA state dicts with timestamp fields shifted by delta."""
     return [
         {
             "entity_id": state_data["entity_id"],
             "state": state_data["state"],
-            "attributes": shift_timestamps(state_data.get("attributes", {}), delta),
+            "attributes": _as_json_value(shift_timestamps(state_data.get("attributes", {}), delta)),
         }
         for state_data in inputs
     ]
@@ -108,18 +132,18 @@ def compute_sim_now(
 def run_sim_loop(
     live_hass: LiveHomeAssistant,
     *,
-    inputs: list[dict[str, Any]],
+    inputs: list[dict[str, JsonValueType]],
     anchor: datetime,
     timezone: str,
     interval: float,
     speed: float,
-    time_freezer: Any | None,
+    time_freezer: _freeze_time | None,
 ) -> None:
     """Push shifted scenario states until interrupted."""
     started_at = time.monotonic()
     stop = False
 
-    def _handle_signal(_signum: int, _frame: Any) -> None:
+    def _handle_signal(_signum: int, _frame: FrameType | None) -> None:
         nonlocal stop
         stop = True
 
@@ -134,7 +158,11 @@ def run_sim_loop(
             started_at=started_at,
         )
         if time_freezer is not None:
-            time_freezer.move_to(sim_now)
+            # Pre-existing latent issue (not introduced by this typing pass): `_freeze_time`
+            # only exposes `move_to` via the factory object returned by `.start()`, which
+            # `run_sim` discards. This --speed path is marked experimental and untested;
+            # preserving behavior as-is rather than fixing it here.
+            time_freezer.move_to(sim_now)  # type: ignore[attr-defined]
 
         delta = sim_now - anchor.astimezone(sim_now.tzinfo)
         shifted_states = prepare_shifted_states(inputs, delta)
@@ -158,8 +186,14 @@ def run_sim(
 ) -> None:
     """Boot live HA, optionally configure HAEO, and run the realtime input loop."""
     scenario_data = load_scenario(scenario)
-    anchor = parse_anchor_timestamp(scenario_data["environment"]["optimization_start_time"])
-    timezone = scenario_data["environment"]["timezone"]
+    environment = scenario_data["environment"]
+    optimization_start_time = environment.get("optimization_start_time")
+    timezone_value = environment.get("timezone")
+    if not isinstance(optimization_start_time, str) or not isinstance(timezone_value, str):
+        msg = "Scenario environment must include string optimization_start_time and timezone"
+        raise TypeError(msg)
+    anchor = parse_anchor_timestamp(optimization_start_time)
+    timezone = timezone_value
 
     time_freezer = None
     if speed != 1.0:

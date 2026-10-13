@@ -152,6 +152,7 @@ nav:
       - Installation: user-guide/installation.md
       - Configuration: user-guide/configuration.md
       - Forecasts & Sensors: user-guide/forecasts-and-sensors.md
+      - Where Values Are Measured: user-guide/measurement-points.md
       - Lovelace Forecast Card: user-guide/lovelace-card.md
       - Historical Load Forecast: user-guide/historical-load-forecast.md
       - HAEO vs Alternatives: user-guide/alternatives.md
@@ -163,6 +164,7 @@ nav:
           - Inverter: user-guide/elements/inverter.md
           - Load: user-guide/elements/load.md
           - Solar: user-guide/elements/solar.md
+          - Junction: user-guide/elements/junction.md
           - Node: user-guide/elements/node.md
           - Connections: user-guide/elements/connections.md
       - Understanding Results: user-guide/optimization.md
@@ -197,6 +199,7 @@ nav:
           - Inverter: modeling/device-layer/inverter.md
           - Solar: modeling/device-layer/solar.md
           - Load: modeling/device-layer/loads.md
+          - Junction: modeling/device-layer/junction.md
           - Node: modeling/device-layer/node.md
           - Connection: modeling/device-layer/connection.md
       - Shadow Prices: modeling/shadow-prices.md

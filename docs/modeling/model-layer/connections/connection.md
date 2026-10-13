@@ -34,7 +34,7 @@ When no tags are specified, a single default tag is used (always-tagged paradigm
 
 Segments do **not** create their own variables (except SOC pricing, which creates auxiliary slack variables).
 Instead, the Connection passes its power variables through the segment chain.
-Each segment receives a `power_in` expression and exposes a `power_out` expression.
+Each segment derives its `power_in` from the segment before it and exposes a `power_out` expression.
 
 ### Parameters
 
@@ -114,7 +114,8 @@ The network solves this lexicographically: primary cost is minimized first, then
 
 Connection exposes power flow and segment outputs:
 
-- `connection_power` — power flow through this connection
+- `connection_power` — power entering at the source end, before any segment transforms
+- `connection_power_out` — power leaving at the target end, after all segment transforms
 - `segments` — nested map of segment names to constraint shadow outputs
 
 The `segments` output groups segment outputs using the segment names provided in the configuration.

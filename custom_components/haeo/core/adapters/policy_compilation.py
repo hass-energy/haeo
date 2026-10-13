@@ -31,7 +31,7 @@ See docs/developer-guide/vlan-optimization.md for optimization proofs.
 from collections import defaultdict, deque
 from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
-from typing import Any, NotRequired, TypedDict
+from typing import NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -57,7 +57,7 @@ class CompiledPolicyRule(TypedDict):
     sources: list[str]
     destinations: list[str]
     enabled: NotRequired[bool]
-    price: float | NDArray[np.floating[Any]]
+    price: float | NDArray[np.float64]
 
 
 class CompilationResult(TypedDict):

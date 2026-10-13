@@ -1,7 +1,6 @@
 """Tests for the recorder history helpers."""
 
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import patch
 
 from homeassistant.core import HomeAssistant, State
@@ -15,7 +14,7 @@ async def test_get_significant_states_full_keeps_only_state_objects(hass: HomeAs
     end = datetime(2026, 1, 20, 15, 0, 0, tzinfo=UTC)
 
     full_state = State("sensor.full", "50", {"unit_of_measurement": "%"})
-    raw: dict[str, list[State | dict[str, Any]]] = {
+    raw: dict[str, list[State | dict[str, object]]] = {
         "sensor.full": [full_state, {"state": "51", "last_changed": "2026-01-20T14:30:00+00:00"}],
         "sensor.minimal_only": [{"state": "1"}],
         "sensor.empty": [],

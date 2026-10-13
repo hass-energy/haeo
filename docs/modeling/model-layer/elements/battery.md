@@ -93,7 +93,7 @@ Where:
 - $P_{\text{charge}}(t) = \frac{E_{\text{in}}(t+1) - E_{\text{in}}(t)}{\Delta t}$ is the charging power (consumed)
 - $P_{\text{discharge}}(t) = \frac{E_{\text{out}}(t+1) - E_{\text{out}}(t)}{\Delta t}$ is the discharging power (produced)
 
-**Shadow price**: The `power_balance` shadow price represents the marginal value of power at the battery terminals.
+**Shadow price**: The `power_balance` shadow price represents the marginal value of energy at the battery element, which is the stored-energy side of any connection efficiency.
 
 #### 4. Tag Balance
 

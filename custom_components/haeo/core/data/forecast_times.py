@@ -2,13 +2,17 @@
 
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
+from itertools import pairwise
 
-_PRESET_DAYS: dict[str, int] = {
-    "2_days": 2,
-    "3_days": 3,
-    "5_days": 5,
-    "7_days": 7,
-}
+from custom_components.haeo.core.const import HORIZON_PRESET_DAYS
+from custom_components.haeo.core.data.loader.extractors.utils import (
+    is_parsable_to_datetime,
+    parse_datetime_to_timestamp,
+)
+from custom_components.haeo.core.state import EntityState
+
+# A horizon needs a start and an end boundary
+_MIN_BOUNDARIES = 2
 
 
 def floor_timestamp(epoch_seconds: float, period_seconds: int) -> float:
@@ -223,72 +227,64 @@ def calculate_total_steps(
     return sum(min_counts) + base_t4_steps + alignment_buffer
 
 
-def tiers_to_periods_seconds(
-    config: Mapping[str, int | str | Mapping[str, int | str]],
-    start_time: datetime | None = None,
-) -> list[int]:
-    """Convert tier configuration to list of period durations in seconds.
+def preset_periods_seconds(preset: str, start_time: datetime | None = None) -> list[int]:
+    """Return the period durations in seconds for a horizon preset.
 
-    Uses dynamic time alignment when a preset is selected (2/3/5/7 days).
-    Falls back to fixed tier counts when using custom configuration.
+    Periods are aligned so each tier ends on a boundary of the next.
 
     Args:
-        config: Tier configuration dictionary with tier_N_count and tier_N_duration keys,
-            plus optional horizon_preset key.
-        start_time: Optional start time for preset alignment. When None, uses
-            ``datetime.now(UTC)`` for tier boundary calculations. Pass a
-            timezone-aware datetime in the installation local time zone when
-            wall-clock alignment matters (for example from ``dt_util.now()``).
+        preset: Horizon preset key, such as ``5_days``.
+        start_time: Start time for alignment. When None, uses
+            ``datetime.now(UTC)``. Pass a timezone-aware datetime in the
+            installation local time zone when wall-clock alignment matters
+            (for example from ``dt_util.now()``).
 
     Returns:
         List of period durations in seconds.
 
     """
-    # Support sectioned hub config by reading from nested sections when present
-    common = config.get("common") if isinstance(config.get("common"), Mapping) else None
-    tiers_section = config.get("tiers") if isinstance(config.get("tiers"), Mapping) else None
-
-    # Check if using a preset (enables time alignment)
-    horizon_preset = (
-        (common or {}).get("horizon_preset") if isinstance(common, Mapping) else config.get("horizon_preset")
+    horizon_minutes = HORIZON_PRESET_DAYS[preset] * 24 * 60
+    min_counts = (5, 6, 4)
+    periods_seconds, _ = calculate_aligned_tier_counts(
+        start_time=start_time or datetime.now(UTC),
+        tier_durations=(1, 5, 30, 60),
+        min_counts=min_counts,
+        total_steps=calculate_total_steps(min_counts, horizon_minutes),
+        horizon_minutes=horizon_minutes,
     )
+    return periods_seconds
 
-    if horizon_preset and horizon_preset in _PRESET_DAYS:
-        # Preset mode: use dynamic time alignment with fixed tier configuration
-        days = _PRESET_DAYS[horizon_preset]
-        horizon_minutes = days * 24 * 60
 
-        # Presets use fixed tier durations and minimum counts
-        tier_durations = (1, 5, 30, 60)
-        min_counts = (5, 6, 4)
+def forecast_boundaries(state: EntityState) -> tuple[float, ...]:
+    """Return the period boundaries listed in an entity's ``forecast`` attribute.
 
-        total_steps = calculate_total_steps(min_counts, horizon_minutes)
+    The attribute is a list of points whose ``time`` is a period boundary, so
+    n + 1 points describe n periods. This is the forecast HAEO's own horizon
+    sensor publishes. Any other keys in a point are ignored.
 
-        periods_seconds, _ = calculate_aligned_tier_counts(
-            start_time=start_time or datetime.now(UTC),
-            tier_durations=tier_durations,
-            min_counts=min_counts,
-            total_steps=total_steps,
-            horizon_minutes=horizon_minutes,
-        )
-        return periods_seconds
+    Raises:
+        ValueError: If the entity has no forecast of times, or fewer than two
+            increasing times.
 
-    # Custom/legacy mode: use fixed tier counts from config
-    if isinstance(tiers_section, Mapping):
-        tier_config: Mapping[str, int | str] = tiers_section
-    else:
-        tier_config = {key: value for key, value in config.items() if isinstance(value, int | str)}
-    periods: list[int] = []
-    for tier in [1, 2, 3, 4]:
-        count_key = f"tier_{tier}_count"
-        duration_key = f"tier_{tier}_duration"
-        count_value = tier_config.get(count_key)
-        duration_value = tier_config.get(duration_key)
-        if count_value is not None and duration_value is not None:
-            count = int(count_value)
-            duration_seconds = int(duration_value) * 60
-            periods.extend([duration_seconds] * count)
-    return periods
+    """
+    forecast = state.attributes.get("forecast")
+    if (
+        not isinstance(forecast, Sequence)
+        or isinstance(forecast, str)
+        or not all(isinstance(point, Mapping) and is_parsable_to_datetime(point.get("time")) for point in forecast)
+    ):
+        msg = f"{state.entity_id} has no forecast of times"
+        raise ValueError(msg)
+    boundaries = tuple(float(parse_datetime_to_timestamp(point["time"])) for point in forecast)
+    if len(boundaries) < _MIN_BOUNDARIES or any(end <= start for start, end in pairwise(boundaries)):
+        msg = f"{state.entity_id} forecast needs at least two increasing times"
+        raise ValueError(msg)
+    return boundaries
+
+
+def periods_seconds_from_boundaries(boundaries: Sequence[float]) -> list[int]:
+    """Return the period durations in seconds between consecutive boundaries."""
+    return [int(end - start) for start, end in pairwise(boundaries)]
 
 
 def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: float | None = None) -> tuple[float, ...]:
@@ -319,20 +315,3 @@ def generate_forecast_timestamps(periods_seconds: Sequence[int], start_time: flo
     for period in periods_seconds:
         timestamps.append(timestamps[-1] + period)
     return tuple(timestamps)
-
-
-def generate_forecast_timestamps_from_config(config: Mapping[str, int | str]) -> tuple[float, ...]:
-    """Generate forecast timestamps from tier configuration.
-
-    Converts tier config to period durations and generates boundary timestamps
-    starting from the current time rounded to the smallest period boundary.
-
-    Args:
-        config: Tier configuration with tier_N_count and tier_N_duration keys.
-
-    Returns:
-        Tuple of timestamps for each boundary.
-
-    """
-    periods_seconds = tiers_to_periods_seconds(config)
-    return generate_forecast_timestamps(periods_seconds)

@@ -7,7 +7,7 @@ across entities, so this lines the requested ones up in a single table.
 
 from collections.abc import Mapping, Sequence
 import re
-from typing import Any, Final
+from typing import Final
 
 NAME: Final = "series"
 HELP: Final = "Time-aligned table of output series matching a regex (arg: regex, default all)"
@@ -16,15 +16,23 @@ LABEL_WIDTH: Final = 14
 MAX_ROWS: Final = 40
 
 
-def forecast_series(entity: Mapping[str, Any]) -> dict[str, float]:
+def forecast_series(entity: object) -> dict[str, float]:
     """Return {HH:MM: value} for an entity's forecast, empty when it has none."""
-    points = entity.get("attributes", {}).get("forecast") or []
+    attributes = entity.get("attributes") if isinstance(entity, Mapping) else None
+    points = attributes.get("forecast") if isinstance(attributes, Mapping) else None
     result: dict[str, float] = {}
-    for point in points:
+    for point in points if isinstance(points, list) else []:
+        if not isinstance(point, Mapping):
+            continue
         time, value = point.get("time"), point.get("value")
         if isinstance(time, str) and isinstance(value, int | float) and not isinstance(value, bool):
             result[time[11:16]] = float(value)
     return result
+
+
+def _state(entity: object) -> object:
+    """Return an exported entity's state, or None when it has none."""
+    return entity.get("state") if isinstance(entity, Mapping) else None
 
 
 def column_labels(entity_ids: Sequence[str], limit: int = LABEL_WIDTH) -> dict[str, str]:
@@ -57,7 +65,7 @@ def column_labels(entity_ids: Sequence[str], limit: int = LABEL_WIDTH) -> dict[s
     return {entity_id: f"c{index + 1}" for index, entity_id in enumerate(entity_ids)}
 
 
-def run(outputs: Mapping[str, Any], config: Mapping[str, Any], argument: str) -> str:  # noqa: ARG001 (config unused; the analysis interface is uniform across modules)
+def run(outputs: Mapping[str, object], config: Mapping[str, object], argument: str) -> str:  # noqa: ARG001 (config unused; the analysis interface is uniform across modules)
     """Return a time-aligned table of the output series matching `argument`."""
     try:
         pattern = re.compile(argument or ".", re.IGNORECASE)
@@ -71,7 +79,7 @@ def run(outputs: Mapping[str, Any], config: Mapping[str, Any], argument: str) ->
     columns = {entity_id: points for entity_id in matched if (points := forecast_series(outputs[entity_id]))}
     skipped = [entity_id for entity_id in matched if entity_id not in columns]
     if not columns:
-        listing = "\n".join(f"  {entity_id} (state={outputs[entity_id].get('state')})" for entity_id in skipped)
+        listing = "\n".join(f"  {entity_id} (state={_state(outputs[entity_id])})" for entity_id in skipped)
         return f"series: matched entities have no forecast series\n{listing}"
 
     labels = column_labels(list(columns))

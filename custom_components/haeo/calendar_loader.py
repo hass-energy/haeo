@@ -14,7 +14,7 @@ import asyncio
 from collections.abc import Callable, Mapping
 from datetime import UTC, date, datetime
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from homeassistant.components.calendar import CalendarEntity
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
@@ -59,16 +59,13 @@ class _CalendarEventState:
         return self._base.state
 
     @property
-    def attributes(self) -> Mapping[str, Any]:
+    def attributes(self) -> Mapping[str, object]:
         """Entity attributes with fetched events merged in."""
         return {**self._base.attributes, CALENDAR_EVENTS_ATTRIBUTE: self._events}
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self) -> Mapping[str, object]:
         """Return serialized state representation including the events."""
-        base = self._base.as_dict()
-        attributes = dict(base.get("attributes", {}))
-        attributes[CALENDAR_EVENTS_ATTRIBUTE] = self._events
-        return {**base, "attributes": attributes}
+        return {**self._base.as_dict(), "attributes": self.attributes}
 
 
 class CalendarStateMachine(StateMachine):
@@ -154,8 +151,8 @@ class CalendarInputLoader:
             fetched = await asyncio.gather(*(self._async_fetch_events(entity_id) for entity_id in entity_ids))
             states = dict(zip(entity_ids, fetched, strict=True))
             sm = CalendarStateMachine(HomeAssistantStateMachine(self._hass), states)
-            loaded = [store for store in self._stores if store.resolve_from_sources(sm)]
-            for store in loaded:
+            changed = [store for store in self._stores if store.resolve_from_sources(sm) or store.error is not None]
+            for store in changed:
                 store.notify_listeners()
 
     async def _async_fetch_events(self, entity_id: str) -> list[CalendarEventDict] | None:

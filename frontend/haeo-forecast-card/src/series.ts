@@ -132,6 +132,7 @@ const ELEMENT_TYPES: ReadonlySet<string> = new Set<ElementType>([
   "connection",
   "grid",
   "inverter",
+  "junction",
   "load",
   "node",
   "solar",

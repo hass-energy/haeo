@@ -4,13 +4,24 @@ A Connection represents a single direction of power flow from source to target.
 Bidirectional paths are modelled as two separate connections.
 
 Connection creates per-tag LP variables for the power flow, then chains them
-through segments. Each segment receives and returns a dict of per-tag flows.
+through segments. Each segment derives its per-tag input flow from the segment
+before it, so the flow leaving the connection always reflects the current
+segment parameters.
 """
 
 from collections import OrderedDict
 from functools import reduce
 import operator
-from typing import Any, Final, Literal, NotRequired, TypedDict
+from typing import (
+    Any,  # noqa: TID251  # source_element/target_element are the network's connection endpoints,
+    # which can be any concrete NetworkElement subtype (Battery, Node, ...). Element is invariant
+    # in its output-name Literal (see element.py's outputs()), so no non-Any type can express
+    # "an Element of some unknown output-name type" across this dynamically-typed registry.
+    Final,
+    Literal,
+    NotRequired,
+    TypedDict,
+)
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
@@ -22,7 +33,7 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import output
 
-from .segments import Segment, SegmentSpec, create_segment
+from .segments import FlowProvider, FlowVariables, PowerLimitSegment, Segment, SegmentSpec, create_segment
 
 type ConnectionElementTypeName = Literal["connection"]
 # Model element type for connection strings
@@ -58,12 +69,14 @@ class Connection[TOutputName: str](Element[TOutputName]):
     Creates per-tag LP variables for the flow and chains them through segments.
     power_in is the per-tag flow entering the connection at the source end.
     power_out is the per-tag flow exiting at the target end (after segment transforms).
+    measured_power is the per-tag flow at the connection's measured point, where its
+    power limit applies; prices and reported power refer to the same flow.
     """
 
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         *,
         solver: Highs,
         source: str,
@@ -76,7 +89,9 @@ class Connection[TOutputName: str](Element[TOutputName]):
     ) -> None:
         """Initialize a unidirectional connection."""
 
-        actual_output_names: frozenset[Any] = output_names if output_names is not None else CONNECTION_OUTPUT_NAMES
+        actual_output_names: frozenset[TOutputName] = (
+            output_names if output_names is not None else CONNECTION_OUTPUT_NAMES  # type: ignore[assignment]  # default output names are only valid when TOutputName is (a superset of) ConnectionOutputName, which holds for every real construction path (Network.add()'s overload pins TOutputName=ConnectionOutputName)
+        )
         super().__init__(
             name=name,
             periods=periods,
@@ -96,7 +111,6 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
         self._tags: set[int] = set(tags)
         self._power_in: dict[int, HighspyArray] = {}
-        self._power_out: dict[int, HighspyArray] = {}
 
     @property
     def segments(self) -> OrderedDict[str, Segment]:
@@ -131,18 +145,22 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
         # Create per-tag LP variables
-        flows: dict[int, HighspyArray] = {}
-        for tag in sorted(self._tags):
-            flows[tag] = self._solver.addVariables(
+        self._power_in = {
+            tag: self._solver.addVariables(
                 self.n_periods,
                 lb=0,
                 name_prefix=f"{self.name}_t{tag}_",
                 out_array=True,
             )
-        self._power_in = dict(flows)
+            for tag in sorted(self._tags)
+        }
 
         specs = list(self._segment_specs.items()) or [("passthrough", {"segment_type": "passthrough"})]
 
+        # Each segment reads its input from the one before it. The measured point is
+        # the flow entering the power limit segment, or the variables when there is none.
+        upstream: FlowProvider = FlowVariables(self._power_in)
+        self._measured: FlowProvider = upstream
         for seg_name, seg_spec in specs:
             seg = create_segment(
                 segment_id=f"{self.name}_{seg_name}",
@@ -152,12 +170,13 @@ class Connection[TOutputName: str](Element[TOutputName]):
                 spec=seg_spec,
                 source_element=source_element,
                 target_element=target_element,
-                power_in=flows,
+                upstream=upstream,
             )
             self._segments[seg_name] = seg
-            flows = seg.power_out
-
-        self._power_out = flows
+            if isinstance(seg, PowerLimitSegment):
+                self._measured = upstream
+            upstream = seg
+        self._output: FlowProvider = upstream
 
     @property
     def power_in(self) -> dict[int, HighspyArray]:
@@ -171,13 +190,30 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     @property
     def power_out(self) -> dict[int, HighspyArray]:
-        """Per-tag power exiting the connection at the target end."""
-        return self._power_out
+        """Per-tag power exiting the connection at the target end, derived from the last segment."""
+        return self._output.power_out
 
     @property
     def total_power_out(self) -> HighspyArray:
         """Total power exiting the connection (sum of all tags)."""
-        return reduce(operator.add, self._power_out.values())
+        return reduce(operator.add, self.power_out.values())
+
+    @property
+    def measured_power(self) -> dict[int, HighspyArray]:
+        """Per-tag power at the connection's measured point.
+
+        The measured point is the flow entering the power limit segment, so the
+        limit, policy prices and reported power all refer to the same flow, and
+        efficiency losses fall on the other side of it. A connection without a
+        power limit has no losses to place it against and is measured where
+        power enters it.
+        """
+        return self._measured.power_out
+
+    @property
+    def total_measured_power(self) -> HighspyArray:
+        """Total power at the measured point (sum of all tags)."""
+        return reduce(operator.add, self.measured_power.values())
 
     def connection_tags(self) -> set[int]:
         """Return the set of tags on this connection."""
@@ -189,7 +225,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     def power_into_target_for_tag(self, tag: int) -> HighspyArray:
         """Power flowing into the target node for a specific tag."""
-        return self._power_out[tag]
+        return self.power_out[tag]
 
     # --- Node power balance interface ---
 
@@ -238,7 +274,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         # Time-preference objective: prefer earlier energy transfer
         n = self.n_periods
         weights = self.priority * n + np.arange(1, n + 1, dtype=np.float64)
-        secondary = Highs.qsum(self.total_power_in * self.periods * weights)
+        secondary = Highs.qsum(self.total_measured_power * self.periods * weights)
 
         if primary is None:
             return (None, secondary)
@@ -257,11 +293,11 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     @output(name=CONNECTION_POWER)
     def _connection_power_output(self) -> OutputData:
-        """Power flow through this connection."""
+        """Power at the connection's measured point, where its power limit applies."""
         return OutputData(
             type=OutputType.POWER_FLOW,
             unit="kW",
-            values=self.extract_values(self.total_power_in),
+            values=self.extract_values(self.total_measured_power),
             direction="+",
             priority=self.priority,
         )
@@ -272,7 +308,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         outputs = self._segment_outputs()
         return outputs or None
 
-    def __getitem__(self, key: str | int) -> Any:
+    def __getitem__(self, key: str | int) -> object:
         """Look up segments by name or index."""
         if isinstance(key, int):
             try:

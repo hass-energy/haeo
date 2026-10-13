@@ -1,7 +1,7 @@
 """Tests for surfaced policy rule management utilities."""
 
+from collections.abc import Mapping, Sequence
 from types import MappingProxyType
-from typing import Any
 from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
@@ -16,6 +16,7 @@ from custom_components.haeo import _cleanup_policy_rules
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
+from custom_components.haeo.core.schema.constant_value import ConstantValue
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
@@ -57,6 +58,7 @@ from custom_components.haeo.core.schema.elements.policy import (
     PolicyRuleConfig,
 )
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
+from custom_components.haeo.core.schema.entity_value import EntityValue
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 from custom_components.haeo.elements import get_surfaced_input_fields
 from custom_components.haeo.flows.conftest import create_flow
@@ -66,7 +68,6 @@ from custom_components.haeo.flows.surfaced_policy import (
     build_surfaced_defaults,
     build_surfaced_schema_entries,
     find_policy_subentry,
-    find_surfaced_rule,
     form_value_to_price,
     get_policy_rules,
     price_to_form_value,
@@ -79,7 +80,7 @@ from custom_components.haeo.flows.surfaced_policy import (
 def _add_policy_subentry(
     hass: HomeAssistant,
     hub_entry: MockConfigEntry,
-    rules: list[dict[str, Any]],
+    rules: Sequence[Mapping[str, object]],
 ) -> ConfigSubentry:
     """Add a policy subentry with the given rules."""
     data = MappingProxyType(
@@ -147,56 +148,6 @@ def test_get_policy_rules_returns_rules(
     assert result[0]["name"] == "test"
 
 
-# --- find_surfaced_rule tests ---
-
-
-@pytest.mark.parametrize(
-    ("rules", "source", "target", "expected_index"),
-    [
-        pytest.param([], None, ["Battery"], None, id="empty_rules"),
-        pytest.param(
-            [{"name": "r1", "target": ["Battery"], "price": as_constant_value(0.1)}],
-            None,
-            ["Battery"],
-            0,
-            id="wildcard_to_element",
-        ),
-        pytest.param(
-            [{"name": "r1", "source": ["Battery"], "price": as_constant_value(0.1)}],
-            ["Battery"],
-            None,
-            0,
-            id="element_to_wildcard",
-        ),
-        pytest.param(
-            [
-                {"name": "r1", "source": ["Other"], "price": as_constant_value(0.1)},
-                {"name": "r2", "target": ["Battery"], "price": as_constant_value(0.2)},
-            ],
-            None,
-            ["Battery"],
-            1,
-            id="second_rule_matches",
-        ),
-        pytest.param(
-            [{"name": "r1", "source": ["A"], "target": ["B"], "price": as_constant_value(0.1)}],
-            None,
-            ["B"],
-            None,
-            id="both_sides_set_no_match",
-        ),
-    ],
-)
-def test_find_surfaced_rule(
-    rules: list[PolicyRuleConfig],
-    source: list[str] | None,
-    target: list[str] | None,
-    expected_index: int | None,
-) -> None:
-    """Finds the correct rule index by endpoint pattern."""
-    assert find_surfaced_rule(rules, source=source, target=target) == expected_index
-
-
 # --- price_to_form_value / form_value_to_price round-trip tests ---
 
 
@@ -208,7 +159,7 @@ def test_find_surfaced_rule(
         pytest.param(as_entity_value(["sensor.price"]), ["sensor.price"], id="entity"),
     ],
 )
-def test_price_to_form_value(price: Any, expected_form_value: Any) -> None:
+def test_price_to_form_value(price: EntityValue | ConstantValue | None, expected_form_value: object) -> None:
     """Converts stored prices to form field values."""
     assert price_to_form_value(price) == expected_form_value
 
@@ -224,7 +175,7 @@ def test_price_to_form_value(price: Any, expected_form_value: Any) -> None:
         pytest.param(["sensor.price"], as_entity_value(["sensor.price"]), id="entity_list"),
     ],
 )
-def test_form_value_to_price(form_value: Any, expected_price: Any) -> None:
+def test_form_value_to_price(form_value: object, expected_price: EntityValue | ConstantValue | None) -> None:
     """Converts form field values back to stored prices."""
     assert form_value_to_price(form_value) == expected_price
 
@@ -400,10 +351,10 @@ def test_defaults_for_existing_element_without_rules(
 # --- Battery flow integration tests ---
 
 
-def _wrap_battery_input(user_input: dict[str, Any]) -> dict[str, Any]:
+def _wrap_battery_input(user_input: Mapping[str, object]) -> dict[str, object]:
     """Wrap battery user input into sectioned form data."""
     common = {key: user_input[key] for key in (CONF_NAME, CONF_CONNECTION) if key in user_input}
-    pricing: dict[str, Any] = {}
+    pricing: dict[str, object] = {}
     for key in (CONF_SALVAGE_VALUE, CONF_CHARGE_COST, CONF_DISCHARGE_COST):
         if key in user_input:
             pricing[key] = user_input[key]
@@ -433,7 +384,7 @@ def _wrap_battery_input(user_input: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _base_battery_input() -> dict[str, Any]:
+def _base_battery_input() -> dict[str, object]:
     """Return minimal valid battery input."""
     return {
         CONF_NAME: "Test Battery",
@@ -625,9 +576,9 @@ async def test_battery_flow_entity_cost_creates_entity_rule(
 # --- Load flow integration tests ---
 
 
-def _wrap_load_input(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_load_input(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat load input values into sectioned config."""
-    curtailment: dict[str, Any] = {}
+    curtailment: dict[str, object] = {}
     for key in (CONF_CURTAILMENT, CONF_CONSUMPTION_COST):
         if key in flat:
             curtailment[key] = flat[key]

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Literal, TypedDict, TypeGuard
+from typing import Literal, TypedDict, TypeGuard
 
 VALUE_TYPE_ENTITY = "entity"
 
@@ -20,7 +20,7 @@ def as_entity_value(value: list[str]) -> EntityValue:
     return {"type": VALUE_TYPE_ENTITY, "value": value}
 
 
-def is_entity_value(value: Any) -> TypeGuard[EntityValue]:
+def is_entity_value(value: object) -> TypeGuard[EntityValue]:
     """Return True if value is an entity schema value.
 
     Accepts any sequence for the value field because HA's

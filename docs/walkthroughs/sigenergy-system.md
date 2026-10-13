@@ -59,7 +59,7 @@ add_integration(
 )
 ```
 
-After submitting, you should see a Switchboard element already exists.
+After submitting, you should see a Switchboard junction already exists.
 This is the AC power balance point where grid and loads connect.
 
 ### Step 2: Add Inverter
@@ -200,7 +200,7 @@ In the HAEO integration page, you should see:
 | Element          | Type     | Entities |
 | ---------------- | -------- | -------- |
 | Sigenergy System | Network  | Varies   |
-| Switchboard      | Node     | Varies   |
+| Switchboard      | Junction | Varies   |
 | Inverter         | Inverter | Varies   |
 | Battery          | Battery  | Varies   |
 | Solar            | Solar    | Varies   |
@@ -271,7 +271,7 @@ The Inverter element simplifies configuration compared to manual DC/AC nets with
 - AC→DC charging cannot exceed inverter rating
 - Battery and solar share the DC bus capacity
 
-See [Node](../user-guide/elements/node.md) for more on hybrid inverter modeling.
+See [Junction](../user-guide/elements/junction.md#hybrid-inverter-example) for more on hybrid inverter modeling.
 
 ## Next steps
 

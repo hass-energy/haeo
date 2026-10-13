@@ -15,7 +15,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 import re
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Final
 
 from custom_components.haeo.core.schema.calendar_value import CalendarEventDict
 
@@ -223,7 +223,7 @@ def _normalize_datetime(dt: datetime, default_tz: tzinfo) -> datetime:
     return dt
 
 
-def _optional_str(value: Any) -> str | None:
+def _optional_str(value: object) -> str | None:
     """Coerce a value to str or None."""
     return value if isinstance(value, str) else None
 
@@ -297,7 +297,7 @@ def capture_calendar_events(
 
 
 def _parse_event_dicts(
-    raw_events: Sequence[Any],
+    raw_events: Sequence[object],
     *,
     default_tz: tzinfo,
 ) -> list[CalendarEventData]:

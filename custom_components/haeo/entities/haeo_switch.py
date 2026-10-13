@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Any
+from typing import Any  # noqa: TID251  # HA SwitchEntity.async_turn_on/off are Any-typed upstream
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigSubentry
@@ -15,16 +15,10 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.data.input_store import InputMode, InputStore
-from custom_components.haeo.core.schema import (
-    as_constant_value,
-    is_connection_target,
-    is_constant_value,
-    is_entity_value,
-    is_none_value,
-    is_schema_value,
-)
+from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 from custom_components.haeo.horizon import HorizonManager
 
 # Attributes to exclude from recorder when forecast recording is disabled
@@ -34,7 +28,7 @@ SECTION_FIELD_PATH_LENGTH = 2
 
 
 def _field_name_is_reused_in_other_sections(
-    subentry_data: Mapping[str, Any],
+    subentry_data: Mapping[str, object],
     *,
     current_section: str,
     field_name: str,
@@ -110,27 +104,7 @@ class HaeoInputSwitch(SwitchEntity):
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
 
-        # Translation placeholders
-        placeholders: dict[str, str] = {}
-
-        def format_placeholder(value: Any) -> str:
-            if is_entity_value(value):
-                return ", ".join(value["value"])
-            if is_constant_value(value):
-                return str(value["value"])
-            if is_none_value(value):
-                return ""
-            if is_connection_target(value):
-                return value["value"]
-            return str(value)
-
-        for key, value in subentry.data.items():
-            if isinstance(value, Mapping) and not is_schema_value(value) and not is_connection_target(value):
-                for nested_key, nested_value in value.items():
-                    placeholders.setdefault(nested_key, format_placeholder(nested_value))
-                continue
-            placeholders[key] = format_placeholder(value)
-        placeholders.setdefault("name", subentry.title)
+        placeholders = build_translation_placeholders(subentry)
 
         # For list item fields, expose item name
         if len(self._field_path) > 1:
@@ -146,7 +120,7 @@ class HaeoInputSwitch(SwitchEntity):
         self._attr_translation_placeholders = placeholders
 
         # Build base extra state attributes
-        self._base_extra_attrs: dict[str, Any] = {
+        self._base_extra_attrs: dict[str, object] = {
             "config_mode": self._store.mode.value,
             "element_name": subentry.title,
             "element_type": subentry.subentry_type,

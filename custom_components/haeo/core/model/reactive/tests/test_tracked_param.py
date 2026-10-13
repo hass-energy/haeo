@@ -1,13 +1,11 @@
 """Tests for TrackedParam descriptor and dict-style parameter access."""
 
-from typing import Any
-
 from highspy import Highs
 import numpy as np
 import pytest
 
 from custom_components.haeo.core.model.element import Element
-from custom_components.haeo.core.model.reactive import TrackedParam, constraint
+from custom_components.haeo.core.model.reactive import TrackedParam, computed, constraint
 
 
 def create_test_element[T: Element[str]](cls: type[T]) -> T:
@@ -53,7 +51,7 @@ def test_tracked_param_change_value_invalidates_dependents() -> None:
         capacity = TrackedParam[float]()
 
         @constraint
-        def soc_constraint(self) -> list[Any]:
+        def soc_constraint(self) -> list[object]:
             _ = self.capacity  # Access to establish dependency
             return []
 
@@ -66,7 +64,7 @@ def test_tracked_param_change_value_invalidates_dependents() -> None:
     # Check state was created and dependency tracked
     state = getattr(elem, "_reactive_state_soc_constraint", None)
     assert state is not None
-    assert "capacity" in state["deps"]
+    assert (elem, "capacity") in state["deps"]
 
     # Change value
     elem.capacity = 20.0
@@ -82,7 +80,7 @@ def test_tracked_param_same_value_does_not_invalidate() -> None:
         capacity = TrackedParam[float]()
 
         @constraint
-        def soc_constraint(self) -> list[Any]:
+        def soc_constraint(self) -> list[object]:
             _ = self.capacity
             return []
 
@@ -199,3 +197,80 @@ def test_dict_access_getitem_regular_attribute_returns_value() -> None:
 
     # 'name' is a regular attribute, not a TrackedParam
     assert elem["name"] == "test"
+
+
+def _element[T: Element[str]](cls: type[T]) -> T:
+    solver = Highs()
+    solver.setOptionValue("output_flag", False)
+    return cls(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
+
+
+def test_computed_caches_none_result() -> None:
+    """A computed value of None is cached like any other value."""
+    calls = 0
+
+    class TestElement(Element[str]):
+        limit = TrackedParam[float | None]()
+
+        @computed
+        def scaled(self) -> float | None:
+            nonlocal calls
+            calls += 1
+            return None if self.limit is None else self.limit * 2
+
+    elem = _element(TestElement)
+    elem.limit = None
+    assert elem.scaled() is None
+    assert elem.scaled() is None
+    assert calls == 1
+
+    elem.limit = 3.0
+    assert elem.scaled() == 6.0
+    assert calls == 2
+
+
+def test_first_assignment_rebuilds_method_that_checked_is_set() -> None:
+    """A method that checked is_set before a parameter existed is rebuilt when it is first assigned."""
+
+    class TestElement(Element[str]):
+        limit = TrackedParam[float]()
+
+        @computed
+        def described(self) -> str:
+            return f"limit {self.limit}" if type(self).limit.is_set(self) else "no limit"
+
+    elem = _element(TestElement)
+    assert elem.described() == "no limit"
+
+    elem.limit = 4.0
+    assert elem.described() == "limit 4.0"
+
+
+def test_dependency_index_drops_keys_a_method_no_longer_reads() -> None:
+    """When a method stops reading a parameter, changing that parameter no longer invalidates it."""
+    calls = 0
+
+    class TestElement(Element[str]):
+        use_a = TrackedParam[bool]()
+        a = TrackedParam[float]()
+        b = TrackedParam[float]()
+
+        @computed
+        def value(self) -> float:
+            nonlocal calls
+            calls += 1
+            return self.a if self.use_a else self.b
+
+    elem = _element(TestElement)
+    elem.a = 1.0
+    elem.b = 2.0
+    elem.use_a = True
+    assert elem.value() == 1.0
+
+    elem.use_a = False
+    assert elem.value() == 2.0
+    assert calls == 2
+
+    elem.a = 5.0
+    assert elem.value() == 2.0
+    assert calls == 2

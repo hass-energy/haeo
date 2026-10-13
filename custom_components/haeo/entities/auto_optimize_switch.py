@@ -1,7 +1,5 @@
 """Switch entity for controlling automatic optimization."""
 
-from typing import Any
-
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON, EntityCategory
@@ -62,7 +60,7 @@ class AutoOptimizeSwitch(SwitchEntity, RestoreEntity):  # pyright: ignore[report
             # No previous state - default to enabled
             self._attr_is_on = True
 
-    async def async_turn_on(self, **_kwargs: Any) -> None:
+    async def async_turn_on(self, **_kwargs: object) -> None:
         """Enable automatic optimization.
 
         The coordinator subscribes to this state change and will
@@ -71,7 +69,7 @@ class AutoOptimizeSwitch(SwitchEntity, RestoreEntity):  # pyright: ignore[report
         self._attr_is_on = True
         self.async_write_ha_state()
 
-    async def async_turn_off(self, **_kwargs: Any) -> None:
+    async def async_turn_off(self, **_kwargs: object) -> None:
         """Disable automatic optimization.
 
         The coordinator subscribes to this state change and will

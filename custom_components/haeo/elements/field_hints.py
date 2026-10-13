@@ -6,7 +6,7 @@ based on OutputType, and a builder to instantiate them using declarative hints.
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import Final
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
@@ -14,7 +14,7 @@ from homeassistant.components.switch import SwitchEntityDescription
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
 from custom_components.haeo.core.units import UnitOfMeasurement
-from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
+from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldDefaults, InputFieldInfo
 
 # Home Assistant treats native_min/native_max of None as 0.0-100.0 on NumberEntity,
 # which blocked negative energy prices. Use explicit bounds (±1000) instead.
@@ -24,7 +24,11 @@ PRICE_NATIVE_MAX_VALUE: Final[float] = 1000.0
 
 @dataclass(frozen=True, slots=True)
 class OutputTypeMetadata:
-    """Default metadata for creating NumberEntityDescription for an OutputType."""
+    """Default metadata for creating NumberEntityDescription for an OutputType.
+
+    Monetary units use ``$`` as a currency placeholder, which ``localize_input_fields``
+    replaces with the symbol for the Home Assistant currency.
+    """
 
     unit: str | None
     device_class: NumberDeviceClass | None
@@ -70,14 +74,14 @@ OUTPUT_TYPE_DEFAULTS: dict[OutputType, OutputTypeMetadata] = {
         step=0.1,
     ),
     OutputType.PRICE: OutputTypeMetadata(
-        unit=None,
+        unit=UnitOfMeasurement.DOLLAR_PER_KWH,
         device_class=None,
         min_value=PRICE_NATIVE_MIN_VALUE,
         max_value=PRICE_NATIVE_MAX_VALUE,
         step=0.001,
     ),
     OutputType.PRICE_RATE: OutputTypeMetadata(
-        unit=None,
+        unit=UnitOfMeasurement.DOLLAR_PER_KWH_PER_HOUR,
         device_class=None,
         min_value=PRICE_NATIVE_MIN_VALUE,
         max_value=PRICE_NATIVE_MAX_VALUE,
@@ -89,9 +93,9 @@ OUTPUT_TYPE_DEFAULTS: dict[OutputType, OutputTypeMetadata] = {
 def build_input_fields(
     element_type: str,
     field_hints: dict[str, dict[str, FieldHint]],
-) -> dict[str, dict[str, InputFieldInfo[Any]]]:
+) -> dict[str, dict[str, AnyInputFieldInfo]]:
     """Transform schema field hints into full HA InputFieldInfo objects."""
-    result: dict[str, dict[str, InputFieldInfo[Any]]] = {}
+    result: dict[str, dict[str, AnyInputFieldInfo]] = {}
 
     for section_name, fields in field_hints.items():
         result[section_name] = {}
@@ -106,8 +110,8 @@ def build_list_input_fields(
     element_type: str,
     list_key: str,
     list_hints: ListFieldHints,
-    items: Sequence[Any],
-) -> dict[str, dict[str, InputFieldInfo[Any]]]:
+    items: Sequence[object],
+) -> dict[str, dict[str, AnyInputFieldInfo]]:
     """Transform a list config field into per-item InputFieldInfo groups.
 
     Each item in the list that contains hinted fields gets its own section
@@ -125,12 +129,12 @@ def build_list_input_fields(
         Input field groups keyed by ``"{list_key}.{index}"``.
 
     """
-    result: dict[str, dict[str, InputFieldInfo[Any]]] = {}
+    result: dict[str, dict[str, AnyInputFieldInfo]] = {}
 
     for i, item in enumerate(items):
         if not isinstance(item, Mapping):
             continue
-        section: dict[str, InputFieldInfo[Any]] = {}
+        section: dict[str, AnyInputFieldInfo] = {}
         for field_name, hint in list_hints.fields.items():
             translation_key = _build_translation_key(element_type, field_name, hint.device_type)
             section[field_name] = _build_field_info(field_name, hint, translation_key)
