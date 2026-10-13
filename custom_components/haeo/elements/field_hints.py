@@ -80,6 +80,13 @@ OUTPUT_TYPE_DEFAULTS: dict[OutputType, OutputTypeMetadata] = {
         max_value=PRICE_NATIVE_MAX_VALUE,
         step=0.001,
     ),
+    OutputType.DURATION: OutputTypeMetadata(
+        unit=UnitOfMeasurement.HOUR,
+        device_class=NumberDeviceClass.DURATION,
+        min_value=0.5,
+        max_value=168.0,
+        step=0.5,
+    ),
     OutputType.PRICE_RATE: OutputTypeMetadata(
         unit=UnitOfMeasurement.DOLLAR_PER_KWH_PER_HOUR,
         device_class=None,

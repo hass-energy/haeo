@@ -38,6 +38,7 @@ class UnitOfMeasurement(StrEnum):
     DOLLAR_PER_KWH = "$/kWh"
     DOLLAR_PER_KWH_PER_HOUR = "$/kWh/h"
     PERCENT = "%"
+    HOUR = "h"
 
     @classmethod
     def of(cls, value: object) -> "UnitOfMeasurement | None":

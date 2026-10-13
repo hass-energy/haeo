@@ -42,6 +42,7 @@ from custom_components.haeo.core.model.elements.connection import ConnectionElem
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
+from custom_components.haeo.core.model.elements.reserve import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_RESERVE
 
 # Non-connection element configs (nodes and batteries) that can carry tags
 _TaggableConfig = NodeElementConfig | BatteryElementConfig
@@ -96,15 +97,20 @@ def compile_policies(
         policy rule index to pricing element names.
 
     """
-    # Partition by element type — connections have source/target fields
+    # Partition by element type — connections have source/target fields, and
+    # elements that read other elements' flows are added after the connections
     connections: list[ConnectionElementConfig] = []
     non_connections: list[ModelElementConfig] = []
+    dependents: list[ModelElementConfig] = []
     by_name: dict[str, _TaggableConfig] = {}
     for elem in elements:
         if elem["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION:
             connections.append(elem)
-        elif elem["element_type"] == MODEL_ELEMENT_TYPE_POLICY_PRICING:
-            non_connections.append(elem)
+        elif (
+            elem["element_type"] == MODEL_ELEMENT_TYPE_POLICY_PRICING
+            or elem["element_type"] == MODEL_ELEMENT_TYPE_RESERVE
+        ):
+            dependents.append(elem)
         else:
             by_name[elem["name"]] = elem
             non_connections.append(elem)
@@ -302,7 +308,7 @@ def compile_policies(
             pricing_rule_map[rule_idx] = rule_pricing_names
 
     return CompilationResult(
-        elements=[*non_connections, *tagged_connections, *pricing_elements],
+        elements=[*non_connections, *tagged_connections, *dependents, *pricing_elements],
         pricing_rule_map=pricing_rule_map,
     )
 

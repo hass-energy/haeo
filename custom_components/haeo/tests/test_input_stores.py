@@ -13,13 +13,7 @@ from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.data.input_store import InputMode
-from custom_components.haeo.core.schema import (
-    as_connection_target,
-    as_constant_value,
-    as_entity_value,
-    as_none_value,
-    as_reserve_value,
-)
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -268,68 +262,3 @@ async def test_subentry_storage_write_updates_subentry(
     # Read back through a fresh lookup to confirm the live subentry changed
     assert storage.read() == as_constant_value(0.45)
     assert config_entry.runtime_data.value_update_in_progress is True
-
-
-def _add_subentry(hass: HomeAssistant, entry: MockConfigEntry, data: dict[str, object]) -> None:
-    """Add an element subentry titled with its name."""
-    subentry = ConfigSubentry(
-        data=MappingProxyType(data),
-        subentry_type=str(data[CONF_ELEMENT_TYPE]),
-        title=str(data[CONF_NAME]),
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(entry, subentry)
-
-
-def test_build_input_stores_derives_reserve_from_other_stores(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    horizon_manager: Mock,
-) -> None:
-    """A reserve field is derived from the loads and follows their changes once inputs share a horizon."""
-    horizon_manager.get_forecast_timestamps.return_value = (0.0, 3600.0, 7200.0)
-    _add_subentry(
-        hass,
-        config_entry,
-        {
-            CONF_ELEMENT_TYPE: "battery",
-            CONF_NAME: "Battery",
-            CONF_CONNECTION: as_connection_target("main_bus"),
-            "storage": {
-                "capacity": as_constant_value(10.0),
-                "initial_charge_percentage": as_constant_value(50.0),
-            },
-            "limits": {"min_charge_percentage": as_constant_value(10.0)},
-            "power_limits": {},
-            "pricing": {},
-            "efficiency": {"efficiency_source_target": as_constant_value(100.0)},
-            "partitioning": {"configure_partitions": True},
-            "undercharge": {"percentage": as_reserve_value(1.0), "cost": as_constant_value(0.1)},
-        },
-    )
-    _add_subentry(
-        hass,
-        config_entry,
-        {
-            CONF_ELEMENT_TYPE: "load",
-            CONF_NAME: "House",
-            CONF_CONNECTION: as_connection_target("main_bus"),
-            "forecast": {"forecast": as_constant_value(2.0)},
-            "curtailment": {"curtailment": as_constant_value(False)},
-        },
-    )
-
-    stores = build_input_stores(hass, config_entry, horizon_manager)
-    reserve = stores[("Battery", ("undercharge", "percentage"))]
-    house = stores[("House", ("forecast", "forecast"))]
-
-    assert reserve.mode == InputMode.DERIVED
-    assert reserve.display_values == pytest.approx((30.0, 30.0, 10.0))
-
-    house.set_value(4.0)
-    assert reserve.display_values == pytest.approx((50.0, 50.0, 10.0))
-
-    # The load moves to a new horizon before the battery does, so the reserve waits
-    horizon_manager.get_forecast_timestamps.return_value = (3600.0, 7200.0, 10800.0)
-    house.set_value(1.0)
-    assert reserve.display_values == pytest.approx((50.0, 50.0, 10.0))

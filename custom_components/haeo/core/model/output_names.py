@@ -9,9 +9,10 @@ from typing import Final
 from .elements.battery import BATTERY_OUTPUT_NAMES, BatteryOutputName
 from .elements.connection import CONNECTION_OUTPUT_NAMES, ConnectionOutputName
 from .elements.node import NODE_OUTPUT_NAMES, NodeOutputName
+from .elements.reserve import RESERVE_OUTPUT_NAMES, ReserveOutputName
 
 # Combined type for all possible output names
-type ModelOutputName = BatteryOutputName | ConnectionOutputName | NodeOutputName
+type ModelOutputName = BatteryOutputName | ConnectionOutputName | NodeOutputName | ReserveOutputName
 
 # Model-level output names
 MODEL_OUTPUT_NAMES: Final[frozenset[str]] = frozenset(
@@ -19,6 +20,7 @@ MODEL_OUTPUT_NAMES: Final[frozenset[str]] = frozenset(
         *BATTERY_OUTPUT_NAMES,
         *CONNECTION_OUTPUT_NAMES,
         *NODE_OUTPUT_NAMES,
+        *RESERVE_OUTPUT_NAMES,
     }
 )
 
@@ -27,6 +29,7 @@ __all__ = [
     "CONNECTION_OUTPUT_NAMES",
     "MODEL_OUTPUT_NAMES",
     "NODE_OUTPUT_NAMES",
+    "RESERVE_OUTPUT_NAMES",
     "BatteryOutputName",
     "ConnectionOutputName",
     "ModelOutputName",

@@ -24,6 +24,7 @@ from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
+from .elements.reserve import Reserve, ReserveElementConfig, ReserveStorage
 from .util.solver_rows import add_row, update_row
 
 _LOGGER = logging.getLogger(__name__)
@@ -196,6 +197,9 @@ class Network:
     @overload
     def add(self, element_config: PolicyPricingElementConfig) -> PolicyPricing: ...
 
+    @overload
+    def add(self, element_config: ReserveElementConfig) -> Reserve: ...
+
     def add(self, element_config: ModelElementConfig) -> Element[Any]:
         """Add a new element to the network.
 
@@ -217,6 +221,9 @@ class Network:
 
         if element_config["element_type"] == "policy_pricing":
             return self._add_policy_pricing(element_config)
+
+        if element_config["element_type"] == "reserve":
+            return self._add_reserve(element_config)
 
         element_type = element_config["element_type"]
         kwargs = {key: value for key, value in element_config.items() if key not in ("element_type", "name")}
@@ -273,6 +280,50 @@ class Network:
             terms=config["terms"],
         )
         element.label = config.get("label", "")
+        self.elements[name] = element
+        return element
+
+    def _add_reserve(self, config: ReserveElementConfig) -> Reserve:
+        """Create a Reserve element by resolving its elements and storage by name.
+
+        Each battery holds the reserve through the one connection it discharges into,
+        whose efficiency scales the energy it can deliver.
+        """
+        name = config["name"]
+        elements: list[NetworkElement[Any]] = []
+        for element_name in config["elements"]:
+            element = self.elements.get(element_name)
+            if not isinstance(element, NetworkElement):
+                msg = f"Reserve '{name}' references unknown element '{element_name}'"
+                raise TypeError(msg)
+            elements.append(element)
+
+        storage: list[ReserveStorage] = []
+        for battery_name in config["storage"]:
+            battery = self.elements.get(battery_name)
+            if not isinstance(battery, Battery):
+                msg = f"Reserve '{name}' references '{battery_name}', which is not a battery"
+                raise TypeError(msg)
+            discharges = [
+                element
+                for element in self.elements.values()
+                if isinstance(element, Connection) and element.source == battery_name
+            ]
+            if len(discharges) != 1:
+                msg = f"Reserve '{name}' needs battery '{battery_name}' to discharge through exactly one connection"
+                raise ValueError(msg)
+            storage.append(ReserveStorage(battery=battery, discharge=discharges[0]))
+
+        element = Reserve(
+            name=name,
+            periods=self.periods,
+            solver=self._solver,
+            elements=elements,
+            storage=storage,
+            window=config["window"],
+            minimum=config["minimum"],
+            price=config["price"],
+        )
         self.elements[name] = element
         return element
 

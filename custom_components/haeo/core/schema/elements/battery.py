@@ -6,7 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue, ReserveValue
+from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints, SurfacedPriceHint
 from custom_components.haeo.core.schema.sections import (
@@ -138,16 +138,6 @@ class PartitionConfig(TypedDict, total=False):
     cost: EntityValue | ConstantValue | NoneValue
 
 
-class UnderchargeConfig(TypedDict, total=False):
-    """Undercharge partition configuration.
-
-    The percentage can also be derived from the network's backup energy reserve.
-    """
-
-    percentage: EntityValue | ConstantValue | NoneValue | ReserveValue
-    cost: EntityValue | ConstantValue | NoneValue
-
-
 class PartitionData(TypedDict, total=False):
     """Loaded partition values (undercharge/overcharge)."""
 
@@ -263,7 +253,7 @@ class BatteryConfigSchema(ConnectedCommonConfig):
     partitioning: PartitioningConfig
     undercharge: NotRequired[
         Annotated[
-            UnderchargeConfig,
+            PartitionConfig,
             SectionHints(
                 {
                     CONF_PARTITION_PERCENTAGE: FieldHint(
@@ -373,6 +363,5 @@ __all__ = [
     "PartitioningData",
     "StorageSocConfig",
     "StorageSocData",
-    "UnderchargeConfig",
     "is_battery_config_data",
 ]

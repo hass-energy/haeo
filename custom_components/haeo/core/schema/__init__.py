@@ -30,7 +30,6 @@ from .connection_target import (
 from .constant_value import ConstantValue, as_constant_value, is_constant_value
 from .entity_value import EntityValue, as_entity_value, is_entity_value
 from .none_value import NoneValue, as_none_value, is_none_value
-from .reserve_value import ReserveValue, as_reserve_value, is_reserve_value
 from .types import SchemaContainer, SchemaValue, SchemaValueKind
 from .util import UnitSpec, extract_unit_parts, matches_unit_spec
 
@@ -39,18 +38,11 @@ VALUE_TYPE_CONSTANT: Final = "constant"
 VALUE_TYPE_NONE: Final = "none"
 VALUE_TYPE_CALENDAR: Final = "calendar"
 VALUE_TYPE_CONNECTION_TARGET: Final = "connection_target"
-VALUE_TYPE_RESERVE: Final = "reserve"
 
 
 def is_schema_value(value: object) -> TypeGuard[SchemaValue]:
     """Return True if value is a known schema value variant."""
-    return (
-        is_entity_value(value)
-        or is_constant_value(value)
-        or is_none_value(value)
-        or is_calendar_value(value)
-        or is_reserve_value(value)
-    )
+    return is_entity_value(value) or is_constant_value(value) or is_none_value(value) or is_calendar_value(value)
 
 
 def _unwrap_alias_type(value_type: Any) -> Any:
@@ -70,13 +62,12 @@ def get_schema_value_kinds(value_type: Any) -> frozenset[SchemaValueKind]:
             kinds.update(get_schema_value_kinds(arg))
         return frozenset(kinds)
 
-    if value_type in (EntityValue, ConstantValue, NoneValue, CalendarValue, ReserveValue):
+    if value_type in (EntityValue, ConstantValue, NoneValue, CalendarValue):
         mapping: dict[type, SchemaValueKind] = {
             EntityValue: VALUE_TYPE_ENTITY,
             ConstantValue: VALUE_TYPE_CONSTANT,
             NoneValue: VALUE_TYPE_NONE,
             CalendarValue: VALUE_TYPE_CALENDAR,
-            ReserveValue: VALUE_TYPE_RESERVE,
         }
         return frozenset({mapping[value_type]})
 
@@ -89,7 +80,6 @@ __all__ = [
     "VALUE_TYPE_CONSTANT",
     "VALUE_TYPE_ENTITY",
     "VALUE_TYPE_NONE",
-    "VALUE_TYPE_RESERVE",
     "CalendarEventDict",
     "CalendarValue",
     "ConnectionTarget",
@@ -97,7 +87,6 @@ __all__ = [
     "ConstantValue",
     "EntityValue",
     "NoneValue",
-    "ReserveValue",
     "SchemaContainer",
     "SchemaValue",
     "SchemaValueKind",
@@ -107,7 +96,6 @@ __all__ = [
     "as_constant_value",
     "as_entity_value",
     "as_none_value",
-    "as_reserve_value",
     "extract_connection_target",
     "extract_unit_parts",
     "get_connection_target_name",
@@ -117,7 +105,6 @@ __all__ = [
     "is_constant_value",
     "is_entity_value",
     "is_none_value",
-    "is_reserve_value",
     "is_schema_value",
     "matches_unit_spec",
     "normalize_connection_target",

@@ -16,3 +16,4 @@ class ElementType(StrEnum):
     NODE = "node"
     SOLAR = "solar"
     POLICY = "policy"
+    RESERVE = "reserve"

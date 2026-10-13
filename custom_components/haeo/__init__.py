@@ -31,6 +31,8 @@ from custom_components.haeo.const import (
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements.policy import PolicyRuleConfig
+from custom_components.haeo.core.schema.elements.reserve import ELEMENT_TYPE as RESERVE_ELEMENT_TYPE
+from custom_components.haeo.core.schema.elements.reserve import SECTION_PARTICIPANTS
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
@@ -226,6 +228,7 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     flow_in_progress = _element_flow_in_progress(hass, entry)
     if not flow_in_progress:
         _cleanup_policy_rules(hass, entry)
+        _cleanup_reserve_participants(hass, entry)
 
     _LOGGER.info("HAEO configuration changed, reloading integration")
 
@@ -331,6 +334,26 @@ def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     if changed:
         _save_policy_rules(hass, entry, cleaned)
+
+
+def _cleanup_reserve_participants(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove deleted element references from reserve participants.
+
+    A reserve names its loads, generation, and batteries, so deleting one of
+    those elements leaves a dangling name that is stripped here.
+    """
+    current_element_names = {subentry.title for subentry in entry.subentries.values()}
+    for subentry in list(entry.subentries.values()):
+        if subentry.subentry_type != RESERVE_ELEMENT_TYPE:
+            continue
+        participants = subentry.data[SECTION_PARTICIPANTS]
+        cleaned = {
+            field: [name for name in names if name in current_element_names] for field, names in participants.items()
+        }
+        if cleaned != participants:
+            hass.config_entries.async_update_subentry(
+                entry, subentry, data={**subentry.data, SECTION_PARTICIPANTS: cleaned}
+            )
 
 
 def _raise_for_rejected_inputs(input_stores: InputStoreMap) -> None:

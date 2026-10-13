@@ -11,7 +11,6 @@ from collections.abc import Collection, Mapping, Sequence
 import numpy as np
 
 from custom_components.haeo.core.adapters.registry import is_element_type
-from custom_components.haeo.core.adapters.reserve import apply_reserves
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
@@ -137,8 +136,7 @@ def load_element_configs(
     """Load all element configs by resolving values against a state machine.
 
     Entity-driven policy prices that surface a negated element price are
-    negated, matching the input stores used at runtime. Fields configured with
-    a reserve are derived from the other loaded elements.
+    negated, matching the input stores used at runtime.
 
     Args:
         participants: Map of element name to raw config dict
@@ -150,12 +148,10 @@ def load_element_configs(
 
     """
     negated = negated_price_paths(participants)
-    loaded = {
+    return {
         name: load_element_config(name, config, sm, forecast_times, negated_paths=negated.get(name, frozenset()))
         for name, config in participants.items()
     }
-    apply_reserves(participants, loaded, forecast_times)
-    return loaded
 
 
 def load_element_config_from_values(

@@ -10,11 +10,10 @@ from .connection_target import ConnectionTarget, ConnectionTargetValue
 from .constant_value import ConstantValue
 from .entity_value import EntityValue
 from .none_value import NoneValue
-from .reserve_value import ReserveValue
 
-type SchemaValueKind = Literal["entity", "constant", "none", "calendar", "reserve"]
+type SchemaValueKind = Literal["entity", "constant", "none", "calendar"]
 
-type SchemaValue = EntityValue | ConstantValue | NoneValue | CalendarValue | ReserveValue
+type SchemaValue = EntityValue | ConstantValue | NoneValue | CalendarValue
 type SchemaContainer = Mapping[str, SchemaValue]
 
 __all__ = [
@@ -23,7 +22,6 @@ __all__ = [
     "ConstantValue",
     "EntityValue",
     "NoneValue",
-    "ReserveValue",
     "SchemaContainer",
     "SchemaValue",
     "SchemaValueKind",

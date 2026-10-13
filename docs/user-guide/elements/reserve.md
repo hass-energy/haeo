@@ -1,0 +1,91 @@
+# Reserve
+
+A reserve keeps enough energy in your batteries to run your home through a grid outage.
+You choose which loads to keep running, which generation keeps producing, which batteries hold the reserve, and how long an outage to cover.
+HAEO then plans charging and discharging so the batteries hold that energy, unless using it is worth more than the cost you set for falling short.
+
+You can add as many reserves as you like, for example one for essential loads over a long outage and another for the whole house over a short one.
+
+## Configuration
+
+| Field                                 | Type                                     | Required | Default | Description                                          |
+| ------------------------------------- | ---------------------------------------- | -------- | ------- | ---------------------------------------------------- |
+| **[Name](#name)**                     | String                                   | Yes      | -       | Unique identifier for this reserve                   |
+| **[Loads](#loads)**                   | Elements                                 | No       | -       | Loads to keep running through an outage              |
+| **[Generation](#generation)**         | Elements                                 | No       | -       | Generation that keeps producing through an outage    |
+| **[Batteries](#batteries)**           | Elements                                 | Yes      | -       | Batteries that hold the reserve together             |
+| **[Outage length](#outage-length)**   | Hours                                    | Yes      | 12      | How long an outage the reserve covers                |
+| **[Extra reserve](#extra-reserve)**   | [sensor(s)](../forecasts-and-sensors.md) | Yes      | 0       | Energy to hold on top of what the loads need (kWh)   |
+| **[Shortfall cost](#shortfall-cost)** | Price rate                               | Yes      | 0.05    | Holding cost per kWh short of the reserve (\$/kWh/h) |
+
+## Name
+
+Unique identifier for this reserve within your HAEO configuration.
+
+**Examples**: "Backup", "Essential loads", "Storm reserve"
+
+## Loads
+
+The loads the reserve keeps running.
+They count by the power HAEO plans for them, so a load whose timing HAEO chooses moves the reserve with its schedule.
+
+## Generation
+
+The generation that keeps producing during an outage, such as solar with an inverter that keeps running off grid.
+Generation counts by the power HAEO plans for it and offsets the loads it overlaps.
+A surplus counts toward a shortfall that comes after it within the outage, but not toward one before it.
+
+## Batteries
+
+The batteries that hold the reserve.
+They hold it together, so a reserve needing 8 kWh is met by any mix of charge across them.
+Each battery counts the energy it can deliver above its lowest allowed charge, after its discharge efficiency.
+
+## Outage length
+
+How long an outage the reserve covers.
+At every point in the forecast, HAEO works out how much energy the loads would need, less the generation, over an outage starting then and lasting this long.
+The reserve at that point is the largest amount the batteries would need to supply at any time during that outage.
+
+Near the end of the forecast the outage is cut short where the forecast ends, so the reserve tapers off.
+
+## Extra reserve
+
+Energy to hold on top of what the loads need, in kWh.
+Use a constant for a fixed buffer, or a sensor to change it over time, for example to raise the reserve ahead of a storm.
+
+## Shortfall cost
+
+The holding cost for each kWh the batteries fall short of the reserve, for every hour the shortfall lasts.
+It works like the [battery undercharge cost](battery.md#undercharge-cost): a short dip that is refilled soon is cheap, while a shortfall that lasts is expensive.
+Set it high to treat the reserve as nearly untouchable.
+
+## Sensors created
+
+| Sensor           | Unit | Description                                             |
+| ---------------- | ---- | ------------------------------------------------------- |
+| Required energy  | kWh  | Energy the batteries should hold at each point          |
+| Available energy | kWh  | Energy the batteries can deliver at each point          |
+| Energy shortfall | kWh  | How far the batteries fall short of the required energy |
+
+## Next steps
+
+<div class="grid cards" markdown>
+
+- :material-battery:{ .lg .middle } **Configure batteries**
+
+    ---
+
+    Set up the batteries that hold the reserve.
+
+    [:material-arrow-right: Battery configuration](battery.md)
+
+- :material-calculator:{ .lg .middle } **How the reserve is modeled**
+
+    ---
+
+    See how HAEO turns the reserve into optimization constraints.
+
+    [:material-arrow-right: Reserve modeling](../../modeling/device-layer/reserve.md)
+
+</div>

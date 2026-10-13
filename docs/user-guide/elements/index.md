@@ -99,6 +99,12 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Load guide](load.md)
 
+- :material-shield-check:{ .lg .middle } __Reserve configuration__
+
+    Backup energy held in your batteries for a grid outage.
+
+    [:material-arrow-right: Reserve guide](reserve.md)
+
 - :material-source-branch:{ .lg .middle } __Junction configuration__ (Advanced)
 
     Points where connections meet and power balances.

@@ -5,7 +5,6 @@ from dataclasses import replace
 from typing import Final, Literal
 
 import numpy as np
-from numpy.typing import NDArray
 
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
@@ -78,10 +77,6 @@ class SolarAdapter:
                 "segments": segments,
             },
         ]
-
-    def reserve_energy(self, config: SolarConfigData, periods: NDArray[np.float64]) -> NDArray[np.float64]:
-        """Return the energy the solar forecast supplies to the backup reserve in each period, as a negative."""
-        return -np.asarray(config[SECTION_FORECAST][CONF_FORECAST], dtype=float) * periods
 
     def outputs(
         self,

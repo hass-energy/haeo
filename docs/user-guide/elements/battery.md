@@ -23,7 +23,6 @@ A battery in HAEO represents:
 
 Battery configuration uses a sectioned flow where you enter the name, connection, and configure each input field.
 For each field, select "Entity" to link to a sensor, "Constant" to enter a fixed value, or "None" for optional fields you don't need.
-The undercharge percentage also offers "Reserve", described under [Backup reserve](#backup-reserve).
 If you enable battery partitions, HAEO guides you to a second step to configure undercharge and overcharge values.
 
 Fields configured with "Constant" create input entities that you can adjust at runtime without reconfiguring.
@@ -39,7 +38,7 @@ Optional fields set to "None" are omitted from the optimization entirely.
 | **[Min Charge Percentage](#min-and-max-charge-percentage)**       | Percentage | No       | 0       | Preferred minimum SOC (%)                                  |
 | **[Max Charge Percentage](#min-and-max-charge-percentage)**       | Percentage | No       | 100     | Preferred maximum SOC (%)                                  |
 | **[Configure battery partitions](#configure-battery-partitions)** | Boolean    | No       | false   | Enable undercharge and overcharge partitions               |
-| **[Undercharge Percentage](#undercharge-configuration)**          | Percentage | No       | -       | Other edge of the undercharge band, or a backup reserve    |
+| **[Undercharge Percentage](#undercharge-configuration)**          | Percentage | No       | -       | Hard minimum SOC limit (%) (battery partitions step)       |
 | **[Overcharge Percentage](#overcharge-configuration)**            | Percentage | No       | -       | Hard maximum SOC limit (%) (battery partitions step)       |
 | **[Undercharge Cost](#undercharge-cost)**                         | Price rate | No       | -       | Hourly holding cost for energy below min SOC (\$/kWh/h)    |
 | **[Overcharge Cost](#overcharge-cost)**                           | Price rate | No       | -       | Hourly holding cost for energy above max SOC (\$/kWh/h)    |
@@ -134,8 +133,10 @@ This section is optional and can be used independently of overcharge configurati
 
 #### Undercharge Percentage
 
-Set the other edge of the undercharge band.
-The undercharge cost applies to energy held between this percentage and `min_charge_percentage`, and the battery never goes below the lower of the two.
+Define the **hard minimum SOC limit** (absolute floor).
+This is the lower bound of the battery's operating range.
+
+**Ordering requirement**: Must be less than `min_charge_percentage`.
 
 **Example**:
 
@@ -147,27 +148,8 @@ This allows operation between 5-10% SOC with an added undercharge cost penalty w
 
 !!! tip "Key insight"
 
-    The lower percentage is the hard limit - the battery cannot discharge below this level.
-    The higher percentage is the soft limit - HAEO prefers to stay above it but will discharge into the 5-10% range when economically justified.
-
-#### Backup reserve
-
-Choose **Reserve** for the undercharge percentage to keep enough charge to ride through a grid outage.
-Enter how many hours the outage should last.
-HAEO then works out the undercharge percentage itself and shows it, with its forecast, on the undercharge percentage input entity.
-
-At each point in the forecast, HAEO adds up the energy your loads would need over the following hours, less what your solar would produce, and finds the deepest the running total falls.
-That shortfall, divided by the discharge efficiency, is the energy the battery should hold above `min_charge_percentage` at that time.
-A solar surplus counts toward a shortfall that comes after it within the outage, but not toward one before it.
-
-- Loads with curtailment enabled are left out, since they would be shed during an outage.
-- Grid connections are left out, since the grid is down.
-- When several batteries use a reserve, they share it in proportion to their capacity.
-- Near the end of the forecast the outage window is cut short, so the reserve tapers off.
-
-The reserve is soft: the battery holds it while the undercharge cost outweighs what the energy could earn, and uses it when prices make that worthwhile.
-Because the cost is per kWh per hour, it reads as what being one kWh short of your backup is worth to you for each hour.
-Set it high to treat the reserve as nearly untouchable.
+    The undercharge percentage is the hard limit - the battery cannot discharge below this level.
+    The `min_charge_percentage` is the soft limit - HAEO prefers to stay above it but will discharge into the 5-10% range when economically justified.
 
 ### Overcharge Configuration
 
@@ -214,6 +196,7 @@ Refilling that kWh after 3 hours instead costs only \$0.06.
 **How it works**: Discharging into the undercharge range is worthwhile when the value of that energy exceeds the rate multiplied by how long the battery stays below the threshold.
 A short dip that is refilled soon is cheap, while a deficit that lasts until the end of the forecast horizon is expensive.
 This makes the undercharge range behave like a reserve: HAEO tends to use it for short price spikes and refill it soon afterwards.
+To keep enough energy for your loads through a grid outage, add a [Reserve](reserve.md) instead.
 
 **Setting the cost**: Decide what one kWh of reserve should cost if it stays used for a typical duration, then divide by that duration.
 

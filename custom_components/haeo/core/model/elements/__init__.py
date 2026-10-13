@@ -33,6 +33,13 @@ from .policy_pricing import PolicyPricing as PolicyPricing
 from .policy_pricing import PolicyPricingElementConfig as PolicyPricingElementConfig
 from .policy_pricing import PolicyPricingElementTypeName as PolicyPricingElementTypeName
 from .policy_pricing import PolicyPricingTerm as PolicyPricingTerm
+from .reserve import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_RESERVE
+from .reserve import RESERVE_OUTPUT_NAMES as RESERVE_OUTPUT_NAMES
+from .reserve import Reserve as Reserve
+from .reserve import ReserveElementConfig as ReserveElementConfig
+from .reserve import ReserveElementTypeName as ReserveElementTypeName
+from .reserve import ReserveOutputName as ReserveOutputName
+from .reserve import ReserveStorage as ReserveStorage
 from .segments import EfficiencySegment as EfficiencySegment
 from .segments import PassthroughSegment as PassthroughSegment
 from .segments import PowerLimitSegment as PowerLimitSegment
@@ -45,11 +52,21 @@ from .segments import SocPricingSegmentSpec as SocPricingSegmentSpec
 
 # Type for all model element types
 ModelElementType = (
-    BatteryElementTypeName | NodeElementTypeName | ConnectionElementTypeName | PolicyPricingElementTypeName
+    BatteryElementTypeName
+    | NodeElementTypeName
+    | ConnectionElementTypeName
+    | PolicyPricingElementTypeName
+    | ReserveElementTypeName
 )
 
 # Typed configs for all model elements (discriminated by element_type)
-ModelElementConfig = BatteryElementConfig | NodeElementConfig | ConnectionElementConfig | PolicyPricingElementConfig
+ModelElementConfig = (
+    BatteryElementConfig
+    | NodeElementConfig
+    | ConnectionElementConfig
+    | PolicyPricingElementConfig
+    | ReserveElementConfig
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +104,8 @@ __all__ = [
     "MODEL_ELEMENT_TYPE_CONNECTION",
     "MODEL_ELEMENT_TYPE_NODE",
     "MODEL_ELEMENT_TYPE_POLICY_PRICING",
+    "MODEL_ELEMENT_TYPE_RESERVE",
+    "RESERVE_OUTPUT_NAMES",
     "Battery",
     "BatteryConstraintName",
     "BatteryElementConfig",
@@ -108,6 +127,10 @@ __all__ = [
     "PolicyPricingTerm",
     "PowerLimitSegment",
     "PricingSegment",
+    "Reserve",
+    "ReserveElementConfig",
+    "ReserveOutputName",
+    "ReserveStorage",
     "Segment",
     "SegmentSpec",
     "SegmentType",

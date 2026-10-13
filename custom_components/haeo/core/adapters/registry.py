@@ -3,6 +3,7 @@
 from collections.abc import Mapping
 from typing import (
     Any,  # noqa: TID251  # ElementAdapter Protocol: each adapter's config/output types are narrower
+    Final,
     Protocol,
     TypeGuard,
     runtime_checkable,
@@ -17,9 +18,11 @@ from custom_components.haeo.core.adapters.elements.junction import adapter as ju
 from custom_components.haeo.core.adapters.elements.load import adapter as load_adapter
 from custom_components.haeo.core.adapters.elements.node import adapter as node_adapter
 from custom_components.haeo.core.adapters.elements.policy import adapter as policy_adapter
+from custom_components.haeo.core.adapters.elements.reserve import adapter as reserve_adapter
 from custom_components.haeo.core.adapters.elements.solar import adapter as solar_adapter
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_RESERVE
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 
@@ -87,6 +90,7 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
     ElementType.NODE: node_adapter,
     ElementType.BATTERY_SECTION: battery_section_adapter,
     ElementType.POLICY: policy_adapter,
+    ElementType.RESERVE: reserve_adapter,
 }
 
 
@@ -100,6 +104,9 @@ def is_element_type(value: object) -> TypeGuard[ElementType]:
     return value in ELEMENT_TYPES
 
 
+_ADD_ORDER: Final[dict[str, int]] = {MODEL_ELEMENT_TYPE_CONNECTION: 1, MODEL_ELEMENT_TYPE_RESERVE: 2}
+
+
 def collect_model_elements(
     participants: Mapping[str, ElementConfigData],
 ) -> list[ModelElementConfig]:
@@ -110,10 +117,8 @@ def collect_model_elements(
         model_elements = ELEMENT_TYPES[element_type].model_elements(loaded_params)
         all_model_elements.extend(model_elements)
 
-    return sorted(
-        all_model_elements,
-        key=lambda e: e.get("element_type") == ElementType.CONNECTION,
-    )
+    # Connections join the elements they link, and reserves read both
+    return sorted(all_model_elements, key=lambda e: _ADD_ORDER.get(e["element_type"], 0))
 
 
 __all__ = [
