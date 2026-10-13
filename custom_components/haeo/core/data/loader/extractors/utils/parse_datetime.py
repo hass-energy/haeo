@@ -1,10 +1,9 @@
 """Utility functions for datetime parsing in forecast extractors."""
 
 from datetime import UTC, datetime
-from typing import Any
 
 
-def parse_datetime_to_timestamp(value: Any) -> int:
+def parse_datetime_to_timestamp(value: object) -> int:
     """Parse a datetime string or datetime object to UTC timestamp.
 
     Args:
@@ -32,7 +31,7 @@ def parse_datetime_to_timestamp(value: Any) -> int:
     raise ValueError(msg)
 
 
-def is_parsable_to_datetime(value: Any) -> bool:
+def is_parsable_to_datetime(value: object) -> bool:
     """Check if a value can be parsed to a UTC timestamp."""
     try:
         parse_datetime_to_timestamp(value)

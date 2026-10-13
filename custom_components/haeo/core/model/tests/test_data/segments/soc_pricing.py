@@ -21,7 +21,7 @@ class MockBattery(Element[str]):
     def __init__(
         self,
         name: str,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         solver: Highs,
         stored_energy: HighspyArray,
     ) -> None:
@@ -33,12 +33,12 @@ class MockBattery(Element[str]):
 class DummyElement(Element[str]):
     """Minimal non-battery element for segment endpoints."""
 
-    def __init__(self, name: str, periods: NDArray[np.floating[Any]], solver: Highs) -> None:
+    def __init__(self, name: str, periods: NDArray[np.float64], solver: Highs) -> None:
         """Initialize the dummy element."""
         super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
 
 
-def _battery_endpoints_fixed(solver: Highs, periods: NDArray[np.floating[Any]]) -> tuple[Element[Any], Element[Any]]:
+def _battery_endpoints_fixed(solver: Highs, periods: NDArray[np.float64]) -> tuple[Element[Any], Element[Any]]:
     stored_energy = solver.addVariables(len(periods) + 1, lb=0, name_prefix="battery_e_", out_array=True)
     solver.addConstr(stored_energy[0] == 5.0)
     solver.addConstr(stored_energy[1] == 2.0)
@@ -48,7 +48,7 @@ def _battery_endpoints_fixed(solver: Highs, periods: NDArray[np.floating[Any]]) 
     return battery, target
 
 
-def _battery_endpoints_free(solver: Highs, periods: NDArray[np.floating[Any]]) -> tuple[Element[Any], Element[Any]]:
+def _battery_endpoints_free(solver: Highs, periods: NDArray[np.float64]) -> tuple[Element[Any], Element[Any]]:
     stored_energy = solver.addVariables(len(periods) + 1, lb=0, name_prefix="battery_e_", out_array=True)
     battery = MockBattery("battery", periods, solver, stored_energy)
     target = DummyElement("target", periods, solver)

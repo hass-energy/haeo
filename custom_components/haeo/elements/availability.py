@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
 
 from custom_components.haeo.core.data.loader import TimeSeriesLoader
 from custom_components.haeo.core.schema import (
@@ -16,14 +15,14 @@ from custom_components.haeo.core.schema import (
 from custom_components.haeo.core.state import StateMachine
 
 
-def schema_config_available(config: Mapping[str, Any], *, sm: StateMachine) -> bool:
+def schema_config_available(config: Mapping[str, object], *, sm: StateMachine) -> bool:
     """Return True when every entity-backed schema value is available."""
     ts_loader = TimeSeriesLoader()
     return _mapping_available(config, sm=sm, ts_loader=ts_loader)
 
 
 def _mapping_available(
-    mapping: Mapping[str, Any],
+    mapping: Mapping[str, object],
     *,
     sm: StateMachine,
     ts_loader: TimeSeriesLoader,

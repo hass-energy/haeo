@@ -17,9 +17,8 @@ from dataclasses import dataclass
 import logging
 from pathlib import Path
 import re
-from typing import Any
 
-from playwright.sync_api import Page
+from playwright.sync_api import Locator, Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from tools.live_hass import LiveHomeAssistant
@@ -73,14 +72,14 @@ class HAPage:
         if ctx:
             ctx.capture(self.page, step)
 
-    def _capture_with_indicator(self, step: str, locator: Any) -> None:
+    def _capture_with_indicator(self, step: str, locator: Locator) -> None:
         """Capture screenshot with click indicator on target element."""
         self._scroll_into_view(locator)
         self._show_click_indicator(locator)
         self._capture(step)
         self._remove_click_indicator()
 
-    def _show_click_indicator(self, locator: Any) -> None:
+    def _show_click_indicator(self, locator: Locator) -> None:
         """Show click indicator overlay at target element."""
         self._remove_click_indicator()
 
@@ -108,7 +107,7 @@ class HAPage:
             }
         """)
 
-    def _scroll_into_view(self, locator: Any) -> bool:
+    def _scroll_into_view(self, locator: Locator) -> bool:
         """Scroll element into view if needed.
 
         Returns True if the page actually scrolled, False if the element
@@ -123,13 +122,13 @@ class HAPage:
         after = element.evaluate(_GET_SCROLL_TOP_JS)
         return abs(after - before) > 1
 
-    def _scroll_and_capture(self, locator: Any) -> None:
+    def _scroll_and_capture(self, locator: Locator) -> None:
         """Scroll element into view and capture a screenshot if scrolling occurred."""
         scrolled = self._scroll_into_view(locator)
         if scrolled:
             self._capture("scrolled")
 
-    def _wait_for_stable_layout(self, locator: Any) -> None:
+    def _wait_for_stable_layout(self, locator: Locator) -> None:
         """Wait for an element's layout to stabilize across animation frames."""
         locator.evaluate("""
             (el) => new Promise((resolve) => {
@@ -846,7 +845,7 @@ class HAPage:
 
     def _select_entity_no_capture(
         self,
-        picker_or_search: Any,
+        picker_or_search: Locator,
         search_term: str,
         entity_name: str,
         *,
@@ -940,7 +939,7 @@ class HAPage:
             result_item.click(timeout=DEFAULT_TIMEOUT)
             self.page.wait_for_timeout(500)
 
-    def _entity_picker_search_input(self) -> Any:
+    def _entity_picker_search_input(self) -> Locator:
         """Return the visible search input of an open entity picker dropdown.
 
         Newer frontends render the picker as an inline panel with a "Search"
@@ -1127,7 +1126,7 @@ class HAPage:
             item.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
             item.click(timeout=DEFAULT_TIMEOUT)
 
-    def _wait_for_images(self, locator: Any) -> None:
+    def _wait_for_images(self, locator: Locator) -> None:
         """Wait for all images within a locator to finish loading.
 
         Traverses shadow DOM boundaries to find images inside custom elements.
@@ -1287,7 +1286,7 @@ class HAPage:
 
     def _fill_event_times(
         self,
-        dialog: Any,
+        dialog: Locator,
         start_time: str | None,
         end_time: str | None,
     ) -> None:
@@ -1323,7 +1322,7 @@ class HAPage:
 
     def _fill_single_time(
         self,
-        time_input: Any,
+        time_input: Locator,
         time_value: str,
         screenshot_prefix: str,
     ) -> None:
@@ -1379,7 +1378,7 @@ class HAPage:
         if ctx:
             self._capture_with_indicator(f"{screenshot_prefix}_minute", minute_field)
 
-    def _set_event_recurrence(self, dialog: Any, recurrence: str) -> None:
+    def _set_event_recurrence(self, dialog: Locator, recurrence: str) -> None:
         """Set event recurrence in the event dialog.
 
         Args:

@@ -1,7 +1,7 @@
 """Schema values for disabled inputs."""
 
 from collections.abc import Mapping
-from typing import Any, Literal, TypedDict, TypeGuard
+from typing import Literal, TypedDict, TypeGuard
 
 VALUE_TYPE_NONE = "none"
 
@@ -17,7 +17,7 @@ def as_none_value() -> NoneValue:
     return {"type": VALUE_TYPE_NONE}
 
 
-def is_none_value(value: Any) -> TypeGuard[NoneValue]:
+def is_none_value(value: object) -> TypeGuard[NoneValue]:
     """Return True if value is a disabled schema value."""
     if not isinstance(value, Mapping):
         return False

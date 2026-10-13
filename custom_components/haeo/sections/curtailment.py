@@ -1,11 +1,9 @@
 """Flow builders for curtailment configuration sections."""
 
-import voluptuous as vol
-
 from custom_components.haeo.core.schema.sections.curtailment import SECTION_CURTAILMENT
 from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldSection
-from custom_components.haeo.flows.field_schema import SectionDefinition, build_choose_field_entries
+from custom_components.haeo.flows.field_schema import FieldEntry, SectionDefinition, build_choose_field_entries
 
 
 def curtailment_section(fields: tuple[str, ...], *, collapsed: bool = False) -> SectionDefinition:
@@ -19,7 +17,7 @@ def build_curtailment_fields(
     field_schema: dict[str, FieldSchemaInfo],
     inclusion_map: dict[str, list[str]],
     current_data: dict[str, object] | None = None,
-) -> dict[str, tuple[vol.Marker, object]]:
+) -> dict[str, FieldEntry]:
     """Build curtailment field entries for config flows."""
     if not input_fields:
         return {}

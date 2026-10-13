@@ -3,7 +3,6 @@
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Any
 
 from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
@@ -17,18 +16,12 @@ from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.data.input_store import InputMode, InputStore
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import (
-    as_constant_value,
-    is_connection_target,
-    is_constant_value,
-    is_entity_value,
-    is_none_value,
-    is_schema_value,
-)
+from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.core.state import StateMachine
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
+from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.last_off_history import async_last_off_state_machine
@@ -40,7 +33,7 @@ SECTION_FIELD_PATH_LENGTH = 2
 
 
 def _field_name_is_reused_in_other_sections(
-    subentry_data: Mapping[str, Any],
+    subentry_data: Mapping[str, object],
     *,
     current_section: str,
     field_name: str,
@@ -124,27 +117,7 @@ class HaeoInputNumber(NumberEntity):
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
 
-        # Translation placeholders
-        placeholders: dict[str, str] = {}
-
-        def format_placeholder(value: Any) -> str:
-            if is_entity_value(value):
-                return ", ".join(value["value"])
-            if is_constant_value(value):
-                return str(value["value"])
-            if is_none_value(value):
-                return ""
-            if is_connection_target(value):
-                return value["value"]
-            return str(value)
-
-        for key, value in subentry.data.items():
-            if isinstance(value, Mapping) and not is_schema_value(value) and not is_connection_target(value):
-                for nested_key, nested_value in value.items():
-                    placeholders.setdefault(nested_key, format_placeholder(nested_value))
-                continue
-            placeholders[key] = format_placeholder(value)
-        placeholders.setdefault("name", subentry.title)
+        placeholders = build_translation_placeholders(subentry)
 
         # For list item fields, add the item's name as a placeholder
         if len(self._field_path) > 1:
@@ -162,7 +135,7 @@ class HaeoInputNumber(NumberEntity):
 
         # Build base extra state attributes
         source_role = classify_source_role(self._store.mode.value, field_info.field_name)
-        self._base_extra_attrs: dict[str, Any] = {
+        self._base_extra_attrs: dict[str, object] = {
             "config_mode": self._store.mode.value,
             SOURCE_ROLE_KEY: source_role,
             "element_name": subentry.title,
@@ -301,7 +274,7 @@ class HaeoInputNumber(NumberEntity):
             extra_attrs["forecast"] = self._build_forecast_attribute()
         self._attr_extra_state_attributes = extra_attrs
 
-    def _build_forecast_attribute(self) -> list[dict[str, Any]]:
+    def _build_forecast_attribute(self) -> list[dict[str, datetime | float | None]]:
         """Build the HA forecast attribute from store values.
 
         Uses the store's display values (percentage fields already scaled back

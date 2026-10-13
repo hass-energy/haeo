@@ -26,6 +26,7 @@ export type ElementType =
   | "ev"
   | "grid"
   | "inverter"
+  | "junction"
   | "load"
   | "node"
   | "solar"

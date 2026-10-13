@@ -16,7 +16,6 @@ from pathlib import Path
 import tempfile
 import threading
 from types import MappingProxyType
-from typing import Any
 import warnings
 
 from homeassistant import loader
@@ -33,23 +32,12 @@ from homeassistant.helpers import floor_registry as fr
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers import restore_state as rs
+from homeassistant.util.json import JsonValueType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import MIGRATION_MINOR_VERSION
-from custom_components.haeo.const import DOMAIN, INTEGRATION_TYPE_HUB
-from custom_components.haeo.core.const import (
-    CONF_ELEMENT_TYPE,
-    CONF_NAME,
-    CONF_TIER_1_COUNT,
-    CONF_TIER_1_DURATION,
-    CONF_TIER_2_COUNT,
-    CONF_TIER_2_DURATION,
-    CONF_TIER_3_COUNT,
-    CONF_TIER_3_DURATION,
-    CONF_TIER_4_COUNT,
-    CONF_TIER_4_DURATION,
-)
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from tools.live_hass import (
     PROJECT_ROOT,
     LiveHomeAssistant,
@@ -84,37 +72,40 @@ async def wait_for_sim_idle(hass: HomeAssistant) -> None:
     await hass.async_block_till_done(wait_background_tasks=True)
 
 
-async def setup_haeo_entry(hass: HomeAssistant, scenario_config: dict[str, Any]) -> MockConfigEntry:
+# Scenario config keys that describe the scenario rather than the hub's config entry data
+_NON_HUB_SCENARIO_KEYS = frozenset({"participants", "version", "minor_version", "update_interval_minutes"})
+
+
+def _require_dict(value: JsonValueType, context: str) -> dict[str, JsonValueType]:
+    """Narrow a scenario JSON value to a dict, with a readable failure."""
+    if not isinstance(value, dict):
+        msg = f"Scenario {context} must be an object, got {type(value).__name__}"
+        raise TypeError(msg)
+    return value
+
+
+async def setup_haeo_entry(hass: HomeAssistant, scenario_config: dict[str, JsonValueType]) -> MockConfigEntry:
     """Create and set up a HAEO hub config entry from scenario config data."""
     await _remove_haeo_entries(hass)
 
-    tiers_data = scenario_config.get("tiers") or scenario_config
     mock_config_entry = MockConfigEntry(
         domain=DOMAIN,
-        data={
-            "integration_type": INTEGRATION_TYPE_HUB,
-            HUB_SECTION_COMMON: {CONF_NAME: "Test Hub"},
-            HUB_SECTION_TIERS: {
-                CONF_TIER_1_COUNT: tiers_data["tier_1_count"],
-                CONF_TIER_1_DURATION: tiers_data["tier_1_duration"],
-                CONF_TIER_2_COUNT: tiers_data.get("tier_2_count", 0),
-                CONF_TIER_2_DURATION: tiers_data.get("tier_2_duration", 5),
-                CONF_TIER_3_COUNT: tiers_data.get("tier_3_count", 0),
-                CONF_TIER_3_DURATION: tiers_data.get("tier_3_duration", 30),
-                CONF_TIER_4_COUNT: tiers_data.get("tier_4_count", 0),
-                CONF_TIER_4_DURATION: tiers_data.get("tier_4_duration", 60),
-            },
-            HUB_SECTION_ADVANCED: {},
-        },
-        version=scenario_config.get("version", 1),
-        minor_version=scenario_config.get("minor_version", MIGRATION_MINOR_VERSION),
+        data={key: value for key, value in scenario_config.items() if key not in _NON_HUB_SCENARIO_KEYS},
+        version=version if isinstance(version := scenario_config.get("version", 1), int) else 1,
+        minor_version=(
+            minor
+            if isinstance(minor := scenario_config.get("minor_version", MIGRATION_MINOR_VERSION), int)
+            else MIGRATION_MINOR_VERSION
+        ),
     )
     mock_config_entry.add_to_hass(hass)
 
-    for name, config in scenario_config["participants"].items():
+    participants = _require_dict(scenario_config["participants"], "participants")
+    for name, raw_config in participants.items():
+        config = _require_dict(raw_config, f"participant {name!r}")
         subentry = ConfigSubentry(
             data=MappingProxyType(config),
-            subentry_type=config[CONF_ELEMENT_TYPE],
+            subentry_type=str(config[CONF_ELEMENT_TYPE]),
             title=name,
             unique_id=None,
         )
@@ -327,7 +318,7 @@ def live_sim_home_assistant(
     *,
     config_dir: Path | None = None,
     port: int | None = None,
-    environment: dict[str, Any] | None = None,
+    environment: dict[str, JsonValueType] | None = None,
 ) -> Generator[LiveHomeAssistant]:
     """Context manager for a sim Home Assistant instance with optional persistent config."""
     scenario_environment = environment or {}

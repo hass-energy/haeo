@@ -40,7 +40,7 @@ Fields configured with "Constant" create input entities that you can adjust at r
 | Field                                                    | Type       | Required | Default               | Description                                      |
 | -------------------------------------------------------- | ---------- | -------- | --------------------- | ------------------------------------------------ |
 | **[Name](#name)**                                        | String     | Yes      | -                     | Unique identifier (e.g., "Tesla Model 3")        |
-| **[Connection](#connection)**                            | Select     | Yes      | -                     | Node to connect to in your energy network        |
+| **[Connection](#connection)**                            | Select     | Yes      | -                     | Junction or inverter the charger is attached to  |
 | **[Trip calendar](#trip-calendar)**                      | Entity     | No       | -                     | Calendar entity with trip events                 |
 | **[Plugged in](#plugged-in)**                            | Entity     | No       | -                     | Binary sensor reporting when plugged in          |
 | **[Odometer](#odometer)**                                | Entity     | No       | -                     | Sensor reporting current odometer reading        |
@@ -58,6 +58,8 @@ Fields configured with "Constant" create input entities that you can adjust at r
 | **[Charge efficiency](#efficiency)**                     | Percentage | No       | 95%                   | Efficiency when charging                         |
 | **[Discharge efficiency](#efficiency)**                  | Percentage | No       | 95%                   | Efficiency when discharging                      |
 
+See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
+
 ### Name
 
 Choose a descriptive, friendly name.
@@ -65,8 +67,8 @@ Home Assistant uses it for sensor names, so avoid symbols or abbreviations you w
 
 ### Connection
 
-Select the node in your energy network where the EV charger is connected.
-This is typically your main switchboard or an inverter's DC bus.
+Select the junction or inverter the EV charger is attached to.
+This is typically your main switchboard junction, or an inverter for a DC charger.
 
 ### Trip calendar
 
@@ -163,7 +165,8 @@ HAEO uses this as the starting point for optimization.
 
 ### Max charge and discharge rate
 
-Set the maximum charging and discharging rates for home charging:
+Set the maximum charging and discharging rates for home charging.
+Both are measured at the charger, before charging losses, so a 7.4 kW charger is entered as 7.4 kW and its charge power sensor reads 7.4 kW at full rate.
 
 - **Max charge rate**: How fast the car can charge from the grid (e.g., 7.4 kW for a typical home charger)
 - **Max discharge rate**: How fast the car can export power via V2G (leave blank if V2G is not supported)

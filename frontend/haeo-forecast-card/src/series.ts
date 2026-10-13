@@ -135,6 +135,7 @@ const ELEMENT_TYPE_KEYS: Record<ElementType, true> = {
   ev: true,
   grid: true,
   inverter: true,
+  junction: true,
   load: true,
   node: true,
   solar: true,

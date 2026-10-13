@@ -1,12 +1,10 @@
 """Validation for parameters that must never be negative."""
 
-from typing import Any
-
 import numpy as np
 from numpy.typing import NDArray
 
 
-def require_non_negative(name: str, value: float | NDArray[np.floating[Any]]) -> None:
+def require_non_negative(name: str, value: float | NDArray[np.float64]) -> None:
     """Raise if any entry of a parameter is negative.
 
     Slack prices must be non-negative: a negative price rewards booking the

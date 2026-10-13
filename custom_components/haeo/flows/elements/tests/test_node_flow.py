@@ -1,8 +1,8 @@
 """Tests for node element config flow."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import MappingProxyType
-from typing import Any, TypedDict
+from typing import TypedDict
 from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
@@ -16,7 +16,7 @@ from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_
 from custom_components.haeo.flows.conftest import create_flow
 
 
-def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_input(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat node input values into sectioned config."""
     if SECTION_ROLE in flat:
         return dict(flat)
@@ -26,7 +26,7 @@ def _wrap_input(flat: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _wrap_config(flat: dict[str, Any]) -> dict[str, Any]:
+def _wrap_config(flat: Mapping[str, object]) -> dict[str, object]:
     """Wrap flat node config values into sectioned config with element type."""
     if SECTION_ROLE in flat:
         return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, **flat}
@@ -37,14 +37,14 @@ class ValidFlowCase(TypedDict):
     """Test case for valid flow input."""
 
     description: str
-    config: dict[str, Any]
+    config: dict[str, object]
 
 
 class InvalidFlowCase(TypedDict):
     """Test case for invalid flow input."""
 
     description: str
-    config: dict[str, Any]
+    config: dict[str, object]
     error_field: str
     existing_name: str | None
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from numbers import Real
-from typing import Any, Literal, TypedDict, TypeGuard
+from typing import Literal, TypedDict, TypeGuard
 
 VALUE_TYPE_CONSTANT = "constant"
 
@@ -21,7 +21,7 @@ def as_constant_value(value: float | bool) -> ConstantValue:  # noqa: FBT001 (bo
     return {"type": VALUE_TYPE_CONSTANT, "value": value}
 
 
-def is_constant_value(value: Any) -> TypeGuard[ConstantValue]:
+def is_constant_value(value: object) -> TypeGuard[ConstantValue]:
     """Return True if value is a constant schema value."""
     if not isinstance(value, Mapping):
         return False
