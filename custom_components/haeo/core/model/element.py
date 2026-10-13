@@ -154,6 +154,15 @@ class Element[OutputNameT: str]:
         # Use batch value extraction (handles highs_var and highs_linear_expression)
         return tuple(self._solver.vals(arr).flat)
 
+    def integer_variables(self) -> list[highs_var]:
+        """Return the variables this element requires to take integer values.
+
+        The network makes these integer for the solve, then fixes them at
+        their solved values and re-solves the remaining linear program so
+        shadow prices stay available.
+        """
+        return []
+
     def outputs(self) -> Mapping[OutputNameT, OutputData]:
         """Return output specifications for the element.
 

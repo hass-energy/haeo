@@ -40,6 +40,15 @@ from .policy_pricing import PolicyPricing as PolicyPricing
 from .policy_pricing import PolicyPricingElementConfig as PolicyPricingElementConfig
 from .policy_pricing import PolicyPricingElementTypeName as PolicyPricingElementTypeName
 from .policy_pricing import PolicyPricingTerm as PolicyPricingTerm
+from .schedulable_load import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_SCHEDULABLE_LOAD
+from .schedulable_load import INTEGER_MODES as INTEGER_MODES
+from .schedulable_load import SCHEDULABLE_LOAD_OUTPUT_NAMES as SCHEDULABLE_LOAD_OUTPUT_NAMES
+from .schedulable_load import IntegerMode as IntegerMode
+from .schedulable_load import SchedulableLoad as SchedulableLoad
+from .schedulable_load import SchedulableLoadConstraintName as SchedulableLoadConstraintName
+from .schedulable_load import SchedulableLoadElementConfig as SchedulableLoadElementConfig
+from .schedulable_load import SchedulableLoadElementTypeName as SchedulableLoadElementTypeName
+from .schedulable_load import SchedulableLoadOutputName as SchedulableLoadOutputName
 from .segments import EfficiencySegment as EfficiencySegment
 from .segments import PassthroughSegment as PassthroughSegment
 from .segments import PowerLimitSegment as PowerLimitSegment
@@ -57,6 +66,7 @@ ModelElementType = (
     | NodeElementTypeName
     | ConnectionElementTypeName
     | PolicyPricingElementTypeName
+    | SchedulableLoadElementTypeName
 )
 
 # Typed configs for all model elements (discriminated by element_type)
@@ -66,6 +76,7 @@ ModelElementConfig = (
     | NodeElementConfig
     | ConnectionElementConfig
     | PolicyPricingElementConfig
+    | SchedulableLoadElementConfig
 )
 
 
@@ -96,6 +107,10 @@ ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
         factory=Connection,
         output_names=CONNECTION_OUTPUT_NAMES,
     ),
+    MODEL_ELEMENT_TYPE_SCHEDULABLE_LOAD: ElementSpec(
+        factory=SchedulableLoad,
+        output_names=SCHEDULABLE_LOAD_OUTPUT_NAMES,
+    ),
 }
 
 __all__ = [
@@ -105,11 +120,14 @@ __all__ = [
     "CONNECTION_POWER",
     "DEFERRABLE_LOAD_OUTPUT_NAMES",
     "ELEMENTS",
+    "INTEGER_MODES",
     "MODEL_ELEMENT_TYPE_BATTERY",
     "MODEL_ELEMENT_TYPE_CONNECTION",
     "MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD",
     "MODEL_ELEMENT_TYPE_NODE",
     "MODEL_ELEMENT_TYPE_POLICY_PRICING",
+    "MODEL_ELEMENT_TYPE_SCHEDULABLE_LOAD",
+    "SCHEDULABLE_LOAD_OUTPUT_NAMES",
     "Battery",
     "BatteryConstraintName",
     "BatteryElementConfig",
@@ -124,6 +142,7 @@ __all__ = [
     "DeferrableLoadOutputName",
     "EfficiencySegment",
     "ElementSpec",
+    "IntegerMode",
     "ModelElementConfig",
     "ModelElementType",
     "Node",
@@ -135,6 +154,10 @@ __all__ = [
     "PolicyPricingTerm",
     "PowerLimitSegment",
     "PricingSegment",
+    "SchedulableLoad",
+    "SchedulableLoadConstraintName",
+    "SchedulableLoadElementConfig",
+    "SchedulableLoadOutputName",
     "Segment",
     "SegmentSpec",
     "SegmentType",

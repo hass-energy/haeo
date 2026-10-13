@@ -13,7 +13,7 @@ from typing import (
     overload,
 )
 
-from highspy import Highs, HighsModelStatus
+from highspy import Highs, HighsModelStatus, HighsVarType
 from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
@@ -25,6 +25,7 @@ from .elements.connection import Connection, ConnectionElementConfig, Connection
 from .elements.deferrable_load import DeferrableLoad, DeferrableLoadElementConfig
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
+from .elements.schedulable_load import SchedulableLoad, SchedulableLoadElementConfig
 from .util.solver_rows import add_row, update_row
 
 _LOGGER = logging.getLogger(__name__)
@@ -141,6 +142,8 @@ class Network:
         self._solver = Highs()
         self._lex_row: tuple[highs_cons, highs_linear_expression] | None = None
         self._calibrated_weight: float | None = None
+        # Integer columns fixed at their solved values, with their own bounds
+        self._fixed_integers: tuple[NDArray[np.int32], NDArray[np.float64], NDArray[np.float64]] | None = None
 
         # Redirect HiGHS logging to Python logger at debug level
         self._solver.cbLogging += self._log_callback
@@ -193,6 +196,9 @@ class Network:
 
     @overload
     def add(self, element_config: NodeElementConfig) -> Node: ...
+
+    @overload
+    def add(self, element_config: SchedulableLoadElementConfig) -> SchedulableLoad: ...
 
     @overload
     def add(self, element_config: ConnectionElementConfig) -> Connection[ConnectionOutputName]: ...
@@ -346,13 +352,55 @@ class Network:
         all_col_indices = np.arange(n_vars, dtype=np.int32)
         cost_vectors = _build_cost_vectors((primary, secondary), n_vars)
 
+        integer_cols = self._release_integers()
+
         if isinstance(self.options, BlendedOptions):
-            return self._solve_blended(h, all_col_indices, cost_vectors, self.options.blend_weight)
+            primary_value = self._solve_blended(h, all_col_indices, cost_vectors, self.options.blend_weight)
+        elif isinstance(self.options, CalibratedOptions) and self._calibrated_weight is not None:
+            primary_value = self._solve_blended(h, all_col_indices, cost_vectors, self._calibrated_weight)
+        else:
+            primary_value = self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary)
 
-        if isinstance(self.options, CalibratedOptions) and self._calibrated_weight is not None:
-            return self._solve_blended(h, all_col_indices, cost_vectors, self._calibrated_weight)
+        self._fix_integers(integer_cols)
+        return primary_value
 
-        return self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary)
+    def _release_integers(self) -> NDArray[np.int32]:
+        """Restore integer columns fixed by the previous solve and mark them integer.
+
+        Returns the integer column indices so the solve can fix them again.
+        """
+        h = self._solver
+        if self._fixed_integers is not None:
+            cols, lower, upper = self._fixed_integers
+            h.changeColsBounds(len(cols), cols, lower, upper)
+            self._fixed_integers = None
+
+        cols = np.array(
+            sorted({var.index for element in self.elements.values() for var in element.integer_variables()}),
+            dtype=np.int32,
+        )
+        if len(cols):
+            h.changeColsIntegrality(len(cols), cols, np.full(len(cols), HighsVarType.kInteger))
+        return cols
+
+    def _fix_integers(self, cols: NDArray[np.int32]) -> None:
+        """Fix integer columns at their solved values and re-solve as a linear program.
+
+        A mixed-integer solve reports no duals, so the integer columns are
+        fixed and made continuous and the same objective is solved again.
+        The continuous solution is unchanged and the duals become valid.
+        The original bounds are restored before the next solve.
+        """
+        if not len(cols):
+            return
+        h = self._solver
+        _, _, _, lower, upper, _ = h.getCols(len(cols), cols)
+        values = np.round(np.asarray(h.allVariableValues())[cols])
+        h.changeColsIntegrality(len(cols), cols, np.full(len(cols), HighsVarType.kContinuous))
+        h.changeColsBounds(len(cols), cols, values, values)
+        self._fixed_integers = (cols, np.asarray(lower), np.asarray(upper))
+        h.run()
+        _ensure_optimal(h)
 
     def _solve_lex(
         self,
