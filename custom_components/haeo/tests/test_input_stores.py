@@ -8,9 +8,10 @@ from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.data.input_store import InputMode
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements.grid import (
@@ -22,10 +23,11 @@ from custom_components.haeo.core.schema.elements.grid import (
     SECTION_PRICING,
 )
 from custom_components.haeo.core.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
+from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
-from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, HUB_SECTION_TIERS
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.input_stores import SubentryStorage, build_input_stores
+from custom_components.haeo.input_stores import SubentryStorage, build_input_stores, input_error_placeholders
 
 
 @pytest.fixture
@@ -44,16 +46,9 @@ def config_entry(hass: HomeAssistant, horizon_manager: Mock) -> MockConfigEntry:
         domain=DOMAIN,
         title="Test Network",
         data={
-            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
-            HUB_SECTION_TIERS: {
-                "tier_1_count": 2,
-                "tier_1_duration": 5,
-                "tier_2_count": 0,
-                "tier_2_duration": 15,
-                "tier_3_count": 0,
-                "tier_3_duration": 30,
-                "tier_4_count": 0,
-                "tier_4_duration": 60,
+            HUB_SECTION_COMMON: {
+                CONF_NAME: "Test Network",
+                CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_2_DAYS),
             },
             HUB_SECTION_ADVANCED: {},
         },
@@ -90,24 +85,6 @@ def _add_grid(hass: HomeAssistant, entry: MockConfigEntry) -> ConfigSubentry:
     return subentry
 
 
-def test_negated_policy_price_fields_skips_subentries_without_element_type(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-) -> None:
-    """Subentries missing element_type are ignored when locating negated price stores."""
-    from custom_components.haeo.input_stores import _negated_policy_price_fields  # noqa: PLC0415
-
-    junk = ConfigSubentry(
-        data=MappingProxyType({CONF_NAME: "orphan"}),
-        subentry_type="unknown",
-        title="orphan",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(config_entry, junk)
-
-    assert _negated_policy_price_fields(config_entry) == set()
-
-
 def test_build_input_stores_creates_stores_for_configured_fields(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
@@ -132,6 +109,47 @@ def test_build_input_stores_creates_stores_for_configured_fields(
     assert stores[constant_key].mode == InputMode.EDITABLE
     assert stores[driven_key].mode == InputMode.DRIVEN
     assert stores[driven_key].source_entity_ids == ["sensor.export_price"]
+
+
+async def test_input_error_placeholders_describe_rejected_store(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """Placeholders add the element, field, and source entities to the error's own."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: GRID_TYPE,
+                CONF_NAME: "Main Grid",
+                CONF_CONNECTION: as_connection_target("main_bus"),
+                SECTION_PRICING: {
+                    CONF_PRICE_SOURCE_TARGET: as_constant_value(0.30),
+                    CONF_PRICE_TARGET_SOURCE: as_constant_value(0.05),
+                },
+                SECTION_POWER_LIMITS: {
+                    CONF_MAX_POWER_SOURCE_TARGET: as_entity_value(["sensor.import_limit"]),
+                },
+            }
+        ),
+        subentry_type=GRID_TYPE,
+        title="Main Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, subentry)
+    key = ("Main Grid", (SECTION_POWER_LIMITS, CONF_MAX_POWER_SOURCE_TARGET))
+    store = build_input_stores(hass, config_entry, horizon_manager)[key]
+
+    sm = FakeStateMachine({"sensor.import_limit": FakeEntityState("sensor.import_limit", "-4.5", {})})
+    assert await store.async_load(sm) is False
+
+    assert store.error is not None
+    assert input_error_placeholders(key, store.error, store) == {
+        "element": "Main Grid",
+        "field": f"{SECTION_POWER_LIMITS}.{CONF_MAX_POWER_SOURCE_TARGET}",
+        "entities": "sensor.import_limit",
+        "value": "-4.5",
+    }
 
 
 async def test_build_input_stores_negates_entity_surfaced_price(

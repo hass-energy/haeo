@@ -1,7 +1,7 @@
 """Connection element adapter for model layer integration."""
 
 from collections.abc import Mapping
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
@@ -49,11 +49,10 @@ class ConnectionAdapter:
                 "name": config["name"],
                 "source": extract_connection_target(config[SECTION_ENDPOINTS]["source"]),
                 "target": extract_connection_target(config[SECTION_ENDPOINTS]["target"]),
+                # The limit and price apply to the power entering the connection, before
+                # its losses, where the connection power sensor measures, so a connection
+                # at its limit reads the limit.
                 "segments": {
-                    "efficiency": {
-                        "segment_type": "efficiency",
-                        "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
-                    },
                     "power_limit": {
                         "segment_type": "power_limit",
                         "max_power": config[SECTION_POWER_LIMITS].get(CONF_MAX_POWER_SOURCE_TARGET),
@@ -61,6 +60,10 @@ class ConnectionAdapter:
                     "pricing": {
                         "segment_type": "pricing",
                         "price": config[SECTION_PRICING].get(CONF_PRICE_SOURCE_TARGET),
+                    },
+                    "efficiency": {
+                        "segment_type": "efficiency",
+                        "efficiency": config[SECTION_EFFICIENCY].get(CONF_EFFICIENCY_SOURCE_TARGET),
                     },
                 },
             },
@@ -70,7 +73,7 @@ class ConnectionAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
-        **_kwargs: Any,
+        **_kwargs: object,
     ) -> Mapping[ConnectionDeviceName, Mapping[ConnectionOutputName, OutputData]]:
         """Map model outputs to connection-specific output names."""
         conn = model_outputs[name]

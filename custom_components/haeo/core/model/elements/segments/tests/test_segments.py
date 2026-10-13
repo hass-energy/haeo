@@ -3,7 +3,12 @@
 from collections.abc import Sequence
 from functools import reduce
 import operator
-from typing import Any
+from typing import (
+    Any,  # noqa: TID251  # source_element/target_element are the connection's endpoint elements,
+    # which can be any concrete NetworkElement subtype. Element is invariant in its output-name
+    # Literal (see element.py's outputs()), so no non-Any type expresses "an Element of some
+    # unknown output-name type" here; DummySegment only forwards these to the base class.
+)
 
 from highspy import Highs
 from highspy.highs import HighspyArray, highs_linear_expression
@@ -25,7 +30,7 @@ from custom_components.haeo.core.model.elements.segments import (
     is_pricing_spec,
     is_soc_pricing_spec,
 )
-from custom_components.haeo.core.model.elements.segments.segment import Segment
+from custom_components.haeo.core.model.elements.segments.segment import FlowProvider, FlowVariables, Segment
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import cost, output
 from custom_components.haeo.core.model.tests import test_data
@@ -48,7 +53,7 @@ def create_solver() -> Highs:
 class DummyElement(Element[str]):
     """Minimal element for segment endpoint wiring in tests."""
 
-    def __init__(self, name: str, periods: NDArray[np.floating[Any]], solver: Highs) -> None:
+    def __init__(self, name: str, periods: NDArray[np.float64], solver: Highs) -> None:
         """Create a dummy element with no outputs."""
         super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
 
@@ -60,12 +65,12 @@ class DummySegment(Segment):
         self,
         segment_id: str,
         n_periods: int,
-        periods: NDArray[np.floating[Any]],
+        periods: NDArray[np.float64],
         solver: Highs,
         *,
         source_element: Element[Any],
         target_element: Element[Any],
-        power_in: dict[int, HighspyArray],
+        upstream: FlowProvider,
     ) -> None:
         """Initialize a dummy segment."""
         super().__init__(
@@ -75,7 +80,7 @@ class DummySegment(Segment):
             solver,
             source_element=source_element,
             target_element=target_element,
-            power_in=power_in,
+            upstream=upstream,
         )
         self._cost_var = solver.addVariables(1, lb=0, name_prefix=f"{segment_id}_c_", out_array=True)
 
@@ -135,7 +140,7 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
         spec=case["spec"],
         source_element=source,
         target_element=target,
-        power_in=tagged_power,
+        upstream=FlowVariables(tagged_power),
     )
     seg.constraints()
 
@@ -287,7 +292,7 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
                 spec=case["spec"],
                 source_element=source,
                 target_element=target,
-                power_in=tagged_pv,
+                upstream=FlowVariables(tagged_pv),
             )
     else:
         with pytest.raises(case["error"], match=match):
@@ -299,7 +304,7 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
                 spec=case["spec"],
                 source_element=source,
                 target_element=target,
-                power_in=tagged_pv,
+                upstream=FlowVariables(tagged_pv),
             )
 
 
@@ -322,7 +327,13 @@ def test_segment_outputs_and_cost_coverage() -> None:
     target = DummyElement("target", periods, h)
     power = h.addVariables(len(periods), lb=0, name_prefix="dummy_", out_array=True)
     segment = DummySegment(
-        "seg", len(periods), periods, h, source_element=source, target_element=target, power_in={0: power}
+        "seg",
+        len(periods),
+        periods,
+        h,
+        source_element=source,
+        target_element=target,
+        upstream=FlowVariables({0: power}),
     )
 
     np.testing.assert_array_equal(segment.periods, periods)
@@ -383,7 +394,7 @@ def test_soc_pricing_cost_none_without_prices() -> None:
         spec={"segment_type": "soc_pricing"},
         source_element=battery,
         target_element=target,
-        power_in={0: pv},
+        upstream=FlowVariables({0: pv}),
     )
 
     # Apply with dummy variables
@@ -407,7 +418,7 @@ def test_tag_transfer_cost_none_when_no_tags_match() -> None:
         spec={"segment_type": "pricing", "tag_prices": [{"tag": 99, "price": 0.05}]},
         source_element=source,
         target_element=target,
-        power_in={0: power_in},
+        upstream=FlowVariables({0: power_in}),
     )
 
     assert segment.tag_transfer_cost() is None
@@ -429,7 +440,7 @@ def test_efficiency_segment_treats_none_as_unity_after_update() -> None:
         spec={"segment_type": "efficiency", "efficiency": np.array([0.9], dtype=np.float64)},
         source_element=source,
         target_element=target,
-        power_in={0: power_in},
+        upstream=FlowVariables({0: power_in}),
     )
 
     # Simulate coordinator update path clearing optional efficiency.
@@ -456,7 +467,7 @@ def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> 
         spec={"segment_type": "efficiency"},
         source_element=source,
         target_element=target,
-        power_in={0: power_a},
+        upstream=FlowVariables({0: power_a}),
     )
     seg_b = EfficiencySegment(
         "seg_b",
@@ -466,7 +477,7 @@ def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> 
         spec={"segment_type": "efficiency"},
         source_element=source,
         target_element=target,
-        power_in={0: power_b},
+        upstream=FlowVariables({0: power_b}),
     )
 
     h.addConstrs(seg_a.total_power_in == np.asarray([7.5], dtype=np.float64))
@@ -493,7 +504,7 @@ def test_power_limit_no_max_power() -> None:
         spec={"segment_type": "power_limit"},
         source_element=source,
         target_element=target,
-        power_in={0: power_in},
+        upstream=FlowVariables({0: power_in}),
     )
     seg.constraints()
 

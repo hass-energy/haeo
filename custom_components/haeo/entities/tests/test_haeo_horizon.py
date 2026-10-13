@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from freezegun import freeze_time
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import EntityPlatform
@@ -17,46 +18,71 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo.const import DOMAIN
-from custom_components.haeo.core.const import CONF_HORIZON_PRESET, CONF_NAME
-from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
-from custom_components.haeo.flows import (
+from custom_components.haeo.core.const import (
+    CONF_HORIZON,
+    CONF_NAME,
+    HORIZON_PRESET_2_DAYS,
     HORIZON_PRESET_5_DAYS,
     HUB_SECTION_ADVANCED,
     HUB_SECTION_COMMON,
-    HUB_SECTION_TIERS,
 )
+from custom_components.haeo.core.schema.entity_value import as_entity_value
+from custom_components.haeo.core.schema.horizon_value import HorizonValue, as_horizon_preset_value
+from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 from custom_components.haeo.horizon import HorizonManager
 
 ADELAIDE = ZoneInfo("Australia/Adelaide")
 T4_PERIOD_SECONDS = 3600
+HORIZON_ENTITY_ID = "sensor.horizon_source"
+
+# Boundaries of two 5 minute periods followed by one 15 minute period
+HORIZON_START = 1735732800.0  # 2025-01-01 12:00:00 UTC
+HORIZON_BOUNDARIES = (HORIZON_START, HORIZON_START + 300, HORIZON_START + 600, HORIZON_START + 1500)
 
 # --- Fixtures ---
 
 
-@pytest.fixture
-def config_entry(hass: HomeAssistant) -> MockConfigEntry:
-    """Return a config entry for horizon entity tests."""
+def _set_horizon_entity(hass: HomeAssistant, boundaries: tuple[float, ...], state: str = "0") -> None:
+    """Set the horizon entity to a forecast whose times are the given boundaries."""
+    hass.states.async_set(
+        HORIZON_ENTITY_ID,
+        state,
+        {
+            "unit_of_measurement": "kW",
+            "forecast": [
+                {"time": datetime.fromtimestamp(boundary, tz=dt_util.UTC).isoformat(), "value": 0}
+                for boundary in boundaries
+            ],
+        },
+    )
+
+
+def _hub_entry(hass: HomeAssistant, horizon: HorizonValue) -> MockConfigEntry:
+    """Add a hub config entry with the given horizon."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Test Network",
         data={
-            HUB_SECTION_COMMON: {CONF_NAME: "Test Network"},
-            HUB_SECTION_TIERS: {
-                "tier_1_count": 2,
-                "tier_1_duration": 5,  # 5 minutes
-                "tier_2_count": 1,
-                "tier_2_duration": 15,  # 15 minutes
-                "tier_3_count": 0,
-                "tier_3_duration": 30,
-                "tier_4_count": 0,
-                "tier_4_duration": 60,
-            },
+            HUB_SECTION_COMMON: {CONF_NAME: "Test Network", CONF_HORIZON: horizon},
             HUB_SECTION_ADVANCED: {},
         },
         entry_id="test_horizon_entry",
     )
     entry.add_to_hass(hass)
     return entry
+
+
+@pytest.fixture
+async def config_entry(hass: HomeAssistant) -> MockConfigEntry:
+    """Return a config entry whose horizon comes from a forecast entity."""
+    _set_horizon_entity(hass, HORIZON_BOUNDARIES)
+    return _hub_entry(hass, as_entity_value([HORIZON_ENTITY_ID]))
+
+
+@pytest.fixture
+def preset_config_entry(hass: HomeAssistant) -> MockConfigEntry:
+    """Return a config entry using a horizon preset."""
+    return _hub_entry(hass, as_horizon_preset_value(HORIZON_PRESET_2_DAYS))
 
 
 @pytest.fixture
@@ -305,18 +331,129 @@ def adelaide_timezone(hass: HomeAssistant) -> Iterator[None]:
     dt_util.set_default_time_zone(original)
 
 
-def test_update_timestamps_refreshes_smallest_period(
+def test_horizon_manager_reads_entity_horizon(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
 ) -> None:
-    """Smallest period is recomputed when tier durations change in config."""
+    """An entity horizon takes its boundaries and periods from the entity's forecast times."""
     manager = HorizonManager(hass, config_entry)
+
+    assert manager.get_forecast_timestamps() == HORIZON_BOUNDARIES
+    assert manager.periods_seconds == [300, 300, 900]
     assert manager.smallest_period == 300
 
-    config_entry.data[HUB_SECTION_TIERS]["tier_1_duration"] = 1
-    manager._update_timestamps()
 
+async def test_horizon_manager_entity_change_updates_horizon(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """A change to the horizon entity updates the horizon and notifies subscribers."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+    subscriber = Mock()
+    manager.subscribe(subscriber)
+
+    new_boundaries = (HORIZON_START + 60, HORIZON_START + 120, HORIZON_START + 1920)
+    _set_horizon_entity(hass, new_boundaries)
+    await hass.async_block_till_done()
+
+    assert manager.get_forecast_timestamps() == new_boundaries
+    assert manager.periods_seconds == [60, 1800]
     assert manager.smallest_period == 60
+    subscriber.assert_called_once()
+
+    manager.stop()
+
+
+@pytest.mark.parametrize(
+    "attributes",
+    [
+        pytest.param(None, id="removed"),
+        pytest.param({}, id="no_forecast"),
+        pytest.param(
+            {"unit_of_measurement": "kW", "forecast": [{"time": "2025-01-01T12:00:00+00:00", "value": 0}]},
+            id="single_time",
+        ),
+    ],
+)
+async def test_horizon_manager_invalid_entity_update_keeps_horizon(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    attributes: dict[str, object] | None,
+) -> None:
+    """An entity update without a usable forecast keeps the previous horizon without notifying subscribers."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+    subscriber = Mock()
+    manager.subscribe(subscriber)
+
+    if attributes is None:
+        hass.states.async_remove(HORIZON_ENTITY_ID)
+    else:
+        hass.states.async_set(HORIZON_ENTITY_ID, "unavailable", attributes)
+    await hass.async_block_till_done()
+
+    assert manager.get_forecast_timestamps() == HORIZON_BOUNDARIES
+    assert manager.periods_seconds == [300, 300, 900]
+    subscriber.assert_not_called()
+
+    manager.stop()
+
+
+async def test_horizon_manager_entity_change_with_same_boundaries_does_not_notify(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """An entity change that leaves the forecast times unchanged does not notify subscribers."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+    subscriber = Mock()
+    manager.subscribe(subscriber)
+
+    _set_horizon_entity(hass, HORIZON_BOUNDARIES, state="1")
+    await hass.async_block_till_done()
+
+    subscriber.assert_not_called()
+
+    manager.stop()
+
+
+async def test_horizon_manager_resume_after_start_keeps_one_listener(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+) -> None:
+    """Resuming a started manager replaces its entity listener, so changes notify once and stop ends them."""
+    manager = HorizonManager(hass, config_entry)
+    manager.start()
+    manager.resume()
+    subscriber = Mock()
+    manager.subscribe(subscriber)
+
+    _set_horizon_entity(hass, (HORIZON_START + 60, HORIZON_START + 120))
+    await hass.async_block_till_done()
+    subscriber.assert_called_once()
+
+    manager.stop()
+    _set_horizon_entity(hass, (HORIZON_START + 120, HORIZON_START + 180))
+    await hass.async_block_till_done()
+    assert manager.get_forecast_timestamps() == (HORIZON_START + 60, HORIZON_START + 120)
+
+
+@pytest.mark.parametrize("entity_attributes", [None, {}], ids=["missing", "no_forecast"])
+async def test_horizon_manager_unready_entity_raises(
+    hass: HomeAssistant,
+    entity_attributes: dict[str, object] | None,
+) -> None:
+    """Without a usable horizon entity at setup the config entry is not ready."""
+    if entity_attributes is not None:
+        hass.states.async_set(HORIZON_ENTITY_ID, "unavailable", entity_attributes)
+    entry = _hub_entry(hass, as_entity_value([HORIZON_ENTITY_ID]))
+
+    with pytest.raises(ConfigEntryNotReady) as exc_info:
+        HorizonManager(hass, entry)
+
+    assert exc_info.value.translation_key == "horizon_entity_not_ready"
+    assert exc_info.value.translation_placeholders == {"entity_id": HORIZON_ENTITY_ID}
 
 
 @freeze_time(datetime(2025, 6, 2, 12, 0, 0, tzinfo=ADELAIDE))
@@ -325,17 +462,7 @@ def test_horizon_manager_adelaide_preset_aligns_t4_to_local_hour(
     adelaide_timezone: None,
 ) -> None:
     """HorizonManager preset horizons align T4 boundaries to local :00 in Adelaide."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        title="Adelaide Network",
-        data={
-            HUB_SECTION_COMMON: {CONF_NAME: "Adelaide Network", CONF_HORIZON_PRESET: HORIZON_PRESET_5_DAYS},
-            HUB_SECTION_TIERS: {},
-            HUB_SECTION_ADVANCED: {},
-        },
-        entry_id="test_adelaide_horizon_entry",
-    )
-    entry.add_to_hass(hass)
+    entry = _hub_entry(hass, as_horizon_preset_value(HORIZON_PRESET_5_DAYS))
 
     manager = HorizonManager(hass, entry)
     t4_minutes = _horizon_t4_boundary_local_minutes(
@@ -379,10 +506,10 @@ def test_horizon_manager_current_start_time_none_when_no_timestamps(
 
 async def test_horizon_manager_scheduled_update_notifies_subscribers(
     hass: HomeAssistant,
-    config_entry: MockConfigEntry,
+    preset_config_entry: MockConfigEntry,
 ) -> None:
     """HorizonManager scheduled update notifies all subscribers."""
-    manager = HorizonManager(hass, config_entry)
+    manager = HorizonManager(hass, preset_config_entry)
 
     # Track callback calls
     callback_count = 0
@@ -404,22 +531,22 @@ async def test_horizon_manager_scheduled_update_notifies_subscribers(
 
 async def test_horizon_manager_scheduled_update_reschedules(
     hass: HomeAssistant,
-    config_entry: MockConfigEntry,
+    preset_config_entry: MockConfigEntry,
 ) -> None:
     """HorizonManager scheduled update schedules next update."""
-    manager = HorizonManager(hass, config_entry)
+    manager = HorizonManager(hass, preset_config_entry)
     manager.start()
 
     # Clear the timer
-    if manager._unsub_timer is not None:
-        manager._unsub_timer()
-        manager._unsub_timer = None
+    if manager._unsub_update is not None:
+        manager._unsub_update()
+        manager._unsub_update = None
 
     # Call scheduled update - should schedule next update
     manager._async_scheduled_update(dt_util.now())
 
     # Timer should be rescheduled
-    assert manager._unsub_timer is not None
+    assert manager._unsub_update is not None
 
     manager.stop()
 
@@ -436,12 +563,12 @@ async def test_horizon_manager_pause_cancels_timer(
     manager.start()
 
     # Verify timer is running
-    assert manager._unsub_timer is not None
+    assert manager._unsub_update is not None
 
     # Pause should cancel the timer
     manager.pause()
 
-    assert manager._unsub_timer is None
+    assert manager._unsub_update is None
 
     # Clean up
     manager.stop()
@@ -539,12 +666,12 @@ async def test_horizon_manager_resume_restarts_timer(
 
     # Pause cancels timer
     manager.pause()
-    assert manager._unsub_timer is None
+    assert manager._unsub_update is None
 
     # Resume should restart timer
     manager.resume()
 
-    assert manager._unsub_timer is not None
+    assert manager._unsub_update is not None
 
     # Clean up
     manager.stop()

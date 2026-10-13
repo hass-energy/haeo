@@ -7,8 +7,8 @@ The HorizonManager provides synchronized forecast time windows for all input ent
 HAEO's optimization operates over a forecast horizon divided into time intervals (periods).
 The HorizonManager ensures all input entities work with consistent timestamps by:
 
-- Computing forecast period boundaries from tier configuration
-- Scheduling updates at period boundaries (for example, every 1 minute for the finest tier)
+- Computing forecast period boundaries from a horizon preset, or reading them from a forecast sensor
+- Updating the horizon at period boundaries (preset) or when the sensor changes (forecast sensor)
 - Notifying subscribers when the horizon advances
 
 This coordination prevents race conditions where different inputs might use different time windows.
@@ -39,20 +39,32 @@ This ordering ensures input entities can subscribe immediately during their setu
 
 ## Horizon Computation
 
-The horizon consists of timestamps computed from tier configuration.
-Each tier specifies a period duration and count:
-
-| Tier | Period | Count | Coverage |
-| ---- | ------ | ----- | -------- |
-| 1    | 5 min  | 12    | 1 hour   |
-| 2    | 30 min | 6     | 3 hours  |
-| 3    | 1 hour | 20    | 20 hours |
-
-The HorizonManager computes period start times aligned to natural boundaries in the installation wall clock (for example, 12:00, 12:01, 12:02 for 1-minute periods).
-
-Preset horizons use the [Home Assistant configured time zone](https://www.home-assistant.io/docs/configuration/customizing/#time-zone) when aligning tier boundaries to forecast data.
-Installations with UTC offsets that include half-hour or quarter-hour components therefore keep coarser tiers on local clock hours rather than UTC hours.
+The hub stores its planning horizon as either a preset value or an entity value, and the HorizonManager handles each mode differently.
 The implementation is in `custom_components/haeo/horizon.py` and `custom_components/haeo/core/data/forecast_times.py`.
+
+### Preset mode
+
+A preset (2, 3, 5, or 7 days) produces tiers of 1-, 5-, 30-, and 60-minute periods.
+`preset_periods_seconds()` computes the tier counts from the start time so each tier ends on a boundary of the next tier's duration, and the last period is trimmed so the horizon covers exactly the preset's number of days.
+Tier counts therefore vary slightly with the minute of the hour the horizon starts.
+
+The HorizonManager floors the start to the smallest period and aligns tiers to the installation wall clock (for example, 12:00, 12:01, 12:02 for 1-minute periods).
+Presets use the [Home Assistant configured time zone](https://www.home-assistant.io/docs/configuration/customizing/#time-zone) for this alignment.
+Installations with UTC offsets that include half-hour or quarter-hour components therefore keep coarser tiers on local clock hours rather than UTC hours.
+
+### Entity mode
+
+An entity horizon reads its boundaries from a sensor's `forecast` attribute, in the same format the [horizon sensor](#horizon-sensor) publishes.
+`forecast_boundaries()` treats the `time` of each forecast point as a period boundary and ignores any other keys, so n + 1 points define n periods.
+It raises `ValueError` when the state has no forecast of times or fewer than two increasing times.
+
+The hub setup and options flows run the same check through `validate_horizon()` in `custom_components/haeo/flows/horizon.py`, and also reject any entity that belongs to the hub, because its sensors are calculated on its horizon.
+The HorizonManager notifies subscribers only when the forecast times change, so state or attribute updates that keep the same times do not trigger an optimization.
+
+If the sensor does not provide a usable forecast when the HorizonManager is created, its constructor raises `ConfigEntryNotReady` so Home Assistant retries the hub setup.
+If the sensor later becomes unavailable or stops reporting a usable forecast, the HorizonManager keeps the previous horizon and logs a warning.
+
+### Boundary timestamps
 
 `HorizonManager.get_forecast_timestamps()` returns boundary timestamps as epoch seconds.
 
@@ -68,12 +80,12 @@ The subscription returns an unsubscribe callable that entities register for auto
 ### Subscription Lifecycle
 
 1. **Subscribe**: Entity calls `subscribe()` during `async_added_to_hass()`
-2. **Receive updates**: Manager calls subscriber callbacks at period boundaries
+2. **Receive updates**: Manager calls subscriber callbacks whenever the horizon updates
 3. **Unsubscribe**: Cleanup function called during entity removal
 
-## Period Boundary Scheduling
+## Update scheduling
 
-The HorizonManager schedules updates at the start of each finest-tier period:
+A preset horizon updates at the start of each smallest period:
 
 ```mermaid
 sequenceDiagram
@@ -91,12 +103,16 @@ sequenceDiagram
 The manager uses Home Assistant's `async_track_point_in_time()` for timer scheduling.
 It calculates the next period boundary from current time, reschedules after each boundary crossing, and cancels timers during shutdown.
 
+An entity horizon has no timer.
+Instead, the manager subscribes to the sensor with `async_track_state_change_event()`, recomputes the horizon on each state change, and notifies subscribers.
+Pausing and stopping the manager remove this listener in the same way they cancel the preset timer.
+
 ## Horizon Sensor
 
 A read-only sensor entity displays the current horizon state for debugging:
 
 - **State**: ISO timestamp of horizon start
-- **Attributes**: Number of periods, horizon end time, tier configuration
+- **Attributes**: `forecast` (every period boundary), `period_count`, and `smallest_period_seconds`
 
 This sensor is diagnostic only and does not participate in optimization.
 

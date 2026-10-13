@@ -1,7 +1,5 @@
 """Flow builders for common configuration fields."""
 
-from typing import Any
-
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig  # type: ignore[reportUnknownVariableType]
 import voluptuous as vol
 
@@ -16,9 +14,9 @@ def build_common_fields(
     include_connection: bool = False,
     participants: list[str] | None = None,
     current_connection: ConnectionTarget | str | None = None,
-) -> dict[str, tuple[vol.Marker, Any]]:
+) -> dict[str, tuple[vol.Marker, object]]:
     """Build common field entries for config flows."""
-    fields: dict[str, tuple[vol.Marker, Any]] = {
+    fields: dict[str, tuple[vol.Marker, object]] = {
         CONF_NAME: (
             vol.Required(CONF_NAME),
             vol.All(

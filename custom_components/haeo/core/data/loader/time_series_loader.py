@@ -1,7 +1,6 @@
 """Loader for unified time series sensor and forecast data."""
 
 from collections.abc import Sequence
-from typing import Any
 
 from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
 from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
@@ -14,7 +13,7 @@ from .sensor_loader import load_sensors
 class TimeSeriesLoader:
     """Loader that merges live sensor values and forecasts into a horizon-aligned time series."""
 
-    def available(self, *, sm: StateMachine, value: EntityValue, **_kwargs: Any) -> bool:
+    def available(self, *, sm: StateMachine, value: EntityValue, **_kwargs: object) -> bool:
         """Return True when every referenced sensor can supply data."""
         entity_ids = value["value"]
 

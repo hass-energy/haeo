@@ -12,6 +12,7 @@ class ElementType(StrEnum):
     DEFERRABLE_LOAD = "deferrable_load"
     GRID = "grid"
     INVERTER = "inverter"
+    JUNCTION = "junction"
     LOAD = "load"
     NODE = "node"
     SOLAR = "solar"

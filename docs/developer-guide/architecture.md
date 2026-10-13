@@ -72,7 +72,7 @@ See the Home Assistant documentation for the underlying patterns:
 
 Manages synchronized forecast time windows for all input entities.
 Created early in setup before any entity platforms load.
-Computes period boundaries from tier configuration and notifies subscribers when the horizon advances.
+Computes period boundaries from a horizon preset or reads them from a forecast sensor, and notifies subscribers when the horizon advances.
 
 See the [Horizon Manager guide](horizon-manager.md) for details.
 

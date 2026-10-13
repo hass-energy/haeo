@@ -10,9 +10,10 @@ Tests cover:
 - End-to-end network optimization with policies
 """
 
-from typing import Any, Literal, overload
+from typing import Literal, overload
 
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.core.adapters.policy_compilation import (
@@ -34,6 +35,7 @@ from custom_components.haeo.core.model.elements.connection import ConnectionElem
 from custom_components.haeo.core.model.elements.deferrable_load import DeferrableLoadElementConfig
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig
+from custom_components.haeo.core.model.elements.segments import SegmentSpec
 from custom_components.haeo.core.model.network import Network
 
 
@@ -45,7 +47,7 @@ def _junction(name: str) -> ModelElementConfig:
     return NodeElementConfig(element_type=MODEL_ELEMENT_TYPE_NODE, name=name, is_source=False, is_sink=False)
 
 
-def _conn(name: str, source: str, target: str, segments: dict[str, Any] | None = None) -> ModelElementConfig:
+def _conn(name: str, source: str, target: str, segments: dict[str, SegmentSpec] | None = None) -> ModelElementConfig:
     c = ConnectionElementConfig(
         element_type=MODEL_ELEMENT_TYPE_CONNECTION, name=name, source=source, target=target, tags={1}
     )
@@ -57,7 +59,7 @@ def _conn(name: str, source: str, target: str, segments: dict[str, Any] | None =
 def _policy(
     sources: list[str],
     destinations: list[str],
-    price: float | np.ndarray[Any, np.dtype[np.floating[Any]]] = 0.0,
+    price: float | NDArray[np.float64] = 0.0,
     *,
     enabled: bool = True,
 ) -> CompiledPolicyRule:
@@ -102,7 +104,7 @@ def _outbound_tag(result: CompilationResult, name: str) -> int:
     return next(iter(tags))
 
 
-def _network_element(network: Network, name: str) -> NetworkElement[Any]:
+def _network_element(network: Network, name: str) -> NetworkElement[str]:
     """Get a network element with proper type narrowing."""
     elem = network.elements[name]
     assert isinstance(elem, NetworkElement)
