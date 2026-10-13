@@ -59,6 +59,10 @@ def applied_form(rows: Rows) -> AppliedRows:
     cols = rows.expr.cols.ravel()
     values = rows.expr.coefs.ravel()
 
+    # Zero terms, such as the padding of shorter rows, add nothing to any sum
+    nonzero = values != 0.0
+    row_of, cols, values = row_of[nonzero], cols[nonzero], values[nonzero]
+
     order = np.lexsort((cols, row_of))
     row_of, cols, values = row_of[order], cols[order], values[order]
     if len(cols):
