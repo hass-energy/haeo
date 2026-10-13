@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import scenarioOutputs from "../../../tests/scenarios/scenario1/outputs.json";
+import { waitForSettledUpdates, waitForTopologySvg } from "./fixtures/topologyRender";
 import type { HassLike } from "./series";
 import { isTopologyData } from "./topology-card-utils";
 import { TopologyCardController } from "./topology-card-controller";
@@ -53,11 +54,7 @@ describe("TopologyCardController", () => {
     controller.setHass(scenarioHass(scenario, "hub-alpha"));
     controller.connected();
 
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
-    });
-
-    expect(host.shadowRoot?.querySelector("svg")).toBeTruthy();
+    await waitForTopologySvg(host);
   });
 
   it("reports grid options from the current layout height", () => {
@@ -107,17 +104,15 @@ describe("TopologyCardController", () => {
     controller.setHass(scenarioHass(scenario, "hub-alpha"));
     controller.connected();
 
-    await new Promise((resolve) => {
-      setTimeout(resolve, 500);
-    });
-
-    const initialCount = updates.length;
+    const initialCount = await waitForSettledUpdates(host, updates);
     controller.setConfig({
       type: "custom:haeo-topology-card",
       title: "Same card size",
       hub_entry_id: "hub-alpha",
     });
 
+    // Asserting a negative — nothing further is dispatched — so there is no outcome to
+    // wait for and this one stays a fixed sleep.
     await new Promise((resolve) => {
       setTimeout(resolve, 500);
     });

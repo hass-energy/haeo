@@ -124,8 +124,8 @@ class CalendarInputLoader:
             fetched = await asyncio.gather(*(self._async_fetch_events(entity_id) for entity_id in entity_ids))
             states = dict(zip(entity_ids, fetched, strict=True))
             sm = CalendarStateMachine(HomeAssistantStateMachine(self._hass), states)
-            loaded = [store for store in self._stores if store.resolve_from_sources(sm)]
-            for store in loaded:
+            changed = [store for store in self._stores if store.resolve_from_sources(sm) or store.error is not None]
+            for store in changed:
                 store.notify_listeners()
 
     async def _async_fetch_events(self, entity_id: str) -> list[CalendarEventDict] | None:

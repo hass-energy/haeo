@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
 import time
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -16,6 +16,7 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
+from homeassistant.util.json import JsonValueType
 import numpy as np
 
 from custom_components.haeo.const import (
@@ -38,7 +39,7 @@ from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.util import extract_unit_parts
 from custom_components.haeo.core.state import EntityState
-from custom_components.haeo.core.units import PRICE_UNIT_SPEC
+from custom_components.haeo.core.units import PRICE_UNIT_SPEC, currency_symbol, localize_currency
 from custom_components.haeo.elements import (
     ElementDeviceName,
     ElementOutputName,
@@ -47,14 +48,16 @@ from custom_components.haeo.elements import (
 )
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.input_stores import input_error_placeholders
 from custom_components.haeo.repairs import dismiss_optimization_failure_issue
 
 from . import network as network_module
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
-    from custom_components.haeo.core.data.input_store import InputStore
+    from custom_components.haeo.core.data.input_store import InputStore, InputValue
     from custom_components.haeo.elements import InputFieldPath
+    from custom_components.haeo.input_stores import InputStoreKey
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,7 +72,7 @@ class ForecastPoint(TypedDict):
     """
 
     time: datetime
-    value: Any
+    value: float | str
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,19 +147,6 @@ def detect_currency_symbol(
     return fallback_currency or "$"
 
 
-def _localize_currency(unit: str | None, currency_sym: str) -> str | None:
-    """Replace the ``$`` placeholder in a unit string with the detected currency symbol.
-
-    The model and adapter layers use ``$`` as a conventional placeholder for
-    monetary values (e.g. ``$/kWh``, ``$/kW``, ``$``).  At the coordinator
-    boundary we substitute it with the currency symbol detected from the
-    user's price sensor data so that sensors display correctly.
-    """
-    if unit is None:
-        return None
-    return unit.replace("$", currency_sym)
-
-
 def _build_coordinator_output(
     output_name: ElementOutputName,
     output_data: OutputData,
@@ -212,7 +202,7 @@ def _build_coordinator_output(
 
     return CoordinatorOutput(
         type=output_data.type,
-        unit=_localize_currency(output_data.unit, currency_sym),
+        unit=localize_currency(output_data.unit, currency_sym),
         state=state,
         forecast=forecast,
         direction=output_data.direction,
@@ -232,9 +222,9 @@ def _build_coordinator_output(
 
 
 def _build_optimization_context(
-    hub_config: Mapping[str, Any],
+    hub_config: Mapping[str, object],
     participant_configs: Mapping[str, ElementConfigSchema],
-    input_stores: Mapping[Any, "InputStore"],
+    input_stores: Mapping["InputStoreKey", "InputStore"],
     horizon_manager: HorizonManager,
 ) -> OptimizationContext:
     """Build an optimization context by pulling from existing sources."""
@@ -299,7 +289,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Tests may set this manually before the first optimization.
         self.network: Network = None  # type: ignore[assignment]
         self._element_updaters: dict[str, network_module.ElementUpdater] = {}
-        self.topology: dict[str, Any] = {}  # Serialized topology for frontend
+        self.topology: dict[str, JsonValueType] = {}  # Serialized topology for frontend
 
         # Snapshot the participant structure (which elements exist and the shape
         # of each, including list fields like policy rules) taken from the same
@@ -408,15 +398,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         if runtime_data is None:
             return
 
-        # Subscribe to horizon manager changes (requires full re-optimization)
-        network = self.network
-        horizon_manager = runtime_data.horizon_manager
-
-        @callback
-        def _on_horizon_change() -> None:
-            self._handle_horizon_change(network, horizon_manager)
-
-        horizon_manager.subscribe(_on_horizon_change)
+        # Horizon changes require a full re-optimization. The new period durations
+        # are applied to the network when that optimization runs.
+        runtime_data.horizon_manager.subscribe(self.signal_optimization_stale)
 
         # Subscribe to auto-optimize switch state changes
         if runtime_data.auto_optimize_switch is not None:
@@ -461,21 +445,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         self._pending_element_updates[element_name] = element_config
 
         # Trigger optimization (with debouncing)
-        self.signal_optimization_stale()
-
-    @callback
-    def _handle_horizon_change(self, network: Network, horizon_manager: HorizonManager) -> None:
-        """Handle horizon manager changes.
-
-        Updates network periods with new durations from the horizon manager,
-        then triggers optimization. The period update propagates to all elements
-        and segments, invalidating dependent constraints and costs.
-        """
-        periods_seconds = horizon_manager.periods_seconds
-        periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
-        network.update_periods(periods_hours)
-
-        # Trigger optimization - _are_inputs_aligned will gate until all elements update
         self.signal_optimization_stale()
 
     @callback
@@ -603,7 +572,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Check forecast input stores have values and matching horizon
         for store in runtime_data.input_stores.values():
-            if not store.time_series:
+            # A store that rejected its source's value keeps its previous horizon;
+            # the update reports the rejection instead of waiting on alignment.
+            if not store.time_series or store.error is not None:
                 continue
             store_horizon = store.horizon_start
             if store_horizon is None:
@@ -614,7 +585,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         return True
 
-    def _field_values_for_element(self, element_name: str) -> dict["InputFieldPath", Any]:
+    def _field_values_for_element(self, element_name: str) -> dict["InputFieldPath", "InputValue | None"]:
         """Collect resolved field values from the element's input stores."""
         runtime_data = self._get_runtime_data()
         if runtime_data is None:
@@ -723,11 +694,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         # Check if optimization is already in progress
         # If so, skip this call - we'll use existing data or signal retry
         if self._optimization_in_progress:
-            # Return existing data if available (may be None before first refresh)
-            # The base class sets self.data to None initially (via type: ignore)
-            # so we need to get it as Any first to check for None
-            existing_data: Any = self.data
-            if existing_data is not None:
+            # Return existing data if available (may be None before first refresh).
+            # The base class sets self.data to None initially (via type: ignore) even
+            # though it's declared as CoordinatorData, so the check below is only
+            # "unnecessary" to the type checker — the base class's lie means it can
+            # genuinely be None here at runtime.
+            existing_data = self.data
+            if existing_data is not None:  # type: ignore[reportUnnecessaryComparison]
                 return existing_data
             # First run with concurrent call - raise to signal retry later
             msg = "Concurrent optimization during first refresh"
@@ -765,10 +738,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             # When any input is unavailable the optimization is skipped, matching
             # the behaviour during initial setup where the integration stays in
             # the "not ready" state until every store can supply data.
-            for (name, _field_path), store in runtime_data.input_stores.items():
-                if not store.available:
-                    msg = f"Element '{name}' has unavailable inputs"
-                    raise UpdateFailed(msg)
+            for key, store in runtime_data.input_stores.items():
+                if store.available:
+                    continue
+                if (error := store.error) is not None:
+                    raise UpdateFailed(
+                        translation_domain=DOMAIN,
+                        translation_key=error.translation_key,
+                        translation_placeholders=input_error_placeholders(key, error, store),
+                    )
+                msg = f"Element '{key[0]}' has unavailable inputs"
+                raise UpdateFailed(msg)
 
             # Load element configurations from input stores
             # All input stores are guaranteed to be fully loaded by the time we get here
@@ -778,6 +758,11 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             # Network should have been created in async_initialize() or set manually in tests.
             network = self.network
+
+            # Bring the network to the horizon the inputs were loaded for. This must
+            # happen here, before the solve is handed to the executor, so the network
+            # is never mutated while it is being solved.
+            network.update_periods(np.asarray(runtime_data.horizon_manager.periods_seconds, dtype=float) / 3600)
 
             # Apply any pending element updates before optimization
             self._apply_pending_element_updates()
@@ -812,7 +797,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             currency_sym = detect_currency_symbol(
                 context.source_states,
-                fallback_currency=self.hass.config.currency,
+                fallback_currency=currency_symbol(self.hass.config.currency),
             )
 
             outputs: dict[str, SubentryDevices] = {

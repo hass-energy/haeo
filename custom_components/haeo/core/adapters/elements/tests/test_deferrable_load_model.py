@@ -1,7 +1,5 @@
 """Tests for deferrable load element model mapping and optimization behavior."""
 
-from typing import Any
-
 import numpy as np
 import pytest
 
@@ -15,11 +13,17 @@ from custom_components.haeo.core.adapters.elements.deferrable_load import (
 )
 from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
 from custom_components.haeo.core.model import Network
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+    MODEL_ELEMENT_TYPE_NODE,
+    ConnectionElementConfig,
+)
 from custom_components.haeo.core.model.elements.deferrable_load import (
     DEFERRABLE_LOAD_ENERGY_DELIVERED,
     DEFERRABLE_LOAD_ENERGY_SHORTFALL,
     DEFERRABLE_LOAD_POWER,
+    DeferrableLoadElementConfig,
 )
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
@@ -45,9 +49,9 @@ def _boundary_data(n_periods: int, events: list[tuple[int, int, float]]) -> Cale
     )
 
 
-def _config(**overrides: Any) -> DeferrableLoadConfigData:
+def _config(**overrides: object) -> DeferrableLoadConfigData:
     """Build a deferrable load config with a window in period 2."""
-    config: dict[str, Any] = {
+    config: dict[str, object] = {
         "element_type": ElementType.DEFERRABLE_LOAD,
         "name": "pump",
         "connection": as_connection_target("home"),
@@ -62,43 +66,51 @@ def _config(**overrides: Any) -> DeferrableLoadConfigData:
     return config  # type: ignore[return-value]  # constructed to match DeferrableLoadConfigData
 
 
-def _elements_by_name(config: DeferrableLoadConfigData) -> dict[str, dict[str, Any]]:
-    return {element["name"]: dict(element) for element in adapter.model_elements(config)}
+def _load(config: DeferrableLoadConfigData) -> DeferrableLoadElementConfig:
+    """Return the deferrable load model element the adapter builds."""
+    load, _connection = adapter.model_elements(config)
+    assert load["element_type"] == MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD
+    return load
+
+
+def _connection(config: DeferrableLoadConfigData) -> ConnectionElementConfig:
+    """Return the connection model element the adapter builds."""
+    _load, connection = adapter.model_elements(config)
+    assert connection["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION
+    return connection
 
 
 def test_model_elements_structure() -> None:
     """The adapter creates the load and its connection."""
-    elements = _elements_by_name(_config(power={"max_power": 1.5}))
+    config = _config(power={"max_power": 1.5})
 
-    assert set(elements) == {"pump", "pump:connection"}
-    load = elements["pump"]
-    assert load["element_type"] == "deferrable_load"
+    assert [element["name"] for element in adapter.model_elements(config)] == ["pump", "pump:connection"]
+    load = _load(config)
     np.testing.assert_allclose(load["in_window"], [0.0, 0.0, 1.0, 0.0])
     np.testing.assert_allclose(load["window_start"], [0.0, 0.0, 1.0, 0.0, 0.0])
     np.testing.assert_allclose(load["requirement"], [0.0, 0.0, 0.0, 6.0, 0.0])
     np.testing.assert_allclose(load["deficit_price"], 10.0)
-    assert load["overage_price"] is None
+    assert load.get("overage_price") is None
 
-    connection = elements["pump:connection"]
+    connection = _connection(config)
     assert connection["source"] == "home"
     assert connection["target"] == "pump"
-    assert connection["segments"]["power_limit"]["max_power"] == pytest.approx(1.5)
+    assert connection.get("segments") == {"power_limit": {"segment_type": "power_limit", "max_power": 1.5}}
 
 
 def test_no_power_limit_when_unconfigured() -> None:
     """Without a max power the connection has no limit; the load gates itself to its windows."""
-    elements = _elements_by_name(_config())
-
-    assert elements["pump:connection"]["segments"] == {}
+    assert _connection(_config()).get("segments") == {}
 
 
 def test_overage_price_extends_to_boundaries() -> None:
     """A configured overage price reaches the model as a per-boundary series."""
     config = _config(pricing={"deficit_price": 10.0, "overage_price": np.array([0.1, 0.2, 0.3, 0.4])})
 
-    load = _elements_by_name(config)["pump"]
+    overage_price = _load(config).get("overage_price")
 
-    np.testing.assert_allclose(load["overage_price"], [0.1, 0.2, 0.3, 0.4, 0.4])
+    assert overage_price is not None
+    np.testing.assert_allclose(overage_price, [0.1, 0.2, 0.3, 0.4, 0.4])
 
 
 def _solve(config: DeferrableLoadConfigData, grid_price: list[float]) -> Network:
@@ -186,7 +198,7 @@ def test_outputs_mapping() -> None:
     ],
 )
 def test_negative_prices_are_clamped_to_zero(
-    pricing: dict[str, Any], grid_price: float, expected_delivered: float
+    pricing: dict[str, object], grid_price: float, expected_delivered: float
 ) -> None:
     """Negative penalty prices from an entity are clamped instead of rejected."""
     config = _config(power={"max_power": 10.0}, pricing=pricing)
@@ -203,7 +215,7 @@ def test_without_overage_price_delivery_is_capped() -> None:
     assert network.elements["pump"].outputs()[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[3] == pytest.approx(6.0)
 
 
-def _open_window_config(**schedule: Any) -> DeferrableLoadConfigData:
+def _open_window_config(**schedule: object) -> DeferrableLoadConfigData:
     """Build a config whose 6 kWh window is already open at the horizon start."""
     return _config(
         power={"max_power": 10.0},

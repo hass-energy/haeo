@@ -2,7 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any, Final, Literal
+from typing import Final, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -69,7 +69,7 @@ class DeferrableLoadAdapter:
 
     element_type: str = ELEMENT_TYPE
     advanced: bool = False
-    connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
+    connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = False
     can_sink: bool = True
 
@@ -142,7 +142,7 @@ class DeferrableLoadAdapter:
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
         *,
         config: DeferrableLoadConfigData,  # noqa: ARG002 (protocol signature)
-        **_kwargs: Any,
+        **_kwargs: object,
     ) -> Mapping[DeferrableLoadDeviceName, Mapping[DeferrableLoadElementOutputName, OutputData]]:
         """Map model outputs to deferrable-load-specific output names."""
         load_outputs = model_outputs[name]
@@ -169,9 +169,9 @@ adapter = DeferrableLoadAdapter()
 
 
 def _to_boundaries(
-    value: NDArray[np.floating[Any]] | float,
+    value: NDArray[np.float64] | float,
     n_boundaries: int,
-) -> NDArray[np.floating[Any]] | float:
+) -> NDArray[np.float64] | float:
     """Extend an interval-shaped series to boundary length by repeating the end."""
     if not isinstance(value, np.ndarray):
         return value

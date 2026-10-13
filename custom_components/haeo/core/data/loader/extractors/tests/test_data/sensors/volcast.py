@@ -1,9 +1,8 @@
 """Test data for Volcast solar forecast sensors."""
 
 from datetime import UTC, datetime
-from typing import Any
 
-VALID: list[dict[str, Any]] = [
+VALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.volcast_forecast",
         "state": "0",
@@ -57,7 +56,7 @@ VALID: list[dict[str, Any]] = [
     },
 ]
 
-INVALID: list[dict[str, Any]] = [
+INVALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.volcast_no_forecast",
         "state": "0",

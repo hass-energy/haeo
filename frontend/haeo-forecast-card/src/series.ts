@@ -134,6 +134,7 @@ const ELEMENT_TYPE_KEYS: Record<ElementType, true> = {
   deferrable_load: true,
   grid: true,
   inverter: true,
+  junction: true,
   load: true,
   node: true,
   solar: true,

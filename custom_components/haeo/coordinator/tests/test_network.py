@@ -1,8 +1,9 @@
 """Tests for coordinator network utilities."""
 
-from typing import Any
+from unittest.mock import MagicMock
 
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.coordinator.network import (
@@ -12,6 +13,7 @@ from custom_components.haeo.coordinator.network import (
     _collect_policy_rules,
     _discover_setters,
     _extract_at_path,
+    create_network,
 )
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.model import Network
@@ -31,12 +33,14 @@ from custom_components.haeo.core.model.elements.segments import EfficiencySegmen
 from custom_components.haeo.core.model.elements.segments.soc_pricing import SocPricingSegment
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
+from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
 from custom_components.haeo.core.schema.elements.connection import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_PRICE_SOURCE_TARGET,
     ConnectionConfigData,
 )
+from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
 from custom_components.haeo.core.schema.sections.efficiency import EfficiencyData
 from custom_components.haeo.core.schema.sections.power_limits import PowerLimitsData
 from custom_components.haeo.core.schema.sections.pricing import PricingData
@@ -68,9 +72,9 @@ def _simple_network() -> Network:
 
 def _connection_config(
     *,
-    max_power: Any = None,
-    price: Any = None,
-    efficiency: Any = None,
+    max_power: NDArray[np.float64] | float | None = None,
+    price: NDArray[np.float64] | float | None = None,
+    efficiency: NDArray[np.float64] | float | None = None,
 ) -> ConnectionConfigData:
     """Build a connection ConnectionConfigData."""
     power_limits = PowerLimitsData()
@@ -108,7 +112,7 @@ def test_extract_at_path_returns_leaf_value() -> None:
 
 def test_extract_at_path_returns_missing_for_absent_key() -> None:
     """Missing intermediate key returns the _MISSING sentinel."""
-    config: dict[str, Any] = {"a": {"b": 1}}
+    config: dict[str, object] = {"a": {"b": 1}}
     assert _extract_at_path(config, ("a", "x", "y")) is _MISSING
 
 
@@ -295,6 +299,20 @@ def test_policy_updater_updates_price() -> None:
     assert elem.price == pytest.approx([0.10])
 
 
+def test_policy_updater_rejects_a_non_policy_config() -> None:
+    """The policy updater fails loudly when wired to a config that is not a policy."""
+    network = _policy_network()
+    updater = _build_policy_updater(network, {0: ["policy_pricing_r0_v1"]})
+
+    config: ElementConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.NODE,
+        CONF_NAME: "Bus",
+        "role": {"is_source": False, "is_sink": False},
+    }
+    with pytest.raises(TypeError, match="received a node config"):
+        updater(config)
+
+
 def test_policy_updater_zeros_disabled_rule() -> None:
     """Policy updater writes zero price for disabled rules."""
     network = _policy_network()
@@ -470,7 +488,7 @@ def test_soc_pricing_setters_write_fresh_threshold() -> None:
 
 def test_collect_policy_rules_merges_multiple_policy_participants() -> None:
     """Multiple policy participants are merged into one compiled rules list."""
-    participants: dict[str, Any] = {
+    participants: dict[str, dict[str, object]] = {
         "Policies A": {
             CONF_ELEMENT_TYPE: ElementType.POLICY,
             CONF_NAME: "Policies",
@@ -485,5 +503,65 @@ def test_collect_policy_rules_merges_multiple_policy_participants() -> None:
         },
     }
 
-    rules = _collect_policy_rules(participants)
+    # Fixture rules carry schema-mode (unloaded) prices, which the loaded ElementConfigData type does not allow.
+    rules = _collect_policy_rules(participants)  # type: ignore[arg-type]
     assert len(rules) == 2
+
+
+# ---------------------------------------------------------------------------
+# Live efficiency updates
+# ---------------------------------------------------------------------------
+
+
+def _draining_battery_config(discharge_efficiency: float) -> BatteryConfigData:
+    """Build a battery whose negative salvage value drains it at the discharge limit.
+
+    The discharge chain applies efficiency before the power limit, so the battery
+    draws ``max_power / efficiency`` to deliver the limit.
+    """
+    return BatteryConfigData(
+        element_type=ElementType.BATTERY,
+        name="Battery",
+        connection=as_connection_target("Bus"),
+        storage={"capacity": np.array([40.0, 40.0]), "initial_charge_percentage": 0.5},
+        limits={},
+        power_limits={
+            "max_power_source_target": np.array([5.0]),
+            "max_power_target_source": np.array([0.0]),
+        },
+        pricing={"salvage_value": -1.0},
+        efficiency={
+            "efficiency_source_target": np.array([discharge_efficiency]),
+            "efficiency_target_source": np.array([1.0]),
+        },
+        partitioning={},
+    )
+
+
+async def test_element_updater_efficiency_reaches_live_network() -> None:
+    """An efficiency edited through the element updater changes the next solve without a rebuild."""
+    bus: NodeConfigData = {
+        "element_type": ElementType.NODE,
+        "name": "Bus",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: True},
+    }
+    entry = MagicMock()
+    entry.entry_id = "test_entry"
+    network, updaters = await create_network(
+        entry,
+        periods_seconds=[3600],
+        participants={"Bus": bus, "Battery": _draining_battery_config(0.8)},
+    )
+    discharge = network.elements["Battery:discharge"]
+    assert isinstance(discharge, Connection)
+
+    network.optimize()
+    assert discharge.extract_values(discharge.total_power_in) == pytest.approx((6.25,))
+    structure = (network._solver.numVariables, network._solver.numConstrs)
+
+    updaters["Battery"](_draining_battery_config(0.5))
+    network.optimize()
+
+    assert discharge.extract_values(discharge.total_power_in) == pytest.approx((10.0,))
+    assert discharge.extract_values(discharge.total_power_out) == pytest.approx((5.0,))
+    assert (network._solver.numVariables, network._solver.numConstrs) == structure

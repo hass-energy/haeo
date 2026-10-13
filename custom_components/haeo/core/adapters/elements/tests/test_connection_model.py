@@ -1,13 +1,13 @@
 """Tests for connection element model mapping."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import numpy as np
 import pytest
 
 from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
-from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
+from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare, segment_order
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
@@ -24,7 +24,7 @@ class CreateCase(TypedDict):
 
     description: str
     data: ConnectionConfigData
-    model: list[dict[str, Any]]
+    model: list[dict[str, object]]
 
 
 class OutputsCase(TypedDict):
@@ -45,15 +45,12 @@ CREATE_CASES: Sequence[CreateCase] = [
             endpoints={"source": as_connection_target("s"), "target": as_connection_target("t")},
             power_limits={
                 "max_power_source_target": np.array([4.0]),
-                "max_power_target_source": np.array([2.0]),
             },
             efficiency={
                 "efficiency_source_target": np.array([0.95]),
-                "efficiency_target_source": np.array([0.90]),
             },
             pricing={
                 "price_source_target": np.array([0.1]),
-                "price_target_source": np.array([0.05]),
             },
         ),
         "model": [
@@ -63,9 +60,9 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "s",
                 "target": "t",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                     "power_limit": {"segment_type": "power_limit", "max_power": [4.0]},
                     "pricing": {"segment_type": "pricing", "price": [0.1]},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": [0.95]},
                 },
             },
         ],
@@ -87,9 +84,9 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "source": "s",
                 "target": "t",
                 "segments": {
-                    "efficiency": {"segment_type": "efficiency", "efficiency": None},
                     "power_limit": {"segment_type": "power_limit", "max_power": None},
                     "pricing": {"segment_type": "pricing", "price": None},
+                    "efficiency": {"segment_type": "efficiency", "efficiency": None},
                 },
             },
         ],
@@ -123,6 +120,8 @@ def test_model_elements(case: CreateCase) -> None:
     entry = ELEMENT_TYPES[ElementType.CONNECTION]
     result = entry.model_elements(case["data"])
     assert normalize_for_compare(result) == normalize_for_compare(case["model"])
+    # Segment order sets which end of a connection the power limit applies to
+    assert segment_order(result) == segment_order(case["model"])
 
 
 @pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])

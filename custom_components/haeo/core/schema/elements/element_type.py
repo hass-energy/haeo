@@ -13,6 +13,7 @@ class ElementType(StrEnum):
     EV = "ev"
     GRID = "grid"
     INVERTER = "inverter"
+    JUNCTION = "junction"
     LOAD = "load"
     NODE = "node"
     SOLAR = "solar"

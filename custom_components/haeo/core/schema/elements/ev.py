@@ -1,6 +1,6 @@
 """EV element schema definitions."""
 
-from typing import Annotated, Any, Final, Literal, NotRequired, TypedDict
+from typing import Annotated, Final, Literal, NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -86,7 +86,7 @@ class VehicleConfig(TypedDict):
 class VehicleData(TypedDict):
     """Loaded vehicle details."""
 
-    capacity: NDArray[np.floating[Any]]
+    capacity: NDArray[np.float64]
     energy_per_distance: float
     current_soc: float
 
@@ -104,8 +104,8 @@ class ChargingConfig(TypedDict):
 class ChargingData(TypedDict):
     """Loaded charging rate values."""
 
-    max_charge_rate: NDArray[np.floating[Any]] | float
-    max_discharge_rate: NotRequired[NDArray[np.floating[Any]] | float]
+    max_charge_rate: NDArray[np.float64] | float
+    max_discharge_rate: NotRequired[NDArray[np.float64] | float]
 
 
 # --- Trip section ---
@@ -131,12 +131,12 @@ class TripData(TypedDict, total=False):
     """Loaded trip availability values."""
 
     trip_calendar: CalendarBoundaryData
-    connected: NDArray[np.floating[Any]] | float
+    connected: NDArray[np.float64] | float
     connected_last_off: float
     odometer: float
     odometer_at_disconnect: float
     reserve_soc: float
-    reserve_price: NDArray[np.floating[Any]] | float
+    reserve_price: NDArray[np.float64] | float
 
 
 # --- Public charging section ---
@@ -151,7 +151,7 @@ class PublicChargingConfig(TypedDict, total=False):
 class PublicChargingData(TypedDict, total=False):
     """Loaded public charging pricing values."""
 
-    public_charging_price: NDArray[np.floating[Any]] | float
+    public_charging_price: NDArray[np.float64] | float
 
 
 # --- Main element schemas ---

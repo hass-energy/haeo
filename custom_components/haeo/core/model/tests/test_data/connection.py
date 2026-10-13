@@ -63,7 +63,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "fix_power_in": [5.0, 5.0],
         },
         "expected_outputs": {
-            "connection_power": {"type": "power_flow", "unit": "kW", "values": (5.0, 5.0)},
+            "connection_power": {"type": "power_flow", "unit": "kW", "values": (4.75, 4.75)},
         },
     },
     {
@@ -182,7 +182,7 @@ VALID_CASES: list[ConnectionTestCase] = [
             "fix_power_in": [10.0, 10.0],
         },
         "expected_outputs": {
-            "connection_power": {"type": "power_flow", "unit": "kW", "values": (10.0, 10.0)},
+            "connection_power": {"type": "power_flow", "unit": "kW", "values": (9.0, 9.0)},
         },
     },
 ]
