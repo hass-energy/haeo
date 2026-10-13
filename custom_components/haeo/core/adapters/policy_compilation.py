@@ -36,7 +36,12 @@ from typing import NotRequired, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, ModelElementConfig
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_BATTERY,
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_NODE,
+    ModelElementConfig,
+)
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
@@ -103,10 +108,10 @@ def compile_policies(
     for elem in elements:
         if elem["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION:
             connections.append(elem)
-        elif elem["element_type"] == MODEL_ELEMENT_TYPE_POLICY_PRICING:
+        elif elem["element_type"] == MODEL_ELEMENT_TYPE_NODE or elem["element_type"] == MODEL_ELEMENT_TYPE_BATTERY:
+            by_name[elem["name"]] = elem
             non_connections.append(elem)
         else:
-            by_name[elem["name"]] = elem
             non_connections.append(elem)
 
     if not connections:

@@ -22,6 +22,7 @@ from .element import Element, NetworkElement
 from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
+from .elements.holding_cost import HoldingCost, HoldingCostElementConfig
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
 from .util.solver_rows import add_row, update_row
@@ -196,6 +197,9 @@ class Network:
     @overload
     def add(self, element_config: PolicyPricingElementConfig) -> PolicyPricing: ...
 
+    @overload
+    def add(self, element_config: HoldingCostElementConfig) -> HoldingCost: ...
+
     def add(self, element_config: ModelElementConfig) -> Element[Any]:
         """Add a new element to the network.
 
@@ -205,6 +209,8 @@ class Network:
 
         For PolicyPricingElementConfig, resolves connection/tag references to
         LP power flow variables from already-added Connection elements.
+        For HoldingCostElementConfig, resolves the storage reference to an
+        already-added Battery element.
 
         Args:
             element_config: Typed model element configuration dictionary
@@ -217,6 +223,8 @@ class Network:
 
         if element_config["element_type"] == "policy_pricing":
             return self._add_policy_pricing(element_config)
+        if element_config["element_type"] == "holding_cost":
+            return self._add_holding_cost(element_config)
 
         element_type = element_config["element_type"]
         kwargs = {key: value for key, value in element_config.items() if key not in ("element_type", "name")}
@@ -273,6 +281,26 @@ class Network:
             terms=config["terms"],
         )
         element.label = config.get("label", "")
+        self.elements[name] = element
+        return element
+
+    def _add_holding_cost(self, config: HoldingCostElementConfig) -> HoldingCost:
+        """Create a HoldingCost element by resolving its storage reference."""
+        name = config["name"]
+        storage = self.elements.get(config["storage"])
+        if not isinstance(storage, Battery):
+            msg = f"HoldingCost '{name}' references unknown battery '{config['storage']}'"
+            raise TypeError(msg)
+
+        element = HoldingCost(
+            name=name,
+            periods=self.periods,
+            solver=self._solver,
+            storage=storage,
+            direction=config["direction"],
+            threshold=config["threshold"],
+            price=config["price"],
+        )
         self.elements[name] = element
         return element
 

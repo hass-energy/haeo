@@ -5,7 +5,7 @@ They represent physical devices that produce, consume, store, or route power.
 
 ## Element types
 
-HAEO provides two element types that serve different roles in the network:
+HAEO provides two element types that take part in the power balance:
 
 **[Battery](battery.md)**:
 Energy storage with state of charge tracking.
@@ -14,6 +14,11 @@ Models capacity, charge/discharge flows, and SOC constraints.
 **[Node](node.md)**:
 Power sources, sinks, and junction points.
 Enforces power balance (Kirchhoff's law) at connection points.
+
+Other elements add cost without taking part in the power balance:
+
+**[Holding cost](holding-cost.md)**:
+Charges a rate for energy a battery stores above or below a threshold, for every hour it stays there.
 
 ## Common characteristics
 
@@ -73,6 +78,14 @@ This separation keeps the Model Layer focused on optimization mathematics while 
     Power balance points for sources, sinks, and junctions.
 
     [:material-arrow-right: Node formulation](node.md)
+
+- :material-timer-sand:{ .lg .middle } **Holding cost model**
+
+    ---
+
+    Soft limits on a battery's stored energy.
+
+    [:material-arrow-right: Holding cost formulation](holding-cost.md)
 
 - :material-connection:{ .lg .middle } **Connections**
 

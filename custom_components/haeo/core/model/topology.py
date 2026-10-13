@@ -67,7 +67,7 @@ def serialize_topology(
                 policy_data["label"] = element.label
             policies.append(policy_data)
 
-        else:
+        elif isinstance(element, NetworkElement):
             element_type = element_types.get(name, "unknown")
             group = name.split(":")[0]
             groups[group].append(name)
@@ -76,11 +76,10 @@ def serialize_topology(
                 "type": element_type,
                 "group": group,
             }
-            if isinstance(element, NetworkElement):
-                if element.outbound_tags is not None:
-                    node_data["outbound_tags"] = sorted(element.outbound_tags)
-                if element.inbound_tags is not None:
-                    node_data["inbound_tags"] = sorted(element.inbound_tags)
+            if element.outbound_tags is not None:
+                node_data["outbound_tags"] = sorted(element.outbound_tags)
+            if element.inbound_tags is not None:
+                node_data["inbound_tags"] = sorted(element.inbound_tags)
             nodes.append(node_data)
 
     result: dict[str, Any] = {

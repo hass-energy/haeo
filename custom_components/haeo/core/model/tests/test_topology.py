@@ -5,6 +5,7 @@ import numpy as np
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_HOLDING_COST as ELEMENT_TYPE_HOLDING_COST
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.topology import serialize_topology
@@ -180,6 +181,27 @@ def test_node_without_tags_omits_fields() -> None:
     node = result["nodes"][0]
     assert "outbound_tags" not in node
     assert "inbound_tags" not in node
+
+
+def test_holding_cost_is_not_a_node() -> None:
+    """A holding cost adds cost without taking part in the graph, so it is not serialized."""
+    network = _make_network()
+    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "Bat", "capacity": 10.0, "initial_charge": 5.0})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_HOLDING_COST,
+            "name": "Bat:holding_cost",
+            "storage": "Bat",
+            "direction": "above",
+            "threshold": 8.0,
+            "price": 0.01,
+        }
+    )
+
+    result = serialize_topology(network, element_types={"Bat": "battery"})
+
+    assert [node["name"] for node in result["nodes"]] == ["Bat"]
+    assert result["groups"] == {"Bat": ["Bat"]}
 
 
 def test_policy_pricing_serialization() -> None:

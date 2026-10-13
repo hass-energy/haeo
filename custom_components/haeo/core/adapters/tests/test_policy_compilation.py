@@ -25,9 +25,15 @@ from custom_components.haeo.core.adapters.policy_compilation import (
 )
 from custom_components.haeo.core.model import ModelElementConfig
 from custom_components.haeo.core.model.element import NetworkElement
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_BATTERY,
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_HOLDING_COST,
+    MODEL_ELEMENT_TYPE_NODE,
+)
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
+from custom_components.haeo.core.model.elements.holding_cost import HoldingCostElementConfig
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig
 from custom_components.haeo.core.model.elements.segments import SegmentSpec
@@ -292,6 +298,30 @@ def test_no_policies_assigns_single_vlan() -> None:
     # Connection gets tagged
     conn = _find(result, "c1", element_type=MODEL_ELEMENT_TYPE_CONNECTION)
     assert conn.get("tags")
+
+
+def test_holding_cost_is_not_a_policy_endpoint() -> None:
+    """A holding cost passes through compilation untagged and never becomes a wildcard source or destination."""
+    holding_cost: ModelElementConfig = HoldingCostElementConfig(
+        element_type=MODEL_ELEMENT_TYPE_HOLDING_COST,
+        name="battery:holding_cost",
+        storage="battery",
+        direction="below",
+        threshold=1.0,
+        price=0.1,
+    )
+    elements = [
+        BatteryElementConfig(
+            element_type=MODEL_ELEMENT_TYPE_BATTERY, name="battery", capacity=10.0, initial_charge=5.0
+        ),
+        holding_cost,
+        _node("load", is_sink=True),
+        _conn("c1", "battery", "load"),
+    ]
+    result = compile_policies(elements, [_policy(["*"], ["*"], 0.1)])
+
+    assert _find(result, "battery:holding_cost") == holding_cost
+    assert [term["connection"] for config in _pricing_configs(result) for term in config["terms"]] == ["c1"]
 
 
 def test_node_without_policy_gets_outbound_tags() -> None:

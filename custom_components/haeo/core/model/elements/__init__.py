@@ -21,6 +21,10 @@ from .connection import Connection as Connection
 from .connection import ConnectionElementConfig as ConnectionElementConfig
 from .connection import ConnectionElementTypeName as ConnectionElementTypeName
 from .connection import ConnectionOutputName as ConnectionOutputName
+from .holding_cost import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_HOLDING_COST
+from .holding_cost import HoldingCost as HoldingCost
+from .holding_cost import HoldingCostElementConfig as HoldingCostElementConfig
+from .holding_cost import HoldingCostElementTypeName as HoldingCostElementTypeName
 from .node import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_NODE
 from .node import NODE_OUTPUT_NAMES
 from .node import Node as Node
@@ -45,11 +49,21 @@ from .segments import SocPricingSegmentSpec as SocPricingSegmentSpec
 
 # Type for all model element types
 ModelElementType = (
-    BatteryElementTypeName | NodeElementTypeName | ConnectionElementTypeName | PolicyPricingElementTypeName
+    BatteryElementTypeName
+    | NodeElementTypeName
+    | ConnectionElementTypeName
+    | PolicyPricingElementTypeName
+    | HoldingCostElementTypeName
 )
 
 # Typed configs for all model elements (discriminated by element_type)
-ModelElementConfig = BatteryElementConfig | NodeElementConfig | ConnectionElementConfig | PolicyPricingElementConfig
+ModelElementConfig = (
+    BatteryElementConfig
+    | NodeElementConfig
+    | ConnectionElementConfig
+    | PolicyPricingElementConfig
+    | HoldingCostElementConfig
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +99,7 @@ __all__ = [
     "ELEMENTS",
     "MODEL_ELEMENT_TYPE_BATTERY",
     "MODEL_ELEMENT_TYPE_CONNECTION",
+    "MODEL_ELEMENT_TYPE_HOLDING_COST",
     "MODEL_ELEMENT_TYPE_NODE",
     "MODEL_ELEMENT_TYPE_POLICY_PRICING",
     "Battery",
@@ -97,6 +112,8 @@ __all__ = [
     "ConnectionOutputName",
     "EfficiencySegment",
     "ElementSpec",
+    "HoldingCost",
+    "HoldingCostElementConfig",
     "ModelElementConfig",
     "ModelElementType",
     "Node",
