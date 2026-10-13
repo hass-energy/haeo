@@ -49,6 +49,11 @@ The plugged-in field accepts only a sensor; without one the calendar governs the
 Without a calendar the sensor value applies across the whole horizon, and with neither source the EV is always connected.
 The masks multiply the connection power limits.
 
+### Metered charger convention
+
+Charge and discharge power are measured at the charger, the bus end of the EV's connections, following the [battery's metered terminal convention](battery.md#metered-terminal-convention).
+`{name}:charge` applies its power limit before its efficiency, and `{name}:discharge` applies its efficiency before its power limit, so both limits and the charge, discharge, and active power sensors refer to power at the charger.
+
 ### Trip energy modeling
 
 Calendar events define trip windows.
