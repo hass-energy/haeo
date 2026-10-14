@@ -97,14 +97,12 @@ def tie_break_perturbation(priority: int, n_periods: int) -> NDArray[np.float64]
     it is a whole number plus a multiple of the same irrational, so sums of them can
     cancel exactly.
 
-    The prime is chosen by the Cantor pairing of priority and period, which does not
-    depend on the horizon length, so each period keeps its value as the horizon
-    changes.
+    Connection ``priority`` takes the primes from ``priority * n_periods`` on, one
+    per period, so a network uses one prime per connection and period.
     """
-    period = np.arange(n_periods, dtype=np.int64)
-    index = (priority + period) * (priority + period + 1) // 2 + period
-    primes = _PRIMES.first(int(index.max(initial=0)) + 1)
-    return np.mod(np.sqrt(primes[index].astype(np.float64)), 1.0)
+    start = priority * n_periods
+    primes = _PRIMES.first(start + n_periods)[start:]
+    return np.mod(np.sqrt(primes.astype(np.float64)), 1.0)
 
 
 class ConnectionElementConfig(TypedDict):

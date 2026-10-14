@@ -98,7 +98,7 @@ $$
 
 Where $p$ is the connection's priority, $T$ is the number of periods, and $t$ is the time step.
 Each connection's priority is its position when connections are sorted: its own power before external power, time-sensitive before invariant, then by source, target, and name.
-$u_{p,t}$ is a fixed value in $[0, 1)$: the fractional part of $\sqrt{q_{p,t}}$, where $q_{p,t}$ is a distinct prime for each connection and period.
+$u_{p,t}$ is a fixed value in $[0, 1)$: the fractional part of $\sqrt{q_{p,t}}$, where $q_{p,t}$ is the $(p \cdot T + t)$-th prime, so each connection and period has its own.
 The time-preference objective for a connection with priority $p$ is:
 
 $$

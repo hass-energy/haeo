@@ -942,14 +942,12 @@ def test_equally_cheap_plans_do_not_depend_on_element_order(options: SolveOption
     assert len(plans) == 1
 
 
-def test_tie_break_perturbation_is_stable_and_distinct() -> None:
-    """Each connection's perturbation lies in [0, 1), keeps its values as the horizon grows, and differs by priority."""
-    short = tie_break_perturbation(3, 4)
-    long = tie_break_perturbation(3, 10)
+def test_tie_break_perturbation_is_distinct_per_connection_and_period() -> None:
+    """Every connection and period of a network gets its own perturbation in [0, 1)."""
+    values = np.concatenate([tie_break_perturbation(priority, 10) for priority in range(5)])
 
-    assert np.all((long >= 0.0) & (long < 1.0))
-    np.testing.assert_array_equal(long[:4], short)
-    assert not np.array_equal(tie_break_perturbation(4, 4), short)
+    assert np.all((values >= 0.0) & (values < 1.0))
+    assert len(np.unique(values)) == len(values)
 
 
 def test_lex_phase_two_loosens_an_infeasible_cost_bound(monkeypatch: pytest.MonkeyPatch) -> None:
