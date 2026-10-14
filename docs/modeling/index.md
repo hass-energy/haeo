@@ -246,9 +246,10 @@ $$
 \text{minimize} \sum_{\text{connections}} \sum_{t=0}^{T-1} w_{p,t} \cdot E_c(t)
 $$
 
-Where $p$ is the connection priority derived from endpoint element types, $w_{p,t} = p \cdot T + (t + 1)$ assigns monotonically increasing weights by priority group and time step, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
-Connections with different priorities receive non-overlapping weight ranges.
-Connections with the same priority share the same per-period weight sequence.
+Where $p$ is the connection's priority, $w_{p,t} = p \cdot T + (t + 1) + \tfrac{1}{2} u_{p,t}$ assigns monotonically increasing weights by connection and time step, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
+Each connection has its own priority, so connections receive non-overlapping weight ranges.
+The small fixed perturbation $u_{p,t} \in [0, 1)$ makes the choice between equally cheap plans independent of the order of the solver's rows.
+See [connection](model-layer/connections/connection.md) for why it is needed.
 
 The secondary objective does not affect the optimal cost.
 It only selects among cost-equivalent solutions for deterministic, physically intuitive schedules.

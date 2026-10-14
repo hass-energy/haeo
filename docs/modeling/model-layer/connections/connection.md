@@ -93,19 +93,24 @@ Connections also contribute a time-preference term to the secondary objective (i
 This term weights energy transfer with monotonically increasing per-period weights:
 
 $$
-w_{p,t} = p \cdot T + (t + 1)
+w_{p,t} = p \cdot T + (t + 1) + \tfrac{1}{2} u_{p,t}
 $$
 
-Where $p$ is the connection's priority (auto-computed from endpoint element types), $T$ is the number of periods, and $t$ is the time step.
+Where $p$ is the connection's priority, $T$ is the number of periods, and $t$ is the time step.
+Each connection's priority is its position when connections are sorted: its own power before external power, time-sensitive before invariant, then by source, target, and name.
+$u_{p,t}$ is a fixed pseudo-random value in $[0, 1)$, seeded by the priority.
 The time-preference objective for a connection with priority $p$ is:
 
 $$
 \sum_{t=0}^{T-1} w_{p,t} \cdot P_{\text{in}}(t) \cdot \Delta t_t
 $$
 
-Connections with different priorities receive non-overlapping weight ranges.
-Lower-priority connections are preferred when breaking ties, which the optimizer uses to select among cost-equivalent solutions.
-Connections with the same priority share a weight range, so ties between them are broken by time step only.
+Lower-priority connections are preferred when breaking ties, and within a connection earlier transfers are preferred.
+Distinct weights differ by at least one, so the perturbation $\tfrac{1}{2} u_{p,t}$ never reorders two of them.
+It exists because $p \cdot T + (t + 1)$ alone is a connection term plus a time term:
+moving energy from one period to another on one connection, and back on a second connection, would leave it unchanged.
+Equally cheap plans that differ by such swaps, such as two identical batteries sharing a load, would then be chosen by the order of the solver's rows.
+The perturbation gives every swap a cost, so the same plan is chosen whatever the row order.
 
 The secondary objective does not affect the minimum cost—it only selects among cost-equivalent solutions.
 The network solves this lexicographically: primary cost is minimized first, then the secondary objective is minimized subject to the primary remaining optimal.

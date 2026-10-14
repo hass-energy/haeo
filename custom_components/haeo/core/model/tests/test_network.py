@@ -1,5 +1,6 @@
 """Unit tests for Network class."""
 
+import itertools
 import logging
 from unittest.mock import Mock
 
@@ -13,7 +14,8 @@ from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
-from custom_components.haeo.core.model.elements.connection import Connection
+from custom_components.haeo.core.model.elements import ModelElementConfig
+from custom_components.haeo.core.model.elements.connection import Connection, tie_break_perturbation
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
 from custom_components.haeo.core.model.network import (
@@ -889,3 +891,80 @@ def test_add_policy_pricing_unknown_tag() -> None:
                 terms=[PolicyPricingTerm(connection="conn", tag=99)],
             )
         )
+
+
+def _interchangeable_batteries() -> list[ModelElementConfig]:
+    """Return a network where two identical batteries can cover the same load in many equally cheap ways."""
+    n = 6
+    elements: list[ModelElementConfig] = [
+        {"element_type": ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": False},
+        {"element_type": ELEMENT_TYPE_NODE, "name": "hub", "is_source": False, "is_sink": False},
+        {"element_type": ELEMENT_TYPE_NODE, "name": "load", "is_source": False, "is_sink": True},
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "grid_import",
+            "source": "grid",
+            "target": "hub",
+            "tags": {1},
+            "segments": {"pricing": {"segment_type": "pricing", "price": np.array([0.1, 0.1, 0.5, 0.5, 0.5, 0.5])}},
+        },
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "load_supply",
+            "source": "hub",
+            "target": "load",
+            "tags": {1},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": np.full(n, 2.0), "fixed": True}},
+        },
+    ]
+    for battery in ("b1", "b2"):
+        elements.append(
+            {"element_type": ELEMENT_TYPE_BATTERY, "name": battery, "capacity": 10.0, "initial_charge": 5.0}
+        )
+        elements.append(
+            {
+                "element_type": ELEMENT_TYPE_CONNECTION,
+                "name": f"{battery}_discharge",
+                "source": battery,
+                "target": "hub",
+                "tags": {1},
+                "segments": {"power_limit": {"segment_type": "power_limit", "max_power": np.full(n, 3.0)}},
+            }
+        )
+    return elements
+
+
+@pytest.mark.parametrize("options", [LexOptions(), CalibratedOptions()], ids=["lex", "calibrated"])
+def test_equally_cheap_plans_do_not_depend_on_element_order(options: SolveOptions) -> None:
+    """Swapping energy between two batteries across periods is cost-free, yet the chosen plan is always the same.
+
+    Without a tie-break that separates such swaps, the plan followed the order of
+    the solver's rows, so adding the same elements in another order changed it.
+    """
+    elements = _interchangeable_batteries()
+    plans: set[tuple[float, ...]] = set()
+    for order in itertools.islice(itertools.permutations(range(len(elements))), 0, 720, 120):
+        network = Network(name="ties", periods=np.ones(6), options=options)
+        ordered = [elements[i] for i in order]
+        for element in sorted(ordered, key=lambda element: element["element_type"] == ELEMENT_TYPE_CONNECTION):
+            network.add(element)
+        network.optimize()
+        plans.add(
+            tuple(
+                round(value, 6)
+                for battery in ("b1", "b2")
+                for value in network.elements[f"{battery}_discharge"].outputs()["connection_power"].values
+            )
+        )
+
+    assert len(plans) == 1
+
+
+def test_tie_break_perturbation_is_stable_and_distinct() -> None:
+    """Each connection's perturbation lies in [0, 1), keeps its values as the horizon grows, and differs by priority."""
+    short = tie_break_perturbation(3, 4)
+    long = tie_break_perturbation(3, 10)
+
+    assert np.all((long >= 0.0) & (long < 1.0))
+    np.testing.assert_array_equal(long[:4], short)
+    assert not np.array_equal(tie_break_perturbation(4, 4), short)

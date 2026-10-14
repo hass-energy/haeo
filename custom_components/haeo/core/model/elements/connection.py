@@ -10,6 +10,7 @@ segment parameters.
 """
 
 from collections import OrderedDict
+from functools import cache
 from typing import (
     Any,  # noqa: TID251  # source_element/target_element are the network's connection endpoints,
     # which can be any concrete NetworkElement subtype (Battery, Node, ...). Element is invariant
@@ -47,6 +48,29 @@ CONNECTION_POWER: Final = "connection_power"
 CONNECTION_SEGMENTS: Final = "segments"
 
 CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset((CONNECTION_POWER, CONNECTION_SEGMENTS))
+
+# Largest perturbation added to a time-preference weight. Distinct weights differ by
+# at least one, so a perturbation below half of that never reorders two of them.
+TIE_BREAK_SCALE: Final = 0.5
+
+
+@cache
+def tie_break_perturbation(priority: int, n_periods: int) -> NDArray[np.float64]:
+    """Return fixed pseudo-random values in [0, 1) for each period of a connection.
+
+    The time-preference weight is a connection term plus a period term, so moving
+    energy between two connections in opposite directions across two periods leaves
+    it unchanged, and equally cheap plans that differ only by such swaps would be
+    chosen by the order of the solver's rows. A perturbation drawn independently for
+    each connection and period gives every such swap a cost, so one plan is preferred
+    regardless of row order. The values are seeded by the connection's priority, and
+    a longer horizon only appends values, so each period keeps its value as the
+    horizon changes.
+    """
+    values = np.random.default_rng(priority).random(n_periods)
+    # Shared between calls through the cache, so callers must not modify it
+    values.flags.writeable = False
+    return values
 
 
 class ConnectionElementConfig(TypedDict):
@@ -259,9 +283,14 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """
         primary = total([seg.cost() for seg in self._segments.values()])
 
-        # Time-preference objective: prefer earlier energy transfer
+        # Time-preference objective: prefer earlier energy transfer, perturbed so that
+        # equally cheap plans never tie
         n = self.n_periods
-        weights = self.priority * n + np.arange(1, n + 1, dtype=np.float64)
+        weights = (
+            self.priority * n
+            + np.arange(1, n + 1, dtype=np.float64)
+            + TIE_BREAK_SCALE * tie_break_perturbation(self.priority, n)
+        )
         secondary = (self.total_measured_power * self.periods * weights).total()
 
         return (primary, secondary)
@@ -312,8 +341,10 @@ __all__ = [
     "CONNECTION_POWER",
     "CONNECTION_SEGMENTS",
     "ELEMENT_TYPE",
+    "TIE_BREAK_SCALE",
     "Connection",
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
     "ConnectionOutputName",
+    "tie_break_perturbation",
 ]
