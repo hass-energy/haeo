@@ -91,16 +91,17 @@ The constraint allows a slack of $10^{-9}$ of the cost, loosened to $10^{-6}$ on
 
 **Calibration (default mode)**
 
-After the first lexicographic solve, a binary search finds the largest blend weight that preserves primary cost optimality.
+After the first lexicographic solve, a binary search finds the largest blend weight whose plan is still cost-optimal, and the weight starts a quarter of a decade below it.
 A larger weight gives the secondary objective more influence, producing better tie-breaking in degenerate regions.
 Every optimization, including the first, then uses this blended objective (`primary + weight * secondary`) in a single solve, which warm-starts efficiently.
 
 No single weight suits every input: too large and the secondary trades away cost, too small and its differences fall below the solver's tolerance, leaving ties unresolved.
-After each blended solve, both objectives are priced at the plan's basis without any simplex iterations, which leaves the plan and its basis unchanged.
-The plan is accepted when no move lowers the cost, and no move that leaves the cost unchanged lowers the secondary.
-Otherwise the weight moves away from the failure, tenfold at a time and then by bisection between a weight known too small and one known too large, and the blended solve is repeated from the same basis.
-The accepted weight is kept for later solves.
-If no weight is accepted, that optimization uses the full three-phase lexicographic solve instead, so the plan never falls back to an arbitrary choice.
+After each blended solve, the cost is priced at the plan's basis without any simplex iterations, which leaves the plan and its basis unchanged.
+If some move would lower the cost, the weight is too large and is lowered, tenfold at a time.
+Once a weight has been lowered below the largest weight that has given a cost-optimal plan, each plan is also checked for a move that leaves the cost unchanged and lowers the secondary.
+If there is one, the weight is too small and is raised, but never to a weight already found too large for the cost in that optimization: the cheapest plan always comes first.
+Between a weight known too small and one known too large, the weight is bisected, and the blended solve is repeated from the same basis.
+The weight settled on is kept for later solves, and since inputs change, no weight is ruled out for good.
 
 The primary objective is priced last, so its dual values at the plan's basis are the shadow prices: the blended duals without the secondary's contribution.
 
