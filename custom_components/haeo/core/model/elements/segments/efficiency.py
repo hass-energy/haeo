@@ -9,14 +9,14 @@ from typing import (
     NotRequired,
 )
 
-from highspy import Highs
-from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.linear import LinearArray
 from custom_components.haeo.core.model.reactive import TrackedParam, computed
+from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 from .segment import FlowProvider, Segment
@@ -45,7 +45,7 @@ class EfficiencySegment(Segment):
         segment_id: str,
         n_periods: int,
         periods: NDArray[np.float64],
-        solver: Highs,
+        solver: Solver,
         *,
         spec: EfficiencySegmentSpec,
         source_element: Element[Any],
@@ -65,12 +65,12 @@ class EfficiencySegment(Segment):
         self.efficiency = broadcast_to_sequence(spec.get("efficiency"), self._n_periods)
 
     @property
-    def power_out(self) -> dict[int, HighspyArray]:
+    def power_out(self) -> dict[int, LinearArray]:
         """Per-tag output with efficiency applied to each tag flow."""
         return self.efficient_flows()
 
     @computed
-    def efficient_flows(self) -> dict[int, HighspyArray]:
+    def efficient_flows(self) -> dict[int, LinearArray]:
         """Per-tag flows with efficiency applied, rebuilt only when the efficiency or upstream flows change."""
         efficiency = self.efficiency
         if efficiency is None:

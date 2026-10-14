@@ -9,14 +9,14 @@ from typing import (
     NotRequired,
 )
 
-from highspy import Highs
-from highspy.highs import highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.linear import LinearArray, total
 from custom_components.haeo.core.model.reactive import TrackedParam, cost
+from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 from .segment import FlowProvider, Segment
@@ -54,7 +54,7 @@ class PricingSegment(Segment):
         segment_id: str,
         n_periods: int,
         periods: NDArray[np.float64],
-        solver: Highs,
+        solver: Solver,
         *,
         spec: PricingSegmentSpec,
         source_element: Element[Any],
@@ -79,26 +79,19 @@ class PricingSegment(Segment):
         }
 
     @cost
-    def transfer_cost(self) -> highs_linear_expression | None:
+    def transfer_cost(self) -> LinearArray | None:
         """Cost proportional to power flow."""
         if self.price is None:
             return None
-        return Highs.qsum(self.total_power_in * self.price * self.periods)
+        return (self.total_power_in * self.price * self.periods).total()
 
     @cost
-    def tag_transfer_cost(self) -> highs_linear_expression | None:
+    def tag_transfer_cost(self) -> LinearArray | None:
         """Per-tag surcharge cost."""
-        if not self._tag_prices:
-            return None
         power_in = self.power_in
-        costs = [
-            Highs.qsum(power_in[tag] * price * self.periods)
-            for tag, price in self._tag_prices.items()
-            if tag in power_in
-        ]
-        if not costs:
-            return None
-        return Highs.qsum(costs) if len(costs) > 1 else costs[0]
+        return total(
+            [power_in[tag] * price * self.periods for tag, price in self._tag_prices.items() if tag in power_in]
+        )
 
 
 __all__ = ["PricingSegment", "PricingSegmentSpec", "TagPriceSpec"]
