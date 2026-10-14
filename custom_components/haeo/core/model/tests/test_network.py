@@ -565,8 +565,8 @@ def test_blended_mode_reentrant() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_calibrated_mode_first_call_uses_lex() -> None:
-    """First call in calibrated mode performs lex then calibrates the starting weight."""
+def test_calibrated_mode_first_call_calibrates_the_weight() -> None:
+    """The first call in calibrated mode calibrates the starting weight."""
     network = _build_priced_network(CalibratedOptions())
     assert network._blend_weight is None
     network.optimize()
@@ -577,7 +577,7 @@ def test_calibrated_mode_first_call_uses_lex() -> None:
 def test_calibrated_mode_subsequent_calls_use_blended() -> None:
     """After calibration, optimize() uses blended fast path."""
     network = _build_priced_network(CalibratedOptions())
-    r1 = network.optimize()  # lex + calibrate
+    r1 = network.optimize()  # calibrate
     r2 = network.optimize()  # blended with calibrated weight
     assert r1 == pytest.approx(r2)
 
@@ -1083,6 +1083,36 @@ def test_weight_search_settles_on_the_cost_optimal_weight_when_no_gap_is_left() 
     search.next_weight(1e-6, cost_optimal=True, order_optimal=False)
 
     assert search.next_weight(1.5e-6, cost_optimal=False, order_optimal=True) == pytest.approx(1e-6)
+
+
+def test_weight_search_lowers_again_when_a_known_cost_optimal_weight_fails_the_cost() -> None:
+    """A weight that passed the cost earlier but fails it now is no longer treated as cost-optimal."""
+    search = BlendWeightSearch()
+    search.next_weight(1e-6, cost_optimal=True, order_optimal=False)
+    assert search.next_weight(1.5e-6, cost_optimal=False, order_optimal=True) == pytest.approx(1e-6)
+
+    assert search.next_weight(1e-6, cost_optimal=False, order_optimal=True) == pytest.approx(1e-7)
+
+
+def test_weight_search_stops_raising_at_the_largest_weight() -> None:
+    """The weight is not raised above the largest weight tried."""
+    search = BlendWeightSearch()
+
+    assert search.next_weight(1e-1, cost_optimal=True, order_optimal=False) is None
+
+
+def test_blended_solve_falls_back_to_the_cost_when_no_weight_passes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When every weight fails the cost check, the plan is the cheapest one and the solve is optimal."""
+    reference = _network_with(_interchangeable_batteries(), LexOptions())
+    expected = reference.optimize()
+    network = _network_with(_interchangeable_batteries(), CalibratedOptions())
+    network.optimize()
+    monkeypatch.setattr(network_module, "_check_plan", lambda *_args: (False, True))
+
+    cost = network.optimize()
+
+    assert cost == pytest.approx(expected)
+    assert network._solver.getModelStatus() == HighsModelStatus.kOptimal
 
 
 def test_weight_search_keeps_a_cost_optimal_plan_in_order() -> None:

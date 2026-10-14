@@ -111,7 +111,8 @@ It exists because $p \cdot T + (t + 1)$ alone is a connection term plus a time t
 moving energy from one period to another on one connection, and back on a second connection, would leave it unchanged.
 Equally cheap plans that differ by such swaps, such as two identical batteries sharing a load, would then be chosen by the order of the solver's rows.
 Square roots of distinct primes are linearly independent over the rationals, so no exchange of energy between connections and periods can leave the perturbation unchanged.
-This gives every swap a cost, and the same plan is chosen whatever the row order.
+This gives every swap a cost, so equally cheap plans no longer tie exactly.
+The cost of a rare swap can still be smaller than the solver's tolerance, in which case the solver decides it.
 Multiples of a single irrational, such as the golden ratio, are not enough: their fractional parts can cancel exactly.
 
 The secondary objective does not affect the minimum cost—it only selects among cost-equivalent solutions.

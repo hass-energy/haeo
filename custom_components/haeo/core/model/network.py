@@ -56,6 +56,8 @@ _WEIGHT_STEP: Final = 10.0
 _WEIGHT_RESOLUTION: Final = 10.0**0.25
 # Smallest blend weight tried when lowering it for the cost
 _MIN_BLEND_WEIGHT: Final = 10.0**_CAL_LOG_LO
+# Largest blend weight tried when raising it for the order
+_MAX_BLEND_WEIGHT: Final = 10.0**_CAL_LOG_HI
 # Slacks tried, smallest first, on the cost bound while the secondary is minimized,
 # relative to the cost. Rounding in the cost just found can make a tighter bound
 # infeasible, and a larger slack lets the secondary trade away more cost.
@@ -116,7 +118,11 @@ class LexOptions(SimplexTuning):
 
 @dataclass(frozen=True, kw_only=True)
 class BlendedOptions(SimplexTuning):
-    """Single-solve weighted sum: primary + blend_weight * secondary."""
+    """Weighted sum primary + weight * secondary, starting from ``blend_weight``.
+
+    The weight is checked and moved like the calibrated mode's; only its starting
+    value differs.
+    """
 
     mode: Literal["blended"] = "blended"
     blend_weight: float = 1e-3
@@ -124,13 +130,13 @@ class BlendedOptions(SimplexTuning):
 
 @dataclass(frozen=True, kw_only=True)
 class CalibratedOptions(SimplexTuning):
-    """Two-phase lex on first call, then calibrated blended fast path.
+    """Weighted sum primary + weight * secondary, starting from a calibrated weight.
 
-    The first call runs lex phases 1 and 2, then binary-searches for the
-    largest blend weight that preserves primary optimality.  A larger
-    weight gives the secondary objective more influence, producing better
-    tie-breaking in degenerate regions.  Subsequent calls use the
-    blended fast path with the calibrated weight.
+    The first call binary-searches for the largest blend weight whose plan is
+    cost-optimal and starts a little below it. A larger weight gives the
+    secondary objective more influence, producing better tie-breaking in
+    degenerate regions. Every call, the first included, then solves the blend
+    and checks the plan, moving the weight if it fails.
     """
 
     mode: Literal["calibrated"] = "calibrated"
@@ -371,14 +377,12 @@ class Network:
         cost_vectors = _build_cost_vectors((primary, secondary), n_vars)
 
         if isinstance(self.options, LexOptions):
-            return self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary, restore_duals=True)
+            return self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary)
 
         if self._blend_weight is None:
             if isinstance(self.options, BlendedOptions):
                 self._blend_weight = self.options.blend_weight
             else:
-                # Calibrate the starting weight from a lexicographic solve
-                self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary, restore_duals=False)
                 self._blend_weight = self._calibrate_blend_weight(all_col_indices, cost_vectors)
 
         return self._solve_blended(h, all_col_indices, cost_vectors, self._blend_weight)
@@ -390,8 +394,6 @@ class Network:
         cost_vectors: list[NDArray[np.float64]],
         primary: LinearArray,
         secondary: LinearArray,
-        *,
-        restore_duals: bool,
     ) -> float:
         """Lexicographic solve: Phase 1 primary, Phase 2 secondary, and Phase 3 to restore cost duals.
 
@@ -417,13 +419,12 @@ class Network:
             solved = h.getModelStatus() == HighsModelStatus.kOptimal
         secondary_value = _ensure_optimal(h)
 
-        if restore_duals:
-            # Phase 3: re-minimize primary with secondary constrained (restore duals)
-            epsilon = max(1e-6, abs(secondary_value) * 1e-6)
-            self._constrain_objective(secondary, secondary_value + epsilon)
-            _set_cost_vector(h, all_col_indices, cost_vectors[0])
-            h.run()
-            _ensure_optimal(h)
+        # Phase 3: re-minimize primary with secondary constrained (restore duals)
+        epsilon = max(1e-6, abs(secondary_value) * 1e-6)
+        self._constrain_objective(secondary, secondary_value + epsilon)
+        _set_cost_vector(h, all_col_indices, cost_vectors[0])
+        h.run()
+        _ensure_optimal(h)
 
         return primary_value
 
@@ -463,7 +464,11 @@ class Network:
                 _LOGGER.debug("Blended plan at weight %.2e needs another solve; trying %.2e", weight, next_weight)
 
         if not cost_optimal:
-            _LOGGER.warning("Blended plan is not cost-optimal even at the smallest blend weight %.2e", weight)
+            # The cost is the objective left set, so solving it gives the cheapest
+            # plan and its duals, without the order
+            _LOGGER.warning("No blend weight gives a cost-optimal plan; solving for the cost alone")
+            h.run()
+            plan_cost = _ensure_optimal(h)
         self._blend_weight = weight
         return plan_cost
 
@@ -626,6 +631,9 @@ class BlendWeightSearch:
         """
         if not cost_optimal:
             self.too_large = weight
+            if self.too_small >= self.too_large:
+                # A warm start can fail the cost at a weight that passed it before
+                self.too_small = 0.0
             if self.too_small == 0.0:
                 lowered = weight / _WEIGHT_STEP
                 return lowered if lowered >= _MIN_BLEND_WEIGHT else None
@@ -639,7 +647,8 @@ class BlendWeightSearch:
 
         self.too_small = weight
         if math.isinf(self.too_large):
-            return weight * _WEIGHT_STEP
+            raised = weight * _WEIGHT_STEP
+            return raised if raised <= _MAX_BLEND_WEIGHT else None
         if self.too_large > self.too_small * _WEIGHT_RESOLUTION:
             return math.sqrt(self.too_small * self.too_large)
         return None

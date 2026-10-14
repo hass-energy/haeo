@@ -77,7 +77,8 @@ The objective minimizes the sum of all element costs.
 
 ### Solution Process
 
-Optimization uses lexicographic multiobjective solving with calibrated blending:
+Optimization is lexicographic: the plan has the lowest cost, and among equally cheap plans, the lowest secondary objective.
+The lexicographic mode (`mode="lex"`) solves this in phases:
 
 **Phase 1: Minimize primary objective**
 
@@ -91,7 +92,9 @@ The constraint allows a slack of $10^{-9}$ of the cost, loosened to $10^{-6}$ on
 
 **Calibration (default mode)**
 
-After the first lexicographic solve, a binary search finds the largest blend weight whose plan is still cost-optimal, and the weight starts a quarter of a decade below it.
+The default calibrated mode reaches the same plan with a single blended solve, which warm-starts efficiently and gives shadow prices from the plan's own basis.
+
+On the first optimization, a binary search finds the largest blend weight whose plan is still cost-optimal, and the weight starts a quarter of a decade below it.
 A larger weight gives the secondary objective more influence, producing better tie-breaking in degenerate regions.
 Every optimization, including the first, then uses this blended objective (`primary + weight * secondary`) in a single solve, which warm-starts efficiently.
 
@@ -265,7 +268,7 @@ $$
 
 Where $p$ is the connection's priority, $w_{p,t} = p \cdot T + (t + 1) + \tfrac{1}{2} u_{p,t}$ assigns monotonically increasing weights by connection and time step, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
 Each connection has its own priority, so connections receive non-overlapping weight ranges.
-The small fixed perturbation $u_{p,t} \in [0, 1)$, the fractional part of the square root of a distinct prime per connection and period, makes the choice between equally cheap plans independent of the order of the solver's rows.
+The small fixed perturbation $u_{p,t} \in [0, 1)$, the fractional part of the square root of a distinct prime per connection and period, breaks exact ties between equally cheap plans, which would otherwise be decided by the order of the solver's rows.
 See [connection](model-layer/connections/connection.md) for why it is needed.
 
 The secondary objective does not affect the optimal cost.

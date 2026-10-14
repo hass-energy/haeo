@@ -85,7 +85,9 @@ def tie_break_perturbation(priority: int, n_periods: int) -> NDArray[np.float64]
     it unchanged, and equally cheap plans that differ only by such swaps would be
     chosen by the order of the solver's rows. Adding a value that no combination of
     other values can cancel gives every such exchange a cost, so one plan is
-    preferred regardless of row order.
+    preferred. An exchange whose cost is smaller than the solver's tolerance is
+    still decided by the solver, so this makes exact ties impossible rather than
+    every exchange decisive.
 
     Each connection and period has its own prime, and its value is the fractional
     part of that prime's square root. Square roots of distinct primes are linearly
