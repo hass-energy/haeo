@@ -257,9 +257,8 @@ class HaeoInputNumber(NumberEntity):
         lets every change in that pass arrive first, so they share one reload
         rather than each re-reading all of the sources.
         """
-        if self._pending_reload is not None:
-            return
-        self._pending_reload = self.hass.async_create_task(self._async_pending_reload(), eager_start=False)
+        if self._pending_reload is None:
+            self._pending_reload = self.hass.async_create_task(self._async_pending_reload(), eager_start=False)
 
     async def _async_pending_reload(self) -> None:
         """Run the queued reload, letting later source changes queue another."""
