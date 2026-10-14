@@ -5,9 +5,9 @@ description: Measuring and improving HAEO's speed — optimization cycle time, i
 
 # Performance work
 
-## Where time goes
+## Stages of an optimization cycle
 
-Measure before changing anything; the solver is rarely the bottleneck.
+Measure each stage before choosing what to change; which one dominates depends on the configuration and the path being exercised.
 
 - **Input loading** runs on the Home Assistant event loop whenever a source entity changes.
     Forecast integrations write many entities in one pass, so per-change work multiplies by the number of sources in a field.
