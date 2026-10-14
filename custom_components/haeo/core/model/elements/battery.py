@@ -15,6 +15,11 @@ from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 # Model element type for batteries
 ELEMENT_TYPE: Final = "battery"
+
+# Holding cost for each kWh outside the min and max charge, per hour. High enough that
+# the optimizer treats the limits as hard, while a battery reported outside them still
+# gives a feasible plan that returns it inside.
+CHARGE_LIMIT_PRICE: Final = 100.0
 type BatteryElementTypeName = Literal["battery"]
 
 # Type for battery constraint names (shadow prices exposed as outputs)
@@ -63,6 +68,8 @@ class BatteryElementConfig(TypedDict):
     name: str
     capacity: NDArray[np.float64] | float
     initial_charge: float
+    min_charge: NotRequired[NDArray[np.float64] | float]
+    max_charge: NotRequired[NDArray[np.float64] | float]
     salvage_value: NotRequired[float]
     outbound_tags: NotRequired[set[int] | None]
     inbound_tags: NotRequired[set[int] | None]
@@ -72,12 +79,16 @@ class Battery(NetworkElement[BatteryOutputName]):
     """Battery entity for electrical system modeling.
 
     Represents a single battery section with cumulative energy tracking.
-    Uses TrackedParam for parameters that can change between optimizations.
+    Stored energy runs from empty to its capacity. The min and max charge are kept
+    with priced slack instead, so the plan stays feasible when the battery starts
+    outside them. Uses TrackedParam for parameters that can change between optimizations.
     """
 
     # Parameters
     capacity: TrackedParam[NDArray[np.float64]] = TrackedParam()
     initial_charge: TrackedParam[float] = TrackedParam()
+    min_charge: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    max_charge: TrackedParam[NDArray[np.float64]] = TrackedParam()
     salvage_value: TrackedParam[float] = TrackedParam()
 
     def __init__(
@@ -88,6 +99,8 @@ class Battery(NetworkElement[BatteryOutputName]):
         solver: Solver,
         capacity: NDArray[np.float64] | float,
         initial_charge: float,
+        min_charge: NDArray[np.float64] | float = 0.0,
+        max_charge: NDArray[np.float64] | float | None = None,
         salvage_value: float = 0.0,
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
@@ -106,6 +119,8 @@ class Battery(NetworkElement[BatteryOutputName]):
         # Set tracked parameters (broadcasts capacity to n_periods + 1)
         self.capacity = broadcast_to_sequence(capacity, n_periods + 1)
         self.initial_charge = initial_charge
+        self.min_charge = broadcast_to_sequence(min_charge, n_periods + 1)
+        self.max_charge = broadcast_to_sequence(capacity if max_charge is None else max_charge, n_periods + 1)
         self.salvage_value = salvage_value
 
         # Create all energy variables (including initial state at t=0)
@@ -114,6 +129,10 @@ class Battery(NetworkElement[BatteryOutputName]):
 
         # Stored energy is computed from cumulative values (not period-dependent)
         self.stored_energy = self.energy_in - self.energy_out
+
+        # Energy below the min charge and above the max charge at each boundary after the first
+        self._below_min = solver.add_variables(n_periods, name=f"{name}.below_min")
+        self._above_max = solver.add_variables(n_periods, name=f"{name}.above_max")
 
     @property
     def power_consumption(self) -> LinearArray:
@@ -159,21 +178,31 @@ class Battery(NetworkElement[BatteryOutputName]):
         """
         return self.energy_out[:-1] <= self.energy_out[1:]
 
+    @constraint
+    def battery_full(self) -> Rows:
+        """Constraint: stored energy cannot exceed the capacity."""
+        return self.stored_energy[1:] <= self.capacity[1:]
+
+    @constraint
+    def battery_empty(self) -> Rows:
+        """Constraint: stored energy cannot be negative."""
+        return self.stored_energy[1:] >= 0
+
     @constraint(output=True, unit="$/kWh")
     def battery_soc_max(self) -> Rows:
-        """Constraint: stored energy cannot exceed capacity.
+        """Constraint: stored energy stays at or below the max charge, or pays for the excess.
 
-        Output: shadow price indicating the marginal value of additional capacity.
+        Output: shadow price indicating the marginal value of a higher max charge.
         """
-        return self.stored_energy[1:] <= self.capacity[1:]
+        return self.stored_energy[1:] - self._above_max <= self.max_charge[1:]
 
     @constraint(output=True, unit="$/kWh")
     def battery_soc_min(self) -> Rows:
-        """Constraint: stored energy cannot be negative.
+        """Constraint: stored energy stays at or above the min charge, or pays for the shortfall.
 
-        Output: shadow price indicating the marginal cost of minimum SOC constraint.
+        Output: shadow price indicating the marginal cost of the min charge.
         """
-        return self.stored_energy[1:] >= 0
+        return self.stored_energy[1:] + self._below_min >= self.min_charge[1:]
 
     def element_power_produced(self) -> LinearArray:
         """Return power produced by discharging the battery."""
@@ -182,6 +211,11 @@ class Battery(NetworkElement[BatteryOutputName]):
     def element_power_consumed(self) -> LinearArray:
         """Return power consumed by charging the battery."""
         return self.power_consumption
+
+    @cost
+    def battery_charge_limit_cost(self) -> LinearArray:
+        """Cost: holding cost for energy outside the min and max charge, per hour."""
+        return ((self._below_min + self._above_max) * (CHARGE_LIMIT_PRICE * self.periods)).total()
 
     @cost
     def battery_salvage_value(self) -> LinearArray:

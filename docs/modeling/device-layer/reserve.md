@@ -36,12 +36,12 @@ $$
 
 $D$ is linear between boundaries, so the maximum is reached at a boundary or at the window end.
 The batteries meet the requirement together, with a priced shortfall $s_t \ge 0$.
-A reserve counts the stored energy $E_b$ each battery can deliver after its discharge efficiency $\eta^{d}_b$, and headroom counts the empty space each can fill before its charge efficiency $\eta^{c}_b$, where $C_b$ is its usable capacity:
+A reserve counts the stored energy $E_b$ each battery can deliver above its min charge $E^{\min}_b$ after its discharge efficiency $\eta^{d}_b$, and headroom counts the space each can fill below its max charge $E^{\max}_b$ before its charge efficiency $\eta^{c}_b$:
 
 $$
-\text{reserve:} \quad \sum_b \eta^{d}_b E_{b,t} + s_t \ge R_t
+\text{reserve:} \quad \sum_b \eta^{d}_b \left(E_{b,t} - E^{\min}_{b,t}\right) + s_t \ge R_t
 \qquad\qquad
-\text{headroom:} \quad \sum_b \frac{C_{b,t} - E_{b,t}}{\eta^{c}_b} + s_t \ge R_t
+\text{headroom:} \quad \sum_b \frac{E^{\max}_{b,t} - E_{b,t}}{\eta^{c}_b} + s_t \ge R_t
 $$
 
 Requiring the batteries to provide at least a maximum is the same as requiring them to provide at least every term, so the requirement stays linear even when the loads depend on decisions the optimizer makes.

@@ -54,7 +54,6 @@ def _battery(name: str, *, efficiency: float = 1.0) -> BatteryConfigData:
             "efficiency_source_target": np.full(N_PERIODS, efficiency),
             "efficiency_target_source": np.full(N_PERIODS, 1.0),
         },
-        partitioning={},
     )
 
 

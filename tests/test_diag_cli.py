@@ -10,7 +10,7 @@ import pytest
 
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
-from custom_components.haeo.core.schema import as_constant_value
+from custom_components.haeo.core.schema import as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import battery
 from custom_components.haeo.core.schema.elements.battery import is_battery_config_data
 from custom_components.haeo.elements import is_element_config_schema
@@ -28,9 +28,6 @@ def _base_battery_config() -> dict[str, object]:
         "power_limits": {},
         "pricing": {},
         "efficiency": {},
-        "partitioning": {},
-        "undercharge": {},
-        "overcharge": {},
     }
 
 
@@ -197,6 +194,39 @@ def test_normalize_participant_config_for_diag_migrates_mixed_config(monkeypatch
 
     assert normalized is migrated
     assert len(called) == 1
+
+
+def test_replace_battery_partitions_for_diag(capsys: pytest.CaptureFixture[str]) -> None:
+    """Battery partitions become reserves and headroom, warning about partitions whose sensors have no value."""
+    first = _base_battery_config()
+    first["storage"] = {"capacity": as_constant_value(10.0)}
+    first["limits"] = {"min_charge_percentage": as_constant_value(10.0)}
+    first["undercharge"] = {"percentage": as_constant_value(5.0), "cost": as_constant_value(0.03)}
+    second = _base_battery_config()
+    second["name"] = "Second"
+    second["storage"] = {"capacity": as_constant_value(10.0)}
+    second["overcharge"] = {"percentage": as_entity_value(["sensor.ceiling"]), "cost": as_constant_value(0.02)}
+    grid: dict[str, object] = {"element_type": "grid", "name": "Grid"}
+    provider = diag.DiagnosticsStateProvider([{"entity_id": "sensor.ceiling", "state": "unavailable"}])
+
+    replaced = diag.replace_battery_partitions_for_diag(
+        {"Battery": first, "Second": second, "Grid": grid, "Battery reserve": grid}, provider
+    )
+
+    assert list(replaced) == ["Battery", "Battery reserve 2", "Second", "Grid", "Battery reserve"]
+    assert replaced["Grid"] is grid
+    assert "undercharge" not in replaced["Battery"]
+    assert replaced["Battery"]["limits"] == {"min_charge_percentage": as_constant_value(5.0)}
+    assert replaced["Battery reserve 2"]["element_type"] == "reserve"
+    assert replaced["Battery reserve 2"]["requirement"] == {
+        "window": as_constant_value(1.0),
+        "minimum": as_constant_value(0.5),
+    }
+    assert "overcharge" not in replaced["Second"]
+    assert (
+        capsys.readouterr().out
+        == "Warning: Second overcharge partition was dropped because its sensors have no value\n"
+    )
 
 
 def test_get_forecast_by_fields_supports_legacy_grid_price_aliases() -> None:

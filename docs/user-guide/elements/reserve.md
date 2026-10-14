@@ -58,8 +58,22 @@ Use a constant for a fixed buffer, or a sensor to change it over time, for examp
 ## Shortfall cost
 
 The holding cost for each kWh the batteries fall short of the reserve, for every hour the shortfall lasts.
-It works like the [battery undercharge cost](battery.md#undercharge-cost): a short dip that is refilled soon is cheap, while a shortfall that lasts is expensive.
+The cost is a rate that accrues over time, not a one-off charge per kWh used:
+
+$$
+\text{cost} = \text{rate} \times \text{kWh short} \times \text{hours short}
+$$
+
+With a shortfall cost of 0.02 \$/kWh/h, using 1 kWh of the reserve and leaving it short for 72 hours costs \$1.44, while refilling it after 3 hours costs only \$0.06.
+A short dip that is refilled soon is cheap, so HAEO tends to use the reserve for short price spikes and refill it soon afterwards.
+
+To choose a rate, decide what one kWh of reserve should cost if it stays used for a typical duration, then divide by that duration.
+For example, if using the reserve for a day should cost about the same as a \$0.50/kWh price difference, use \$0.50/kWh ÷ 24 h ≈ 0.02 \$/kWh/h.
+Typical values are 0.005-0.05 \$/kWh/h.
 Set it high to treat the reserve as nearly untouchable.
+
+The cost stops at the end of the forecast horizon, so a shortfall that starts near the end costs little.
+Use the battery's [salvage value](battery.md#salvage-value) to value the energy left at the end of the horizon.
 
 ## Sensors created
 

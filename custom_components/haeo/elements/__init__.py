@@ -288,7 +288,6 @@ def get_input_field_schema_info(
     """Return schema metadata for input fields grouped by section."""
     schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
     schema_hints = get_type_hints(schema_cls)
-    schema_optional_keys: frozenset[str] = getattr(schema_cls, "__optional_keys__", frozenset())
 
     results: dict[str, dict[str, FieldSchemaInfo]] = {}
 
@@ -307,7 +306,6 @@ def get_input_field_schema_info(
             raise RuntimeError(msg)
 
         section_optional_keys: frozenset[str] = getattr(section_type, "__optional_keys__", frozenset())
-        section_is_optional = section_key in schema_optional_keys
         section_hints = get_type_hints(section_type)
 
         section_info: dict[str, FieldSchemaInfo] = {}
@@ -316,8 +314,9 @@ def get_input_field_schema_info(
             if field_type is None:
                 msg = f"Field '{section_key}.{field_name}' not found in {section_type.__name__}"
                 raise RuntimeError(msg)
-            is_optional = section_is_optional or field_name in section_optional_keys
-            section_info[field_name] = FieldSchemaInfo(value_type=field_type, is_optional=is_optional)
+            section_info[field_name] = FieldSchemaInfo(
+                value_type=field_type, is_optional=field_name in section_optional_keys
+            )
 
         results[section_key] = section_info
 

@@ -25,13 +25,13 @@ class _DummySchema(TypedDict):
 
 
 def test_get_input_field_schema_info_marks_optional_fields() -> None:
-    """get_input_field_schema_info marks optional fields and sections."""
+    """get_input_field_schema_info marks NotRequired fields as optional."""
     input_fields = get_input_fields(ELEMENT_TYPE)
     schema_info = get_input_field_schema_info(battery.ELEMENT_TYPE, input_fields)
 
     assert schema_info[battery.SECTION_STORAGE][battery.CONF_CAPACITY].is_optional is False
     assert schema_info[battery.SECTION_LIMITS][battery.CONF_MIN_CHARGE_PERCENTAGE].is_optional is True
-    assert schema_info[battery.SECTION_UNDERCHARGE][battery.CONF_PARTITION_COST].is_optional is True
+    assert schema_info[battery.SECTION_PRICING][battery.CONF_SALVAGE_VALUE].is_optional is True
 
 
 def test_get_input_field_schema_info_missing_section() -> None:

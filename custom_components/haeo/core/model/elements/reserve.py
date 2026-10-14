@@ -176,9 +176,9 @@ class Reserve(Element[ReserveOutputName]):
     def _available(self) -> LinearArray:
         """Return what the storage can provide at each boundary, measured at the network side.
 
-        A reserve counts the stored energy the batteries can deliver after
-        discharge losses. Headroom counts the energy the batteries can absorb
-        into their empty space before charge losses.
+        A reserve counts the energy the batteries can deliver above their min
+        charge, after discharge losses. Headroom counts the energy the batteries
+        can absorb below their max charge, before charge losses.
         """
         n_boundaries = self.n_periods + 1
         held: list[LinearArray] = []
@@ -187,11 +187,11 @@ class Reserve(Element[ReserveOutputName]):
             for segment in storage.connection.segments.values():
                 if isinstance(segment, EfficiencySegment) and segment.efficiency is not None:
                     efficiency = efficiency * broadcast_to_sequence(segment.efficiency, n_boundaries)
-            stored = storage.battery.stored_energy
+            battery = storage.battery
             if self.kind == "reserve":
-                held.append(stored * efficiency)
+                held.append((battery.stored_energy - battery.min_charge) * efficiency)
             else:
-                held.append((storage.battery.capacity - stored) * (1.0 / efficiency))
+                held.append((battery.max_charge - battery.stored_energy) * (1.0 / efficiency))
         return LinearArray.sum_of([LinearArray.zeros(n_boundaries), *held])
 
     def _net_power(self) -> LinearArray:

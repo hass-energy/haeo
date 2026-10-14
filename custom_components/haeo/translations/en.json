@@ -96,7 +96,6 @@
           "data": {
             "capacity": "Capacity",
             "charge_cost": "Charge cost",
-            "configure_partitions": "Configure battery partitions",
             "connection": "Connection",
             "discharge_cost": "Discharge cost",
             "efficiency_source_target": "Discharge efficiency",
@@ -122,10 +121,6 @@
               "data": { "max_charge_percentage": "Max Charge Level", "min_charge_percentage": "Min Charge Level" },
               "name": "Limits"
             },
-            "partitioning": {
-              "data": { "configure_partitions": "Configure battery partitions" },
-              "name": "Battery partitions"
-            },
             "power_limits": {
               "data": {
                 "max_power_source_target": "Max discharge power",
@@ -144,34 +139,6 @@
             "storage": {
               "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
               "name": "Storage"
-            }
-          }
-        },
-        "partition_values": {
-          "title": "Battery Partition Values",
-          "description": "Enter values for the partition input sources",
-          "data": { "cost": "Cost", "percentage": "Percentage" }
-        },
-        "partitions": {
-          "title": "Battery Partitions",
-          "description": "Select entities for undercharge and overcharge regions",
-          "data": { "cost": "Cost", "percentage": "Percentage" },
-          "sections": {
-            "overcharge": {
-              "data": { "cost": "Overcharge cost", "percentage": "Overcharge percentage" },
-              "data_description": {
-                "cost": "Holding cost per kWh stored above the overcharge percentage, charged for every hour it stays there. For example, 0.02 means keeping 1 kWh above this level for 10 hours costs 0.20.",
-                "percentage": "State of charge above which the overcharge cost applies."
-              },
-              "name": "Overcharge settings"
-            },
-            "undercharge": {
-              "data": { "cost": "Undercharge cost", "percentage": "Undercharge percentage" },
-              "data_description": {
-                "cost": "Holding cost per kWh stored below the undercharge percentage, charged for every hour it stays there. For example, 0.02 means keeping 1 kWh below this level for 10 hours costs 0.20.",
-                "percentage": "State of charge below which the undercharge cost applies."
-              },
-              "name": "Undercharge settings"
             }
           }
         }
@@ -582,13 +549,9 @@
       "battery_max_power_source_target": { "name": "Max discharge power" },
       "battery_max_power_target_source": { "name": "Max charge power" },
       "battery_min_charge_percentage": { "name": "Min charge" },
-      "battery_overcharge_partition_cost": { "name": "Overcharge cost" },
-      "battery_overcharge_partition_percentage": { "name": "Overcharge percentage" },
       "battery_price_source_target": { "name": "Discharge price" },
       "battery_price_target_source": { "name": "Charge price" },
       "battery_salvage_value": { "name": "Salvage value" },
-      "battery_undercharge_partition_cost": { "name": "Undercharge cost" },
-      "battery_undercharge_partition_percentage": { "name": "Undercharge percentage" },
       "connection_efficiency_source_target": { "name": "Efficiency" },
       "connection_max_power_source_target": { "name": "Max power" },
       "connection_price_source_target": { "name": "Price" },
@@ -718,6 +681,14 @@
     "setup_failed_transient": { "message": "Setup failed: {error}. Home Assistant will retry automatically." }
   },
   "issues": {
+    "battery_overcharge_not_migrated": {
+      "title": "{element_name} overcharge needs headroom",
+      "description": "{element_name} had an overcharge partition, which batteries no longer have. Its sensors could not be read when Home Assistant started, so it could not be converted, and {element_name} now stops at its max charge.\n\nTo let {element_name} use that range again, raise its max charge and add headroom that keeps the space between the two free, with the overcharge cost as its shortfall cost. You can ignore this issue once you have done so."
+    },
+    "battery_undercharge_not_migrated": {
+      "title": "{element_name} undercharge needs a reserve",
+      "description": "{element_name} had an undercharge partition, which batteries no longer have. Its sensors could not be read when Home Assistant started, so it could not be converted, and {element_name} now stops at its min charge.\n\nTo let {element_name} use that range again, lower its min charge and add a reserve that holds the energy between the two, with the undercharge cost as its shortfall cost. You can ignore this issue once you have done so."
+    },
     "disconnected_network": {
       "title": "System has disconnected components",
       "description": "The system has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the system is fully connected"

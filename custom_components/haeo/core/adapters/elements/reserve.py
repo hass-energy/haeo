@@ -9,7 +9,7 @@ from typing import Final, Literal
 
 import numpy as np
 
-from custom_components.haeo.core.adapters.elements.battery import battery_ceiling_ratio, battery_floor_ratio
+from custom_components.haeo.core.adapters.elements.battery import battery_max_ratio, battery_min_ratio
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -117,9 +117,9 @@ def _state_of_charge(
 ) -> OutputData:
     """Return the combined state of charge line for the requirement.
 
-    For a reserve, the batteries should stay above their floors plus the reserve
-    stored at their discharge efficiency. For headroom, they should stay below
-    their ceilings less the space the headroom takes up at their charge
+    For a reserve, the batteries should stay above their min charge plus the
+    reserve stored at their discharge efficiency. For headroom, they should stay
+    below their max charge less the space the headroom takes up at their charge
     efficiency. Efficiencies are weighted by capacity, so the line is exact for
     a single battery and for batteries with the same efficiency.
     """
@@ -131,7 +131,7 @@ def _state_of_charge(
     for battery in batteries:
         battery_capacity = np.asarray(battery[BATTERY_SECTION_STORAGE][CONF_CAPACITY], dtype=float)
         efficiency = broadcast_to_sequence(battery[SECTION_EFFICIENCY].get(efficiency_field, 1.0), n_boundaries)
-        limit_ratio = battery_floor_ratio(battery) if kind == "reserve" else battery_ceiling_ratio(battery)
+        limit_ratio = battery_min_ratio(battery) if kind == "reserve" else battery_max_ratio(battery)
         capacity += battery_capacity
         limit_energy += limit_ratio * battery_capacity
         weighted_efficiency += efficiency * battery_capacity

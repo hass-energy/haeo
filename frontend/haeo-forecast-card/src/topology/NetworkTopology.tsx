@@ -20,7 +20,6 @@ const SEGMENT_ICONS: Record<string, string> = {
   PricingSegment: "💲",
   PowerLimitSegment: "⚡",
   EfficiencySegment: "η",
-  SocPricingSegment: "📊",
   TagFilterSegment: "🏷",
   TagPricingSegment: "🏷",
 };

@@ -47,8 +47,6 @@ from .segments import PricingSegment as PricingSegment
 from .segments import Segment as Segment
 from .segments import SegmentSpec as SegmentSpec
 from .segments import SegmentType as SegmentType
-from .segments import SocPricingSegment as SocPricingSegment
-from .segments import SocPricingSegmentSpec as SocPricingSegmentSpec
 
 # Type for all model element types
 ModelElementType = (
@@ -134,6 +132,4 @@ __all__ = [
     "Segment",
     "SegmentSpec",
     "SegmentType",
-    "SocPricingSegment",
-    "SocPricingSegmentSpec",
 ]

@@ -59,7 +59,8 @@ On its own, with no loads or generation, it keeps the battery below full with a 
 ## Shortfall cost
 
 The holding cost for each kWh the batteries fall short of the headroom, for every hour the shortfall lasts.
-It works like the [battery overcharge cost](battery.md#overcharge-cost): a short spell full that is drained soon is cheap, while a battery left full is expensive.
+It accrues like the [reserve shortfall cost](reserve.md#shortfall-cost): a short spell full that is drained soon is cheap, while a battery left full is expensive.
+For example, with a shortfall cost of 0.02 \$/kWh/h, holding 1 kWh past the headroom for 10 hours costs \$0.20.
 
 ## Sensors created
 

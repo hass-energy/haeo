@@ -24,10 +24,13 @@ from custom_components.haeo.core.const import (
     HUB_SECTION_COMMON,
     HUB_SECTION_TIERS,
 )
-from custom_components.haeo.core.schema import as_connection_target, as_constant_value
-from custom_components.haeo.core.schema.elements import connection, junction, node
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
+from custom_components.haeo.core.schema.elements import battery, connection, headroom, junction, node, reserve
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
+from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
+from custom_components.haeo.core.schema.migrations.v1_4 import PARTITION_REQUIREMENT_WINDOW
 from custom_components.haeo.core.schema.sections import (
+    CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_PRICE_SOURCE_TARGET,
@@ -36,6 +39,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
+from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.migrations import v1_4
 
 
@@ -447,3 +451,117 @@ async def test_async_migrate_entry_replaces_horizon_preset_and_tiers(hass: HomeA
         HUB_SECTION_COMMON: {CONF_NAME: "Hub", CONF_HORIZON: as_horizon_preset_value(HORIZON_PRESET_3_DAYS)},
         HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: False},
     }
+
+
+def _partitioned_battery(*, undercharge_percentage: object) -> ConfigSubentry:
+    """Return a 10 kWh battery between 10% and 90% with an undercharge and an overcharge partition."""
+    return _create_subentry(
+        {
+            CONF_ELEMENT_TYPE: battery.ELEMENT_TYPE,
+            CONF_NAME: "Battery",
+            battery.CONF_CONNECTION: as_connection_target("Switchboard"),
+            battery.SECTION_STORAGE: {
+                battery.CONF_CAPACITY: as_constant_value(10.0),
+                battery.CONF_INITIAL_CHARGE_PERCENTAGE: as_entity_value(["sensor.battery_soc"]),
+            },
+            battery.SECTION_LIMITS: {
+                battery.CONF_MIN_CHARGE_PERCENTAGE: as_constant_value(10.0),
+                battery.CONF_MAX_CHARGE_PERCENTAGE: as_constant_value(90.0),
+            },
+            SECTION_POWER_LIMITS: {},
+            SECTION_PRICING: {},
+            SECTION_EFFICIENCY: {CONF_EFFICIENCY_SOURCE_TARGET: as_entity_value(["sensor.discharge_efficiency"])},
+            partitions.SECTION_PARTITIONING: {partitions.CONF_CONFIGURE_PARTITIONS: True},
+            partitions.SECTION_UNDERCHARGE: {
+                partitions.CONF_PARTITION_PERCENTAGE: undercharge_percentage,
+                partitions.CONF_PARTITION_COST: as_constant_value(0.04),
+            },
+            partitions.SECTION_OVERCHARGE: {
+                partitions.CONF_PARTITION_PERCENTAGE: as_constant_value(95.0),
+                partitions.CONF_PARTITION_COST: as_constant_value(0.02),
+            },
+        },
+        subentry_type=battery.ELEMENT_TYPE,
+    )
+
+
+async def test_async_migrate_entry_replaces_battery_partitions(hass: HomeAssistant) -> None:
+    """Partitions become a reserve and headroom, and their input entities are removed."""
+    hass.states.async_set("sensor.discharge_efficiency", "80", {"unit_of_measurement": "%"})
+    entry = _add_hub(hass)
+    battery_subentry = _partitioned_battery(undercharge_percentage=as_constant_value(5.0))
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+    partition_entity_ids = [
+        _register_number(hass, entry, battery_subentry, key)
+        for key in (
+            "undercharge_partition.percentage",
+            "undercharge_partition.cost",
+            "overcharge_partition.percentage",
+            "overcharge_partition.cost",
+            partitions.CONF_CONFIGURE_PARTITIONS,
+        )
+    ]
+    capacity_entity_id = _register_number(hass, entry, battery_subentry, battery.CONF_CAPACITY)
+    registry = er.async_get(hass)
+    hub_entity = registry.async_get_or_create("sensor", DOMAIN, f"{entry.entry_id}_horizon", config_entry=entry)
+
+    assert await v1_4.async_migrate_entry(hass, entry)
+
+    migrated = entry.subentries[battery_subentry.subentry_id]
+    assert set(migrated.data).isdisjoint(
+        {partitions.SECTION_PARTITIONING, partitions.SECTION_UNDERCHARGE, partitions.SECTION_OVERCHARGE}
+    )
+    assert migrated.data[battery.SECTION_LIMITS] == {
+        battery.CONF_MIN_CHARGE_PERCENTAGE: as_constant_value(5.0),
+        battery.CONF_MAX_CHARGE_PERCENTAGE: as_constant_value(95.0),
+    }
+    assert is_element_config_schema(dict(migrated.data))
+
+    requirements = {s.title: s for s in entry.subentries.values() if s.subentry_id != battery_subentry.subentry_id}
+    assert set(requirements) == {"Battery reserve", "Battery headroom"}
+    battery_reserve = requirements["Battery reserve"]
+    battery_headroom = requirements["Battery headroom"]
+    assert battery_reserve.subentry_type == reserve.ELEMENT_TYPE
+    assert battery_headroom.subentry_type == headroom.ELEMENT_TYPE
+    assert dict(battery_reserve.data) == {
+        CONF_ELEMENT_TYPE: reserve.ELEMENT_TYPE,
+        CONF_NAME: "Battery reserve",
+        reserve.SECTION_PARTICIPANTS: {reserve.CONF_STORAGE: ["Battery"]},
+        reserve.SECTION_REQUIREMENT: {
+            reserve.CONF_WINDOW: as_constant_value(PARTITION_REQUIREMENT_WINDOW),
+            reserve.CONF_MINIMUM: as_constant_value(0.4),
+        },
+        reserve.SECTION_PRICING: {reserve.CONF_SHORTFALL_COST: as_constant_value(0.05)},
+    }
+    assert battery_headroom.data[reserve.SECTION_REQUIREMENT][reserve.CONF_MINIMUM] == as_constant_value(0.5)
+    assert battery_headroom.data[reserve.SECTION_PRICING] == {reserve.CONF_SHORTFALL_COST: as_constant_value(0.02)}
+    assert is_element_config_schema(dict(battery_reserve.data))
+    assert is_element_config_schema(dict(battery_headroom.data))
+
+    assert [registry.async_get(entity_id) for entity_id in partition_entity_ids] == [None] * 5
+    assert registry.async_get(capacity_entity_id) is not None
+    assert registry.async_get(hub_entity.entity_id) is not None
+    assert ir.async_get(hass).issues == {}
+
+
+async def test_async_migrate_entry_reports_unreadable_battery_partition(hass: HomeAssistant) -> None:
+    """A partition whose sensor has no value is dropped with a repair issue, leaving the battery's limit."""
+    hass.states.async_set("sensor.discharge_efficiency", "100", {"unit_of_measurement": "%"})
+    hass.states.async_set("sensor.undercharge", "unavailable")
+    entry = _add_hub(hass)
+    battery_subentry = _partitioned_battery(undercharge_percentage=as_entity_value(["sensor.undercharge"]))
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+
+    assert await v1_4.async_migrate_entry(hass, entry)
+
+    migrated = entry.subentries[battery_subentry.subentry_id]
+    assert partitions.SECTION_UNDERCHARGE not in migrated.data
+    assert migrated.data[battery.SECTION_LIMITS][battery.CONF_MIN_CHARGE_PERCENTAGE] == as_constant_value(10.0)
+    assert [s.subentry_type for s in entry.subentries.values()] == [battery.ELEMENT_TYPE, headroom.ELEMENT_TYPE]
+
+    issue = ir.async_get(hass).async_get_issue(
+        DOMAIN, f"battery_partition_not_migrated_{entry.entry_id}_Battery_{partitions.SECTION_UNDERCHARGE}"
+    )
+    assert issue is not None
+    assert issue.translation_key == "battery_undercharge_not_migrated"
+    assert issue.translation_placeholders == {"element_name": "Battery"}
