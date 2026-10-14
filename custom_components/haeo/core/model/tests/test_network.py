@@ -568,10 +568,10 @@ def test_blended_mode_reentrant() -> None:
 def test_calibrated_mode_first_call_uses_lex() -> None:
     """First call in calibrated mode performs lex then calibrates the starting weight."""
     network = _build_priced_network(CalibratedOptions())
-    assert network._high_water is None
+    assert network._blend_weight is None
     network.optimize()
-    assert network._high_water is not None
-    assert network._high_water > 0
+    assert network._blend_weight is not None
+    assert network._blend_weight > 0
 
 
 def test_calibrated_mode_subsequent_calls_use_blended() -> None:
@@ -794,7 +794,7 @@ def test_calibrated_mode_zero_primary_cost_vector() -> None:
     )
     result = network.optimize()
     assert np.isfinite(result)
-    assert network._high_water == pytest.approx(10.0 ** (network_module._CAL_LOG_HI - network_module._CAL_MARGIN))
+    assert network._blend_weight == pytest.approx(10.0 ** (network_module._CAL_LOG_HI - network_module._CAL_MARGIN))
 
 
 def test_policy_pricing_charges_the_measured_power() -> None:
@@ -1020,12 +1020,12 @@ def _network_with(elements: list[ModelElementConfig], options: SolveOptions) -> 
 
 
 def test_blended_solve_raises_a_weight_too_small_to_break_ties() -> None:
-    """Below the high-water mark, a weight too small for the secondary to register is raised until it is in order."""
+    """A weight too small for the secondary to register is raised until the plan is in order."""
     reference = _network_with(_interchangeable_batteries(), LexOptions())
     reference.optimize()
     network = _network_with(_interchangeable_batteries(), CalibratedOptions())
     network.optimize()
-    # Start the next solve cold, from a weight far below the high-water mark
+    # Start the next solve cold, from a weight far too small for the secondary
     network._solver.clearSolver()
     network._blend_weight = 1e-11
 
@@ -1037,21 +1037,21 @@ def test_blended_solve_raises_a_weight_too_small_to_break_ties() -> None:
 
 def test_weight_search_lowers_the_weight_while_the_plan_is_not_cost_optimal() -> None:
     """Without a known cost-optimal weight, the weight is lowered tenfold."""
-    search = BlendWeightSearch(high_water=1e-3)
+    search = BlendWeightSearch()
 
     assert search.next_weight(1e-3, cost_optimal=False, order_optimal=True) == pytest.approx(1e-4)
 
 
 def test_weight_search_stops_lowering_at_the_smallest_weight() -> None:
     """The weight is not lowered below the smallest weight tried."""
-    search = BlendWeightSearch(high_water=1e-3)
+    search = BlendWeightSearch()
 
     assert search.next_weight(1e-12, cost_optimal=False, order_optimal=True) is None
 
 
 def test_weight_search_raises_an_out_of_order_weight() -> None:
-    """A cost-optimal plan out of order raises the weight tenfold, past the high-water mark if need be."""
-    search = BlendWeightSearch(high_water=1e-3)
+    """A cost-optimal plan out of order raises the weight tenfold while no weight is known too large."""
+    search = BlendWeightSearch()
 
     assert search.next_weight(1e-6, cost_optimal=True, order_optimal=False) == pytest.approx(1e-5)
     assert search.next_weight(5e-4, cost_optimal=True, order_optimal=False) == pytest.approx(5e-3)
@@ -1059,7 +1059,7 @@ def test_weight_search_raises_an_out_of_order_weight() -> None:
 
 def test_weight_search_never_raises_to_a_weight_too_large_for_the_cost() -> None:
     """Once a weight is known too large for the cost, raising bisects below it."""
-    search = BlendWeightSearch(high_water=1e-3)
+    search = BlendWeightSearch()
     search.next_weight(1e-4, cost_optimal=False, order_optimal=True)
 
     raised = search.next_weight(1e-6, cost_optimal=True, order_optimal=False)
@@ -1071,7 +1071,7 @@ def test_weight_search_never_raises_to_a_weight_too_large_for_the_cost() -> None
 
 def test_weight_search_keeps_the_cost_optimal_plan_when_no_gap_is_left() -> None:
     """A cost-optimal plan out of order is kept when no weight is left below one too large for the cost."""
-    search = BlendWeightSearch(high_water=1e-3)
+    search = BlendWeightSearch()
     search.next_weight(1.5e-6, cost_optimal=False, order_optimal=True)
 
     assert search.next_weight(1e-6, cost_optimal=True, order_optimal=False) is None
@@ -1079,19 +1079,17 @@ def test_weight_search_keeps_the_cost_optimal_plan_when_no_gap_is_left() -> None
 
 def test_weight_search_settles_on_the_cost_optimal_weight_when_no_gap_is_left() -> None:
     """When a raise fails the cost and no gap is left, the search returns to the cost-optimal weight."""
-    search = BlendWeightSearch(high_water=1e-3)
+    search = BlendWeightSearch()
     search.next_weight(1e-6, cost_optimal=True, order_optimal=False)
 
     assert search.next_weight(1.5e-6, cost_optimal=False, order_optimal=True) == pytest.approx(1e-6)
 
 
 def test_weight_search_keeps_a_cost_optimal_plan_in_order() -> None:
-    """A plan that passes both checks is kept, and the order is only checked below the high-water mark."""
-    search = BlendWeightSearch(high_water=1e-3)
+    """A plan that passes both checks is kept."""
+    search = BlendWeightSearch()
 
     assert search.next_weight(1e-4, cost_optimal=True, order_optimal=True) is None
-    assert search.checks_order(1e-4)
-    assert not search.checks_order(1e-3)
 
 
 def test_pricing_leaves_the_plan_and_its_basis_unchanged() -> None:

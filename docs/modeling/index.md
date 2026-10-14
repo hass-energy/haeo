@@ -96,10 +96,13 @@ A larger weight gives the secondary objective more influence, producing better t
 Every optimization, including the first, then uses this blended objective (`primary + weight * secondary`) in a single solve, which warm-starts efficiently.
 
 No single weight suits every input: too large and the secondary trades away cost, too small and its differences fall below the solver's tolerance, leaving ties unresolved.
-After each blended solve, the cost is priced at the plan's basis without any simplex iterations, which leaves the plan and its basis unchanged.
+Each blended plan is therefore checked at its basis.
+The reduced costs there are the slopes of an objective along each way of moving away from the plan.
+The cost is priced at the plan's basis without any simplex iterations, which leaves the plan and its basis unchanged.
 If some move would lower the cost, the weight is too large and is lowered, tenfold at a time.
-Once a weight has been lowered below the largest weight that has given a cost-optimal plan, each plan is also checked for a move that leaves the cost unchanged and lowers the secondary.
-If there is one, the weight is too small and is raised, but never to a weight already found too large for the cost in that optimization: the cheapest plan always comes first.
+Otherwise, the moves that leave the cost unchanged lead to equally cheap plans, and if one of them lowers the secondary, the weight is too small and is raised.
+The secondary needs no pricing of its own: at a fixed basis reduced costs are linear in the objective, so its reduced costs are the blended solve's minus the cost's, divided by the weight.
+The weight is never raised to a weight already found too large for the cost in that optimization, so the cheapest plan always comes first.
 Between a weight known too small and one known too large, the weight is bisected, and the blended solve is repeated from the same basis.
 The weight settled on is kept for later solves, and since inputs change, no weight is ruled out for good.
 

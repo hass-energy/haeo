@@ -103,8 +103,8 @@ Degenerate LPs have many optimal solutions; the secondary objective is what stop
 
 - The plan must match the lexicographic optimum; shadow prices may differ between formulations, since which binding constraint carries a dual is not controllable.
 
-- Every blended plan's cost is priced at its basis with a zero-iteration solve, and the weight is lowered when the plan is not cost-optimal.
-    Below the high-water weight, the plan is also checked for a cost-free move that improves the secondary, and the weight is raised when there is one, but never to a weight that failed the cost in the same optimization.
+- Every blended plan is checked at its basis: the cost is priced with a zero-iteration solve, and the weight is lowered when the plan is not cost-optimal.
+    The secondary's reduced costs are the blended ones minus the cost's, divided by the weight, and the weight is raised when a cost-free move improves the secondary, but never to a weight that failed the cost in the same optimization.
     Do not remove either check to save time: a stale weight silently trades cost for tie-breaking when too large, and leaves ties to the solver path when too small.
 
 - The time-preference weights must not be a sum of a connection term and a time term alone, or swaps between connections across periods tie exactly.

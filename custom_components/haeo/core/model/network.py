@@ -14,7 +14,7 @@ from typing import (
     overload,
 )
 
-from highspy import Highs, HighsModelStatus
+from highspy import Highs, HighsModelStatus, HighsSolution
 import numpy as np
 from numpy.typing import NDArray
 
@@ -166,9 +166,6 @@ class Network:
         self.options: SolveOptions = options or CalibratedOptions()
         self._solver = Solver()
         self._lex_row: tuple[RowIndices, AppliedRows] | None = None
-        # Largest weight a blended solve has settled on with a cost-optimal plan,
-        # starting from the calibrated weight. Below it the order is checked too.
-        self._high_water: float | None = None
         # Weight the last blended solve settled on, where the next one starts
         self._blend_weight: float | None = None
 
@@ -376,16 +373,15 @@ class Network:
         if isinstance(self.options, LexOptions):
             return self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary, restore_duals=True)
 
-        if self._high_water is None:
+        if self._blend_weight is None:
             if isinstance(self.options, BlendedOptions):
-                self._high_water = self.options.blend_weight
+                self._blend_weight = self.options.blend_weight
             else:
                 # Calibrate the starting weight from a lexicographic solve
                 self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary, restore_duals=False)
-                self._high_water = self._calibrate_blend_weight(all_col_indices, cost_vectors)
+                self._blend_weight = self._calibrate_blend_weight(all_col_indices, cost_vectors)
 
-        weight = self._high_water if self._blend_weight is None else self._blend_weight
-        return self._solve_blended(h, all_col_indices, cost_vectors, weight, self._high_water)
+        return self._solve_blended(h, all_col_indices, cost_vectors, self._blend_weight)
 
     def _solve_lex(
         self,
@@ -437,44 +433,36 @@ class Network:
         all_col_indices: NDArray[np.int32],
         cost_vectors: list[NDArray[np.float64]],
         weight: float,
-        high_water: float,
     ) -> float:
         """Solve primary + weight * secondary, moving the weight until the plan is cost-optimal and then in order.
 
-        Each plan is priced at its own basis without moving it. The cost comes first:
+        Each plan is checked at its own basis without moving it. The cost comes first:
         a plan that is not cost-optimal means the weight is too large for these
-        inputs, and it is lowered. While the weight is below its high-water mark,
-        having been lowered for the cost, the plan is also checked for a move that
-        leaves the cost unchanged and improves the secondary, which means the weight
-        is too small for the secondary to register, and it is raised, though never
-        to a weight this solve found too large for the cost. At or above the mark
-        the order check is skipped, which keeps the usual solve to a single check.
+        inputs, and it is lowered. A cost-optimal plan with a move that leaves the
+        cost unchanged and improves the secondary means the weight is too small for
+        the secondary to register, and it is raised, though never to a weight this
+        solve found too large for the cost.
 
-        Which weights fail is only known for the current inputs, so nothing is
-        remembered between solves except the weight settled on and the largest
-        weight that has settled with a cost-optimal plan.
+        Which weights fail is only known for the current inputs, so only the weight
+        settled on is kept between solves.
 
         The check leaves the cost objective's row duals at the plan's basis, so
         shadow prices are cost duals of the plan the solve chose.
         """
         h.clearLinearObjectives()
         self._relax_lex_constraint()
-        search = BlendWeightSearch(high_water=high_water)
+        search = BlendWeightSearch()
         next_weight: float | None = weight
         plan_cost = cost_optimal = 0.0
         while next_weight is not None:
             weight = next_weight
             plan_cost = _run_blended(h, all_col_indices, cost_vectors, weight)
-            cost_optimal, order_optimal = _check_plan(
-                h, all_col_indices, cost_vectors, check_order=search.checks_order(weight)
-            )
+            cost_optimal, order_optimal = _check_plan(h, all_col_indices, cost_vectors, weight)
             next_weight = search.next_weight(weight, cost_optimal=cost_optimal, order_optimal=order_optimal)
             if next_weight is not None:
                 _LOGGER.debug("Blended plan at weight %.2e needs another solve; trying %.2e", weight, next_weight)
 
-        if cost_optimal:
-            self._high_water = max(high_water, weight)
-        else:
+        if not cost_optimal:
             _LOGGER.warning("Blended plan is not cost-optimal even at the smallest blend weight %.2e", weight)
         self._blend_weight = weight
         return plan_cost
@@ -487,11 +475,8 @@ class Network:
         """Find the largest blend weight whose plan passes the cost check, and step just below it.
 
         A larger weight lets the secondary register over more of the problem, so the
-        weight is placed just below that edge, ``_CAL_MARGIN`` log10 decades down.
-        Every solve checks the cost, so if later inputs move the edge below the
-        weight, the weight is lowered then. The order is only checked below the
-        weight found here, so the further the weight is from the order's edge, the
-        less often that is needed.
+        weight is placed just below that edge, ``_CAL_MARGIN`` log10 decades down,
+        where later inputs are least likely to need another solve.
 
         This runs once, on the first optimization, so its extra solves are not paid
         again.
@@ -502,7 +487,7 @@ class Network:
 
         def _cost_optimal(log_w: float) -> bool:
             _run_blended(h, all_col_indices, cost_vectors, 10.0**log_w)
-            return _check_plan(h, all_col_indices, cost_vectors, check_order=False)[0]
+            return _check_plan(h, all_col_indices, cost_vectors, 10.0**log_w)[0]
 
         if _cost_optimal(hi):
             upper = hi
@@ -622,19 +607,13 @@ class BlendWeightSearch:
     The bounds found are only valid for this optimization's inputs and are not kept.
 
     Attributes:
-        high_water: Weight at or above which the order is not checked.
         too_small: Largest weight whose plan was cost-optimal but out of order.
         too_large: Smallest weight whose plan was not cost-optimal.
 
     """
 
-    high_water: float
     too_small: float = 0.0
     too_large: float = math.inf
-
-    def checks_order(self, weight: float) -> bool:
-        """Return whether a plan solved at this weight is checked for order as well as cost."""
-        return weight < self.high_water
 
     def next_weight(self, weight: float, *, cost_optimal: bool, order_optimal: bool) -> float | None:
         """Return the next weight to solve with, or None to keep the plan just solved.
@@ -680,9 +659,8 @@ def _price(solver: Highs, col_indices: NDArray[np.int32], costs: NDArray[np.floa
         solver.setOptionValue("simplex_iteration_limit", _UNLIMITED_ITERATIONS)
 
 
-def _reduced_costs(solver: Highs) -> NDArray[np.float64]:
-    """Return the reduced costs of the columns then the rows, as last priced."""
-    solution = solver.getSolution()
+def _reduced_costs(solution: HighsSolution) -> NDArray[np.float64]:
+    """Return the reduced costs of the columns then the rows."""
     return np.concatenate(
         [np.asarray(solution.col_dual, dtype=np.float64), np.asarray(solution.row_dual, dtype=np.float64)]
     )
@@ -710,37 +688,44 @@ def _check_plan(
     solver: Highs,
     col_indices: NDArray[np.int32],
     cost_vectors: list[NDArray[np.float64]],
-    *,
-    check_order: bool,
+    weight: float,
 ) -> tuple[bool, bool]:
-    """Return whether the current plan is cost-optimal, and whether it is in order.
+    """Return whether the blended plan just solved is cost-optimal, and whether it is in order.
 
     The plan is cost-optimal when pricing the cost at its basis leaves no move that
     lowers the cost. It is in order when, among moves that leave the cost unchanged,
-    none lowers the secondary; without ``check_order`` that is not checked. Columns
-    and rows are both variables here, a row's value being its activity. The cost is
-    priced last, so its row duals are the ones left for outputs.
+    none lowers the secondary. Columns and rows are both variables here, a row's
+    value being its activity.
+
+    Reduced costs at a fixed basis are linear in the objective, so the secondary's
+    are the blended solve's minus the cost's, divided by the weight, and the
+    secondary needs no pricing of its own. The cost is priced last, so its row
+    duals are the ones left for outputs.
     """
-    order_optimal = True
-    if check_order:
-        solution = solver.getSolution()
-        values = np.concatenate(
-            [np.asarray(solution.col_value, dtype=np.float64), np.asarray(solution.row_value, dtype=np.float64)]
-        )
-        n_rows = solver.getNumRow()
-        _, _, _, col_lower, col_upper, _ = solver.getCols(len(col_indices), col_indices)
-        _, _, row_lower, row_upper, _ = solver.getRows(n_rows, np.arange(n_rows, dtype=np.int32))
-        lower = np.concatenate([col_lower, row_lower])
-        upper = np.concatenate([col_upper, row_upper])
-        _price(solver, col_indices, cost_vectors[1])
-        secondary = _reduced_costs(solver)
-        _price(solver, col_indices, cost_vectors[0])
-        cost_free = np.abs(_reduced_costs(solver)) <= _REDUCED_COST_TOLERANCE
-        order_optimal = not (cost_free & _improving(secondary, values, lower, upper)).any()
-    else:
-        _price(solver, col_indices, cost_vectors[0])
+    blended = _reduced_costs(solver.getSolution())
+    _price(solver, col_indices, cost_vectors[0])
     cost_optimal = solver.getInfo().max_dual_infeasibility <= _REDUCED_COST_TOLERANCE
+    solution = solver.getSolution()
+    cost = _reduced_costs(solution)
+    secondary = (blended - cost) / weight
+
+    # Only cost-free entries with a nonzero secondary reduced cost can lower it, so
+    # the values and bounds are only read for those
+    candidates = np.flatnonzero(
+        (np.abs(cost) <= _REDUCED_COST_TOLERANCE) & (np.abs(secondary) > _REDUCED_COST_TOLERANCE)
+    ).tolist()
+    lp = solver.getLp()
+    values = _gather(solution.col_value, solution.row_value, candidates)
+    lower = _gather(lp.col_lower_, lp.row_lower_, candidates)
+    upper = _gather(lp.col_upper_, lp.row_upper_, candidates)
+    order_optimal = not _improving(secondary[candidates], values, lower, upper).any()
     return cost_optimal, order_optimal
+
+
+def _gather(cols: list[float], rows: list[float], indices: list[int]) -> NDArray[np.float64]:
+    """Return the entries at these indices of the columns' then the rows' values."""
+    both = cols + rows
+    return np.array([both[i] for i in indices], dtype=np.float64)
 
 
 def _ensure_optimal(solver: Highs) -> float:
