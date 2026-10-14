@@ -147,7 +147,7 @@ def detect_currency_symbol(
     return fallback_currency or "$"
 
 
-def _forecast_datetimes(timestamps: Sequence[float]) -> tuple[datetime, ...] | None:
+def forecast_datetimes(timestamps: Sequence[float]) -> tuple[datetime, ...] | None:
     """Convert horizon timestamps to datetimes in Home Assistant's time zone.
 
     Every output sensor's forecast shares these times, so they are converted once
@@ -181,7 +181,7 @@ def _build_coordinator_output(
       Use all n+1 timestamps.
 
     The forecast_times tuple contains n+1 datetimes (all boundaries), from
-    ``_forecast_datetimes``. Each output type zips its values with however
+    ``forecast_datetimes``. Each output type zips its values with however
     many times it needs.
 
     Example with 3 periods of 5 minutes starting at 12:00:
@@ -807,7 +807,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 element_name: element.outputs() for element_name, element in network.elements.items()
             }
 
-            forecast_datetimes = _forecast_datetimes(forecast_timestamps)
+            forecast_times = forecast_datetimes(forecast_timestamps)
 
             # Process each config element using its outputs function to transform model outputs into device outputs
             for element_name, element_config in context.participants.items():
@@ -840,7 +840,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         output_name: _build_coordinator_output(
                             output_name,
                             output_data,
-                            forecast_times=forecast_datetimes,
+                            forecast_times=forecast_times,
                             currency_sym=currency_sym,
                         )
                         for output_name, output_data in device_outputs.items()
@@ -876,5 +876,5 @@ __all__ = [
     "OptimizationContext",
     "_build_coordinator_output",
     "_build_optimization_context",
-    "_forecast_datetimes",
+    "forecast_datetimes",
 ]

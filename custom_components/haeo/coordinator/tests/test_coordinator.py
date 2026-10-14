@@ -35,8 +35,8 @@ from custom_components.haeo.coordinator import (
     OptimizationContext,
     _build_coordinator_output,
     _build_optimization_context,
-    _forecast_datetimes,
     detect_currency_symbol,
+    forecast_datetimes,
 )
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
 from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
@@ -593,7 +593,7 @@ def test_forecast_datetimes_are_in_home_assistant_time_zone() -> None:
     """Horizon timestamps convert to aware datetimes in the configured time zone."""
     base_time = datetime(2024, 6, 1, tzinfo=UTC)
 
-    times = _forecast_datetimes([base_time.timestamp(), (base_time + timedelta(minutes=30)).timestamp()])
+    times = forecast_datetimes([base_time.timestamp(), (base_time + timedelta(minutes=30)).timestamp()])
 
     local_tz = dt_util.get_default_time_zone()
     assert times == (base_time.astimezone(local_tz), (base_time + timedelta(minutes=30)).astimezone(local_tz))
@@ -602,7 +602,7 @@ def test_forecast_datetimes_are_in_home_assistant_time_zone() -> None:
 
 def test_forecast_datetimes_out_of_range_returns_none() -> None:
     """A timestamp datetime cannot represent leaves the outputs without forecasts."""
-    assert _forecast_datetimes([0.0, 4e11]) is None
+    assert forecast_datetimes([0.0, 4e11]) is None
 
 
 def test_build_coordinator_output_sets_status_options() -> None:

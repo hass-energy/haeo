@@ -434,7 +434,7 @@ def test_constraint_row_count_change_raises_clear_error() -> None:
         elem.my_constraint()
 
 
-def test_failed_row_write_is_retried() -> None:
+def test_failed_row_write_is_retried(monkeypatch: pytest.MonkeyPatch) -> None:
     """A constraint whose rows fail to reach the solver is computed and written again on the next call."""
     solver = Solver()
     solver.setOptionValue("output_flag", False)
@@ -462,7 +462,7 @@ def test_failed_row_write_is_retried() -> None:
             return HighsStatus.kError
         return add_rows(num_rows, lower, upper, num_elements, starts, indices, values)
 
-    solver.addRows = flaky_add_rows  # type: ignore[method-assign]
+    monkeypatch.setattr(solver, "addRows", flaky_add_rows)
     with pytest.raises(RuntimeError, match="refused"):
         elem.my_constraint()
     assert solver.getNumRow() == 0

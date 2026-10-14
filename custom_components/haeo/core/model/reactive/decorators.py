@@ -161,11 +161,11 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         if not state["invalidated"]:
             return state["result"]  # type: ignore[return-value]
 
-        rows = self._compute(obj, state)
-        if not isinstance(rows, Rows):
+        result = self._compute(obj, state)
+        if not isinstance(result, Rows):
             state["invalidated"] = True
             msg = (
-                f"Constraint {self._name} returned {type(rows).__name__}; return its rows, using free rows for "
+                f"Constraint {self._name} returned {type(result).__name__}; return its rows, using free rows for "
                 "parts that do not apply"
             )
             raise TypeError(msg)
@@ -176,21 +176,21 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         try:
             if "constraint" in state and "applied" in state:
                 existing = state["constraint"]
-                if len(rows) != len(existing):
+                if len(result) != len(existing):
                     msg = (
-                        f"Constraint {self._name} returned {len(rows)} rows after {len(existing)}; "
+                        f"Constraint {self._name} returned {len(result)} rows after {len(existing)}; "
                         "return free rows for parts that do not apply so the row count stays the same"
                     )
                     raise ValueError(msg)
-                state["applied"] = update_rows(solver, existing, state["applied"], rows)
+                state["applied"] = update_rows(solver, existing, state["applied"], result)
             else:
-                state["constraint"], state["applied"] = add_rows(solver, rows)
+                state["constraint"], state["applied"] = add_rows(solver, result)
         except Exception:
             state["invalidated"] = True
             raise
 
-        state["result"] = rows
-        return rows  # type: ignore[return-value]
+        state["result"] = result
+        return result
 
 
 def applied_constraint(obj: "ReactiveHost", name: str) -> NDArray[np.int32] | None:

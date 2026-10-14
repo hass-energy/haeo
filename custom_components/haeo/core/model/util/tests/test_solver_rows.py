@@ -1,5 +1,6 @@
 """Tests for the solver row helpers."""
 
+from collections.abc import Callable
 from unittest.mock import MagicMock, call
 
 import numpy as np
@@ -107,7 +108,7 @@ def test_change_bounds_frees_rows(solver: Solver) -> None:
 )
 def test_update_rows_writes_only_changed_values(
     solver: Solver,
-    make_rows: object,
+    make_rows: Callable[[LinearArray, LinearArray], Rows],
     expected_calls: list[object],
 ) -> None:
     """Only bounds and coefficients that differ from the applied rows reach the solver."""
@@ -116,7 +117,7 @@ def test_update_rows_writes_only_changed_values(
     indices, applied = add_rows(solver, a + b * 2.0 <= 3.0)
     spy = MagicMock(wraps=solver)
 
-    update_rows(spy, indices, applied, make_rows(a, b))  # type: ignore[operator]
+    update_rows(spy, indices, applied, make_rows(a, b))
 
     calls = [
         call.changeRowsBounds(c.args[0], c.args[1].tolist(), c.args[2].tolist(), c.args[3].tolist())

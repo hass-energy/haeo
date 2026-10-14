@@ -12,7 +12,7 @@ the constants moved into lower and upper row bounds, ready to add to the solver.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Final, Self, overload
+from typing import ClassVar, Final, Self, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -34,13 +34,11 @@ def _format_number(value: float) -> str:
 
 def _format_terms(cols: NDArray[np.int64], coefs: NDArray[np.float64], constant: float) -> str:
     """Format one row's terms as ``2·x5 - x7 + 1.5``, omitting zero terms."""
-    parts: list[str] = []
-    for col, coef in zip(cols.tolist(), coefs.tolist(), strict=True):
-        if coef == 0.0:
-            continue
-        magnitude = "" if abs(coef) == 1.0 else f"{_format_number(abs(coef))}·"
-        sign = "-" if coef < 0 else "+"
-        parts.append(f"{sign} {magnitude}x{col}")
+    terms = [(col, coef) for col, coef in zip(cols.tolist(), coefs.tolist(), strict=True) if coef != 0.0]
+    parts = [
+        f"{'-' if coef < 0 else '+'} {'' if abs(coef) == 1.0 else f'{_format_number(abs(coef))}·'}x{col}"
+        for col, coef in terms
+    ]
     if constant != 0.0 or not parts:
         parts.append(f"{'-' if constant < 0 else '+'} {_format_number(abs(constant))}")
     text = " ".join(parts)
@@ -192,7 +190,7 @@ class LinearArray:
         a run overlaps. Zero entries add no terms to the LP.
         """
         n_rows, width = self.cols.shape
-        if matrix.ndim != 2 or matrix.shape[1] != n_rows:  # noqa: PLR2004 (a matrix has two dimensions)
+        if matrix.shape[1:] != (n_rows,):
             msg = f"Cannot multiply a {matrix.shape} matrix by {n_rows} rows"
             raise ValueError(msg)
         n_out = matrix.shape[0]
@@ -219,12 +217,12 @@ class LinearArray:
         """Evaluate each row at the given column values."""
         return (self.coefs * column_values[self.cols]).sum(axis=1) + self.constant
 
-    def __le__(self, other: "LinearArray | Values") -> "Rows":  # type: ignore[override]
+    def __le__(self, other: "LinearArray | Values") -> "Rows":
         """Return rows bounding each expression above."""
         expr = self - other
         return Rows(expr.without_constant(), np.full(len(expr), -INF), -expr.constant)
 
-    def __ge__(self, other: "LinearArray | Values") -> "Rows":  # type: ignore[override]
+    def __ge__(self, other: "LinearArray | Values") -> "Rows":
         """Return rows bounding each expression below."""
         expr = self - other
         return Rows(expr.without_constant(), -expr.constant, np.full(len(expr), INF))
@@ -234,7 +232,9 @@ class LinearArray:
         expr = self - other
         return Rows(expr.without_constant(), -expr.constant, -expr.constant)
 
-    __hash__ = None  # type: ignore[assignment]
+    # == builds rows rather than testing equality, so arrays cannot be hashed. Both
+    # depart from object's contract on purpose, which is what lets rows read as maths.
+    __hash__: ClassVar[None] = None  # pyright: ignore[reportIncompatibleMethodOverride]
 
     def free(self) -> "Rows":
         """Return rows without bounds, which stay in the LP but do not bind."""
