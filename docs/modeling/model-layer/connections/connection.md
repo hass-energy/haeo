@@ -116,7 +116,7 @@ The cost of a rare swap can still be smaller than the solver's tolerance, in whi
 Multiples of a single irrational, such as the golden ratio, are not enough: their fractional parts can cancel exactly.
 
 The secondary objective does not affect the minimum cost—it only selects among cost-equivalent solutions.
-The network solves this lexicographically: primary cost is minimized first, then the secondary objective is minimized subject to the primary remaining optimal.
+The plan is lexicographic: primary cost is minimized first, then the secondary objective among the plans that keep the primary optimal.
 
 ## Outputs
 

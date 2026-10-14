@@ -24,14 +24,13 @@ from .elements.battery import Battery, BatteryElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
-from .linear import INF, LinearArray, total
+from .linear import LinearArray, total
 from .solver import Solver
-from .util.solver_rows import AppliedRows, RowIndices, add_rows, change_bounds, update_rows
+from .util.solver_rows import RowIndices
 
 _LOGGER = logging.getLogger(__name__)
 
 
-ObjectiveMode = Literal["lex", "blended", "calibrated"]
 OnOffChoose = Literal["on", "off", "choose"]
 
 
@@ -58,28 +57,12 @@ _WEIGHT_RESOLUTION: Final = 10.0**0.25
 _MIN_BLEND_WEIGHT: Final = 10.0**_CAL_LOG_LO
 # Largest blend weight tried when raising it for the order
 _MAX_BLEND_WEIGHT: Final = 10.0**_CAL_LOG_HI
-# Slacks tried, smallest first, on the cost bound while the secondary is minimized,
-# relative to the cost. Rounding in the cost just found can make a tighter bound
-# infeasible, and a larger slack lets the secondary trade away more cost.
-_LEX_COST_SLACKS: Final = (1e-9, 1e-6)
 # HiGHS's default simplex iteration limit, restored after the optimality check
 _UNLIMITED_ITERATIONS: Final = 2**31 - 1
 
 
 @dataclass(frozen=True, kw_only=True)
-class _SolverBase:
-    """Shared HiGHS options applicable to all solver algorithms."""
-
-    presolve: OnOffChoose = "choose"
-    parallel: OnOffChoose = "choose"
-
-    def _apply_common(self, h: Highs) -> None:
-        h.setOptionValue("presolve", self.presolve)
-        h.setOptionValue("parallel", self.parallel)
-
-
-@dataclass(frozen=True, kw_only=True)
-class SimplexTuning(_SolverBase):
+class SolveOptions:
     """HiGHS simplex solver options.
 
     simplex_strategy: 1=dual, 4=primal. Primal is ~25-30% faster on cold starts.
@@ -90,59 +73,21 @@ class SimplexTuning(_SolverBase):
     HiGHS default of 1e-7 they can fall below it and leave ties unresolved.
     """
 
+    presolve: OnOffChoose = "choose"
+    parallel: OnOffChoose = "choose"
     simplex_strategy: int = 4
     simplex_scale_strategy: int = 0
     feasibility_tolerance: float = 1e-9
 
     def apply(self, h: Highs) -> None:
-        """Apply simplex-specific options."""
+        """Apply the options to a solver."""
         h.setOptionValue("solver", "simplex")
-        self._apply_common(h)
+        h.setOptionValue("presolve", self.presolve)
+        h.setOptionValue("parallel", self.parallel)
         h.setOptionValue("simplex_strategy", self.simplex_strategy)
         h.setOptionValue("simplex_scale_strategy", self.simplex_scale_strategy)
         h.setOptionValue("primal_feasibility_tolerance", self.feasibility_tolerance)
         h.setOptionValue("dual_feasibility_tolerance", self.feasibility_tolerance)
-
-
-@dataclass(frozen=True, kw_only=True)
-class LexOptions(SimplexTuning):
-    """Three-phase lexicographic optimization with clean shadow prices.
-
-    Phase 1: minimize primary.
-    Phase 2: minimize secondary with primary constrained.
-    Phase 3: re-minimize primary with secondary constrained (epsilon slack).
-    """
-
-    mode: Literal["lex"] = "lex"
-
-
-@dataclass(frozen=True, kw_only=True)
-class BlendedOptions(SimplexTuning):
-    """Weighted sum primary + weight * secondary, starting from ``blend_weight``.
-
-    The weight is checked and moved like the calibrated mode's; only its starting
-    value differs.
-    """
-
-    mode: Literal["blended"] = "blended"
-    blend_weight: float = 1e-3
-
-
-@dataclass(frozen=True, kw_only=True)
-class CalibratedOptions(SimplexTuning):
-    """Weighted sum primary + weight * secondary, starting from a calibrated weight.
-
-    The first call binary-searches for the largest blend weight whose plan is
-    cost-optimal and starts a little below it. A larger weight gives the
-    secondary objective more influence, producing better tie-breaking in
-    degenerate regions. Every call, the first included, then solves the blend
-    and checks the plan, moving the weight if it fails.
-    """
-
-    mode: Literal["calibrated"] = "calibrated"
-
-
-SolveOptions = LexOptions | BlendedOptions | CalibratedOptions
 
 
 class Network:
@@ -169,9 +114,8 @@ class Network:
         self.name = name
         self.periods = np.asarray(periods, dtype=float)
         self.elements: dict[str, Element[Any]] = {}
-        self.options: SolveOptions = options or CalibratedOptions()
+        self.options = options or SolveOptions()
         self._solver = Solver()
-        self._lex_row: tuple[RowIndices, AppliedRows] | None = None
         # Weight the last blended solve settled on, where the next one starts
         self._blend_weight: float | None = None
 
@@ -341,7 +285,13 @@ class Network:
         return (primary, secondary)
 
     def optimize(self) -> float:
-        """Solve the optimization problem and return the primary objective value."""
+        """Solve the optimization problem and return the primary objective value.
+
+        The plan has the lowest cost and, among equally cheap plans, the lowest
+        secondary objective. Both come from one blended solve of primary + weight *
+        secondary, checked and re-solved with another weight if it fails. The first
+        call calibrates the starting weight.
+        """
         h = self._solver
 
         # Assign deterministic priorities to connections based on sorted properties
@@ -376,57 +326,10 @@ class Network:
         all_col_indices = np.arange(n_vars, dtype=np.int32)
         cost_vectors = _build_cost_vectors((primary, secondary), n_vars)
 
-        if isinstance(self.options, LexOptions):
-            return self._solve_lex(h, all_col_indices, cost_vectors, primary, secondary)
-
         if self._blend_weight is None:
-            if isinstance(self.options, BlendedOptions):
-                self._blend_weight = self.options.blend_weight
-            else:
-                self._blend_weight = self._calibrate_blend_weight(all_col_indices, cost_vectors)
+            self._blend_weight = self._calibrate_blend_weight(all_col_indices, cost_vectors)
 
         return self._solve_blended(h, all_col_indices, cost_vectors, self._blend_weight)
-
-    def _solve_lex(
-        self,
-        h: Highs,
-        all_col_indices: NDArray[np.int32],
-        cost_vectors: list[NDArray[np.float64]],
-        primary: LinearArray,
-        secondary: LinearArray,
-    ) -> float:
-        """Lexicographic solve: Phase 1 primary, Phase 2 secondary, and Phase 3 to restore cost duals.
-
-        Phase 3 re-minimizes the primary with the secondary constrained, so the plan
-        and the cost duals come from the same basis.
-        """
-        h.clearLinearObjectives()
-
-        # Phase 1: minimize primary
-        _set_cost_vector(h, all_col_indices, cost_vectors[0])
-        self._relax_lex_constraint()
-        h.run()
-        primary_value = _ensure_optimal(h)
-
-        # Phase 2: minimize secondary with primary constrained, loosening the
-        # constraint only if rounding makes it infeasible
-        _set_cost_vector(h, all_col_indices, cost_vectors[1])
-        slacks = iter(_LEX_COST_SLACKS)
-        solved = False
-        while not solved and (slack := next(slacks, None)) is not None:
-            self._constrain_objective(primary, primary_value + slack * max(1.0, abs(primary_value)))
-            h.run()
-            solved = h.getModelStatus() == HighsModelStatus.kOptimal
-        secondary_value = _ensure_optimal(h)
-
-        # Phase 3: re-minimize primary with secondary constrained (restore duals)
-        epsilon = max(1e-6, abs(secondary_value) * 1e-6)
-        self._constrain_objective(secondary, secondary_value + epsilon)
-        _set_cost_vector(h, all_col_indices, cost_vectors[0])
-        h.run()
-        _ensure_optimal(h)
-
-        return primary_value
 
     def _solve_blended(
         self,
@@ -451,7 +354,6 @@ class Network:
         shadow prices are cost duals of the plan the solve chose.
         """
         h.clearLinearObjectives()
-        self._relax_lex_constraint()
         search = BlendWeightSearch()
         next_weight: float | None = weight
         plan_cost = cost_optimal = 0.0
@@ -487,7 +389,6 @@ class Network:
         again.
         """
         h = self._solver
-        self._relax_lex_constraint()
         lo, hi = _CAL_LOG_LO, _CAL_LOG_HI
 
         def _cost_optimal(log_w: float) -> bool:
@@ -505,25 +406,6 @@ class Network:
         weight = 10.0 ** max(lo, upper - _CAL_MARGIN)
         _LOGGER.debug("Calibrated blend weight: %.2e", weight)
         return weight
-
-    def _constrain_objective(
-        self,
-        objective: LinearArray,
-        optimal_value: float,
-    ) -> None:
-        """Set the single lex constraint to bound the given objective."""
-        rows = objective <= optimal_value
-        if self._lex_row is None:
-            self._lex_row = add_rows(self._solver, rows)
-        else:
-            indices, applied = self._lex_row
-            self._lex_row = (indices, update_rows(self._solver, indices, applied, rows))
-
-    def _relax_lex_constraint(self) -> None:
-        """Relax the lex constraint bounds so it is inactive."""
-        if self._lex_row is not None:
-            indices, applied = self._lex_row
-            self._lex_row = (indices, change_bounds(self._solver, indices, applied, -INF, INF))
 
     def constraints(self) -> dict[str, dict[str, RowIndices]]:
         """Return all constraints from all elements in the network.

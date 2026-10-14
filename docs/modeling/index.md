@@ -77,26 +77,12 @@ The objective minimizes the sum of all element costs.
 
 ### Solution Process
 
-Optimization is lexicographic: the plan has the lowest cost, and among equally cheap plans, the lowest secondary objective.
-The lexicographic mode (`mode="lex"`) solves this in phases:
+Optimization is lexicographic: the plan has the lowest cost, and among equally cheap plans, the lowest secondary time-preference objective.
+The secondary breaks ties among cost-equivalent solutions by preferring earlier energy transfers.
 
-**Phase 1: Minimize primary objective**
-
-The network minimizes total cost (the primary objective).
-
-**Phase 2: Minimize secondary objective**
-
-The primary objective is constrained to its optimal value, and the solver minimizes the secondary time-preference objective.
-This breaks ties among cost-equivalent solutions by preferring earlier energy transfers.
-The constraint allows a slack of $10^{-9}$ of the cost, loosened to $10^{-6}$ only if rounding makes the tighter bound infeasible.
-
-**Calibration (default mode)**
-
-The default calibrated mode reaches the same plan with a single blended solve, which warm-starts efficiently and gives shadow prices from the plan's own basis.
-
+Both are reached with a single blended solve of `primary + weight * secondary`, which warm-starts efficiently and gives shadow prices from the plan's own basis.
 On the first optimization, a binary search finds the largest blend weight whose plan is still cost-optimal, and the weight starts a quarter of a decade below it.
 A larger weight gives the secondary objective more influence, producing better tie-breaking in degenerate regions.
-Every optimization, including the first, then uses this blended objective (`primary + weight * secondary`) in a single solve, which warm-starts efficiently.
 
 No single weight suits every input: too large and the secondary trades away cost, too small and its differences fall below the solver's tolerance, leaving ties unresolved.
 Each blended plan is therefore checked at its basis.
@@ -113,9 +99,6 @@ The primary objective is priced last, so its dual values at the plan's basis are
 
 The secondary's reduced costs are scaled by the small blend weight, so the solver runs with feasibility tolerances of $10^{-9}$ rather than the HiGHS default of $10^{-7}$.
 At the default, tie-breaking differences can fall below the tolerance and leave equally cheap plans unresolved.
-
-A full three-phase lexicographic mode is also available (`mode="lex"`) that adds a Phase 3 re-minimization of the primary with the secondary constrained.
-This restores dual values (shadow prices) that reflect pure primary-cost sensitivities, at the cost of an additional solve per optimization.
 
 ### Solution Outcomes
 

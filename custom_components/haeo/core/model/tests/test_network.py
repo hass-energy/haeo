@@ -18,16 +18,9 @@ from custom_components.haeo.core.model.elements import ModelElementConfig
 from custom_components.haeo.core.model.elements.connection import Connection, tie_break_perturbation
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
-from custom_components.haeo.core.model.network import (
-    BlendedOptions,
-    BlendWeightSearch,
-    CalibratedOptions,
-    LexOptions,
-    SimplexTuning,
-    SolveOptions,
-    _bisect_boundary,
-)
+from custom_components.haeo.core.model.network import BlendWeightSearch, SolveOptions, _bisect_boundary
 from custom_components.haeo.core.model.solver import Solver
+from custom_components.haeo.core.model.util.solver_rows import add_rows
 
 # Test constants
 HOURS_PER_DAY = 24
@@ -486,10 +479,7 @@ def _build_priced_network(options: SolveOptions | None = None) -> Network:
     The connection has pricing so it generates a primary cost objective,
     and the bidirectional flow gives the solver a nontrivial decision.
     """
-    kwargs: dict[str, object] = {"name": "test", "periods": np.array([1.0, 1.0])}
-    if options is not None:
-        kwargs["options"] = options
-    network = Network(**kwargs)  # type: ignore[arg-type]
+    network = Network(name="test", periods=np.array([1.0, 1.0]), options=options)
 
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
@@ -515,15 +505,13 @@ def _build_priced_network(options: SolveOptions | None = None) -> Network:
 
 def test_solve_options_defaults() -> None:
     """SolveOptions default values match HiGHS defaults."""
-    opts = CalibratedOptions()
-    assert opts.mode == "calibrated"
+    opts = SolveOptions()
     assert opts.simplex_strategy == 4
-    assert isinstance(opts, SimplexTuning)
 
 
 def test_solve_options_apply() -> None:
     """SolveOptions.apply() sets all HiGHS options on the solver."""
-    opts = CalibratedOptions(simplex_strategy=4, presolve="on")
+    opts = SolveOptions(simplex_strategy=4, presolve="on")
     h = Solver()
     h.setOptionValue("output_flag", False)
     opts.apply(h)
@@ -533,154 +521,36 @@ def test_solve_options_apply() -> None:
 
 def test_solve_options_propagated_to_network() -> None:
     """Network.__post_init__ applies SolveOptions to the solver."""
-    opts = CalibratedOptions(simplex_strategy=4)
+    opts = SolveOptions(simplex_strategy=4)
     network = Network(name="test", periods=np.array([1.0]), options=opts)
     assert network._solver.getOptionValue("simplex_strategy")[1] == 4
 
 
 # ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
-# Blended mode tests
+# Blend weight tests
 # ---------------------------------------------------------------------------
 
 
-def test_blended_mode_single_solve() -> None:
-    """Blended mode solves the weighted sum in a single call."""
-    network = _build_priced_network(BlendedOptions(blend_weight=1e-6))
-    result = network.optimize()
-    assert result == pytest.approx(0.0, abs=1e-6)
-
-
-def test_blended_mode_reentrant() -> None:
-    """Blended mode works on repeated optimize() calls."""
-    network = _build_priced_network(BlendedOptions(blend_weight=1e-6))
-    r1 = network.optimize()
-    r2 = network.optimize()
-    assert r1 == pytest.approx(r2)
-
-
-# ---------------------------------------------------------------------------
-# Calibrated mode tests
-# ---------------------------------------------------------------------------
-
-
-def test_calibrated_mode_first_call_calibrates_the_weight() -> None:
-    """The first call in calibrated mode calibrates the starting weight."""
-    network = _build_priced_network(CalibratedOptions())
+def test_first_call_calibrates_the_weight() -> None:
+    """The first call calibrates the starting weight."""
+    network = _build_priced_network()
     assert network._blend_weight is None
     network.optimize()
     assert network._blend_weight is not None
     assert network._blend_weight > 0
 
 
-def test_calibrated_mode_subsequent_calls_use_blended() -> None:
-    """After calibration, optimize() uses blended fast path."""
-    network = _build_priced_network(CalibratedOptions())
+def test_subsequent_calls_reuse_the_weight() -> None:
+    """After calibration, optimize() solves the blend with the calibrated weight."""
+    network = _build_priced_network()
     r1 = network.optimize()  # calibrate
     r2 = network.optimize()  # blended with calibrated weight
     assert r1 == pytest.approx(r2)
 
 
-# ---------------------------------------------------------------------------
-# Lex mode Phase 3 epsilon tests
-# ---------------------------------------------------------------------------
-
-
-def test_lex_mode_with_secondary_objective() -> None:
-    """Lex mode with a secondary objective executes all three phases."""
-    # Build a network with both primary and secondary objectives
-    network = Network(name="test", periods=np.array([1.0, 1.0]), options=LexOptions())
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0})
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
-    network.add(
-        {
-            "element_type": ELEMENT_TYPE_CONNECTION,
-            "name": "bat_grid",
-            "source": "battery",
-            "target": "grid",
-            "tags": {1},
-            "segments": {
-                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
-            },
-        }
-    )
-    result = network.optimize()
-    # Should complete without error and return a finite value
-    assert np.isfinite(result)
-
-
-def test_lex_mode_warm_resolve_with_duplicate_coefficients() -> None:
-    """Re-optimizing in lex mode must survive primary expressions with repeated var idxs.
-
-    Regression: the lex row update previously collapsed duplicate variable
-    indices via dict(zip(...)), silently dropping coefficient contributions
-    when updating the lex constraint from secondary (phase 3) back to primary
-    (phase 2) on a warm re-solve.  The resulting constraint misrepresented
-    the primary objective and made phase 2 infeasible.
-
-    This scenario builds an expression that naturally contains duplicate
-    indices (two connections sharing a source feed the same wear-leveling
-    cost into the primary via overlapping decompositions) and then calls
-    optimize() twice to exercise the update path.
-    """
-    network = Network(name="test", periods=np.array([1.0, 1.0]), options=LexOptions())
-    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 5.0})
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
-    network.add(
-        {
-            "element_type": ELEMENT_TYPE_CONNECTION,
-            "name": "bat_grid",
-            "source": "battery",
-            "target": "grid",
-            "tags": {1},
-            "segments": {
-                "pricing": {"segment_type": "pricing", "price": np.array([10.0, 20.0])},
-            },
-        }
-    )
-
-    r1 = network.optimize()
-    r2 = network.optimize()
-    assert np.isfinite(r1)
-    assert np.isfinite(r2)
-    assert r1 == pytest.approx(r2)
-
-
-def _lex_row(h: Solver, network: Network) -> tuple[float, float, dict[int, float]]:
-    """Return the lex row's bounds and coefficients as the solver holds them."""
-    assert network._lex_row is not None
-    (row,) = network._lex_row[0].tolist()
-    _, lower, upper, _ = h.getRow(row)
-    _, index, values = h.getRowEntries(row)
-    return lower, upper, {int(i): float(v) for i, v in zip(index, values, strict=True)}
-
-
-def test_update_constraint_sums_duplicate_coefficients() -> None:
-    """Updating the lex row must aggregate duplicate columns on both sides."""
-    network = Network(name="test", periods=np.array([1.0]))
-    h: Solver = network._solver
-    v = h.add_variables(2, upper=10.0, name="v")
-    v0, v1 = v[0], v[1]
-
-    # Seed the lex constraint with an expression containing a duplicate term
-    # (v0 appears twice: 1.0 + 2.0 = 3.0 effective coefficient).
-    network._constrain_objective(v0 * 1.0 + v0 * 2.0 + v1 * 1.0, 100.0)
-
-    # Now update with a new expression also containing duplicates:
-    # v1 appears twice: 4.0 + 5.0 = 9.0 effective.
-    network._constrain_objective(v1 * 4.0 + v1 * 5.0 + v0 * 3.0, 200.0)
-
-    assert _lex_row(h, network) == (float("-inf"), 200.0, {0: pytest.approx(3.0), 1: pytest.approx(9.0)})
-
-
-def test_lex_mode_solves_with_negligible_objective_coefficients() -> None:
-    """A primary objective term below HiGHS's small matrix value does not break the lex row.
-
-    Regression for #501: highspy raised after adding a lex row containing such a
-    term, leaving an untracked row that made every later solve infeasible.
-    """
-    network = Network(name="test", periods=np.array([1.0, 1.0]), options=LexOptions())
+def test_solves_with_negligible_objective_coefficients() -> None:
+    """A primary objective term below HiGHS's small matrix value solves, and solves again (#501)."""
+    network = Network(name="test", periods=np.array([1.0, 1.0]))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
     network.add(
@@ -701,23 +571,6 @@ def test_lex_mode_solves_with_negligible_objective_coefficients() -> None:
 
     assert np.isfinite(first)
     assert second == pytest.approx(first)
-
-
-def test_lex_row_bound_restored_after_relax() -> None:
-    """Constraining to the same value after a relax bounds the lex row again."""
-    network = Network(name="test", periods=np.array([1.0]))
-    h: Solver = network._solver
-    objective = h.add_variables(1, upper=10.0, name="objective") * 2.0
-
-    network._constrain_objective(objective, 5.0)
-    assert _lex_row(h, network)[:2] == (float("-inf"), 5.0)
-
-    network._relax_lex_constraint()
-    assert _lex_row(h, network)[:2] == (float("-inf"), float("inf"))
-
-    network._constrain_objective(objective, 5.0)
-    assert _lex_row(h, network) == (float("-inf"), 5.0, {0: 2.0})
-    assert h.getNumRow() == 1
 
 
 def test_optimize_requires_objectives() -> None:
@@ -776,7 +629,7 @@ def test_bisect_boundary_respects_max_steps() -> None:
 
 def test_calibrated_mode_zero_primary_cost_vector() -> None:
     """Calibration returns safe default when primary cost vector is all zeros."""
-    network = Network(name="test", periods=np.array([1.0, 1.0]), options=CalibratedOptions())
+    network = Network(name="test", periods=np.array([1.0, 1.0]))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "source", "is_source": True, "is_sink": False})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "sink", "is_source": False, "is_sink": True})
     # Pricing with all-zero prices: primary cost vector exists but is all zeros.
@@ -916,8 +769,7 @@ def _interchangeable_batteries() -> list[ModelElementConfig]:
     return elements
 
 
-@pytest.mark.parametrize("options", [LexOptions(), CalibratedOptions()], ids=["lex", "calibrated"])
-def test_equally_cheap_plans_do_not_depend_on_element_order(options: SolveOptions) -> None:
+def test_equally_cheap_plans_do_not_depend_on_element_order() -> None:
     """Swapping energy between two batteries across periods is cost-free, yet the chosen plan is always the same.
 
     Without a tie-break that separates such swaps, the plan followed the order of
@@ -926,7 +778,7 @@ def test_equally_cheap_plans_do_not_depend_on_element_order(options: SolveOption
     elements = _interchangeable_batteries()
     plans: set[tuple[float, ...]] = set()
     for order in itertools.islice(itertools.permutations(range(len(elements))), 0, 720, 120):
-        network = Network(name="ties", periods=np.ones(6), options=options)
+        network = Network(name="ties", periods=np.ones(6))
         ordered = [elements[i] for i in order]
         for element in sorted(ordered, key=lambda element: element["element_type"] == ELEMENT_TYPE_CONNECTION):
             network.add(element)
@@ -950,22 +802,13 @@ def test_tie_break_perturbation_is_distinct_per_connection_and_period() -> None:
     assert len(np.unique(values)) == len(values)
 
 
-def test_lex_phase_two_loosens_an_infeasible_cost_bound(monkeypatch: pytest.MonkeyPatch) -> None:
-    """When rounding makes the cost bound infeasible, phase 2 retries with a larger slack (#531)."""
-    # A negative first slack bounds the cost below its optimum, which no plan can meet
-    monkeypatch.setattr(network_module, "_LEX_COST_SLACKS", (-1.0, 1e-6))
-    network = _build_priced_network(LexOptions())
-
-    assert np.isfinite(network.optimize())
-
-
 def test_blended_solve_lowers_a_weight_that_trades_away_cost() -> None:
     """A blend weight large enough to let the secondary override cost is lowered until the plan is cost-optimal.
 
     The secondary prefers source "a" by sort order, but "b" is cheaper, so an
     oversized weight would supply the load from "a".
     """
-    network = Network(name="test", periods=np.array([1.0, 1.0]), options=CalibratedOptions())
+    network = Network(name="test", periods=np.array([1.0, 1.0]))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "a", "is_source": True, "is_sink": False})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "b", "is_source": True, "is_sink": False})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "hub", "is_source": False, "is_sink": False})
@@ -1010,18 +853,42 @@ def _battery_plans(network: Network) -> tuple[float, ...]:
     )
 
 
-def _network_with(elements: list[ModelElementConfig], options: SolveOptions) -> Network:
-    network = Network(name="ties", periods=np.ones(6), options=options)
+def _network_with(elements: list[ModelElementConfig]) -> Network:
+    network = Network(name="ties", periods=np.ones(6))
     for element in sorted(elements, key=lambda element: element["element_type"] == ELEMENT_TYPE_CONNECTION):
         network.add(element)
     return network
 
 
+def _lexicographic_reference(elements: list[ModelElementConfig]) -> tuple[float, tuple[float, ...]]:
+    """Return the cost and battery plans of the exact lexicographic optimum.
+
+    The cost is minimized first, then the secondary with the cost bounded to its
+    optimum, on a network built from the same elements.
+    """
+    network = _network_with(elements)
+    network.optimize()
+    h = network._solver
+    objectives = network.cost()
+    assert objectives is not None
+    primary, secondary = objectives
+    assert primary is not None
+    assert secondary is not None
+    cols = np.arange(h.numVariables, dtype=np.int32)
+    h.changeColsCost(len(cols), cols, primary.column_coefficients(len(cols)))
+    h.run()
+    cost = h.getObjectiveValue()
+    add_rows(h, primary <= cost + 1e-9 * max(1.0, abs(cost)))
+    h.changeColsCost(len(cols), cols, secondary.column_coefficients(len(cols)))
+    h.run()
+    assert h.getModelStatus() == HighsModelStatus.kOptimal
+    return cost, _battery_plans(network)
+
+
 def test_blended_solve_raises_a_weight_too_small_to_break_ties() -> None:
     """A weight too small for the secondary to register is raised until the plan is in order."""
-    reference = _network_with(_interchangeable_batteries(), LexOptions())
-    reference.optimize()
-    network = _network_with(_interchangeable_batteries(), CalibratedOptions())
+    _, expected = _lexicographic_reference(_interchangeable_batteries())
+    network = _network_with(_interchangeable_batteries())
     network.optimize()
     # Start the next solve cold, from a weight far too small for the secondary
     network._solver.clearSolver()
@@ -1029,7 +896,7 @@ def test_blended_solve_raises_a_weight_too_small_to_break_ties() -> None:
 
     network.optimize()
 
-    assert _battery_plans(network) == _battery_plans(reference)
+    assert _battery_plans(network) == expected
     assert network._blend_weight > 1e-11
 
 
@@ -1101,9 +968,8 @@ def test_weight_search_stops_raising_at_the_largest_weight() -> None:
 
 def test_blended_solve_falls_back_to_the_cost_when_no_weight_passes(monkeypatch: pytest.MonkeyPatch) -> None:
     """When every weight fails the cost check, the plan is the cheapest one and the solve is optimal."""
-    reference = _network_with(_interchangeable_batteries(), LexOptions())
-    expected = reference.optimize()
-    network = _network_with(_interchangeable_batteries(), CalibratedOptions())
+    expected, _ = _lexicographic_reference(_interchangeable_batteries())
+    network = _network_with(_interchangeable_batteries())
     network.optimize()
     monkeypatch.setattr(network_module, "_check_plan", lambda *_args: (False, True))
 
@@ -1122,7 +988,7 @@ def test_weight_search_keeps_a_cost_optimal_plan_in_order() -> None:
 
 def test_pricing_leaves_the_plan_and_its_basis_unchanged() -> None:
     """Pricing an objective at the current basis runs no iterations and keeps the plan and its basic variables."""
-    network = _network_with(_interchangeable_batteries(), CalibratedOptions())
+    network = _network_with(_interchangeable_batteries())
     network.optimize()
     h = network._solver
     plan = np.asarray(h.getSolution().col_value).copy()

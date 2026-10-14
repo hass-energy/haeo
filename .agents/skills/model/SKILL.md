@@ -97,11 +97,13 @@ The period update and warm start tests are the ones that notice.
 
 ## Optimization
 
-`Network.optimize()` minimizes cost first and a time-preference secondary objective second, which breaks ties deterministically. The default calibrated mode does this with a blended objective, cost plus a calibrated weight times the secondary, checked after each solve.
+`Network.optimize()` minimizes cost first and a time-preference secondary objective second, which breaks ties deterministically.
+It does this with a blended objective, cost plus a calibrated weight times the secondary, checked after each solve.
 This exists so repeated solves warm-start cleanly and shadow prices come from the same basis as the plan.
 Degenerate LPs have many optimal solutions; the secondary objective is what stops sensor values jittering between equally optimal plans.
 
 - The plan must match the lexicographic optimum; shadow prices may differ between formulations, since which binding constraint carries a dual is not controllable.
+    `_lexicographic_reference` in the network tests computes that optimum exactly, minimizing the cost and then the secondary with the cost bounded, for tests to compare against.
 
 - Every blended plan is checked at its basis: the cost is priced with a zero-iteration solve, and the weight is lowered when the plan is not cost-optimal.
     The secondary's reduced costs are the blended ones minus the cost's, divided by the weight, and the weight is raised when a cost-free move improves the secondary, but never to a weight that failed the cost in the same optimization.
