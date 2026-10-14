@@ -30,7 +30,7 @@ from custom_components.haeo.core.schema.field_hints import (
 from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 from custom_components.haeo.core.state import EntityState, StateMachine
-from custom_components.haeo.core.units import DeviceClass, convert_to_base_unit
+from custom_components.haeo.core.units import DeviceClass, base_unit_conversion
 
 from .calendar_resolver import CalendarBoundaryData, resolve_calendar_field
 from .sensor_loader import load_sensors
@@ -286,8 +286,8 @@ def _readings_in_base_unit(history: list[Reading], state: EntityState) -> list[R
     """Convert recorded readings to the base unit of the state's unit and device class."""
     unit_attr = state.attributes.get("unit_of_measurement")
     unit = unit_attr if isinstance(unit_attr, str) else None
-    device_class = DeviceClass.of(state.attributes.get("device_class"))
-    return [(changed_at, convert_to_base_unit(reading, unit, device_class)[0]) for changed_at, reading in history]
+    factor, _, _ = base_unit_conversion(unit, DeviceClass.of(state.attributes.get("device_class")))
+    return [(changed_at, reading * factor) for changed_at, reading in history]
 
 
 class _Sentinel:

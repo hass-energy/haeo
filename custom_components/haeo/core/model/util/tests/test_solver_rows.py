@@ -3,125 +3,126 @@
 from collections.abc import Callable
 from unittest.mock import MagicMock, call
 
-from highspy import Highs
-from highspy.highs import highs_cons, highs_linear_expression, highs_var
+import numpy as np
 import pytest
 
-from custom_components.haeo.core.model.util.solver_rows import add_row, add_rows, row_expression, update_row
+from custom_components.haeo.core.model.linear import INF, LinearArray, Rows
+from custom_components.haeo.core.model.solver import Solver
+from custom_components.haeo.core.model.util.solver_rows import add_rows, applied_form, change_bounds, update_rows
 
 
 @pytest.fixture
-def solver() -> Highs:
+def solver() -> Solver:
     """Return a quiet solver."""
-    h = Highs()
+    h = Solver()
     h.setOptionValue("output_flag", False)
     return h
 
 
-def _coefficients(solver: Highs, cons: object) -> dict[int, float]:
-    row = solver.getExpr(cons)  # type: ignore[arg-type]
-    return {int(idx): float(val) for idx, val in zip(row.idxs, row.vals, strict=True)}
+def _row(solver: Solver, row: int) -> tuple[float, float, dict[int, float]]:
+    """Return a row's bounds and coefficients as the solver holds them."""
+    _, lower, upper, _ = solver.getRow(row)
+    _, index, values = solver.getRowEntries(row)
+    return lower, upper, {int(i): float(v) for i, v in zip(index, values, strict=True)}
 
 
-def test_row_expression_sums_repeated_variables_and_drops_negligible_terms(solver: Highs) -> None:
-    """Repeated variables are summed and terms below the small matrix value are removed."""
-    x = solver.addVariables(3)
-    row = row_expression(1.0 * x[0] + 2.0 * x[0] + 3e-10 * x[1] + 4.0 * x[2] + 2 <= 5)
-
-    assert dict(zip(row.idxs, row.vals, strict=True)) == {x[0].index: 3.0, x[2].index: 4.0}
-    assert row.bounds == (float("-inf"), 3.0)
+def _terms(cols: list[list[int]], coefs: list[list[float]]) -> LinearArray:
+    """Return expressions with the given terms and no constants."""
+    return LinearArray(np.array(cols, dtype=np.int64), np.array(coefs), np.zeros(len(cols)))
 
 
-def test_add_row_accepts_negligible_coefficients(solver: Highs) -> None:
-    """A negligible coefficient does not make highspy reject the row."""
-    x = solver.addVariables(2)
+def test_applied_form_sums_repeated_columns_and_drops_negligible_terms() -> None:
+    """Repeated columns are summed, negligible terms removed, and entries sorted by column."""
+    applied = applied_form(_terms([[2, 0, 0, 1]], [[4.0, 1.0, 2.0, 3e-10]]) <= 3.0)
 
-    cons = add_row(solver, x[0] + 3e-10 * x[1] <= 1)
-
-    assert solver.numConstrs == 1
-    assert _coefficients(solver, cons) == {x[0].index: 1.0}
-
-
-def test_add_row_removes_the_row_when_highspy_raises_after_adding_it(
-    solver: Highs, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A row highspy adds before raising is removed, so retrying adds exactly one row."""
-    x = solver.addVariables(1)
-    add_constr = solver.addConstr
-
-    def add_then_raise(expr: highs_linear_expression) -> highs_cons:
-        add_constr(expr)
-        msg = "Error adding constraint to the model."
-        raise RuntimeError(msg)
-
-    monkeypatch.setattr(solver, "addConstr", add_then_raise)
-    with pytest.raises(RuntimeError, match="Error adding constraint"):
-        add_row(solver, x[0] <= 1)
-    assert solver.numConstrs == 0
-
-    monkeypatch.undo()
-    add_row(solver, x[0] <= 1)
-    assert solver.numConstrs == 1
+    assert applied.index.tolist() == [0, 2]
+    assert applied.values.tolist() == [3.0, 4.0]
+    assert applied.starts.tolist() == [0]
+    assert applied.upper.tolist() == [3.0]
 
 
-def test_add_rows_accepts_negligible_coefficients(solver: Highs) -> None:
-    """Every row in a batch has its negligible coefficients removed."""
-    x = solver.addVariables(2)
+def test_add_rows_writes_bounds_and_coefficients(solver: Solver) -> None:
+    """Each row reaches the solver with its bounds, summed coefficients and no negligible terms."""
+    x = solver.add_variables(3, name="x")
 
-    rows = add_rows(solver, [x[0] + 3e-10 * x[1] <= 1, 2e-10 * x[0] + x[1] <= 2])
+    indices, _ = add_rows(solver, Rows.concat([x[0] + x[0] * 2.0 + x[1] * 3e-10 <= 5.0, x[2] - x[1] >= 1.0]))
 
-    assert solver.numConstrs == 2
-    assert [_coefficients(solver, cons) for cons in rows] == [{x[0].index: 1.0}, {x[1].index: 1.0}]
-
-
-def test_update_row_replaces_bounds_and_coefficients(solver: Highs) -> None:
-    """Updating a row changes its bounds, sums repeated variables, and leaves out negligible terms."""
-    x = solver.addVariables(3)
-    applied = 1.0 * x[0] + x[1] <= 1
-    cons = add_row(solver, applied)
-
-    update_row(solver, cons, applied, 2.0 * x[1] + 3.0 * x[1] + 3e-10 * x[0] + x[2] <= 4)
-
-    assert solver.getExpr(cons).bounds == (float("-inf"), 4.0)
-    assert _coefficients(solver, cons) == {x[1].index: 5.0, x[2].index: 1.0}
+    assert indices.tolist() == [0, 1]
+    assert _row(solver, 0) == (-INF, 5.0, {0: 3.0})
+    assert _row(solver, 1) == (1.0, INF, {1: -1.0, 2: 1.0})
 
 
-def test_update_row_removes_bounds(solver: Highs) -> None:
-    """An expression without bounds leaves the row unbounded."""
-    x = solver.addVariables(1)
-    applied = x[0] <= 1
-    cons = add_row(solver, applied)
+def test_add_rows_moves_constants_into_bounds(solver: Solver) -> None:
+    """A constant in an expression shifts the row bounds rather than the coefficients."""
+    x = solver.add_variables(1, name="x")
 
-    update_row(solver, cons, applied, 1.0 * x[0])
+    add_rows(solver, x + 2.0 == 5.0)
 
-    assert solver.getExpr(cons).bounds == (float("-inf"), float("inf"))
+    assert _row(solver, 0) == (3.0, 3.0, {0: 1.0})
+
+
+def test_add_rows_raises_and_adds_nothing_when_highs_refuses(solver: Solver) -> None:
+    """A block HiGHS rejects adds no rows, so it can be retried."""
+    solver.add_variables(1, name="v")
+
+    with pytest.raises(RuntimeError, match="refused"):
+        add_rows(solver, _terms([[0]], [[INF]]) <= 1.0)
+
+    assert solver.getNumRow() == 0
+
+
+def test_update_rows_replaces_bounds_and_coefficients(solver: Solver) -> None:
+    """Updating changes bounds and coefficients, adding and removing terms as needed."""
+    x = solver.add_variables(3, name="x")
+    indices, applied = add_rows(solver, x[0] + x[1] <= 1.0)
+
+    update_rows(solver, indices, applied, x[1] * 2.0 + x[1] * 3.0 + x[0] * 3e-10 + x[2] <= 4.0)
+
+    assert _row(solver, 0) == (-INF, 4.0, {1: 5.0, 2: 1.0})
+
+
+def test_change_bounds_frees_rows(solver: Solver) -> None:
+    """Rows given unbounded bounds stay in the LP without binding."""
+    x = solver.add_variables(1, name="x")
+    indices, applied = add_rows(solver, x <= 1.0)
+
+    updated = change_bounds(solver, indices, applied, -INF, INF)
+
+    assert _row(solver, 0) == (-INF, INF, {0: 1.0})
+    assert updated.is_free
 
 
 @pytest.mark.parametrize(
-    ("make_expr", "expected_calls"),
+    ("make_rows", "expected_calls"),
     [
-        pytest.param(lambda a, b: 1.0 * a + 2.0 * b <= 3, [], id="unchanged"),
-        pytest.param(lambda a, b: 0.5 * a + 0.5 * a + 2.0 * b <= 3, [], id="unchanged_after_summing"),
+        pytest.param(lambda a, b: a + b * 2.0 <= 3.0, [], id="unchanged"),
+        pytest.param(lambda a, b: a * 0.5 + a * 0.5 + b * 2.0 <= 3.0, [], id="unchanged_after_summing"),
         pytest.param(
-            lambda a, b: 1.0 * a + 2.0 * b <= 4,
-            [call.changeRowBounds(0, float("-inf"), 4.0)],
+            lambda a, b: a + b * 2.0 <= 4.0,
+            [call.changeRowsBounds(1, [0], [-INF], [4.0])],
             id="bounds_only",
         ),
-        pytest.param(lambda a, b: 1.0 * a + 5.0 * b <= 3, [call.changeCoeff(0, 1, 5.0)], id="one_coefficient"),
+        pytest.param(lambda a, b: a + b * 5.0 <= 3.0, [call.changeCoeff(0, 1, 5.0)], id="one_coefficient"),
+        pytest.param(lambda a, _b: a <= 3.0, [call.changeCoeff(0, 1, 0.0)], id="removed_term"),
     ],
 )
-def test_update_row_writes_only_changed_values(
-    solver: Highs,
-    make_expr: Callable[[highs_var, highs_var], highs_linear_expression],
+def test_update_rows_writes_only_changed_values(
+    solver: Solver,
+    make_rows: Callable[[LinearArray, LinearArray], Rows],
     expected_calls: list[object],
 ) -> None:
-    """Only bounds and coefficients that differ from the applied expression reach the solver."""
-    a = solver.addVariable()
-    b = solver.addVariable()
-    applied = 1.0 * a + 2.0 * b <= 3
-    cons = add_row(solver, applied)
+    """Only bounds and coefficients that differ from the applied rows reach the solver."""
+    x = solver.add_variables(2, name="x")
+    a, b = x[0], x[1]
+    indices, applied = add_rows(solver, a + b * 2.0 <= 3.0)
     spy = MagicMock(wraps=solver)
 
-    update_row(spy, cons, applied, make_expr(a, b))
+    update_rows(spy, indices, applied, make_rows(a, b))
 
-    assert spy.mock_calls == expected_calls
+    calls = [
+        call.changeRowsBounds(c.args[0], c.args[1].tolist(), c.args[2].tolist(), c.args[3].tolist())
+        if c[0] == "changeRowsBounds"
+        else c
+        for c in spy.mock_calls
+    ]
+    assert calls == expected_calls

@@ -3,15 +3,14 @@
 from collections.abc import Callable, Sequence
 from typing import Any, NotRequired, TypedDict
 
-from highspy import Highs
 import numpy as np
-from numpy.typing import NDArray
-
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements.segments import SegmentSpec
+from custom_components.haeo.core.model.solver import Solver
+from numpy.typing import NDArray
 
 type ExpectedValue = Sequence[float] | Sequence[str] | float
-type SegmentEndpointFactory = Callable[[Highs, NDArray[np.float64]], tuple[Element[Any], Element[Any]]]
+type SegmentEndpointFactory = Callable[[Solver, NDArray[np.float64]], tuple[Element[Any], Element[Any]]]
 
 
 class SegmentScenarioInputs(TypedDict, total=False):

@@ -14,9 +14,12 @@ Cycling behavior (forecast shorter than horizon) is tested in test_forecast_cycl
 Tests use simple integer timestamps to avoid datetime complexity.
 """
 
+import itertools
+
 import numpy as np
 import pytest
 
+from custom_components.haeo.core.data.util.forecast_cycle import normalize_forecast_cycle
 from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 
 
@@ -253,3 +256,83 @@ def test_fuse_to_boundaries_raises_when_no_data() -> None:
     """Test that missing both forecast_series and present_value raises ValueError."""
     with pytest.raises(ValueError, match="Either forecast_series or present_value must be provided"):
         fuse_to_boundaries(None, [], [0, 1000, 2000])
+
+
+def _reference_interval_averages(
+    present_value: float | None,
+    forecast_series: list[tuple[float, float]],
+    horizon_times: list[float],
+) -> list[float]:
+    """Average each interval with a trapezoid over its own boundaries and the block points strictly inside it."""
+    # The forecast repeats every cycle, enough times to cover the horizon
+    block, cycle = normalize_forecast_cycle(forecast_series, horizon_times[0])
+    repeats = range(int(np.ceil((horizon_times[-1] - horizon_times[0]) / cycle)) + 2)
+    times = np.array([time + i * cycle for i in repeats for time, _ in block])
+    values = np.array([value for _ in repeats for _, value in block])
+    result: list[float] = []
+    for start, end in itertools.pairwise(horizon_times):
+        inside = (times > start) & (times < end)
+        knot_times = np.concatenate([[start], times[inside], [end]])
+        knot_values = np.concatenate(
+            [[np.interp(start, times, values)], values[inside], [np.interp(end, times, values)]]
+        )
+        result.append(float(np.trapezoid(knot_values, knot_times) / (end - start)))
+    if present_value is not None:
+        result[0] = present_value
+    return result
+
+
+_EPOCH = 1_700_000_000.0
+
+
+def _random_case(seed: int) -> tuple[float | None, list[tuple[float, float]], list[float]]:
+    rng = np.random.default_rng(seed)
+    widths = rng.choice([60.0, 300.0, 900.0, 1800.0, 3600.0], int(rng.integers(2, 80)))
+    horizon = (_EPOCH + np.concatenate([[0.0], np.cumsum(widths)])).tolist()
+    times = np.sort(_EPOCH + rng.uniform(-7200.0, 2 * 86400.0, int(rng.integers(1, 60))))
+    # Put some points exactly on horizon boundaries
+    on_boundary = rng.choice(horizon, min(len(times), 3), replace=False)
+    times = np.sort(np.concatenate([times, on_boundary]))
+    series = list(zip(times.tolist(), rng.normal(3.0, 2.0, len(times)).tolist(), strict=True))
+    return (None if seed % 2 else 1.5), series, horizon
+
+
+@pytest.mark.parametrize(
+    ("present_value", "forecast_series", "horizon_times"),
+    [
+        pytest.param(
+            None,
+            [(_EPOCH, 100.0), (np.nextafter(_EPOCH + 1000.0, -np.inf), 100.0), (_EPOCH + 1000.0, 200.0)],
+            [_EPOCH + t for t in (0.0, 500.0, 1000.0, 1500.0)],
+            id="step_on_boundary",
+        ),
+        pytest.param(
+            None,
+            [(_EPOCH, 1.0), (_EPOCH + 1000.0, 1.0), (_EPOCH + 1000.0, 2.0), (_EPOCH + 2000.0, 2.0)],
+            [_EPOCH + t for t in (0.0, 500.0, 1000.0, 1500.0, 2000.0)],
+            id="duplicate_timestamps_on_boundary",
+        ),
+        pytest.param(
+            None,
+            [(_EPOCH + 2000.0, 5.0), (_EPOCH + 2600.0, 8.0)],
+            [_EPOCH + t for t in (0.0, 1000.0, 3000.0, 4000.0)],
+            id="forecast_starts_inside_horizon",
+        ),
+        pytest.param(
+            2.0,
+            [(_EPOCH - 5000.0, 1.0), (_EPOCH + 100.0, 4.0), (_EPOCH + 200.0, 2.0), (_EPOCH + 9000.0, 6.0)],
+            [_EPOCH + t for t in (0.0, 300.0, 600.0)],
+            id="points_inside_one_interval_and_beyond_horizon",
+        ),
+        *(pytest.param(*_random_case(seed), id=f"random_{seed}") for seed in range(20)),
+    ],
+)
+def test_fuse_to_intervals_matches_per_interval_trapezoids(
+    present_value: float | None,
+    forecast_series: list[tuple[float, float]],
+    horizon_times: list[float],
+) -> None:
+    """Interval averages match integrating each interval on its own."""
+    expected = _reference_interval_averages(present_value, forecast_series, horizon_times)
+
+    assert fuse_to_intervals(present_value, forecast_series, horizon_times) == pytest.approx(expected, rel=1e-12)

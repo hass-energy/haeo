@@ -1,6 +1,6 @@
 """Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
@@ -147,11 +147,24 @@ def detect_currency_symbol(
     return fallback_currency or "$"
 
 
+def forecast_datetimes(timestamps: Sequence[float]) -> tuple[datetime, ...] | None:
+    """Convert horizon timestamps to datetimes in Home Assistant's time zone.
+
+    Every output sensor's forecast shares these times, so they are converted once
+    per optimization. Returns None when a timestamp is outside the supported range.
+    """
+    local_tz = dt_util.get_default_time_zone()
+    try:
+        return tuple(datetime.fromtimestamp(timestamp, tz=local_tz) for timestamp in timestamps)
+    except ValueError:
+        return None
+
+
 def _build_coordinator_output(
     output_name: ElementOutputName,
     output_data: OutputData,
     *,
-    forecast_times: tuple[float, ...] | None,
+    forecast_times: tuple[datetime, ...] | None,
     currency_sym: str,
 ) -> CoordinatorOutput:
     """Convert model output values into coordinator state and forecast.
@@ -167,13 +180,14 @@ def _build_coordinator_output(
       These have n+1 values representing the state at each time boundary.
       Use all n+1 timestamps.
 
-    The forecast_times tuple contains n+1 timestamps (all boundaries).
-    Each output type zips its values with however many timestamps it needs.
+    The forecast_times tuple contains n+1 datetimes (all boundaries), from
+    ``forecast_datetimes``. Each output type zips its values with however
+    many times it needs.
 
-    Example with 3 periods of 300 seconds starting at t=0:
-      - forecast_times: [0, 300, 600, 900] (n+1 = 4 boundaries)
-      - Interval values (n=3): zip with [0, 300, 600]
-      - Boundary values (n=4): zip with [0, 300, 600, 900]
+    Example with 3 periods of 5 minutes starting at 12:00:
+      - forecast_times: [12:00, 12:05, 12:10, 12:15] (n+1 = 4 boundaries)
+      - Interval values (n=3): zip with [12:00, 12:05, 12:10]
+      - Boundary values (n=4): zip with [12:00, 12:05, 12:10, 12:15]
     """
 
     values = tuple(output_data.values)
@@ -188,17 +202,9 @@ def _build_coordinator_output(
     forecast: list[ForecastPoint] | None = None
 
     if forecast_times and len(values) > 1:
-        try:
-            # Convert timestamps to localized datetime objects using HA's configured timezone
-            local_tz = dt_util.get_default_time_zone()
-            # Zip values with available timestamps - interval values use n_periods timestamps,
-            # boundary values use all n_periods+1 timestamps (strict=False handles both)
-            forecast = [
-                ForecastPoint(time=datetime.fromtimestamp(timestamp, tz=local_tz), value=value)
-                for timestamp, value in zip(forecast_times, values, strict=False)
-            ]
-        except ValueError:
-            forecast = None
+        # Interval values use n_periods times and boundary values use all
+        # n_periods+1 times (strict=False handles both)
+        forecast = [ForecastPoint(time=time, value=value) for time, value in zip(forecast_times, values, strict=False)]
 
     return CoordinatorOutput(
         type=output_data.type,
@@ -815,6 +821,8 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 element_name: element.outputs() for element_name, element in network.elements.items()
             }
 
+            forecast_times = forecast_datetimes(forecast_timestamps)
+
             # Process each config element using its outputs function to transform model outputs into device outputs
             for element_name, element_config in context.participants.items():
                 element_type = element_config[CONF_ELEMENT_TYPE]
@@ -846,7 +854,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         output_name: _build_coordinator_output(
                             output_name,
                             output_data,
-                            forecast_times=forecast_timestamps,
+                            forecast_times=forecast_times,
                             currency_sym=currency_sym,
                         )
                         for output_name, output_data in device_outputs.items()
@@ -882,4 +890,5 @@ __all__ = [
     "OptimizationContext",
     "_build_coordinator_output",
     "_build_optimization_context",
+    "forecast_datetimes",
 ]
