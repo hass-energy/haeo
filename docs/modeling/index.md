@@ -94,6 +94,7 @@ The secondary needs no pricing of its own: at a fixed basis reduced costs are li
 The weight is never raised to a weight already found too large for the cost in that optimization, so the cheapest plan always comes first.
 Between a weight known too small and one known too large, the weight is bisected, and the blended solve is repeated from the same basis.
 The weight settled on is kept for later solves, and since inputs change, no weight is ruled out for good.
+If no weight puts the plan in order without failing the cost, the cost-optimal plan is kept; if none is cost-optimal at all, the cost alone is solved.
 
 The primary objective is priced last, so its dual values at the plan's basis are the shadow prices: the blended duals without the secondary's contribution.
 

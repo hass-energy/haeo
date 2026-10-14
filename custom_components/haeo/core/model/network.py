@@ -331,11 +331,10 @@ class Network:
         if self._blend_weight is None:
             self._blend_weight = self._calibrate_blend_weight(all_col_indices, cost_vectors)
 
-        return self._solve_blended(h, all_col_indices, cost_vectors, self._blend_weight)
+        return self._solve_blended(all_col_indices, cost_vectors, self._blend_weight)
 
     def _solve_blended(
         self,
-        h: Highs,
         all_col_indices: NDArray[np.int32],
         cost_vectors: list[NDArray[np.float64]],
         weight: float,
@@ -344,26 +343,84 @@ class Network:
 
         Only the weight settled on is kept, since which weights fail depends on the inputs.
         """
+        h = self._solver
         h.clearLinearObjectives()
         search = BlendWeightSearch()
         next_weight: float | None = weight
-        plan_cost = cost_optimal = 0.0
+        plan_cost, cost_optimal, order_optimal = 0.0, False, True
         while next_weight is not None:
             weight = next_weight
-            plan_cost = _run_blended(h, all_col_indices, cost_vectors, weight)
-            cost_optimal, order_optimal = _check_plan(h, all_col_indices, cost_vectors, weight)
+            plan_cost, cost_optimal, order_optimal = self._solve_at(all_col_indices, cost_vectors, weight)
             next_weight = search.next_weight(weight, cost_optimal=cost_optimal, order_optimal=order_optimal)
             if next_weight is not None:
                 _LOGGER.debug("Blended plan at weight %.2e needs another solve; trying %.2e", weight, next_weight)
 
         if not cost_optimal:
-            # The cost is the objective left set, so solving it gives the cheapest
-            # plan and its duals, without the order
+            # Keep the previous weight, and take the cheapest plan without the order
             _LOGGER.warning("No blend weight gives a cost-optimal plan; solving for the cost alone")
+            _set_cost_vector(h, all_col_indices, cost_vectors[0])
             h.run()
-            plan_cost = _ensure_optimal(h)
+            return _ensure_optimal(h)
+
+        if not order_optimal:
+            _LOGGER.debug("No blend weight puts the plan in order; keeping the cost-optimal plan at %.2e", weight)
         self._blend_weight = weight
         return plan_cost
+
+    def _solve_at(
+        self,
+        all_col_indices: NDArray[np.int32],
+        cost_vectors: list[NDArray[np.float64]],
+        weight: float,
+    ) -> tuple[float, bool, bool]:
+        """Solve primary + weight * secondary, and return the plan's cost, whether it is cost-optimal, and in order.
+
+        The cost is priced at the plan's basis with no simplex iterations, which leaves
+        the plan where it is and its cost duals for the shadow prices. Reduced costs at
+        a fixed basis are linear in the objective, so the secondary's are the blended
+        ones minus the cost's, over the weight. The plan is in order when no move that
+        leaves the cost unchanged lowers the secondary. Rows count as variables too,
+        with their activity as the value. A solve that fails counts as not
+        cost-optimal, so the weight is lowered.
+        """
+        h = self._solver
+        _set_cost_vector(h, all_col_indices, cost_vectors[0] + weight * cost_vectors[1])
+        h.run()
+        if h.getModelStatus() != HighsModelStatus.kOptimal:
+            return math.nan, False, True
+        plan_cost = float(cost_vectors[0] @ h.column_values())
+        solution = h.getSolution()
+        blended = np.concatenate([solution.col_dual, solution.row_dual])
+
+        _set_cost_vector(h, all_col_indices, cost_vectors[0])
+        h.setOptionValue("simplex_iteration_limit", 0)
+        try:
+            h.run()
+        finally:
+            h.setOptionValue("simplex_iteration_limit", _UNLIMITED_ITERATIONS)
+        cost_optimal = h.getInfo().max_dual_infeasibility <= _REDUCED_COST_TOLERANCE
+
+        solution = h.getSolution()
+        cost = np.concatenate([solution.col_dual, solution.row_dual])
+        secondary = (blended - cost) / weight
+
+        # Only moves free in cost but not in the secondary can lower it, so only their values and bounds are read
+        moves = np.flatnonzero(
+            (np.abs(cost) <= _REDUCED_COST_TOLERANCE) & (np.abs(secondary) > _REDUCED_COST_TOLERANCE)
+        )
+        lp = h.getLp()
+        value, lower, upper = (
+            np.array([entries[i] for i in moves.tolist()], dtype=np.float64)
+            for entries in (
+                solution.col_value + solution.row_value,
+                lp.col_lower_ + lp.row_lower_,
+                lp.col_upper_ + lp.row_upper_,
+            )
+        )
+        # A move lowers the secondary by raising a variable below its upper bound, or lowering one above its lower bound
+        rises = (secondary[moves] < -_REDUCED_COST_TOLERANCE) & (value < upper - _BOUND_TOLERANCE)
+        falls = (secondary[moves] > _REDUCED_COST_TOLERANCE) & (value > lower + _BOUND_TOLERANCE)
+        return plan_cost, cost_optimal, not (rises | falls).any()
 
     def _calibrate_blend_weight(
         self,
@@ -375,12 +432,10 @@ class Network:
         The largest weight lets the secondary register most widely, and the margin
         leaves room for later inputs to move the edge before another solve is needed.
         """
-        h = self._solver
         lo, hi = _CAL_LOG_LO, _CAL_LOG_HI
 
         def _cost_optimal(log_w: float) -> bool:
-            _run_blended(h, all_col_indices, cost_vectors, 10.0**log_w)
-            return _check_plan(h, all_col_indices, cost_vectors, 10.0**log_w)[0]
+            return self._solve_at(all_col_indices, cost_vectors, 10.0**log_w)[1]
 
         if _cost_optimal(hi):
             upper = hi
@@ -461,19 +516,6 @@ def _set_cost_vector(
     solver.changeObjectiveOffset(0.0)
 
 
-def _run_blended(
-    solver: Highs,
-    col_indices: NDArray[np.int32],
-    cost_vectors: list[NDArray[np.float64]],
-    weight: float,
-) -> float:
-    """Solve primary + weight * secondary and return the plan's primary cost."""
-    _set_cost_vector(solver, col_indices, cost_vectors[0] + weight * cost_vectors[1])
-    solver.run()
-    _ensure_optimal(solver)
-    return float(cost_vectors[0] @ np.asarray(solver.allVariableValues()))
-
-
 @dataclass
 class BlendWeightSearch:
     """Chooses blend weights for one optimization, putting the cost before the order.
@@ -516,51 +558,6 @@ class BlendWeightSearch:
         if self.too_large > self.too_small * _WEIGHT_RESOLUTION:
             return math.sqrt(self.too_small * self.too_large)
         return None
-
-
-def _check_plan(
-    solver: Highs,
-    col_indices: NDArray[np.int32],
-    cost_vectors: list[NDArray[np.float64]],
-    weight: float,
-) -> tuple[bool, bool]:
-    """Return whether the blended plan just solved is cost-optimal, and whether it is in order.
-
-    The cost is priced at the plan's basis with no simplex iterations, which leaves
-    the plan where it is and its cost duals for the shadow prices. Reduced costs at
-    a fixed basis are linear in the objective, so the secondary's are the blended
-    ones minus the cost's, over the weight. The plan is in order when no move that
-    leaves the cost unchanged lowers the secondary. Rows count as variables too,
-    with their activity as the value.
-    """
-    solution = solver.getSolution()
-    blended = np.concatenate([solution.col_dual, solution.row_dual])
-
-    _set_cost_vector(solver, col_indices, cost_vectors[0])
-    solver.setOptionValue("simplex_iteration_limit", 0)
-    solver.run()
-    solver.setOptionValue("simplex_iteration_limit", _UNLIMITED_ITERATIONS)
-    cost_optimal = solver.getInfo().max_dual_infeasibility <= _REDUCED_COST_TOLERANCE
-
-    solution = solver.getSolution()
-    cost = np.concatenate([solution.col_dual, solution.row_dual])
-    secondary = (blended - cost) / weight
-
-    # Only moves that are free in cost and not in the secondary can lower it, so only their values and bounds are read
-    moves = np.flatnonzero((np.abs(cost) <= _REDUCED_COST_TOLERANCE) & (np.abs(secondary) > _REDUCED_COST_TOLERANCE))
-    lp = solver.getLp()
-    value, lower, upper = (
-        np.array([entries[i] for i in moves.tolist()], dtype=np.float64)
-        for entries in (
-            solution.col_value + solution.row_value,
-            lp.col_lower_ + lp.row_lower_,
-            lp.col_upper_ + lp.row_upper_,
-        )
-    )
-    # A move lowers the secondary by raising a variable below its upper bound, or lowering one above its lower bound
-    rises = (secondary[moves] < -_REDUCED_COST_TOLERANCE) & (value < upper - _BOUND_TOLERANCE)
-    falls = (secondary[moves] > _REDUCED_COST_TOLERANCE) & (value > lower + _BOUND_TOLERANCE)
-    return cost_optimal, not (rises | falls).any()
 
 
 def _ensure_optimal(solver: Highs) -> float:

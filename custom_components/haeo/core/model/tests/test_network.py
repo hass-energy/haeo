@@ -18,6 +18,7 @@ from custom_components.haeo.core.model.elements import ModelElementConfig
 from custom_components.haeo.core.model.elements.connection import Connection, tie_break_offset
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
+from custom_components.haeo.core.model.linear import LinearArray
 from custom_components.haeo.core.model.network import BlendWeightSearch, SolveOptions, _bisect_boundary
 from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util.solver_rows import add_rows
@@ -860,6 +861,16 @@ def _network_with(elements: list[ModelElementConfig]) -> Network:
     return network
 
 
+def _objectives(network: Network) -> tuple[LinearArray, LinearArray]:
+    """Return the network's cost and secondary objectives."""
+    objectives = network.cost()
+    assert objectives is not None
+    primary, secondary = objectives
+    assert primary is not None
+    assert secondary is not None
+    return primary, secondary
+
+
 def _lexicographic_reference(elements: list[ModelElementConfig]) -> tuple[float, tuple[float, ...]]:
     """Return the cost and battery plans of the exact lexicographic optimum.
 
@@ -869,11 +880,7 @@ def _lexicographic_reference(elements: list[ModelElementConfig]) -> tuple[float,
     network = _network_with(elements)
     network.optimize()
     h = network._solver
-    objectives = network.cost()
-    assert objectives is not None
-    primary, secondary = objectives
-    assert primary is not None
-    assert secondary is not None
+    primary, secondary = _objectives(network)
     cols = np.arange(h.numVariables, dtype=np.int32)
     h.changeColsCost(len(cols), cols, primary.column_coefficients(len(cols)))
     h.run()
@@ -975,16 +982,31 @@ def test_weight_search_stops_raising_at_the_largest_weight() -> None:
 
 
 def test_blended_solve_falls_back_to_the_cost_when_no_weight_passes(monkeypatch: pytest.MonkeyPatch) -> None:
-    """When every weight fails the cost check, the plan is the cheapest one and the solve is optimal."""
+    """When every weight fails the cost check, the plan is the cheapest one and the previous weight is kept."""
     expected, _ = _lexicographic_reference(_interchangeable_batteries())
     network = _network_with(_interchangeable_batteries())
     network.optimize()
-    monkeypatch.setattr(network_module, "_check_plan", lambda *_args: (False, True))
+    weight = network._blend_weight
+    monkeypatch.setattr(Network, "_solve_at", lambda *_args: (0.0, False, True))
 
     cost = network.optimize()
 
     assert cost == pytest.approx(expected)
     assert network._solver.getModelStatus() == HighsModelStatus.kOptimal
+    assert network._blend_weight == weight
+
+
+def test_a_failed_solve_counts_against_the_weight(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A blended solve that does not reach an optimum is treated as not cost-optimal, so the weight is lowered."""
+    network = _network_with(_interchangeable_batteries())
+    network.optimize()
+    h = network._solver
+    cost_vectors = network_module._build_cost_vectors(_objectives(network), h.numVariables)
+    monkeypatch.setattr(h, "getModelStatus", lambda: HighsModelStatus.kUnknown)
+
+    _, cost_optimal, _ = network._solve_at(np.arange(h.numVariables, dtype=np.int32), cost_vectors, 1e-6)
+
+    assert not cost_optimal
 
 
 def test_weight_search_keeps_a_cost_optimal_plan_in_order() -> None:
@@ -1003,8 +1025,14 @@ def test_checking_a_plan_leaves_it_and_its_basis_unchanged() -> None:
     basis = h.getBasis()
     basic = [status == HighsBasisStatus.kBasic for status in [*basis.col_status, *basis.row_status]]
     cols = np.arange(h.getNumCol(), dtype=np.int32)
+    weight = network._blend_weight
+    assert weight is not None
+    primary, secondary = network_module._build_cost_vectors(_objectives(network), len(cols))
+    # Same blend as the plan was solved with, so its solve stays put, but a cost of all ones to price
+    ones = np.ones(len(cols))
+    blended = primary + weight * secondary
 
-    network_module._check_plan(h, cols, [np.ones(len(cols)), np.zeros(len(cols))], 1.0)
+    network._solve_at(cols, [ones, (blended - ones) / weight], weight)
 
     after = h.getBasis()
     assert h.getInfo().simplex_iteration_count == 0
