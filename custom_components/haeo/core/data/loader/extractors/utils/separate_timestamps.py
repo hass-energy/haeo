@@ -1,11 +1,13 @@
 """Utility for separating duplicate timestamps in forecast data."""
 
-from collections.abc import Sequence
-
 import numpy as np
+from numpy.typing import NDArray
 
 
-def separate_duplicate_timestamps(data: Sequence[tuple[int, float]]) -> list[tuple[float, float]]:
+def separate_duplicate_timestamps(
+    timestamps: NDArray[np.float64],
+    values: NDArray[np.float64],
+) -> list[tuple[float, float]]:
     """Separate duplicate timestamps to prevent interpolation.
 
     When two adjacent timestamps are the same, this function adjusts the first
@@ -16,18 +18,15 @@ def separate_duplicate_timestamps(data: Sequence[tuple[int, float]]) -> list[tup
     as they would cause issues when combining forecasts.
 
     Args:
-        data: Sequence of (timestamp_seconds, value) tuples where timestamps are in seconds as integers
+        timestamps: Timestamps in seconds, in order
+        values: The value at each timestamp
 
     Returns:
-        List of (timestamp, value) tuples with duplicate timestamps separated and converted to floats
+        List of (timestamp, value) tuples with duplicate timestamps separated
 
     """
-    if not data:
+    if not len(timestamps):
         return []
-
-    # Convert to numpy arrays for vectorized operations
-    timestamps = np.array([t for t, _ in data], dtype=np.float64)
-    values = np.array([v for _, v in data], dtype=np.float64)
 
     # Find where timestamps are duplicated with the next entry (compute once)
     is_duplicate_next = timestamps[:-1] == timestamps[1:]

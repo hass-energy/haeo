@@ -19,11 +19,8 @@ import itertools
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.data.util.forecast_fuser import (
-    _build_extended_block,  # pyright: ignore[reportPrivateUsage] (reference implementation shares the block)
-    fuse_to_boundaries,
-    fuse_to_intervals,
-)
+from custom_components.haeo.core.data.util.forecast_cycle import normalize_forecast_cycle
+from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
 
 
 @pytest.mark.parametrize(
@@ -267,8 +264,11 @@ def _reference_interval_averages(
     horizon_times: list[float],
 ) -> list[float]:
     """Average each interval with a trapezoid over its own boundaries and the block points strictly inside it."""
-    block = _build_extended_block(forecast_series, horizon_times[0], horizon_times[-1])
-    times, values = block["timestamp"], block["value"]
+    # The forecast repeats every cycle, enough times to cover the horizon
+    block, cycle = normalize_forecast_cycle(forecast_series, horizon_times[0])
+    repeats = range(int(np.ceil((horizon_times[-1] - horizon_times[0]) / cycle)) + 2)
+    times = np.array([time + i * cycle for i in repeats for time, _ in block])
+    values = np.array([value for _ in repeats for _, value in block])
     result: list[float] = []
     for start, end in itertools.pairwise(horizon_times):
         inside = (times > start) & (times < end)

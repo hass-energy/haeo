@@ -86,17 +86,14 @@ def update_row(
     is rebuilt identically has the same terms in the same order, so comparing the
     term lists first skips the coefficient diff for every unchanged row.
     """
-    bounds_changed = applied.bounds != expr.bounds
-    if not bounds_changed and applied.idxs == expr.idxs and applied.vals == expr.vals:
-        return
-
-    if bounds_changed:
+    if applied.bounds != expr.bounds:
         lower, upper = expr.bounds if expr.bounds is not None else (float("-inf"), float("inf"))
         solver.changeRowBounds(cons.index, lower, upper)
 
-    old_coeffs = _row_coefficients(applied)
-    new_coeffs = _row_coefficients(expr)
-    for var_idx in old_coeffs.keys() | new_coeffs.keys():
-        new_val = new_coeffs.get(var_idx, 0.0)
-        if old_coeffs.get(var_idx, 0.0) != new_val:
-            solver.changeCoeff(cons.index, var_idx, new_val)
+    if applied.idxs != expr.idxs or applied.vals != expr.vals:
+        old_coeffs = _row_coefficients(applied)
+        new_coeffs = _row_coefficients(expr)
+        for var_idx in old_coeffs.keys() | new_coeffs.keys():
+            new_val = new_coeffs.get(var_idx, 0.0)
+            if old_coeffs.get(var_idx, 0.0) != new_val:
+                solver.changeCoeff(cons.index, var_idx, new_val)

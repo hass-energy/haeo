@@ -4,6 +4,8 @@ from collections.abc import Sequence
 from enum import StrEnum
 from typing import NamedTuple
 
+import numpy as np
+
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement, base_unit_conversion, convert_to_base_unit
 
@@ -115,10 +117,10 @@ def extract(state: EntityState) -> ExtractedData:
     # Convert values to base units
     if isinstance(data, Sequence):
         factor, base_unit, _ = base_unit_conversion(unit_str, device_class)
-        converted_data = [(ts, point_value * factor) for ts, point_value in data]
+        points = np.asarray(data, dtype=np.float64).reshape(-1, 2)
 
-        # Separate duplicate timestamps to prevent interpolation (also converts int timestamps to float)
-        separated_data = separate_duplicate_timestamps(converted_data)
+        # Separate duplicate timestamps to prevent interpolation
+        separated_data = separate_duplicate_timestamps(points[:, 0], points[:, 1] * factor)
         return ExtractedData(separated_data, base_unit)
 
     # Convert single value
