@@ -390,16 +390,15 @@ class Network:
         The continuous solution is unchanged and the duals become valid.
         The original bounds are restored before the next solve.
         """
-        if not len(cols):
-            return
-        h = self._solver
-        _, _, _, lower, upper, _ = h.getCols(len(cols), cols)
-        values = np.round(np.asarray(h.allVariableValues(), dtype=np.float64)[cols])
-        h.changeColsIntegrality(len(cols), cols, np.full(len(cols), HighsVarType.kContinuous))
-        h.changeColsBounds(len(cols), cols, values, values)
-        self._fixed_integers = (cols, np.asarray(lower), np.asarray(upper))
-        h.run()
-        _ensure_optimal(h)
+        if len(cols):
+            h = self._solver
+            _, _, _, lower, upper, _ = h.getCols(len(cols), cols)
+            values = np.round(np.asarray(h.allVariableValues(), dtype=np.float64)[cols])
+            h.changeColsIntegrality(len(cols), cols, np.full(len(cols), HighsVarType.kContinuous))
+            h.changeColsBounds(len(cols), cols, values, values)
+            self._fixed_integers = (cols, np.asarray(lower), np.asarray(upper))
+            h.run()
+            _ensure_optimal(h)
 
     def _solve_lex(
         self,
