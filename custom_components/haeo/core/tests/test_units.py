@@ -66,7 +66,7 @@ def test_base_unit_for_device_class(device_class: DeviceClass | None, expected: 
         (100.0, None, DeviceClass.POWER, 100.0),
     ],
 )
-def test_convert_value(
+def test_scale_factor(
     value: float,
     unit: UnitOfMeasurement | None,
     device_class: DeviceClass | None,

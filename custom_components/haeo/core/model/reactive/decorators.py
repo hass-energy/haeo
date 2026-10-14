@@ -4,12 +4,9 @@ from collections.abc import Callable
 from functools import partial
 from typing import TypeVar, overload
 
-from highspy import Highs
-from highspy.highs import highs_cons, highs_linear_expression
-import numpy as np
-
+from custom_components.haeo.core.model.linear import Rows
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
-from custom_components.haeo.core.model.util.solver_rows import add_row, add_rows, is_free_row, update_row
+from custom_components.haeo.core.model.util.solver_rows import RowIndices, add_rows, update_rows
 
 from .protocols import ReactiveHost
 from .tracked_param import (
@@ -102,8 +99,8 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             capacity = TrackedParam[NDArray[np.float64]]()
 
             @constraint(output=True, unit="$/kWh")
-            def battery_soc_max(self) -> list[highs_linear_expression]:
-                return [self.stored_energy[i] <= self.capacity[i] for i in ...]
+            def battery_soc_max(self) -> Rows:
+                return self.stored_energy[1:] <= self.capacity[1:]
 
     """
 
@@ -141,9 +138,8 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
             return None
 
         # Extract shadow prices from the constraint using the solver
-        solver: Highs = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
-        arr = np.asarray(cons, dtype=object)
-        values = tuple(solver.constrDuals(arr).flat)
+        duals = obj._solver.row_duals()  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
+        values = tuple(duals[cons].tolist())
 
         return OutputData(
             type=OutputType.SHADOW_PRICE,
@@ -162,76 +158,46 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         if not state["invalidated"]:
             return state["result"]  # type: ignore[return-value]
 
-        expr = self._compute(obj, state)
-        if not isinstance(expr, highs_linear_expression | list):
+        result = self._compute(obj, state)
+        if not isinstance(result, Rows):
             state["invalidated"] = True
             msg = (
-                f"Constraint {self._name} returned {type(expr).__name__}; return its rows, using free rows for "
-                "parts that do not apply, or an empty list for a constraint with no rows"
+                f"Constraint {self._name} returned {type(result).__name__}; return its rows, using free rows for "
+                "parts that do not apply"
             )
             raise TypeError(msg)
-        rows: _RowExpressions = expr
-        solver: Highs = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
+        solver = obj._solver  # noqa: SLF001 (tightly coupled reactive infrastructure requires solver access) # pyright: ignore[reportPrivateUsage]
 
         # Rows are only recorded as applied once the solver has them, so a failed
         # write is retried on the next call instead of being cached as applied.
         try:
             if "constraint" in state and "applied" in state:
-                _write_rows(solver, self._name, state["constraint"], state["applied"], rows)
+                existing = state["constraint"]
+                if len(result) != len(existing):
+                    msg = (
+                        f"Constraint {self._name} returned {len(result)} rows after {len(existing)}; "
+                        "return free rows for parts that do not apply so the row count stays the same"
+                    )
+                    raise ValueError(msg)
+                state["applied"] = update_rows(solver, existing, state["applied"], result)
             else:
-                state["constraint"] = add_rows(solver, rows) if isinstance(rows, list) else add_row(solver, rows)
+                state["constraint"], state["applied"] = add_rows(solver, result)
         except Exception:
             state["invalidated"] = True
             raise
 
-        state["applied"] = rows
-        state["result"] = rows
-        return expr
+        state["result"] = result
+        return result
 
 
-type _RowExpressions = highs_linear_expression | list[highs_linear_expression]
-
-
-def _write_rows(
-    solver: Highs,
-    name: str,
-    existing: highs_cons | list[highs_cons],
-    applied: _RowExpressions,
-    expr: _RowExpressions,
-) -> None:
-    """Update a constraint's existing rows from the expressions they hold to ``expr``.
-
-    A constraint returns the same rows on every call, marking rows that do not
-    currently apply as free, so the LP keeps its shape for warm starts.
-    """
-    if isinstance(existing, list) != isinstance(expr, list):
-        msg = f"Constraint {name} switched between a single row and a list of rows; return the same shape on every call"
-        raise ValueError(msg)
-    existing_rows = existing if isinstance(existing, list) else [existing]
-    applied_rows = applied if isinstance(applied, list) else [applied]
-    new_rows = expr if isinstance(expr, list) else [expr]
-    if len(new_rows) != len(existing_rows):
-        msg = (
-            f"Constraint {name} returned {len(new_rows)} rows after {len(existing_rows)}; "
-            "return free rows for parts that do not apply so the row count stays the same"
-        )
-        raise ValueError(msg)
-    for cons, old, new in zip(existing_rows, applied_rows, new_rows, strict=True):
-        update_row(solver, cons, old, new)
-
-
-def applied_constraint(obj: "ReactiveHost", name: str) -> "highs_cons | list[highs_cons] | None":
-    """Return a constraint's rows if any of them currently binds, otherwise None.
+def applied_constraint(obj: "ReactiveHost", name: str) -> RowIndices | None:
+    """Return a constraint's row indices if any of them currently binds, otherwise None.
 
     A constraint whose rows are all free is in the LP but does not apply, so it has
     no shadow price and is not listed as a constraint.
     """
     state = getattr(obj, f"_reactive_state_{name}", None)
-    if state is None or "constraint" not in state:
-        return None
-    applied = state["applied"]
-    rows = applied if isinstance(applied, list) else [applied]
-    if all(is_free_row(row) for row in rows):
+    if state is None or "constraint" not in state or state["applied"].is_free:
         return None
     return state["constraint"]
 

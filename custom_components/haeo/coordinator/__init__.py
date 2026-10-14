@@ -11,6 +11,7 @@ from .coordinator import (
     _build_coordinator_output,  # pyright: ignore[reportPrivateUsage] (exported for testing)
     _build_optimization_context,  # pyright: ignore[reportPrivateUsage] (exported for testing)
     detect_currency_symbol,
+    forecast_datetimes,
 )
 from .network import ElementUpdater, create_network, evaluate_network_connectivity
 
@@ -27,4 +28,5 @@ __all__ = [
     "create_network",
     "detect_currency_symbol",
     "evaluate_network_connectivity",
+    "forecast_datetimes",
 ]

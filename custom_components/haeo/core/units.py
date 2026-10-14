@@ -218,23 +218,36 @@ def _base_factor(unit: UnitOfMeasurement | None, device_class: DeviceClass | Non
     return _TO_BASE_FACTORS[device_class].get(unit)
 
 
+def base_unit_conversion(
+    unit: str | UnitOfMeasurement | None,
+    device_class: str | DeviceClass | None,
+) -> tuple[float, UnitOfMeasurement | str | None, DeviceClass | None]:
+    """Return the scale factor to the base unit, the base unit, and the parsed device class.
+
+    Conversion to base units is a pure scaling, so a series of values sharing a
+    unit converts by multiplying every value by the one factor. A unit with no
+    conversion to the base unit, such as the reciprocal km/kWh for energy per
+    distance, keeps its own unit and a factor of 1 so selectors filter it out.
+    """
+    parsed_unit = UnitOfMeasurement.of(unit)
+    parsed_device_class = DeviceClass.of(device_class)
+    effective_device_class = parsed_device_class or _infer_device_class_from_unit(parsed_unit)
+
+    if unit is None:
+        return 1.0, base_unit_for_device_class(effective_device_class), parsed_device_class
+
+    factor = _base_factor(parsed_unit, effective_device_class)
+    if factor is None:
+        return 1.0, parsed_unit or unit, parsed_device_class
+
+    return factor, base_unit_for_device_class(effective_device_class), parsed_device_class
+
+
 def convert_to_base_unit(
     value: float,
     unit: str | UnitOfMeasurement | None,
     device_class: str | DeviceClass | None,
 ) -> tuple[float, UnitOfMeasurement | str | None, DeviceClass | None]:
     """Convert value to base unit, parsing string unit/device_class if needed."""
-    parsed_unit = UnitOfMeasurement.of(unit)
-    parsed_device_class = DeviceClass.of(device_class)
-    effective_device_class = parsed_device_class or _infer_device_class_from_unit(parsed_unit)
-
-    if unit is None:
-        return value, base_unit_for_device_class(effective_device_class), parsed_device_class
-
-    # A unit with no conversion to the base unit, such as the reciprocal km/kWh
-    # for energy per distance, keeps its own unit so selectors filter it out.
-    factor = _base_factor(parsed_unit, effective_device_class)
-    if factor is None:
-        return value, parsed_unit or unit, parsed_device_class
-
-    return value * factor, base_unit_for_device_class(effective_device_class), parsed_device_class
+    factor, base_unit, parsed_device_class = base_unit_conversion(unit, device_class)
+    return value * factor, base_unit, parsed_device_class

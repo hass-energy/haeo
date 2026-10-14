@@ -1,16 +1,17 @@
 """Pytest fixtures for model tests."""
 
-from highspy import Highs
 import pytest
+
+from custom_components.haeo.core.model.solver import Solver
 
 
 @pytest.fixture
-def solver() -> Highs:
+def solver() -> Solver:
     """Provide a HiGHS solver instance for testing.
 
     The solver is configured to suppress console output.
     """
-    h = Highs()
+    h = Solver()
     h.setOptionValue("output_flag", False)
     h.setOptionValue("log_to_console", False)
     return h

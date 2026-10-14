@@ -10,8 +10,6 @@ segment parameters.
 """
 
 from collections import OrderedDict
-from functools import reduce
-import operator
 from typing import (
     Any,  # noqa: TID251  # source_element/target_element are the network's connection endpoints,
     # which can be any concrete NetworkElement subtype (Battery, Node, ...). Element is invariant
@@ -23,15 +21,16 @@ from typing import (
     TypedDict,
 )
 
-from highspy import Highs
-from highspy.highs import HighspyArray, highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.linear import LinearArray, total
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import output
+from custom_components.haeo.core.model.solver import Solver
+from custom_components.haeo.core.model.util.solver_rows import RowIndices
 
 from .segments import FlowProvider, FlowVariables, PowerLimitSegment, Segment, SegmentSpec, create_segment
 
@@ -78,7 +77,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         name: str,
         periods: NDArray[np.float64],
         *,
-        solver: Highs,
+        solver: Solver,
         source: str,
         target: str,
         is_external: bool = False,
@@ -110,7 +109,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._segments: OrderedDict[str, Segment] = OrderedDict()
 
         self._tags: set[int] = set(tags)
-        self._power_in: dict[int, HighspyArray] = {}
+        self._power_in: dict[int, LinearArray] = {}
 
     @property
     def segments(self) -> OrderedDict[str, Segment]:
@@ -146,12 +145,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
     def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
         # Create per-tag LP variables
         self._power_in = {
-            tag: self._solver.addVariables(
-                self.n_periods,
-                lb=0,
-                name_prefix=f"{self.name}_t{tag}_",
-                out_array=True,
-            )
+            tag: self._solver.add_variables(self.n_periods, name=f"{self.name}.power_in_tag{tag}")
             for tag in sorted(self._tags)
         }
 
@@ -179,27 +173,27 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._output: FlowProvider = upstream
 
     @property
-    def power_in(self) -> dict[int, HighspyArray]:
+    def power_in(self) -> dict[int, LinearArray]:
         """Per-tag power entering the connection at the source end."""
         return self._power_in
 
     @property
-    def total_power_in(self) -> HighspyArray:
+    def total_power_in(self) -> LinearArray:
         """Total power entering the connection (sum of all tags)."""
-        return reduce(operator.add, self._power_in.values())
+        return LinearArray.sum_of(self._power_in.values())
 
     @property
-    def power_out(self) -> dict[int, HighspyArray]:
+    def power_out(self) -> dict[int, LinearArray]:
         """Per-tag power exiting the connection at the target end, derived from the last segment."""
         return self._output.power_out
 
     @property
-    def total_power_out(self) -> HighspyArray:
+    def total_power_out(self) -> LinearArray:
         """Total power exiting the connection (sum of all tags)."""
-        return reduce(operator.add, self.power_out.values())
+        return LinearArray.sum_of(self.power_out.values())
 
     @property
-    def measured_power(self) -> dict[int, HighspyArray]:
+    def measured_power(self) -> dict[int, LinearArray]:
         """Per-tag power at the connection's measured point.
 
         The measured point is the flow entering the power limit segment, so the
@@ -211,26 +205,26 @@ class Connection[TOutputName: str](Element[TOutputName]):
         return self._measured.power_out
 
     @property
-    def total_measured_power(self) -> HighspyArray:
+    def total_measured_power(self) -> LinearArray:
         """Total power at the measured point (sum of all tags)."""
-        return reduce(operator.add, self.measured_power.values())
+        return LinearArray.sum_of(self.measured_power.values())
 
     def connection_tags(self) -> set[int]:
         """Return the set of tags on this connection."""
         return self._tags
 
-    def power_into_source_for_tag(self, tag: int) -> HighspyArray:
+    def power_into_source_for_tag(self, tag: int) -> LinearArray:
         """Power flowing into the source node for a specific tag."""
         return -self._power_in[tag]
 
-    def power_into_target_for_tag(self, tag: int) -> HighspyArray:
+    def power_into_target_for_tag(self, tag: int) -> LinearArray:
         """Power flowing into the target node for a specific tag."""
         return self.power_out[tag]
 
     # --- Node power balance interface ---
 
     @property
-    def power_into_source(self) -> HighspyArray:
+    def power_into_source(self) -> LinearArray:
         """Power flowing into the source node from this connection.
 
         For unidirectional connections, the source node loses power_in
@@ -239,7 +233,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
         return -self.total_power_in
 
     @property
-    def power_into_target(self) -> HighspyArray:
+    def power_into_target(self) -> LinearArray:
         """Power flowing into the target node from this connection.
 
         For unidirectional connections, the target node gains power_out
@@ -247,9 +241,9 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """
         return self.total_power_out
 
-    def constraints(self) -> dict[str, highs_cons | list[highs_cons]]:
+    def constraints(self) -> dict[str, RowIndices]:
         """Collect constraints from all segments."""
-        result: dict[str, highs_cons | list[highs_cons]] = {}
+        result: dict[str, RowIndices] = {}
         for segment in self._segments.values():
             for name, cons in segment.constraints().items():
                 result[f"{segment.segment_id}_{name}"] = cons
@@ -257,27 +251,19 @@ class Connection[TOutputName: str](Element[TOutputName]):
         result.update(own_constraints)
         return result
 
-    def cost(self) -> tuple[highs_linear_expression | None, highs_linear_expression]:  # type: ignore[override]
+    def cost(self) -> tuple[LinearArray | None, LinearArray]:  # type: ignore[override]
         """Return (primary_cost, secondary_cost) for this connection.
 
         Primary: segment costs.
         Secondary: time-preference objective for deterministic ordering.
         """
-        primary_costs: list[highs_linear_expression] = [
-            sc for seg in self._segments.values() if (sc := seg.cost()) is not None
-        ]
-
-        primary = None
-        if primary_costs:
-            primary = primary_costs[0] if len(primary_costs) == 1 else Highs.qsum(primary_costs)
+        primary = total([seg.cost() for seg in self._segments.values()])
 
         # Time-preference objective: prefer earlier energy transfer
         n = self.n_periods
         weights = self.priority * n + np.arange(1, n + 1, dtype=np.float64)
-        secondary = Highs.qsum(self.total_measured_power * self.periods * weights)
+        secondary = (self.total_measured_power * self.periods * weights).total()
 
-        if primary is None:
-            return (None, secondary)
         return (primary, secondary)
 
     # --- Output methods ---
