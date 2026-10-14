@@ -225,7 +225,8 @@ class Battery(NetworkElement[BatteryOutputName]):
             return Rows.concat([])
         mask = self._boundaries(self.reserve_mask)[1:]
         level = self._boundaries(self.reserve_level)[1:]
-        return self.reserve_shortfall[1:] >= mask * level - mask * self.stored_energy[1:]
+        # Written as an upper bound to keep the row's sign, and so its shadow price, as before
+        return mask * level - mask * self.stored_energy[1:] <= self.reserve_shortfall[1:]
 
     @constraint
     def battery_reserve_shortfall_limit(self) -> Rows:
