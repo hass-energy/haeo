@@ -968,3 +968,54 @@ def test_tie_break_perturbation_is_stable_and_distinct() -> None:
     assert np.all((long >= 0.0) & (long < 1.0))
     np.testing.assert_array_equal(long[:4], short)
     assert not np.array_equal(tie_break_perturbation(4, 4), short)
+
+
+def test_lex_phase_two_loosens_an_infeasible_cost_bound(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When rounding makes the cost bound infeasible, phase 2 retries with a larger slack (#531)."""
+    # A negative first slack bounds the cost below its optimum, which no plan can meet
+    monkeypatch.setattr(network_module, "_LEX_COST_SLACKS", (-1.0, 1e-6))
+    network = _build_priced_network(LexOptions())
+
+    assert np.isfinite(network.optimize())
+
+
+def test_blended_solve_lowers_a_weight_that_trades_away_cost() -> None:
+    """A blend weight large enough to let the secondary override cost is lowered until the plan is cost-optimal.
+
+    The secondary prefers source "a" by sort order, but "b" is cheaper, so an
+    oversized weight would supply the load from "a".
+    """
+    network = Network(name="test", periods=np.array([1.0, 1.0]), options=CalibratedOptions())
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "a", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "b", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "hub", "is_source": False, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "load", "is_source": False, "is_sink": True})
+    for source, price in (("a", 0.30), ("b", 0.10)):
+        network.add(
+            {
+                "element_type": ELEMENT_TYPE_CONNECTION,
+                "name": f"{source}_supply",
+                "source": source,
+                "target": "hub",
+                "tags": {1},
+                "segments": {"pricing": {"segment_type": "pricing", "price": np.full(2, price)}},
+            }
+        )
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "demand",
+            "source": "hub",
+            "target": "load",
+            "tags": {1},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": np.full(2, 1.0), "fixed": True}},
+        }
+    )
+    network.optimize()
+    network._calibrated_weight = 1e3
+
+    cost = network.optimize()
+
+    assert cost == pytest.approx(0.2)
+    assert network.elements["b_supply"].outputs()["connection_power"].values == pytest.approx((1.0, 1.0))
+    assert network._calibrated_weight < 1e3

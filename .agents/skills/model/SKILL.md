@@ -98,10 +98,19 @@ The period update and warm start tests are the ones that notice.
 ## Optimization
 
 `Network.optimize()` runs a calibrated scheme: a lexicographic solve first (minimize cost, then minimize a time-preference secondary objective to break ties deterministically), then a calibrated blend weight, then single blended solves.
-This exists so repeated solves warm-start cleanly and still produce meaningful shadow prices.
+This exists so repeated solves warm-start cleanly and shadow prices come from the same basis as the plan.
 Degenerate LPs have many optimal solutions; the secondary objective is what stops sensor values jittering between equally optimal plans.
 
+- The plan must match the lexicographic optimum; shadow prices may differ between formulations, since which binding constraint carries a dual is not controllable.
+
+- Every blended plan is checked for cost optimality at its basis with a zero-iteration solve, and the weight is lowered when it fails.
+    Do not remove the check to save time: without it a stale calibrated weight silently trades cost for tie-breaking.
+
+- The time-preference weights must not be a sum of a connection term and a time term alone, or swaps between connections across periods tie exactly.
+    The perturbation in `tie_break_perturbation` prevents that.
+
 - Catch optimization failures gracefully and return appropriate status indicators.
+
 - Log solver diagnostics at debug level.
 
 ## Policy compilation

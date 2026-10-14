@@ -85,14 +85,23 @@ The network minimizes total cost (the primary objective).
 
 **Phase 2: Minimize secondary objective**
 
-The primary objective is constrained to equal its optimal value, and the solver minimizes the secondary time-preference objective.
+The primary objective is constrained to its optimal value, and the solver minimizes the secondary time-preference objective.
 This breaks ties among cost-equivalent solutions by preferring earlier energy transfers.
+The constraint allows a slack of $10^{-9}$ of the cost, loosened to $10^{-6}$ only if rounding makes the tighter bound infeasible.
 
 **Calibration (default mode)**
 
 After the first lexicographic solve, a binary search finds the largest blend weight that preserves primary cost optimality.
 A larger weight gives the secondary objective more influence, producing better tie-breaking in degenerate regions.
-Subsequent optimizations use this blended objective (`primary + weight * secondary`) in a single solve, which warm-starts efficiently.
+Every optimization, including the first, then uses this blended objective (`primary + weight * secondary`) in a single solve, which warm-starts efficiently.
+
+A weight calibrated on one solve can be too large for later inputs, letting the secondary trade away cost.
+After each blended solve, the primary objective is priced at the plan's basis without any simplex iterations.
+If any reduced cost is negative, the plan is not cost-optimal: the weight is lowered tenfold, kept for later solves, and the blended solve repeated from the same basis.
+This check leaves the primary objective's dual values at the plan's basis, so shadow prices are pure cost sensitivities of the plan the solver chose.
+
+The secondary's reduced costs are scaled by the small blend weight, so the solver runs with feasibility tolerances of $10^{-9}$ rather than the HiGHS default of $10^{-7}$.
+At the default, tie-breaking differences can fall below the tolerance and leave equally cheap plans unresolved.
 
 A full three-phase lexicographic mode is also available (`mode="lex"`) that adds a Phase 3 re-minimization of the primary with the secondary constrained.
 This restores dual values (shadow prices) that reflect pure primary-cost sensitivities, at the cost of an additional solve per optimization.
@@ -248,7 +257,7 @@ $$
 
 Where $p$ is the connection's priority, $w_{p,t} = p \cdot T + (t + 1) + \tfrac{1}{2} u_{p,t}$ assigns monotonically increasing weights by connection and time step, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
 Each connection has its own priority, so connections receive non-overlapping weight ranges.
-The small fixed perturbation $u_{p,t} \in [0, 1)$ makes the choice between equally cheap plans independent of the order of the solver's rows.
+The small fixed perturbation $u_{p,t} \in [0, 1)$, the fractional part of the square root of a distinct prime per connection and period, makes the choice between equally cheap plans independent of the order of the solver's rows.
 See [connection](model-layer/connections/connection.md) for why it is needed.
 
 The secondary objective does not affect the optimal cost.

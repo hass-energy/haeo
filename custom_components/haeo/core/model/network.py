@@ -43,6 +43,18 @@ _CAL_MAX_STEPS: Final = 40  # bisection budget for upper boundary search
 _CAL_CONVERGENCE: Final = 0.01  # stop bisection when interval < this (log10 decades)
 _CAL_MARGIN: Final = 1.0  # step back from upper boundary (log10 decades)
 
+# A blended plan is cost-optimal when no reduced cost of the cost objective at its
+# basis is negative by more than this, HiGHS's default dual feasibility tolerance.
+_COST_OPTIMALITY_TOLERANCE: Final = 1e-7
+# Factor the blend weight is lowered by when a blended plan is not cost-optimal
+_WEIGHT_REDUCTION: Final = 10.0
+# Slacks tried, smallest first, on the cost bound while the secondary is minimized,
+# relative to the cost. Rounding in the cost just found can make a tighter bound
+# infeasible, and a larger slack lets the secondary trade away more cost.
+_LEX_COST_SLACKS: Final = (1e-9, 1e-6)
+# HiGHS's default simplex iteration limit, restored after the optimality check
+_UNLIMITED_ITERATIONS: Final = 2**31 - 1
+
 
 @dataclass(frozen=True, kw_only=True)
 class _SolverBase:
@@ -62,10 +74,15 @@ class SimplexTuning(_SolverBase):
 
     simplex_strategy: 1=dual, 4=primal. Primal is ~25-30% faster on cold starts.
     simplex_scale_strategy: 0=off, 1=basic, 2=equilibration, 3=forced.
+    feasibility_tolerance: primal and dual feasibility tolerance. Blended solves
+    weight the secondary objective small enough to keep the cost exact, so the
+    secondary's reduced costs must still register against this tolerance; at the
+    HiGHS default of 1e-7 they can fall below it and leave ties unresolved.
     """
 
     simplex_strategy: int = 4
     simplex_scale_strategy: int = 0
+    feasibility_tolerance: float = 1e-9
 
     def apply(self, h: Highs) -> None:
         """Apply simplex-specific options."""
@@ -73,6 +90,8 @@ class SimplexTuning(_SolverBase):
         self._apply_common(h)
         h.setOptionValue("simplex_strategy", self.simplex_strategy)
         h.setOptionValue("simplex_scale_strategy", self.simplex_scale_strategy)
+        h.setOptionValue("primal_feasibility_tolerance", self.feasibility_tolerance)
+        h.setOptionValue("dual_feasibility_tolerance", self.feasibility_tolerance)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -368,10 +387,15 @@ class Network:
         h.run()
         primary_value = _ensure_optimal(h)
 
-        # Phase 2: minimize secondary with primary constrained
-        self._constrain_objective(primary, primary_value)
+        # Phase 2: minimize secondary with primary constrained, loosening the
+        # constraint only if rounding makes it infeasible
         _set_cost_vector(h, all_col_indices, cost_vectors[1])
-        h.run()
+        slacks = iter(_LEX_COST_SLACKS)
+        solved = False
+        while not solved and (slack := next(slacks, None)) is not None:
+            self._constrain_objective(primary, primary_value + slack * max(1.0, abs(primary_value)))
+            h.run()
+            solved = h.getModelStatus() == HighsModelStatus.kOptimal
         secondary_value = _ensure_optimal(h)
 
         if isinstance(self.options, LexOptions):
@@ -382,15 +406,16 @@ class Network:
             h.run()
             _ensure_optimal(h)
 
-        # Calibrate blend weight for future calls
+        # Calibrate the blend weight, then solve with it as every later call does
         if isinstance(self.options, CalibratedOptions):
             lex_values = np.asarray(h.allVariableValues())
-            self._calibrated_weight = self._calibrate_blend_weight(
+            weight = self._calibrate_blend_weight(
                 all_col_indices,
                 cost_vectors,
                 lex_values,
                 self.options.calibration_tolerance,
             )
+            return self._solve_blended(h, all_col_indices, cost_vectors, weight)
 
         return primary_value
 
@@ -401,14 +426,26 @@ class Network:
         cost_vectors: list[NDArray[np.float64]],
         weight: float,
     ) -> float:
-        """Single-solve weighted sum: primary + weight * secondary."""
+        """Solve the weighted sum primary + weight * secondary, lowering the weight until the plan is cost-optimal.
+
+        A weight calibrated on one solve can be too large for later inputs, letting
+        the secondary trade away cost. Each plan is checked at its own basis, and the
+        weight is lowered and the solve repeated, warm, until the check passes. The
+        lowered weight is kept for later calls.
+
+        The check leaves the cost objective's row duals at the plan's basis, so
+        shadow prices are cost duals of the plan the solve chose.
+        """
         h.clearLinearObjectives()
         self._relax_lex_constraint()
-        blended = cost_vectors[0] + weight * cost_vectors[1]
-        _set_cost_vector(h, all_col_indices, blended)
-        h.run()
-        _ensure_optimal(h)
-        return float(cost_vectors[0] @ np.asarray(h.allVariableValues()))
+        plan_cost = _run_blended(h, all_col_indices, cost_vectors, weight)
+        while not _is_cost_optimal(h, all_col_indices, cost_vectors[0]) and weight > 10.0**_CAL_LOG_LO:
+            weight /= _WEIGHT_REDUCTION
+            _LOGGER.debug("Blended plan was not cost-optimal; lowering the blend weight to %.2e", weight)
+            plan_cost = _run_blended(h, all_col_indices, cost_vectors, weight)
+        if isinstance(self.options, CalibratedOptions):
+            self._calibrated_weight = weight
+        return plan_cost
 
     def _calibrate_blend_weight(
         self,
@@ -488,13 +525,6 @@ class Network:
             weight_log,
             upper,
         )
-
-        # Final solve at chosen weight to warm-start future blended calls.
-        self._relax_lex_constraint()
-        blended = cost_vectors[0] + weight * cost_vectors[1]
-        _set_cost_vector(h, all_col_indices, blended)
-        h.run()
-        _ensure_optimal(h)
 
         return weight
 
@@ -582,6 +612,35 @@ def _set_cost_vector(
     """
     solver.changeColsCost(len(col_indices), col_indices, costs)
     solver.changeObjectiveOffset(0.0)
+
+
+def _run_blended(
+    solver: Highs,
+    col_indices: NDArray[np.int32],
+    cost_vectors: list[NDArray[np.float64]],
+    weight: float,
+) -> float:
+    """Solve primary + weight * secondary and return the plan's primary cost."""
+    _set_cost_vector(solver, col_indices, cost_vectors[0] + weight * cost_vectors[1])
+    solver.run()
+    _ensure_optimal(solver)
+    return float(cost_vectors[0] @ np.asarray(solver.allVariableValues()))
+
+
+def _is_cost_optimal(solver: Highs, col_indices: NDArray[np.int32], costs: NDArray[np.float64]) -> bool:
+    """Return whether the current plan minimizes the cost objective, without moving it.
+
+    The cost objective is solved with no simplex iterations allowed, so HiGHS only
+    prices the current basis. The plan is cost-optimal when no reduced cost is
+    negative beyond the tolerance.
+    """
+    _set_cost_vector(solver, col_indices, costs)
+    solver.setOptionValue("simplex_iteration_limit", 0)
+    try:
+        solver.run()
+    finally:
+        solver.setOptionValue("simplex_iteration_limit", _UNLIMITED_ITERATIONS)
+    return solver.getInfo().max_dual_infeasibility <= _COST_OPTIMALITY_TOLERANCE
 
 
 def _ensure_optimal(solver: Highs) -> float:
