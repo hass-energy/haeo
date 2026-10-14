@@ -98,7 +98,7 @@ $$
 
 Where $p$ is the connection's priority, $T$ is the number of periods, and $t$ is the time step.
 Each connection's priority is its position when connections are sorted: its own power before external power, time-sensitive before invariant, then by source, target, and name.
-$u_{p,t}$ is a fixed pseudo-random value in $[0, 1)$, seeded by the priority.
+$u_{p,t}$ is a fixed value in $[0, 1)$: the fractional part of $\sqrt{q_{p,t}}$, where $q_{p,t}$ is a distinct prime for each connection and period.
 The time-preference objective for a connection with priority $p$ is:
 
 $$
@@ -110,7 +110,9 @@ Distinct weights differ by at least one, so the perturbation $\tfrac{1}{2} u_{p,
 It exists because $p \cdot T + (t + 1)$ alone is a connection term plus a time term:
 moving energy from one period to another on one connection, and back on a second connection, would leave it unchanged.
 Equally cheap plans that differ by such swaps, such as two identical batteries sharing a load, would then be chosen by the order of the solver's rows.
-The perturbation gives every swap a cost, so the same plan is chosen whatever the row order.
+Square roots of distinct primes are linearly independent over the rationals, so no exchange of energy between connections and periods can leave the perturbation unchanged.
+This gives every swap a cost, and the same plan is chosen whatever the row order.
+Multiples of a single irrational, such as the golden ratio, are not enough: their fractional parts can cancel exactly.
 
 The secondary objective does not affect the minimum cost—it only selects among cost-equivalent solutions.
 The network solves this lexicographically: primary cost is minimized first, then the secondary objective is minimized subject to the primary remaining optimal.

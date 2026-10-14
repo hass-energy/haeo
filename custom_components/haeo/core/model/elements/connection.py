@@ -10,7 +10,7 @@ segment parameters.
 """
 
 from collections import OrderedDict
-from functools import cache
+from math import isqrt
 from typing import (
     Any,  # noqa: TID251  # source_element/target_element are the network's connection endpoints,
     # which can be any concrete NetworkElement subtype (Battery, Node, ...). Element is invariant
@@ -54,23 +54,55 @@ CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset((CON
 TIE_BREAK_SCALE: Final = 0.5
 
 
-@cache
+class _Primes:
+    """The primes in order, extended as more are needed."""
+
+    def __init__(self) -> None:
+        self._primes = np.array([2, 3, 5, 7, 11, 13], dtype=np.int64)
+
+    def first(self, count: int) -> NDArray[np.int64]:
+        """Return the first ``count`` primes."""
+        limit = 2 * int(self._primes[-1])
+        while len(self._primes) < count:
+            limit *= 2
+            sieve = np.ones(limit, dtype=bool)
+            sieve[:2] = False
+            for factor in range(2, isqrt(limit) + 1):
+                if sieve[factor]:
+                    sieve[factor * factor :: factor] = False
+            self._primes = np.flatnonzero(sieve)
+        return self._primes[:count]
+
+
+_PRIMES = _Primes()
+
+
 def tie_break_perturbation(priority: int, n_periods: int) -> NDArray[np.float64]:
-    """Return fixed pseudo-random values in [0, 1) for each period of a connection.
+    """Return a fixed value in [0, 1) for each period of a connection.
 
     The time-preference weight is a connection term plus a period term, so moving
     energy between two connections in opposite directions across two periods leaves
     it unchanged, and equally cheap plans that differ only by such swaps would be
-    chosen by the order of the solver's rows. A perturbation drawn independently for
-    each connection and period gives every such swap a cost, so one plan is preferred
-    regardless of row order. The values are seeded by the connection's priority, and
-    a longer horizon only appends values, so each period keeps its value as the
-    horizon changes.
+    chosen by the order of the solver's rows. Adding a value that no combination of
+    other values can cancel gives every such exchange a cost, so one plan is
+    preferred regardless of row order.
+
+    Each connection and period has its own prime, and its value is the fractional
+    part of that prime's square root. Square roots of distinct primes are linearly
+    independent over the rationals, together with one, so no weighted sum of these
+    values with rational weights is zero unless every weight is. A single irrational
+    such as the golden ratio is not enough: every fractional part of a multiple of
+    it is a whole number plus a multiple of the same irrational, so sums of them can
+    cancel exactly.
+
+    The prime is chosen by the Cantor pairing of priority and period, which does not
+    depend on the horizon length, so each period keeps its value as the horizon
+    changes.
     """
-    values = np.random.default_rng(priority).random(n_periods)
-    # Shared between calls through the cache, so callers must not modify it
-    values.flags.writeable = False
-    return values
+    period = np.arange(n_periods, dtype=np.int64)
+    index = (priority + period) * (priority + period + 1) // 2 + period
+    primes = _PRIMES.first(int(index.max(initial=0)) + 1)
+    return np.mod(np.sqrt(primes[index].astype(np.float64)), 1.0)
 
 
 class ConnectionElementConfig(TypedDict):
