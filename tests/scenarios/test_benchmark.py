@@ -29,7 +29,7 @@ from custom_components.haeo.core.adapters.policy_compilation import compile_poli
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
-from custom_components.haeo.core.model.network import CalibratedOptions, LexOptions, Network, SolveOptions
+from custom_components.haeo.core.model.network import Network
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.policy import is_policy_config_data
 from custom_components.haeo.core.state import EntityState
@@ -116,7 +116,6 @@ def _build_network(
     config: dict[str, JsonValueType],
     sm: _ScenarioStateMachine,
     frozen_dt: datetime,
-    options: SolveOptions | None = None,
 ) -> tuple[Network, dict[str, ElementUpdater]]:
     """Build a Network from scenario data without Home Assistant."""
     participants = _participants_from_config(config)
@@ -126,10 +125,7 @@ def _build_network(
 
     loaded_configs = load_element_configs(participants, sm, forecast_times)
 
-    if options is None:
-        network = Network(name="benchmark", periods=periods_hours)
-    else:
-        network = Network(name="benchmark", periods=periods_hours, options=options)
+    network = Network(name="benchmark", periods=periods_hours)
 
     sorted_model_elements = collect_model_elements(loaded_configs)
 
@@ -206,12 +202,6 @@ _scenarios = _discover_scenarios()
 # ---------------------------------------------------------------------------
 
 
-_MODES: list[SolveOptions] = [
-    CalibratedOptions(),
-    LexOptions(),
-]
-
-
 _benchmark_params = [
     pytest.mark.benchmark,
     pytest.mark.timeout(120),
@@ -221,7 +211,6 @@ _benchmark_params = [
         ids=[s.name for s in _scenarios],
         indirect=["scenario_path"],
     ),
-    pytest.mark.parametrize("options", _MODES, ids=[m.mode for m in _MODES]),
 ]
 
 
@@ -232,14 +221,14 @@ def _apply_marks[F: Callable[..., None]](fn: F) -> F:
 
 
 @_apply_marks
-def test_cold_start(scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
+def test_cold_start(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
     """Build network from scratch and optimize."""
     config, inputs, freeze_timestamp = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
 
     def run() -> float:
-        net, _ = _build_network(config, sm, frozen_dt, options=options)
+        net, _ = _build_network(config, sm, frozen_dt)
         return net.optimize()
 
     result = benchmark(run)
@@ -247,14 +236,14 @@ def test_cold_start(scenario_path: Path, options: SolveOptions, benchmark: Bench
 
 
 @_apply_marks
-def test_update_all(scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
+def test_update_all(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
     """Update all element parameters and re-optimize."""
     config, inputs, freeze_timestamp = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
 
     loaded_configs = _load_configs(config, sm, frozen_dt)
-    network, updaters = _build_network(config, sm, frozen_dt, options=options)
+    network, updaters = _build_network(config, sm, frozen_dt)
     network.optimize()  # prime
 
     def run() -> float:
@@ -269,7 +258,7 @@ def test_update_all(scenario_path: Path, options: SolveOptions, benchmark: Bench
 
 
 @_apply_marks
-def test_time_shift(scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
+def test_time_shift(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
     """Roll the horizon forward one tick and re-optimize, as each optimization cycle does.
 
     Rounds alternate between the original and the shifted horizon, so every round
@@ -285,7 +274,7 @@ def test_time_shift(scenario_path: Path, options: SolveOptions, benchmark: Bench
         _load_shifted_horizon(config, sm, frozen_dt, periods_seconds[0]),
     ]
 
-    network, updaters = _build_network(config, sm, frozen_dt, options=options)
+    network, updaters = _build_network(config, sm, frozen_dt)
     network.optimize()  # prime
     rounds = itertools.count(1)
 
@@ -303,13 +292,13 @@ def test_time_shift(scenario_path: Path, options: SolveOptions, benchmark: Bench
 
 
 @_apply_marks
-def test_warm_reentrant(scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
+def test_warm_reentrant(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
     """Re-optimize with no parameter changes (warm start)."""
     config, inputs, freeze_timestamp = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
 
-    network, _ = _build_network(config, sm, frozen_dt, options=options)
+    network, _ = _build_network(config, sm, frozen_dt)
     network.optimize()  # prime
 
     result = benchmark(network.optimize)

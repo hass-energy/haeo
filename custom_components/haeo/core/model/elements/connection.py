@@ -10,6 +10,7 @@ segment parameters.
 """
 
 from collections import OrderedDict
+from math import isqrt
 from typing import (
     Any,  # noqa: TID251  # source_element/target_element are the network's connection endpoints,
     # which can be any concrete NetworkElement subtype (Battery, Node, ...). Element is invariant
@@ -47,6 +48,61 @@ CONNECTION_POWER: Final = "connection_power"
 CONNECTION_SEGMENTS: Final = "segments"
 
 CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset((CONNECTION_POWER, CONNECTION_SEGMENTS))
+
+# Largest offset added to a time-preference weight. Distinct weights differ by at
+# least one, so an offset below half of that never reorders two of them.
+TIE_BREAK_SCALE: Final = 0.5
+
+
+class _Primes:
+    """The primes in order, extended as more are needed."""
+
+    def __init__(self) -> None:
+        self._primes = np.array([2, 3, 5, 7, 11, 13], dtype=np.int64)
+
+    def first(self, count: int) -> NDArray[np.int64]:
+        """Return the first ``count`` primes."""
+        limit = 2 * int(self._primes[-1])
+        while len(self._primes) < count:
+            limit *= 2
+            sieve = np.ones(limit, dtype=bool)
+            sieve[:2] = False
+            for factor in range(2, isqrt(limit) + 1):
+                if sieve[factor]:
+                    sieve[factor * factor :: factor] = False
+            self._primes = np.flatnonzero(sieve)
+        return self._primes[:count]
+
+
+_PRIMES = _Primes()
+
+
+def tie_break_offset(priority: int, n_periods: int) -> NDArray[np.float64]:
+    """Return a fixed value in [0, 1) for each period of a connection.
+
+    The time-preference weight is a connection term plus a period term, so moving
+    energy between two connections in opposite directions across two periods leaves
+    it unchanged, and equally cheap plans that differ only by such swaps would be
+    chosen by the order of the solver's rows. Adding a value that no combination of
+    other values can cancel gives every such exchange a cost, so one plan is
+    preferred. An exchange whose cost is smaller than the solver's tolerance is
+    still decided by the solver, so this makes exact ties impossible rather than
+    every exchange decisive.
+
+    Each connection and period has its own prime, and its value is the fractional
+    part of that prime's square root. Square roots of distinct primes are linearly
+    independent over the rationals, together with one, so no weighted sum of these
+    values with rational weights is zero unless every weight is. A single irrational
+    such as the golden ratio is not enough: every fractional part of a multiple of
+    it is a whole number plus a multiple of the same irrational, so sums of them can
+    cancel exactly.
+
+    Connection ``priority`` takes the primes from ``priority * n_periods`` on, one
+    per period, so a network uses one prime per connection and period.
+    """
+    start = priority * n_periods
+    primes = _PRIMES.first(start + n_periods)[start:]
+    return np.mod(np.sqrt(primes.astype(np.float64)), 1.0)
 
 
 class ConnectionElementConfig(TypedDict):
@@ -259,9 +315,14 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """
         primary = total([seg.cost() for seg in self._segments.values()])
 
-        # Time-preference objective: prefer earlier energy transfer
+        # Time-preference objective: prefer earlier energy transfer, offset so that
+        # equally cheap plans never tie
         n = self.n_periods
-        weights = self.priority * n + np.arange(1, n + 1, dtype=np.float64)
+        weights = (
+            self.priority * n
+            + np.arange(1, n + 1, dtype=np.float64)
+            + TIE_BREAK_SCALE * tie_break_offset(self.priority, n)
+        )
         secondary = (self.total_measured_power * self.periods * weights).total()
 
         return (primary, secondary)
@@ -312,8 +373,10 @@ __all__ = [
     "CONNECTION_POWER",
     "CONNECTION_SEGMENTS",
     "ELEMENT_TYPE",
+    "TIE_BREAK_SCALE",
     "Connection",
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
     "ConnectionOutputName",
+    "tie_break_offset",
 ]
