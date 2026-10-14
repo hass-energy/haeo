@@ -54,6 +54,31 @@ class HighsSolution:
     @property
     def dual_valid(self) -> bool: ...
 
+class HighsBasisStatus(IntEnum):
+    kLower = 0
+    kBasic = 1
+    kUpper = 2
+    kZero = 3
+    kNonbasic = 4
+
+class HighsBasis:
+    @property
+    def col_status(self) -> list[HighsBasisStatus]: ...
+    @property
+    def row_status(self) -> list[HighsBasisStatus]: ...
+    @property
+    def valid(self) -> bool: ...
+
+class HighsLp:
+    col_lower_: list[float]
+    col_upper_: list[float]
+    row_lower_: list[float]
+    row_upper_: list[float]
+
+class HighsInfo:
+    max_dual_infeasibility: float
+    simplex_iteration_count: int
+
 class Highs:
     cbLogging: HighsCallback
 
@@ -130,4 +155,8 @@ class Highs:
     def changeColBounds(self, col: int, lower: float, upper: float) -> None: ...
     def changeCoeff(self, row: int, col: int, value: float) -> None: ...
     def getInfoValue(self, info: str) -> tuple[HighsStatus, int | float]: ...
+    def getInfo(self) -> HighsInfo: ...
+    def getBasis(self) -> HighsBasis: ...
+    def getLp(self) -> HighsLp: ...
     def clearLinearObjectives(self) -> None: ...
+    def clearSolver(self) -> HighsStatus: ...
