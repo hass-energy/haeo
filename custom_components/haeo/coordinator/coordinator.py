@@ -814,6 +814,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         model_outputs=model_outputs,
                         config=loaded_configs[element_name],
                         periods=network.periods,
+                        participants=loaded_configs,
                     )
                 except KeyError:
                     _LOGGER.exception(

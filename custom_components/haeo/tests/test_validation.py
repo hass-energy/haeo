@@ -30,6 +30,7 @@ from custom_components.haeo.core.schema.elements.connection import (
 )
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
+from custom_components.haeo.core.schema.elements.reserve import ReserveConfigData
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -98,6 +99,28 @@ def test_validate_network_topology_with_implicit_connection() -> None:
 
     assert result.is_connected is True
     assert result.components == (("grid", "main"),)
+
+
+def test_validate_network_topology_ignores_reserves() -> None:
+    """A reserve reads the elements it covers without being a separate part of the network."""
+    main_node: NodeConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.NODE,
+        CONF_NAME: "main",
+        SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
+    }
+    reserve: ReserveConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.RESERVE,
+        CONF_NAME: "backup",
+        "participants": {"storage": ["main"]},
+        "requirement": {"window": 4.0, "minimum": 0.0},
+        "pricing": {"shortfall_cost": 0.1},
+    }
+    participants: dict[str, ElementConfigData] = {"main_node": main_node, "backup": reserve}
+
+    result = validate_network_topology(participants)
+
+    assert result.is_connected is True
+    assert result.components == (("main",),)
 
 
 def test_validate_network_topology_detects_disconnected() -> None:

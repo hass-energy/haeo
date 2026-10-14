@@ -619,6 +619,7 @@
       "reserve_energy_available": { "name": "Available energy" },
       "reserve_energy_required": { "name": "Required energy" },
       "reserve_energy_shortfall": { "name": "Energy shortfall" },
+      "reserve_state_of_charge": { "name": "Reserve state of charge" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
       "solar_power": { "name": "Power" }
     },

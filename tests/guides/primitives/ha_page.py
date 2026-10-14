@@ -802,16 +802,26 @@ class HAPage:
         """Select multiple options from a SelectSelector nested inside a ChooseSelector.
 
         Assumes a choice with a multi-select DROPDOWN is already active.
+        """
+        self._pick_multi(self.page.locator("ha-selector-choose").filter(has_text=field_label), field_label, options)
+
+    def select_dropdown_multi(self, field_label: str, options: list[str]) -> None:
+        """Select multiple options from a multi-select DROPDOWN SelectSelector."""
+        self._pick_multi(self.page.locator("ha-selector-select").filter(has_text=field_label), field_label, options)
+
+    def _pick_multi(self, container: Locator, field_label: str, options: list[str]) -> None:
+        """Pick each option from the multi-select picker inside a container.
+
         HA renders multi-select DROPDOWN as ``ha-generic-picker`` which opens
-        a "Select option" dialog when clicked. HA closes the dialog after
+        a "Select option" dialog when its field or add button is clicked. HA closes the dialog after
         each selection, so we re-open the picker for each option.
 
         Screenshots per option: dialog open, option indicator, result chip.
         """
-        choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
-        choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        container.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
-        picker = choose.locator("ha-picker-field")
+        # Inside a ChooseSelector the picker is a field; on its own it is an add button
+        picker = container.locator("ha-picker-field, ha-generic-picker ha-button").first
         picker.wait_for(state="attached", timeout=DEFAULT_TIMEOUT)
 
         select_dialog = self.page.get_by_role("dialog", name="Select option")

@@ -31,6 +31,15 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
 )
 from custom_components.haeo.core.schema.elements.element_type import ElementType
+from custom_components.haeo.core.schema.elements.reserve import (
+    CONF_GENERATION,
+    CONF_LOADS,
+    CONF_MINIMUM,
+    CONF_SHORTFALL_COST,
+    CONF_STORAGE,
+    CONF_WINDOW,
+    SECTION_PARTICIPANTS,
+)
 from custom_components.haeo.core.schema.sections import (
     CONF_FORECAST,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -623,6 +632,45 @@ def add_policies(
             page.close_element_dialog()
 
     _LOGGER.info("Policy rule added: %s", name)
+
+
+@guide_step
+def add_reserve(
+    page: HAPage,
+    *,
+    name: str,
+    storage: list[str],
+    window: ConstantInput,
+    loads: list[str] | None = None,
+    generation: list[str] | None = None,
+    minimum: EntityInput | ConstantInput | None = None,
+    shortfall_cost: ConstantInput | None = None,
+) -> None:
+    """Add a reserve element covering loads and generation, held by batteries."""
+    et = ElementType.RESERVE
+    _LOGGER.info("Adding Reserve: %s", name)
+
+    page.click_button(_button_label(et))
+    page.wait_for_dialog(_dialog_title(et))
+
+    page.fill_textbox(_name_label(et), name)
+
+    for field_name, elements in ((CONF_LOADS, loads), (CONF_GENERATION, generation), (CONF_STORAGE, storage)):
+        if elements:
+            page.select_dropdown_multi(_field_label(et, SECTION_PARTICIPANTS, field_name), elements)
+
+    fields: dict[str, FieldInput] = {CONF_WINDOW: window}
+    if minimum is not None:
+        fields[CONF_MINIMUM] = minimum
+    if shortfall_cost is not None:
+        fields[CONF_SHORTFALL_COST] = shortfall_cost
+    _fill_element_fields(page, et, fields)
+
+    with page.expect_config_reload():
+        page.submit()
+        page.close_element_dialog()
+
+    _LOGGER.info("Reserve added: %s", name)
 
 
 @guide_step

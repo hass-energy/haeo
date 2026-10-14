@@ -5,6 +5,8 @@
  * the headless SVG string renderer (render-svg.ts).
  */
 
+import type { ReservePlacement } from "./types";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -14,9 +16,19 @@ export interface Point {
   y: number;
 }
 
+export interface ReserveRoles {
+  /** Reserves this node holds energy for. */
+  holds: string[];
+  /** Reserves this node's demand or generation counts toward. */
+  covers: string[];
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
+
+/** Marker drawn on batteries that hold a reserve. */
+export const RESERVE_MARKER = "🛡";
 
 export const NODE_RX = 6;
 export const GROUP_RX = 10;
@@ -171,4 +183,30 @@ export function computeArrowHead(
   const right = { x: baseX - px * ARROW_HALF_W, y: baseY - py * ARROW_HALF_W };
 
   return { tipX, tipY, left, right };
+}
+
+/** Map each node to the reserves it holds or counts toward. */
+export function reserveRoles(reserves: ReservePlacement[] | undefined): Map<string, ReserveRoles> {
+  const roles = new Map<string, ReserveRoles>();
+  const rolesFor = (name: string): ReserveRoles => {
+    const existing = roles.get(name);
+    if (existing !== undefined) return existing;
+    const created: ReserveRoles = { holds: [], covers: [] };
+    roles.set(name, created);
+    return created;
+  };
+  for (const reserve of reserves ?? []) {
+    for (const name of reserve.storage) rolesFor(name).holds.push(reserve.name);
+    for (const name of reserve.elements) rolesFor(name).covers.push(reserve.name);
+  }
+  return roles;
+}
+
+/** Describe a node's reserve roles for its tooltip. */
+export function reserveTooltipLines(roles: ReserveRoles | undefined): string[] {
+  if (roles === undefined) return [];
+  const lines: string[] = [];
+  if (roles.holds.length > 0) lines.push(`Holds reserve: ${roles.holds.join(", ")}`);
+  if (roles.covers.length > 0) lines.push(`Counted in reserve: ${roles.covers.join(", ")}`);
+  return lines;
 }

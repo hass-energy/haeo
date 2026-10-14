@@ -116,6 +116,10 @@ function colorForElement(elementType: ElementType, elementName: string, variant:
     const solar = ["#f59e0b", "#fbbf24", "#f97316", "#facc15", "#ea580c"];
     return solar[variant % solar.length] ?? "#f59e0b";
   }
+  if (elementType === "reserve") {
+    const reserve = ["#ef4444", "#dc2626", "#f87171", "#b91c1c"];
+    return reserve[variant % reserve.length] ?? "#ef4444";
+  }
   if (elementType === "load") {
     const load = ["var(--haeo-load-0)", "var(--haeo-load-1)", "var(--haeo-load-2)", "var(--haeo-load-3)"];
     return load[variant % load.length] ?? "var(--haeo-load-0)";
@@ -137,6 +141,7 @@ const ELEMENT_TYPES: ReadonlySet<string> = new Set<ElementType>([
   "node",
   "solar",
   "policy",
+  "reserve",
 ]);
 
 function isElementType(value: string): value is ElementType {

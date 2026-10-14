@@ -144,6 +144,16 @@ class Reserve(Element[ReserveOutputName]):
         # Energy the storage falls short of the reserve at each boundary after the first
         self._shortfall = solver.addVariables(n_periods, lb=0.0, name_prefix=f"{name}_shortfall_", out_array=True)
 
+    @property
+    def element_names(self) -> list[str]:
+        """Return the names of the elements the reserve covers."""
+        return [element.name for element in self._elements]
+
+    @property
+    def storage_names(self) -> list[str]:
+        """Return the names of the batteries that hold the reserve."""
+        return [storage.battery.name for storage in self._storage]
+
     def _layout(self) -> WindowLayout:
         return window_layout(self.periods, self.window)
 

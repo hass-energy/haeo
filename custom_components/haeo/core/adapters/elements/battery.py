@@ -5,6 +5,7 @@ from dataclasses import replace
 from typing import Final, Literal
 
 import numpy as np
+from numpy.typing import NDArray
 
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
@@ -124,7 +125,7 @@ class BatteryAdapter:
         undercharge_percentage = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
         overcharge_percentage = overcharge.get(CONF_PARTITION_PERCENTAGE) if overcharge_cost is not None else None
 
-        lower_ratio = undercharge_percentage if undercharge_percentage is not None else min_charge_percentage
+        lower_ratio = battery_floor_ratio(config)
         upper_ratio = overcharge_percentage if overcharge_percentage is not None else max_charge_percentage
 
         lower_ratio_first = float(lower_ratio[0]) if isinstance(lower_ratio, np.ndarray) else float(lower_ratio)
@@ -265,23 +266,22 @@ class BatteryAdapter:
 adapter = BatteryAdapter()
 
 
+def battery_floor_ratio(config: BatteryConfigData) -> NDArray[np.float64] | float:
+    """Return the lowest SOC ratio the battery may reach: the undercharge percentage when priced, else min charge."""
+    undercharge = config.get(SECTION_UNDERCHARGE, {})
+    undercharge_percentage = undercharge.get(CONF_PARTITION_PERCENTAGE)
+    if undercharge_percentage is not None and undercharge.get(CONF_PARTITION_COST) is not None:
+        return undercharge_percentage
+    return config[SECTION_LIMITS].get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
+
+
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:
     """Calculate total energy stored including inaccessible energy below min SOC."""
     # Capacity and ratio fields are already boundaries (n+1 values)
     capacity = config[SECTION_STORAGE][CONF_CAPACITY]
 
-    # Get time-varying min ratio (also boundaries)
-    min_charge_percentage = config[SECTION_LIMITS].get(
-        CONF_MIN_CHARGE_PERCENTAGE,
-        DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE],
-    )
-    undercharge = config.get(SECTION_UNDERCHARGE, {})
-    undercharge_cost = undercharge.get(CONF_PARTITION_COST)
-    undercharge_pct = undercharge.get(CONF_PARTITION_PERCENTAGE) if undercharge_cost is not None else None
-    unusable_ratio = undercharge_pct if undercharge_pct is not None else min_charge_percentage
-
     # Both energy values and capacity/ratios are now boundaries (n+1 values)
-    inaccessible_energy = unusable_ratio * capacity
+    inaccessible_energy = battery_floor_ratio(config) * capacity
     total_values = np.asarray(aggregate_energy.values, dtype=float) + inaccessible_energy
 
     return OutputData(

@@ -3,7 +3,7 @@
 from collections.abc import Mapping, Sequence
 
 from .core.const import CONF_ELEMENT_TYPE, CONF_NAME, ConnectivityLevel
-from .core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
+from .core.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from .elements import ELEMENT_TYPES, ElementConfigData
 from .util.graph import ConnectivityResult as NetworkConnectivityResult
 from .util.graph import find_connected_components
@@ -25,10 +25,10 @@ def _build_adjacency(participants: Mapping[str, ElementConfigData]) -> dict[str,
         # Get model elements including implicit connections
         model_elements = adapter.model_elements(loaded_config)
 
-        # Add non-connection elements as nodes (skip internal connection elements)
+        # Elements that carry power are nodes; connections are edges, and
+        # reserves only read the elements they cover
         for elem in model_elements:
-            elem_type = elem["element_type"]
-            if elem_type != MODEL_ELEMENT_TYPE_CONNECTION:
+            if elem["element_type"] in (MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_NODE):
                 adjacency.setdefault(elem["name"], set())
 
         # Add edges from connection elements

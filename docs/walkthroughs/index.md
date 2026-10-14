@@ -27,6 +27,15 @@ Walkthroughs are generated from a live Home Assistant instance, so the screensho
 
     [:material-arrow-right: Power Policies walkthrough](power-policies.md)
 
+- :material-battery-lock:{ .lg .middle } **Backup Reserve**
+
+    ---
+
+    Keep enough energy in your batteries to ride through a grid outage.
+    Covers choosing what the reserve covers, setting it up, and reading it on the forecast card.
+
+    [:material-arrow-right: Backup Reserve walkthrough](backup-reserve.md)
+
 - :material-history:{ .lg .middle } **Historic Diagnostics**
 
     ---

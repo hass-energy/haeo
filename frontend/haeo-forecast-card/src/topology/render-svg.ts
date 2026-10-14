@@ -25,6 +25,9 @@ import {
   esc,
   extendEndpoints,
   offsetPoints,
+  RESERVE_MARKER,
+  reserveRoles,
+  type ReserveRoles,
   vlanColor,
 } from "./shared";
 import type { TopologyData, TopologyNode, TopologySegment } from "./types";
@@ -93,7 +96,13 @@ function svgCompositeArrow(points: Point[], reversed: boolean): string {
 // Node / pill / group renderers
 // ---------------------------------------------------------------------------
 
-function svgModelNode(node: LayoutNode, group: LayoutGroup, color: string, nodeMap: Map<string, TopologyNode>): string {
+function svgModelNode(
+  node: LayoutNode,
+  group: LayoutGroup,
+  color: string,
+  nodeMap: Map<string, TopologyNode>,
+  reserve: ReserveRoles | undefined
+): string {
   const topoNode = nodeMap.get(node.id);
   const outTags = topoNode?.outbound_tags ?? [];
   const inTags = topoNode?.inbound_tags ?? [];
@@ -121,6 +130,11 @@ function svgModelNode(node: LayoutNode, group: LayoutGroup, color: string, nodeM
   parts.push(
     `<text x="${nx + node.width / 2}" y="${ny + node.height / 2 + 4}" text-anchor="middle" font-size="11" font-weight="600" fill="white">${esc(node.id)}</text>`
   );
+  if (reserve !== undefined && reserve.holds.length > 0) {
+    parts.push(
+      `<text x="${nx + node.width - 4}" y="${ny + 12}" text-anchor="end" font-size="10">${RESERVE_MARKER}</text>`
+    );
+  }
   return `<g>${parts.join("")}</g>`;
 }
 
@@ -149,7 +163,12 @@ function svgPill(node: LayoutNode, group: LayoutGroup): string {
   return `<g>${parts.join("")}</g>`;
 }
 
-function svgGroup(group: LayoutGroup, nodeMap: Map<string, TopologyNode>, edgeTags: Map<string, number[]>): string {
+function svgGroup(
+  group: LayoutGroup,
+  nodeMap: Map<string, TopologyNode>,
+  roles: Map<string, ReserveRoles>,
+  edgeTags: Map<string, number[]>
+): string {
   const s = NODE_STYLES[group.type] ?? NODE_STYLES["unknown"]!;
   const color = s.color;
   const icon = s.icon;
@@ -180,7 +199,7 @@ function svgGroup(group: LayoutGroup, nodeMap: Map<string, TopologyNode>, edgeTa
     if (child.isPill) {
       parts.push(svgPill(child, group));
     } else {
-      parts.push(svgModelNode(child, group, color, nodeMap));
+      parts.push(svgModelNode(child, group, color, nodeMap, roles.get(child.id)));
     }
   }
 
@@ -217,6 +236,7 @@ export async function renderTopologySvg(topology: TopologyData): Promise<string>
 
   // Build node name → TopologyNode lookup
   const nodeMap = new Map(topology.nodes.map((n) => [n.name, n]));
+  const roles = reserveRoles(topology.reserves);
 
   // Build edge name → tags lookup
   const edgeTags = new Map<string, number[]>();
@@ -249,7 +269,7 @@ export async function renderTopologySvg(topology: TopologyData): Promise<string>
 
   // Groups
   for (const group of layout.groups) {
-    parts.push(svgGroup(group, nodeMap, edgeTags));
+    parts.push(svgGroup(group, nodeMap, roles, edgeTags));
   }
 
   // External edges

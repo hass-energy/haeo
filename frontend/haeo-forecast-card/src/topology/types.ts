@@ -36,10 +36,20 @@ export interface PolicyPlacement {
   terms: PolicyPricingTerm[];
 }
 
+export interface ReservePlacement {
+  name: string;
+  /** Loads and generation the reserve covers. */
+  elements: string[];
+  /** Batteries that hold the reserve together. */
+  storage: string[];
+}
+
 export interface TopologyData {
   nodes: TopologyNode[];
   edges: TopologyEdge[];
   groups: Record<string, string[]>;
   /** Policy pricing placements (min-cut positions). */
   policies?: PolicyPlacement[];
+  /** Reserves and the elements they cover and are held by. */
+  reserves?: ReservePlacement[];
 }

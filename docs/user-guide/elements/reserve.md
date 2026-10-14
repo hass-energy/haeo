@@ -62,11 +62,16 @@ Set it high to treat the reserve as nearly untouchable.
 
 ## Sensors created
 
-| Sensor           | Unit | Description                                             |
-| ---------------- | ---- | ------------------------------------------------------- |
-| Required energy  | kWh  | Energy the batteries should hold at each point          |
-| Available energy | kWh  | Energy the batteries can deliver at each point          |
-| Energy shortfall | kWh  | How far the batteries fall short of the required energy |
+| Sensor                  | Unit | Description                                                  |
+| ----------------------- | ---- | ------------------------------------------------------------ |
+| Required energy         | kWh  | Energy the batteries should hold at each point               |
+| Available energy        | kWh  | Energy the batteries can deliver at each point               |
+| Energy shortfall        | kWh  | How far the batteries fall short of the required energy      |
+| Reserve state of charge | %    | The combined state of charge the batteries should stay above |
+
+The reserve state of charge adds the batteries' lowest allowed charge to the required energy, stored after their discharge losses, as a share of their combined capacity.
+With batteries of different efficiencies it uses their capacity-weighted average efficiency.
+The [forecast card](../lovelace-card.md) draws it as a line alongside your batteries' state of charge.
 
 ## Next steps
 
@@ -79,6 +84,14 @@ Set it high to treat the reserve as nearly untouchable.
     Set up the batteries that hold the reserve.
 
     [:material-arrow-right: Battery configuration](battery.md)
+
+- :material-battery-lock:{ .lg .middle } **Backup reserve walkthrough**
+
+    ---
+
+    Set up a reserve step by step and see what to expect.
+
+    [:material-arrow-right: Backup reserve walkthrough](../../walkthroughs/backup-reserve.md)
 
 - :material-calculator:{ .lg .middle } **How the reserve is modeled**
 

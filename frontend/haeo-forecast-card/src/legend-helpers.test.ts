@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { legendSeriesOrder, seriesIconPath, seriesTooltip } from "./legend-helpers";
+import { mdiIcons } from "./mdi-icons";
 import type { ForecastSeries } from "./types";
 
 function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
@@ -28,6 +29,11 @@ function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
 }
 
 describe("seriesIconPath", () => {
+  it("returns a shield icon for a reserve state of charge", () => {
+    const series = makeSeries({ lane: "soc", elementType: "reserve", outputName: "reserve_state_of_charge" });
+    expect(seriesIconPath(series)).toBe(mdiIcons["mdiShieldHalfFull"]);
+  });
+
   it("returns an import price icon for import price series", () => {
     const series = makeSeries({ lane: "price", outputName: "import_price" });
     expect(seriesIconPath(series)).toBeTruthy();

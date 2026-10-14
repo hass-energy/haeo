@@ -12,6 +12,7 @@ from custom_components.haeo.core.adapters.elements.reserve import (
     RESERVE_ENERGY_AVAILABLE,
     RESERVE_ENERGY_REQUIRED,
     RESERVE_ENERGY_SHORTFALL,
+    RESERVE_STATE_OF_CHARGE,
 )
 from custom_components.haeo.core.adapters.elements.reserve import adapter as reserve_adapter
 from custom_components.haeo.core.adapters.policy_compilation import compile_policies
@@ -24,7 +25,7 @@ from custom_components.haeo.core.schema.elements import ElementConfigData, Eleme
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.load import LoadConfigData
-from custom_components.haeo.core.schema.elements.reserve import ReserveConfigData
+from custom_components.haeo.core.schema.elements.reserve import ReserveConfigData, is_reserve_config_data
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData
 
 from .conftest import bus_node
@@ -110,8 +111,10 @@ def _optimize(participants: Sequence[ElementConfigData]) -> tuple[Network, dict[
         network.add(element)
     network.optimize()
     model_outputs = {name: element.outputs() for name, element in network.elements.items()}
-    outputs = reserve_adapter.outputs("reserve", model_outputs)[RESERVE_DEVICE_RESERVE]
-    return network, {str(name): output for name, output in outputs.items()}
+    reserve = configs["reserve"]
+    assert is_reserve_config_data(reserve)
+    outputs = reserve_adapter.outputs("reserve", model_outputs, config=reserve, participants=configs)
+    return network, {str(name): output for name, output in outputs[RESERVE_DEVICE_RESERVE].items()}
 
 
 def _values(output: OutputData) -> NDArray[np.float64]:
@@ -142,6 +145,7 @@ def test_reserve_is_held_while_shortfall_cost_outweighs_selling(
     required = _values(outputs[RESERVE_ENERGY_REQUIRED])
     available = _values(outputs[RESERVE_ENERGY_AVAILABLE])
     np.testing.assert_allclose(required, [2.0, 2.0, 2.0, 1.0, 0.0])
+    np.testing.assert_allclose(_values(outputs[RESERVE_STATE_OF_CHARGE]), [0.2, 0.2, 0.2, 0.1, 0.0])
     assert available[1] == pytest.approx(expected_after_selling)
     np.testing.assert_allclose(
         _values(outputs[RESERVE_ENERGY_SHORTFALL]), np.maximum(required - available, 0.0), atol=1e-9
@@ -167,20 +171,18 @@ def test_reserve_shares_batteries_and_adds_extra_after_generation_and_losses() -
 
     required = _values(outputs[RESERVE_ENERGY_REQUIRED])
     np.testing.assert_allclose(required, [3.0, 5.0, 5.0, 3.0, 1.0])
+    # Stored at 80% efficiency across 20 kWh of batteries
+    np.testing.assert_allclose(_values(outputs[RESERVE_STATE_OF_CHARGE]), required / 0.8 / 20.0)
     np.testing.assert_allclose(_values(outputs[RESERVE_ENERGY_AVAILABLE])[0], 2 * 5.0 * 0.8)
     np.testing.assert_allclose(_values(outputs[RESERVE_ENERGY_AVAILABLE])[1:], required[1:], atol=1e-9)
 
 
 def test_reserve_keeps_its_shape_when_periods_and_window_change() -> None:
     """New period widths and windows rewrite the reserve's rows without adding any."""
+    battery = _battery("battery")
+    reserve_config = _reserve(loads=["house"], storage=["battery"])
     network, _outputs = _optimize(
-        [
-            bus_node("bus"),
-            _grid(),
-            _battery("battery"),
-            _load("house", [1.0] * N_PERIODS),
-            _reserve(loads=["house"], storage=["battery"]),
-        ]
+        [bus_node("bus"), _grid(), battery, _load("house", [1.0] * N_PERIODS), reserve_config]
     )
     rows = network.constraints()["reserve"]
 
@@ -194,7 +196,10 @@ def test_reserve_keeps_its_shape_when_periods_and_window_change() -> None:
         name: len(cons) for name, cons in rows.items() if isinstance(cons, list)
     }
     outputs = reserve_adapter.outputs(
-        "reserve", {name: element.outputs() for name, element in network.elements.items()}
+        "reserve",
+        {name: element.outputs() for name, element in network.elements.items()},
+        config=reserve_config,
+        participants={"battery": battery, "reserve": reserve_config},
     )[RESERVE_DEVICE_RESERVE]
     # 1 kW over 1.25 hours, cut short by the end of the horizon at the last boundaries
     np.testing.assert_allclose(_values(outputs[RESERVE_ENERGY_REQUIRED]), [1.25, 1.25, 1.25, 1.0, 0.0])

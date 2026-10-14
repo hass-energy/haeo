@@ -36,6 +36,7 @@ from tests.guides.primitives import (
     add_load,
     add_node,
     add_policies,
+    add_reserve,
     add_solar,
     login,
     pause_screenshots,
@@ -43,6 +44,7 @@ from tests.guides.primitives import (
     save_diagnostics,
     screenshot_context,
     validate_policies,
+    validate_reserve,
     verify_setup,
 )
 from tools.guide_hashing import compute_content_hash, compute_page_hash, extract_sources
@@ -238,6 +240,8 @@ def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, obj
         "add_policies": add_policies,
         "reconfigure_policies": reconfigure_policies,
         "validate_policies": validate_policies,
+        "add_reserve": add_reserve,
+        "validate_reserve": validate_reserve,
         "verify_setup": verify_setup,
         # Developer Tools primitives
         "save_diagnostics": save_diagnostics,

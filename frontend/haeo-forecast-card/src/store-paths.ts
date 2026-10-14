@@ -15,6 +15,8 @@ export interface LineSvgPath {
   key: string;
   color: string;
   d: string;
+  /** Extra class for lines drawn as thresholds rather than measured values. */
+  className?: string;
 }
 
 export function computePowerShapes(
@@ -143,5 +145,7 @@ export function computeSocPaths(
     key: series.key,
     color: series.color,
     d: linePath(series.times, series.values, xScale, yScaleSoc),
+    // A reserve is the level the batteries should stay above, so it is drawn as a threshold
+    ...(series.elementType === "reserve" ? { className: "reserveLine" } : {}),
   }));
 }
