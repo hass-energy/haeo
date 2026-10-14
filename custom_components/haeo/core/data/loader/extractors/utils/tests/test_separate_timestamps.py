@@ -6,6 +6,12 @@ import pytest
 from custom_components.haeo.core.data.loader.extractors.utils import separate_duplicate_timestamps
 
 
+def _separate(data: list[tuple[int, float]]) -> list[tuple[float, float]]:
+    """Separate duplicates in a list of (timestamp, value) points."""
+    points = np.asarray(data, dtype=np.float64).reshape(-1, 2)
+    return separate_duplicate_timestamps(points[:, 0], points[:, 1])
+
+
 def _prev(v: float) -> float:
     """Get the previous float value for cleaner test data."""
     return np.nextafter(v, -np.inf)
@@ -72,14 +78,14 @@ def _prev(v: float) -> float:
 )
 def test_separate_duplicate_timestamps(data: list[tuple[int, float]], expected: list[tuple[float, float]]) -> None:
     """Test timestamp separation with various patterns."""
-    result = separate_duplicate_timestamps(data)
+    result = _separate(data)
     assert result == expected
 
 
 def test_separate_duplicate_timestamps_preserves_value_order() -> None:
     """Test that the function preserves the order of values (excluding removed middle duplicates)."""
     data = [(100, 1.0), (100, 2.0), (200, 3.0), (200, 4.0), (300, 5.0)]
-    result = separate_duplicate_timestamps(data)
+    result = _separate(data)
 
     # Values should be in same order
     values = [v for _, v in result]

@@ -1,16 +1,17 @@
 """Tests for TrackedParam descriptor and dict-style parameter access."""
 
-from highspy import Highs
 import numpy as np
 import pytest
 
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.linear import Rows
 from custom_components.haeo.core.model.reactive import TrackedParam, computed, constraint
+from custom_components.haeo.core.model.solver import Solver
 
 
 def create_test_element[T: Element[str]](cls: type[T]) -> T:
     """Create a test element instance with a fresh solver."""
-    solver = Highs()
+    solver = Solver()
     solver.setOptionValue("output_flag", False)
     return cls(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
 
@@ -51,9 +52,9 @@ def test_tracked_param_change_value_invalidates_dependents() -> None:
         capacity = TrackedParam[float]()
 
         @constraint
-        def soc_constraint(self) -> list[object]:
+        def soc_constraint(self) -> Rows:
             _ = self.capacity  # Access to establish dependency
-            return []
+            return Rows.concat([])
 
     elem = create_test_element(TestElement)
     elem.capacity = 10.0
@@ -80,9 +81,9 @@ def test_tracked_param_same_value_does_not_invalidate() -> None:
         capacity = TrackedParam[float]()
 
         @constraint
-        def soc_constraint(self) -> list[object]:
+        def soc_constraint(self) -> Rows:
             _ = self.capacity
-            return []
+            return Rows.concat([])
 
     elem = create_test_element(TestElement)
     elem.capacity = 10.0
@@ -143,9 +144,9 @@ def test_dict_access_setitem_triggers_invalidation() -> None:
         capacity = TrackedParam[float]()
 
         @constraint
-        def my_constraint(self) -> list[int]:
+        def my_constraint(self) -> Rows:
             _ = self.capacity
-            return []
+            return Rows.concat([])
 
     elem = create_test_element(TestElement)
     elem["capacity"] = 10.0
@@ -200,7 +201,7 @@ def test_dict_access_getitem_regular_attribute_returns_value() -> None:
 
 
 def _element[T: Element[str]](cls: type[T]) -> T:
-    solver = Highs()
+    solver = Solver()
     solver.setOptionValue("output_flag", False)
     return cls(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
 
