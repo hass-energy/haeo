@@ -986,8 +986,8 @@ def test_weight_search_keeps_a_cost_optimal_plan_in_order() -> None:
     assert search.next_weight(1e-4, cost_optimal=True, order_optimal=True) is None
 
 
-def test_pricing_leaves_the_plan_and_its_basis_unchanged() -> None:
-    """Pricing an objective at the current basis runs no iterations and keeps the plan and its basic variables."""
+def test_checking_a_plan_leaves_it_and_its_basis_unchanged() -> None:
+    """Checking a plan prices at its basis with no iterations, keeping the plan and its basic variables."""
     network = _network_with(_interchangeable_batteries())
     network.optimize()
     h = network._solver
@@ -996,7 +996,7 @@ def test_pricing_leaves_the_plan_and_its_basis_unchanged() -> None:
     basic = [status == HighsBasisStatus.kBasic for status in [*basis.col_status, *basis.row_status]]
     cols = np.arange(h.getNumCol(), dtype=np.int32)
 
-    network_module._price(h, cols, np.ones(len(cols)))
+    network_module._check_plan(h, cols, [np.ones(len(cols)), np.zeros(len(cols))], 1.0)
 
     after = h.getBasis()
     assert h.getInfo().simplex_iteration_count == 0

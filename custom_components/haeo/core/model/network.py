@@ -14,7 +14,7 @@ from typing import (
     overload,
 )
 
-from highspy import Highs, HighsModelStatus, HighsSolution
+from highspy import Highs, HighsModelStatus
 import numpy as np
 from numpy.typing import NDArray
 
@@ -340,18 +340,7 @@ class Network:
     ) -> float:
         """Solve primary + weight * secondary, moving the weight until the plan is cost-optimal and then in order.
 
-        Each plan is checked at its own basis without moving it. The cost comes first:
-        a plan that is not cost-optimal means the weight is too large for these
-        inputs, and it is lowered. A cost-optimal plan with a move that leaves the
-        cost unchanged and improves the secondary means the weight is too small for
-        the secondary to register, and it is raised, though never to a weight this
-        solve found too large for the cost.
-
-        Which weights fail is only known for the current inputs, so only the weight
-        settled on is kept between solves.
-
-        The check leaves the cost objective's row duals at the plan's basis, so
-        shadow prices are cost duals of the plan the solve chose.
+        Only the weight settled on is kept, since which weights fail depends on the inputs.
         """
         h.clearLinearObjectives()
         search = BlendWeightSearch()
@@ -379,14 +368,10 @@ class Network:
         all_col_indices: NDArray[np.int32],
         cost_vectors: list[NDArray[np.float64]],
     ) -> float:
-        """Find the largest blend weight whose plan passes the cost check, and step just below it.
+        """Return a weight ``_CAL_MARGIN`` decades below the largest whose plan is cost-optimal.
 
-        A larger weight lets the secondary register over more of the problem, so the
-        weight is placed just below that edge, ``_CAL_MARGIN`` log10 decades down,
-        where later inputs are least likely to need another solve.
-
-        This runs once, on the first optimization, so its extra solves are not paid
-        again.
+        The largest weight lets the secondary register most widely, and the margin
+        leaves room for later inputs to move the edge before another solve is needed.
         """
         h = self._solver
         lo, hi = _CAL_LOG_LO, _CAL_LOG_HI
@@ -491,8 +476,6 @@ def _run_blended(
 class BlendWeightSearch:
     """Chooses blend weights for one optimization, putting the cost before the order.
 
-    The bounds found are only valid for this optimization's inputs and are not kept.
-
     Attributes:
         too_small: Largest weight whose plan was cost-optimal but out of order.
         too_large: Smallest weight whose plan was not cost-optimal.
@@ -505,11 +488,8 @@ class BlendWeightSearch:
     def next_weight(self, weight: float, *, cost_optimal: bool, order_optimal: bool) -> float | None:
         """Return the next weight to solve with, or None to keep the plan just solved.
 
-        A plan that is not cost-optimal lowers the weight, tenfold until a weight is
-        known to be cost-optimal and then by bisection. A cost-optimal plan out of
-        order raises the weight tenfold, or by bisection once a weight is known too
-        large for the cost. A cost-optimal plan is kept when it is in
-        order, or when no weight is left between the two known bounds.
+        The weight moves tenfold away from a failing check until both bounds are
+        known, then bisects between them.
         """
         if not cost_optimal:
             self.too_large = weight
@@ -536,45 +516,6 @@ class BlendWeightSearch:
         return None
 
 
-def _price(solver: Highs, col_indices: NDArray[np.int32], costs: NDArray[np.float64]) -> None:
-    """Price an objective at the current basis without moving the plan.
-
-    The objective is solved with no simplex iterations allowed, so HiGHS only
-    prices the current basis.
-    """
-    _set_cost_vector(solver, col_indices, costs)
-    solver.setOptionValue("simplex_iteration_limit", 0)
-    try:
-        solver.run()
-    finally:
-        solver.setOptionValue("simplex_iteration_limit", _UNLIMITED_ITERATIONS)
-
-
-def _reduced_costs(solution: HighsSolution) -> NDArray[np.float64]:
-    """Return the reduced costs of the columns then the rows."""
-    return np.concatenate(
-        [np.asarray(solution.col_dual, dtype=np.float64), np.asarray(solution.row_dual, dtype=np.float64)]
-    )
-
-
-def _improving(
-    reduced_costs: NDArray[np.float64],
-    values: NDArray[np.float64],
-    lower: NDArray[np.float64],
-    upper: NDArray[np.float64],
-) -> NDArray[np.bool_]:
-    """Return which variables could move in a direction that lowers the objective.
-
-    A variable can lower the objective by increasing when its reduced cost is
-    negative and it is below its upper bound, or by decreasing when its reduced
-    cost is positive and it is above its lower bound. Basic variables have zero
-    reduced cost, so they are never flagged.
-    """
-    increases = (reduced_costs < -_REDUCED_COST_TOLERANCE) & (values < upper - _BOUND_TOLERANCE)
-    decreases = (reduced_costs > _REDUCED_COST_TOLERANCE) & (values > lower + _BOUND_TOLERANCE)
-    return increases | decreases
-
-
 def _check_plan(
     solver: Highs,
     col_indices: NDArray[np.int32],
@@ -583,40 +524,41 @@ def _check_plan(
 ) -> tuple[bool, bool]:
     """Return whether the blended plan just solved is cost-optimal, and whether it is in order.
 
-    The plan is cost-optimal when pricing the cost at its basis leaves no move that
-    lowers the cost. It is in order when, among moves that leave the cost unchanged,
-    none lowers the secondary. Columns and rows are both variables here, a row's
-    value being its activity.
-
-    Reduced costs at a fixed basis are linear in the objective, so the secondary's
-    are the blended solve's minus the cost's, divided by the weight, and the
-    secondary needs no pricing of its own. The cost is priced last, so its row
-    duals are the ones left for outputs.
+    The cost is priced at the plan's basis with no simplex iterations, which leaves
+    the plan where it is and its cost duals for the shadow prices. Reduced costs at
+    a fixed basis are linear in the objective, so the secondary's are the blended
+    ones minus the cost's, over the weight. The plan is in order when no move that
+    leaves the cost unchanged lowers the secondary. Rows count as variables too,
+    with their activity as the value.
     """
-    blended = _reduced_costs(solver.getSolution())
-    _price(solver, col_indices, cost_vectors[0])
-    cost_optimal = solver.getInfo().max_dual_infeasibility <= _REDUCED_COST_TOLERANCE
     solution = solver.getSolution()
-    cost = _reduced_costs(solution)
+    blended = np.concatenate([solution.col_dual, solution.row_dual])
+
+    _set_cost_vector(solver, col_indices, cost_vectors[0])
+    solver.setOptionValue("simplex_iteration_limit", 0)
+    solver.run()
+    solver.setOptionValue("simplex_iteration_limit", _UNLIMITED_ITERATIONS)
+    cost_optimal = solver.getInfo().max_dual_infeasibility <= _REDUCED_COST_TOLERANCE
+
+    solution = solver.getSolution()
+    cost = np.concatenate([solution.col_dual, solution.row_dual])
     secondary = (blended - cost) / weight
 
-    # Only cost-free entries with a nonzero secondary reduced cost can lower it, so
-    # the values and bounds are only read for those
-    candidates = np.flatnonzero(
-        (np.abs(cost) <= _REDUCED_COST_TOLERANCE) & (np.abs(secondary) > _REDUCED_COST_TOLERANCE)
-    ).tolist()
+    # Only moves that are free in cost and not in the secondary can lower it, so only their values and bounds are read
+    moves = np.flatnonzero((np.abs(cost) <= _REDUCED_COST_TOLERANCE) & (np.abs(secondary) > _REDUCED_COST_TOLERANCE))
     lp = solver.getLp()
-    values = _gather(solution.col_value, solution.row_value, candidates)
-    lower = _gather(lp.col_lower_, lp.row_lower_, candidates)
-    upper = _gather(lp.col_upper_, lp.row_upper_, candidates)
-    order_optimal = not _improving(secondary[candidates], values, lower, upper).any()
-    return cost_optimal, order_optimal
-
-
-def _gather(cols: list[float], rows: list[float], indices: list[int]) -> NDArray[np.float64]:
-    """Return the entries at these indices of the columns' then the rows' values."""
-    both = cols + rows
-    return np.array([both[i] for i in indices], dtype=np.float64)
+    value, lower, upper = (
+        np.array([entries[i] for i in moves.tolist()], dtype=np.float64)
+        for entries in (
+            solution.col_value + solution.row_value,
+            lp.col_lower_ + lp.row_lower_,
+            lp.col_upper_ + lp.row_upper_,
+        )
+    )
+    # A move lowers the secondary by raising a variable below its upper bound, or lowering one above its lower bound
+    rises = (secondary[moves] < -_REDUCED_COST_TOLERANCE) & (value < upper - _BOUND_TOLERANCE)
+    falls = (secondary[moves] > _REDUCED_COST_TOLERANCE) & (value > lower + _BOUND_TOLERANCE)
+    return cost_optimal, not (rises | falls).any()
 
 
 def _ensure_optimal(solver: Highs) -> float:
