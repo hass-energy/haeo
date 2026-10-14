@@ -95,10 +95,14 @@ After the first lexicographic solve, a binary search finds the largest blend wei
 A larger weight gives the secondary objective more influence, producing better tie-breaking in degenerate regions.
 Every optimization, including the first, then uses this blended objective (`primary + weight * secondary`) in a single solve, which warm-starts efficiently.
 
-A weight calibrated on one solve can be too large for later inputs, letting the secondary trade away cost.
-After each blended solve, the primary objective is priced at the plan's basis without any simplex iterations.
-If any reduced cost is negative, the plan is not cost-optimal: the weight is lowered tenfold, kept for later solves, and the blended solve repeated from the same basis.
-This check leaves the primary objective's dual values at the plan's basis, so shadow prices are pure cost sensitivities of the plan the solver chose.
+No single weight suits every input: too large and the secondary trades away cost, too small and its differences fall below the solver's tolerance, leaving ties unresolved.
+After each blended solve, both objectives are priced at the plan's basis without any simplex iterations, which leaves the plan and its basis unchanged.
+The plan is accepted when no move lowers the cost, and no move that leaves the cost unchanged lowers the secondary.
+Otherwise the weight moves away from the failure, tenfold at a time and then by bisection between a weight known too small and one known too large, and the blended solve is repeated from the same basis.
+The accepted weight is kept for later solves.
+If no weight is accepted, that optimization uses the full three-phase lexicographic solve instead, so the plan never falls back to an arbitrary choice.
+
+The primary objective is priced last, so its dual values at the plan's basis are the shadow prices: the blended duals without the secondary's contribution.
 
 The secondary's reduced costs are scaled by the small blend weight, so the solver runs with feasibility tolerances of $10^{-9}$ rather than the HiGHS default of $10^{-7}$.
 At the default, tie-breaking differences can fall below the tolerance and leave equally cheap plans unresolved.

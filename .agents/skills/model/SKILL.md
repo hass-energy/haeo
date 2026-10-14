@@ -103,8 +103,9 @@ Degenerate LPs have many optimal solutions; the secondary objective is what stop
 
 - The plan must match the lexicographic optimum; shadow prices may differ between formulations, since which binding constraint carries a dual is not controllable.
 
-- Every blended plan is checked for cost optimality at its basis with a zero-iteration solve, and the weight is lowered when it fails.
-    Do not remove the check to save time: without it a stale calibrated weight silently trades cost for tie-breaking.
+- Every blended plan is certified at its basis with zero-iteration solves: cost-optimal, and no cost-free move improves the secondary.
+    The weight moves away from whichever check fails, and the cycle falls back to the three-phase lexicographic solve when no weight passes.
+    Do not remove either check to save time: a stale weight silently trades cost for tie-breaking when too large, and leaves ties to the solver path when too small.
 
 - The time-preference weights must not be a sum of a connection term and a time term alone, or swaps between connections across periods tie exactly.
     The perturbation in `tie_break_perturbation` prevents that.

@@ -4,8 +4,9 @@ import itertools
 import logging
 from unittest.mock import Mock
 
-from highspy import HighsModelStatus
+from highspy import HighsBasisStatus, HighsModelStatus
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.core.model import Network
@@ -1012,10 +1013,80 @@ def test_blended_solve_lowers_a_weight_that_trades_away_cost() -> None:
         }
     )
     network.optimize()
-    network._calibrated_weight = 1e3
+    network._calibrated_weight = 50.0
 
     cost = network.optimize()
 
     assert cost == pytest.approx(0.2)
     assert network.elements["b_supply"].outputs()["connection_power"].values == pytest.approx((1.0, 1.0))
-    assert network._calibrated_weight < 1e3
+    assert network._calibrated_weight < 50.0
+
+
+def _battery_plans(network: Network) -> tuple[float, ...]:
+    """Return both batteries' discharge power over the horizon."""
+    return tuple(
+        round(value, 6)
+        for battery in ("b1", "b2")
+        for value in network.elements[f"{battery}_discharge"].outputs()["connection_power"].values
+    )
+
+
+def _network_with(elements: list[ModelElementConfig], options: SolveOptions) -> Network:
+    network = Network(name="ties", periods=np.ones(6), options=options)
+    for element in sorted(elements, key=lambda element: element["element_type"] == ELEMENT_TYPE_CONNECTION):
+        network.add(element)
+    return network
+
+
+def test_blended_solve_raises_a_weight_too_small_to_break_ties(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A blend weight too small for the secondary to register is raised until the plan is the lexicographic one."""
+    reference = _network_with(_interchangeable_batteries(), LexOptions())
+    reference.optimize()
+    weights: list[float] = []
+    run_blended = network_module._run_blended
+
+    def recording_run_blended(
+        solver: Solver, col_indices: NDArray[np.int32], cost_vectors: list[NDArray[np.float64]], weight: float
+    ) -> float:
+        weights.append(weight)
+        return run_blended(solver, col_indices, cost_vectors, weight)
+
+    monkeypatch.setattr(network_module, "_run_blended", recording_run_blended)
+    network = _network_with(_interchangeable_batteries(), BlendedOptions(blend_weight=1e-11))
+
+    network.optimize()
+
+    assert _battery_plans(network) == _battery_plans(reference)
+    assert weights[0] == 1e-11
+    assert max(weights) > 1e-11
+
+
+def test_blended_solve_falls_back_to_lexicographic_when_no_weight_passes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When no blend weight gives a cost-optimal lexicographic plan, the cycle is solved lexicographically."""
+    reference = _network_with(_interchangeable_batteries(), LexOptions())
+    reference.optimize()
+    network = _network_with(_interchangeable_batteries(), CalibratedOptions())
+    network.optimize()
+    monkeypatch.setattr(network_module, "_certify_plan", lambda *_: (False, False))
+
+    network.optimize()
+
+    assert _battery_plans(network) == _battery_plans(reference)
+
+
+def test_pricing_leaves_the_plan_and_its_basis_unchanged() -> None:
+    """Pricing an objective at the current basis runs no iterations and keeps the plan and its basic variables."""
+    network = _network_with(_interchangeable_batteries(), CalibratedOptions())
+    network.optimize()
+    h = network._solver
+    plan = np.asarray(h.getSolution().col_value).copy()
+    basis = h.getBasis()
+    basic = [status == HighsBasisStatus.kBasic for status in [*basis.col_status, *basis.row_status]]
+    cols = np.arange(h.getNumCol(), dtype=np.int32)
+
+    network_module._price(h, cols, np.ones(len(cols)))
+
+    after = h.getBasis()
+    assert h.getInfo().simplex_iteration_count == 0
+    np.testing.assert_array_equal(np.asarray(h.getSolution().col_value), plan)
+    assert [status == HighsBasisStatus.kBasic for status in [*after.col_status, *after.row_status]] == basic
