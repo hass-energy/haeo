@@ -97,7 +97,7 @@ The period update and warm start tests are the ones that notice.
 
 ## Optimization
 
-`Network.optimize()` minimizes cost first and a time-preference secondary objective second, which breaks ties deterministically.
+`Network.optimize()` minimizes cost, then breaks ties between equally cheap plans with a time-preference secondary objective.
 It does this with a blended objective, cost plus a calibrated weight times the secondary, checked after each solve.
 This exists so repeated solves warm-start cleanly and shadow prices come from the same basis as the plan.
 Degenerate LPs have many optimal solutions; the secondary objective is what stops sensor values jittering between equally optimal plans.
