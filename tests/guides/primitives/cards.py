@@ -11,7 +11,8 @@ the guide has made so far.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from datetime import date, datetime
 import json
 import logging
@@ -133,14 +134,11 @@ def _is_dark(page: HAPage) -> bool:
     return isinstance(selected, str) and bool(json.loads(selected).get("dark"))
 
 
-def _render_card(
-    page: HAPage, hass: LiveHomeAssistant, *, tag: str, config: Mapping[str, object], hass_json: str, step: str
-) -> None:
-    """Render a card on a page of its own and capture it into the current step."""
-    ctx = ScreenshotContext.current()
-    if ctx is None:
-        return
-
+@contextmanager
+def _card_page(
+    page: HAPage, hass: LiveHomeAssistant, *, tag: str, config: Mapping[str, object], hass_json: str
+) -> Iterator[Page]:
+    """Open a page of its own showing the card, ready to capture, and close it afterwards."""
     dark = _is_dark(page)
     theme = _THEME_VARIABLES[dark]
     variables = "".join(f"{name}: {value};" for name, value in theme.items() if name.startswith("--"))
@@ -189,9 +187,19 @@ def _render_card(
             f"() => document.querySelector('{tag}')?.shadowRoot?.querySelector('svg path') != null",
             timeout=_RENDER_TIMEOUT_MS,
         )
-        ctx.capture(preview, step)
+        yield preview
     finally:
         context.close()
+
+
+def _render_card(
+    page: HAPage, hass: LiveHomeAssistant, *, tag: str, config: Mapping[str, object], hass_json: str, step: str
+) -> None:
+    """Render a card and capture it into the current step, when screenshots are being taken."""
+    ctx = ScreenshotContext.current()
+    if ctx is not None:
+        with _card_page(page, hass, tag=tag, config=config, hass_json=hass_json) as preview:
+            ctx.capture(preview, step)
 
 
 @guide_step

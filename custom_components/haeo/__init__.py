@@ -343,9 +343,12 @@ def _cleanup_reserve_participants(hass: HomeAssistant, entry: ConfigEntry) -> No
     elements leaves a dangling name that is stripped here.
     """
     current_element_names = {subentry.title for subentry in entry.subentries.values()}
-    for subentry in list(entry.subentries.values()):
-        if subentry.subentry_type not in (ElementType.RESERVE, ElementType.HEADROOM):
-            continue
+    requirements = [
+        subentry
+        for subentry in entry.subentries.values()
+        if subentry.subentry_type in (ElementType.RESERVE, ElementType.HEADROOM)
+    ]
+    for subentry in requirements:
         participants = subentry.data[SECTION_PARTICIPANTS]
         cleaned = {
             field: [name for name in names if name in current_element_names] for field, names in participants.items()

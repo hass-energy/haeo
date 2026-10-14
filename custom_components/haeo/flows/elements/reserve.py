@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping
 from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
-from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, SelectSelectorMode
+from homeassistant.helpers.selector import Selector, SelectSelector, SelectSelectorConfig, SelectSelectorMode
 import voluptuous as vol
 
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, ElementAdapter, is_element_type
@@ -100,7 +100,7 @@ class ReserveSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         schema = self.add_suggested_values_to_schema(schema, defaults)
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
-    def _participant_selector(self, field: str) -> SelectSelector:  # type: ignore[type-arg]
+    def _participant_selector(self, field: str) -> Selector[SelectSelectorConfig]:
         """Build a multi-select of the elements a participant list offers."""
         offered = PARTICIPANT_FILTERS[field]
         current_id = self._get_current_subentry_id()

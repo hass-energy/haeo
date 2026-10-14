@@ -1,14 +1,15 @@
 """Tests for the reserve element config flow."""
 
 from types import MappingProxyType
-from typing import Any  # noqa: TID251  # voluptuous schemas and HA selectors are Any-typed upstream
 from unittest.mock import Mock
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers.selector import SelectSelector
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+import voluptuous as vol
 
 from conftest import add_participant
 from custom_components.haeo import _cleanup_reserve_participants
@@ -50,9 +51,14 @@ def _user_input(**participants: list[str]) -> dict[str, object]:
     }
 
 
-def _section_selectors(schema: Any, section_key: str) -> dict[str, Any]:
+def _section_options(schema: vol.Schema, section_key: str) -> dict[str, list[str]]:
+    """Return the options each select selector in a form section offers."""
     section = next(value for key, value in schema.schema.items() if key == section_key)
-    return {str(key): value for key, value in section.schema.schema.items()}
+    return {
+        str(key): list(selector.config["options"])
+        for key, selector in section.schema.schema.items()
+        if isinstance(selector, SelectSelector)
+    }
 
 
 REQUIREMENT_TYPES = pytest.mark.parametrize("element_type", [ElementType.RESERVE, ElementType.HEADROOM])
@@ -68,10 +74,11 @@ async def test_participant_lists_offer_loads_generation_and_batteries(
 
     result = await flow.async_step_user(user_input=None)
 
-    selectors = _section_selectors(result["data_schema"], SECTION_PARTICIPANTS)
-    assert selectors[CONF_LOADS].config["options"] == ["House"]
-    assert selectors[CONF_GENERATION].config["options"] == ["Solar"]
-    assert selectors[CONF_STORAGE].config["options"] == ["Battery"]
+    assert _section_options(result["data_schema"], SECTION_PARTICIPANTS) == {
+        CONF_LOADS: ["House"],
+        CONF_GENERATION: ["Solar"],
+        CONF_STORAGE: ["Battery"],
+    }
 
 
 @REQUIREMENT_TYPES
@@ -108,12 +115,12 @@ async def test_reconfigure_keeps_participants_and_stores_inputs(
     flow.async_update_and_abort = Mock(return_value={"type": FlowResultType.ABORT})
 
     form = await flow.async_step_reconfigure(user_input=None)
-    participants = _section_selectors(form["data_schema"], SECTION_PARTICIPANTS)
+    participants = _section_options(form["data_schema"], SECTION_PARTICIPANTS)
     await flow.async_step_reconfigure(
         user_input=_user_input(loads=["House"], generation=["Solar"], storage=["Battery"])
     )
 
-    assert participants[CONF_LOADS].config["options"] == ["House"]
+    assert participants[CONF_LOADS] == ["House"]
     data = flow.async_update_and_abort.call_args.kwargs["data"]
     assert data[SECTION_PARTICIPANTS] == {CONF_LOADS: ["House"], CONF_GENERATION: ["Solar"], CONF_STORAGE: ["Battery"]}
     assert data[SECTION_REQUIREMENT] == {CONF_WINDOW: as_constant_value(12.0), CONF_MINIMUM: as_constant_value(2.0)}

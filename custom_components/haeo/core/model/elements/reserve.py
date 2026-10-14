@@ -265,16 +265,13 @@ class Reserve(Element[ReserveOutputName]):
         end_next = np.minimum(last + 1, self.n_periods)
         end_demand = demand[end_start] * end_weight + demand[end_next] * fraction
 
-        rows = Rows.concat(
+        return Rows.concat(
             [
                 held - self._suffix_peak[1:] >= minimum,
                 held - self._prefix_peak[last] >= np.where(layout.block[last] != layout.block[1:], minimum, -INF),
                 held - end_demand >= np.where(fraction > 0.0, minimum, -INF),
             ]
         )
-        # Order the rows boundary by boundary, which keeps how the solver breaks ties between equal-cost plans
-        order = np.arange(3 * self.n_periods).reshape(3, self.n_periods).T.reshape(-1)
-        return Rows(rows.expr[order], rows.lower[order], rows.upper[order])
 
     @cost
     def reserve_shortfall_cost(self) -> LinearArray:
