@@ -33,8 +33,10 @@ def _build_extended_block(
 
     # Repeat block as needed to cover the entire horizon
     repeat_count = max(2, int(np.ceil((horizon_end - horizon_start) / cover_seconds)) + 1)
-    extended = [(timestamp + i * cover_seconds, value) for i in range(repeat_count) for (timestamp, value) in block]
-    return np.array(extended, dtype=[("timestamp", np.float64), ("value", np.float64)])
+    block_array = np.array(block, dtype=[("timestamp", np.float64), ("value", np.float64)])
+    extended = np.tile(block_array, repeat_count)
+    extended["timestamp"] += np.repeat(np.arange(repeat_count) * cover_seconds, len(block_array))
+    return extended
 
 
 def fuse_to_boundaries(
@@ -112,31 +114,26 @@ def fuse_to_intervals(
             raise ValueError(msg)
         return [present_value] * n_intervals
 
-    horizon_start = horizon_times[0]
-    horizon_end = horizon_times[-1]
+    block_array = _build_extended_block(forecast_series, horizon_times[0], horizon_times[-1])
+    block_times = block_array["timestamp"]
+    block_values = block_array["value"]
+    boundaries = np.asarray(horizon_times, dtype=np.float64)
 
-    block_array = _build_extended_block(forecast_series, horizon_start, horizon_end)
+    # Integrate the piecewise linear forecast through each interval's internal block
+    # points and its boundaries. A block point exactly on a boundary is replaced by
+    # the interpolated boundary value, as the block may hold a step there.
+    internal = ~np.isin(block_times, boundaries)
+    times = np.concatenate([block_times[internal], boundaries])
+    values = np.concatenate([block_values[internal], np.interp(boundaries, block_times, block_values)])
+    order = np.argsort(times, kind="stable")
+    times = times[order]
+    values = values[order]
+    segment_areas = np.diff(times) * (values[:-1] + values[1:]) / 2
 
-    # Trapezoidal integration over each interval
-    result: list[float] = []
-    for i in range(n_intervals):
-        interval_start = horizon_times[i]
-        interval_end = horizon_times[i + 1]
-        interval_duration = interval_end - interval_start
-
-        # Get block points strictly within this interval (excluding boundaries)
-        mask = (block_array["timestamp"] > interval_start) & (block_array["timestamp"] < interval_end)
-        interval_points = block_array[mask]
-
-        # Build integration series: start boundary + internal points + end boundary
-        start_value = np.interp(interval_start, block_array["timestamp"], block_array["value"])
-        end_value = np.interp(interval_end, block_array["timestamp"], block_array["value"])
-        times = np.concatenate([[interval_start], interval_points["timestamp"], [interval_end]])
-        values = np.concatenate([[start_value], interval_points["value"], [end_value]])
-
-        # Trapezoidal integration: area under curve divided by duration
-        area = np.trapezoid(values, times)
-        result.append(float(area / interval_duration))
+    # Sum the segments lying between consecutive boundaries, then average over each interval
+    boundary_positions = np.flatnonzero(order >= np.count_nonzero(internal))
+    areas = np.add.reduceat(segment_areas[: boundary_positions[-1]], boundary_positions[:-1])
+    result: list[float] = (areas / np.diff(boundaries)).tolist()
 
     # Replace first interval with present_value if provided
     if present_value is not None:

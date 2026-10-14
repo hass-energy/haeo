@@ -81,14 +81,19 @@ def update_row(
     so reading a row scans the whole matrix, and every changeCoeff call discards
     the simplex factorization, so only values that differ are written.
     An expression without bounds leaves the row unbounded.
+
+    A rebuilt constraint usually changes only a few of its rows, and a row that
+    is rebuilt identically has the same terms in the same order, so comparing the
+    term lists first skips the coefficient diff for every unchanged row.
     """
     if applied.bounds != expr.bounds:
         lower, upper = expr.bounds if expr.bounds is not None else (float("-inf"), float("inf"))
         solver.changeRowBounds(cons.index, lower, upper)
 
-    old_coeffs = _row_coefficients(applied)
-    new_coeffs = _row_coefficients(expr)
-    for var_idx in old_coeffs.keys() | new_coeffs.keys():
-        new_val = new_coeffs.get(var_idx, 0.0)
-        if old_coeffs.get(var_idx, 0.0) != new_val:
-            solver.changeCoeff(cons.index, var_idx, new_val)
+    if applied.idxs != expr.idxs or applied.vals != expr.vals:
+        old_coeffs = _row_coefficients(applied)
+        new_coeffs = _row_coefficients(expr)
+        for var_idx in old_coeffs.keys() | new_coeffs.keys():
+            new_val = new_coeffs.get(var_idx, 0.0)
+            if old_coeffs.get(var_idx, 0.0) != new_val:
+                solver.changeCoeff(cons.index, var_idx, new_val)

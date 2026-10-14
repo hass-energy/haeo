@@ -13,11 +13,13 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import itertools
 import json
 from pathlib import Path
 
 from homeassistant.util.json import JsonValueType
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
@@ -170,18 +172,19 @@ def _load_configs(
     return load_element_configs(_participants_from_config(config), sm, forecast_times)
 
 
-def _load_shifted_configs(
+def _load_shifted_horizon(
     config: dict[str, JsonValueType],
     sm: _ScenarioStateMachine,
     frozen_dt: datetime,
     shift_seconds: int,
-) -> dict[str, ElementConfigData]:
-    """Load element configs with time shifted forward."""
+) -> tuple[NDArray[np.float64], dict[str, ElementConfigData]]:
+    """Return the period widths (hours) and element configs for a horizon shifted forward."""
     shifted_epoch = frozen_dt.timestamp() + shift_seconds
     shifted_dt = datetime.fromtimestamp(shifted_epoch, tz=UTC)
     shifted_periods = preset_periods_seconds(config_horizon_preset(config), start_time=shifted_dt)
     shifted_forecast_times = generate_forecast_timestamps(shifted_periods, start_time=shifted_epoch)
-    return load_element_configs(_participants_from_config(config), sm, shifted_forecast_times)
+    configs = load_element_configs(_participants_from_config(config), sm, shifted_forecast_times)
+    return np.asarray(shifted_periods, dtype=float) / 3600, configs
 
 
 # ---------------------------------------------------------------------------
@@ -267,20 +270,29 @@ def test_update_all(scenario_path: Path, options: SolveOptions, benchmark: Bench
 
 @_apply_marks
 def test_time_shift(scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
-    """Shift forecast times forward one tick and re-optimize."""
+    """Roll the horizon forward one tick and re-optimize, as each optimization cycle does.
+
+    Rounds alternate between the original and the shifted horizon, so every round
+    changes the period widths and forecasts rather than re-solving unchanged inputs.
+    """
     config, inputs, freeze_timestamp = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
 
     periods_seconds = preset_periods_seconds(config_horizon_preset(config), start_time=frozen_dt)
-    shift_seconds = periods_seconds[0]
-    shifted_configs = _load_shifted_configs(config, sm, frozen_dt, shift_seconds)
+    horizons = [
+        _load_shifted_horizon(config, sm, frozen_dt, 0),
+        _load_shifted_horizon(config, sm, frozen_dt, periods_seconds[0]),
+    ]
 
     network, updaters = _build_network(config, sm, frozen_dt, options=options)
     network.optimize()  # prime
+    rounds = itertools.count(1)
 
     def run() -> float:
-        for elem_name, elem_config in shifted_configs.items():
+        periods_hours, configs = horizons[next(rounds) % 2]
+        network.update_periods(periods_hours)
+        for elem_name, elem_config in configs.items():
             updater = updaters.get(elem_name)
             if updater is not None:
                 updater(elem_config)
