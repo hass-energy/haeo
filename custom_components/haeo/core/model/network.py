@@ -48,8 +48,10 @@ _CAL_MARGIN: Final = 0.25  # step back from upper boundary (log10 decades)
 _REDUCED_COST_TOLERANCE: Final = 1e-7
 # A value within this of a bound is treated as at that bound
 _BOUND_TOLERANCE: Final = 1e-9
-# Factor the blend weight moves by until a weight is known on each side
-_WEIGHT_STEP: Final = 10.0
+# Factor the blend weight moves by until a weight is known on each side. Half a
+# decade is about as wide as the narrowest range of working weights seen, so one
+# step from just outside it usually lands inside.
+_WEIGHT_STEP: Final = 10.0**0.5
 # Narrowest gap between a weight too small for the order and one too large for
 # the cost that is still searched
 _WEIGHT_RESOLUTION: Final = 10.0**0.25
@@ -488,7 +490,7 @@ class BlendWeightSearch:
     def next_weight(self, weight: float, *, cost_optimal: bool, order_optimal: bool) -> float | None:
         """Return the next weight to solve with, or None to keep the plan just solved.
 
-        The weight moves tenfold away from a failing check until both bounds are
+        The weight moves half a decade away from a failing check until both bounds are
         known, then bisects between them.
         """
         if not cost_optimal:

@@ -901,10 +901,12 @@ def test_blended_solve_raises_a_weight_too_small_to_break_ties() -> None:
 
 
 def test_weight_search_lowers_the_weight_while_the_plan_is_not_cost_optimal() -> None:
-    """Without a known cost-optimal weight, the weight is lowered tenfold."""
+    """Without a known cost-optimal weight, the weight is lowered by a step."""
     search = BlendWeightSearch()
 
-    assert search.next_weight(1e-3, cost_optimal=False, order_optimal=True) == pytest.approx(1e-4)
+    assert search.next_weight(1e-3, cost_optimal=False, order_optimal=True) == pytest.approx(
+        1e-3 / network_module._WEIGHT_STEP
+    )
 
 
 def test_weight_search_stops_lowering_at_the_smallest_weight() -> None:
@@ -915,11 +917,15 @@ def test_weight_search_stops_lowering_at_the_smallest_weight() -> None:
 
 
 def test_weight_search_raises_an_out_of_order_weight() -> None:
-    """A cost-optimal plan out of order raises the weight tenfold while no weight is known too large."""
+    """A cost-optimal plan out of order raises the weight by a step while no weight is known too large."""
     search = BlendWeightSearch()
 
-    assert search.next_weight(1e-6, cost_optimal=True, order_optimal=False) == pytest.approx(1e-5)
-    assert search.next_weight(5e-4, cost_optimal=True, order_optimal=False) == pytest.approx(5e-3)
+    assert search.next_weight(1e-6, cost_optimal=True, order_optimal=False) == pytest.approx(
+        1e-6 * network_module._WEIGHT_STEP
+    )
+    assert search.next_weight(5e-4, cost_optimal=True, order_optimal=False) == pytest.approx(
+        5e-4 * network_module._WEIGHT_STEP
+    )
 
 
 def test_weight_search_never_raises_to_a_weight_too_large_for_the_cost() -> None:
@@ -956,7 +962,9 @@ def test_weight_search_lowers_again_when_a_known_cost_optimal_weight_fails_the_c
     search.next_weight(1e-6, cost_optimal=True, order_optimal=False)
     assert search.next_weight(1.5e-6, cost_optimal=False, order_optimal=True) == pytest.approx(1e-6)
 
-    assert search.next_weight(1e-6, cost_optimal=False, order_optimal=True) == pytest.approx(1e-7)
+    assert search.next_weight(1e-6, cost_optimal=False, order_optimal=True) == pytest.approx(
+        1e-6 / network_module._WEIGHT_STEP
+    )
 
 
 def test_weight_search_stops_raising_at_the_largest_weight() -> None:

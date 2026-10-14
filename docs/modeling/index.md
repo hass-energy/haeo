@@ -88,7 +88,7 @@ No single weight suits every input: too large and the secondary trades away cost
 Each blended plan is therefore checked at its basis.
 The reduced costs there are the slopes of an objective along each way of moving away from the plan.
 The cost is priced at the plan's basis without any simplex iterations, which leaves the plan and its basis unchanged.
-If some move would lower the cost, the weight is too large and is lowered, tenfold at a time.
+If some move would lower the cost, the weight is too large and is lowered, half a decade (a factor of $\sqrt{10}$) at a time.
 Otherwise, the moves that leave the cost unchanged lead to equally cheap plans, and if one of them lowers the secondary, the weight is too small and is raised.
 The secondary needs no pricing of its own: at a fixed basis reduced costs are linear in the objective, so its reduced costs are the blended solve's minus the cost's, divided by the weight.
 The weight is never raised to a weight already found too large for the cost in that optimization, so the cheapest plan always comes first.
