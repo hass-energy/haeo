@@ -110,7 +110,7 @@ Degenerate LPs have many optimal solutions; the secondary objective is what stop
     Do not remove either check to save time: a stale weight silently trades cost for tie-breaking when too large, and leaves ties to the solver path when too small.
 
 - The time-preference weights must not be a sum of a connection term and a time term alone, or swaps between connections across periods tie exactly.
-    The perturbation in `tie_break_perturbation` prevents that.
+    The fixed offset from `tie_break_offset` prevents that.
 
 - Catch optimization failures gracefully and return appropriate status indicators.
 

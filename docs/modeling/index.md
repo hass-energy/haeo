@@ -251,7 +251,7 @@ $$
 
 Where $p$ is the connection's priority, $w_{p,t} = p \cdot T + (t + 1) + \tfrac{1}{2} u_{p,t}$ assigns monotonically increasing weights by connection and time step, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
 Each connection has its own priority, so connections receive non-overlapping weight ranges.
-The small fixed perturbation $u_{p,t} \in [0, 1)$, the fractional part of the square root of a distinct prime per connection and period, breaks exact ties between equally cheap plans, which would otherwise be decided by the order of the solver's rows.
+The small fixed offset $u_{p,t} \in [0, 1)$, the fractional part of the square root of a distinct prime per connection and period, breaks exact ties between equally cheap plans, which would otherwise be decided by the order of the solver's rows.
 See [connection](model-layer/connections/connection.md) for why it is needed.
 
 The secondary objective does not affect the optimal cost.

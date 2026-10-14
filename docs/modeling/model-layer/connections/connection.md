@@ -106,11 +106,11 @@ $$
 $$
 
 Lower-priority connections are preferred when breaking ties, and within a connection earlier transfers are preferred.
-Distinct weights differ by at least one, so the perturbation $\tfrac{1}{2} u_{p,t}$ never reorders two of them.
+Distinct weights differ by at least one, so the offset $\tfrac{1}{2} u_{p,t}$ never reorders two of them.
 It exists because $p \cdot T + (t + 1)$ alone is a connection term plus a time term:
 moving energy from one period to another on one connection, and back on a second connection, would leave it unchanged.
 Equally cheap plans that differ by such swaps, such as two identical batteries sharing a load, would then be chosen by the order of the solver's rows.
-Square roots of distinct primes are linearly independent over the rationals, so no exchange of energy between connections and periods can leave the perturbation unchanged.
+Square roots of distinct primes are linearly independent over the rationals, so no exchange of energy between connections and periods can leave the offsets' sum unchanged.
 This gives every swap a cost, so equally cheap plans no longer tie exactly.
 The cost of a rare swap can still be smaller than the solver's tolerance, in which case the solver decides it.
 Multiples of a single irrational, such as the golden ratio, are not enough: their fractional parts can cancel exactly.

@@ -15,7 +15,7 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTER
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements import ModelElementConfig
-from custom_components.haeo.core.model.elements.connection import Connection, tie_break_perturbation
+from custom_components.haeo.core.model.elements.connection import Connection, tie_break_offset
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
 from custom_components.haeo.core.model.network import BlendWeightSearch, SolveOptions, _bisect_boundary
@@ -794,9 +794,9 @@ def test_equally_cheap_plans_do_not_depend_on_element_order() -> None:
     assert len(plans) == 1
 
 
-def test_tie_break_perturbation_is_distinct_per_connection_and_period() -> None:
-    """Every connection and period of a network gets its own perturbation in [0, 1)."""
-    values = np.concatenate([tie_break_perturbation(priority, 10) for priority in range(5)])
+def test_tie_break_offset_is_distinct_per_connection_and_period() -> None:
+    """Every connection and period of a network gets its own offset in [0, 1)."""
+    values = np.concatenate([tie_break_offset(priority, 10) for priority in range(5)])
 
     assert np.all((values >= 0.0) & (values < 1.0))
     assert len(np.unique(values)) == len(values)

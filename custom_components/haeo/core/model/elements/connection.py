@@ -49,8 +49,8 @@ CONNECTION_SEGMENTS: Final = "segments"
 
 CONNECTION_OUTPUT_NAMES: Final[frozenset[ConnectionOutputName]] = frozenset((CONNECTION_POWER, CONNECTION_SEGMENTS))
 
-# Largest perturbation added to a time-preference weight. Distinct weights differ by
-# at least one, so a perturbation below half of that never reorders two of them.
+# Largest offset added to a time-preference weight. Distinct weights differ by at
+# least one, so an offset below half of that never reorders two of them.
 TIE_BREAK_SCALE: Final = 0.5
 
 
@@ -77,7 +77,7 @@ class _Primes:
 _PRIMES = _Primes()
 
 
-def tie_break_perturbation(priority: int, n_periods: int) -> NDArray[np.float64]:
+def tie_break_offset(priority: int, n_periods: int) -> NDArray[np.float64]:
     """Return a fixed value in [0, 1) for each period of a connection.
 
     The time-preference weight is a connection term plus a period term, so moving
@@ -315,13 +315,13 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """
         primary = total([seg.cost() for seg in self._segments.values()])
 
-        # Time-preference objective: prefer earlier energy transfer, perturbed so that
+        # Time-preference objective: prefer earlier energy transfer, offset so that
         # equally cheap plans never tie
         n = self.n_periods
         weights = (
             self.priority * n
             + np.arange(1, n + 1, dtype=np.float64)
-            + TIE_BREAK_SCALE * tie_break_perturbation(self.priority, n)
+            + TIE_BREAK_SCALE * tie_break_offset(self.priority, n)
         )
         secondary = (self.total_measured_power * self.periods * weights).total()
 
@@ -378,5 +378,5 @@ __all__ = [
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
     "ConnectionOutputName",
-    "tie_break_perturbation",
+    "tie_break_offset",
 ]
