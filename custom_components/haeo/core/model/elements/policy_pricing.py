@@ -8,13 +8,13 @@ optimization picks up the new value without rebuilding the network.
 
 from typing import Final, Literal, NotRequired, Protocol, TypedDict
 
-from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.linear import LinearArray, total
 from custom_components.haeo.core.model.reactive import TrackedParam, cost
+from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 type PolicyPricingElementTypeName = Literal["policy_pricing"]
@@ -27,7 +27,7 @@ class MeasuredFlows(Protocol):
     """A connection's per-tag power at its measured point, which a policy price applies to."""
 
     @property
-    def measured_power(self) -> dict[int, HighspyArray]:
+    def measured_power(self) -> dict[int, LinearArray]:
         """Per-tag power at the measured point."""
         ...
 
@@ -65,7 +65,7 @@ class PolicyPricing(Element[str]):
         name: str,
         periods: NDArray[np.float64],
         *,
-        solver: Highs,
+        solver: Solver,
         price: float | NDArray[np.float64],
         priced_flows: list[tuple[MeasuredFlows, int]],
         terms: list[PolicyPricingTerm] | None = None,
@@ -87,10 +87,7 @@ class PolicyPricing(Element[str]):
         self.label: str = ""
 
     @cost
-    def pricing_cost(self) -> highs_linear_expression | None:
+    def pricing_cost(self) -> LinearArray | None:
         """Compute the pricing cost for this policy rule placement."""
         price = self.price
-        costs = [
-            Highs.qsum(connection.measured_power[tag] * price * self.periods) for connection, tag in self._priced_flows
-        ]
-        return costs[0] if len(costs) == 1 else Highs.qsum(costs)
+        return total([connection.measured_power[tag] * price * self.periods for connection, tag in self._priced_flows])

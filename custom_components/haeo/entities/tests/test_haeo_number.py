@@ -1212,6 +1212,84 @@ async def test_driven_mode_triggers_reload_task(
     entity._async_load_sync_and_update.assert_awaited_once()
 
 
+async def test_source_changes_in_one_pass_share_one_reload(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """Source entities written together trigger one reload that sees all of their values."""
+    hass.states.async_set("sensor.power_a", "1.0")
+    hass.states.async_set("sensor.power_b", "2.0")
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power_a", "sensor.power_b"]})
+    config_entry.runtime_data = None
+
+    entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
+    await _add_entity_to_hass(hass, entity)
+    load = AsyncMock(wraps=entity.store.async_load)
+    entity.store.async_load = load
+
+    hass.states.async_set("sensor.power_a", "3.0")
+    hass.states.async_set("sensor.power_b", "4.0")
+    await hass.async_block_till_done()
+
+    load.assert_awaited_once()
+    assert entity.native_value == pytest.approx(7.0)
+
+    hass.states.async_set("sensor.power_a", "5.0")
+    await hass.async_block_till_done()
+
+    assert load.await_count == 2
+    assert entity.native_value == pytest.approx(9.0)
+
+
+async def test_horizon_change_reloads_before_returning(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """A horizon change reloads at once, so the store never lags the horizon an optimization reads."""
+    hass.states.async_set("sensor.power", "10.0")
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
+    await _add_entity_to_hass(hass, entity)
+    load = AsyncMock(wraps=entity.store.async_load)
+    entity.store.async_load = load
+
+    entity._handle_horizon_change()
+
+    load.assert_awaited_once()
+
+
+async def test_removal_cancels_queued_reload(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """A reload queued by a source change does not run once the entity is removed."""
+    hass.states.async_set("sensor.power", "10.0")
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
+    await _add_entity_to_hass(hass, entity)
+    load = AsyncMock(wraps=entity.store.async_load)
+    entity.store.async_load = load
+
+    entity._handle_source_state_change(Mock())
+    await entity.async_remove()
+    await hass.async_block_till_done()
+
+    load.assert_not_awaited()
+
+
 async def test_scalar_horizon_change_noop(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,

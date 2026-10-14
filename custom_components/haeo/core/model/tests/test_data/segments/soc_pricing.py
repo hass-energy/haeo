@@ -2,13 +2,13 @@
 
 from typing import Any
 
-from highspy import Highs
-from highspy.highs import HighspyArray
 import numpy as np
-from numpy.typing import NDArray
-
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements.segments import SocPricingSegment
+from custom_components.haeo.core.model.linear import LinearArray
+from custom_components.haeo.core.model.solver import Solver
+from custom_components.haeo.core.model.util.solver_rows import add_rows
+from numpy.typing import NDArray
 
 from ..segment_types import SegmentErrorScenario, SegmentScenario
 
@@ -16,14 +16,14 @@ from ..segment_types import SegmentErrorScenario, SegmentScenario
 class MockBattery(Element[str]):
     """Minimal battery element for SOC pricing scenarios."""
 
-    stored_energy: HighspyArray
+    stored_energy: LinearArray
 
     def __init__(
         self,
         name: str,
         periods: NDArray[np.float64],
-        solver: Highs,
-        stored_energy: HighspyArray,
+        solver: Solver,
+        stored_energy: LinearArray,
     ) -> None:
         """Initialize the mock battery."""
         super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
@@ -33,23 +33,23 @@ class MockBattery(Element[str]):
 class DummyElement(Element[str]):
     """Minimal non-battery element for segment endpoints."""
 
-    def __init__(self, name: str, periods: NDArray[np.float64], solver: Highs) -> None:
+    def __init__(self, name: str, periods: NDArray[np.float64], solver: Solver) -> None:
         """Initialize the dummy element."""
         super().__init__(name=name, periods=periods, solver=solver, output_names=frozenset())
 
 
-def _battery_endpoints_fixed(solver: Highs, periods: NDArray[np.float64]) -> tuple[Element[Any], Element[Any]]:
-    stored_energy = solver.addVariables(len(periods) + 1, lb=0, name_prefix="battery_e_", out_array=True)
-    solver.addConstr(stored_energy[0] == 5.0)
-    solver.addConstr(stored_energy[1] == 2.0)
-    solver.addConstr(stored_energy[2] == 9.0)
+def _battery_endpoints_fixed(solver: Solver, periods: NDArray[np.float64]) -> tuple[Element[Any], Element[Any]]:
+    stored_energy = solver.add_variables(len(periods) + 1, name="stored_energy")
+    add_rows(solver, stored_energy[0] == 5.0)
+    add_rows(solver, stored_energy[1] == 2.0)
+    add_rows(solver, stored_energy[2] == 9.0)
     battery = MockBattery("battery", periods, solver, stored_energy)
     target = DummyElement("target", periods, solver)
     return battery, target
 
 
-def _battery_endpoints_free(solver: Highs, periods: NDArray[np.float64]) -> tuple[Element[Any], Element[Any]]:
-    stored_energy = solver.addVariables(len(periods) + 1, lb=0, name_prefix="battery_e_", out_array=True)
+def _battery_endpoints_free(solver: Solver, periods: NDArray[np.float64]) -> tuple[Element[Any], Element[Any]]:
+    stored_energy = solver.add_variables(len(periods) + 1, name="stored_energy")
     battery = MockBattery("battery", periods, solver, stored_energy)
     target = DummyElement("target", periods, solver)
     return battery, target

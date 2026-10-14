@@ -114,10 +114,12 @@ See [typing philosophy](../../../docs/developer-guide/typing.md) for detailed pa
 - Type checking: Pyright
 - American English for all code and comments
 - Sentence case for messages
+- Order conditions so a bare `return`, `continue`, or `break` is not needed: guard the work with the condition, or filter the items before the loop.
+    Use a bare keyword only when the restructured version would be clearly harder to read.
 
 ### Lint suppressions
 
-`# noqa` is a tool of last resort.
+`# noqa`, `# type: ignore`, and `# pyright: ignore` are tools of last resort.
 Before adding one, try to restructure the code so the lint rule is satisfied naturally.
 Only suppress when there is genuinely no reasonable alternative.
 
@@ -149,6 +151,9 @@ from .internals import _private  # noqa: PLC0415
 # Only used in one function
 from .internals import _private  # noqa: PLC0415
 ```
+
+Never import a private (`_name`) symbol from another module and silence `reportPrivateUsage`, in tests as well as code.
+Test through the public API, make the symbol public when it is genuinely part of the module's interface, or build an independent reference in the test.
 
 ## Docstrings
 
