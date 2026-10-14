@@ -33,7 +33,8 @@ def _boundary_data(n_periods: int, events: list[tuple[float, float, float]]) -> 
         value_span=span,
         value_edge_start=_fused(fuse_window_edges_to_boundaries(windows, boundaries, "start")),
         value_edge_end=_fused(fuse_window_edges_to_boundaries(windows, boundaries, "end")),
-        open_age=None,
+        open_since=None,
+        horizon_start=0.0,
     )
 
 

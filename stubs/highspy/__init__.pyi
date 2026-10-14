@@ -145,7 +145,7 @@ class Highs:
         self,
         num_cols: int,
         cols: NDArray[np.int32],
-        integrality: NDArray[Any],
+        integrality: NDArray[np.generic],
     ) -> HighsStatus: ...
     def getCols(
         self,

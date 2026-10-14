@@ -29,7 +29,7 @@ from custom_components.haeo.core.schema.elements.schedulable_load import (
     CONF_INTEGER_MODE,
     CONF_POWER,
     CONF_RUNNING,
-    CONF_RUNNING_LAST_OFF_AGE,
+    CONF_RUNNING_OFF_PERIODS,
     CONF_WINDOW_CALENDAR,
     DEFAULT_INTEGER_MODE,
     ELEMENT_TYPE,
@@ -89,12 +89,13 @@ class SchedulableLoadAdapter:
         overlapping events merge into one window. The profile is a single
         step at the configured power for the configured duration.
 
-        The running sensor ties the plan to what the load is doing. A load
-        running now finishes its run from the horizon start, counting from
-        when the sensor last stopped reading off. The window open at the
-        horizon start needs no further run when its run already started
-        inside it, whether that run is still going or has finished. Without
-        history for a running load, the run is taken to have just started.
+        The running sensor ties the plan to what the load is doing. A run
+        starts when an off period of the sensor ends. A load running now
+        finishes its run from the horizon start, counting from when that run
+        started. The window open at the horizon start needs no further run
+        when its run already started inside it, whether that run is still
+        going or has finished. Without history for a running load, the run
+        is taken to have just started.
         """
         name = config["name"]
         schedule = config[SECTION_SCHEDULE]
@@ -105,11 +106,14 @@ class SchedulableLoadAdapter:
         calendar = schedule[CONF_WINDOW_CALENDAR]
         windows = calendar_windows(calendar)
 
-        start_age = _run_start_age(schedule)
-        running = start_age is not None and _is_running(schedule)
-        open_age = calendar["open_age"]
+        horizon_start = calendar["horizon_start"]
+        run_start = _run_start(schedule, horizon_start)
+        open_since = calendar["open_since"]
         window_started = (
-            windows.in_window[0] > 0.0 and start_age is not None and open_age is not None and start_age <= open_age
+            windows.in_window[0] > 0.0 and run_start is not None and open_since is not None and run_start >= open_since
+        )
+        elapsed = (
+            (horizon_start - run_start) / _SECONDS_PER_HOUR if run_start is not None and _is_running(schedule) else None
         )
 
         load: SchedulableLoadElementConfig = {
@@ -122,9 +126,11 @@ class SchedulableLoadAdapter:
             # Penalty prices are clamped at zero: the model rejects negative
             # prices, and an entity can report one even though the form cannot.
             "deficit_price": max(float(pricing[CONF_DEFICIT_PRICE]), 0.0),
-            "elapsed": start_age / _SECONDS_PER_HOUR if running and start_age is not None else None,
+            "elapsed": elapsed,
             "window_started": bool(window_started),
             "integer_mode": advanced.get(CONF_INTEGER_MODE, DEFAULT_INTEGER_MODE),
+            "is_source": False,
+            "is_sink": True,
         }
 
         return [
@@ -173,14 +179,15 @@ def _is_running(schedule: ScheduleData) -> bool:
     return float(schedule.get(CONF_RUNNING, 0.0)) >= _RUNNING_THRESHOLD
 
 
-def _run_start_age(schedule: ScheduleData) -> float | None:
-    """Return how many seconds before the horizon start the latest run started.
+def _run_start(schedule: ScheduleData, horizon_start: float) -> float | None:
+    """Return when the latest run started, in POSIX seconds.
 
-    The latest run started when the running sensor last stopped reading off.
-    A running load without that history is taken to have just started, and
-    an idle load without it has no known run.
+    A run starts when an off period of the running sensor ends. A running
+    load whose history shows no such end, or still shows it off, has just
+    started. An idle load without one has no known run.
     """
-    last_off_age = schedule.get(CONF_RUNNING_LAST_OFF_AGE)
-    if last_off_age is not None:
-        return max(float(last_off_age), 0.0)
-    return 0.0 if _is_running(schedule) else None
+    periods = schedule.get(CONF_RUNNING_OFF_PERIODS, [])
+    ended = [end for _start, end in periods if end is not None]
+    if _is_running(schedule) and (not ended or periods[-1][1] is None):
+        return horizon_start
+    return ended[-1] if ended else None

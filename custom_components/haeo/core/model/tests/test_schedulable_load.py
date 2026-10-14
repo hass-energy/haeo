@@ -46,6 +46,8 @@ def _build_network(
             "elapsed": elapsed,
             "window_started": window_started,
             "integer_mode": integer_mode,
+            "is_source": False,
+            "is_sink": True,
         }
     )
     segments: dict[str, SegmentSpec] = {

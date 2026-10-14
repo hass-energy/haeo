@@ -30,15 +30,15 @@ parameter values and coefficients.
 
 from typing import Final, Literal, NotRequired, TypedDict
 
-from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression, highs_var
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, NetworkElement
+from custom_components.haeo.core.model.linear import LinearArray, Rows
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
+from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util import (
     broadcast_to_sequence,
     require_non_negative,
@@ -101,6 +101,8 @@ class SchedulableLoadElementConfig(TypedDict):
     elapsed: NotRequired[float | None]
     window_started: NotRequired[bool]
     integer_mode: NotRequired[IntegerMode]
+    is_source: Literal[False]
+    is_sink: Literal[True]
     outbound_tags: NotRequired[set[int] | None]
     inbound_tags: NotRequired[set[int] | None]
 
@@ -127,9 +129,9 @@ class SchedulableLoad(NetworkElement[SchedulableLoadOutputName]):
     # Parameters
     profile_power: TrackedParam[NDArray[np.float64]] = TrackedParam()
     profile_duration: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    in_window: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    window_start: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    deficit_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    in_window: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    window_start: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    deficit_price: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
     elapsed: TrackedParam[float | None] = TrackedParam()
     window_started: TrackedParam[bool] = TrackedParam()
 
@@ -138,7 +140,7 @@ class SchedulableLoad(NetworkElement[SchedulableLoadOutputName]):
         name: str,
         periods: NDArray[np.float64],
         *,
-        solver: Highs,
+        solver: Solver,
         profile_power: NDArray[np.float64],
         profile_duration: NDArray[np.float64],
         in_window: NDArray[np.float64] | float,
@@ -147,6 +149,8 @@ class SchedulableLoad(NetworkElement[SchedulableLoadOutputName]):
         elapsed: float | None = None,
         window_started: bool = False,
         integer_mode: IntegerMode = "first",
+        is_source: Literal[False],
+        is_sink: Literal[True],
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
     ) -> None:
@@ -156,6 +160,8 @@ class SchedulableLoad(NetworkElement[SchedulableLoadOutputName]):
             periods=periods,
             solver=solver,
             output_names=SCHEDULABLE_LOAD_OUTPUT_NAMES,
+            is_source=is_source,
+            is_sink=is_sink,
             outbound_tags=outbound_tags,
             inbound_tags=inbound_tags,
         )
@@ -174,24 +180,24 @@ class SchedulableLoad(NetworkElement[SchedulableLoadOutputName]):
         self.integer_mode: IntegerMode = integer_mode
 
         # Weight of the run starting at each boundary 0..T-1
-        self.start = solver.addVariables(n_periods, lb=0.0, ub=1.0, name_prefix=f"{name}_start_", out_array=True)
+        self.start = solver.add_variables(n_periods, name=f"{name}.start", upper=1.0)
         # Energy consumed during each period
-        self.energy = solver.addVariables(n_periods, lb=0.0, name_prefix=f"{name}_energy_", out_array=True)
+        self.energy = solver.add_variables(n_periods, name=f"{name}.energy")
         # Runs started in the current window, at every boundary
-        self.runs = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_runs_", out_array=True)
+        self.runs = solver.add_variables(n_periods + 1, name=f"{name}.runs")
         # Run missed by the window ending at boundaries 1..T
-        self.missed = solver.addVariables(n_periods, lb=0.0, name_prefix=f"{name}_missed_", out_array=True)
+        self.missed = solver.add_variables(n_periods, name=f"{name}.missed")
 
-    def integer_variables(self) -> list[highs_var]:
+    def integer_variables(self) -> LinearArray | None:
         """Return the start weights the integer mode makes binary."""
         if self.integer_mode == "all":
-            return list(self.start)
+            return self.start
         if self.integer_mode == "first":
-            return [self.start[0]]
-        return []
+            return self.start[:1]
+        return None
 
     @property
-    def power_consumption(self) -> HighspyArray:
+    def power_consumption(self) -> LinearArray:
         """Power being consumed by the load.
 
         Computed on-demand so that accessing self.periods triggers dependency
@@ -199,7 +205,29 @@ class SchedulableLoad(NetworkElement[SchedulableLoadOutputName]):
         """
         return self.energy * (1.0 / self.periods)
 
-    # Profile geometry
+    # Window and profile geometry
+
+    def _in_window(self) -> NDArray[np.float64]:
+        """Return the per-period window flag.
+
+        A parameter update can set a plain float, as the model config allows.
+        """
+        return broadcast_to_sequence(self.in_window, self.n_periods)
+
+    def _boundaries_of(self, value: NDArray[np.float64] | float) -> NDArray[np.float64]:
+        """Broadcast a per-boundary parameter to every boundary.
+
+        A parameter update can set a plain float, as the model config allows.
+        """
+        return broadcast_to_sequence(value, self.n_periods + 1)
+
+    def _carry(self) -> NDArray[np.float64]:
+        """Return 1 for each period that continues the window of the boundary before it."""
+        return window_carry(self._in_window(), self._boundaries_of(self.window_start))
+
+    def _window_end(self) -> NDArray[np.float64]:
+        """Return 1 at boundaries 1..T where a window ends."""
+        return window_end(self._in_window(), self._boundaries_of(self.window_start))
 
     def _boundaries(self) -> NDArray[np.float64]:
         """Return the time of each boundary in hours from the horizon start."""
@@ -263,72 +291,62 @@ class SchedulableLoad(NetworkElement[SchedulableLoadOutputName]):
         """
         boundaries = self._boundaries()
         starts = boundaries[:-1]
-        window_end_time = boundaries[window_end_index(self.in_window, self.window_start)]
+        in_window = self._in_window()
+        window_end_time = boundaries[window_end_index(in_window, self._boundaries_of(self.window_start))]
         fits = starts + self._run_duration() <= window_end_time + _TIME_EPSILON
         free = starts >= self._committed_until() - _TIME_EPSILON
-        return self.in_window * fits * free
+        return in_window * fits * free
 
     # Constraints
 
     @constraint(output=True, unit="$/kWh")
-    def schedulable_load_profile(self) -> list[highs_linear_expression]:
+    def schedulable_load_profile(self) -> Rows:
         """Constraint: each period's energy is what the chosen starts and the committed run consume there.
 
         Output: shadow price indicating the marginal cost of energy in each period.
         """
-        columns = self._start_columns()
-        committed = self._committed_energy()
-        start_indices = [var.index for var in self.start]
-        rows: list[highs_linear_expression] = []
-        for t in range(self.n_periods):
-            reach = np.nonzero(columns[t])[0]
-            row = highs_linear_expression()
-            row.idxs = [self.energy[t].index, *(start_indices[b] for b in reach)]
-            row.vals = [1.0, *(-float(columns[t, b]) for b in reach)]
-            rows.append(row == float(committed[t]))
-        return rows
+        return self.energy - self._start_columns() @ self.start == self._committed_energy()
 
     @constraint
-    def schedulable_load_start_allowed(self) -> list[highs_linear_expression]:
+    def schedulable_load_start_allowed(self) -> Rows:
         """Constraint: runs only start where the profile fits inside a window."""
-        return list(self.start <= self._allowed_starts())
+        return self.start <= self._allowed_starts()
 
     @constraint
-    def schedulable_load_initial_runs(self) -> highs_linear_expression:
+    def schedulable_load_initial_runs(self) -> Rows:
         """Constraint: the window open at the horizon start counts a run it already started."""
-        carry = window_carry(self.in_window, self.window_start)
-        return self.runs[0] == carry[0] * float(self.window_started)
+        return self.runs[0] == self._carry()[0] * float(self.window_started)
 
     @constraint
-    def schedulable_load_run_count(self) -> list[highs_linear_expression]:
+    def schedulable_load_run_count(self) -> Rows:
         """Constraint: the run count adds each start, resetting at window starts."""
-        carry = window_carry(self.in_window, self.window_start)
-        return list(self.runs[1:] - carry * self.runs[:-1] - self.start == 0.0)
+        return self.runs[1:] - self._carry() * self.runs[:-1] - self.start == 0.0
 
     @constraint
-    def schedulable_load_one_run(self) -> list[highs_linear_expression]:
+    def schedulable_load_one_run(self) -> Rows:
         """Constraint: each window receives one run, or books it as missed.
 
         At a window end the runs counted plus the missed run equal one, so at
         most one run starts per window. Away from window ends the missed run
         is pinned to zero.
         """
-        ends = window_end(self.in_window, self.window_start)
-        return list(ends * self.runs[1:] + self.missed == ends)
+        ends = self._window_end()
+        return ends * self.runs[1:] + self.missed == ends
 
-    def element_power_produced(self) -> HighspyArray | None:
+    def element_power_produced(self) -> LinearArray | None:
         """Schedulable loads never produce power."""
         return None
 
-    def element_power_consumed(self) -> HighspyArray:
+    def element_power_consumed(self) -> LinearArray:
         """Return power consumed by the load."""
         return self.power_consumption
 
     @cost
-    def schedulable_load_missed_cost(self) -> highs_linear_expression:
+    def schedulable_load_missed_cost(self) -> LinearArray:
         """Cost: each missed run priced per kWh of the profile at its window end."""
-        require_non_negative("deficit_price", self.deficit_price)
-        return (self.deficit_price[1:] * self._run_total_energy() * self.missed).sum()
+        deficit_price = self._boundaries_of(self.deficit_price)
+        require_non_negative("deficit_price", deficit_price)
+        return (self.missed * (deficit_price[1:] * self._run_total_energy())).total()
 
     # Output methods
 

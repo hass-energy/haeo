@@ -68,7 +68,7 @@ Without this sensor, a plan made while the appliance is running does not know a 
 
 Select a binary sensor or input boolean that is on while the appliance runs.
 Many appliance integrations provide one; otherwise a [threshold sensor](https://www.home-assistant.io/integrations/threshold/) on the appliance's power works.
-HAEO looks up when the sensor last turned on from Home Assistant's history, so you do not need to build anything else.
+HAEO reads when the sensor turned on from Home Assistant's history, so you do not need to build anything else.
 
 - **Running now**: the rest of the run is planned from the present, and no new run starts until it finishes.
 - **Ran during the open window**: the window is treated as done, even after the appliance stops.
@@ -108,11 +108,11 @@ A split plan cannot be carried out, so the start decision controls which starts 
 
 The schedulable load element creates one device with the following sensors:
 
-| Sensor        | Unit | Description                                                     |
-| ------------- | ---- | --------------------------------------------------------------- |
-| Power         | kW   | Power drawn by the load                                         |
+| Sensor        | Unit | Description                                                      |
+| ------------- | ---- | ---------------------------------------------------------------- |
+| Power         | kW   | Power drawn by the load                                          |
 | Start         | -    | 1 when a run should start now; the forecast shows planned starts |
-| Energy missed | kWh  | Energy of runs the optimizer expects windows to miss            |
+| Energy missed | kWh  | Energy of runs the optimizer expects windows to miss             |
 
 All sensors include a `forecast` attribute with optimized future values.
 Start the appliance when the **Start** sensor reads 1, for example with an automation that turns on its smart plug or sends its remote start command.

@@ -159,11 +159,11 @@ A fractional plan cannot be executed: half a dishwasher run does not exist.
 
 `integer_mode` chooses which start weights are binary:
 
-| Mode    | Binary weights        | Effect                                                                     |
-| ------- | --------------------- | -------------------------------------------------------------------------- |
-| `none`  | None                  | Pure linear program; future and present starts may be fractional           |
-| `first` | $x(0)$ only (default) | The decision to start now is all or nothing; future starts stay relaxed    |
-| `all`   | Every $x(j)$          | Every start is all or nothing; the solve is a full mixed-integer program   |
+| Mode    | Binary weights        | Effect                                                                   |
+| ------- | --------------------- | ------------------------------------------------------------------------ |
+| `none`  | None                  | Pure linear program; future and present starts may be fractional         |
+| `first` | $x(0)$ only (default) | The decision to start now is all or nothing; future starts stay relaxed  |
+| `all`   | Every $x(j)$          | Every start is all or nothing; the solve is a full mixed-integer program |
 
 Only the first period acts on the plan before HAEO re-optimizes, so `first` makes the actionable decision crisp at the cost of one binary variable.
 Future starts stay relaxed and are re-decided as they approach the present.

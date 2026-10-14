@@ -58,6 +58,7 @@ def _boundary_data(
         value_edge_start=np.array(value_edge_start, dtype=np.float64),
         value_edge_end=np.array(value_edge_end, dtype=np.float64),
         open_since=open_since,
+        horizon_start=0.0,
     )
 
 

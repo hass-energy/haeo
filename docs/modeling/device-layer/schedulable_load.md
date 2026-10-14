@@ -17,10 +17,10 @@ graph LR
 
 The adapter creates two model elements:
 
-| Model Element                                          | Name                | Purpose                                         |
-| ------------------------------------------------------ | ------------------- | ----------------------------------------------- |
-| Schedulable load                                       | `{name}`            | One run of the profile per window, priced miss  |
-| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | Network → load, with no limits of its own       |
+| Model Element                                          | Name                | Purpose                                        |
+| ------------------------------------------------------ | ------------------- | ---------------------------------------------- |
+| Schedulable load                                       | `{name}`            | One run of the profile per window, priced miss |
+| [Connection](../model-layer/connections/connection.md) | `{name}:connection` | Network → load, with no limits of its own      |
 
 The connection needs no power limit: the profile fixes the power the load draws.
 
@@ -45,12 +45,12 @@ The adapter builds windows the same way as for the [deferrable load](deferrable_
 ### Runs already started
 
 Each optimization starts a fresh horizon, so the device must tell the model what the load is already doing.
-When a running sensor is configured, the integration looks up when the sensor last stopped reading off, using the same recorder lookup as the [EV's plugged-in sensor](ev.md#early-return).
-That time is when the latest run started.
+When a running sensor is configured, the integration reads the periods it read off from the recorder, the same history the [EV's plugged-in sensor](ev.md#early-return) uses.
+A run starts when an off period ends, so the end of the latest finished off period is when the latest run started.
 
 - **Running now**: the run is committed.
     The model consumes the rest of the profile from the horizon start, counting from the run's start, and allows no new start until it finishes.
-    Without history the run is taken to have just started, which plans the whole profile.
+    Without history, or while the history still shows the sensor off, the run is taken to have just started, which plans the whole profile.
 - **Run started inside the open window**: that window needs no further run, whether the run is still going or has finished.
 - **Run started before the open window opened**: the run does not count toward the open window, which still needs its own run once the committed run finishes.
 
@@ -73,24 +73,24 @@ The schedulable load element creates a single Home Assistant device:
 
 ## Parameter mapping
 
-| User configuration | Model element(s)          | Model parameter                     | Notes                                       |
-| ------------------ | ------------------------- | ----------------------------------- | ------------------------------------------- |
-| `window_calendar`  | Schedulable load `{name}` | `in_window`, `window_start`         | Overlaps merged, clamped to the horizon end |
-| `running`          | Schedulable load `{name}` | `elapsed`, `window_started`         | From the sensor's last off time             |
-| `power`            | Schedulable load `{name}` | `profile_power`                     | One step, clamped ≥ 0                       |
-| `duration`         | Schedulable load `{name}` | `profile_duration`                  | One step in hours, clamped ≥ 0              |
-| `deficit_price`    | Schedulable load `{name}` | `deficit_price`                     | Defaults to \$10/kWh, clamped ≥ 0           |
-| `integer_mode`     | Schedulable load `{name}` | `integer_mode`                      | Defaults to `first`                         |
+| User configuration | Model element(s)          | Model parameter             | Notes                                       |
+| ------------------ | ------------------------- | --------------------------- | ------------------------------------------- |
+| `window_calendar`  | Schedulable load `{name}` | `in_window`, `window_start` | Overlaps merged, clamped to the horizon end |
+| `running`          | Schedulable load `{name}` | `elapsed`, `window_started` | From the sensor's off periods               |
+| `power`            | Schedulable load `{name}` | `profile_power`             | One step, clamped ≥ 0                       |
+| `duration`         | Schedulable load `{name}` | `profile_duration`          | One step in hours, clamped ≥ 0              |
+| `deficit_price`    | Schedulable load `{name}` | `deficit_price`             | Defaults to \$10/kWh, clamped ≥ 0           |
+| `integer_mode`     | Schedulable load `{name}` | `integer_mode`              | Defaults to `first`                         |
 
 ## Output mapping
 
 The adapter maps model outputs to schedulable-load-specific sensor names:
 
-| Model output                     | Sensor name     | Description                                     |
-| -------------------------------- | --------------- | ----------------------------------------------- |
-| Connection power                 | `power`         | Power drawn by the load                         |
-| `SCHEDULABLE_LOAD_START`         | `start`         | 1 at each boundary where a run is planned       |
-| `SCHEDULABLE_LOAD_ENERGY_MISSED` | `energy_missed` | Profile energy of runs missed, at window ends   |
+| Model output                     | Sensor name     | Description                                   |
+| -------------------------------- | --------------- | --------------------------------------------- |
+| Connection power                 | `power`         | Power drawn by the load                       |
+| `SCHEDULABLE_LOAD_START`         | `start`         | 1 at each boundary where a run is planned     |
+| `SCHEDULABLE_LOAD_ENERGY_MISSED` | `energy_missed` | Profile energy of runs missed, at window ends |
 
 See [Schedulable Load Configuration](../../user-guide/elements/schedulable_load.md#sensors-created) for complete sensor documentation.
 

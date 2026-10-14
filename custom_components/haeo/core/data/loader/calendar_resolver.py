@@ -50,6 +50,7 @@ class CalendarBoundaryData(TypedDict):
     while still marking their window present.
 
     Attributes:
+        horizon_start: POSIX time of boundary 0, the time the arrays align to.
         open_since: POSIX time the window open at the horizon start began, or
             None when no window is open then. Only events with a positive
             value count, and overlapping events chain into one window, so a
@@ -68,6 +69,7 @@ class CalendarBoundaryData(TypedDict):
     value_edge_start: NDArray[np.float64]
     value_edge_end: NDArray[np.float64]
     open_since: float | None
+    horizon_start: float
 
 
 def _convert_distance(value: float, from_unit: str, to_unit: str) -> float:
@@ -156,6 +158,7 @@ def resolve_calendar_field(
         value_edge_start=_fused(fuse_window_edges_to_boundaries(windows, boundaries, "start")),
         value_edge_end=_fused(fuse_window_edges_to_boundaries(windows, boundaries, "end")),
         open_since=_open_since(windows, boundaries[0]),
+        horizon_start=float(forecast_times[0]),
     )
 
 

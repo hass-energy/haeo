@@ -22,11 +22,12 @@ from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.schedulable_load import SchedulableLoadConfigData
 
+_HORIZON_START = 10_000.0
 # The window in _config opened half an hour before the horizon start.
-_OPEN_AGE = 1800.0
+_OPEN_SINCE = _HORIZON_START - 1800.0
 
 
-def _boundary_data(n_periods: int, events: list[tuple[int, int]], open_age: float | None) -> CalendarBoundaryData:
+def _boundary_data(n_periods: int, events: list[tuple[int, int]], open_since: float | None) -> CalendarBoundaryData:
     """Build presence calendar boundary data from period-aligned (start, end) events."""
     span = np.zeros(n_periods + 1)
     edge_start = np.zeros(n_periods + 1)
@@ -41,7 +42,8 @@ def _boundary_data(n_periods: int, events: list[tuple[int, int]], open_age: floa
         value_span=span,
         value_edge_start=edge_start,
         value_edge_end=edge_end,
-        open_age=open_age,
+        open_since=open_since,
+        horizon_start=_HORIZON_START,
     )
 
 
@@ -51,7 +53,7 @@ def _config(**schedule: object) -> SchedulableLoadConfigData:
         "element_type": ElementType.SCHEDULABLE_LOAD,
         "name": "dishwasher",
         "connection": as_connection_target("home"),
-        "schedule": {"window_calendar": _boundary_data(4, [(0, 3)], open_age=_OPEN_AGE), **schedule},
+        "schedule": {"window_calendar": _boundary_data(4, [(0, 3)], open_since=_OPEN_SINCE), **schedule},
         "profile": {"power": 1.0, "duration": 1.0},
         "pricing": {"deficit_price": 10.0},
     }
@@ -97,14 +99,40 @@ def test_integer_mode_comes_from_advanced_section() -> None:
         pytest.param({}, None, False, id="no_running_sensor"),
         pytest.param({"running": 0.0}, None, False, id="idle_without_history"),
         pytest.param({"running": 1.0}, 0.0, True, id="running_without_history_just_started"),
-        pytest.param({"running": 1.0, "running_last_off_age": 900.0}, 0.25, True, id="running_since_window_opened"),
-        pytest.param({"running": 1.0, "running_last_off_age": 3600.0}, 1.0, False, id="running_since_before_window"),
-        pytest.param({"running": 0.0, "running_last_off_age": 900.0}, None, True, id="finished_inside_window"),
-        pytest.param({"running": 0.0, "running_last_off_age": 3600.0}, None, False, id="finished_before_window"),
+        pytest.param(
+            {"running": 1.0, "running_off_periods": [(0.0, _HORIZON_START - 900.0)]},
+            0.25,
+            True,
+            id="running_since_window_opened",
+        ),
+        pytest.param(
+            {"running": 1.0, "running_off_periods": [(0.0, _HORIZON_START - 3600.0)]},
+            1.0,
+            False,
+            id="running_since_before_window",
+        ),
+        pytest.param(
+            {"running": 1.0, "running_off_periods": [(0.0, _HORIZON_START - 3600.0), (_HORIZON_START - 60.0, None)]},
+            0.0,
+            True,
+            id="running_while_history_still_off_just_started",
+        ),
+        pytest.param(
+            {"running": 0.0, "running_off_periods": [(0.0, _HORIZON_START - 900.0), (_HORIZON_START - 300.0, None)]},
+            None,
+            True,
+            id="finished_inside_window",
+        ),
+        pytest.param(
+            {"running": 0.0, "running_off_periods": [(0.0, _HORIZON_START - 3600.0), (_HORIZON_START - 2000.0, None)]},
+            None,
+            False,
+            id="finished_before_window",
+        ),
     ],
 )
 def test_running_sensor_sets_committed_run_and_window_state(
-    schedule: dict[str, float],
+    schedule: dict[str, object],
     elapsed: float | None,
     window_started: bool,
 ) -> None:
@@ -117,8 +145,8 @@ def test_running_sensor_sets_committed_run_and_window_state(
 
 def test_no_window_open_means_no_started_window() -> None:
     """A run started while no window is open never satisfies a later window."""
-    config = _config(running=0.0, running_last_off_age=900.0)
-    config["schedule"]["window_calendar"] = _boundary_data(4, [(2, 4)], open_age=None)
+    config = _config(running=0.0, running_off_periods=[(0.0, _HORIZON_START - 900.0), (_HORIZON_START - 300.0, None)])
+    config["schedule"]["window_calendar"] = _boundary_data(4, [(2, 4)], open_since=None)
 
     assert _load(config).get("window_started") is False
 
@@ -175,7 +203,7 @@ def test_outputs_report_power_start_and_missed_energy() -> None:
 
 def test_run_in_progress_finishes_before_anything_else() -> None:
     """A run in progress finishes its remaining profile from the horizon start."""
-    config = _config(running=1.0, running_last_off_age=1800.0)
+    config = _config(running=1.0, running_off_periods=[(0.0, _HORIZON_START - 1800.0)])
     network = _solve(config, grid_price=[0.3, 0.1, 0.2, 0.1])
     model_outputs = {name: element.outputs() for name, element in network.elements.items()}
 

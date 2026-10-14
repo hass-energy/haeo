@@ -3,6 +3,7 @@
 from typing import Annotated, Final, Literal, NotRequired, TypedDict
 
 from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
+from custom_components.haeo.core.data.loader.source_history import OffPeriod
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import IntegerMode
 from custom_components.haeo.core.schema import CalendarValue, ConstantValue, EntityValue, NoneValue
@@ -21,9 +22,9 @@ SECTION_ADVANCED: Final = "advanced"
 # Schedule section field names
 CONF_WINDOW_CALENDAR: Final = "window_calendar"
 CONF_RUNNING: Final = "running"
-# Loaded beside the running field: how many seconds before the horizon start
-# the running sensor last stopped reading off, from Home Assistant's history.
-CONF_RUNNING_LAST_OFF_AGE: Final = "running_last_off_age"
+# Loaded beside the running field: the periods the running sensor read off,
+# from Home Assistant's history.
+CONF_RUNNING_OFF_PERIODS: Final = "running_off_periods"
 
 # Profile section field names
 CONF_POWER: Final = "power"
@@ -59,7 +60,7 @@ class ScheduleData(TypedDict):
 
     window_calendar: CalendarBoundaryData
     running: NotRequired[float]
-    running_last_off_age: NotRequired[float]
+    running_off_periods: NotRequired[list[OffPeriod]]
 
 
 # --- Profile section ---
@@ -176,7 +177,7 @@ __all__ = [
     "CONF_INTEGER_MODE",
     "CONF_POWER",
     "CONF_RUNNING",
-    "CONF_RUNNING_LAST_OFF_AGE",
+    "CONF_RUNNING_OFF_PERIODS",
     "CONF_WINDOW_CALENDAR",
     "DEFAULT_INTEGER_MODE",
     "ELEMENT_TYPE",

@@ -45,6 +45,7 @@ def test_distance_event_produces_boundary_arrays() -> None:
     np.testing.assert_allclose(result["value_span"], [0.0, 50.0, 0.0, 0.0])
     np.testing.assert_allclose(result["value_edge_start"], [0.0, 50.0, 0.0, 0.0])
     np.testing.assert_allclose(result["value_edge_end"], [0.0, 0.0, 50.0, 0.0])
+    assert result["horizon_start"] == BOUNDARY_TIMES[0]
 
 
 def test_distance_units_normalize_to_km() -> None:
@@ -140,11 +141,11 @@ def test_entity_events_attribute_is_used_when_present() -> None:
 @pytest.mark.parametrize(
     ("events", "expected"),
     [
-        pytest.param([(-3600.0, 3600.0, "10 km")], 3600.0, id="open_before_horizon"),
+        pytest.param([(-3600.0, 3600.0, "10 km")], -3600.0, id="open_before_horizon"),
         pytest.param([(0.0, 3600.0, "10 km")], 0.0, id="opens_at_horizon_start"),
         pytest.param(
             [(-7200.0, -1800.0, "10 km"), (-3600.0, 3600.0, "10 km")],
-            7200.0,
+            -7200.0,
             id="overlapping_events_chain",
         ),
         pytest.param([(-3600.0, 0.0, "10 km"), (0.0, 3600.0, "10 km")], 0.0, id="touching_events_stay_separate"),
@@ -154,12 +155,12 @@ def test_entity_events_attribute_is_used_when_present() -> None:
         pytest.param([], None, id="no_events"),
     ],
 )
-def test_open_age_reports_start_of_window_open_at_horizon_start(
+def test_open_since_reports_start_of_window_open_at_horizon_start(
     events: list[tuple[float, float, str]], expected: float | None
 ) -> None:
-    """open_age counts back to the true start of the window open at the horizon start."""
+    """open_since is the true start of the window open at the horizon start."""
     value = _calendar_value([_event(start, end, location=location) for start, end, location in events])
     result = resolve_calendar_field(value, CalendarFieldHint(parser="distance"), FakeStateMachine({}), BOUNDARY_TIMES)
 
     assert result is not None
-    assert result["open_age"] == expected
+    assert result["open_since"] == expected
