@@ -45,6 +45,16 @@ Most new elements will be Device Layer elements that compose `node` and `connect
 
 Model elements derive from the `Element` base class and use decorators to declare their constraints, costs, and outputs.
 
+### Linear expressions
+
+Variables and expressions are `LinearArray` values from `core/model/linear.py`, with one linear expression per period.
+Each array stores its terms as a column index matrix and a coefficient matrix, so arithmetic on a whole horizon is a few numpy operations rather than one Python object per period.
+Create variables with `solver.add_variables(count, name=...)` and combine them with `+`, `-`, and multiplication by a scalar or one value per row.
+Comparing an array with `<=`, `>=`, or `==` produces `Rows`, which a `@constraint` method returns.
+`total()` sums every row into a single row, which is the form a `@cost` method returns.
+When each row reaches several rows of another array with varying coefficients, build the coefficient matrix with numpy and write `matrix @ array`.
+`solver.describe(rows)` shows each row as an expression over named columns, such as `Battery.energy_in[3] - Battery.energy_in[4] <= 0`.
+
 ### TrackedParam for parameters
 
 Parameters that can change between optimizations (forecasts, capacities, prices) should use `TrackedParam`:
@@ -63,7 +73,7 @@ class Battery(Element[BatteryOutputName]):
         name: str,
         periods: Sequence[float],
         *,
-        solver: Highs,
+        solver: Solver,
         capacity: NDArray[np.floating[Any]],
         initial_charge: float,
     ):
@@ -81,10 +91,10 @@ Anything that reads a `@computed` method depends on it and is rebuilt when it ch
 
 A constraint returns the same rows on every call so the LP keeps its shape and later optimizations still warm start.
 When part of a constraint does not currently apply, such as a power limit with no maximum set,
-return those rows as expressions without a comparison.
+return those rows from the expression's `free()` method.
 They are added as free rows that do not bind, and become binding later by changing only their bounds.
 A constraint whose rows are all free has no shadow price and is not listed by `constraints()`.
-A constraint with no rows at all returns an empty list; returning `None` is an error.
+A constraint with no rows at all returns `Rows.concat([])`; returning anything other than `Rows` is an error.
 
 ### @constraint decorator
 
@@ -96,12 +106,12 @@ from custom_components.haeo.core.model.reactive import constraint
 
 
 @constraint(output=True, unit="$/kWh")
-def battery_soc_max(self) -> list[highs_linear_expression]:
+def battery_soc_max(self) -> Rows:
     """Constraint: stored energy cannot exceed capacity.
 
     Output: shadow price indicating the marginal value of additional capacity.
     """
-    return list(self.stored_energy[1:] <= self.capacity[1:])
+    return self.stored_energy[1:] <= self.capacity[1:]
 ```
 
 Parameters:
@@ -119,11 +129,11 @@ from custom_components.haeo.core.model.reactive import cost
 
 
 @cost
-def cost_source_target(self) -> highs_linear_expression | None:
+def cost_source_target(self) -> LinearArray | None:
     """Cost for power flow from source to target."""
     if self.price_source_target is None:
         return None
-    return Highs.qsum(self.power_source_target * self.price_source_target * self.periods)
+    return (self.power_source_target * self.price_source_target * self.periods).total()
 ```
 
 The element's `cost()` aggregator collects all `@cost` methods and sums them into a single primary expression.

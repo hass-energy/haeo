@@ -205,9 +205,9 @@ def test_tagged_power_flow_scenario() -> None:
     assert isinstance(grid_exp, Connection)
     assert isinstance(bat_dis, Connection)
 
-    grid_import_flow = tuple(float(v) for v in h.vals(grid_imp.total_power_in))
-    grid_export_flow = tuple(float(v) for v in h.vals(grid_exp.total_power_in))
-    bat_discharge_flow = tuple(float(v) for v in h.vals(bat_dis.total_power_in))
+    grid_import_flow = tuple(float(v) for v in grid_imp.total_power_in.value(h.column_values()))
+    grid_export_flow = tuple(float(v) for v in grid_exp.total_power_in.value(h.column_values()))
+    bat_discharge_flow = tuple(float(v) for v in bat_dis.total_power_in.value(h.column_values()))
 
     # Period 1: Solar surplus, cheap export ($0.01) + tag surcharge $0.02 = positive net cost
     assert grid_export_flow[1] == pytest.approx(0.0, abs=0.1)

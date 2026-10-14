@@ -9,14 +9,14 @@ from typing import (
     NotRequired,
 )
 
-from highspy import Highs
-from highspy.highs import highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.linear import Rows
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint
+from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 from .segment import FlowProvider, Segment
@@ -46,7 +46,7 @@ class PowerLimitSegment(Segment):
         segment_id: str,
         n_periods: int,
         periods: NDArray[np.float64],
-        solver: Highs,
+        solver: Solver,
         *,
         spec: PowerLimitSegmentSpec,
         source_element: Element[Any],
@@ -67,7 +67,7 @@ class PowerLimitSegment(Segment):
         self.max_power = broadcast_to_sequence(spec.get("max_power"), self._n_periods)
 
     @constraint(output=True, unit="$/kWh")
-    def power_limit(self) -> list[highs_linear_expression]:
+    def power_limit(self) -> Rows:
         """Directional power limit constraint (energy-native).
 
         Formulated as energy: power * dt <= max_power * dt.
@@ -76,10 +76,10 @@ class PowerLimitSegment(Segment):
         """
         energy = self.total_power_in * self.periods
         if self.max_power is None:
-            return list(energy)
+            return energy.free()
         if self._fixed:
-            return list(energy == self.max_power * self.periods)
-        return list(energy <= self.max_power * self.periods)
+            return energy == self.max_power * self.periods
+        return energy <= self.max_power * self.periods
 
 
 __all__ = [
