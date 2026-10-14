@@ -21,9 +21,12 @@ Use a reserve when:
 You choose your generation and how far ahead to look, and HAEO keeps enough room to absorb what is coming, less what your loads use.
 Use headroom when:
 
-- **You cannot export everything**: an export limit or zero export means surplus solar is lost unless the battery can take it.
-- **Exports pay little**: storing your own solar is worth more than selling it.
-- **You want to stay off the top of the battery**: a fixed amount of headroom keeps it below full, with a cost for going higher.
+- **Your solar cannot be curtailed**: once the house is covered and exports are at their limit, the battery is the only place left for the surplus.
+    Headroom with your solar as its generation keeps enough room for what is forecast to come.
+- **You want to look after the battery**: many batteries last longer when they spend less time near 100%.
+    A fixed amount of headroom keeps the battery below full, and lets it go higher only when the energy is worth more than the holding cost.
+- **You take part in a grid support program**: some demand response and grid stability programs ask you to keep capacity free to absorb power when the grid needs it.
+    A fixed amount of headroom keeps that capacity free, and a sensor can raise it during the hours the program covers.
 
 Both follow your forecasts, so they change through the day, and both are soft: HAEO can go past them when that is worth more than the shortfall cost you set.
 
@@ -259,6 +262,11 @@ It is charged per kWh short, for every hour the shortfall lasts.
 
 A reserve or headroom with no loads or generation holds just its extra amount.
 A fixed reserve keeps the battery above a level unless dipping lower is worth the cost, and a fixed headroom keeps it below full the same way.
+
+- **To look after the battery**, set the extra headroom to the top slice you want to avoid, such as 10% of the capacity, with a low shortfall cost.
+    HAEO then fills the top slice only when the energy is worth more than the holding cost for as long as it stays there.
+- **For a grid support program**, set the extra headroom to the capacity you have committed, with a high shortfall cost.
+    If the commitment only covers some hours, drive the extra headroom from a sensor that is zero outside them.
 
 ### More than one
 

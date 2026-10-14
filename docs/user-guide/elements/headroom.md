@@ -5,7 +5,11 @@ You choose which generation to make room for, which loads use some of it first, 
 HAEO then plans charging and discharging so the batteries have that room, unless filling them is worth more than the cost you set for falling short.
 
 Headroom is the mirror image of a [reserve](reserve.md): a reserve keeps energy for what your loads will need, and headroom keeps space for what your generation will produce.
-Use it when you cannot export all your solar, when exports pay little, or to keep the battery below full.
+Use it when:
+
+- **Your solar cannot be curtailed**: once the house is covered and exports are at their limit, the battery is the only place left for the surplus.
+- **You want to look after the battery**: keeping it off 100% can extend its life, and a fixed headroom keeps it below full unless filling it pays.
+- **You take part in a grid support program** that asks you to keep capacity free to absorb power when the grid needs it.
 
 ## Configuration
 
@@ -23,7 +27,7 @@ Use it when you cannot export all your solar, when exports pay little, or to kee
 
 Unique identifier for this headroom within your HAEO configuration.
 
-**Examples**: "Solar headroom", "Top buffer"
+**Examples**: "Solar headroom", "Battery care", "Grid support"
 
 ## Loads
 
@@ -55,6 +59,10 @@ Choose one where the required space stays well below your battery's capacity.
 
 Empty space to keep on top of what the generation needs, in kWh.
 On its own, with no loads or generation, it keeps the battery below full with a cost for going higher.
+
+- **To look after the battery**, set it to the top slice you want to avoid, such as 10% of the capacity, with a low shortfall cost.
+- **For a grid support program**, set it to the capacity you have committed, with a high shortfall cost.
+    Use a sensor that is zero outside the program's hours if the commitment does not cover the whole day.
 
 ## Shortfall cost
 
