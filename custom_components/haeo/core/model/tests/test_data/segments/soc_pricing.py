@@ -39,7 +39,7 @@ class DummyElement(Element[str]):
 
 
 def _battery_endpoints_fixed(solver: Solver, periods: NDArray[np.float64]) -> tuple[Element[Any], Element[Any]]:
-    stored_energy = solver.add_variables(len(periods) + 1)
+    stored_energy = solver.add_variables(len(periods) + 1, name="stored_energy")
     add_rows(solver, stored_energy[0] == 5.0)
     add_rows(solver, stored_energy[1] == 2.0)
     add_rows(solver, stored_energy[2] == 9.0)
@@ -49,7 +49,7 @@ def _battery_endpoints_fixed(solver: Solver, periods: NDArray[np.float64]) -> tu
 
 
 def _battery_endpoints_free(solver: Solver, periods: NDArray[np.float64]) -> tuple[Element[Any], Element[Any]]:
-    stored_energy = solver.add_variables(len(periods) + 1)
+    stored_energy = solver.add_variables(len(periods) + 1, name="stored_energy")
     battery = MockBattery("battery", periods, solver, stored_energy)
     target = DummyElement("target", periods, solver)
     return battery, target

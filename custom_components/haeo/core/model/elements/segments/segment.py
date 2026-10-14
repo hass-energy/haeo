@@ -37,6 +37,7 @@ from custom_components.haeo.core.model.reactive import (
     cost,
 )
 from custom_components.haeo.core.model.solver import Solver
+from custom_components.haeo.core.model.util.solver_rows import RowIndices
 
 
 class FlowProvider(Protocol):
@@ -123,7 +124,7 @@ class Segment:
     @property
     def total_power_in(self) -> LinearArray:
         """Sum of all tag input flows."""
-        return LinearArray.sum_of(list(self.power_in.values()))
+        return LinearArray.sum_of(self.power_in.values())
 
     @property
     def power_out(self) -> dict[int, LinearArray]:
@@ -133,11 +134,11 @@ class Segment:
     @property
     def total_power_out(self) -> LinearArray:
         """Sum of all tag output flows."""
-        return LinearArray.sum_of(list(self.power_out.values()))
+        return LinearArray.sum_of(self.power_out.values())
 
-    def constraints(self) -> dict[str, NDArray[np.int32]]:
+    def constraints(self) -> dict[str, RowIndices]:
         """Return all constraints from this segment."""
-        result: dict[str, NDArray[np.int32]] = {}
+        result: dict[str, RowIndices] = {}
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if isinstance(attr, ReactiveConstraint):

@@ -10,7 +10,7 @@ Comparing a ``LinearArray`` with values produces ``Rows``: the expressions with
 the constants moved into lower and upper row bounds, ready to add to the solver.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import ClassVar, Final, Self, overload
 
@@ -22,6 +22,9 @@ INF: Final = float("inf")
 type Values = float | NDArray[np.float64]
 """A scalar, or one value per row."""
 
+type ColumnNamer = Callable[[int], str]
+"""Gives the display name of a solver column."""
+
 
 # Rows shown at each end of a long array's repr
 _REPR_EDGE_ROWS: Final = 3
@@ -32,11 +35,21 @@ def _format_number(value: float) -> str:
     return f"{value + 0.0:g}"
 
 
-def _format_terms(cols: NDArray[np.int64], coefs: NDArray[np.float64], constant: float) -> str:
+def index_name(column: int) -> str:
+    """Name a column by its solver index, as ``x5``."""
+    return f"x{column}"
+
+
+def _format_terms(
+    cols: NDArray[np.int64],
+    coefs: NDArray[np.float64],
+    constant: float,
+    column_name: ColumnNamer,
+) -> str:
     """Format one row's terms as ``2·x5 - x7 + 1.5``, omitting zero terms."""
     terms = [(col, coef) for col, coef in zip(cols.tolist(), coefs.tolist(), strict=True) if coef != 0.0]
     parts = [
-        f"{'-' if coef < 0 else '+'} {'' if abs(coef) == 1.0 else f'{_format_number(abs(coef))}·'}x{col}"
+        f"{'-' if coef < 0 else '+'} {'' if abs(coef) == 1.0 else f'{_format_number(abs(coef))}·'}{column_name(col)}"
         for col, coef in terms
     ]
     if constant != 0.0 or not parts:
@@ -91,8 +104,9 @@ class LinearArray:
         return cls.constants(np.zeros(count))
 
     @classmethod
-    def sum_of(cls, items: Sequence["LinearArray"]) -> Self:
+    def sum_of(cls, items: Iterable["LinearArray"]) -> Self:
         """Return the row-wise sum of arrays with the same number of rows."""
+        items = list(items)
         if not items:
             msg = "sum_of needs at least one array; start from LinearArray.zeros(count) when there may be none"
             raise ValueError(msg)
@@ -108,8 +122,12 @@ class LinearArray:
 
     def __repr__(self) -> str:
         """Show each row as an expression over columns ``x<index>``, eliding the middle of long arrays."""
+        return self.format(index_name)
+
+    def format(self, column_name: ColumnNamer) -> str:
+        """Show each row as an expression over named columns, eliding the middle of long arrays."""
         lines = [
-            _format_terms(cols, coefs, constant)
+            _format_terms(cols, coefs, constant, column_name)
             for cols, coefs, constant in zip(self.cols, self.coefs, self.constant.tolist(), strict=True)
         ]
         return _format_rows("LinearArray", lines)
@@ -254,8 +272,9 @@ class Rows:
     upper: NDArray[np.float64]
 
     @staticmethod
-    def concat(blocks: Sequence["Rows"]) -> "Rows":
+    def concat(blocks: Iterable["Rows"]) -> "Rows":
         """Stack row blocks, padding shorter rows with zero terms."""
+        blocks = list(blocks)
         if not blocks:
             return LinearArray.constants(np.zeros(0)).free()
         width = max(block.expr.cols.shape[1] for block in blocks)
@@ -278,12 +297,16 @@ class Rows:
         return len(self.lower)
 
     def __repr__(self) -> str:
-        """Show each row with its bounds, eliding the middle of long blocks."""
+        """Show each row with its bounds over columns ``x<index>``, eliding the middle of long blocks."""
+        return self.format(index_name)
+
+    def format(self, column_name: ColumnNamer) -> str:
+        """Show each row with its bounds over named columns, eliding the middle of long blocks."""
         lines: list[str] = []
         for cols, coefs, lower, upper in zip(
             self.expr.cols, self.expr.coefs, self.lower.tolist(), self.upper.tolist(), strict=True
         ):
-            terms = _format_terms(cols, coefs, 0.0)
+            terms = _format_terms(cols, coefs, 0.0, column_name)
             if lower == upper:
                 lines.append(f"{terms} == {_format_number(upper)}")
             elif lower == -INF and upper == INF:
@@ -298,14 +321,14 @@ class Rows:
 
 
 @overload
-def total(items: Sequence[LinearArray]) -> LinearArray: ...
+def total(items: Iterable[LinearArray]) -> LinearArray: ...
 
 
 @overload
-def total(items: Sequence[LinearArray | None]) -> LinearArray | None: ...
+def total(items: Iterable[LinearArray | None]) -> LinearArray | None: ...
 
 
-def total(items: Sequence[LinearArray | None]) -> LinearArray | None:
+def total(items: Iterable[LinearArray | None]) -> LinearArray | None:
     """Return a single row summing every row of every array, or None when there are none."""
     present = [item.total() for item in items if item is not None]
     if not present:

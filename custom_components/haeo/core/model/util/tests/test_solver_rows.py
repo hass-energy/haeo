@@ -43,7 +43,7 @@ def test_applied_form_sums_repeated_columns_and_drops_negligible_terms() -> None
 
 def test_add_rows_writes_bounds_and_coefficients(solver: Solver) -> None:
     """Each row reaches the solver with its bounds, summed coefficients and no negligible terms."""
-    x = solver.add_variables(3)
+    x = solver.add_variables(3, name="x")
 
     indices, _ = add_rows(solver, Rows.concat([x[0] + x[0] * 2.0 + x[1] * 3e-10 <= 5.0, x[2] - x[1] >= 1.0]))
 
@@ -54,7 +54,7 @@ def test_add_rows_writes_bounds_and_coefficients(solver: Solver) -> None:
 
 def test_add_rows_moves_constants_into_bounds(solver: Solver) -> None:
     """A constant in an expression shifts the row bounds rather than the coefficients."""
-    x = solver.add_variables(1)
+    x = solver.add_variables(1, name="x")
 
     add_rows(solver, x + 2.0 == 5.0)
 
@@ -63,7 +63,7 @@ def test_add_rows_moves_constants_into_bounds(solver: Solver) -> None:
 
 def test_add_rows_raises_and_adds_nothing_when_highs_refuses(solver: Solver) -> None:
     """A block HiGHS rejects adds no rows, so it can be retried."""
-    solver.add_variables(1)
+    solver.add_variables(1, name="v")
 
     with pytest.raises(RuntimeError, match="refused"):
         add_rows(solver, _terms([[0]], [[INF]]) <= 1.0)
@@ -73,7 +73,7 @@ def test_add_rows_raises_and_adds_nothing_when_highs_refuses(solver: Solver) -> 
 
 def test_update_rows_replaces_bounds_and_coefficients(solver: Solver) -> None:
     """Updating changes bounds and coefficients, adding and removing terms as needed."""
-    x = solver.add_variables(3)
+    x = solver.add_variables(3, name="x")
     indices, applied = add_rows(solver, x[0] + x[1] <= 1.0)
 
     update_rows(solver, indices, applied, x[1] * 2.0 + x[1] * 3.0 + x[0] * 3e-10 + x[2] <= 4.0)
@@ -83,7 +83,7 @@ def test_update_rows_replaces_bounds_and_coefficients(solver: Solver) -> None:
 
 def test_change_bounds_frees_rows(solver: Solver) -> None:
     """Rows given unbounded bounds stay in the LP without binding."""
-    x = solver.add_variables(1)
+    x = solver.add_variables(1, name="x")
     indices, applied = add_rows(solver, x <= 1.0)
 
     updated = change_bounds(solver, indices, applied, -INF, INF)
@@ -112,7 +112,7 @@ def test_update_rows_writes_only_changed_values(
     expected_calls: list[object],
 ) -> None:
     """Only bounds and coefficients that differ from the applied rows reach the solver."""
-    x = solver.add_variables(2)
+    x = solver.add_variables(2, name="x")
     a, b = x[0], x[1]
     indices, applied = add_rows(solver, a + b * 2.0 <= 3.0)
     spy = MagicMock(wraps=solver)

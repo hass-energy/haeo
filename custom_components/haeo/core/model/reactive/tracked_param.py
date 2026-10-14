@@ -4,9 +4,8 @@ from contextvars import ContextVar
 from typing import NotRequired, TypedDict, overload
 
 import numpy as np
-from numpy.typing import NDArray
 
-from custom_components.haeo.core.model.util.solver_rows import AppliedRows
+from custom_components.haeo.core.model.util.solver_rows import AppliedRows, RowIndices
 
 from .protocols import ReactiveHost
 
@@ -26,7 +25,7 @@ class DecoratorState(TypedDict):
     invalidated: bool
     deps: set[Dependency]
     result: object
-    constraint: NotRequired[NDArray[np.int32]]
+    constraint: NotRequired[RowIndices]
     applied: NotRequired[AppliedRows]
 
 

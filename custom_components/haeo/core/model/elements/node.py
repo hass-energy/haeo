@@ -68,8 +68,8 @@ class Node(NetworkElement[NodeOutputName]):
         self.is_sink = is_sink
 
         n = self.n_periods
-        self._produced = solver.add_variables(n) if is_source else None
-        self._consumed = solver.add_variables(n) if is_sink else None
+        self._produced = solver.add_variables(n, name=f"{name}.produced") if is_source else None
+        self._consumed = solver.add_variables(n, name=f"{name}.consumed") if is_sink else None
 
     def element_power_produced(self) -> LinearArray | None:
         """Return production: bounded [0, inf] for sources, None otherwise."""

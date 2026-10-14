@@ -30,6 +30,7 @@ from custom_components.haeo.core.model.linear import LinearArray, total
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import output
 from custom_components.haeo.core.model.solver import Solver
+from custom_components.haeo.core.model.util.solver_rows import RowIndices
 
 from .segments import FlowProvider, FlowVariables, PowerLimitSegment, Segment, SegmentSpec, create_segment
 
@@ -143,7 +144,10 @@ class Connection[TOutputName: str](Element[TOutputName]):
 
     def _initialize_segments(self, source_element: Element[Any], target_element: Element[Any]) -> None:
         # Create per-tag LP variables
-        self._power_in = {tag: self._solver.add_variables(self.n_periods) for tag in sorted(self._tags)}
+        self._power_in = {
+            tag: self._solver.add_variables(self.n_periods, name=f"{self.name}.power_in_tag{tag}")
+            for tag in sorted(self._tags)
+        }
 
         specs = list(self._segment_specs.items()) or [("passthrough", {"segment_type": "passthrough"})]
 
@@ -176,7 +180,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
     @property
     def total_power_in(self) -> LinearArray:
         """Total power entering the connection (sum of all tags)."""
-        return LinearArray.sum_of(list(self._power_in.values()))
+        return LinearArray.sum_of(self._power_in.values())
 
     @property
     def power_out(self) -> dict[int, LinearArray]:
@@ -186,7 +190,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
     @property
     def total_power_out(self) -> LinearArray:
         """Total power exiting the connection (sum of all tags)."""
-        return LinearArray.sum_of(list(self.power_out.values()))
+        return LinearArray.sum_of(self.power_out.values())
 
     @property
     def measured_power(self) -> dict[int, LinearArray]:
@@ -203,7 +207,7 @@ class Connection[TOutputName: str](Element[TOutputName]):
     @property
     def total_measured_power(self) -> LinearArray:
         """Total power at the measured point (sum of all tags)."""
-        return LinearArray.sum_of(list(self.measured_power.values()))
+        return LinearArray.sum_of(self.measured_power.values())
 
     def connection_tags(self) -> set[int]:
         """Return the set of tags on this connection."""
@@ -237,9 +241,9 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """
         return self.total_power_out
 
-    def constraints(self) -> dict[str, NDArray[np.int32]]:
+    def constraints(self) -> dict[str, RowIndices]:
         """Collect constraints from all segments."""
-        result: dict[str, NDArray[np.int32]] = {}
+        result: dict[str, RowIndices] = {}
         for segment in self._segments.values():
             for name, cons in segment.constraints().items():
                 result[f"{segment.segment_id}_{name}"] = cons

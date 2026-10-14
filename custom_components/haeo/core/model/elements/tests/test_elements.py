@@ -45,8 +45,8 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
         power = inputs.get("power", [None] * n_periods)
 
         # Create LinearArray variables to inject power
-        power_in_vars = h.add_variables(n_periods)
-        power_out_vars = h.add_variables(n_periods)
+        power_in_vars = h.add_variables(n_periods, name="power_in_vars")
+        power_out_vars = h.add_variables(n_periods, name="power_out_vars")
 
         # For fixed values, add constraints to fix the variables
         for i, val in enumerate(power):

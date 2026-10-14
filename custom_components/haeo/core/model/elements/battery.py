@@ -109,8 +109,8 @@ class Battery(NetworkElement[BatteryOutputName]):
         self.salvage_value = salvage_value
 
         # Create all energy variables (including initial state at t=0)
-        self.energy_in = solver.add_variables(n_periods + 1)
-        self.energy_out = solver.add_variables(n_periods + 1)
+        self.energy_in = solver.add_variables(n_periods + 1, name=f"{name}.energy_in")
+        self.energy_out = solver.add_variables(n_periods + 1, name=f"{name}.energy_out")
 
         # Stored energy is computed from cumulative values (not period-dependent)
         self.stored_energy = self.energy_in - self.energy_out

@@ -25,7 +25,7 @@ from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
 from .linear import INF, LinearArray, total
 from .solver import Solver
-from .util.solver_rows import AppliedRows, add_rows, change_bounds, update_rows
+from .util.solver_rows import AppliedRows, RowIndices, add_rows, change_bounds, update_rows
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ class Network:
         self.elements: dict[str, Element[Any]] = {}
         self.options: SolveOptions = options or CalibratedOptions()
         self._solver = Solver()
-        self._lex_row: tuple[NDArray[np.int32], AppliedRows] | None = None
+        self._lex_row: tuple[RowIndices, AppliedRows] | None = None
         self._calibrated_weight: float | None = None
 
         # Redirect HiGHS logging to Python logger at debug level
@@ -517,7 +517,7 @@ class Network:
             indices, applied = self._lex_row
             self._lex_row = (indices, change_bounds(self._solver, indices, applied, -INF, INF))
 
-    def constraints(self) -> dict[str, dict[str, NDArray[np.int32]]]:
+    def constraints(self) -> dict[str, dict[str, RowIndices]]:
         """Return all constraints from all elements in the network.
 
         Returns:
@@ -525,7 +525,7 @@ class Network:
             Each constraint dictionary maps constraint method names to constraint objects.
 
         """
-        result: dict[str, dict[str, NDArray[np.int32]]] = {}
+        result: dict[str, dict[str, RowIndices]] = {}
         for element_name, element in self.elements.items():
             if element_constraints := element.constraints():
                 result[element_name] = element_constraints

@@ -1,10 +1,12 @@
 """HiGHS solver with array-native variables and cached solution arrays."""
 
+from bisect import bisect_right
+
 from highspy import Highs, HighsStatus
 import numpy as np
 from numpy.typing import NDArray
 
-from .linear import INF, LinearArray
+from .linear import INF, LinearArray, Rows
 
 
 class Solver(Highs):
@@ -12,6 +14,10 @@ class Solver(Highs):
 
     Reading a solution vector from HiGHS copies the whole vector, so the column
     values and row duals are read once per solve and shared by every output.
+
+    Every group of variables is named, and ``describe`` prints expressions and
+    rows with those names. The names are kept here rather than in HiGHS, which
+    would take a call per column.
     """
 
     def __init__(self) -> None:
@@ -19,15 +25,19 @@ class Solver(Highs):
         super().__init__()
         self._column_values: NDArray[np.float64] | None = None
         self._row_duals: NDArray[np.float64] | None = None
+        # First column and name of each group of variables, in column order
+        self._group_starts: list[int] = []
+        self._group_names: list[str] = []
 
     def add_variables(
         self,
         count: int,
         *,
+        name: str,
         lower: float | NDArray[np.float64] = 0.0,
         upper: float | NDArray[np.float64] = INF,
     ) -> LinearArray:
-        """Add ``count`` continuous columns with the given bounds and return them as rows of one term."""
+        """Add ``count`` continuous columns named ``name[0]`` onwards, and return them as rows of one term."""
         start = self.getNumCol()
         status = self.addCols(
             count,
@@ -40,9 +50,20 @@ class Solver(Highs):
             np.zeros(0),
         )
         if status == HighsStatus.kError:
-            msg = f"HiGHS refused to add {count} variables"
+            msg = f"HiGHS refused to add {count} variables for {name}"
             raise RuntimeError(msg)
+        self._group_starts.append(start)
+        self._group_names.append(name)
         return LinearArray.columns(start, count)
+
+    def column_name(self, column: int) -> str:
+        """Return a column's name, such as ``Battery.energy_in[3]``."""
+        group = bisect_right(self._group_starts, column) - 1
+        return f"{self._group_names[group]}[{column - self._group_starts[group]}]"
+
+    def describe(self, item: LinearArray | Rows) -> str:
+        """Print an expression or rows with each column shown by name."""
+        return item.format(self.column_name)
 
     def run(self) -> HighsStatus:
         """Solve the model, discarding the cached solution of the previous solve."""

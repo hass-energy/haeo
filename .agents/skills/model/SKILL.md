@@ -43,7 +43,8 @@ Expressions are `LinearArray` values from `core/model/linear.py`: one row per pe
 Build every constraint and cost from whole-horizon arrays, never one Python object or loop iteration per period.
 The cost of rebuilding the LP then stays flat as the horizon grows, which is what keeps each optimization cycle cheap.
 
-- Create variables with `solver.add_variables(count, lower=..., upper=...)`, which returns one row per column.
+- Create variables with `solver.add_variables(count, name=..., lower=..., upper=...)`, which returns one row per column.
+    Name each group after the element and quantity it holds, such as `f"{self.name}.energy_in"`.
 - Combine arrays with `+`, `-`, and `*` by a scalar or one value per row.
     A single row such as `energy[0]` or `stored[-1]` broadcasts against per-row values, as in numpy.
 - Compare with `<=`, `>=`, or `==` to get `Rows`, which a `@constraint` method returns.
@@ -59,7 +60,8 @@ Per-period differences are expressed as values, not as different code per period
     Zero entries add no terms, so a matrix whose reach changes with parameters keeps a fixed LP shape.
 - Properties of individual columns, such as making a variable integer, are not rows: select the columns by slicing the variable array, as in `start[:1]`, and read their solver indices from `.cols[:, 0]`.
 
-Printing a `LinearArray` or `Rows` shows each row as maths over columns `x<index>`, such as `x3 - 0.5·x8 <= 2`, which is the quickest way to check a constraint.
+`solver.describe(rows)` prints each row as maths over named columns, such as `Battery.energy_in[3] - Battery.energy_in[4] <= 0`, which is the quickest way to check a constraint.
+Printing a `LinearArray` or `Rows` directly shows the same rows over solver column indices.
 Evaluate an expression in the current solution with `expr.value(solver.column_values())`.
 
 ## Constraints and costs

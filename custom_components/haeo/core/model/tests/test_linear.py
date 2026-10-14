@@ -9,7 +9,7 @@ from custom_components.haeo.core.model.solver import Solver
 
 def _variables(count: int) -> tuple[LinearArray, LinearArray]:
     solver = Solver()
-    return solver.add_variables(count), solver.add_variables(count)
+    return solver.add_variables(count, name="x"), solver.add_variables(count, name="y")
 
 
 def test_linear_array_repr_shows_each_row_as_an_expression() -> None:
@@ -114,3 +114,21 @@ def test_matrix_product_rejects_mismatched_shapes() -> None:
 
     with pytest.raises(ValueError, match=r"Cannot multiply a \(2, 2\) matrix by 3 rows"):
         _ = np.ones((2, 2)) @ x
+
+
+def test_solver_describes_rows_with_variable_names() -> None:
+    """Columns print as their group name and position, so rows show which variables they constrain."""
+    solver = Solver()
+    energy = solver.add_variables(3, name="Battery.energy_in")
+    power = solver.add_variables(2, name="Grid.power_in_tag1")
+
+    assert solver.column_name(0) == "Battery.energy_in[0]"
+    assert solver.column_name(4) == "Grid.power_in_tag1[1]"
+    assert solver.describe(energy[:-1] <= energy[1:]) == (
+        "Rows(2 rows)\n"
+        "  [0] Battery.energy_in[0] - Battery.energy_in[1] <= 0\n"
+        "  [1] Battery.energy_in[1] - Battery.energy_in[2] <= 0"
+    )
+    assert solver.describe(power * 2.0) == (
+        "LinearArray(2 rows)\n  [0] 2·Grid.power_in_tag1[0]\n  [1] 2·Grid.power_in_tag1[1]"
+    )

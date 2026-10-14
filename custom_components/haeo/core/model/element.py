@@ -10,6 +10,7 @@ from .linear import LinearArray, Rows, total
 from .output_data import OutputData
 from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, applied_constraint, constraint, cost
 from .solver import Solver
+from .util.solver_rows import RowIndices
 
 ELEMENT_POWER_BALANCE: Final = "element_power_balance"
 
@@ -166,17 +167,17 @@ class Element[OutputNameT: str]:
                 result[output_name] = output_data  # type: ignore[assignment]  # name validated by `in` check at runtime
         return result
 
-    def constraints(self) -> dict[str, NDArray[np.int32]]:
+    def constraints(self) -> dict[str, RowIndices]:
         """Return all constraints from this element.
 
         Discovers and calls all @constraint decorated methods. Calling the methods
         triggers automatic constraint creation/updating in the solver via decorators.
 
         Returns:
-            Dictionary mapping constraint method names to their solver row indices
+            Dictionary mapping constraint method names to the solver rows they hold
 
         """
-        result: dict[str, NDArray[np.int32]] = {}
+        result: dict[str, RowIndices] = {}
         for name in dir(type(self)):
             attr = getattr(type(self), name, None)
             if isinstance(attr, ReactiveConstraint):
@@ -334,13 +335,19 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
     def _get_consumed_by_tag(self, inbound: set[int]) -> dict[int, LinearArray]:
         """Return per-tag consumption variables, creating them once on first call."""
         if self._consumed_by_tag is None:
-            self._consumed_by_tag = {tag: self._solver.add_variables(self.n_periods) for tag in sorted(inbound)}
+            self._consumed_by_tag = {
+                tag: self._solver.add_variables(self.n_periods, name=f"{self.name}.consumed_tag{tag}")
+                for tag in sorted(inbound)
+            }
         return self._consumed_by_tag
 
     def _get_produced_by_tag(self, outbound: set[int]) -> dict[int, LinearArray]:
         """Return per-tag production variables, creating them once on first call."""
         if self._produced_by_tag is None:
-            self._produced_by_tag = {tag: self._solver.add_variables(self.n_periods) for tag in sorted(outbound)}
+            self._produced_by_tag = {
+                tag: self._solver.add_variables(self.n_periods, name=f"{self.name}.produced_tag{tag}")
+                for tag in sorted(outbound)
+            }
         return self._produced_by_tag
 
     @constraint(output=True, unit="$/kWh")

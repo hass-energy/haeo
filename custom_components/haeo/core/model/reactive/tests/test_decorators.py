@@ -338,7 +338,7 @@ def test_constraints_adds_new_constraint() -> None:
     """Test that constraints() adds constraints to solver on first call."""
     solver = Solver()
     solver.setOptionValue("output_flag", False)
-    x = solver.add_variables(1, upper=10.0)
+    x = solver.add_variables(1, upper=10.0, name="x")
 
     class TestElement(Element[str]):
         @constraint
@@ -379,7 +379,7 @@ def test_constraint_free_row_stays_in_lp_and_binds_later() -> None:
     """
     solver = Solver()
     solver.setOptionValue("output_flag", False)
-    x = solver.add_variables(1, upper=10.0)
+    x = solver.add_variables(1, upper=10.0, name="x")
 
     class TestElement(Element[str]):
         limit = TrackedParam[float | None]()
@@ -416,7 +416,7 @@ def test_constraint_row_count_change_raises_clear_error() -> None:
     """A list constraint must keep its row count so the LP keeps its shape."""
     solver = Solver()
     solver.setOptionValue("output_flag", False)
-    x = solver.add_variables(2, upper=10.0)
+    x = solver.add_variables(2, upper=10.0, name="x")
 
     class TestElement(Element[str]):
         rows = TrackedParam[int]()
@@ -438,7 +438,7 @@ def test_failed_row_write_is_retried(monkeypatch: pytest.MonkeyPatch) -> None:
     """A constraint whose rows fail to reach the solver is computed and written again on the next call."""
     solver = Solver()
     solver.setOptionValue("output_flag", False)
-    x = solver.add_variables(1, upper=10.0)
+    x = solver.add_variables(1, upper=10.0, name="x")
     fail = [True]
 
     class TestElement(Element[str]):

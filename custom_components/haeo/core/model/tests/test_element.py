@@ -29,7 +29,7 @@ from custom_components.haeo.core.model.util.solver_rows import add_rows
 def test_connection_power_by_end(solver: Solver, end: Literal["source", "target"], attr: str) -> None:
     """Connection power aggregates from the correct attribute for source/target ends."""
     node = Node(name="test_node", periods=np.array([1.0] * 3), solver=solver)
-    power = solver.add_variables(3, lower=-10, upper=10)
+    power = solver.add_variables(3, lower=-10, upper=10, name="power")
 
     mock_connection = Mock(spec=Connection)
     setattr(mock_connection, attr, power)
@@ -73,12 +73,12 @@ def test_connection_power_with_multiple_connections(solver: Solver) -> None:
     node = Node(name="test_node", periods=np.array([1.0] * 3), solver=h)
 
     # Create first mock connection (node as source)
-    power_into_source_1 = h.add_variables(3, lower=-10, upper=10)
+    power_into_source_1 = h.add_variables(3, lower=-10, upper=10, name="power_into_source_1")
     mock_conn1 = Mock(spec=Connection)
     mock_conn1.power_into_source = power_into_source_1
 
     # Create second mock connection (node as target)
-    power_into_target_2 = h.add_variables(3, lower=-10, upper=10)
+    power_into_target_2 = h.add_variables(3, lower=-10, upper=10, name="power_into_target_2")
     mock_conn2 = Mock(spec=Connection)
     mock_conn2.power_into_target = power_into_target_2
 
@@ -132,8 +132,8 @@ def _make_mock_connection(
     power_in: dict[int, LinearArray] = {}
     power_out: dict[int, LinearArray] = {}
     for tag in tags:
-        p_in = solver.add_variables(n_periods, upper=100)
-        p_out = solver.add_variables(n_periods, upper=100)
+        p_in = solver.add_variables(n_periods, upper=100, name="p_in")
+        p_out = solver.add_variables(n_periods, upper=100, name="p_out")
         power_in[tag] = p_in
         power_out[tag] = p_out
         # Efficiency 1:1 for simplicity
@@ -297,7 +297,7 @@ def test_untagged_connection_uses_simple_balance(solver: Solver) -> None:
     # Mock connection with no tags (empty set)
     mock = Mock(spec=Connection)
     mock.connection_tags.return_value = set()
-    power_into_source = solver.add_variables(n, lower=-100, upper=0)
+    power_into_source = solver.add_variables(n, lower=-100, upper=0, name="power_into_source")
     mock.power_into_source = power_into_source
 
     node.register_connection(mock, "source")
@@ -347,7 +347,7 @@ def test_passthrough_element_constrains_connection_to_zero(solver: Solver) -> No
 
     mock = Mock(spec=Connection)
     mock.connection_tags.return_value = set()
-    power = solver.add_variables(n, lower=-100, upper=100)
+    power = solver.add_variables(n, lower=-100, upper=100, name="power")
     mock.power_into_source = power
     element.register_connection(mock, "source")
 

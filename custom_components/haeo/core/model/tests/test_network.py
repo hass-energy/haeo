@@ -658,7 +658,7 @@ def test_update_constraint_sums_duplicate_coefficients() -> None:
     """Updating the lex row must aggregate duplicate columns on both sides."""
     network = Network(name="test", periods=np.array([1.0]))
     h: Solver = network._solver
-    v = h.add_variables(2, upper=10.0)
+    v = h.add_variables(2, upper=10.0, name="v")
     v0, v1 = v[0], v[1]
 
     # Seed the lex constraint with an expression containing a duplicate term
@@ -705,7 +705,7 @@ def test_lex_row_bound_restored_after_relax() -> None:
     """Constraining to the same value after a relax bounds the lex row again."""
     network = Network(name="test", periods=np.array([1.0]))
     h: Solver = network._solver
-    objective = h.add_variables(1, upper=10.0) * 2.0
+    objective = h.add_variables(1, upper=10.0, name="objective") * 2.0
 
     network._constrain_objective(objective, 5.0)
     assert _lex_row(h, network)[:2] == (float("-inf"), 5.0)

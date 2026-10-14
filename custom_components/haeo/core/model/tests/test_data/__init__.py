@@ -15,7 +15,7 @@ from .segment_types import ConnectionScenario, SegmentErrorScenario, SegmentScen
 def fixed_variables(h: Solver, length: int) -> LinearArray:
     """Return variables fixed to 1, 2, ... and solve so they hold those values."""
     values = np.arange(1.0, length + 1.0, dtype=np.float64)
-    variables = h.add_variables(length, lower=values, upper=values)
+    variables = h.add_variables(length, lower=values, upper=values, name="variables")
     h.run()
     return variables
 

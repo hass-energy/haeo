@@ -14,6 +14,13 @@ from custom_components.haeo.core.model.linear import Rows
 # rows reach the solver. HiGHS would discard them anyway.
 SMALL_MATRIX_VALUE: Final = 1e-9
 
+type RowIndices = NDArray[np.int32]
+"""Positions in the solver's matrix of a constraint's rows, in the order the constraint returned them.
+
+A row's index stays fixed for the life of the solver, so it identifies the row's
+shadow price in the solution and the row in solver diagnostics.
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class AppliedRows:
@@ -73,7 +80,7 @@ def applied_form(rows: Rows) -> AppliedRows:
     )
 
 
-def add_rows(solver: Highs, rows: Rows) -> tuple[NDArray[np.int32], AppliedRows]:
+def add_rows(solver: Highs, rows: Rows) -> tuple[RowIndices, AppliedRows]:
     """Add the rows to the solver and return their row indices and applied form.
 
     HiGHS adds nothing when it rejects a block, so a failed add can be retried.
@@ -97,7 +104,7 @@ def add_rows(solver: Highs, rows: Rows) -> tuple[NDArray[np.int32], AppliedRows]
 
 def change_bounds(
     solver: Highs,
-    indices: NDArray[np.int32],
+    indices: RowIndices,
     applied: AppliedRows,
     lower: float,
     upper: float,
@@ -109,7 +116,7 @@ def change_bounds(
     return replace(applied, lower=new_lower, upper=new_upper)
 
 
-def update_rows(solver: Highs, indices: NDArray[np.int32], applied: AppliedRows, rows: Rows) -> AppliedRows:
+def update_rows(solver: Highs, indices: RowIndices, applied: AppliedRows, rows: Rows) -> AppliedRows:
     """Change rows from the applied form they hold to ``rows``, returning the new applied form.
 
     The rows are diffed against what was last written rather than read back from
@@ -150,4 +157,12 @@ def update_rows(solver: Highs, indices: NDArray[np.int32], applied: AppliedRows,
     return new
 
 
-__all__ = ["SMALL_MATRIX_VALUE", "AppliedRows", "add_rows", "applied_form", "change_bounds", "update_rows"]
+__all__ = [
+    "SMALL_MATRIX_VALUE",
+    "AppliedRows",
+    "RowIndices",
+    "add_rows",
+    "applied_form",
+    "change_bounds",
+    "update_rows",
+]

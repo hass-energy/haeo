@@ -97,8 +97,8 @@ class SocPricingSegment(Segment):
             msg = "charge_capacity_threshold is required when charge_capacity_price is set"
             raise ValueError(msg)
 
-        self._discharge_energy_slack = solver.add_variables(n_periods)
-        self._charge_capacity_slack = solver.add_variables(n_periods)
+        self._discharge_energy_slack = solver.add_variables(n_periods, name=f"{segment_id}.discharge_energy_slack")
+        self._charge_capacity_slack = solver.add_variables(n_periods, name=f"{segment_id}.charge_capacity_slack")
 
     def _get_battery(self) -> _BatteryLike:
         """Find the battery element from the connection endpoints."""

@@ -4,12 +4,9 @@ from collections.abc import Callable
 from functools import partial
 from typing import TypeVar, overload
 
-import numpy as np
-from numpy.typing import NDArray
-
 from custom_components.haeo.core.model.linear import Rows
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
-from custom_components.haeo.core.model.util.solver_rows import add_rows, update_rows
+from custom_components.haeo.core.model.util.solver_rows import RowIndices, add_rows, update_rows
 
 from .protocols import ReactiveHost
 from .tracked_param import (
@@ -193,7 +190,7 @@ class ReactiveConstraint[R](ReactiveMethod[R]):
         return result
 
 
-def applied_constraint(obj: "ReactiveHost", name: str) -> NDArray[np.int32] | None:
+def applied_constraint(obj: "ReactiveHost", name: str) -> RowIndices | None:
     """Return a constraint's row indices if any of them currently binds, otherwise None.
 
     A constraint whose rows are all free is in the LP but does not apply, so it has

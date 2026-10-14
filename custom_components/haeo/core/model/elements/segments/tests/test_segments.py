@@ -84,7 +84,7 @@ class DummySegment(Segment):
             target_element=target_element,
             upstream=upstream,
         )
-        self._cost_var = solver.add_variables(1)
+        self._cost_var = solver.add_variables(1, name="cost_var")
 
     @output
     def coverage_output(self) -> OutputData:
@@ -132,7 +132,7 @@ def _solve_segment_scenario(case: SegmentScenario) -> dict[str, ExpectedValue]:
     else:
         source, target = endpoint_factory(h, periods)
 
-    power_in = h.add_variables(len(periods))
+    power_in = h.add_variables(len(periods), name="power_in")
     tagged_power = {0: power_in}
     seg = case["factory"](
         "seg",
@@ -282,7 +282,7 @@ def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
         source, target = endpoint_factory(h, periods)
 
     match = case["match"]
-    pv = h.add_variables(len(periods))
+    pv = h.add_variables(len(periods), name="pv")
     tagged_pv: dict[int, LinearArray] = {0: pv}
     if match is None:
         with pytest.raises(case["error"]):
@@ -327,7 +327,7 @@ def test_segment_outputs_and_cost_coverage() -> None:
     periods = np.asarray([1.0, 1.0], dtype=np.float64)
     source = DummyElement("source", periods, h)
     target = DummyElement("target", periods, h)
-    power = h.add_variables(len(periods))
+    power = h.add_variables(len(periods), name="power")
     segment = DummySegment(
         "seg",
         len(periods),
@@ -358,8 +358,8 @@ def test_multiple_cost_methods_aggregate() -> None:
                 solver=solver,
                 output_names=frozenset(),
             )
-            self._v1 = solver.add_variables(1)
-            self._v2 = solver.add_variables(1)
+            self._v1 = solver.add_variables(1, name="v1")
+            self._v2 = solver.add_variables(1, name="v2")
 
         @cost
         def cost_a(self) -> LinearArray:
@@ -383,11 +383,11 @@ def test_soc_pricing_cost_none_without_prices() -> None:
     """SOC pricing cost returns None when no prices are configured."""
     h = create_solver()
     periods = np.asarray([1.0], dtype=np.float64)
-    stored_energy = h.add_variables(2)
+    stored_energy = h.add_variables(2, name="stored_energy")
     battery = DummyElement("battery", periods, h)
     battery.stored_energy = stored_energy  # type: ignore[attr-defined]
     target = DummyElement("target", periods, h)
-    pv = h.add_variables(len(periods))
+    pv = h.add_variables(len(periods), name="pv")
     segment = SocPricingSegment(
         "seg",
         len(periods),
@@ -400,7 +400,7 @@ def test_soc_pricing_cost_none_without_prices() -> None:
     )
 
     # Apply with dummy variables
-    pv = h.add_variables(len(periods))
+    pv = h.add_variables(len(periods), name="pv")
 
     assert segment.cost() is None
 
@@ -411,7 +411,7 @@ def test_tag_transfer_cost_none_when_no_tags_match() -> None:
     periods = np.asarray([1.0], dtype=np.float64)
     source = DummyElement("source", periods, h)
     target = DummyElement("target", periods, h)
-    power_in = h.add_variables(len(periods))
+    power_in = h.add_variables(len(periods), name="power_in")
     segment = PricingSegment(
         "seg",
         len(periods),
@@ -433,7 +433,7 @@ def test_efficiency_segment_treats_none_as_unity_after_update() -> None:
     source = DummyElement("source", periods, h)
     target = DummyElement("target", periods, h)
 
-    power_in = h.add_variables(len(periods))
+    power_in = h.add_variables(len(periods), name="power_in")
     segment = EfficiencySegment(
         "seg",
         len(periods),
@@ -459,8 +459,8 @@ def test_efficiency_segment_treats_missing_values_as_unity_both_directions() -> 
     periods = np.asarray([1.0], dtype=np.float64)
     source = DummyElement("source", periods, h)
     target = DummyElement("target", periods, h)
-    power_a = h.add_variables(len(periods))
-    power_b = h.add_variables(len(periods))
+    power_a = h.add_variables(len(periods), name="power_a")
+    power_b = h.add_variables(len(periods), name="power_b")
     seg_a = EfficiencySegment(
         "seg_a",
         len(periods),
@@ -497,7 +497,7 @@ def test_power_limit_no_max_power() -> None:
     source = DummyElement("src", periods, h)
     target = DummyElement("tgt", periods, h)
 
-    power_in = h.add_variables(2)
+    power_in = h.add_variables(2, name="power_in")
     seg = PowerLimitSegment(
         "no_limit",
         2,
