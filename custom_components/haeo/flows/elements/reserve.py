@@ -1,4 +1,4 @@
-"""Reserve element configuration flows."""
+"""Reserve and headroom element configuration flows."""
 
 from collections.abc import Callable, Mapping
 from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
@@ -17,7 +17,6 @@ from custom_components.haeo.core.schema.elements.reserve import (
     CONF_SHORTFALL_COST,
     CONF_STORAGE,
     CONF_WINDOW,
-    ELEMENT_TYPE,
     SECTION_PARTICIPANTS,
     SECTION_PRICING,
     SECTION_REQUIREMENT,
@@ -49,6 +48,8 @@ PARTICIPANT_FILTERS: dict[str, Callable[[ElementType, ElementAdapter], bool]] = 
 class ReserveSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     """Handle reserve element configuration flows."""
 
+    element_type: ElementType = ElementType.RESERVE
+
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
         return (
@@ -69,7 +70,7 @@ class ReserveSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Shared logic for user and reconfigure steps."""
         subentry = self._get_subentry()
         subentry_data: dict[str, object] | None = dict(subentry.data) if subentry else None
-        input_fields = self._get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields(self.element_type)
         sections = self._get_sections()
         user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
         errors = self._validate_user_input(user_input, input_fields)
@@ -85,7 +86,7 @@ class ReserveSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         schema = build_sectioned_choose_schema(
             sections,
             input_fields,
-            get_input_field_schema_info(ELEMENT_TYPE, input_fields),
+            get_input_field_schema_info(self.element_type, input_fields),
             build_sectioned_inclusion_map(input_fields, entity_metadata),
             current_data=sectioned_view(subentry_data),
             top_level_entries={CONF_NAME: (vol.Required(CONF_NAME), str)},
@@ -122,7 +123,7 @@ class ReserveSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         participant_defaults = {field: participants.get(field, []) for field in PARTICIPANT_FILTERS}
         return {
             CONF_NAME: (
-                subentry_data.get(CONF_NAME) if subentry_data else await self._async_get_default_name(ELEMENT_TYPE)
+                subentry_data.get(CONF_NAME) if subentry_data else await self._async_get_default_name(self.element_type)
             ),
             **build_sectioned_choose_defaults(
                 self._get_sections(),
@@ -148,7 +149,7 @@ class ReserveSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             validate_sectioned_choose_fields(
                 user_input,
                 input_fields,
-                get_input_field_schema_info(ELEMENT_TYPE, input_fields),
+                get_input_field_schema_info(self.element_type, input_fields),
                 self._get_sections(),
             )
         )
@@ -158,7 +159,7 @@ class ReserveSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build final config dict from user input."""
         config = convert_sectioned_choose_data_to_config(
             user_input,
-            self._get_input_fields(ELEMENT_TYPE),
+            self._get_input_fields(self.element_type),
             self._get_sections(),
         )
         config[SECTION_PARTICIPANTS] = {
@@ -166,4 +167,10 @@ class ReserveSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             for field in PARTICIPANT_FILTERS
             if isinstance(values := as_mapping(user_input.get(SECTION_PARTICIPANTS)).get(field), list) and values
         }
-        return {CONF_ELEMENT_TYPE: ELEMENT_TYPE, CONF_NAME: user_input[CONF_NAME], **config}
+        return {CONF_ELEMENT_TYPE: self.element_type, CONF_NAME: user_input[CONF_NAME], **config}
+
+
+class HeadroomSubentryFlowHandler(ReserveSubentryFlowHandler):
+    """Handle headroom element configuration flows, which share the reserve's form."""
+
+    element_type: ElementType = ElementType.HEADROOM

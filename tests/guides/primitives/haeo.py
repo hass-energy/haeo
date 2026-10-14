@@ -634,22 +634,19 @@ def add_policies(
     _LOGGER.info("Policy rule added: %s", name)
 
 
-@guide_step
-def add_reserve(
+def _add_requirement(
     page: HAPage,
+    et: ElementType,
     *,
     name: str,
     storage: list[str],
     window: ConstantInput,
-    loads: list[str] | None = None,
-    generation: list[str] | None = None,
-    minimum: EntityInput | ConstantInput | None = None,
-    shortfall_cost: ConstantInput | None = None,
+    loads: list[str] | None,
+    generation: list[str] | None,
+    minimum: EntityInput | ConstantInput | None,
+    shortfall_cost: ConstantInput | None,
 ) -> None:
-    """Add a reserve element covering loads and generation, held by batteries."""
-    et = ElementType.RESERVE
-    _LOGGER.info("Adding Reserve: %s", name)
-
+    """Fill and submit the reserve or headroom form, which share their fields."""
     page.click_button(_button_label(et))
     page.wait_for_dialog(_dialog_title(et))
 
@@ -670,7 +667,61 @@ def add_reserve(
         page.submit()
         page.close_element_dialog()
 
+
+@guide_step
+def add_reserve(
+    page: HAPage,
+    *,
+    name: str,
+    storage: list[str],
+    window: ConstantInput,
+    loads: list[str] | None = None,
+    generation: list[str] | None = None,
+    minimum: EntityInput | ConstantInput | None = None,
+    shortfall_cost: ConstantInput | None = None,
+) -> None:
+    """Add a reserve keeping energy in batteries for loads, less generation, through an outage."""
+    _LOGGER.info("Adding Reserve: %s", name)
+    _add_requirement(
+        page,
+        ElementType.RESERVE,
+        name=name,
+        storage=storage,
+        window=window,
+        loads=loads,
+        generation=generation,
+        minimum=minimum,
+        shortfall_cost=shortfall_cost,
+    )
     _LOGGER.info("Reserve added: %s", name)
+
+
+@guide_step
+def add_headroom(
+    page: HAPage,
+    *,
+    name: str,
+    storage: list[str],
+    window: ConstantInput,
+    loads: list[str] | None = None,
+    generation: list[str] | None = None,
+    minimum: EntityInput | ConstantInput | None = None,
+    shortfall_cost: ConstantInput | None = None,
+) -> None:
+    """Add headroom keeping empty space in batteries for generation, less loads, that is coming."""
+    _LOGGER.info("Adding Headroom: %s", name)
+    _add_requirement(
+        page,
+        ElementType.HEADROOM,
+        name=name,
+        storage=storage,
+        window=window,
+        loads=loads,
+        generation=generation,
+        minimum=minimum,
+        shortfall_cost=shortfall_cost,
+    )
+    _LOGGER.info("Headroom added: %s", name)
 
 
 @guide_step

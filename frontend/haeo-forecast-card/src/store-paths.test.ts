@@ -28,9 +28,13 @@ function socSeries(overrides: Partial<ForecastSeries>): ForecastSeries {
 }
 
 describe("computeSocPaths", () => {
-  it("marks a reserve as a threshold line and leaves battery lines plain", () => {
+  it("marks reserves and headroom as threshold lines and leaves battery lines plain", () => {
     const paths = computeSocPaths(
-      [socSeries({}), socSeries({ key: "backup:soc", elementName: "Backup", elementType: "reserve" })],
+      [
+        socSeries({}),
+        socSeries({ key: "backup:soc", elementName: "Backup", elementType: "reserve" }),
+        socSeries({ key: "room:soc", elementName: "Room", elementType: "headroom" }),
+      ],
       { min: -1, max: 1 },
       { min: 0, max: 100 },
       0,
@@ -38,6 +42,6 @@ describe("computeSocPaths", () => {
       (time) => time * 10
     );
 
-    expect(paths.map((path) => path.className)).toEqual([undefined, "reserveLine"]);
+    expect(paths.map((path) => path.className)).toEqual([undefined, "thresholdLine", "thresholdLine"]);
   });
 });

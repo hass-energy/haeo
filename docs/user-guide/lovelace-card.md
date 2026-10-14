@@ -10,6 +10,7 @@ It automatically groups series into lanes (`power`, `price`, `soc`, `shadow`, `o
 Power and price series are drawn with step-post semantics.
 State-of-charge series are drawn as continuous lines.
 A [reserve](elements/reserve.md) is drawn as a red dotted line in the state-of-charge lane: the level your batteries' combined charge should stay above.
+[Headroom](elements/headroom.md) is drawn as a purple dotted line: the level it should stay below.
 
 ## Prerequisites
 
@@ -72,8 +73,8 @@ hub_entry_id: <your_haeo_hub_config_entry_id>
 
 Use the visual card editor to select a HAEO hub. The card resolves the hub's optimization status sensor at runtime.
 
-Batteries that hold a [reserve](elements/reserve.md) show a 🛡 marker.
-Hover over an element to see which reserves it holds or is counted in.
+Batteries that hold a [reserve](elements/reserve.md) show a 🛡 marker, and those that keep [headroom](elements/headroom.md) show ⤒.
+Hover over an element to see which reserves and headroom it holds or is counted in.
 
 ### Topology card options
 

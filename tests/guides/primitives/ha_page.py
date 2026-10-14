@@ -803,14 +803,21 @@ class HAPage:
 
         Assumes a choice with a multi-select DROPDOWN is already active.
         """
-        self._pick_multi(self.page.locator("ha-selector-choose").filter(has_text=field_label), field_label, options)
+        choose = self.page.locator("ha-selector-choose").filter(has_text=field_label)
+        choose.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        self._pick_multi(choose.locator("ha-picker-field"), field_label, options)
 
     def select_dropdown_multi(self, field_label: str, options: list[str]) -> None:
-        """Select multiple options from a multi-select DROPDOWN SelectSelector."""
-        self._pick_multi(self.page.locator("ha-selector-select").filter(has_text=field_label), field_label, options)
+        """Select multiple options from a multi-select DROPDOWN SelectSelector.
 
-    def _pick_multi(self, container: Locator, field_label: str, options: list[str]) -> None:
-        """Pick each option from the multi-select picker inside a container.
+        On its own the selector shows an add button named after the field, so it is
+        found by that exact name rather than by text that a description could repeat.
+        """
+        button = self.page.locator("ha-selector-select").get_by_role("button", name=field_label, exact=True)
+        self._pick_multi(button, field_label, options)
+
+    def _pick_multi(self, picker: Locator, field_label: str, options: list[str]) -> None:
+        """Pick each option from a multi-select picker by clicking it once per option.
 
         HA renders multi-select DROPDOWN as ``ha-generic-picker`` which opens
         a "Select option" dialog when its field or add button is clicked. HA closes the dialog after
@@ -818,10 +825,6 @@ class HAPage:
 
         Screenshots per option: dialog open, option indicator, result chip.
         """
-        container.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-
-        # Inside a ChooseSelector the picker is a field; on its own it is an add button
-        picker = container.locator("ha-picker-field, ha-generic-picker ha-button").first
         picker.wait_for(state="attached", timeout=DEFAULT_TIMEOUT)
 
         select_dialog = self.page.get_by_role("dialog", name="Select option")

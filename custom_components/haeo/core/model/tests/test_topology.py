@@ -318,7 +318,9 @@ def test_reserve_serializes_its_participants_not_a_node() -> None:
         {
             "element_type": MODEL_ELEMENT_TYPE_RESERVE,
             "name": "Backup",
-            "elements": ["House"],
+            "kind": "reserve",
+            "loads": ["House"],
+            "generation": [],
             "storage": ["Battery"],
             "window": 4.0,
             "minimum": 0.0,
@@ -328,5 +330,5 @@ def test_reserve_serializes_its_participants_not_a_node() -> None:
 
     result = serialize_topology(network, element_types={"House": "load", "Battery": "battery", "Backup": "reserve"})
 
-    assert result["reserves"] == [{"name": "Backup", "elements": ["House"], "storage": ["Battery"]}]
+    assert result["reserves"] == [{"name": "Backup", "kind": "reserve", "elements": ["House"], "storage": ["Battery"]}]
     assert "Backup" not in {node["name"] for node in result["nodes"]}

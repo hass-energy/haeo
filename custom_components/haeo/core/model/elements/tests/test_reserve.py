@@ -11,7 +11,7 @@ from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_RESERVE,
     ReserveElementConfig,
 )
-from custom_components.haeo.core.model.elements.reserve import window_layout
+from custom_components.haeo.core.model.elements.reserve import ReserveKind, window_layout
 
 
 @pytest.mark.parametrize(
@@ -63,11 +63,15 @@ def _network(*, discharge_connections: int) -> Network:
     return network
 
 
-def _reserve(*, elements: list[str], storage: list[str]) -> ReserveElementConfig:
+def _reserve(
+    *, loads: list[str], storage: list[str], generation: list[str] | None = None, kind: ReserveKind = "reserve"
+) -> ReserveElementConfig:
     return {
         "element_type": MODEL_ELEMENT_TYPE_RESERVE,
         "name": "reserve",
-        "elements": elements,
+        "kind": kind,
+        "loads": loads,
+        "generation": generation or [],
         "storage": storage,
         "window": 1.0,
         "minimum": 0.0,
@@ -78,15 +82,23 @@ def _reserve(*, elements: list[str], storage: list[str]) -> ReserveElementConfig
 @pytest.mark.parametrize(
     ("discharge_connections", "config", "error", "match"),
     [
+        pytest.param(1, _reserve(loads=["missing"], storage=["battery"]), TypeError, "unknown element", id="unknown"),
+        pytest.param(1, _reserve(loads=["house"], storage=["house"]), TypeError, "not a battery", id="not_battery"),
+        pytest.param(0, _reserve(loads=["house"], storage=["battery"]), ValueError, "exactly one", id="no_discharge"),
+        pytest.param(2, _reserve(loads=["house"], storage=["battery"]), ValueError, "exactly one", id="two_discharges"),
         pytest.param(
-            1, _reserve(elements=["missing"], storage=["battery"]), TypeError, "unknown element", id="unknown"
+            1,
+            _reserve(loads=["house"], storage=["battery"], kind="headroom"),
+            ValueError,
+            "charge through exactly one",
+            id="headroom_without_charge",
         ),
-        pytest.param(1, _reserve(elements=["house"], storage=["house"]), TypeError, "not a battery", id="not_battery"),
         pytest.param(
-            0, _reserve(elements=["house"], storage=["battery"]), ValueError, "exactly one", id="no_discharge"
-        ),
-        pytest.param(
-            2, _reserve(elements=["house"], storage=["battery"]), ValueError, "exactly one", id="two_discharges"
+            1,
+            _reserve(loads=[], generation=["house"], storage=["battery"]),
+            ValueError,
+            "limit on the power it produces",
+            id="generation_without_limit",
         ),
     ],
 )

@@ -73,6 +73,12 @@ from custom_components.haeo.core.adapters.elements.grid import (
     GridDeviceName,
     GridOutputName,
 )
+from custom_components.haeo.core.adapters.elements.headroom import (
+    HEADROOM_DEVICE_NAMES,
+    HEADROOM_OUTPUT_NAMES,
+    HeadroomDeviceName,
+    HeadroomOutputName,
+)
 from custom_components.haeo.core.adapters.elements.inverter import (
     INVERTER_DEVICE_NAMES,
     INVERTER_OUTPUT_NAMES,
@@ -130,6 +136,8 @@ from custom_components.haeo.core.schema.elements.connection import (
 from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
 from custom_components.haeo.core.schema.elements.grid import OPTIONAL_INPUT_FIELDS as GRID_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
+from custom_components.haeo.core.schema.elements.headroom import OPTIONAL_INPUT_FIELDS as HEADROOM_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.headroom import HeadroomConfigData
 from custom_components.haeo.core.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
 from custom_components.haeo.core.schema.elements.junction import OPTIONAL_INPUT_FIELDS as JUNCTION_OPTIONAL_INPUT_FIELDS
@@ -164,6 +172,7 @@ type ElementOutputName = (
     | JunctionOutputName
     | SolarOutputName
     | ReserveOutputName
+    | HeadroomOutputName
     | NetworkOutputName
 )
 
@@ -178,6 +187,7 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
     | JUNCTION_OUTPUT_NAMES
     | SOLAR_OUTPUT_NAMES
     | RESERVE_OUTPUT_NAMES
+    | HEADROOM_OUTPUT_NAMES
     | NETWORK_OUTPUT_NAMES
 )
 
@@ -193,6 +203,7 @@ type ElementDeviceName = (
     | SolarDeviceName
     | PolicyDeviceName
     | ReserveDeviceName
+    | HeadroomDeviceName
     | NetworkDeviceName
 )
 
@@ -210,6 +221,7 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | SOLAR_DEVICE_NAMES
     | POLICY_DEVICE_NAMES
     | RESERVE_DEVICE_NAMES
+    | HEADROOM_DEVICE_NAMES
     | NETWORK_DEVICE_NAMES
 )
 
@@ -224,6 +236,7 @@ ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
     ElementType.NODE: frozenset(NODE_DEVICE_NAMES),
     ElementType.POLICY: frozenset(POLICY_DEVICE_NAMES),
     ElementType.RESERVE: frozenset(RESERVE_DEVICE_NAMES),
+    ElementType.HEADROOM: frozenset(HEADROOM_DEVICE_NAMES),
     ElementType.SOLAR: frozenset(SOLAR_DEVICE_NAMES),
     ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
 }
@@ -249,6 +262,7 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     ElementType.NODE: NodeConfigData,
     ElementType.POLICY: PolicyConfigData,
     ElementType.RESERVE: ReserveConfigData,
+    ElementType.HEADROOM: HeadroomConfigData,
     ElementType.SOLAR: SolarConfigData,
 }
 
@@ -263,6 +277,7 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
     ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
     ElementType.RESERVE: RESERVE_OPTIONAL_INPUT_FIELDS,
+    ElementType.HEADROOM: HEADROOM_OPTIONAL_INPUT_FIELDS,
 }
 
 

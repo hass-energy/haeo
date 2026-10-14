@@ -78,13 +78,13 @@ This prevents naming collisions and groups related components visually in Home A
 
     [:material-arrow-right: Load modeling](loads.md)
 
-- :material-shield-check:{ .lg .middle } **Reserve**
+- :material-shield-check:{ .lg .middle } **Reserve and Headroom**
 
     ---
 
-    Backup energy held across batteries for a grid outage.
+    Energy or empty space held across batteries over a window of time.
 
-    [:material-arrow-right: Reserve modeling](reserve.md)
+    [:material-arrow-right: Reserve and headroom modeling](reserve.md)
 
 - :material-battery-charging:{ .lg .middle } **Battery Section**
 

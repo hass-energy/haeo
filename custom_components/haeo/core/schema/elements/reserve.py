@@ -2,9 +2,12 @@
 
 A reserve keeps enough energy in a group of batteries to cover a group of
 loads, less a group of generators, through a grid outage of a set length.
+
+Headroom shares the same configuration, so its schema builds on the
+``StorageRequirementConfig`` and ``StorageRequirementData`` defined here.
 """
 
-from typing import Annotated, Final, Literal, NotRequired, TypedDict, TypeGuard
+from typing import Annotated, Final, Literal, NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -65,10 +68,9 @@ class ReservePricingData(TypedDict):
     shortfall_cost: NDArray[np.float64] | float
 
 
-class ReserveConfigSchema(TypedDict):
-    """Reserve element configuration as stored in Home Assistant."""
+class StorageRequirementConfig(TypedDict):
+    """Configuration shared by reserves and headroom, as stored in Home Assistant."""
 
-    element_type: Literal[ElementType.RESERVE]
     name: str
     participants: ParticipantsConfig
     requirement: Annotated[
@@ -107,19 +109,25 @@ class ReserveConfigSchema(TypedDict):
     ]
 
 
-class ReserveConfigData(TypedDict):
-    """Reserve element configuration with loaded values."""
+class StorageRequirementData(TypedDict):
+    """Configuration shared by reserves and headroom, with loaded values."""
 
-    element_type: Literal[ElementType.RESERVE]
     name: str
     participants: ParticipantsConfig
     requirement: RequirementData
     pricing: ReservePricingData
 
 
-def is_reserve_config_data(config: object) -> TypeGuard[ReserveConfigData]:
-    """Narrow a loaded element config to reserve data using the element_type discriminator."""
-    return isinstance(config, dict) and config.get("element_type") == ELEMENT_TYPE
+class ReserveConfigSchema(StorageRequirementConfig):
+    """Reserve element configuration as stored in Home Assistant."""
+
+    element_type: Literal[ElementType.RESERVE]
+
+
+class ReserveConfigData(StorageRequirementData):
+    """Reserve element configuration with loaded values."""
+
+    element_type: Literal[ElementType.RESERVE]
 
 
 __all__ = [
@@ -141,5 +149,6 @@ __all__ = [
     "ReserveConfigSchema",
     "ReservePricingConfig",
     "ReservePricingData",
-    "is_reserve_config_data",
+    "StorageRequirementConfig",
+    "StorageRequirementData",
 ]

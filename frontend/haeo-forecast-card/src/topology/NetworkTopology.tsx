@@ -10,7 +10,7 @@ import {
   type LayoutNode,
   type LayoutResult,
 } from "./layout";
-import { RESERVE_MARKER, reserveRoles, reserveTooltipLines, type ReserveRoles } from "./shared";
+import { reserveMarkers, reserveRoles, reserveTooltipLines, type ReserveRoles } from "./shared";
 import type { TopologyData, TopologyNode, TopologySegment } from "./types";
 
 const NODE_RX = 6;
@@ -593,9 +593,9 @@ function renderModelNode(
       >
         {node.id}
       </text>
-      {reserve !== undefined && reserve.holds.length > 0 && (
+      {reserveMarkers(reserve) !== "" && (
         <text x={nx + node.width - 4} y={ny + 12} text-anchor="end" font-size="10">
-          {RESERVE_MARKER}
+          {reserveMarkers(reserve)}
         </text>
       )}
     </g>

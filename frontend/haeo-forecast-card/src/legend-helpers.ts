@@ -17,9 +17,9 @@ export function seriesIconPath(series: ForecastSeries): string {
     return icons["mdiCurrencyUsd"] ?? fallback;
   }
   if (series.lane === "soc") {
-    return series.elementType === "reserve"
-      ? (icons["mdiShieldHalfFull"] ?? fallback)
-      : (icons["mdiBatteryMedium"] ?? fallback);
+    if (series.elementType === "reserve") return icons["mdiShieldHalfFull"] ?? fallback;
+    if (series.elementType === "headroom") return icons["mdiFormatVerticalAlignTop"] ?? fallback;
+    return icons["mdiBatteryMedium"] ?? fallback;
   }
   const output = series.outputName.toLowerCase();
   const element = series.elementName.toLowerCase();

@@ -10,6 +10,7 @@ class ElementType(StrEnum):
     BATTERY_SECTION = "battery_section"
     CONNECTION = "connection"
     GRID = "grid"
+    HEADROOM = "headroom"
     INVERTER = "inverter"
     JUNCTION = "junction"
     LOAD = "load"

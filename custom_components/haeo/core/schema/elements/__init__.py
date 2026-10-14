@@ -10,6 +10,7 @@ from custom_components.haeo.core.schema.elements.battery_section import (
 from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData, ConnectionConfigSchema
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.grid import GridConfigData, GridConfigSchema
+from custom_components.haeo.core.schema.elements.headroom import HeadroomConfigData, HeadroomConfigSchema
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData, InverterConfigSchema
 from custom_components.haeo.core.schema.elements.junction import JunctionConfigData, JunctionConfigSchema
 from custom_components.haeo.core.schema.elements.load import LoadConfigData, LoadConfigSchema
@@ -29,6 +30,7 @@ ElementConfigSchema = (
     | JunctionConfigSchema
     | PolicyConfigSchema
     | ReserveConfigSchema
+    | HeadroomConfigSchema
     | ConnectionConfigSchema
 )
 
@@ -43,6 +45,7 @@ ElementConfigData = (
     | JunctionConfigData
     | PolicyConfigData
     | ReserveConfigData
+    | HeadroomConfigData
     | ConnectionConfigData
 )
 
@@ -51,6 +54,7 @@ ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
     ElementType.BATTERY_SECTION: BatterySectionConfigSchema,
     ElementType.CONNECTION: ConnectionConfigSchema,
     ElementType.GRID: GridConfigSchema,
+    ElementType.HEADROOM: HeadroomConfigSchema,
     ElementType.INVERTER: InverterConfigSchema,
     ElementType.JUNCTION: JunctionConfigSchema,
     ElementType.LOAD: LoadConfigSchema,

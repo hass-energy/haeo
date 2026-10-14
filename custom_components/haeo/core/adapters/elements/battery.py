@@ -126,7 +126,7 @@ class BatteryAdapter:
         overcharge_percentage = overcharge.get(CONF_PARTITION_PERCENTAGE) if overcharge_cost is not None else None
 
         lower_ratio = battery_floor_ratio(config)
-        upper_ratio = overcharge_percentage if overcharge_percentage is not None else max_charge_percentage
+        upper_ratio = battery_ceiling_ratio(config)
 
         lower_ratio_first = float(lower_ratio[0]) if isinstance(lower_ratio, np.ndarray) else float(lower_ratio)
 
@@ -273,6 +273,15 @@ def battery_floor_ratio(config: BatteryConfigData) -> NDArray[np.float64] | floa
     if undercharge_percentage is not None and undercharge.get(CONF_PARTITION_COST) is not None:
         return undercharge_percentage
     return config[SECTION_LIMITS].get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
+
+
+def battery_ceiling_ratio(config: BatteryConfigData) -> NDArray[np.float64] | float:
+    """Return the highest SOC ratio the battery may reach: the overcharge percentage when priced, else max charge."""
+    overcharge = config.get(SECTION_OVERCHARGE, {})
+    overcharge_percentage = overcharge.get(CONF_PARTITION_PERCENTAGE)
+    if overcharge_percentage is not None and overcharge.get(CONF_PARTITION_COST) is not None:
+        return overcharge_percentage
+    return config[SECTION_LIMITS].get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
 
 
 def _calculate_total_energy(aggregate_energy: OutputData, config: BatteryConfigData) -> OutputData:

@@ -197,6 +197,7 @@ Refilling that kWh after 3 hours instead costs only \$0.06.
 A short dip that is refilled soon is cheap, while a deficit that lasts until the end of the forecast horizon is expensive.
 This makes the undercharge range behave like a reserve: HAEO tends to use it for short price spikes and refill it soon afterwards.
 To keep enough energy for your loads through a grid outage, add a [Reserve](reserve.md) instead.
+A reserve with only an extra amount works like this undercharge range, and [Headroom](headroom.md) does the same for the overcharge range, across several batteries at once.
 
 **Setting the cost**: Decide what one kWh of reserve should cost if it stays used for a typical duration, then divide by that duration.
 

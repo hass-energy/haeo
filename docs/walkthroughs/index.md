@@ -27,14 +27,14 @@ Walkthroughs are generated from a live Home Assistant instance, so the screensho
 
     [:material-arrow-right: Power Policies walkthrough](power-policies.md)
 
-- :material-battery-lock:{ .lg .middle } **Backup Reserve**
+- :material-battery-lock:{ .lg .middle } **Reserve and Headroom**
 
     ---
 
-    Keep enough energy in your batteries to ride through a grid outage.
-    Covers choosing what the reserve covers, setting it up, and reading it on the forecast card.
+    Keep energy in your batteries for a grid outage, and room for the solar that is coming.
+    Shows the plan changing on the forecast card at every step.
 
-    [:material-arrow-right: Backup Reserve walkthrough](backup-reserve.md)
+    [:material-arrow-right: Reserve and Headroom walkthrough](reserve-and-headroom.md)
 
 - :material-history:{ .lg .middle } **Historic Diagnostics**
 

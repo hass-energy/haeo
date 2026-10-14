@@ -29,7 +29,8 @@ export type ElementType =
   | "node"
   | "solar"
   | "policy"
-  | "reserve";
+  | "reserve"
+  | "headroom";
 export type CardOutputType = "power" | "price" | "state_of_charge";
 export type LaneType = "power" | "price" | "soc" | "shadow" | "other";
 export type DrawType = "step" | "line";

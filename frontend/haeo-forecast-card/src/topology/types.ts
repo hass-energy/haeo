@@ -36,8 +36,12 @@ export interface PolicyPlacement {
   terms: PolicyPricingTerm[];
 }
 
+/** A reserve keeps energy for an outage; headroom keeps empty space for surplus. */
+export type RequirementKind = "reserve" | "headroom";
+
 export interface ReservePlacement {
   name: string;
+  kind: RequirementKind;
   /** Loads and generation the reserve covers. */
   elements: string[];
   /** Batteries that hold the reserve together. */

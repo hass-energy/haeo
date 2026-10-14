@@ -25,7 +25,7 @@ import {
   esc,
   extendEndpoints,
   offsetPoints,
-  RESERVE_MARKER,
+  reserveMarkers,
   reserveRoles,
   type ReserveRoles,
   vlanColor,
@@ -130,9 +130,10 @@ function svgModelNode(
   parts.push(
     `<text x="${nx + node.width / 2}" y="${ny + node.height / 2 + 4}" text-anchor="middle" font-size="11" font-weight="600" fill="white">${esc(node.id)}</text>`
   );
-  if (reserve !== undefined && reserve.holds.length > 0) {
+  const markers = reserveMarkers(reserve);
+  if (markers !== "") {
     parts.push(
-      `<text x="${nx + node.width - 4}" y="${ny + 12}" text-anchor="end" font-size="10">${RESERVE_MARKER}</text>`
+      `<text x="${nx + node.width - 4}" y="${ny + 12}" text-anchor="end" font-size="10">${esc(markers)}</text>`
     );
   }
   return `<g>${parts.join("")}</g>`;

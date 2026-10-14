@@ -270,6 +270,50 @@
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
+    "headroom": {
+      "flow_title": "Headroom",
+      "entry_type": "Headroom",
+      "initiate_flow": { "user": "Headroom", "reconfigure": "Headroom" },
+      "step": {
+        "user": {
+          "title": "Headroom configuration",
+          "description": "Keep enough empty space in your batteries to absorb the generation that is coming.",
+          "data": { "name": "Headroom name" },
+          "sections": {
+            "participants": {
+              "data": { "generation": "Generation", "loads": "Loads", "storage": "Batteries" },
+              "data_description": {
+                "generation": "Generation the batteries should have room to absorb, such as solar.",
+                "loads": "Loads that use some of the generation before it reaches the batteries.",
+                "storage": "Batteries that keep the headroom together."
+              },
+              "name": "Participants"
+            },
+            "pricing": {
+              "data": { "shortfall_cost": "Shortfall cost" },
+              "data_description": {
+                "shortfall_cost": "Holding cost per kWh the batteries fall short of the headroom, for every hour it lasts. Set it high to keep the room nearly always free."
+              },
+              "name": "Pricing"
+            },
+            "requirement": {
+              "data": { "minimum": "Extra headroom", "window": "Look-ahead" },
+              "data_description": {
+                "minimum": "Empty space to keep on top of what the generation needs.",
+                "window": "How far ahead to keep room for the generation that is coming."
+              },
+              "name": "Requirement"
+            }
+          }
+        }
+      },
+      "error": {
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "reserve_storage_required": "Choose at least one battery to keep the headroom"
+      },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
     "inverter": {
       "flow_title": "Inverter",
       "entry_type": "Inverter",
@@ -516,6 +560,7 @@
     "battery_section": { "name": "{name}" },
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
+    "headroom": { "name": "{name}" },
     "inverter": { "name": "{name}" },
     "junction": { "name": "{name}" },
     "load": { "name": "{name}" },
@@ -551,6 +596,9 @@
       "grid_max_power_target_source": { "name": "Export limit" },
       "grid_price_source_target": { "name": "Import price" },
       "grid_price_target_source": { "name": "Export price" },
+      "headroom_minimum": { "name": "Extra headroom" },
+      "headroom_shortfall_cost": { "name": "Shortfall cost" },
+      "headroom_window": { "name": "Look-ahead" },
       "inverter_efficiency_source_target": { "name": "DC to AC efficiency" },
       "inverter_efficiency_target_source": { "name": "AC to DC efficiency" },
       "inverter_max_power_source_target": { "name": "Max DC to AC power" },
@@ -594,6 +642,10 @@
       "grid_power_max_export_price": { "name": "Max export power shadow price" },
       "grid_power_max_import_price": { "name": "Max import power shadow price" },
       "grid_revenue_export": { "name": "Export revenue" },
+      "headroom_energy_available": { "name": "Available space" },
+      "headroom_energy_required": { "name": "Required space" },
+      "headroom_energy_shortfall": { "name": "Space shortfall" },
+      "headroom_state_of_charge": { "name": "Headroom state of charge" },
       "horizon": { "name": "Forecast horizon" },
       "inverter_dc_bus_power_balance": { "name": "DC bus power balance shadow price" },
       "inverter_max_power_ac_to_dc_price": { "name": "Max AC to DC power shadow price" },

@@ -34,6 +34,11 @@ describe("seriesIconPath", () => {
     expect(seriesIconPath(series)).toBe(mdiIcons["mdiShieldHalfFull"]);
   });
 
+  it("returns a ceiling icon for a headroom state of charge", () => {
+    const series = makeSeries({ lane: "soc", elementType: "headroom", outputName: "headroom_state_of_charge" });
+    expect(seriesIconPath(series)).toBe(mdiIcons["mdiFormatVerticalAlignTop"]);
+  });
+
   it("returns an import price icon for import price series", () => {
     const series = makeSeries({ lane: "price", outputName: "import_price" });
     expect(seriesIconPath(series)).toBeTruthy();

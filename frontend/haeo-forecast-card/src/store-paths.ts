@@ -1,6 +1,6 @@
 import { linearScale, linePath, stepAreaPath, stepPath } from "./geometry";
 import { classifyPowerSeries } from "./power-series-classification";
-import type { ForecastSeries, LaneBounds, PowerDisplayMode } from "./types";
+import type { ElementType, ForecastSeries, LaneBounds, PowerDisplayMode } from "./types";
 import { emptySectionStacks, powerSection, powerValueForDisplay, stepTopStrokePaths } from "./power-display";
 
 export interface PowerShape {
@@ -129,6 +129,8 @@ export function computePricePaths(
   }));
 }
 
+const THRESHOLD_ELEMENT_TYPES: ReadonlySet<ElementType> = new Set<ElementType>(["reserve", "headroom"]);
+
 export function computeSocPaths(
   socSeries: ForecastSeries[],
   powerBounds: LaneBounds,
@@ -145,7 +147,7 @@ export function computeSocPaths(
     key: series.key,
     color: series.color,
     d: linePath(series.times, series.values, xScale, yScaleSoc),
-    // A reserve is the level the batteries should stay above, so it is drawn as a threshold
-    ...(series.elementType === "reserve" ? { className: "reserveLine" } : {}),
+    // Reserves and headroom are levels the batteries should stay above or below, so they are drawn as thresholds
+    ...(THRESHOLD_ELEMENT_TYPES.has(series.elementType) ? { className: "thresholdLine" } : {}),
   }));
 }

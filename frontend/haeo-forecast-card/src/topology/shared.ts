@@ -5,7 +5,7 @@
  * the headless SVG string renderer (render-svg.ts).
  */
 
-import type { ReservePlacement } from "./types";
+import type { RequirementKind, ReservePlacement } from "./types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -17,18 +17,18 @@ export interface Point {
 }
 
 export interface ReserveRoles {
-  /** Reserves this node holds energy for. */
-  holds: string[];
-  /** Reserves this node's demand or generation counts toward. */
-  covers: string[];
+  /** Reserves and headroom this node holds. */
+  holds: ReservePlacement[];
+  /** Reserves and headroom this node's demand or generation counts toward. */
+  covers: ReservePlacement[];
 }
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Marker drawn on batteries that hold a reserve. */
-export const RESERVE_MARKER = "🛡";
+/** Markers drawn on batteries that hold a reserve or headroom. */
+export const REQUIREMENT_MARKERS: Record<RequirementKind, string> = { reserve: "🛡", headroom: "⤒" };
 
 export const NODE_RX = 6;
 export const GROUP_RX = 10;
@@ -185,7 +185,7 @@ export function computeArrowHead(
   return { tipX, tipY, left, right };
 }
 
-/** Map each node to the reserves it holds or counts toward. */
+/** Map each node to the reserves and headroom it holds or counts toward. */
 export function reserveRoles(reserves: ReservePlacement[] | undefined): Map<string, ReserveRoles> {
   const roles = new Map<string, ReserveRoles>();
   const rolesFor = (name: string): ReserveRoles => {
@@ -196,17 +196,30 @@ export function reserveRoles(reserves: ReservePlacement[] | undefined): Map<stri
     return created;
   };
   for (const reserve of reserves ?? []) {
-    for (const name of reserve.storage) rolesFor(name).holds.push(reserve.name);
-    for (const name of reserve.elements) rolesFor(name).covers.push(reserve.name);
+    for (const name of reserve.storage) rolesFor(name).holds.push(reserve);
+    for (const name of reserve.elements) rolesFor(name).covers.push(reserve);
   }
   return roles;
 }
 
-/** Describe a node's reserve roles for its tooltip. */
+/** Return the markers for the kinds of requirement a node holds, in a fixed order. */
+export function reserveMarkers(roles: ReserveRoles | undefined): string {
+  const kinds = new Set(roles?.holds.map((reserve) => reserve.kind));
+  return (["reserve", "headroom"] as const)
+    .filter((kind) => kinds.has(kind))
+    .map((kind) => REQUIREMENT_MARKERS[kind])
+    .join(" ");
+}
+
+/** Describe a node's reserve and headroom roles for its tooltip. */
 export function reserveTooltipLines(roles: ReserveRoles | undefined): string[] {
   if (roles === undefined) return [];
   const lines: string[] = [];
-  if (roles.holds.length > 0) lines.push(`Holds reserve: ${roles.holds.join(", ")}`);
-  if (roles.covers.length > 0) lines.push(`Counted in reserve: ${roles.covers.join(", ")}`);
+  for (const kind of ["reserve", "headroom"] as const) {
+    const held = roles.holds.filter((reserve) => reserve.kind === kind).map((reserve) => reserve.name);
+    const covered = roles.covers.filter((reserve) => reserve.kind === kind).map((reserve) => reserve.name);
+    if (held.length > 0) lines.push(`Holds ${kind}: ${held.join(", ")}`);
+    if (covered.length > 0) lines.push(`Counted in ${kind}: ${covered.join(", ")}`);
+  }
   return lines;
 }

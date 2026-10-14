@@ -1,46 +1,50 @@
-# Reserve Modeling
+# Reserve and Headroom Modeling
 
-The Reserve device creates a single Reserve model element.
-It has no connection of its own.
-Instead it reads the planned power flows of its loads and generation and the stored energy of its batteries, which the network resolves by name.
+The Reserve and Headroom devices each create a single Reserve model element, with its kind set to `reserve` or `headroom`.
+Neither has a connection of its own.
+Instead the element reads the planned power of its loads, the forecast power of its generation, and the stored energy of its batteries, which the network resolves by name.
 
 ## Model Elements Created
 
-| Model Element | Name     | Parameters From Configuration                      |
-| ------------- | -------- | -------------------------------------------------- |
-| Reserve       | `{name}` | elements, storage, window, minimum, shortfall cost |
+| Model Element | Name     | Parameters From Configuration                                     |
+| ------------- | -------- | ----------------------------------------------------------------- |
+| Reserve       | `{name}` | kind, loads, generation, storage, window, minimum, shortfall cost |
 
-Loads and generation both become the reserve's elements.
-Each counts by the net power flowing into it, so loads add to the demand and generation subtracts from it.
+Loads count by the net power flowing into them, so a load whose timing the optimizer chooses moves the requirement with its schedule.
+Generation counts by the limit on the power leaving it, which is its forecast, so curtailing it in the plan cannot shrink a headroom that exists to make room for it.
 
 ## Devices Created
 
-| Device  | Name     | Created When | Purpose                                   |
-| ------- | -------- | ------------ | ----------------------------------------- |
-| Primary | `{name}` | Always       | Reserve inputs, requirement and shortfall |
+| Device  | Name     | Created When | Purpose                           |
+| ------- | -------- | ------------ | --------------------------------- |
+| Primary | `{name}` | Always       | Inputs, requirement and shortfall |
 
 ## Formulation
 
-The running net demand $D$ starts at zero and accumulates the elements' net power $p_e$ over each period $\Delta t_k$:
+The running net demand $D$ starts at zero and accumulates the loads' planned power $p_l$ less the generation's forecast power $g_j$ over each period $\Delta t_k$.
+For headroom the sign is flipped, so $D$ tracks the running net surplus instead:
 
 $$
-D_0 = 0, \qquad D_{k+1} = D_k + \Delta t_k \sum_e p_e(k)
+D_0 = 0, \qquad D_{k+1} = D_k + \sigma \, \Delta t_k \left( \sum_l p_l(k) - \sum_j g_j(k) \right), \qquad \sigma = \begin{cases} 1 & \text{reserve} \\ -1 & \text{headroom} \end{cases}
 $$
 
-The energy required at boundary $t$ is the extra reserve $m_t$ plus the largest rise in demand over the window $W$ that starts there:
+The requirement at boundary $t$ is the extra amount $m_t$ plus the largest rise in $D$ over the window $W$ that starts there:
 
 $$
 R_t = m_t + \max_{\tau \in [t,\, t+W]} \left( D(\tau) - D_t \right)
 $$
 
-Demand is linear between boundaries, so the maximum is reached at a boundary or at the window end.
-The batteries hold the reserve together, each counting its stored energy $E_b$ after its discharge efficiency $\eta_b$, with a priced shortfall $s_t \ge 0$:
+$D$ is linear between boundaries, so the maximum is reached at a boundary or at the window end.
+The batteries meet the requirement together, with a priced shortfall $s_t \ge 0$.
+A reserve counts the stored energy $E_b$ each battery can deliver after its discharge efficiency $\eta^{d}_b$, and headroom counts the empty space each can fill before its charge efficiency $\eta^{c}_b$, where $C_b$ is its usable capacity:
 
 $$
-\sum_b \eta_b E_{b,t} + s_t \ge R_t
+\text{reserve:} \quad \sum_b \eta^{d}_b E_{b,t} + s_t \ge R_t
+\qquad\qquad
+\text{headroom:} \quad \sum_b \frac{C_{b,t} - E_{b,t}}{\eta^{c}_b} + s_t \ge R_t
 $$
 
-Requiring stored energy to be at least a maximum is the same as requiring it to be at least every term, so the reserve stays linear even when the demand depends on decisions the optimizer makes.
+Requiring the batteries to provide at least a maximum is the same as requiring them to provide at least every term, so the requirement stays linear even when the loads depend on decisions the optimizer makes.
 
 ### Fixed-shape windows
 
@@ -59,13 +63,22 @@ where $c_t$ is the shortfall cost in \$/kWh/h.
 
 ## Parameter mapping
 
-| User Configuration | Model Field | Notes                                                          |
-| ------------------ | ----------- | -------------------------------------------------------------- |
-| Loads, generation  | `elements`  | Net power into each element counts as demand                   |
-| Batteries          | `storage`   | Each battery's single discharge connection sets its efficiency |
-| Outage length      | `window`    | Hours                                                          |
-| Extra reserve      | `minimum`   | kWh at each boundary                                           |
-| Shortfall cost     | `price`     | \$/kWh/h                                                       |
+| User Configuration       | Model Field  | Notes                                                                                         |
+| ------------------------ | ------------ | --------------------------------------------------------------------------------------------- |
+| Element type             | `kind`       | `reserve` or `headroom`                                                                       |
+| Loads                    | `loads`      | Planned net power into each load                                                              |
+| Generation               | `generation` | Forecast power, the limit on each generator's outgoing connection                             |
+| Batteries                | `storage`    | Each battery's single discharge (reserve) or charge (headroom) connection sets its efficiency |
+| Outage length/Look-ahead | `window`     | Hours                                                                                         |
+| Extra reserve/headroom   | `minimum`    | kWh at each boundary                                                                          |
+| Shortfall cost           | `price`      | \$/kWh/h                                                                                      |
+
+## State of charge line
+
+The reserve and headroom state of charge sensors turn the requirement into a combined state of charge for the forecast card.
+A reserve adds the requirement, stored at the batteries' discharge efficiency, to their lowest allowed charge.
+Headroom takes the requirement, stored at their charge efficiency, away from their highest allowed charge.
+Efficiencies are weighted by capacity, so the line is exact for one battery and for batteries with the same efficiency.
 
 ## Next steps
 
@@ -79,11 +92,19 @@ where $c_t$ is the shortfall cost in \$/kWh/h.
 
     [:material-arrow-right: Reserve configuration](../../user-guide/elements/reserve.md)
 
+- :material-format-vertical-align-top:{ .lg .middle } **Configure headroom**
+
+    ---
+
+    Set up headroom in Home Assistant.
+
+    [:material-arrow-right: Headroom configuration](../../user-guide/elements/headroom.md)
+
 - :material-battery:{ .lg .middle } **Battery modeling**
 
     ---
 
-    See how batteries store the energy the reserve counts.
+    See how batteries store the energy and space these count.
 
     [:material-arrow-right: Battery modeling](battery.md)
 

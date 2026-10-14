@@ -55,12 +55,16 @@ def _section_selectors(schema: Any, section_key: str) -> dict[str, Any]:
     return {str(key): value for key, value in section.schema.schema.items()}
 
 
+REQUIREMENT_TYPES = pytest.mark.parametrize("element_type", [ElementType.RESERVE, ElementType.HEADROOM])
+
+
+@REQUIREMENT_TYPES
 async def test_participant_lists_offer_loads_generation_and_batteries(
-    hass: HomeAssistant, hub_entry: MockConfigEntry
+    hass: HomeAssistant, hub_entry: MockConfigEntry, element_type: ElementType
 ) -> None:
     """Each participant list offers only the elements that fit it."""
     _add_elements(hass, hub_entry)
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, element_type)
 
     result = await flow.async_step_user(user_input=None)
 
@@ -70,10 +74,13 @@ async def test_participant_lists_offer_loads_generation_and_batteries(
     assert selectors[CONF_STORAGE].config["options"] == ["Battery"]
 
 
-async def test_reserve_needs_a_battery(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
-    """A reserve without a battery to hold it is rejected."""
+@REQUIREMENT_TYPES
+async def test_requirement_needs_a_battery(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, element_type: ElementType
+) -> None:
+    """A reserve or headroom without a battery to hold it is rejected."""
     _add_elements(hass, hub_entry)
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow = create_flow(hass, hub_entry, element_type)
 
     result = await flow.async_step_user(user_input=_user_input(loads=["House"]))
 
@@ -112,6 +119,7 @@ async def test_reconfigure_keeps_participants_and_stores_inputs(
     assert data[SECTION_REQUIREMENT] == {CONF_WINDOW: as_constant_value(12.0), CONF_MINIMUM: as_constant_value(2.0)}
 
 
+@REQUIREMENT_TYPES
 @pytest.mark.parametrize(
     ("loads", "expected_loads"),
     [
@@ -120,7 +128,11 @@ async def test_reconfigure_keeps_participants_and_stores_inputs(
     ],
 )
 def test_cleanup_strips_deleted_elements_from_reserves(
-    hass: HomeAssistant, hub_entry: MockConfigEntry, loads: list[str], expected_loads: list[str]
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    loads: list[str],
+    expected_loads: list[str],
+    element_type: ElementType,
 ) -> None:
     """Deleting an element removes it from every reserve that named it."""
     add_participant(hass, hub_entry, "House", ElementType.LOAD)
@@ -128,12 +140,12 @@ def test_cleanup_strips_deleted_elements_from_reserves(
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
-                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                CONF_ELEMENT_TYPE: element_type,
                 CONF_NAME: "Backup",
                 SECTION_PARTICIPANTS: {CONF_LOADS: loads, CONF_STORAGE: ["Battery"]},
             }
         ),
-        subentry_type=ELEMENT_TYPE,
+        subentry_type=element_type,
         title="Backup",
         unique_id=None,
     )

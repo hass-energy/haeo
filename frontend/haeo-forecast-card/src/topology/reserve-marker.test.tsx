@@ -16,7 +16,7 @@ const topology: TopologyData = {
     { name: "House:connection", source: "Bus", target: "House", segments: [] },
   ],
   groups: { Battery: ["Battery"], Bus: ["Bus"], House: ["House"] },
-  reserves: [{ name: "Backup", elements: ["House"], storage: ["Battery"] }],
+  reserves: [{ name: "Backup", kind: "reserve", elements: ["House"], storage: ["Battery"] }],
 };
 
 async function waitFor(condition: () => boolean): Promise<void> {

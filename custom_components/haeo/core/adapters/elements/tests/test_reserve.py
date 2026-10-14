@@ -7,6 +7,12 @@ import numpy as np
 from numpy.typing import NDArray
 import pytest
 
+from custom_components.haeo.core.adapters.elements.headroom import (
+    HEADROOM_ENERGY_AVAILABLE,
+    HEADROOM_ENERGY_REQUIRED,
+    HEADROOM_ENERGY_SHORTFALL,
+    HEADROOM_STATE_OF_CHARGE,
+)
 from custom_components.haeo.core.adapters.elements.reserve import (
     RESERVE_DEVICE_RESERVE,
     RESERVE_ENERGY_AVAILABLE,
@@ -16,7 +22,7 @@ from custom_components.haeo.core.adapters.elements.reserve import (
 )
 from custom_components.haeo.core.adapters.elements.reserve import adapter as reserve_adapter
 from custom_components.haeo.core.adapters.policy_compilation import compile_policies
-from custom_components.haeo.core.adapters.registry import collect_model_elements
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import Reserve
 from custom_components.haeo.core.model.output_data import OutputData
@@ -24,8 +30,9 @@ from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
+from custom_components.haeo.core.schema.elements.headroom import HeadroomConfigData
 from custom_components.haeo.core.schema.elements.load import LoadConfigData
-from custom_components.haeo.core.schema.elements.reserve import ReserveConfigData, is_reserve_config_data
+from custom_components.haeo.core.schema.elements.reserve import ReserveConfigData
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData
 
 from .conftest import bus_node
@@ -51,15 +58,15 @@ def _battery(name: str, *, efficiency: float = 1.0) -> BatteryConfigData:
     )
 
 
-def _grid() -> GridConfigData:
-    """Return a grid that pays well for exports now and sells cheaply later."""
+def _grid(export_price: Sequence[float] = (0.5, 0.0, 0.0, 0.0)) -> GridConfigData:
+    """Return a grid that sells cheaply after the first hour and by default pays well for exports in it."""
     return GridConfigData(
         element_type=ElementType.GRID,
         name="grid",
         connection=as_connection_target("bus"),
         pricing={
             "price_source_target": np.array([1.0, 0.1, 0.1, 0.1]),
-            "price_target_source": np.array([0.5, 0.0, 0.0, 0.0]),
+            "price_target_source": np.asarray(export_price, dtype=float),
         },
         power_limits={},
     )
@@ -75,13 +82,13 @@ def _load(name: str, power: Sequence[float]) -> LoadConfigData:
     )
 
 
-def _solar(power: Sequence[float]) -> SolarConfigData:
+def _solar(power: Sequence[float], *, curtailment: bool = False) -> SolarConfigData:
     return SolarConfigData(
         element_type=ElementType.SOLAR,
         name="solar",
         connection=as_connection_target("bus"),
         forecast={"forecast": np.asarray(power, dtype=float)},
-        curtailment={"curtailment": False},
+        curtailment={"curtailment": curtailment},
     )
 
 
@@ -103,18 +110,20 @@ def _reserve(
     )
 
 
-def _optimize(participants: Sequence[ElementConfigData]) -> tuple[Network, dict[str, OutputData]]:
-    """Optimize hourly periods and return the network and the reserve's outputs."""
+def _optimize(
+    participants: Sequence[ElementConfigData], name: str = "reserve"
+) -> tuple[Network, dict[str, OutputData]]:
+    """Optimize hourly periods and return the network and the named element's outputs."""
     configs = {config["name"]: config for config in participants}
     network = Network(name="test", periods=np.ones(N_PERIODS))
     for element in compile_policies(collect_model_elements(configs), [])["elements"]:
         network.add(element)
     network.optimize()
     model_outputs = {name: element.outputs() for name, element in network.elements.items()}
-    reserve = configs["reserve"]
-    assert is_reserve_config_data(reserve)
-    outputs = reserve_adapter.outputs("reserve", model_outputs, config=reserve, participants=configs)
-    return network, {str(name): output for name, output in outputs[RESERVE_DEVICE_RESERVE].items()}
+    config = configs[name]
+    adapter = ELEMENT_TYPES[config["element_type"]]
+    outputs = adapter.outputs(name, model_outputs, config=config, participants=configs)
+    return network, {str(output_name): output for device in outputs.values() for output_name, output in device.items()}
 
 
 def _values(output: OutputData) -> NDArray[np.float64]:
@@ -203,3 +212,40 @@ def test_reserve_keeps_its_shape_when_periods_and_window_change() -> None:
     )[RESERVE_DEVICE_RESERVE]
     # 1 kW over 1.25 hours, cut short by the end of the horizon at the last boundaries
     np.testing.assert_allclose(_values(outputs[RESERVE_ENERGY_REQUIRED]), [1.25, 1.25, 1.25, 1.0, 0.0])
+
+
+def _headroom(*, loads: list[str], generation: list[str], storage: list[str]) -> HeadroomConfigData:
+    return HeadroomConfigData(
+        element_type=ElementType.HEADROOM,
+        name="headroom",
+        participants={"loads": loads, "generation": generation, "storage": storage},
+        requirement={"window": 4.0, "minimum": np.zeros(N_PERIODS + 1)},
+        pricing={"shortfall_cost": np.full(N_PERIODS, 10.0)},
+    )
+
+
+@pytest.mark.parametrize("curtailment", [False, True], ids=["fixed_solar", "curtailable_solar"])
+def test_headroom_makes_room_for_forecast_solar(curtailment: bool) -> None:
+    """Headroom empties the battery before the solar arrives, even when curtailing the solar is free.
+
+    Solar counts by its forecast, so curtailing it in the plan cannot shrink the headroom.
+    The house uses some of the solar, which leaves less for the battery to absorb.
+    """
+    _network, outputs = _optimize(
+        [
+            bus_node("bus"),
+            _grid(export_price=[0.0] * N_PERIODS),
+            _battery("battery"),
+            _load("house", [0.0, 0.0, 1.0, 1.0]),
+            _solar([0.0, 0.0, 5.0, 5.0], curtailment=curtailment),
+            _headroom(loads=["house"], generation=["solar"], storage=["battery"]),
+        ],
+        name="headroom",
+    )
+
+    required = _values(outputs[HEADROOM_ENERGY_REQUIRED])
+    np.testing.assert_allclose(required, [8.0, 8.0, 8.0, 4.0, 0.0])
+    np.testing.assert_allclose(_values(outputs[HEADROOM_ENERGY_SHORTFALL])[1:], 0.0, atol=1e-9)
+    assert np.all(_values(outputs[HEADROOM_ENERGY_AVAILABLE])[1:] >= required[1:] - 1e-9)
+    # The battery should stay below a full 10 kWh less the space it needs
+    np.testing.assert_allclose(_values(outputs[HEADROOM_STATE_OF_CHARGE]), 1.0 - required / 10.0)

@@ -25,6 +25,7 @@ from .elements.connection import Connection, ConnectionElementConfig, Connection
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
 from .elements.reserve import Reserve, ReserveElementConfig, ReserveStorage
+from .elements.segments import PowerLimitSegment
 from .util.solver_rows import add_row, update_row
 
 _LOGGER = logging.getLogger(__name__)
@@ -284,41 +285,61 @@ class Network:
         return element
 
     def _add_reserve(self, config: ReserveElementConfig) -> Reserve:
-        """Create a Reserve element by resolving its elements and storage by name.
+        """Create a Reserve element by resolving its loads, generation, and storage by name.
 
-        Each battery holds the reserve through the one connection it discharges into,
-        whose efficiency scales the energy it can deliver.
+        Each battery holds a reserve through the one connection it discharges
+        into, and headroom through the one connection it charges from. That
+        connection's efficiency scales what the battery can provide.
         """
         name = config["name"]
-        elements: list[NetworkElement[Any]] = []
-        for element_name in config["elements"]:
-            element = self.elements.get(element_name)
-            if not isinstance(element, NetworkElement):
-                msg = f"Reserve '{name}' references unknown element '{element_name}'"
+        loads: list[NetworkElement[Any]] = []
+        for load_name in config["loads"]:
+            load = self.elements.get(load_name)
+            if not isinstance(load, NetworkElement):
+                msg = f"Reserve '{name}' references unknown element '{load_name}'"
                 raise TypeError(msg)
-            elements.append(element)
+            loads.append(load)
 
+        # Generation counts by the limit on the power leaving it
+        generation: dict[str, list[PowerLimitSegment]] = {}
+        for generator_name in config["generation"]:
+            limits = [
+                segment
+                for element in self.elements.values()
+                if isinstance(element, Connection) and element.source == generator_name
+                for segment in element.segments.values()
+                if isinstance(segment, PowerLimitSegment) and segment.max_power is not None
+            ]
+            if not limits:
+                msg = f"Reserve '{name}' needs generator '{generator_name}' to have a limit on the power it produces"
+                raise ValueError(msg)
+            generation[generator_name] = limits
+
+        direction = "discharge" if config["kind"] == "reserve" else "charge"
         storage: list[ReserveStorage] = []
         for battery_name in config["storage"]:
             battery = self.elements.get(battery_name)
             if not isinstance(battery, Battery):
                 msg = f"Reserve '{name}' references '{battery_name}', which is not a battery"
                 raise TypeError(msg)
-            discharges = [
+            connections = [
                 element
                 for element in self.elements.values()
-                if isinstance(element, Connection) and element.source == battery_name
+                if isinstance(element, Connection)
+                and battery_name == (element.source if config["kind"] == "reserve" else element.target)
             ]
-            if len(discharges) != 1:
-                msg = f"Reserve '{name}' needs battery '{battery_name}' to discharge through exactly one connection"
+            if len(connections) != 1:
+                msg = f"Reserve '{name}' needs battery '{battery_name}' to {direction} through exactly one connection"
                 raise ValueError(msg)
-            storage.append(ReserveStorage(battery=battery, discharge=discharges[0]))
+            storage.append(ReserveStorage(battery=battery, connection=connections[0]))
 
         element = Reserve(
             name=name,
             periods=self.periods,
             solver=self._solver,
-            elements=elements,
+            kind=config["kind"],
+            loads=loads,
+            generation=generation,
             storage=storage,
             window=config["window"],
             minimum=config["minimum"],

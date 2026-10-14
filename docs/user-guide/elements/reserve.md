@@ -5,6 +5,7 @@ You choose which loads to keep running, which generation keeps producing, which 
 HAEO then plans charging and discharging so the batteries hold that energy, unless using it is worth more than the cost you set for falling short.
 
 You can add as many reserves as you like, for example one for essential loads over a long outage and another for the whole house over a short one.
+To keep empty space for incoming generation instead, use [headroom](headroom.md), which works the same way in reverse.
 
 ## Configuration
 
@@ -32,7 +33,7 @@ They count by the power HAEO plans for them, so a load whose timing HAEO chooses
 ## Generation
 
 The generation that keeps producing during an outage, such as solar with an inverter that keeps running off grid.
-Generation counts by the power HAEO plans for it and offsets the loads it overlaps.
+Generation counts by what it is forecast to produce, and offsets the loads it overlaps.
 A surplus counts toward a shortfall that comes after it within the outage, but not toward one before it.
 
 ## Batteries
@@ -91,7 +92,7 @@ The [forecast card](../lovelace-card.md) draws it as a line alongside your batte
 
     Set up a reserve step by step and see what to expect.
 
-    [:material-arrow-right: Backup reserve walkthrough](../../walkthroughs/backup-reserve.md)
+    [:material-arrow-right: Reserve and headroom walkthrough](../../walkthroughs/reserve-and-headroom.md)
 
 - :material-calculator:{ .lg .middle } **How the reserve is modeled**
 

@@ -1,12 +1,17 @@
-"""Backup energy reserve shared by a group of batteries.
+"""Energy or empty space shared by a group of batteries over a window of time.
 
-The reserve is the energy the batteries must hold to ride through a grid outage
-lasting ``window`` hours, plus a fixed ``minimum``. At each boundary it is the
-deepest the running net demand of the reserve's elements rises within the
-following window, the windowed maximum drawdown of their energy balance.
+A reserve is the energy the batteries must hold to cover the elements' net
+demand through a grid outage lasting ``window`` hours. Headroom is the mirror
+image: the empty space the batteries must keep to absorb the elements' net
+surplus over the window. Each also holds a fixed ``minimum`` on top.
 
-Demand is measured on the elements' planned power flows, so elements whose
-consumption the optimizer schedules move the reserve with their schedule.
+At each boundary the requirement is the furthest the running net demand (for a
+reserve) or net surplus (for headroom) rises within the following window, the
+windowed maximum drawdown of the elements' energy balance. It is measured on the
+elements' planned power flows, so elements whose consumption the optimizer
+schedules move the requirement with their schedule. Generation counts by what
+it could produce, the limit on the power leaving it, so curtailing it in the
+plan cannot shrink a headroom that exists to keep room for it.
 
 The windowed maximum is built from fixed-shape rows. Time is cut into blocks
 one window long, so every window is the end of one block plus the start of the
@@ -31,10 +36,13 @@ from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 from .battery import Battery
 from .connection import Connection
-from .segments import EfficiencySegment
+from .segments import EfficiencySegment, PowerLimitSegment
 
 type ReserveElementTypeName = Literal["reserve"]
 ELEMENT_TYPE: Final[ReserveElementTypeName] = "reserve"
+
+# A reserve keeps energy to discharge and headroom keeps space to charge
+type ReserveKind = Literal["reserve", "headroom"]
 
 type ReserveOutputName = Literal[
     "reserve_energy_required",
@@ -59,7 +67,9 @@ class ReserveElementConfig(TypedDict):
 
     element_type: ReserveElementTypeName
     name: str
-    elements: list[str]
+    kind: ReserveKind
+    loads: list[str]
+    generation: list[str]
     storage: list[str]
     window: float
     minimum: NDArray[np.float64] | float
@@ -68,10 +78,14 @@ class ReserveElementConfig(TypedDict):
 
 @dataclass(frozen=True, slots=True)
 class ReserveStorage:
-    """A battery holding the reserve and the connection it discharges through."""
+    """A battery holding the requirement and the connection the requirement flows through.
+
+    For a reserve this is the connection the battery discharges through, and for
+    headroom the one it charges through.
+    """
 
     battery: Battery
-    discharge: Connection[str]
+    connection: Connection[str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,7 +119,7 @@ def window_layout(periods: NDArray[np.float64], window: float) -> WindowLayout:
 
 
 class Reserve(Element[ReserveOutputName]):
-    """Energy a group of batteries must hold to cover a group of elements through an outage."""
+    """Energy or empty space a group of batteries must hold for a group of elements over a window."""
 
     window: TrackedParam[float] = TrackedParam()
     minimum: TrackedParam[NDArray[np.float64]] = TrackedParam()
@@ -117,22 +131,28 @@ class Reserve(Element[ReserveOutputName]):
         periods: NDArray[np.float64],
         *,
         solver: Highs,
-        elements: list[NetworkElement[str]],
+        kind: ReserveKind,
+        loads: list[NetworkElement[str]],
+        generation: dict[str, list[PowerLimitSegment]],
         storage: list[ReserveStorage],
         window: float,
         minimum: NDArray[np.float64] | float,
         price: NDArray[np.float64] | float,
     ) -> None:
-        """Initialize the reserve over its elements and storage."""
+        """Initialize the requirement over its elements and storage."""
         super().__init__(name=name, periods=periods, solver=solver, output_names=RESERVE_OUTPUT_NAMES)
         n_periods = self.n_periods
-        self._elements = elements
+        self.kind = kind
+        # Headroom tracks the elements' surplus, the negative of their demand
+        self._sign = 1.0 if kind == "reserve" else -1.0
+        self._loads = loads
+        self._generation = generation
         self._storage = storage
         self.window = window
         self.minimum = broadcast_to_sequence(minimum, n_periods + 1)
         self.price = broadcast_to_sequence(price, n_periods)
 
-        # Running net demand of the elements at each boundary
+        # Running net demand (or surplus, for headroom) of the elements at each boundary
         self._demand = solver.addVariables(n_periods + 1, lb=-np.inf, name_prefix=f"{name}_demand_", out_array=True)
         # Peak demand from each boundary to the end of its block, and from the start of its block
         self._suffix_peak = solver.addVariables(
@@ -146,8 +166,8 @@ class Reserve(Element[ReserveOutputName]):
 
     @property
     def element_names(self) -> list[str]:
-        """Return the names of the elements the reserve covers."""
-        return [element.name for element in self._elements]
+        """Return the names of the loads and generation the requirement covers."""
+        return [*(load.name for load in self._loads), *self._generation]
 
     @property
     def storage_names(self) -> list[str]:
@@ -158,34 +178,54 @@ class Reserve(Element[ReserveOutputName]):
         return window_layout(self.periods, self.window)
 
     def _available(self) -> list[highs_linear_expression | float]:
-        """Return the energy the storage can deliver at each boundary."""
+        """Return what the storage can provide at each boundary, measured at the network side.
+
+        A reserve counts the stored energy the batteries can deliver after
+        discharge losses. Headroom counts the energy the batteries can absorb
+        into their empty space before charge losses.
+        """
         n_boundaries = self.n_periods + 1
         available: list[highs_linear_expression | float] = [0.0] * n_boundaries
         for storage in self._storage:
             efficiency = np.ones(n_boundaries)
-            for segment in storage.discharge.segments.values():
+            for segment in storage.connection.segments.values():
                 if isinstance(segment, EfficiencySegment) and segment.efficiency is not None:
                     efficiency = efficiency * broadcast_to_sequence(segment.efficiency, n_boundaries)
             stored = storage.battery.stored_energy
+            capacity = storage.battery.capacity
             for index in range(n_boundaries):
-                available[index] = available[index] + stored[index] * float(efficiency[index])
+                if self.kind == "reserve":
+                    held = stored[index] * float(efficiency[index])
+                else:
+                    held = (float(capacity[index]) - stored[index]) * (1.0 / float(efficiency[index]))
+                available[index] = available[index] + held
         return available
 
     def _net_power(self) -> NDArray[np.object_] | HighspyArray:
-        """Return the net power flowing into the elements in each period."""
+        """Return the loads' planned power less the generation's available power in each period."""
         net: NDArray[np.object_] | HighspyArray = np.zeros(self.n_periods, dtype=object)
-        for element in self._elements:
-            net = net + element.connection_power()
+        for load in self._loads:
+            net = net + load.connection_power()
+        for limits in self._generation.values():
+            available = sum(
+                (
+                    broadcast_to_sequence(max_power, self.n_periods)
+                    for limit in limits
+                    if (max_power := limit.max_power) is not None
+                ),
+                np.zeros(self.n_periods),
+            )
+            net = net - available
         return net
 
     @constraint
     def reserve_demand_balance(self) -> list[highs_linear_expression]:
-        """Accumulate the elements' net energy demand from zero at the first boundary."""
+        """Accumulate the elements' net energy demand (or surplus) from zero at the first boundary."""
         demand = self._demand
         net = self._net_power()
         rows = [demand[0] == 0.0]
         rows.extend(
-            demand[index + 1] - demand[index] - net[index] * float(duration) == 0.0
+            demand[index + 1] - demand[index] - net[index] * (self._sign * float(duration)) == 0.0
             for index, duration in enumerate(self.periods)
         )
         return rows
@@ -290,6 +330,7 @@ __all__ = [
     "Reserve",
     "ReserveElementConfig",
     "ReserveElementTypeName",
+    "ReserveKind",
     "ReserveOutputName",
     "ReserveStorage",
     "WindowLayout",

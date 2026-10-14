@@ -61,7 +61,14 @@ def serialize_topology(
             edges.append(edge_data)
 
         elif isinstance(element, Reserve):
-            reserves.append({"name": name, "elements": element.element_names, "storage": element.storage_names})
+            reserves.append(
+                {
+                    "name": name,
+                    "kind": element.kind,
+                    "elements": element.element_names,
+                    "storage": element.storage_names,
+                }
+            )
 
         elif isinstance(element, PolicyPricing):
             policy_data: dict[str, Any] = {

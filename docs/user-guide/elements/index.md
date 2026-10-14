@@ -105,6 +105,12 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Reserve guide](reserve.md)
 
+- :material-format-vertical-align-top:{ .lg .middle } __Headroom configuration__
+
+    Empty space kept in your batteries for the generation that is coming.
+
+    [:material-arrow-right: Headroom guide](headroom.md)
+
 - :material-source-branch:{ .lg .middle } __Junction configuration__ (Advanced)
 
     Points where connections meet and power balances.

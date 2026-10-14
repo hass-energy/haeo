@@ -269,12 +269,12 @@ ha-card {
   stroke-width: 2.6;
 }
 
-.socLine.reserveLine {
+.socLine.thresholdLine {
   stroke-width: 2.4;
   stroke-dasharray: 2 3;
 }
 
-.socLine.reserveLine.active {
+.socLine.thresholdLine.active {
   stroke-width: 3.2;
 }
 
