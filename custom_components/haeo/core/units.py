@@ -217,41 +217,49 @@ def base_unit_for_device_class(device_class: DeviceClass | None) -> UnitOfMeasur
     return BASE_UNITS.get(device_class) if device_class is not None else None
 
 
-def _convert_value(
-    value: float,
-    from_unit: UnitOfMeasurement | None,
-    device_class: DeviceClass | None,
-) -> float:
-    """Convert *value* expressed in *from_unit* to the canonical base unit."""
-    if from_unit is None:
-        return value
+_TO_BASE_FACTORS: Final[dict[DeviceClass, dict[UnitOfMeasurement, float]]] = {
+    DeviceClass.POWER: _POWER_TO_KW,
+    DeviceClass.ENERGY: _ENERGY_TO_KWH,
+    DeviceClass.ENERGY_STORAGE: _ENERGY_TO_KWH,
+    DeviceClass.DISTANCE: _LENGTH_TO_KM,
+    DeviceClass.ENERGY_DISTANCE: _ENERGY_DISTANCE_TO_KWH_PER_KM,
+    DeviceClass.DURATION: _TIME_TO_HOURS,
+}
 
-    effective_device_class = device_class or _infer_device_class_from_unit(from_unit)
-    base_unit = base_unit_for_device_class(effective_device_class)
-    if base_unit is None or base_unit == from_unit:
-        return value
 
-    if effective_device_class == DeviceClass.POWER:
-        factor = _POWER_TO_KW.get(from_unit)
-        return value * factor if factor is not None else value
+def _base_factor(unit: UnitOfMeasurement | None, device_class: DeviceClass | None) -> float | None:
+    """Return the factor converting *unit* to the device class's base unit, or None if it cannot."""
+    base_unit = base_unit_for_device_class(device_class)
+    if unit is None or base_unit is None or device_class is None:
+        return None
+    if unit == base_unit:
+        return 1.0
+    return _TO_BASE_FACTORS[device_class].get(unit)
 
-    if effective_device_class in {DeviceClass.ENERGY, DeviceClass.ENERGY_STORAGE}:
-        factor = _ENERGY_TO_KWH.get(from_unit)
-        return value * factor if factor is not None else value
 
-    if effective_device_class == DeviceClass.DISTANCE:
-        factor = _LENGTH_TO_KM.get(from_unit)
-        return value * factor if factor is not None else value
+def base_unit_conversion(
+    unit: str | UnitOfMeasurement | None,
+    device_class: str | DeviceClass | None,
+) -> tuple[float, UnitOfMeasurement | str | None, DeviceClass | None]:
+    """Return the scale factor to the base unit, the base unit, and the parsed device class.
 
-    if effective_device_class == DeviceClass.ENERGY_DISTANCE:
-        factor = _ENERGY_DISTANCE_TO_KWH_PER_KM.get(from_unit)
-        return value * factor if factor is not None else value
+    Conversion to base units is a pure scaling, so a series of values sharing a
+    unit converts by multiplying every value by the one factor. A unit with no
+    conversion to the base unit, such as the reciprocal km/kWh for energy per
+    distance, keeps its own unit and a factor of 1 so selectors filter it out.
+    """
+    parsed_unit = UnitOfMeasurement.of(unit)
+    parsed_device_class = DeviceClass.of(device_class)
+    effective_device_class = parsed_device_class or _infer_device_class_from_unit(parsed_unit)
 
-    if effective_device_class == DeviceClass.DURATION:
-        factor = _TIME_TO_HOURS.get(from_unit)
-        return value * factor if factor is not None else value
+    if unit is None:
+        return 1.0, base_unit_for_device_class(effective_device_class), parsed_device_class
 
-    return value
+    factor = _base_factor(parsed_unit, effective_device_class)
+    if factor is None:
+        return 1.0, parsed_unit or unit, parsed_device_class
+
+    return factor, base_unit_for_device_class(effective_device_class), parsed_device_class
 
 
 def convert_to_base_unit(
@@ -260,11 +268,5 @@ def convert_to_base_unit(
     device_class: str | DeviceClass | None,
 ) -> tuple[float, UnitOfMeasurement | str | None, DeviceClass | None]:
     """Convert value to base unit, parsing string unit/device_class if needed."""
-    parsed_unit = UnitOfMeasurement.of(unit)
-    parsed_device_class = DeviceClass.of(device_class)
-    effective_device_class = parsed_device_class or _infer_device_class_from_unit(parsed_unit)
-
-    converted_value = _convert_value(value, parsed_unit, parsed_device_class)
-    base_unit = base_unit_for_device_class(effective_device_class) or parsed_unit or unit
-
-    return converted_value, base_unit, parsed_device_class
+    factor, base_unit, parsed_device_class = base_unit_conversion(unit, device_class)
+    return value * factor, base_unit, parsed_device_class

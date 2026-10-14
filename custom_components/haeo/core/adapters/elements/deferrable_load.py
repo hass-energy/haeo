@@ -5,9 +5,8 @@ from dataclasses import replace
 from typing import Final, Literal
 
 import numpy as np
-from numpy.typing import NDArray
 
-from custom_components.haeo.core.adapters.calendar_windows import calendar_windows
+from custom_components.haeo.core.adapters.calendar_windows import calendar_windows, extend_to_boundaries
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -110,13 +109,15 @@ class DeferrableLoadAdapter:
         load: DeferrableLoadElementConfig = {
             "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
             "name": name,
+            "is_source": False,
+            "is_sink": True,
             "in_window": windows.in_window,
             "window_start": windows.window_start,
             "requirement": windows.requirement,
             "initial_energy": initial_energy,
-            "deficit_price": _to_boundaries(deficit_price, n_boundaries),
+            "deficit_price": extend_to_boundaries(deficit_price, n_boundaries),
             "overage_price": (
-                None if overage_price is None else _to_boundaries(np.maximum(overage_price, 0.0), n_boundaries)
+                None if overage_price is None else extend_to_boundaries(np.maximum(overage_price, 0.0), n_boundaries)
             ),
         }
 
@@ -166,15 +167,3 @@ class DeferrableLoadAdapter:
 
 
 adapter = DeferrableLoadAdapter()
-
-
-def _to_boundaries(
-    value: NDArray[np.float64] | float,
-    n_boundaries: int,
-) -> NDArray[np.float64] | float:
-    """Extend an interval-shaped series to boundary length by repeating the end."""
-    if not isinstance(value, np.ndarray):
-        return value
-    if len(value) == n_boundaries - 1:
-        return np.append(value, value[-1])
-    return value

@@ -16,15 +16,15 @@ constraint is sized by the horizon, and windows only change parameter values.
 
 from typing import Final, Literal, NotRequired, TypedDict
 
-from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, NetworkElement
+from custom_components.haeo.core.model.linear import LinearArray, Rows
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
+from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util import broadcast_to_sequence, require_non_negative, window_carry, window_end
 
 # Model element type for deferrable loads
@@ -76,6 +76,8 @@ class DeferrableLoadElementConfig(TypedDict):
     deficit_price: NDArray[np.float64] | float
     initial_energy: NotRequired[float]
     overage_price: NotRequired[NDArray[np.float64] | float | None]
+    is_source: Literal[False]
+    is_sink: Literal[True]
     outbound_tags: NotRequired[set[int] | None]
     inbound_tags: NotRequired[set[int] | None]
 
@@ -107,25 +109,27 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     """
 
     # Parameters
-    in_window: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    window_start: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    requirement: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    in_window: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    window_start: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    requirement: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
     initial_energy: TrackedParam[float] = TrackedParam()
-    deficit_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    overage_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    deficit_price: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    overage_price: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
 
     def __init__(
         self,
         name: str,
         periods: NDArray[np.float64],
         *,
-        solver: Highs,
+        solver: Solver,
         in_window: NDArray[np.float64] | float,
         window_start: NDArray[np.float64] | float,
         requirement: NDArray[np.float64] | float,
         deficit_price: NDArray[np.float64] | float,
         initial_energy: float = 0.0,
         overage_price: NDArray[np.float64] | float | None = None,
+        is_source: Literal[False],
+        is_sink: Literal[True],
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
     ) -> None:
@@ -135,6 +139,8 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
             periods=periods,
             solver=solver,
             output_names=DEFERRABLE_LOAD_OUTPUT_NAMES,
+            is_source=is_source,
+            is_sink=is_sink,
             outbound_tags=outbound_tags,
             inbound_tags=inbound_tags,
         )
@@ -152,20 +158,16 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         self.overage_price = broadcast_to_sequence(overage_price if overage_price is not None else 0.0, n_periods + 1)
 
         # Energy delivered in the current window, at every boundary
-        self.energy = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_energy_", out_array=True)
+        self.energy = solver.add_variables(n_periods + 1, name=f"{name}.energy")
         # Energy delivered during each period
-        self.delivered = solver.addVariables(n_periods, lb=0.0, name_prefix=f"{name}_delivered_", out_array=True)
+        self.delivered = solver.add_variables(n_periods, name=f"{name}.delivered")
         # Shortfall against the requirement at boundaries 1..T
-        self.shortfall = solver.addVariables(n_periods, lb=0.0, name_prefix=f"{name}_shortfall_", out_array=True)
+        self.shortfall = solver.add_variables(n_periods, name=f"{name}.shortfall")
         # Delivery beyond the requirement at boundaries 1..T
-        self.overage = (
-            solver.addVariables(n_periods, lb=0.0, name_prefix=f"{name}_overage_", out_array=True)
-            if self._has_overage
-            else None
-        )
+        self.overage = solver.add_variables(n_periods, name=f"{name}.overage") if self._has_overage else None
 
     @property
-    def power_consumption(self) -> HighspyArray:
+    def power_consumption(self) -> LinearArray:
         """Power being consumed by the load.
 
         Computed on-demand so that accessing self.periods triggers dependency
@@ -173,13 +175,27 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         """
         return self.delivered * (1.0 / self.periods)
 
+    def _in_window(self) -> NDArray[np.float64]:
+        """Return the per-period window flag.
+
+        A parameter update can set a plain float, as the model config allows.
+        """
+        return broadcast_to_sequence(self.in_window, self.n_periods)
+
+    def _boundaries(self, value: NDArray[np.float64] | float) -> NDArray[np.float64]:
+        """Broadcast a per-boundary parameter to every boundary.
+
+        A parameter update can set a plain float, as the model config allows.
+        """
+        return broadcast_to_sequence(value, self.n_periods + 1)
+
     def _carry(self) -> NDArray[np.float64]:
         """Return 1 for each period that continues the window of the boundary before it."""
-        return window_carry(self.in_window, self.window_start)
+        return window_carry(self._in_window(), self._boundaries(self.window_start))
 
     def _window_end(self) -> NDArray[np.float64]:
         """Return 1 at boundaries 1..T where a window ends."""
-        return window_end(self.in_window, self.window_start)
+        return window_end(self._in_window(), self._boundaries(self.window_start))
 
     def _settled_requirement(self) -> NDArray[np.float64]:
         """Return the requirement settled at boundaries 1..T.
@@ -189,7 +205,7 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         energy, so a sunk telemetry overshoot is neither priced nor capped.
         """
         window_end = self._window_end()
-        settled = window_end * self.requirement[1:]
+        settled = window_end * self._boundaries(self.requirement)[1:]
         carry = self._carry()
         if carry[0] > 0.0:
             first_end = int(np.argmax(window_end > 0.0))
@@ -197,7 +213,7 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         return settled
 
     @constraint
-    def deferrable_load_initial_energy(self) -> highs_linear_expression:
+    def deferrable_load_initial_energy(self) -> Rows:
         """Constraint: the accumulator starts at the energy already delivered.
 
         The initial energy only applies when the first period continues an
@@ -206,35 +222,35 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         return self.energy[0] == self._carry()[0] * self.initial_energy
 
     @constraint
-    def deferrable_load_accumulation(self) -> list[highs_linear_expression]:
+    def deferrable_load_accumulation(self) -> Rows:
         """Constraint: the accumulator adds each period's delivery, resetting at window starts."""
-        return list(self.energy[1:] - self._carry() * self.energy[:-1] - self.delivered == 0.0)
+        return self.energy[1:] - self._carry() * self.energy[:-1] - self.delivered == 0.0
 
     @constraint
-    def deferrable_load_window(self) -> list[highs_linear_expression]:
+    def deferrable_load_window(self) -> Rows:
         """Constraint: no energy is delivered outside windows."""
-        return list((1.0 - self.in_window) * self.delivered <= 0.0)
+        return (1.0 - self._in_window()) * self.delivered <= 0.0
 
     @constraint(output=True, unit="$/kWh")
-    def deferrable_load_requirement(self) -> list[highs_linear_expression]:
+    def deferrable_load_requirement(self) -> Rows:
         """Constraint: delivered energy plus shortfall covers the requirement at window ends.
 
         Output: shadow price indicating the marginal cost of requiring one more kWh.
         """
         window_end = self._window_end()
-        return list(window_end * self.energy[1:] + self.shortfall >= self._settled_requirement())
+        return window_end * self.energy[1:] + self.shortfall >= self._settled_requirement()
 
     @constraint
-    def deferrable_load_shortfall_limit(self) -> list[highs_linear_expression]:
+    def deferrable_load_shortfall_limit(self) -> Rows:
         """Constraint: shortfall never exceeds the settled requirement.
 
         This pins the shortfall to zero away from window ends and keeps it
         bounded even where it is unpriced.
         """
-        return list(self.shortfall <= self._settled_requirement())
+        return self.shortfall <= self._settled_requirement()
 
     @constraint(output=True, unit="$/kWh")
-    def deferrable_load_cap(self) -> list[highs_linear_expression]:
+    def deferrable_load_cap(self) -> Rows:
         """Constraint: delivery beyond the requirement at window ends is overage.
 
         Without an overage price there is no overage variable, so delivery
@@ -246,40 +262,40 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         delivered_at_end = window_end * self.energy[1:]
         if self.overage is not None:
             delivered_at_end = delivered_at_end - self.overage
-        return list(delivered_at_end <= self._settled_requirement())
+        return delivered_at_end <= self._settled_requirement()
 
     @constraint
-    def deferrable_load_overage_limit(self) -> list[highs_linear_expression]:
+    def deferrable_load_overage_limit(self) -> Rows:
         """Constraint: overage never exceeds the energy delivered at a window end.
 
         This pins the overage to zero away from window ends and keeps it
         bounded even where it is unpriced.
         """
         if self.overage is None:
-            return []
-        return list(self.overage - self._window_end() * self.energy[1:] <= 0.0)
+            return Rows.concat([])
+        return self.overage - self._window_end() * self.energy[1:] <= 0.0
 
-    def element_power_produced(self) -> HighspyArray | None:
+    def element_power_produced(self) -> LinearArray | None:
         """Deferrable loads never produce power."""
         return None
 
-    def element_power_consumed(self) -> HighspyArray:
+    def element_power_consumed(self) -> LinearArray:
         """Return power consumed by the load."""
         return self.power_consumption
 
     @cost
-    def deferrable_load_shortfall_cost(self) -> highs_linear_expression:
+    def deferrable_load_shortfall_cost(self) -> LinearArray:
         """Cost: each window's shortfall priced at its end boundary."""
-        require_non_negative("deficit_price", self.deficit_price)
-        return (self.deficit_price[1:] * self.shortfall).sum()
+        require_non_negative("deficit_price", self._boundaries(self.deficit_price))
+        return (self._boundaries(self.deficit_price)[1:] * self.shortfall).total()
 
     @cost
-    def deferrable_load_overage_cost(self) -> highs_linear_expression | None:
+    def deferrable_load_overage_cost(self) -> LinearArray | None:
         """Cost: each window's overage priced at its end boundary."""
         if self.overage is None:
             return None
-        require_non_negative("overage_price", self.overage_price)
-        return (self.overage_price[1:] * self.overage).sum()
+        require_non_negative("overage_price", self._boundaries(self.overage_price))
+        return (self._boundaries(self.overage_price)[1:] * self.overage).total()
 
     # Output methods
 

@@ -2,7 +2,7 @@
 
 from typing import Protocol, runtime_checkable
 
-from highspy import Highs
+from custom_components.haeo.core.model.solver import Solver
 
 
 @runtime_checkable
@@ -17,4 +17,4 @@ class ReactiveHost(Protocol):
 
     """
 
-    _solver: Highs
+    _solver: Solver

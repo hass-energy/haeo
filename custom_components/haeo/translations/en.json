@@ -293,7 +293,6 @@
             "max_power_target_source": "Max charge power",
             "name": "EV Name",
             "odometer": "Odometer",
-            "odometer_at_disconnect": "Odometer at disconnect",
             "public_charging_price": "Public charging price",
             "reserve_price": "Reserve shortfall price",
             "reserve_soc": "Reserve state of charge",
@@ -327,7 +326,6 @@
               "data": {
                 "connected": "Plugged in",
                 "odometer": "Odometer",
-                "odometer_at_disconnect": "Odometer at disconnect",
                 "reserve_price": "Reserve shortfall price",
                 "reserve_soc": "Reserve state of charge",
                 "trip_calendar": "Trip calendar"
@@ -676,7 +674,6 @@
       "ev_max_power_source_target": { "name": "Max discharge power" },
       "ev_max_power_target_source": { "name": "Max charge power" },
       "ev_odometer": { "name": "Odometer" },
-      "ev_odometer_at_disconnect": { "name": "Odometer at disconnect" },
       "ev_public_charging_price": { "name": "Public charging price" },
       "ev_reserve_price": { "name": "Reserve shortfall price" },
       "ev_reserve_soc": { "name": "Reserve state of charge" },

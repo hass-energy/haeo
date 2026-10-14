@@ -2,12 +2,12 @@
 
 from typing import Final, Literal, NotRequired, TypedDict
 
-from highspy import Highs
-from highspy.highs import HighspyArray
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, NetworkElement
+from custom_components.haeo.core.model.linear import LinearArray
+from custom_components.haeo.core.model.solver import Solver
 
 type NodeElementTypeName = Literal["node"]
 ELEMENT_TYPE: Final[NodeElementTypeName] = "node"
@@ -49,7 +49,7 @@ class Node(NetworkElement[NodeOutputName]):
         name: str,
         periods: NDArray[np.float64],
         *,
-        solver: Highs,
+        solver: Solver,
         is_source: bool = True,
         is_sink: bool = True,
         outbound_tags: set[int] | None = None,
@@ -61,22 +61,19 @@ class Node(NetworkElement[NodeOutputName]):
             periods=periods,
             solver=solver,
             output_names=NODE_OUTPUT_NAMES,
+            is_source=is_source,
+            is_sink=is_sink,
             outbound_tags=outbound_tags,
             inbound_tags=inbound_tags,
         )
-        self.is_source = is_source
-        self.is_sink = is_sink
-
         n = self.n_periods
-        self._produced = (
-            solver.addVariables(n, lb=0, name_prefix=f"{name}_prod_", out_array=True) if is_source else None
-        )
-        self._consumed = solver.addVariables(n, lb=0, name_prefix=f"{name}_cons_", out_array=True) if is_sink else None
+        self._produced = solver.add_variables(n, name=f"{name}.produced") if is_source else None
+        self._consumed = solver.add_variables(n, name=f"{name}.consumed") if is_sink else None
 
-    def element_power_produced(self) -> HighspyArray | None:
+    def element_power_produced(self) -> LinearArray | None:
         """Return production: bounded [0, inf] for sources, None otherwise."""
         return self._produced
 
-    def element_power_consumed(self) -> HighspyArray | None:
+    def element_power_consumed(self) -> LinearArray | None:
         """Return consumption: bounded [0, inf] for sinks, None otherwise."""
         return self._consumed

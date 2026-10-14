@@ -1040,7 +1040,7 @@ requires-dist = [
 dev = [
     { name = "freezegun", specifier = ">=1.5.2" },
     { name = "home-assistant-frontend", specifier = ">=20260107.1" },
-    { name = "ical", specifier = ">=13.2.2" },
+    { name = "ical", specifier = "==12.1.2" },
     { name = "import-linter", specifier = ">=2.10" },
     { name = "mdformat", specifier = ">=0.7.22" },
     { name = "mdformat-beautysh", specifier = ">=1.0.0" },
@@ -1270,16 +1270,16 @@ wheels = [
 
 [[package]]
 name = "ical"
-version = "14.0.1"
+version = "12.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-dateutil" },
     { name = "tzdata" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/05/0e/8cdeb5e10f5ab7290d8affe256d1373635d33856b98a27688795d3b0f314/ical-14.0.1.tar.gz", hash = "sha256:444df95a8eb710d87a196fd995b26f0ff7fcf8f779e9eeae898b4393a492be6d", size = 152807, upload-time = "2026-07-19T21:20:28.053Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/25/b16a6b4ccd2587b73b713a6cb60adde7bc9a38e70581883f03ab01355bb0/ical-12.1.2.tar.gz", hash = "sha256:451e6ee69239956212da54017cbb7c294ed97579b8afd24d8c66b60c930f0fd6", size = 125719, upload-time = "2025-12-13T23:53:55.73Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7f/c6/3cc02d2bebf838126b4d3bed4800b108079a3e82cd39f2374bc6256733c6/ical-14.0.1-py3-none-any.whl", hash = "sha256:02ca21f76a7899dbc093b301d2fd2ce2a36c06a9a53e2cec442d80210724737f", size = 141213, upload-time = "2026-07-19T21:20:26.557Z" },
+    { url = "https://files.pythonhosted.org/packages/1a/99/2d92b00ca59957df1fc79acb6cd801baa11ab521dfbe1e690a4b7bf3e251/ical-12.1.2-py3-none-any.whl", hash = "sha256:11bfac2868d4e991872d2168f75cbfd68964e5356b61f767510be82652641dd9", size = 123760, upload-time = "2025-12-13T23:53:54.102Z" },
 ]
 
 [[package]]

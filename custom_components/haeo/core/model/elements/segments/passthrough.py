@@ -8,12 +8,12 @@ from typing import (
     Literal,
 )
 
-from highspy import Highs
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.solver import Solver
 
 from .segment import FlowProvider, Segment
 
@@ -32,7 +32,7 @@ class PassthroughSegment(Segment):
         segment_id: str,
         n_periods: int,
         periods: NDArray[np.float64],
-        solver: Highs,
+        solver: Solver,
         *,
         spec: PassthroughSegmentSpec,
         source_element: Element[Any],

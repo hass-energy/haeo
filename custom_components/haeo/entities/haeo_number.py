@@ -1,5 +1,6 @@
 """Number entity for HAEO input configuration."""
 
+import asyncio
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from datetime import datetime
@@ -15,7 +16,7 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo import HaeoConfigEntry
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.data.input_store import InputMode, InputStore
-from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.data.loader.source_history import takes_history
 from custom_components.haeo.core.schema import as_constant_value
 from custom_components.haeo.core.state import StateMachine
 from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
@@ -24,7 +25,7 @@ from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, class
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.last_off_history import async_last_off_state_machine
+from custom_components.haeo.source_history import HistoryStateMachine, SourceHistory
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -88,6 +89,13 @@ class HaeoInputNumber(NumberEntity):
         # Suppresses reacting to store change notifications this entity itself
         # triggered, so only sibling entities sharing the store react.
         self._suppress_store_change = False
+
+        # Recent history of the source entities, for driven inputs whose
+        # output type uses it; created once the entity has hass
+        self._history: SourceHistory | None = None
+
+        # A reload from source entities queued but not yet started
+        self._pending_reload: asyncio.Task[None] | None = None
 
         # Set device_entry to link entity to device
         self.device_entry = device_entry
@@ -203,6 +211,7 @@ class HaeoInputNumber(NumberEntity):
             self._sync_from_store()
         else:
             # Subscribe to source entity changes for DRIVEN mode
+            self.async_on_remove(self._cancel_pending_reload)
             self.async_on_remove(
                 async_track_state_change_event(
                     self.hass,
@@ -210,7 +219,10 @@ class HaeoInputNumber(NumberEntity):
                     self._handle_source_state_change,
                 )
             )
-            # Load initial data
+            # Load initial data, with the sources' recent history for inputs that use it
+            if takes_history(self._store.hint.output_type):
+                self._history = SourceHistory(self.hass, self._store.source_entity_ids, self._store.hint.output_type)
+                await self._history.async_load()
             await self._async_load_and_sync()
 
     def _apply_recorder_attribute_filtering(self) -> None:
@@ -230,6 +242,7 @@ class HaeoInputNumber(NumberEntity):
             self._sync_from_store()
             self.async_write_ha_state()
         else:
+            # Reload at once so the store is never left on the previous horizon
             self.hass.async_create_task(self._async_load_sync_and_update())
 
     @callback
@@ -241,9 +254,35 @@ class HaeoInputNumber(NumberEntity):
         self.async_write_ha_state()
 
     @callback
-    def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
+    def _handle_source_state_change(self, event: Event[EventStateChangedData]) -> None:
         """Handle source entity state change."""
-        self.hass.async_create_task(self._async_load_sync_and_update())
+        if self._history is not None:
+            self._history.record(event.data["entity_id"], event.data["new_state"])
+        self._schedule_reload()
+
+    @callback
+    def _schedule_reload(self) -> None:
+        """Queue one reload from source entities for the next event loop iteration.
+
+        Forecast integrations write all of their entities in a single pass, and a
+        field reads every one of its sources on each reload. Deferring the reload
+        lets every change in that pass arrive first, so they share one reload
+        rather than each re-reading all of the sources.
+        """
+        if self._pending_reload is None:
+            self._pending_reload = self.hass.async_create_task(self._async_pending_reload(), eager_start=False)
+
+    async def _async_pending_reload(self) -> None:
+        """Run the queued reload, letting later source changes queue another."""
+        self._pending_reload = None
+        await self._async_load_sync_and_update()
+
+    @callback
+    def _cancel_pending_reload(self) -> None:
+        """Cancel a queued reload so it does not run after the entity is removed."""
+        if self._pending_reload is not None:
+            self._pending_reload.cancel()
+            self._pending_reload = None
 
     async def _async_load_sync_and_update(self) -> None:
         """Load data, sync attributes, and write state."""
@@ -253,11 +292,14 @@ class HaeoInputNumber(NumberEntity):
     async def _async_load_and_sync(self) -> bool:
         """Load data from store via HA state machine and sync entity attributes.
 
+        An input that uses its sources' recent history gets it injected into
+        the source states.
+
         Returns True if loading succeeded and state was synced.
         """
         sm: StateMachine = HomeAssistantStateMachine(self.hass)
-        if self._store.hint.output_type is OutputType.AVAILABILITY:
-            sm = await async_last_off_state_machine(self.hass, sm, self._store.source_entity_ids)
+        if self._history is not None:
+            sm = HistoryStateMachine(sm, self._history.attributes())
         with self._suppress_self_notifications():
             loaded = await self._store.async_load(sm)
         if not loaded:

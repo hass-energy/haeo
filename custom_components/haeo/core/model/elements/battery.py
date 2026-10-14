@@ -2,15 +2,15 @@
 
 from typing import Final, Literal, NotRequired, TypedDict
 
-from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, NetworkElement
+from custom_components.haeo.core.model.linear import LinearArray, Rows
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
+from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util import broadcast_to_sequence, require_non_negative
 
 # Model element type for batteries
@@ -86,16 +86,16 @@ class Battery(NetworkElement[BatteryOutputName]):
     capacity: TrackedParam[NDArray[np.float64]] = TrackedParam()
     initial_charge: TrackedParam[float] = TrackedParam()
     salvage_value: TrackedParam[float] = TrackedParam()
-    reserve_level: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    reserve_mask: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    reserve_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    reserve_level: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    reserve_mask: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    reserve_price: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
 
     def __init__(
         self,
         name: str,
         periods: NDArray[np.float64],
         *,
-        solver: Highs,
+        solver: Solver,
         capacity: NDArray[np.float64] | float,
         initial_charge: float,
         salvage_value: float = 0.0,
@@ -130,20 +130,18 @@ class Battery(NetworkElement[BatteryOutputName]):
         self.reserve_mask = broadcast_to_sequence(reserve_mask if reserve_mask is not None else 0.0, n_periods + 1)
         self.reserve_price = broadcast_to_sequence(reserve_price if reserve_price is not None else 0.0, n_periods + 1)
         self.reserve_shortfall = (
-            solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_reserve_short_", out_array=True)
-            if self._has_reserve
-            else None
+            solver.add_variables(n_periods + 1, name=f"{name}.reserve_shortfall") if self._has_reserve else None
         )
 
         # Create all energy variables (including initial state at t=0)
-        self.energy_in = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_energy_in_", out_array=True)
-        self.energy_out = solver.addVariables(n_periods + 1, lb=0.0, name_prefix=f"{name}_energy_out_", out_array=True)
+        self.energy_in = solver.add_variables(n_periods + 1, name=f"{name}.energy_in")
+        self.energy_out = solver.add_variables(n_periods + 1, name=f"{name}.energy_out")
 
         # Stored energy is computed from cumulative values (not period-dependent)
         self.stored_energy = self.energy_in - self.energy_out
 
     @property
-    def power_consumption(self) -> HighspyArray:
+    def power_consumption(self) -> LinearArray:
         """Power being consumed to charge the battery.
 
         Computed on-demand so that accessing self.periods triggers dependency tracking
@@ -152,7 +150,7 @@ class Battery(NetworkElement[BatteryOutputName]):
         return (self.energy_in[1:] - self.energy_in[:-1]) * (1.0 / self.periods)
 
     @property
-    def power_production(self) -> HighspyArray:
+    def power_production(self) -> LinearArray:
         """Power being produced by discharging the battery.
 
         Computed on-demand so that accessing self.periods triggers dependency tracking
@@ -161,68 +159,77 @@ class Battery(NetworkElement[BatteryOutputName]):
         return (self.energy_out[1:] - self.energy_out[:-1]) * (1.0 / self.periods)
 
     @constraint
-    def battery_initial_charge(self) -> highs_linear_expression:
+    def battery_initial_charge(self) -> Rows:
         """Constraint: energy_in[0] == initial_charge."""
         return self.energy_in[0] == self.initial_charge
 
     @constraint
-    def battery_initial_discharge(self) -> highs_linear_expression:
+    def battery_initial_discharge(self) -> Rows:
         """Constraint: energy_out[0] == 0."""
         return self.energy_out[0] == 0.0
 
     @constraint(output=True, unit="$/kWh")
-    def battery_energy_in_flow(self) -> list[highs_linear_expression]:
+    def battery_energy_in_flow(self) -> Rows:
         """Constraint: cumulative energy in can only increase.
 
         Output: shadow price indicating the marginal value of energy flow constraints.
         """
-        return list(self.energy_in[1:] >= self.energy_in[:-1])
+        return self.energy_in[:-1] <= self.energy_in[1:]
 
     @constraint(output=True, unit="$/kWh")
-    def battery_energy_out_flow(self) -> list[highs_linear_expression]:
+    def battery_energy_out_flow(self) -> Rows:
         """Constraint: cumulative energy out can only increase.
 
         Output: shadow price indicating the marginal value of energy flow constraints.
         """
-        return list(self.energy_out[1:] >= self.energy_out[:-1])
+        return self.energy_out[:-1] <= self.energy_out[1:]
 
     @constraint(output=True, unit="$/kWh")
-    def battery_soc_max(self) -> list[highs_linear_expression]:
+    def battery_soc_max(self) -> Rows:
         """Constraint: stored energy cannot exceed capacity.
 
         Output: shadow price indicating the marginal value of additional capacity.
         """
-        return list(self.stored_energy[1:] <= self.capacity[1:])
+        return self.stored_energy[1:] <= self.capacity[1:]
 
     @constraint(output=True, unit="$/kWh")
-    def battery_soc_min(self) -> list[highs_linear_expression]:
+    def battery_soc_min(self) -> Rows:
         """Constraint: stored energy cannot be negative.
 
         Output: shadow price indicating the marginal cost of minimum SOC constraint.
         """
-        return list(self.stored_energy[1:] >= 0)
+        return self.stored_energy[1:] >= 0
 
-    def element_power_produced(self) -> HighspyArray:
+    def element_power_produced(self) -> LinearArray:
         """Return power produced by discharging the battery."""
         return self.power_production
 
-    def element_power_consumed(self) -> HighspyArray:
+    def element_power_consumed(self) -> LinearArray:
         """Return power consumed by charging the battery."""
         return self.power_consumption
 
+    def _boundaries(self, value: NDArray[np.float64] | float) -> NDArray[np.float64]:
+        """Broadcast a per-boundary parameter to every boundary.
+
+        A parameter update can set a plain float, as the model config allows.
+        """
+        return broadcast_to_sequence(value, self.n_periods + 1)
+
     @constraint(output=True, unit="$/kWh")
-    def battery_reserve_floor(self) -> list[highs_linear_expression]:
+    def battery_reserve_floor(self) -> Rows:
         """Constraint: shortfall covers the drop below reserve at masked boundaries.
 
         Output: shadow price indicating the marginal cost of the reserve.
         """
         if self.reserve_shortfall is None:
-            return []
-        mask = self.reserve_mask[1:]
-        return list(self.reserve_shortfall[1:] >= mask * self.reserve_level[1:] - mask * self.stored_energy[1:])
+            return Rows.concat([])
+        mask = self._boundaries(self.reserve_mask)[1:]
+        level = self._boundaries(self.reserve_level)[1:]
+        # Written as dip <= shortfall, which fixes the sign of this row's shadow price
+        return mask * level - mask * self.stored_energy[1:] <= self.reserve_shortfall[1:]
 
     @constraint
-    def battery_reserve_shortfall_limit(self) -> list[highs_linear_expression]:
+    def battery_reserve_shortfall_limit(self) -> Rows:
         """Constraint: shortfall never exceeds the masked reserve level.
 
         Stored energy is never negative, so the drop below reserve is at
@@ -231,17 +238,17 @@ class Battery(NetworkElement[BatteryOutputName]):
         reserve is unpriced.
         """
         if self.reserve_shortfall is None:
-            return []
-        limit = np.maximum(self.reserve_mask[1:] * self.reserve_level[1:], 0.0)
-        return list(self.reserve_shortfall[1:] <= limit)
+            return Rows.concat([])
+        limit = np.maximum(self._boundaries(self.reserve_mask)[1:] * self._boundaries(self.reserve_level)[1:], 0.0)
+        return self.reserve_shortfall[1:] <= limit
 
     @cost
-    def battery_salvage_value(self) -> highs_linear_expression:
+    def battery_salvage_value(self) -> LinearArray:
         """Cost: salvage value of stored energy at the end of the horizon."""
         return -self.salvage_value * self.stored_energy[-1]
 
     @cost
-    def battery_reserve_cost(self) -> highs_linear_expression | None:
+    def battery_reserve_cost(self) -> LinearArray | None:
         """Cost: reserve shortfalls priced once per masked boundary.
 
         This is demand-level pricing: the charge is on the lowest level hit
@@ -251,8 +258,8 @@ class Battery(NetworkElement[BatteryOutputName]):
         """
         if self.reserve_shortfall is None:
             return None
-        require_non_negative("reserve_price", self.reserve_price)
-        return (self.reserve_price[1:] * self.reserve_shortfall[1:]).sum()
+        require_non_negative("reserve_price", self._boundaries(self.reserve_price))
+        return (self._boundaries(self.reserve_price)[1:] * self.reserve_shortfall[1:]).total()
 
     # Output methods
 
@@ -283,6 +290,8 @@ class Battery(NetworkElement[BatteryOutputName]):
         else:
             values = tuple(
                 float(v * m)
-                for v, m in zip(self.extract_values(self.reserve_shortfall), self.reserve_mask, strict=True)
+                for v, m in zip(
+                    self.extract_values(self.reserve_shortfall), self._boundaries(self.reserve_mask), strict=True
+                )
             )
         return OutputData(type=OutputType.ENERGY, unit="kWh", values=values)

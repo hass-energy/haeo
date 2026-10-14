@@ -116,6 +116,10 @@ function colorForElement(elementType: ElementType, elementName: string, variant:
     const solar = ["#f59e0b", "#fbbf24", "#f97316", "#facc15", "#ea580c"];
     return solar[variant % solar.length] ?? "#f59e0b";
   }
+  if (elementType === "ev") {
+    const ev = ["#00BCD4", "#0891b2", "#22d3ee", "#0e7490"];
+    return ev[variant % ev.length] ?? "#00BCD4";
+  }
   if (elementType === "load") {
     const load = ["var(--haeo-load-0)", "var(--haeo-load-1)", "var(--haeo-load-2)", "var(--haeo-load-3)"];
     return load[variant % load.length] ?? "var(--haeo-load-0)";

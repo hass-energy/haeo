@@ -76,4 +76,16 @@ def calendar_windows(calendar: CalendarBoundaryData, scale: float = 1.0) -> Cale
     return CalendarWindows(in_window=in_window, window_start=window_start, requirement=requirement)
 
 
-__all__ = ["CalendarWindows", "calendar_windows"]
+def extend_to_boundaries(
+    value: NDArray[np.float64] | float,
+    n_boundaries: int,
+) -> NDArray[np.float64] | float:
+    """Extend an interval-shaped series to boundary length by repeating the end."""
+    if not isinstance(value, np.ndarray):
+        return value
+    if len(value) == n_boundaries - 1:
+        return np.append(value, value[-1])
+    return value
+
+
+__all__ = ["CalendarWindows", "calendar_windows", "extend_to_boundaries"]

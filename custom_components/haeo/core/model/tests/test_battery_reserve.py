@@ -175,3 +175,24 @@ def test_negative_reserve_price_update_is_rejected() -> None:
 
     with pytest.raises(ValueError, match="reserve_price must be non-negative"):
         network.optimize()
+
+
+def test_scalar_reserve_updates_are_broadcast() -> None:
+    """Reserve parameters updated to plain floats apply at every boundary."""
+    network, battery = _build_network(
+        initial_charge=10.0,
+        drain=[0.0, 8.0],
+        reserve_level=5.0,
+        reserve_mask=np.array([0.0, 0.0, 1.0]),
+        reserve_price=1.0,
+    )
+    network.optimize()
+
+    battery["reserve_level"] = 6.0
+    battery["reserve_mask"] = 1.0
+    battery["reserve_price"] = 2.0
+    cost = network.optimize()
+
+    shortfall = battery.outputs()[BATTERY_RESERVE_SHORTFALL].values
+    np.testing.assert_allclose(shortfall, [0.0, 0.0, 4.0])
+    assert cost == pytest.approx(4.0 * 2.0)
