@@ -3,8 +3,9 @@
 from contextvars import ContextVar
 from typing import NotRequired, TypedDict, overload
 
-from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
+
+from custom_components.haeo.core.model.util.solver_rows import AppliedRows, RowIndices
 
 from .protocols import ReactiveHost
 
@@ -24,8 +25,8 @@ class DecoratorState(TypedDict):
     invalidated: bool
     deps: set[Dependency]
     result: object
-    constraint: NotRequired[highs_cons | list[highs_cons]]
-    applied: NotRequired[highs_linear_expression | list[highs_linear_expression]]
+    constraint: NotRequired[RowIndices]
+    applied: NotRequired[AppliedRows]
 
 
 # Context for tracking parameter access during constraint computation
@@ -48,9 +49,9 @@ class TrackedParam[T]:
             capacity = TrackedParam[NDArray[np.float64]]()
 
             @constraint
-            def soc_max_constraint(self) -> list[highs_linear_expression]:
+            def soc_max_constraint(self) -> Rows:
                 # Accessing self.capacity records dependency
-                return [self.stored_energy[i] <= self.capacity[i] for i in range(self.n_periods)]
+                return self.stored_energy[1:] <= self.capacity[1:]
 
     """
 
@@ -101,11 +102,10 @@ class TrackedParam[T]:
                 capacity = TrackedParam[float]()
 
                 @constraint
-                def my_constraint(self) -> highs_linear_expression:
-                    row = 1.0 * self.energy
+                def my_constraint(self) -> Rows:
                     if not self.capacity.is_set(self):
-                        return row  # A free row until capacity is set
-                    return row <= self.capacity
+                        return self.energy.free()  # A free row until capacity is set
+                    return self.energy <= self.capacity
 
         """
         record_access(obj, self._name)

@@ -1,17 +1,17 @@
 """Tests for TrackedParam behavior with unset values."""
 
-from highspy import Highs
 import numpy as np
 import pytest
 
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.reactive import TrackedParam
 from custom_components.haeo.core.model.reactive.tracked_param import _values_equal
+from custom_components.haeo.core.model.solver import Solver
 
 
 def create_test_element[T: Element[str]](cls: type[T]) -> T:
     """Create a test element instance with a fresh solver."""
-    solver = Highs()
+    solver = Solver()
     solver.setOptionValue("output_flag", False)
     return cls(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
 

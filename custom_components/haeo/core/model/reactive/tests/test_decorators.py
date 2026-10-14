@@ -2,13 +2,14 @@
 
 from collections.abc import Sequence
 
-from highspy import Highs
-from highspy.highs import highs_cons, highs_linear_expression
+from highspy import HighsStatus
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements.battery import Battery
+from custom_components.haeo.core.model.linear import LinearArray, Rows
 from custom_components.haeo.core.model.reactive import (
     ReactiveConstraint,
     ReactiveCost,
@@ -17,11 +18,12 @@ from custom_components.haeo.core.model.reactive import (
     constraint,
     cost,
 )
+from custom_components.haeo.core.model.solver import Solver
 
 
 def create_test_element[T: Element[str]](cls: type[T]) -> T:
     """Create a test element instance with a fresh solver."""
-    solver = Highs()
+    solver = Solver()
     solver.setOptionValue("output_flag", False)
     return cls(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
 
@@ -35,16 +37,16 @@ def test_cached_constraint_caches_result() -> None:
 
     class TestElement(Element[str]):
         @constraint
-        def my_constraint(self) -> list[highs_linear_expression]:
+        def my_constraint(self) -> Rows:
             nonlocal call_count
             call_count += 1
-            return []
+            return Rows.concat([])
 
     elem = create_test_element(TestElement)
 
     # First call
     result1 = elem.my_constraint()
-    assert result1 == []
+    assert len(result1) == 0
     assert call_count == 1
 
     # Get the state
@@ -54,7 +56,7 @@ def test_cached_constraint_caches_result() -> None:
 
     # Second call should use cache
     result2 = elem.my_constraint()
-    assert result2 == []
+    assert len(result2) == 0
     assert call_count == 1  # Not incremented
 
 
@@ -66,18 +68,18 @@ def test_cached_constraint_recomputes_when_invalidated() -> None:
         capacity = TrackedParam[float]()
 
         @constraint
-        def my_constraint(self) -> list[highs_linear_expression]:
+        def my_constraint(self) -> Rows:
             nonlocal call_count
             call_count += 1
             _ = self.capacity  # Access to establish dependency
-            return []
+            return Rows.concat([])
 
     elem = create_test_element(TestElement)
     elem.capacity = 5.0
 
     # First call
     result1 = elem.my_constraint()
-    assert result1 == []
+    assert len(result1) == 0
     assert call_count == 1
 
     # Change capacity (invalidates constraint)
@@ -90,7 +92,7 @@ def test_cached_constraint_recomputes_when_invalidated() -> None:
 
     # Next call should recompute
     result2 = elem.my_constraint()
-    assert result2 == []
+    assert len(result2) == 0
     assert call_count == 2
 
 
@@ -102,11 +104,11 @@ def test_cached_constraint_tracks_multiple_dependencies() -> None:
         efficiency = TrackedParam[float]()
 
         @constraint
-        def combined_constraint(self) -> list[highs_linear_expression]:
+        def combined_constraint(self) -> Rows:
             # Access both parameters to establish dependencies
             _ = self.capacity
             _ = self.efficiency
-            return []
+            return Rows.concat([])
 
     elem = create_test_element(TestElement)
     elem.capacity = 10.0
@@ -141,7 +143,7 @@ def test_cached_cost_caches_result() -> None:
 
     class TestElement(Element[str]):
         @cost
-        def my_cost(self) -> Sequence[highs_linear_expression]:
+        def my_cost(self) -> Sequence[LinearArray]:
             nonlocal call_count
             call_count += 1
             return []
@@ -165,7 +167,7 @@ def test_cached_cost_recomputes_when_invalidated() -> None:
         price = TrackedParam[float]()
 
         @cost
-        def my_cost(self) -> Sequence[highs_linear_expression]:
+        def my_cost(self) -> Sequence[LinearArray]:
             nonlocal call_count
             call_count += 1
             _ = self.price  # Access to establish dependency
@@ -196,7 +198,7 @@ def test_cached_cost_class_access_returns_descriptor() -> None:
 
     class TestElement(Element[str]):
         @cost
-        def my_cost(self) -> Sequence[highs_linear_expression]:
+        def my_cost(self) -> Sequence[LinearArray]:
             return []
 
     assert isinstance(TestElement.my_cost, ReactiveCost)
@@ -223,20 +225,20 @@ def test_element_reactive_invalidate_dependents_constraints() -> None:
         b = TrackedParam[float]()
 
         @constraint
-        def uses_a(self) -> list[int]:
+        def uses_a(self) -> Rows:
             _ = self.a
-            return []
+            return Rows.concat([])
 
         @constraint
-        def uses_b(self) -> list[int]:
+        def uses_b(self) -> Rows:
             _ = self.b
-            return []
+            return Rows.concat([])
 
         @constraint
-        def uses_both(self) -> list[int]:
+        def uses_both(self) -> Rows:
             _ = self.a
             _ = self.b
-            return []
+            return Rows.concat([])
 
     elem = create_test_element(TestElement)
     elem.a = 1.0
@@ -276,7 +278,7 @@ def test_invalidation_reaches_methods_on_other_objects() -> None:
 
     class Downstream(Element[str]):
         def __init__(self, upstream: Upstream) -> None:
-            super().__init__(name="downstream", periods=np.array([1.0]), solver=Highs(), output_names=frozenset())
+            super().__init__(name="downstream", periods=np.array([1.0]), solver=Solver(), output_names=frozenset())
             self.upstream = upstream
 
         @cost
@@ -308,7 +310,7 @@ def test_element_reactive_invalidate_dependents_costs() -> None:
         price = TrackedParam[float]()
 
         @cost
-        def price_cost(self) -> Sequence[highs_linear_expression]:
+        def price_cost(self) -> Sequence[LinearArray]:
             _ = self.price
             return []
 
@@ -334,15 +336,15 @@ def test_element_reactive_invalidate_dependents_costs() -> None:
 
 def test_constraints_adds_new_constraint() -> None:
     """Test that constraints() adds constraints to solver on first call."""
-    solver = Highs()
+    solver = Solver()
     solver.setOptionValue("output_flag", False)
-    x = solver.addVariable(lb=0.0, ub=10.0)
+    x = solver.add_variables(1, upper=10.0, name="x")
 
     class TestElement(Element[str]):
         @constraint
-        def my_constraint(self) -> list[highs_linear_expression]:
-            # Constraint methods return expressions, decorator applies to solver
-            return [x <= 5.0]
+        def my_constraint(self) -> Rows:
+            # Constraint methods return rows, decorator applies to solver
+            return x <= 5.0
 
     elem = TestElement(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
 
@@ -356,7 +358,7 @@ def test_constraints_adds_new_constraint() -> None:
 
 def test_constraint_returning_none_raises() -> None:
     """A constraint must return rows, so returning None is a clear error."""
-    solver = Highs()
+    solver = Solver()
     solver.setOptionValue("output_flag", False)
 
     class TestElement(Element[str]):
@@ -375,17 +377,16 @@ def test_constraint_free_row_stays_in_lp_and_binds_later() -> None:
 
     A free row is not listed by constraints() and has no shadow price.
     """
-    solver = Highs()
+    solver = Solver()
     solver.setOptionValue("output_flag", False)
-    x = solver.addVariable(lb=0.0, ub=10.0)
+    x = solver.add_variables(1, upper=10.0, name="x")
 
     class TestElement(Element[str]):
         limit = TrackedParam[float | None]()
 
         @constraint(output=True)
-        def my_constraint(self) -> highs_linear_expression:
-            row = 1.0 * x
-            return row if self.limit is None else row <= self.limit
+        def my_constraint(self) -> Rows:
+            return x.free() if self.limit is None else x <= self.limit
 
     elem = TestElement(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
     solver.changeColsCost(1, np.array([0], dtype=np.int32), np.array([-1.0]))
@@ -397,7 +398,7 @@ def test_constraint_free_row_stays_in_lp_and_binds_later() -> None:
 
     elem.limit = None
     assert maximized_x() == 10.0
-    assert solver.numConstrs == 1
+    assert solver.getNumRow() == 1
     assert "my_constraint" not in elem.constraints()
     assert applied_constraint(elem, "my_constraint") is None
 
@@ -407,22 +408,22 @@ def test_constraint_free_row_stays_in_lp_and_binds_later() -> None:
 
     elem.limit = None
     assert maximized_x() == 10.0
-    assert solver.numConstrs == 1
+    assert solver.getNumRow() == 1
     assert "my_constraint" not in elem.constraints()
 
 
 def test_constraint_row_count_change_raises_clear_error() -> None:
     """A list constraint must keep its row count so the LP keeps its shape."""
-    solver = Highs()
+    solver = Solver()
     solver.setOptionValue("output_flag", False)
-    x = solver.addVariables(2, lb=0.0, ub=10.0)
+    x = solver.add_variables(2, upper=10.0, name="x")
 
     class TestElement(Element[str]):
         rows = TrackedParam[int]()
 
         @constraint
-        def my_constraint(self) -> list[highs_linear_expression]:
-            return [x[i] <= 1.0 for i in range(self.rows)]
+        def my_constraint(self) -> Rows:
+            return x[: self.rows] <= 1.0
 
     elem = TestElement(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
     elem.rows = 2
@@ -433,58 +434,42 @@ def test_constraint_row_count_change_raises_clear_error() -> None:
         elem.my_constraint()
 
 
-def test_constraint_shape_change_raises_clear_error() -> None:
-    """A constraint cannot switch between a single row and a list of rows."""
-    solver = Highs()
-    solver.setOptionValue("output_flag", False)
-    x = solver.addVariable(lb=0.0, ub=10.0)
-
-    class TestElement(Element[str]):
-        as_list = TrackedParam[bool]()
-
-        @constraint
-        def my_constraint(self) -> highs_linear_expression | list[highs_linear_expression]:
-            row = x <= 1.0
-            return [row] if self.as_list else row
-
-    elem = TestElement(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
-    elem.as_list = False
-    elem.my_constraint()
-
-    elem.as_list = True
-    with pytest.raises(ValueError, match="switched between a single row and a list of rows"):
-        elem.my_constraint()
-
-
-def test_failed_row_write_is_retried() -> None:
+def test_failed_row_write_is_retried(monkeypatch: pytest.MonkeyPatch) -> None:
     """A constraint whose rows fail to reach the solver is computed and written again on the next call."""
-    solver = Highs()
+    solver = Solver()
     solver.setOptionValue("output_flag", False)
-    x = solver.addVariable(lb=0.0, ub=10.0)
+    x = solver.add_variables(1, upper=10.0, name="x")
     fail = [True]
 
     class TestElement(Element[str]):
         @constraint
-        def my_constraint(self) -> highs_linear_expression:
+        def my_constraint(self) -> Rows:
             return x <= 5.0
 
     elem = TestElement(name="test", periods=np.array([1.0]), solver=solver, output_names=frozenset())
-    add_constr = solver.addConstr
+    add_rows = solver.addRows
 
-    def flaky_add(expr: highs_linear_expression) -> highs_cons:
+    def flaky_add_rows(
+        num_rows: int,
+        lower: NDArray[np.float64],
+        upper: NDArray[np.float64],
+        num_elements: int,
+        starts: NDArray[np.int32],
+        indices: NDArray[np.int32],
+        values: NDArray[np.float64],
+    ) -> HighsStatus:
         if fail[0]:
-            msg = "solver refused the row"
-            raise RuntimeError(msg)
-        return add_constr(expr)
+            return HighsStatus.kError
+        return add_rows(num_rows, lower, upper, num_elements, starts, indices, values)
 
-    solver.addConstr = flaky_add  # type: ignore[method-assign]
+    monkeypatch.setattr(solver, "addRows", flaky_add_rows)
     with pytest.raises(RuntimeError, match="refused"):
         elem.my_constraint()
-    assert solver.numConstrs == 0
+    assert solver.getNumRow() == 0
 
     fail[0] = False
     elem.my_constraint()
-    assert solver.numConstrs == 1
+    assert solver.getNumRow() == 1
 
 
 # Integration tests
@@ -509,12 +494,12 @@ def test_reactive_workflow() -> None:
             self._soc_values: list[float] = []
 
         @constraint
-        def test_constraint(self) -> list[highs_linear_expression]:
+        def test_constraint(self) -> Rows:
             # Simulated constraint that depends on capacity
             self._soc_values = [self.capacity * 0.9]
-            return []
+            return Rows.concat([])
 
-    solver = Highs()
+    solver = Solver()
     solver.setOptionValue("output_flag", False)
     battery = Battery(
         capacity=10.0,
@@ -527,12 +512,12 @@ def test_reactive_workflow() -> None:
 
     # Initial constraint computation
     result1 = battery.test_constraint()
-    assert result1 == []
+    assert len(result1) == 0
     assert battery._soc_values == [9.0]
 
     # Cached access
     result2 = battery.test_constraint()
-    assert result2 == []
+    assert len(result2) == 0
     assert battery._soc_values == [9.0]
 
     # Change capacity
@@ -540,13 +525,13 @@ def test_reactive_workflow() -> None:
 
     # Recomputed
     result3 = battery.test_constraint()
-    assert result3 == []
+    assert len(result3) == 0
     assert battery._soc_values == [18.0]
 
 
 def test_constraint_without_output_flag() -> None:
     """Test that constraints without output=True don't return OutputData from get_output()."""
-    h = Highs()
+    h = Solver()
     h.setOptionValue("output_flag", False)
 
     # Use 2 periods since battery constraints use slices [1:]
