@@ -11,14 +11,14 @@ from typing import (
     runtime_checkable,
 )
 
-from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import TypedDict
 
 from custom_components.haeo.core.model.element import Element
+from custom_components.haeo.core.model.linear import LinearArray, Rows, total
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost
+from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 from .segment import FlowProvider, Segment
@@ -32,7 +32,7 @@ class _BatteryLike(Protocol):
     importing it here would invert the intended dependency direction); duck-typed instead.
     """
 
-    stored_energy: HighspyArray
+    stored_energy: LinearArray
 
 
 class SocPricingSegmentSpec(TypedDict):
@@ -48,8 +48,8 @@ class SocPricingSegmentSpec(TypedDict):
 def _exposed_slack(
     threshold: NDArray[np.float64] | None,
     price: NDArray[np.float64] | None,
-    slack: HighspyArray,
-) -> HighspyArray | None:
+    slack: LinearArray,
+) -> LinearArray | None:
     return slack if threshold is not None and price is not None else None
 
 
@@ -66,7 +66,7 @@ class SocPricingSegment(Segment):
         segment_id: str,
         n_periods: int,
         periods: NDArray[np.float64],
-        solver: Highs,
+        solver: Solver,
         *,
         spec: SocPricingSegmentSpec,
         source_element: Element[Any],
@@ -97,18 +97,8 @@ class SocPricingSegment(Segment):
             msg = "charge_capacity_threshold is required when charge_capacity_price is set"
             raise ValueError(msg)
 
-        self._discharge_energy_slack = solver.addVariables(
-            n_periods,
-            lb=0,
-            name_prefix=f"{segment_id}_discharge_energy_",
-            out_array=True,
-        )
-        self._charge_capacity_slack = solver.addVariables(
-            n_periods,
-            lb=0,
-            name_prefix=f"{segment_id}_charge_capacity_",
-            out_array=True,
-        )
+        self._discharge_energy_slack = solver.add_variables(n_periods, name=f"{segment_id}.discharge_energy_slack")
+        self._charge_capacity_slack = solver.add_variables(n_periods, name=f"{segment_id}.charge_capacity_slack")
 
     def _get_battery(self) -> _BatteryLike:
         """Find the battery element from the connection endpoints."""
@@ -119,7 +109,7 @@ class SocPricingSegment(Segment):
         raise TypeError(msg)
 
     @property
-    def discharge_energy_slack(self) -> HighspyArray | None:
+    def discharge_energy_slack(self) -> LinearArray | None:
         """Slack for energy below discharge threshold."""
         return _exposed_slack(
             self.discharge_energy_threshold,
@@ -128,7 +118,7 @@ class SocPricingSegment(Segment):
         )
 
     @property
-    def charge_capacity_slack(self) -> HighspyArray | None:
+    def charge_capacity_slack(self) -> LinearArray | None:
         """Slack for energy above charge capacity threshold."""
         return _exposed_slack(
             self.charge_capacity_threshold,
@@ -137,41 +127,37 @@ class SocPricingSegment(Segment):
         )
 
     @constraint
-    def soc_slack_bounds(self) -> list[highs_linear_expression]:
+    def soc_slack_bounds(self) -> Rows:
         """Bound slack variables to SOC threshold violations when penalties apply.
 
         Both sides always have rows. A side without a priced threshold has free
         rows, so it can be priced later without changing the LP's shape.
         """
-        stored = np.asarray(self._battery.stored_energy, dtype=object)[1:]
+        stored = self._battery.stored_energy[1:]
         below = self._discharge_energy_slack + stored
         above = self._charge_capacity_slack - stored
 
         if self.discharge_energy_threshold is not None and self.discharge_energy_price is not None:
-            below_rows = list(below >= self.discharge_energy_threshold)
+            below_rows = below >= self.discharge_energy_threshold
         else:
-            below_rows = list(below)
+            below_rows = below.free()
 
         if self.charge_capacity_threshold is not None and self.charge_capacity_price is not None:
-            above_rows = list(above >= -self.charge_capacity_threshold)
+            above_rows = above >= -self.charge_capacity_threshold
         else:
-            above_rows = list(above)
+            above_rows = above.free()
 
-        return [*below_rows, *above_rows]
+        return Rows.concat([below_rows, above_rows])
 
     @cost
-    def soc_pricing_cost(self) -> highs_linear_expression | None:
+    def soc_pricing_cost(self) -> LinearArray | None:
         """Penalty cost for operating outside SOC thresholds."""
-        cost_terms = []
+        cost_terms: list[LinearArray] = []
         if self.discharge_energy_price is not None and self.discharge_energy_threshold is not None:
-            cost_terms.append(Highs.qsum(self._discharge_energy_slack * self.discharge_energy_price * self.periods))
+            cost_terms.append(self._discharge_energy_slack * self.discharge_energy_price * self.periods)
         if self.charge_capacity_price is not None and self.charge_capacity_threshold is not None:
-            cost_terms.append(Highs.qsum(self._charge_capacity_slack * self.charge_capacity_price * self.periods))
-        if not cost_terms:
-            return None
-        if len(cost_terms) == 1:
-            return cost_terms[0]
-        return Highs.qsum(cost_terms)
+            cost_terms.append(self._charge_capacity_slack * self.charge_capacity_price * self.periods)
+        return total(cost_terms)
 
 
 __all__ = ["SocPricingSegment", "SocPricingSegmentSpec"]

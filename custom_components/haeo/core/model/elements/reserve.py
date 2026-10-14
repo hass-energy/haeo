@@ -23,15 +23,15 @@ change, rows that no longer apply become free rows, so the LP keeps its shape.
 from dataclasses import dataclass
 from typing import Final, Literal, TypedDict
 
-from highspy import Highs
-from highspy.highs import HighspyArray, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import Element, NetworkElement
+from custom_components.haeo.core.model.linear import INF, LinearArray, Rows
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
+from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util import broadcast_to_sequence
 
 from .battery import Battery
@@ -130,7 +130,7 @@ class Reserve(Element[ReserveOutputName]):
         name: str,
         periods: NDArray[np.float64],
         *,
-        solver: Highs,
+        solver: Solver,
         kind: ReserveKind,
         loads: list[NetworkElement[str]],
         generation: dict[str, list[PowerLimitSegment]],
@@ -153,16 +153,12 @@ class Reserve(Element[ReserveOutputName]):
         self.price = broadcast_to_sequence(price, n_periods)
 
         # Running net demand (or surplus, for headroom) of the elements at each boundary
-        self._demand = solver.addVariables(n_periods + 1, lb=-np.inf, name_prefix=f"{name}_demand_", out_array=True)
+        self._demand = solver.add_variables(n_periods + 1, name=f"{name}.demand", lower=-INF)
         # Peak demand from each boundary to the end of its block, and from the start of its block
-        self._suffix_peak = solver.addVariables(
-            n_periods + 1, lb=-np.inf, name_prefix=f"{name}_suffix_", out_array=True
-        )
-        self._prefix_peak = solver.addVariables(
-            n_periods + 1, lb=-np.inf, name_prefix=f"{name}_prefix_", out_array=True
-        )
+        self._suffix_peak = solver.add_variables(n_periods + 1, name=f"{name}.suffix_peak", lower=-INF)
+        self._prefix_peak = solver.add_variables(n_periods + 1, name=f"{name}.prefix_peak", lower=-INF)
         # Energy the storage falls short of the reserve at each boundary after the first
-        self._shortfall = solver.addVariables(n_periods, lb=0.0, name_prefix=f"{name}_shortfall_", out_array=True)
+        self._shortfall = solver.add_variables(n_periods, name=f"{name}.shortfall")
 
     @property
     def element_names(self) -> list[str]:
@@ -177,7 +173,7 @@ class Reserve(Element[ReserveOutputName]):
     def _layout(self) -> WindowLayout:
         return window_layout(self.periods, self.window)
 
-    def _available(self) -> list[highs_linear_expression | float]:
+    def _available(self) -> LinearArray:
         """Return what the storage can provide at each boundary, measured at the network side.
 
         A reserve counts the stored energy the batteries can deliver after
@@ -185,105 +181,105 @@ class Reserve(Element[ReserveOutputName]):
         into their empty space before charge losses.
         """
         n_boundaries = self.n_periods + 1
-        available: list[highs_linear_expression | float] = [0.0] * n_boundaries
+        held: list[LinearArray] = []
         for storage in self._storage:
             efficiency = np.ones(n_boundaries)
             for segment in storage.connection.segments.values():
                 if isinstance(segment, EfficiencySegment) and segment.efficiency is not None:
                     efficiency = efficiency * broadcast_to_sequence(segment.efficiency, n_boundaries)
             stored = storage.battery.stored_energy
-            capacity = storage.battery.capacity
-            for index in range(n_boundaries):
-                if self.kind == "reserve":
-                    held = stored[index] * float(efficiency[index])
-                else:
-                    held = (float(capacity[index]) - stored[index]) * (1.0 / float(efficiency[index]))
-                available[index] = available[index] + held
-        return available
+            if self.kind == "reserve":
+                held.append(stored * efficiency)
+            else:
+                held.append((storage.battery.capacity - stored) * (1.0 / efficiency))
+        return LinearArray.sum_of([LinearArray.zeros(n_boundaries), *held])
 
-    def _net_power(self) -> NDArray[np.object_] | HighspyArray:
+    def _net_power(self) -> LinearArray:
         """Return the loads' planned power less the generation's available power in each period."""
-        net: NDArray[np.object_] | HighspyArray = np.zeros(self.n_periods, dtype=object)
+        net = LinearArray.zeros(self.n_periods)
         for load in self._loads:
             net = net + load.connection_power()
-        for limits in self._generation.values():
-            available = sum(
-                (
-                    broadcast_to_sequence(max_power, self.n_periods)
-                    for limit in limits
-                    if (max_power := limit.max_power) is not None
-                ),
-                np.zeros(self.n_periods),
-            )
-            net = net - available
-        return net
+        available = sum(
+            (
+                broadcast_to_sequence(max_power, self.n_periods)
+                for limits in self._generation.values()
+                for limit in limits
+                if (max_power := limit.max_power) is not None
+            ),
+            np.zeros(self.n_periods),
+        )
+        return net - available
 
     @constraint
-    def reserve_demand_balance(self) -> list[highs_linear_expression]:
+    def reserve_demand_balance(self) -> Rows:
         """Accumulate the elements' net energy demand (or surplus) from zero at the first boundary."""
         demand = self._demand
-        net = self._net_power()
-        rows = [demand[0] == 0.0]
-        rows.extend(
-            demand[index + 1] - demand[index] - net[index] * (self._sign * float(duration)) == 0.0
-            for index, duration in enumerate(self.periods)
+        return Rows.concat(
+            [
+                demand[0] == 0.0,
+                demand[1:] - demand[:-1] - self._net_power() * (self._sign * self.periods) == 0.0,
+            ]
         )
-        return rows
 
     @constraint
-    def reserve_block_peaks(self) -> list[highs_linear_expression]:
-        """Bound the running demand peaks within each block from both ends."""
-        layout = self._layout()
+    def reserve_block_peaks(self) -> Rows:
+        """Bound the running demand peaks within each block from both ends.
+
+        Links between boundaries in different blocks have no lower bound, so they are free rows.
+        """
+        block = self._layout().block
         demand, suffix, prefix = self._demand, self._suffix_peak, self._prefix_peak
-        rows = [suffix[index] - demand[index] >= 0.0 for index in range(self.n_periods + 1)]
-        rows.extend(prefix[index] - demand[index] >= 0.0 for index in range(self.n_periods + 1))
-        for index in range(self.n_periods):
-            link = suffix[index] - suffix[index + 1]
-            rows.append(link >= 0.0 if layout.block[index] == layout.block[index + 1] else link)
-        for index in range(1, self.n_periods + 1):
-            link = prefix[index] - prefix[index - 1]
-            rows.append(link >= 0.0 if layout.block[index] == layout.block[index - 1] else link)
-        return rows
+        same_block = block[:-1] == block[1:]
+        return Rows.concat(
+            [
+                suffix - demand >= 0.0,
+                prefix - demand >= 0.0,
+                suffix[:-1] - suffix[1:] >= np.where(same_block, 0.0, -INF),
+                prefix[1:] - prefix[:-1] >= np.where(same_block, 0.0, -INF),
+            ]
+        )
 
     @constraint
-    def reserve_requirement(self) -> list[highs_linear_expression]:
+    def reserve_requirement(self) -> Rows:
         """Hold enough energy for the peak demand within each boundary's window, plus the minimum.
 
-        Each boundary has three rows: the rest of its own block, the start of the
-        next block up to the window end, and the window end itself when it falls
-        inside a period. Rows that do not apply are free.
+        Each boundary after the first has three rows: the rest of its own block,
+        the start of the next block up to the window end, and the window end
+        itself when it falls inside a period. Rows that do not apply have no
+        lower bound, so they are free.
         """
         layout = self._layout()
         demand = self._demand
-        available = self._available()
-        rows: list[highs_linear_expression] = []
-        for index in range(1, self.n_periods + 1):
-            held = available[index] + self._shortfall[index - 1] + demand[index]
-            minimum = float(self.minimum[index])
-            last = int(layout.last[index])
-            fraction = float(layout.fraction[index])
+        index = np.arange(1, self.n_periods + 1)
+        last = layout.last[1:]
+        fraction = layout.fraction[1:]
+        minimum = self.minimum[1:]
+        held = self._available()[1:] + self._shortfall + demand[1:]
 
-            rows.append(held - self._suffix_peak[index] >= minimum)
+        # The window end interpolates between the last boundary inside it and the next one.
+        # When that last boundary is the row's own, its share folds into the row's demand term.
+        own = last == index
+        end_start = np.where(own, index, last)
+        end_weight = np.where(own, fraction, 1.0 - fraction)
+        # The next boundary only needs to exist where the window ends inside a period
+        end_next = np.minimum(last + 1, self.n_periods)
+        end_demand = demand[end_start] * end_weight + demand[end_next] * fraction
 
-            prefix_row = held - self._prefix_peak[last]
-            rows.append(prefix_row >= minimum if layout.block[last] != layout.block[index] else prefix_row)
-
-            if fraction > 0.0:
-                end_demand = demand[last + 1] * fraction
-                end_row = (
-                    held - demand[index] * fraction - end_demand
-                    if last == index
-                    else held - demand[last] * (1.0 - fraction) - end_demand
-                )
-                rows.append(end_row >= minimum)
-            else:
-                rows.append(held)
-        return rows
+        rows = Rows.concat(
+            [
+                held - self._suffix_peak[1:] >= minimum,
+                held - self._prefix_peak[last] >= np.where(layout.block[last] != layout.block[1:], minimum, -INF),
+                held - end_demand >= np.where(fraction > 0.0, minimum, -INF),
+            ]
+        )
+        # Order the rows boundary by boundary, which keeps how the solver breaks ties between equal-cost plans
+        order = np.arange(3 * self.n_periods).reshape(3, self.n_periods).T.reshape(-1)
+        return Rows(rows.expr[order], rows.lower[order], rows.upper[order])
 
     @cost
-    def reserve_shortfall_cost(self) -> highs_linear_expression:
+    def reserve_shortfall_cost(self) -> LinearArray:
         """Charge a holding cost for each kWh the storage falls short of the reserve, per hour."""
-        return Highs.qsum(self._shortfall * (self.price * self.periods))
+        return (self._shortfall * (self.price * self.periods)).total()
 
     def _demand_values(self) -> NDArray[np.float64]:
         return np.asarray(self.extract_values(self._demand), dtype=float)

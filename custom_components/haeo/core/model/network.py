@@ -14,7 +14,6 @@ from typing import (
 )
 
 from highspy import Highs, HighsModelStatus
-from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
 from numpy.typing import NDArray
 
@@ -26,7 +25,9 @@ from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
 from .elements.reserve import Reserve, ReserveElementConfig, ReserveStorage
 from .elements.segments import PowerLimitSegment
-from .util.solver_rows import add_row, update_row
+from .linear import INF, LinearArray, total
+from .solver import Solver
+from .util.solver_rows import AppliedRows, RowIndices, add_rows, change_bounds, update_rows
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -139,8 +140,8 @@ class Network:
         self.periods = np.asarray(periods, dtype=float)
         self.elements: dict[str, Element[Any]] = {}
         self.options: SolveOptions = options or CalibratedOptions()
-        self._solver = Highs()
-        self._lex_row: tuple[highs_cons, highs_linear_expression] | None = None
+        self._solver = Solver()
+        self._lex_row: tuple[RowIndices, AppliedRows] | None = None
         self._calibrated_weight: float | None = None
 
         # Redirect HiGHS logging to Python logger at debug level
@@ -348,15 +349,15 @@ class Network:
         self.elements[name] = element
         return element
 
-    def cost(self) -> tuple[highs_linear_expression | None, highs_linear_expression | None] | None:
+    def cost(self) -> tuple[LinearArray | None, LinearArray | None] | None:
         """Aggregate (primary, secondary) costs from all elements.
 
         Elements return either a single expression (primary only) or a
         (primary, secondary) tuple. Single expressions are promoted to
         the primary slot.
         """
-        primaries: list[highs_linear_expression] = []
-        secondaries: list[highs_linear_expression] = []
+        primaries: list[LinearArray] = []
+        secondaries: list[LinearArray] = []
 
         for element in self.elements.values():
             element_cost = element.cost()
@@ -374,8 +375,8 @@ class Network:
         if not primaries and not secondaries:
             return None
 
-        primary = Highs.qsum(primaries) if primaries else None
-        secondary = Highs.qsum(secondaries) if secondaries else None
+        primary = total(primaries)
+        secondary = total(secondaries)
         return (primary, secondary)
 
     def optimize(self) -> float:
@@ -427,8 +428,8 @@ class Network:
         h: Highs,
         all_col_indices: NDArray[np.int32],
         cost_vectors: list[NDArray[np.float64]],
-        primary: highs_linear_expression,
-        secondary: highs_linear_expression,
+        primary: LinearArray,
+        secondary: LinearArray,
     ) -> float:
         """Lexicographic solve: Phase 1 primary, Phase 2 secondary, Phase 3 restore."""
         h.clearLinearObjectives()
@@ -571,29 +572,24 @@ class Network:
 
     def _constrain_objective(
         self,
-        objective: highs_linear_expression,
+        objective: LinearArray,
         optimal_value: float,
     ) -> None:
         """Set the single lex constraint to bound the given objective."""
-        self._set_lex_row(objective <= optimal_value)
+        rows = objective <= optimal_value
+        if self._lex_row is None:
+            self._lex_row = add_rows(self._solver, rows)
+        else:
+            indices, applied = self._lex_row
+            self._lex_row = (indices, update_rows(self._solver, indices, applied, rows))
 
     def _relax_lex_constraint(self) -> None:
         """Relax the lex constraint bounds so it is inactive."""
         if self._lex_row is not None:
-            unbounded = highs_linear_expression(self._lex_row[1])
-            unbounded.bounds = None
-            self._set_lex_row(unbounded)
+            indices, applied = self._lex_row
+            self._lex_row = (indices, change_bounds(self._solver, indices, applied, -INF, INF))
 
-    def _set_lex_row(self, expr: highs_linear_expression) -> None:
-        """Write the expression to the lex constraint row, adding the row on first use."""
-        if self._lex_row is None:
-            cons = add_row(self._solver, expr)
-        else:
-            cons, applied = self._lex_row
-            update_row(self._solver, cons, applied, expr)
-        self._lex_row = (cons, expr)
-
-    def constraints(self) -> dict[str, dict[str, highs_cons | list[highs_cons]]]:
+    def constraints(self) -> dict[str, dict[str, RowIndices]]:
         """Return all constraints from all elements in the network.
 
         Returns:
@@ -601,7 +597,7 @@ class Network:
             Each constraint dictionary maps constraint method names to constraint objects.
 
         """
-        result: dict[str, dict[str, highs_cons | list[highs_cons]]] = {}
+        result: dict[str, dict[str, RowIndices]] = {}
         for element_name, element in self.elements.items():
             if element_constraints := element.constraints():
                 result[element_name] = element_constraints
@@ -633,7 +629,7 @@ def _bisect_boundary(
 
 
 def _build_cost_vectors(
-    objectives: tuple[highs_linear_expression | None, highs_linear_expression | None],
+    objectives: tuple[LinearArray | None, LinearArray | None],
     n_vars: int,
 ) -> list[NDArray[np.float64]]:
     """Convert objective expressions to dense cost vectors.
@@ -643,14 +639,7 @@ def _build_cost_vectors(
     which zeros all columns then sets non-zero ones (two FFI round-trips
     per objective switch).
     """
-    vectors: list[NDArray[np.float64]] = []
-    for obj in objectives:
-        vec = np.zeros(n_vars, dtype=np.float64)
-        if obj is not None:
-            idxs, vals = obj.unique_elements()
-            vec[idxs] = vals
-        vectors.append(vec)
-    return vectors
+    return [np.zeros(n_vars) if obj is None else obj.column_coefficients(n_vars) for obj in objectives]
 
 
 def _set_cost_vector(
