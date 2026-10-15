@@ -123,8 +123,14 @@ class WindowLayout:
 
 
 def window_layout(periods: NDArray[np.float64], window: float) -> WindowLayout:
-    """Return where each boundary's window falls for period durations and a window length in hours."""
+    """Return where each boundary's window falls for period durations and a window length in hours.
+
+    A window of zero looks no further than its own boundary, so each boundary is its own block.
+    """
     times = np.concatenate(([0.0], np.cumsum(periods)))
+    if window <= _TIME_TOLERANCE:
+        index = np.arange(len(times), dtype=np.int64)
+        return WindowLayout(block=index, last=index, fraction=np.zeros(len(times)))
     ends = times + window
     last = np.searchsorted(times, ends + _TIME_TOLERANCE, side="right") - 1
     inside = last < len(periods)

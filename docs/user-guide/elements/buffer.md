@@ -27,7 +27,7 @@ You can add as many buffers as you like, for example a reserve for essential loa
 | **[Loads](#loads)**                   | Elements                                 | No       | -       | Loads the buffer covers                                          |
 | **[Generation](#generation)**         | Elements                                 | No       | -       | Generation the buffer covers                                     |
 | **[Batteries](#batteries)**           | Elements                                 | Yes      | -       | Batteries that hold the buffer together                          |
-| **[Window](#window)**                 | Hours                                    | Yes      | 12      | How far ahead the buffer looks                                   |
+| **[Window](#window)**                 | [sensor](../forecasts-and-sensors.md)    | Yes      | 12      | How far ahead the buffer looks (hours)                           |
 | **[Level](#level)**                   | [sensor(s)](../forecasts-and-sensors.md) | No       | -       | Charge level the buffer is measured from (%)                     |
 | **[Shortfall cost](#shortfall-cost)** | Price rate                               | Yes      | 0.05    | Holding cost per stored kWh past the buffer, per hour (\$/kWh/h) |
 
@@ -75,6 +75,10 @@ Near the end of the forecast the window is cut short where the forecast ends, so
 
 If your generation can produce far more in a few hours than your batteries hold, a long headroom window asks for an empty battery.
 Choose one where the required space stays well below your battery's capacity.
+
+The window can come from a sensor, read as its current value for the whole plan.
+Point it at a helper to lengthen the outage a reserve covers while a storm warning is active, for example.
+Sensors reporting seconds, minutes, or days are converted to hours.
 
 ## Level
 

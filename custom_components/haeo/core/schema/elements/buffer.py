@@ -51,7 +51,7 @@ class ParticipantsConfig(TypedDict):
 class RequirementConfig(TypedDict):
     """How far ahead the buffer looks and the charge level it is measured from."""
 
-    window: ConstantValue
+    window: EntityValue | ConstantValue
     level: NotRequired[EntityValue | ConstantValue | NoneValue]
 
 

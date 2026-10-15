@@ -5,7 +5,7 @@ from collections.abc import Sequence
 import numpy as np
 import pytest
 
-from conftest import FakeStateMachine
+from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import (
     _resolve_list_items,
@@ -827,3 +827,55 @@ def test_entity_significantly_negative_value_raises(
 
     assert exc_info.value.translation_key == "negative_input_value"
     assert exc_info.value.translation_placeholders == {"value": f"{sensor_value:g}"}
+
+
+@pytest.mark.parametrize(
+    ("state", "unit", "expected_hours"),
+    [
+        pytest.param("90", "min", 1.5, id="minutes"),
+        pytest.param("4", "h", 4.0, id="hours"),
+    ],
+)
+def test_entity_duration_converts_to_hours(state: str, unit: str, expected_hours: float) -> None:
+    """A duration sensor loads in hours whatever unit it reports."""
+    config: dict[str, object] = {
+        "element_type": "buffer",
+        "name": "Backup",
+        "kind": "reserve",
+        "participants": {"storage": ["Battery"]},
+        "requirement": {"window": {"type": "entity", "value": ["sensor.outage_length"]}},
+        "pricing": {"shortfall_cost": {"type": "constant", "value": 0.05}},
+    }
+    sm = FakeStateMachine(
+        {
+            "sensor.outage_length": FakeEntityState(
+                entity_id="sensor.outage_length",
+                state=state,
+                attributes={"unit_of_measurement": unit, "device_class": "duration"},
+            )
+        }
+    )
+    result = _dict(load_element_config("Backup", config, sm, FORECAST_TIMES))  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
+
+    assert _dict(result["requirement"])["window"] == pytest.approx(expected_hours)
+
+
+def test_entity_duration_rejects_negative() -> None:
+    """A duration sensor reading below zero is an input error, as other physical quantities are."""
+    config: dict[str, object] = {
+        "element_type": "buffer",
+        "name": "Backup",
+        "kind": "reserve",
+        "participants": {"storage": ["Battery"]},
+        "requirement": {"window": {"type": "entity", "value": ["sensor.outage_length"]}},
+        "pricing": {"shortfall_cost": {"type": "constant", "value": 0.05}},
+    }
+    sm = FakeStateMachine(
+        {
+            "sensor.outage_length": FakeEntityState(
+                entity_id="sensor.outage_length", state="-2", attributes={"unit_of_measurement": "h"}
+            )
+        }
+    )
+    with pytest.raises(InputError):
+        load_element_config("Backup", config, sm, FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime

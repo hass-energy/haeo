@@ -649,7 +649,7 @@ def add_buffer(
     name: str,
     kind: BufferKind,
     storage: list[str],
-    window: ConstantInput,
+    window: EntityInput | ConstantInput,
     loads: list[str] | None = None,
     generation: list[str] | None = None,
     level: EntityInput | ConstantInput | None = None,

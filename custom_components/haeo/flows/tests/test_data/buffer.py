@@ -57,13 +57,13 @@ VALID_DATA = [
         },
     },
     {
-        "description": "Reserve measured from the battery's own minimum charge",
+        "description": "Reserve from the battery's own minimum charge over a sensor-driven outage length",
         "config": {
             CONF_NAME: "Storm Reserve",
             CONF_KIND: KIND_RESERVE,
             SECTION_PARTICIPANTS: {CONF_STORAGE: ["Battery"]},
             SECTION_REQUIREMENT: {
-                CONF_WINDOW: as_constant_value(4.0),
+                CONF_WINDOW: as_entity_value(["sensor.storm_outage_length"]),
                 CONF_LEVEL: as_none_value(),
             },
             SECTION_PRICING: {

@@ -13,6 +13,7 @@ class DeviceClass(StrEnum):
     POWER = "power"
     ENERGY = "energy"
     ENERGY_STORAGE = "energy_storage"
+    DURATION = "duration"
     MONETARY = "monetary"
 
     @classmethod
@@ -38,7 +39,10 @@ class UnitOfMeasurement(StrEnum):
     DOLLAR_PER_KWH = "$/kWh"
     DOLLAR_PER_KWH_PER_HOUR = "$/kWh/h"
     PERCENT = "%"
+    SECOND = "s"
+    MINUTE = "min"
     HOUR = "h"
+    DAY = "d"
 
     @classmethod
     def of(cls, value: object) -> "UnitOfMeasurement | None":
@@ -53,6 +57,7 @@ BASE_UNITS: Final[dict[DeviceClass, UnitOfMeasurement]] = {
     DeviceClass.POWER: UnitOfMeasurement.KILO_WATT,
     DeviceClass.ENERGY: UnitOfMeasurement.KILO_WATT_HOUR,
     DeviceClass.ENERGY_STORAGE: UnitOfMeasurement.KILO_WATT_HOUR,
+    DeviceClass.DURATION: UnitOfMeasurement.HOUR,
 }
 
 _POWER_TO_KW: Final[dict[UnitOfMeasurement, float]] = {
@@ -68,6 +73,16 @@ _ENERGY_TO_KWH: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.MEGA_WATT_HOUR: 1000.0,
     UnitOfMeasurement.GIGA_WATT_HOUR: 1_000_000.0,
 }
+
+_DURATION_TO_HOURS: Final[dict[UnitOfMeasurement, float]] = {
+    UnitOfMeasurement.SECOND: 1 / 3600,
+    UnitOfMeasurement.MINUTE: 1 / 60,
+    UnitOfMeasurement.HOUR: 1.0,
+    UnitOfMeasurement.DAY: 24.0,
+}
+
+# Durations HAEO reads from sensors, in units it converts to hours
+DURATION_UNITS: Final[tuple[UnitOfMeasurement, ...]] = tuple(_DURATION_TO_HOURS)
 
 ENERGY_UNITS: Final[tuple[UnitOfMeasurement, ...]] = (
     UnitOfMeasurement.WATT_HOUR,
@@ -148,6 +163,9 @@ def _infer_device_class_from_unit(unit: UnitOfMeasurement | None) -> DeviceClass
     }:
         return DeviceClass.ENERGY
 
+    if unit in _DURATION_TO_HOURS:
+        return DeviceClass.DURATION
+
     return None
 
 
@@ -174,6 +192,9 @@ def _scale_factor(
 
     if effective_device_class in {DeviceClass.ENERGY, DeviceClass.ENERGY_STORAGE}:
         return _ENERGY_TO_KWH.get(from_unit, 1.0)
+
+    if effective_device_class == DeviceClass.DURATION:
+        return _DURATION_TO_HOURS.get(from_unit, 1.0)
 
     return 1.0
 

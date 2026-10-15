@@ -42,6 +42,7 @@ from custom_components.haeo.core.model.output_data import OutputData
         ),
         pytest.param([1, 1], 5.0, [0, 0, 0], [2, 2, 2], [0, 0, 0], id="window_longer_than_horizon"),
         pytest.param([1, 1, 1], 0.5, [0, 2, 4, 6], [0, 1, 2, 3], [0.5, 0.5, 0.5, 0], id="window_shorter_than_periods"),
+        pytest.param([1, 1, 1], 0.0, [0, 1, 2, 3], [0, 1, 2, 3], [0, 0, 0, 0], id="zero_window"),
     ],
 )
 def test_window_layout(
@@ -63,6 +64,7 @@ def test_window_layout(
         pytest.param([0, 4, 0, 8], [1, 1, 1], 0.25, [1, 4, 2, 8], id="end_inside_own_period"),
         pytest.param([0, 4, 0, 8], [1, 1, 1], 0.75, [3, 4, 6, 8], id="end_three_quarters_into_own_period"),
         pytest.param([3, 1, 2], [1, 1], 10.0, [3, 2, 2], id="window_past_horizon"),
+        pytest.param([3, 1, 2], [1, 1], 0.0, [3, 1, 2], id="zero_window"),
     ],
 )
 def test_window_peaks(values: list[float], periods: list[float], window: float, expected: list[float]) -> None:
