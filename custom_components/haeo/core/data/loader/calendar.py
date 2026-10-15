@@ -17,7 +17,10 @@ from datetime import datetime, tzinfo
 import re
 from typing import TYPE_CHECKING, Final, TypedDict
 
+from custom_components.haeo.core.data.util.field_units import to_field_unit
+
 if TYPE_CHECKING:
+    from custom_components.haeo.core.model.const import OutputType
     from custom_components.haeo.core.state import EntityState
 
 # State attribute carrying fetched events, injected by the HA-level calendar loader
@@ -117,6 +120,30 @@ def event_quantity(event: CalendarEventData) -> tuple[float, str | None] | None:
         if text and (quantity := parse_quantity(text)) is not None:
             return quantity
     return None
+
+
+def event_value(event: CalendarEventData, output_type: OutputType) -> float | None:
+    """Return an event's value in an input's unit, or None when it has no number or one the input cannot use."""
+    quantity = event_quantity(event)
+    return None if quantity is None else to_field_unit(*quantity, output_type)
+
+
+def rejected_events(events: Sequence[CalendarEventData], output_type: OutputType) -> list[CalendarEventData]:
+    """Return the events holding a number an input cannot use, such as one without a unit.
+
+    Inputs ignore these events' values rather than failing, so one mistyped
+    event does not stop the rest of the calendar from loading.
+    """
+    return [event for event in events if event_quantity(event) is not None and event_value(event, output_type) is None]
+
+
+def format_event_quantity(event: CalendarEventData) -> str:
+    """Return an event's number and unit as typed, for messages about it."""
+    quantity = event_quantity(event)
+    if quantity is None:
+        return ""
+    value, unit = quantity
+    return f"{value:g}" if unit is None else f"{value:g} {unit}"
 
 
 def _default_local_timezone() -> tzinfo:

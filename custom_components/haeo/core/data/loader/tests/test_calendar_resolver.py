@@ -7,7 +7,6 @@ import pytest
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.data.loader.calendar_resolver import resolve_calendar
-from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, CalendarProjection
 
@@ -117,21 +116,23 @@ def test_due_values_convert_to_the_input_unit(location: str, output_type: Output
 
 
 @pytest.mark.parametrize(
-    ("location", "output_type", "translation_key"),
+    ("location", "output_type"),
     [
-        pytest.param("50", OutputType.ENERGY, "input_unit_missing", id="bare_number"),
-        pytest.param("5 kW", OutputType.ENERGY, "input_unit_incompatible", id="unit_does_not_convert"),
-        pytest.param("3 kWh", OutputType.AVAILABILITY, "input_unit_unexpected", id="unit_for_unitless_input"),
+        pytest.param("50", OutputType.ENERGY, id="bare_number"),
+        pytest.param("5 kW", OutputType.ENERGY, id="unit_does_not_convert"),
+        pytest.param("3 kWh", OutputType.AVAILABILITY, id="unit_for_unitless_input"),
     ],
 )
-def test_due_values_that_do_not_convert_are_rejected(
-    location: str, output_type: OutputType, translation_key: str
-) -> None:
-    """A value without the input's unit, or in a unit that does not convert, is rejected rather than guessed."""
-    with pytest.raises(InputError) as err:
-        _resolve([_event(0, 1, location=location)], "window_due", output_type)
+def test_due_values_the_input_cannot_use_are_ignored(location: str, output_type: OutputType) -> None:
+    """An event whose value the input cannot use is still a window, due nothing, beside events that load."""
+    events = [
+        _event(0, 1, location=location),
+        _event(2, 3, location="2 kWh" if output_type == OutputType.ENERGY else "2"),
+    ]
 
-    assert err.value.translation_key == translation_key
+    due = _resolve(events, "window_due", output_type)
+
+    assert due == pytest.approx([0.0, 0.0, 0.0, 2.0, 0.0])
 
 
 def test_windows_ignore_event_values() -> None:

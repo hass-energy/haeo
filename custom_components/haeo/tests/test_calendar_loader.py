@@ -10,12 +10,14 @@ from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.entity_component import EntityComponent
 import numpy as np
 import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.calendar_loader import CalendarInputLoader, CalendarStateMachine
+from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.model.const import OutputType
@@ -189,7 +191,7 @@ async def test_loader_fetches_events_and_loads_store(hass: HomeAssistant, horizo
         ],
     )
     store = _calendar_store()
-    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
 
     loader.start()
     await hass.async_block_till_done()
@@ -205,7 +207,7 @@ async def test_loader_without_calendar_component_leaves_store_unavailable(
 ) -> None:
     """Without the calendar integration the store cannot load."""
     store = _calendar_store()
-    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
 
     loader.start()
     await hass.async_block_till_done()
@@ -218,7 +220,7 @@ async def test_loader_reloads_on_calendar_state_change(hass: HomeAssistant, hori
     """A calendar entity state change triggers a reload."""
     await _add_stub_calendar(hass, [])
     store = _calendar_store()
-    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
     loader.start()
     await hass.async_block_till_done()
     np.testing.assert_allclose(_presence(store), [0.0, 0.0])
@@ -242,7 +244,7 @@ async def test_loader_reloads_on_calendar_state_change(hass: HomeAssistant, hori
 
 async def test_loader_without_calendar_stores_is_inert(hass: HomeAssistant, horizon_manager: Mock) -> None:
     """A store map without calendar stores subscribes to nothing."""
-    loader = CalendarInputLoader(hass, {}, horizon_manager)
+    loader = CalendarInputLoader(hass, "entry_id", {}, horizon_manager)
 
     loader.start()
     await hass.async_block_till_done()
@@ -259,7 +261,7 @@ async def test_loader_failed_reload_makes_store_unavailable_and_notifies(
     store = _calendar_store()
     listener = Mock()
     store.add_listener(listener)
-    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
     loader.start()
     await hass.async_block_till_done()
     listener.reset_mock()
@@ -278,7 +280,7 @@ async def test_loader_initial_fetch_failure_leaves_store_not_ready(hass: HomeAss
     calendar = await _add_stub_calendar(hass, [_trip(0.0, 3600.0)])
     calendar.fail = True
     store = _calendar_store()
-    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
 
     loader.start()
     await hass.async_block_till_done()
@@ -306,7 +308,7 @@ async def test_loader_replays_events_a_captured_state_carries(hass: HomeAssistan
         },
     )
     store = _calendar_store()
-    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_presence")): store}, horizon_manager)
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_presence")): store}, horizon_manager)
 
     loader.start()
     await hass.async_block_till_done()
@@ -328,6 +330,7 @@ async def test_loader_reloads_all_stores_before_listeners_run(hass: HomeAssistan
     trips.add_listener(lambda: observed.append(loads.value))
     loader = CalendarInputLoader(
         hass,
+        "entry_id",
         {("EV", ("trip", "trip_calendar")): trips, ("Load", ("window", "window_calendar")): loads},
         horizon_manager,
     )
@@ -345,7 +348,7 @@ async def test_loader_reloads_on_horizon_change(hass: HomeAssistant, horizon_man
     """The horizon subscription reloads stores against the new boundaries."""
     await _add_stub_calendar(hass, [_trip(3600.0, 7200.0)])
     store = _calendar_store(get_forecast_timestamps=horizon_manager.get_forecast_timestamps)
-    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
     loader.start()
     await hass.async_block_till_done()
     np.testing.assert_allclose(_presence(store), [0.0, 1.0])
@@ -385,7 +388,7 @@ async def test_loader_applies_overlapping_reloads_in_trigger_order(hass: HomeAss
     calendar = _GatedCalendar()
     await _add_stub_calendars(hass, calendar)
     store = _calendar_store()
-    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
     initial_gate = asyncio.Event()
     initial_gate.set()
     calendar.responses.append(([], initial_gate))
@@ -414,7 +417,7 @@ async def test_loader_skips_events_fetched_for_a_previous_horizon(hass: HomeAssi
     calendar = _GatedCalendar()
     await _add_stub_calendars(hass, calendar)
     store = _calendar_store()
-    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
     gate = asyncio.Event()
     calendar.responses.append(([_trip(0.0, 3600.0)], gate))
 
@@ -433,7 +436,7 @@ async def test_cleanup_cancels_running_reloads(hass: HomeAssistant, horizon_mana
     calendar = _GatedCalendar()
     await _add_stub_calendars(hass, calendar)
     store = _calendar_store()
-    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
     gate = asyncio.Event()
     calendar.responses.append(([_trip(0.0, 3600.0)], gate))
     loader.start()
@@ -468,7 +471,7 @@ async def test_loader_sums_a_calendar_with_a_sensor_in_a_forecast_field(
         hint=FieldHint(output_type=OutputType.POWER, time_series=True),
         get_forecast_timestamps=lambda: timestamps,
     )
-    loader = CalendarInputLoader(hass, {("Load", ("forecast", "forecast")): store}, horizon_manager)
+    loader = CalendarInputLoader(hass, "entry_id", {("Load", ("forecast", "forecast")): store}, horizon_manager)
     loader.start()
     await hass.async_block_till_done()
     np.testing.assert_allclose(_presence(store), [1.0, 2.0])
@@ -478,4 +481,51 @@ async def test_loader_sums_a_calendar_with_a_sensor_in_a_forecast_field(
     await hass.async_block_till_done()
 
     np.testing.assert_allclose(_presence(store), [5.0, 2.0])
+    loader.cleanup()
+
+
+def _forecast_store() -> InputStore:
+    """Build a store for a power forecast field reading the calendar."""
+    return create_input_store(
+        storage=_MemStorage({"type": "entity", "value": [ENTITY_ID]}),
+        hint=FieldHint(output_type=OutputType.POWER, time_series=True),
+        get_forecast_timestamps=lambda: FORECAST_TIMESTAMPS,
+    )
+
+
+ISSUE_ID = "calendar_event_values_entry_id_Load_forecast.forecast"
+
+
+async def test_loader_raises_a_repair_for_event_values_an_input_ignores(
+    hass: HomeAssistant, horizon_manager: Mock
+) -> None:
+    """An event whose value the input cannot use is ignored, raising a repair issue that clears once it is fixed."""
+    calendar = await _add_stub_calendar(hass, [_demand(0.0, 3600.0, "2"), _demand(3600.0, 7200.0, "3 kW")])
+    store = _forecast_store()
+    loader = CalendarInputLoader(hass, "entry_id", {("Load", ("forecast", "forecast")): store}, horizon_manager)
+    loader.start()
+    await hass.async_block_till_done()
+
+    assert store.available
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_ID)
+    assert issue is not None
+    assert issue.translation_placeholders is not None
+    assert "2" in issue.translation_placeholders["events"]
+    assert issue.translation_placeholders["expected"] == "kW"
+
+    calendar._events = [_demand(0.0, 3600.0, "2 kW")]
+    await loader.async_load_all()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_ID) is None
+    loader.cleanup()
+
+
+async def test_loader_raises_no_repair_for_window_flags(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """Window flags do not read event values, so an unusable value raises no repair issue for them."""
+    await _add_stub_calendar(hass, [_demand(0.0, 3600.0, "2")])
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_away")): _calendar_store()}, horizon_manager)
+    loader.start()
+    await hass.async_block_till_done()
+
+    assert not [issue_id for domain, issue_id in ir.async_get(hass).issues if domain == DOMAIN]
     loader.cleanup()

@@ -12,8 +12,7 @@ import numpy as np
 
 from custom_components.haeo.core.adapters.registry import is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
-from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
+from custom_components.haeo.core.data.util.forecast_combiner import fuse_sensor_payloads, split_sensor_payloads
 from custom_components.haeo.core.data.util.input_values import enforce_non_negative
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import SchemaValue
@@ -384,14 +383,12 @@ def _resolve_entities(
     if not payloads:
         return None
 
-    present_value, forecast_series = combine_sensor_payloads(payloads)
+    present_value, forecast_series = split_sensor_payloads(payloads)
 
     if not hint.time_series:
         raw = [present_value if present_value is not None else 0.0]
-    elif hint.boundaries:
-        raw = fuse_to_boundaries(present_value, forecast_series, list(forecast_times))
     else:
-        raw = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
+        raw = fuse_sensor_payloads(present_value, forecast_series, list(forecast_times), boundaries=hint.boundaries)
 
     values = np.array(raw, dtype=np.float64)
     if _is_non_negative_field(hint):

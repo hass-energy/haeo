@@ -115,7 +115,8 @@ HAEO combines them automatically.
 **How combining works**:
 
 - Present values **sum together**
-- Forecast series **merge on shared timestamps and sum**
+- Forecast series **merge on shared timestamps and sum**, then repeat together if they end before the horizon does
+- A forecast that already covers the whole horizon, such as a [calendar](#calendars-as-forecasts), adds on its own, so it never stops the others from repeating
 - Result: combined present value + combined forecast series
 
 **Example scenarios**:
@@ -339,8 +340,11 @@ A calendar combined with sensors adds to them like any other forecast.
 
 An event's value is a number followed by its unit, such as `5 kW`, `500 W`, `0.30 $/kWh`, or `120 €/MWh`.
 HAEO reads it from the event's location, summary, or description, whichever holds a number first, and converts it to the field's unit as it would a sensor reading.
-A number without a unit, or in a unit that does not convert to the field's unit, makes the field unavailable with an error naming the value, rather than being guessed.
 An event without a number counts as zero.
+
+A number without a unit, or in a unit that does not convert to the field's unit, is never guessed.
+HAEO ignores that event's value, so one mistyped event does not stop the rest of the calendar from loading, and raises a repair issue listing the events to fix.
+The issue clears once every event's value can be used.
 
 **Example**: A demand charge of 0.30 \$/kWh on weekday evenings.
 Create a recurring event from 4 pm to 9 pm with `0.30 $/kWh` in its description, then add the calendar to the grid's import price next to the price sensor.

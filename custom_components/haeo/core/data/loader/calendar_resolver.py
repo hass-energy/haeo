@@ -15,7 +15,7 @@ import numpy as np
 
 from custom_components.haeo.core.data.loader.calendar import (
     CalendarWindow,
-    event_quantity,
+    event_value,
     extract_calendar_windows,
     load_calendar_events,
 )
@@ -24,29 +24,15 @@ from custom_components.haeo.core.data.util.calendar_fuser import (
     fuse_window_edges_to_boundaries,
     fuse_windows_to_boundaries,
 )
-from custom_components.haeo.core.data.util.field_units import to_field_unit
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from numpy.typing import NDArray
 
-    from custom_components.haeo.core.data.loader.calendar import CalendarEventData
     from custom_components.haeo.core.model.const import OutputType
     from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
     from custom_components.haeo.core.state import StateMachine
-
-
-def _event_value(event: CalendarEventData, output_type: OutputType) -> float:
-    """Return an event's value in the input's unit, or 0.0 when its text holds no number.
-
-    An event's window is meaningful on its own (the vehicle is away), so an
-    event without a number still covers its periods and is due nothing.
-    """
-    quantity = event_quantity(event)
-    if quantity is None:
-        return 0.0
-    return to_field_unit(*quantity, output_type)
 
 
 def _fused(values: list[float | None]) -> NDArray[np.float64]:
@@ -107,10 +93,7 @@ def resolve_calendar(
     events, so the input reads as not loaded. A calendar with no events in
     the horizon resolves to all zeros. Only the due projection reads event
     values, each converted from the unit typed with it to the input's unit.
-
-    Raises:
-        InputError: If an event's value cannot convert to the input's unit.
-
+    An event whose value the input cannot use is still a window, due nothing.
     """
     events = load_calendar_events(sm.get(entity_id))
     if events is None:
@@ -119,7 +102,7 @@ def resolve_calendar(
 
     counted = extract_calendar_windows(events, lambda _event: 1.0)
     valued = (
-        extract_calendar_windows(events, lambda event: _event_value(event, output_type))
+        extract_calendar_windows(events, lambda event: event_value(event, output_type) or 0.0)
         if hint.projection == "window_due"
         else [CalendarWindow(start=w.start, end=w.end, value=0.0) for w in counted]
     )

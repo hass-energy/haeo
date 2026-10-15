@@ -74,18 +74,13 @@ def test_load_element_config_uses_present_value_for_scalar_entities(monkeypatch:
     )
     monkeypatch.setattr(
         cl,
-        "combine_sensor_payloads",
-        lambda _payloads: (75.0, ((0.0, 74.0),)),
+        "split_sensor_payloads",
+        lambda _payloads: (75.0, [[(0.0, 74.0)]]),
     )
     monkeypatch.setattr(
         cl,
-        "fuse_to_boundaries",
-        lambda *_args, **_kwargs: pytest.fail("fuse_to_boundaries should not run for scalar fields"),
-    )
-    monkeypatch.setattr(
-        cl,
-        "fuse_to_intervals",
-        lambda *_args, **_kwargs: pytest.fail("fuse_to_intervals should not run for scalar fields"),
+        "fuse_sensor_payloads",
+        lambda *_args, **_kwargs: pytest.fail("fuse_sensor_payloads should not run for scalar fields"),
     )
 
     loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
@@ -108,12 +103,12 @@ def test_load_element_config_unwraps_entity_wrappers_for_time_series(monkeypatch
     )
     monkeypatch.setattr(
         cl,
-        "combine_sensor_payloads",
-        lambda _payloads: (13.5, ((0.0, 13.5),)),
+        "split_sensor_payloads",
+        lambda _payloads: (13.5, [[(0.0, 13.5)]]),
     )
     monkeypatch.setattr(
         cl,
-        "fuse_to_boundaries",
+        "fuse_sensor_payloads",
         lambda *_args, **_kwargs: [13.5, 13.4, 13.3],
     )
 

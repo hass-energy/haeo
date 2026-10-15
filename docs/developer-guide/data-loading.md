@@ -183,10 +183,10 @@ The calendar input loader fetches each calendar's events over the horizon and in
 Input stores capture their source states through the same injecting state machine, so diagnostics hold the events and replay loads them without a calendar to fetch from.
 A calendar without injected events reads as unavailable rather than as its plain state.
 
-Each event's value is a number typed with its unit, converted to base units like a sensor reading, so the extractor reports the base unit and the field's unit check applies to it as to any source.
-A bare number raises an `InputError` rather than being taken as base units, as do events whose units convert to different base units.
-The extracted series is a step function padded with zeros well before and after the events.
-A forecast shorter than the horizon repeats daily to fill it, and the padding keeps a calendar's events from repeating.
+Each event's value is a number typed with its unit.
+`extract()` takes the input's output type, and the calendar extractor converts each event's value to the input's unit with `to_field_unit()`.
+An event whose value the input cannot use, such as a bare number, is ignored, and the calendar input loader raises a repair issue listing those events, so one mistyped event never makes the input unavailable.
+The extracted series is a step function padded with zeros well before and after the events, so it covers the horizon: a calendar is zero outside its events rather than repeating, and it fuses on its own beside other forecasts.
 
 ### Parser Design
 
@@ -224,13 +224,17 @@ This matches physical reality: two solar arrays produce combined power, multiple
 
 ### Timestamp Alignment
 
-When combining forecast series with different timestamps, the system:
+`fuse_sensor_payloads()` splits forecasts by whether they cover the whole horizon.
+Forecasts covering only part of it merge first:
 
-1. Creates a union of all timestamps from all sensors
-2. Interpolates each sensor's values to this common timestamp set
+1. Creates a union of all timestamps from the partial forecasts
+2. Interpolates each forecast's values to this common timestamp set, zero outside its own range
 3. Sums interpolated values at each timestamp
 
-This ensures no information loss when sensors report forecasts at different intervals (e.g., 30-minute vs hourly).
+The merged forecast then fuses to the horizon, repeating if it ends early, so forecasts for consecutive windows (today and tomorrow) join before they repeat.
+Each forecast covering the whole horizon fuses on its own and adds to the result.
+Merging one into the partial forecasts would make the merged forecast cover the horizon too, stopping the partial ones from repeating.
+A forecast with no points, such as a calendar without events, adds nothing.
 
 ### Mixed Payloads
 

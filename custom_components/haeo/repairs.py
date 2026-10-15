@@ -269,3 +269,43 @@ def create_invalid_config_issue(
         element_name,
         config_problem,
     )
+
+
+def _calendar_event_values_issue_id(entry_id: str, element_name: str, field_path: Sequence[str]) -> str:
+    return f"calendar_event_values_{entry_id}_{element_name}_{'.'.join(field_path)}"
+
+
+def create_calendar_event_values_issue(
+    hass: HomeAssistant,
+    entry_id: str,
+    element_name: str,
+    field_path: Sequence[str],
+    *,
+    calendars: Sequence[str],
+    events: Sequence[str],
+    expected: str,
+) -> None:
+    """Create a repair issue for calendar events whose values an input ignores."""
+    async_create_issue(
+        hass,
+        DOMAIN,
+        _calendar_event_values_issue_id(entry_id, element_name, field_path),
+        is_fixable=False,
+        is_persistent=False,
+        severity=IssueSeverity.WARNING,
+        translation_key="calendar_event_values_ignored",
+        translation_placeholders={
+            "element": element_name,
+            "field": ".".join(field_path),
+            "calendars": ", ".join(calendars),
+            "events": "\n".join(f"- {event}" for event in events),
+            "expected": expected,
+        },
+    )
+
+
+def dismiss_calendar_event_values_issue(
+    hass: HomeAssistant, entry_id: str, element_name: str, field_path: Sequence[str]
+) -> None:
+    """Dismiss the repair issue for an input's calendar events, if raised."""
+    async_delete_issue(hass, DOMAIN, _calendar_event_values_issue_id(entry_id, element_name, field_path))

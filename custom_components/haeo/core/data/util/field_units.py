@@ -44,33 +44,26 @@ def check_source_unit(base_unit: str | None, output_type: OutputType) -> None:
         )
 
 
-def to_field_unit(value: float, unit: str | None, output_type: OutputType) -> float:
+def field_unit_label(output_type: OutputType) -> str | None:
+    """Return how to name an input field's unit to a user, or None when it has none."""
+    return _FIELD_UNITS[output_type][1] if output_type in _FIELD_UNITS else None
+
+
+def to_field_unit(value: float, unit: str | None, output_type: OutputType) -> float | None:
     """Convert a value typed with a unit, such as in a calendar event, to the field's unit.
 
     A field with a unit needs the value to state a convertible unit; a bare
     number is never taken to be in HAEO's own units. A field without a unit
-    takes a bare number.
-
-    Raises:
-        InputError: If the value has no unit where the field needs one, has a
-            unit where the field has none, or has a unit that does not convert.
-
+    takes a bare number. Returns None for a value the field cannot use.
     """
     if output_type not in _FIELD_UNITS:
-        if unit is not None:
-            raise InputError(
-                translation_key="input_unit_unexpected",
-                translation_placeholders={"value": f"{value:g} {unit}"},
-            )
-        return value
+        return value if unit is None else None
     if unit is None:
-        raise InputError(
-            translation_key="input_unit_missing",
-            translation_placeholders={"value": f"{value:g}", "expected": _FIELD_UNITS[output_type][1]},
-        )
+        return None
     factor, base_unit, _ = base_unit_conversion(unit, None)
-    check_source_unit(str(base_unit), output_type)
+    if not matches_unit_spec(str(base_unit), _FIELD_UNITS[output_type][0]):
+        return None
     return value * factor
 
 
-__all__ = ["check_source_unit", "has_field_unit", "to_field_unit"]
+__all__ = ["check_source_unit", "field_unit_label", "has_field_unit", "to_field_unit"]

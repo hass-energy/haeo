@@ -2,7 +2,12 @@
 
 import pytest
 
-from custom_components.haeo.core.data.util.field_units import check_source_unit, has_field_unit, to_field_unit
+from custom_components.haeo.core.data.util.field_units import (
+    check_source_unit,
+    field_unit_label,
+    has_field_unit,
+    to_field_unit,
+)
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model.const import OutputType
 
@@ -69,18 +74,20 @@ def test_to_field_unit_converts(value: float, unit: str | None, output_type: Out
 
 
 @pytest.mark.parametrize(
-    ("unit", "output_type", "translation_key"),
+    ("unit", "output_type"),
     [
-        pytest.param(None, OutputType.POWER, "input_unit_missing", id="bare_number"),
-        pytest.param("kWh", OutputType.POWER, "input_unit_incompatible", id="wrong_kind"),
-        pytest.param("kW", OutputType.AVAILABILITY, "input_unit_unexpected", id="unit_without_field_unit"),
+        pytest.param(None, OutputType.POWER, id="bare_number"),
+        pytest.param("kWh", OutputType.POWER, id="wrong_kind"),
+        pytest.param("furlongs", OutputType.POWER, id="unknown_unit"),
+        pytest.param("kW", OutputType.AVAILABILITY, id="unit_without_field_unit"),
     ],
 )
-def test_to_field_unit_rejects_values_it_cannot_convert(
-    unit: str | None, output_type: OutputType, translation_key: str
-) -> None:
+def test_to_field_unit_rejects_values_it_cannot_convert(unit: str | None, output_type: OutputType) -> None:
     """A bare number is never taken to be in HAEO's units, and a unit must convert to the field's."""
-    with pytest.raises(InputError) as err:
-        to_field_unit(5.0, unit, output_type)
+    assert to_field_unit(5.0, unit, output_type) is None
 
-    assert err.value.translation_key == translation_key
+
+def test_field_unit_label() -> None:
+    """A field's unit is named to users, and a field without one has no label."""
+    assert field_unit_label(OutputType.POWER) == "kW"
+    assert field_unit_label(OutputType.AVAILABILITY) is None

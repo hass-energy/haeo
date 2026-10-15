@@ -391,7 +391,7 @@ def test_entity_percent_time_series_converts(monkeypatch: pytest.MonkeyPatch) ->
         return {"sensor.cap": 10.0}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
-    monkeypatch.setattr(cl, "fuse_to_boundaries", lambda *_a, **_kw: [50.0, 60.0, 70.0, 80.0])
+    monkeypatch.setattr(cl, "fuse_sensor_payloads", lambda *_a, **_kw: [50.0, 60.0, 70.0, 80.0])
 
     config = _battery_config()
     _dict(config["storage"])["capacity"] = {"type": "constant", "value": 10.0}

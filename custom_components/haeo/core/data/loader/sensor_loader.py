@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from typing import TypeGuard
 
 from custom_components.haeo.core.data.util.field_units import check_source_unit
-from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.state import StateMachine
 
@@ -67,9 +66,7 @@ def load_sensor(sm: StateMachine, entity_id: str, *, output_type: OutputType | N
         return None
 
     try:
-        extracted = extract(state)
-    except InputError:
-        raise
+        extracted = extract(state, output_type=output_type)
     except ValueError:
         return None
     if output_type is not None:

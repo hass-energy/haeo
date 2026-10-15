@@ -27,9 +27,14 @@ from custom_components.haeo.core.data.loader.calendar import (
     CALENDAR_EVENTS_ATTRIBUTE,
     CalendarEventData,
     capture_calendar_events,
+    format_event_quantity,
+    load_calendar_events,
+    rejected_events,
 )
+from custom_components.haeo.core.data.util.field_units import field_unit_label
 from custom_components.haeo.core.state import EntityState, StateMachine
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
+from custom_components.haeo.repairs import create_calendar_event_values_issue, dismiss_calendar_event_values_issue
 
 if TYPE_CHECKING:
     from homeassistant.core import Event
@@ -38,7 +43,7 @@ if TYPE_CHECKING:
     from custom_components.haeo.core.data.input_store import InputStore
     from custom_components.haeo.core.data.loader.calendar import CalendarEventDict
     from custom_components.haeo.horizon import HorizonManager
-    from custom_components.haeo.input_stores import InputStoreMap
+    from custom_components.haeo.input_stores import InputStoreKey, InputStoreMap
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -123,11 +128,17 @@ class CalendarInputLoader:
     events when another source of such an input changes.
     """
 
-    def __init__(self, hass: HomeAssistant, stores: InputStoreMap, horizon_manager: HorizonManager) -> None:
+    def __init__(
+        self, hass: HomeAssistant, entry_id: str, stores: InputStoreMap, horizon_manager: HorizonManager
+    ) -> None:
         """Initialize the loader over a prebuilt store map."""
         self._hass = hass
+        self._entry_id = entry_id
         self._horizon_manager = horizon_manager
-        self._stores: list[InputStore] = [store for store in stores.values() if is_calendar_driven(store)]
+        self._keyed_stores: dict[InputStoreKey, InputStore] = {
+            key: store for key, store in stores.items() if is_calendar_driven(store)
+        }
+        self._stores: list[InputStore] = list(self._keyed_stores.values())
         self._calendars = sorted(
             {eid for store in self._stores for eid in store.source_entity_ids if is_calendar_entity(eid)}
         )
@@ -223,6 +234,36 @@ class CalendarInputLoader:
         ]
         for store in changed:
             store.notify_listeners()
+        self._report_ignored_event_values(sm)
+
+    def _report_ignored_event_values(self, sm: StateMachine) -> None:
+        """Raise a repair issue for each input ignoring calendar events whose values it cannot use.
+
+        Window flags do not read event values, so only inputs that do, a
+        forecast or a window's due value, can ignore one.
+        """
+        for (element_name, field_path), store in self._keyed_stores.items():
+            hint = store.hint
+            if hint.calendar is not None and hint.calendar.projection != "window_due":
+                continue
+            calendars = [eid for eid in store.source_entity_ids if is_calendar_entity(eid)]
+            ignored = [
+                f"{event.summary or 'Event'} at {event.start.isoformat()}: {format_event_quantity(event)}"
+                for eid in calendars
+                for event in rejected_events(load_calendar_events(sm.get(eid)) or [], hint.output_type)
+            ]
+            if not ignored:
+                dismiss_calendar_event_values_issue(self._hass, self._entry_id, element_name, field_path)
+                continue
+            create_calendar_event_values_issue(
+                self._hass,
+                self._entry_id,
+                element_name,
+                field_path,
+                calendars=calendars,
+                events=ignored,
+                expected=field_unit_label(hint.output_type) or "plain numbers",
+            )
 
     async def _async_fetch_events(self, entity_id: str) -> list[CalendarEventDict] | None:
         """Fetch the calendar's events over the current horizon, or None when it cannot be queried."""

@@ -8,7 +8,7 @@ from conftest import FakeEntityState
 from custom_components.haeo.core.data.loader import extractors
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.data.loader.extractors.calendar_events import Parser
-from custom_components.haeo.core.data.util.input_values import InputError
+from custom_components.haeo.core.model.const import OutputType
 
 ENTITY_ID = "calendar.demand"
 
@@ -82,9 +82,9 @@ def test_extract_reads_events_as_a_step_forecast() -> None:
         pytest.param([_event(0, 1, "Holiday")], id="events_without_values"),
     ],
 )
-def test_calendar_without_values_reads_as_zero(events: list[dict[str, str | None]]) -> None:
-    """A calendar whose events hold no number reads as zero throughout."""
-    assert extractors.extract(_state(events)).data == 0.0
+def test_calendar_without_values_is_a_forecast_with_no_points(events: list[dict[str, str | None]]) -> None:
+    """A calendar whose events hold no number is a forecast with no points, not a present value of zero."""
+    assert extractors.extract(_state(events)).data == []
 
 
 @pytest.mark.parametrize(
@@ -105,19 +105,26 @@ def test_event_values_convert_to_base_units(summary: str, expected: tuple[float,
     assert unit == expected[1]
 
 
-@pytest.mark.parametrize(
-    ("summaries", "translation_key"),
-    [
-        pytest.param(["0.5"], "calendar_value_without_unit", id="bare_number"),
-        pytest.param(["1 kW", "1 kWh"], "calendar_mixed_units", id="mixed_units"),
-    ],
-)
-def test_event_values_that_cannot_be_read_are_rejected(summaries: list[str], translation_key: str) -> None:
-    """A bare number is not taken to be in base units, and events in different kinds of unit cannot sum."""
-    with pytest.raises(InputError) as err:
-        Parser.extract(_state([_event(i, i + 1, summary) for i, summary in enumerate(summaries)]))
+def test_events_the_input_cannot_use_are_ignored() -> None:
+    """Read against an input's unit, events whose values it cannot use are ignored rather than failing the input."""
+    state = _state([_event(0, 1, "0.5"), _event(1, 2, "1 kWh"), _event(2, 3, "2000 W")])
 
-    assert err.value.translation_key == translation_key
+    data, unit, _ = Parser.extract(state, OutputType.POWER)
+
+    assert isinstance(data, list)
+    assert [value for _, value in data[1:-1]] == [0.0, 2.0, 2.0, 0.0]
+    assert unit is None
+
+
+def test_without_an_input_events_keep_the_first_events_base_unit() -> None:
+    """Read without an input, bare numbers and events in another kind of unit are left out."""
+    state = _state([_event(0, 1, "0.5"), _event(1, 2, "1 kW"), _event(2, 3, "1 kWh")])
+
+    data, unit, _ = Parser.extract(state)
+
+    assert isinstance(data, list)
+    assert [value for _, value in data[1:-1]] == [0.0, 1.0, 1.0, 0.0]
+    assert unit == "kW"
 
 
 def test_calendar_without_injected_events_is_not_detected() -> None:
