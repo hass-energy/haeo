@@ -427,6 +427,7 @@ def _draining_battery_config(discharge_efficiency: float) -> BatteryConfigData:
             "efficiency_source_target": np.array([discharge_efficiency]),
             "efficiency_target_source": np.array([1.0]),
         },
+        advanced={"charge_limit_cost": 100.0},
     )
 
 

@@ -30,6 +30,7 @@ ELEMENT_TYPE = ElementType.BATTERY
 
 SECTION_STORAGE: Final = "storage"
 SECTION_LIMITS: Final = "limits"
+SECTION_ADVANCED: Final = "advanced"
 
 CONF_CAPACITY: Final = "capacity"
 CONF_INITIAL_CHARGE_PERCENTAGE: Final = "initial_charge_percentage"
@@ -38,6 +39,7 @@ CONF_MIN_CHARGE_PERCENTAGE: Final = "min_charge_percentage"
 CONF_MAX_CHARGE_PERCENTAGE: Final = "max_charge_percentage"
 
 CONF_SALVAGE_VALUE: Final = "salvage_value"
+CONF_CHARGE_LIMIT_COST: Final = "charge_limit_cost"
 
 CONF_CHARGE_COST: Final = "charge_cost"
 CONF_DISCHARGE_COST: Final = "discharge_cost"
@@ -101,6 +103,18 @@ class LimitsData(TypedDict, total=False):
 
     min_charge_percentage: NDArray[np.float64] | float
     max_charge_percentage: NDArray[np.float64] | float
+
+
+class BatteryAdvancedConfig(TypedDict):
+    """Advanced battery configuration values."""
+
+    charge_limit_cost: EntityValue | ConstantValue
+
+
+class BatteryAdvancedData(TypedDict):
+    """Loaded advanced battery values."""
+
+    charge_limit_cost: NDArray[np.float64] | float
 
 
 class BatteryPricingConfig(TypedDict, total=False):
@@ -208,6 +222,20 @@ class BatteryConfigSchema(ConnectedCommonConfig):
             }
         ),
     ]
+    advanced: Annotated[
+        BatteryAdvancedConfig,
+        SectionHints(
+            {
+                CONF_CHARGE_LIMIT_COST: FieldHint(
+                    output_type=OutputType.PRICE_RATE,
+                    direction="-",
+                    time_series=True,
+                    default_mode="value",
+                    default_value=100.0,
+                ),
+            }
+        ),
+    ]
 
 
 class BatteryConfigData(ConnectedCommonData):
@@ -219,6 +247,7 @@ class BatteryConfigData(ConnectedCommonData):
     power_limits: PowerLimitsData
     pricing: BatteryPricingData
     efficiency: EfficiencyData
+    advanced: BatteryAdvancedData
 
 
 def is_battery_config_data(config: object) -> TypeGuard[BatteryConfigData]:
@@ -228,6 +257,7 @@ def is_battery_config_data(config: object) -> TypeGuard[BatteryConfigData]:
 
 __all__ = [
     "CONF_CAPACITY",
+    "CONF_CHARGE_LIMIT_COST",
     "CONF_CONNECTION",
     "CONF_EFFICIENCY_SOURCE_TARGET",
     "CONF_EFFICIENCY_TARGET_SOURCE",
@@ -239,6 +269,7 @@ __all__ = [
     "CONF_SALVAGE_VALUE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
+    "SECTION_ADVANCED",
     "SECTION_EFFICIENCY",
     "SECTION_LIMITS",
     "SECTION_POWER_LIMITS",

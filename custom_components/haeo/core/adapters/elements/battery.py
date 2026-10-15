@@ -18,6 +18,7 @@ from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -25,6 +26,7 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
     ELEMENT_TYPE,
+    SECTION_ADVANCED,
     SECTION_LIMITS,
     SECTION_STORAGE,
     BatteryConfigData,
@@ -103,6 +105,7 @@ class BatteryAdapter:
             "capacity": capacity,
             "initial_charge": initial_charge,
             "salvage_value": config[SECTION_PRICING].get(CONF_SALVAGE_VALUE, 0.0),
+            "charge_limit_cost": config[SECTION_ADVANCED][CONF_CHARGE_LIMIT_COST],
         }
         # Unset limits leave the battery free to run from empty to full
         limits = config[SECTION_LIMITS]

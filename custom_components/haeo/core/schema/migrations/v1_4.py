@@ -233,13 +233,16 @@ def migrate_hub_horizon(data: Mapping[str, object]) -> dict[str, object]:
 # so the window does not change what they hold.
 PARTITION_BUFFER_WINDOW = 1.0
 
+# The cost batteries held their min and max charge with before it was configurable
+LEGACY_CHARGE_LIMIT_COST = 100.0
+
 
 @dataclass(frozen=True, slots=True)
-class BatteryPartitionMigration:
-    """A battery config without partitions, and the buffers that replace them.
+class BatteryMigration:
+    """A migrated battery config, and the buffers that replace its partitions.
 
     Attributes:
-        battery: The battery config with its partition sections removed.
+        battery: The battery config without partitions and with its advanced section.
         buffers: Buffer configs holding what the partitions priced.
 
     """
@@ -265,8 +268,11 @@ _PARTITION_SECTIONS: frozenset[str] = frozenset(
 )
 
 
-def migrate_battery_partitions(data: Mapping[str, object], *, existing_names: set[str]) -> BatteryPartitionMigration:
-    """Replace a battery's undercharge and overcharge partitions with buffers.
+def migrate_battery_config(data: Mapping[str, object], *, existing_names: set[str]) -> BatteryMigration:
+    """Replace a battery's partitions with buffers and add the cost of its charge limits.
+
+    The battery's advanced section gets the limit cost its min and max charge
+    were held with before it was configurable.
 
     A partition let the battery go past its limit to the partition percentage,
     charging a holding cost for each kWh stored past the limit. The partition
@@ -310,18 +316,23 @@ def migrate_battery_partitions(data: Mapping[str, object], *, existing_names: se
         )
 
     migrated[battery.SECTION_LIMITS] = limits
-    return BatteryPartitionMigration(migrated, tuple(buffers))
+    migrated[battery.SECTION_ADVANCED] = {
+        battery.CONF_CHARGE_LIMIT_COST: as_constant_value(LEGACY_CHARGE_LIMIT_COST),
+        **_section_dict(data, battery.SECTION_ADVANCED),
+    }
+    return BatteryMigration(migrated, tuple(buffers))
 
 
 __all__ = [
+    "LEGACY_CHARGE_LIMIT_COST",
     "PARTITION_BUFFER_WINDOW",
     "REVERSE_TO_FORWARD",
-    "BatteryPartitionMigration",
+    "BatteryMigration",
     "endpoint_name",
     "endpoints_match_reverse",
     "junction_config",
     "merge_reverse_into_existing",
-    "migrate_battery_partitions",
+    "migrate_battery_config",
     "migrate_connection_config",
     "migrate_hub_horizon",
     "node_is_junction",

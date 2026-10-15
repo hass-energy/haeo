@@ -10,6 +10,7 @@
     "Battery": {
       "name": "Battery",
       "element_type": "battery",
+      "advanced": { "charge_limit_cost": { "type": "constant", "value": 100.0 } },
       "connection": { "type": "connection_target", "value": "Inverter" },
       "efficiency": {
         "efficiency_source_target": { "type": "constant", "value": 98.0 },

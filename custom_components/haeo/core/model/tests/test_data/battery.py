@@ -117,6 +117,7 @@ VALID_CASES: list[ElementTestCase] = [
             "capacity": 10.0,
             "initial_charge": 5.0,
             "min_charge": 2.0,
+            "charge_limit_cost": 100.0,
         },
         "inputs": {
             "power": [-5.0, 0.0],
@@ -141,6 +142,7 @@ VALID_CASES: list[ElementTestCase] = [
             "capacity": 10.0,
             "initial_charge": 5.0,
             "max_charge": 8.0,
+            "charge_limit_cost": 100.0,
         },
         "inputs": {
             "power": [5.0, 0.0],
@@ -165,6 +167,7 @@ VALID_CASES: list[ElementTestCase] = [
             "capacity": 10.0,
             "initial_charge": 6.0,
             "min_charge": 2.0,
+            "charge_limit_cost": 100.0,
         },
         "inputs": {
             "input_cost": 2.0,
@@ -190,6 +193,7 @@ VALID_CASES: list[ElementTestCase] = [
             "capacity": 10.0,
             "initial_charge": 6.0,
             "min_charge": 2.0,
+            "charge_limit_cost": 100.0,
         },
         "inputs": {
             "input_cost": 200.0,
@@ -215,6 +219,7 @@ VALID_CASES: list[ElementTestCase] = [
             "capacity": 10.0,
             "initial_charge": 1.0,
             "min_charge": 2.0,
+            "charge_limit_cost": 100.0,
         },
         "inputs": {
             "input_cost": 1.0,
@@ -239,6 +244,7 @@ VALID_CASES: list[ElementTestCase] = [
             "capacity": 10.0,
             "initial_charge": 9.0,
             "max_charge": 8.0,
+            "charge_limit_cost": 100.0,
         },
         "inputs": {
             "output_cost": 1.0,
@@ -334,6 +340,7 @@ VALID_CASES: list[ElementTestCase] = [
             "capacity": 10.0,
             "initial_charge": 5.0,
             "min_charge": 2.0,
+            "charge_limit_cost": 100.0,
         },
         "inputs": {
             "power": [-8.0, 0.0],
@@ -349,7 +356,46 @@ VALID_CASES: list[ElementTestCase] = [
             "battery_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (50.0, 50.0)},
         },
     },
+    {
+        "description": "Battery below min charge pays the charge limit cost of each period",
+        "factory": Battery,
+        "data": {
+            "name": "battery_below_min_varying_cost",
+            "periods": np.array([1.0] * 2),
+            "capacity": 10.0,
+            "initial_charge": 5.0,
+            "min_charge": 2.0,
+            "charge_limit_cost": np.array([30.0, 10.0]),
+        },
+        "inputs": {
+            "power": [-5.0, 0.0],
+        },
+        "expected_outputs": {
+            "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 0.0, 0.0)},
+            "battery_power_charge": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
+            "battery_power_discharge": {"type": "power", "unit": "kW", "values": (5.0, 0.0)},
+            "element_power_balance": {"type": "shadow_price", "unit": "$/kWh", "values": (40.0, 10.0)},
+            "battery_energy_in_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0)},
+            "battery_energy_out_flow": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0)},
+            "battery_soc_max": {"type": "shadow_price", "unit": "$/kWh", "values": (0.0, 0.0)},
+            "battery_soc_min": {"type": "shadow_price", "unit": "$/kWh", "values": (30.0, 10.0)},
+        },
+    },
 ]
 
-INVALID_CASES: list[ElementTestCase] = []
+INVALID_CASES: list[ElementTestCase] = [
+    {
+        "description": f"Battery with a {limit} and no charge limit cost",
+        "factory": Battery,
+        "data": {
+            "name": f"battery_{limit}_without_cost",
+            "periods": np.array([1.0] * 2),
+            "capacity": 10.0,
+            "initial_charge": 5.0,
+            limit: value,
+        },
+        "expected_error": "needs a charge limit cost",
+    }
+    for limit, value in (("min_charge", 2.0), ("max_charge", 8.0))
+]
 INVALID_MODEL_PARAMS: list[ElementTestCase] = []

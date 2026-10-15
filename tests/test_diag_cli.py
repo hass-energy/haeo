@@ -28,6 +28,7 @@ def _base_battery_config() -> dict[str, object]:
         "power_limits": {},
         "pricing": {},
         "efficiency": {},
+        "advanced": {"charge_limit_cost": {"type": "constant", "value": 100.0}},
     }
 
 
@@ -196,7 +197,7 @@ def test_normalize_participant_config_for_diag_migrates_mixed_config(monkeypatch
     assert len(called) == 1
 
 
-def test_replace_battery_partitions_for_diag() -> None:
+def test_migrate_batteries_for_diag() -> None:
     """Battery partitions become buffers named clear of every participant, and other elements pass through."""
     first = _base_battery_config()
     first["storage"] = {"capacity": as_constant_value(10.0)}
@@ -209,7 +210,7 @@ def test_replace_battery_partitions_for_diag() -> None:
     second["overcharge"] = {"percentage": as_entity_value(["sensor.ceiling"]), "cost": as_constant_value(0.02)}
     grid: dict[str, object] = {"element_type": "grid", "name": "Grid"}
 
-    replaced = diag.replace_battery_partitions_for_diag(
+    replaced = diag.migrate_batteries_for_diag(
         {"Battery": first, "Second": second, "Grid": grid, "Battery reserve": grid}
     )
 

@@ -144,12 +144,14 @@ describe("normalizeSeries", () => {
     expect(output).toHaveLength(1);
     expect(output[0]!.drawType).toBe("line");
     expect(output[0]!.lane).toBe("soc");
+    expect(output[0]!.direction).toBeNull();
+    expect(output[0]!.color).toBe("#22c55e");
   });
 
   it.each([
-    { bound: "lower", color: "#ef4444" },
-    { bound: "upper", color: "#a855f7" },
-  ] as const)("plots a $bound bound buffer state of charge as a threshold", ({ bound, color }) => {
+    { direction: "+", color: "#ef4444" },
+    { direction: "-", color: "#a855f7" },
+  ] as const)("plots a $direction buffer state of charge as a threshold", ({ direction, color }) => {
     const hass = withSingleHubRegistry({
       states: {
         "sensor.backup_buffer_state_of_charge": {
@@ -163,7 +165,7 @@ describe("normalizeSeries", () => {
             output_name: "buffer_state_of_charge",
             element_type: "buffer",
             element_name: "Backup",
-            bound,
+            direction,
             unit_of_measurement: "%",
           },
         },
@@ -172,7 +174,7 @@ describe("normalizeSeries", () => {
     const output = normalizeSeries(hass, testHubConfig);
     expect(output).toHaveLength(1);
     expect(output[0]!.elementType).toBe("buffer");
-    expect(output[0]!.bound).toBe(bound);
+    expect(output[0]!.direction).toBe(direction);
     expect(output[0]!.lane).toBe("soc");
     expect(output[0]!.color).toBe(color);
   });

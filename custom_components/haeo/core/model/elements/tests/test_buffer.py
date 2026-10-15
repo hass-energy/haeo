@@ -111,6 +111,7 @@ def _network(
         "name": "battery",
         "capacity": 10.0,
         "initial_charge": initial_charge,
+        "charge_limit_cost": 100.0,
     }
     if min_charge is not None:
         battery["min_charge"] = min_charge
@@ -291,7 +292,7 @@ def test_buffer_measures_from_its_level_within_the_battery_limits(
     outputs = network.elements["buffer"].outputs()
 
     soc = outputs[BUFFER_STATE_OF_CHARGE]
-    assert soc.bound == ("lower" if kind == "reserve" else "upper")
+    assert soc.direction == ("+" if kind == "reserve" else "-")
     np.testing.assert_allclose(_values(soc), line)
     np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), 0.0, atol=1e-9)
     np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_SHORTFALL]), [0.0, shortfall, shortfall], atol=1e-9)

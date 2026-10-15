@@ -6,7 +6,7 @@ import type {
   LaneType,
   SeriesSourceRole,
 } from "./types";
-import type { ConfigMode, ThresholdBound } from "./types";
+import type { ConfigMode } from "./types";
 import { discoverForecastEntityIds, resolveConfiguredHub } from "./hub-selection";
 
 interface HassEntityState {
@@ -105,17 +105,18 @@ function hashString(value: string): number {
 
 function colorForSeries(
   elementType: ElementType,
-  bound: ThresholdBound | null,
+  outputType: CardOutputType,
+  direction: "+" | "-" | null,
   elementName: string,
   variant: number
 ): string {
-  if (bound === "lower") {
-    const lower = ["#ef4444", "#dc2626", "#f87171", "#b91c1c"];
-    return lower[variant % lower.length] ?? "#ef4444";
+  if (outputType === "state_of_charge" && direction === "+") {
+    const reserve = ["#ef4444", "#dc2626", "#f87171", "#b91c1c"];
+    return reserve[variant % reserve.length] ?? "#ef4444";
   }
-  if (bound === "upper") {
-    const upper = ["#a855f7", "#9333ea", "#c084fc", "#7e22ce"];
-    return upper[variant % upper.length] ?? "#a855f7";
+  if (outputType === "state_of_charge" && direction === "-") {
+    const headroom = ["#a855f7", "#9333ea", "#c084fc", "#7e22ce"];
+    return headroom[variant % headroom.length] ?? "#a855f7";
   }
   if (elementType === "battery") {
     const green = ["#22c55e", "#16a34a", "#15803d", "#4ade80"];
@@ -238,8 +239,6 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
     const configModeRaw = asString(attrs["config_mode"]);
     const configMode: ConfigMode | null =
       configModeRaw === "editable" || configModeRaw === "driven" ? configModeRaw : null;
-    const boundRaw = attrs["bound"];
-    const bound: ThresholdBound | null = boundRaw === "lower" || boundRaw === "upper" ? boundRaw : null;
     const fixed = attrs["fixed"] === true;
     const fieldNameRaw = attrs["field_name"];
     const fieldName = typeof fieldNameRaw === "string" ? fieldNameRaw : null;
@@ -273,7 +272,6 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       outputName,
       outputType,
       configMode,
-      bound,
       fixed,
       direction,
       sourceRole,
@@ -281,7 +279,7 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       lane: inferLane(outputType),
       drawType: inferDrawType(outputType),
       unit,
-      color: colorForSeries(elementType, bound, elementName, variant),
+      color: colorForSeries(elementType, outputType, direction, elementName, variant),
       times,
       values,
     });

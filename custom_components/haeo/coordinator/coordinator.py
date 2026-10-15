@@ -92,7 +92,6 @@ class CoordinatorOutput:
     priority: int | None = None
     fixed: bool = False
     display_precision: int | None = None
-    bound: Literal["lower", "upper"] | None = None
 
 
 DEVICE_CLASS_MAP: dict[OutputType, SensorDeviceClass] = {
@@ -225,7 +224,6 @@ def _build_coordinator_output(
         priority=output_data.priority,
         fixed=output_data.fixed,
         display_precision=output_data.display_precision,
-        bound=output_data.bound,
     )
 
 

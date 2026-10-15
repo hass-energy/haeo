@@ -16,7 +16,6 @@ function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
     direction: "-",
     sourceRole: "output",
     configMode: null,
-    bound: null,
     fixed: false,
     priority: null,
     lane: "power",
@@ -30,24 +29,27 @@ function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
 }
 
 describe("seriesIconPath", () => {
-  it("returns a shield icon for a lower bound state of charge", () => {
+  it.each([
+    { direction: "+", icon: "mdiShieldHalfFull" },
+    { direction: "-", icon: "mdiFormatVerticalAlignTop" },
+  ] as const)("returns the $icon icon for a $direction buffer state of charge", ({ direction, icon }) => {
     const series = makeSeries({
       lane: "soc",
       elementType: "buffer",
-      bound: "lower",
+      direction,
       outputName: "buffer_state_of_charge",
     });
-    expect(seriesIconPath(series)).toBe(mdiIcons["mdiShieldHalfFull"]);
+    expect(seriesIconPath(series)).toBe(mdiIcons[icon]);
   });
 
-  it("returns a ceiling icon for an upper bound state of charge", () => {
+  it("returns a battery icon for a state of charge without a direction", () => {
     const series = makeSeries({
       lane: "soc",
-      elementType: "buffer",
-      bound: "upper",
-      outputName: "buffer_state_of_charge",
+      elementType: "battery",
+      direction: null,
+      outputName: "battery_state_of_charge",
     });
-    expect(seriesIconPath(series)).toBe(mdiIcons["mdiFormatVerticalAlignTop"]);
+    expect(seriesIconPath(series)).toBe(mdiIcons["mdiBatteryMedium"]);
   });
 
   it("returns an import price icon for import price series", () => {

@@ -200,6 +200,7 @@ def test_battery_charge_ceiling_reads_capacity_live(max_charge: float | None, ce
         "name": "battery",
         "capacity": 10.0,
         "initial_charge": 5.0,
+        "charge_limit_cost": 100.0,
     }
     if max_charge is not None:
         config["max_charge"] = max_charge
@@ -224,3 +225,38 @@ def test_battery_charge_ceiling_reads_capacity_live(max_charge: float | None, ce
 
     np.testing.assert_allclose(battery.charge_ceiling, ceiling)
     assert battery.outputs()["battery_energy_stored"].values[-1] == pytest.approx(ceiling)
+
+
+def test_battery_charge_limit_cost_updates_live() -> None:
+    """Lowering the charge limit cost below what discharging earns lets the battery go below its min charge."""
+    network = Network(name="test", periods=np.ones(2))
+    network.add(
+        {
+            "element_type": "battery",
+            "name": "battery",
+            "capacity": 10.0,
+            "initial_charge": 5.0,
+            "min_charge": 2.0,
+            "charge_limit_cost": 100.0,
+        }
+    )
+    network.add({"element_type": "node", "name": "grid", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": "connection",
+            "name": "battery:discharge",
+            "source": "battery",
+            "target": "grid",
+            "tags": {0},
+            "segments": {"pricing": {"segment_type": "pricing", "price": -50.0}},
+        }
+    )
+    network.optimize()
+    battery = network.elements["battery"]
+    assert isinstance(battery, Battery)
+    assert battery.outputs()["battery_energy_stored"].values[-1] == pytest.approx(2.0)
+
+    battery.charge_limit_cost = np.full(2, 10.0)
+    network.optimize()
+
+    assert battery.outputs()["battery_energy_stored"].values[-1] == pytest.approx(0.0)

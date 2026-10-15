@@ -71,6 +71,7 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
     power_limits: dict[str, object] = {}
     pricing: dict[str, object] = {}
     efficiency: dict[str, object] = {}
+    advanced: dict[str, object] = {}
 
     for key, value in flat.items():
         if key in (
@@ -100,8 +101,11 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
             power_limits[key] = to_schema_value(value)
         elif key in ("salvage_value",):
             pricing[key] = to_schema_value(value)
+        elif key == battery.CONF_CHARGE_LIMIT_COST:
+            advanced[key] = to_schema_value(value)
 
     pricing.setdefault("salvage_value", as_constant_value(0.0))
+    advanced.setdefault(battery.CONF_CHARGE_LIMIT_COST, as_constant_value(100.0))
 
     config: dict[str, object] = {
         "element_type": "battery",
@@ -111,6 +115,7 @@ def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
         battery.SECTION_POWER_LIMITS: power_limits,
         battery.SECTION_PRICING: pricing,
         battery.SECTION_EFFICIENCY: efficiency,
+        battery.SECTION_ADVANCED: advanced,
     }
     return config  # type: ignore[return-value]
 
@@ -123,6 +128,7 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
     power_limits: dict[str, object] = {}
     pricing: dict[str, object] = {}
     efficiency: dict[str, object] = {}
+    advanced: dict[str, object] = {}
 
     for key, value in flat.items():
         if key in (
@@ -152,8 +158,11 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
             power_limits[key] = value
         elif key in ("salvage_value",):
             pricing[key] = value
+        elif key == battery.CONF_CHARGE_LIMIT_COST:
+            advanced[key] = value
 
     pricing.setdefault(battery.CONF_SALVAGE_VALUE, 0.0)
+    advanced.setdefault(battery.CONF_CHARGE_LIMIT_COST, 100.0)
 
     config: dict[str, object] = {
         "element_type": "battery",
@@ -163,6 +172,7 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
         battery.SECTION_POWER_LIMITS: power_limits,
         battery.SECTION_PRICING: pricing,
         battery.SECTION_EFFICIENCY: efficiency,
+        battery.SECTION_ADVANCED: advanced,
     }
     return config  # type: ignore[return-value]
 
@@ -394,6 +404,7 @@ def test_model_elements_defaults_salvage_value_when_missing() -> None:
         battery.SECTION_POWER_LIMITS: {},
         battery.SECTION_PRICING: {},
         battery.SECTION_EFFICIENCY: {},
+        battery.SECTION_ADVANCED: {battery.CONF_CHARGE_LIMIT_COST: 100.0},
     }
 
     elements = battery_adapter.model_elements(config_data)
@@ -466,13 +477,14 @@ def test_model_elements_battery_charge_bounds(
     expected_max: list[float] | None,
     expected_initial: float,
 ) -> None:
-    """The model battery spans the full capacity, with min and max charge in kWh only when they are set."""
+    """The model battery spans the full capacity, with min and max charge in kWh only when set, and the limit cost."""
     config_data = _wrap_data(
         {
             "name": "test_battery",
             "connection": "main_bus",
             "capacity": np.array([10.0, 10.0, 10.0]),
             "initial_charge_percentage": initial,
+            "charge_limit_cost": np.array([50.0, 60.0]),
             **limits,
         }
     )
@@ -481,6 +493,8 @@ def test_model_elements_battery_charge_bounds(
     battery_element = next(e for e in elements if e["element_type"] == MODEL_ELEMENT_TYPE_BATTERY)
 
     np.testing.assert_allclose(battery_element["capacity"], [10.0, 10.0, 10.0])
+    assert "charge_limit_cost" in battery_element
+    np.testing.assert_allclose(battery_element["charge_limit_cost"], [50.0, 60.0])
     for key, expected in (("min_charge", expected_min), ("max_charge", expected_max)):
         if expected is None:
             assert key not in battery_element

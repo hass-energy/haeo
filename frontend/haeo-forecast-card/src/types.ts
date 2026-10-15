@@ -35,8 +35,6 @@ export type LaneType = "power" | "price" | "soc" | "shadow" | "other";
 export type DrawType = "step" | "line";
 export type SeriesSourceRole = "output" | "forecast" | "limit";
 export type ConfigMode = "editable" | "driven";
-/** Which side of a threshold line the batteries should stay on: above a lower bound, below an upper bound. */
-export type ThresholdBound = "lower" | "upper";
 
 export interface ForecastSeries {
   key: string;
@@ -49,7 +47,6 @@ export interface ForecastSeries {
   direction: "+" | "-" | null;
   sourceRole: SeriesSourceRole;
   configMode: ConfigMode | null;
-  bound: ThresholdBound | null;
   fixed: boolean;
   priority: number | null;
   lane: LaneType;

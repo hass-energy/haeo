@@ -367,7 +367,7 @@ class Buffer(Element[BufferOutputName]):
             type=OutputType.STATE_OF_CHARGE,
             unit="%",
             values=tuple(ratio.tolist()),
-            bound="lower" if self.kind == "reserve" else "upper",
+            direction="+" if self.kind == "reserve" else "-",
         )
 
 

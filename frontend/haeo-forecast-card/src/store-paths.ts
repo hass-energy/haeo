@@ -145,7 +145,7 @@ export function computeSocPaths(
     key: series.key,
     color: series.color,
     d: linePath(series.times, series.values, xScale, yScaleSoc),
-    // A bounded line is a level the batteries should stay above or below, so it is drawn as a threshold
-    ...(series.bound !== null ? { className: "thresholdLine" } : {}),
+    // A directional line is a level the batteries are held ready to discharge from or charge into, so it is drawn as a threshold
+    ...(series.direction !== null ? { className: "thresholdLine" } : {}),
   }));
 }

@@ -11,6 +11,7 @@ from custom_components.haeo.core.schema import get_connection_target_name, norma
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_CHARGE_COST,
+    CONF_CHARGE_LIMIT_COST,
     CONF_DISCHARGE_COST,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -19,6 +20,7 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
     ELEMENT_TYPE,
+    SECTION_ADVANCED,
     SECTION_LIMITS,
     SECTION_PRICING,
     SECTION_STORAGE,
@@ -80,6 +82,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             power_limits_section((CONF_MAX_POWER_TARGET_SOURCE, CONF_MAX_POWER_SOURCE_TARGET), collapsed=False),
             pricing_section((CONF_SALVAGE_VALUE, CONF_CHARGE_COST, CONF_DISCHARGE_COST), collapsed=False),
             efficiency_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE), collapsed=True),
+            SectionDefinition(key=SECTION_ADVANCED, fields=(CONF_CHARGE_LIMIT_COST,), collapsed=True),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:

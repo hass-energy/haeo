@@ -16,11 +16,6 @@ from custom_components.haeo.core.model.util import broadcast_to_sequence
 # Model element type for batteries
 ELEMENT_TYPE: Final = "battery"
 
-# Holding cost for each kWh outside the min and max charge, per hour. High enough that
-# the optimizer treats the limits as hard, while a battery reported outside them still
-# gives a feasible plan that returns it inside. It is priced per hour so a period costs
-# the same whether it is planned as one long period or later as several short ones.
-CHARGE_LIMIT_PRICE: Final = 100.0
 type BatteryElementTypeName = Literal["battery"]
 
 # Type for battery constraint names (shadow prices exposed as outputs)
@@ -71,6 +66,7 @@ class BatteryElementConfig(TypedDict):
     initial_charge: float
     min_charge: NotRequired[NDArray[np.float64] | float]
     max_charge: NotRequired[NDArray[np.float64] | float]
+    charge_limit_cost: NotRequired[NDArray[np.float64] | float]
     salvage_value: NotRequired[float]
     outbound_tags: NotRequired[set[int] | None]
     inbound_tags: NotRequired[set[int] | None]
@@ -90,6 +86,7 @@ class Battery(NetworkElement[BatteryOutputName]):
     initial_charge: TrackedParam[float] = TrackedParam()
     min_charge: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
     max_charge: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
+    charge_limit_cost: TrackedParam[NDArray[np.float64]] = TrackedParam()
     salvage_value: TrackedParam[float] = TrackedParam()
 
     def __init__(
@@ -102,6 +99,7 @@ class Battery(NetworkElement[BatteryOutputName]):
         initial_charge: float,
         min_charge: NDArray[np.float64] | float | None = None,
         max_charge: NDArray[np.float64] | float | None = None,
+        charge_limit_cost: NDArray[np.float64] | float | None = None,
         salvage_value: float = 0.0,
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
@@ -122,6 +120,12 @@ class Battery(NetworkElement[BatteryOutputName]):
         self.initial_charge = initial_charge
         self.min_charge = broadcast_to_sequence(min_charge, n_periods + 1)
         self.max_charge = broadcast_to_sequence(max_charge, n_periods + 1)
+        if charge_limit_cost is None:
+            if min_charge is not None or max_charge is not None:
+                msg = f"Battery '{name}' needs a charge limit cost to hold its min or max charge"
+                raise ValueError(msg)
+            charge_limit_cost = 0.0
+        self.charge_limit_cost = broadcast_to_sequence(charge_limit_cost, n_periods)
         self.salvage_value = salvage_value
 
         # Create all energy variables (including initial state at t=0)
@@ -231,8 +235,14 @@ class Battery(NetworkElement[BatteryOutputName]):
 
     @cost
     def battery_charge_limit_cost(self) -> LinearArray:
-        """Cost: holding cost for energy outside the min and max charge, per hour."""
-        return ((self._below_min + self._above_max) * (CHARGE_LIMIT_PRICE * self.periods)).total()
+        """Cost: holding cost for energy outside the min and max charge, per hour.
+
+        Set high, it makes the limits hard in practice while a battery reported
+        outside them still gives a feasible plan that returns it inside. It is
+        priced per hour so a period costs the same whether it is planned as one
+        long period or later as several short ones.
+        """
+        return ((self._below_min + self._above_max) * (self.charge_limit_cost * self.periods)).total()
 
     @cost
     def battery_salvage_value(self) -> LinearArray:

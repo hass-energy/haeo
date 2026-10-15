@@ -42,6 +42,7 @@ from custom_components.haeo.core.schema.elements.policy import CONF_RULES
 from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
 from custom_components.haeo.core.schema.migrations import v1_3 as schema_migrations
 from custom_components.haeo.core.schema.migrations.v1_3 import ElementMigrationStep, migrate_hub_config
+from custom_components.haeo.core.schema.migrations.v1_4 import migrate_battery_config
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -81,6 +82,15 @@ def _create_subentry(data: Mapping[str, object], *, subentry_type: str | None = 
         title=str(data.get(CONF_NAME, "unnamed")),
         unique_id=None,
     )
+
+
+def _migrate_to_current(subentry: ConfigSubentry) -> dict[str, object]:
+    """Run a subentry through v1.3 and the later element migrations an upgrade applies after it."""
+    migrated = v1_3.migrate_subentry_data(subentry)
+    assert migrated is not None
+    if subentry.subentry_type == battery.ELEMENT_TYPE:
+        return migrate_battery_config(migrated, existing_names=set()).battery
+    return migrated
 
 
 def _section(config: Mapping[str, object], key: str) -> Mapping[str, object]:
@@ -202,9 +212,8 @@ def test_migrate_subentry_battery_without_salvage_value_stays_valid() -> None:
     }
     subentry = _create_subentry(data, subentry_type=battery.ELEMENT_TYPE)
 
-    migrated = v1_3.migrate_subentry_data(subentry)
+    migrated = _migrate_to_current(subentry)
 
-    assert migrated is not None
     pricing = migrated[SECTION_PRICING]
     assert isinstance(pricing, dict)
     assert battery.CONF_SALVAGE_VALUE not in pricing
@@ -479,9 +488,8 @@ def test_migrate_subentry_v033_legacy_shape_is_schema_valid(
         subentry_type=element_type,
     )
 
-    migrated = v1_3.migrate_subentry_data(subentry)
+    migrated = _migrate_to_current(subentry)
 
-    assert migrated is not None
     assert is_element_config_schema(migrated) is True
 
 
@@ -515,8 +523,7 @@ def test_migrate_v033_scenario_configs_to_current_schema(scenario_name: str) -> 
     for participant_name, participant_data in participants.items():
         assert isinstance(participant_name, str)
         assert isinstance(participant_data, dict)
-        migrated = v1_3.migrate_subentry_data(_create_subentry(participant_data))
-        assert migrated is not None
+        migrated = _migrate_to_current(_create_subentry(participant_data))
         assert is_element_config_schema(migrated) is True
         migrated_participants[participant_name] = migrated
 

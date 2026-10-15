@@ -111,7 +111,8 @@ $$
 $$
 
 clipped to 0-100%.
-It carries a `bound` of `lower` for a reserve and `upper` for headroom, which tells the card which side of the line the batteries should stay on.
+Its direction is the flow the line holds the batteries ready for: production (`+`) for a reserve, which keeps charge ready to discharge, and consumption (`-`) for headroom, which keeps room ready to charge.
+The card uses it to tell which side of the line the batteries should stay on.
 
 ## Next steps
 

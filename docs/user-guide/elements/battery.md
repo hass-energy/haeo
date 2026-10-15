@@ -41,6 +41,7 @@ Optional fields set to "None" are omitted from the optimization entirely.
 | **[Max Charge Power](#max-charge-and-discharge-power)**      | Power      | No       | -       | Maximum charging power                                     |
 | **[Max Discharge Power](#max-charge-and-discharge-power)**   | Power      | No       | -       | Maximum discharging power                                  |
 | **[Salvage Value](#salvage-value)**                          | Price      | No       | 0       | Value assigned to stored energy at the horizon end         |
+| **[Limit cost](#limit-cost)**                                | Price rate | Yes      | 100     | Holding cost per kWh outside the min and max charge        |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -79,7 +80,7 @@ If you leave them unset, HAEO allows the full 0-100% range.
 A typical starting point is 10-90% unless your manufacturer recommends otherwise.
 
 HAEO treats these as limits it does not cross while it has any choice.
-Internally, each kWh past a limit costs 100 \$/kWh for every hour it stays there, far more than any price difference the battery could earn from.
+Internally, each kWh past a limit costs the [limit cost](#limit-cost), 100 \$/kWh for every hour it stays there by default, far more than any price difference the battery could earn from.
 That keeps a plan possible when the battery already sits outside its limits, for example when it reads 5% with a 10% min charge.
 HAEO then brings it back inside the range as quickly as it can rather than failing to optimize.
 
@@ -119,6 +120,15 @@ This prevents the optimizer from draining the battery to zero when future value 
 
 **How it works**: The optimizer credits the final stored energy by this amount.
 Higher values encourage retaining energy for periods beyond the horizon.
+
+### Limit cost
+
+Holding cost in \$/kWh/h for each kWh outside the [min and max charge](#min-and-max-charge-percentage), for every hour it stays there.
+It is in the collapsed **Advanced** section and defaults to 100 \$/kWh/h.
+
+Keep it far above any price the battery could earn from, so the limits act as hard limits.
+Raise it if your prices can spike high enough to make crossing a limit worthwhile for a short while.
+Very large values make the optimization numerically harder, so stay within a few thousand.
 
 ## Configuration Examples
 
@@ -161,18 +171,19 @@ HAEO then uses the outer 5% at each end only when the price difference outweighs
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
 
-| Input                                     | Unit   | Description                          |
-| ----------------------------------------- | ------ | ------------------------------------ |
-| `number.{name}_capacity`                  | kWh    | Battery storage capacity             |
-| `number.{name}_initial_charge_percentage` | %      | Current state of charge from sensor  |
-| `number.{name}_min_charge_percentage`     | %      | Minimum SOC                          |
-| `number.{name}_max_charge_percentage`     | %      | Maximum SOC                          |
-| `number.{name}_max_power_target_source`   | kW     | Maximum charging power               |
-| `number.{name}_max_power_source_target`   | kW     | Maximum discharging power            |
-| `number.{name}_efficiency_source_target`  | %      | Discharge efficiency (if configured) |
-| `number.{name}_efficiency_target_source`  | %      | Charge efficiency (if configured)    |
-| `number.{name}_charge_cost`               | \$/kWh | Charge cost (if configured)          |
-| `number.{name}_discharge_cost`            | \$/kWh | Discharge cost (if configured)       |
+| Input                                     | Unit     | Description                          |
+| ----------------------------------------- | -------- | ------------------------------------ |
+| `number.{name}_capacity`                  | kWh      | Battery storage capacity             |
+| `number.{name}_initial_charge_percentage` | %        | Current state of charge from sensor  |
+| `number.{name}_min_charge_percentage`     | %        | Minimum SOC                          |
+| `number.{name}_max_charge_percentage`     | %        | Maximum SOC                          |
+| `number.{name}_max_power_target_source`   | kW       | Maximum charging power               |
+| `number.{name}_max_power_source_target`   | kW       | Maximum discharging power            |
+| `number.{name}_efficiency_source_target`  | %        | Discharge efficiency (if configured) |
+| `number.{name}_efficiency_target_source`  | %        | Charge efficiency (if configured)    |
+| `number.{name}_charge_cost`               | \$/kWh   | Charge cost (if configured)          |
+| `number.{name}_discharge_cost`            | \$/kWh   | Discharge cost (if configured)       |
+| `number.{name}_charge_limit_cost`         | \$/kWh/h | Limit cost                           |
 
 The charge and discharge cost inputs are surfaced from the [policy](../../walkthroughs/power-policies.md) rules they create.
 They appear on both the battery device and the Policies device; editing either updates the same stored value.

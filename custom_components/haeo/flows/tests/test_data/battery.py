@@ -4,6 +4,7 @@ from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -12,6 +13,7 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
+    SECTION_ADVANCED,
     SECTION_EFFICIENCY,
     SECTION_LIMITS,
     SECTION_POWER_LIMITS,
@@ -47,6 +49,9 @@ VALID_DATA = [
                 CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
                 CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
             },
+            SECTION_ADVANCED: {
+                CONF_CHARGE_LIMIT_COST: as_constant_value(100.0),
+            },
         },
     },
     {
@@ -73,6 +78,9 @@ VALID_DATA = [
                 CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
                 CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
             },
+            SECTION_ADVANCED: {
+                CONF_CHARGE_LIMIT_COST: as_constant_value(100.0),
+            },
         },
     },
 ]
@@ -98,6 +106,9 @@ INVALID_DATA = [
             SECTION_EFFICIENCY: {
                 CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
                 CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
+            },
+            SECTION_ADVANCED: {
+                CONF_CHARGE_LIMIT_COST: as_constant_value(100.0),
             },
         },
         "error": "cannot be empty",

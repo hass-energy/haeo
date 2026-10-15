@@ -16,6 +16,7 @@ from custom_components.haeo.core.schema import as_connection_target, as_constant
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -25,6 +26,7 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
     ELEMENT_TYPE,
+    SECTION_ADVANCED,
     SECTION_EFFICIENCY,
     SECTION_LIMITS,
     SECTION_POWER_LIMITS,
@@ -51,6 +53,8 @@ def _wrap_main_input(user_input: Mapping[str, object], *, as_schema: bool = Fals
         common[CONF_CONNECTION] = as_connection_target(connection)
     pricing = {key: user_input[key] for key in (CONF_SALVAGE_VALUE,) if key in user_input}
     pricing.setdefault(CONF_SALVAGE_VALUE, 0.0)
+    advanced = {key: user_input[key] for key in (CONF_CHARGE_LIMIT_COST,) if key in user_input}
+    advanced.setdefault(CONF_CHARGE_LIMIT_COST, 100.0)
 
     return {
         **common,
@@ -84,6 +88,7 @@ def _wrap_main_input(user_input: Mapping[str, object], *, as_schema: bool = Fals
             for key in (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE)
             if key in user_input
         },
+        SECTION_ADVANCED: advanced,
     }
 
 
@@ -111,6 +116,7 @@ async def test_user_step_with_constant_values_creates_entry(hass: HomeAssistant,
         CONF_EFFICIENCY_TARGET_SOURCE: 0.95,
         CONF_MAX_POWER_TARGET_SOURCE: 5.0,
         CONF_MAX_POWER_SOURCE_TARGET: 5.0,
+        CONF_CHARGE_LIMIT_COST: 50.0,
     }
 
     invalid_input = {**user_input, CONF_CAPACITY: []}
@@ -125,6 +131,7 @@ async def test_user_step_with_constant_values_creates_entry(hass: HomeAssistant,
     assert created_data["storage"][CONF_CAPACITY] == as_constant_value(10.0)
     assert created_data["storage"][CONF_INITIAL_CHARGE_PERCENTAGE] == as_entity_value(["sensor.battery_soc"])
     assert created_data["power_limits"][CONF_MAX_POWER_TARGET_SOURCE] == as_constant_value(5.0)
+    assert created_data[SECTION_ADVANCED][CONF_CHARGE_LIMIT_COST] == as_constant_value(50.0)
 
 
 async def test_user_step_with_entity_values_creates_entry(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
@@ -151,6 +158,7 @@ async def test_user_step_with_entity_values_creates_entry(hass: HomeAssistant, h
         CONF_EFFICIENCY_TARGET_SOURCE: None,
         CONF_MAX_POWER_TARGET_SOURCE: ["sensor.max_charge"],
         CONF_MAX_POWER_SOURCE_TARGET: ["sensor.max_discharge"],
+        CONF_CHARGE_LIMIT_COST: ["sensor.charge_limit_cost"],
     }
 
     result = await flow.async_step_user(user_input=_wrap_main_input(user_input))
@@ -160,6 +168,7 @@ async def test_user_step_with_entity_values_creates_entry(hass: HomeAssistant, h
     assert created_data["storage"][CONF_CAPACITY] == as_entity_value(["sensor.capacity"])
     assert created_data["storage"][CONF_INITIAL_CHARGE_PERCENTAGE] == as_entity_value(["sensor.battery_soc"])
     assert created_data["power_limits"][CONF_MAX_POWER_TARGET_SOURCE] == as_entity_value(["sensor.max_charge"])
+    assert created_data[SECTION_ADVANCED][CONF_CHARGE_LIMIT_COST] == as_entity_value(["sensor.charge_limit_cost"])
 
 
 async def test_build_config_normalizes_connection_target(

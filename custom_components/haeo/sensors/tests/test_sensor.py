@@ -777,11 +777,11 @@ def test_handle_coordinator_update_sets_fixed_attribute(device_entry: DeviceEntr
     assert attributes["fixed"] is True
 
 
-@pytest.mark.parametrize("bound", ["lower", "upper", None])
-def test_handle_coordinator_update_sets_bound_attribute(
-    device_entry: DeviceEntry, bound: Literal["lower", "upper"] | None
+@pytest.mark.parametrize("direction", ["+", "-", None])
+def test_handle_coordinator_update_sets_state_of_charge_direction(
+    device_entry: DeviceEntry, direction: Literal["+", "-"] | None
 ) -> None:
-    """Outputs that bound a plan expose which side they bound, and other outputs have no bound attribute."""
+    """A state of charge line exposes the flow it holds the batteries ready for, and a plain one has no direction."""
     coordinator = _create_mock_coordinator()
     output = _make_output(
         type_=OutputType.STATE_OF_CHARGE,
@@ -805,14 +805,16 @@ def test_handle_coordinator_update_sets_bound_attribute(
         unique_id="sensor-id",
     )
     sensor.async_write_ha_state = Mock()
-    coordinator.data = _make_coordinator_data({"buffer": {"buffer": {LOAD_POWER: replace(output, bound=bound)}}})
+    coordinator.data = _make_coordinator_data(
+        {"buffer": {"buffer": {LOAD_POWER: replace(output, direction=direction)}}}
+    )
 
     sensor._handle_coordinator_update()
 
     attributes = sensor.extra_state_attributes
     assert attributes is not None
-    assert attributes.get("bound") == bound
-    assert ("bound" in attributes) is (bound is not None)
+    assert attributes.get("direction") == direction
+    assert ("direction" in attributes) is (direction is not None)
 
 
 @pytest.mark.parametrize(("advanced", "enabled_default"), [(True, False), (False, True)])

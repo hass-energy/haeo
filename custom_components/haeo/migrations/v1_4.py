@@ -29,7 +29,7 @@ from custom_components.haeo.core.schema.migrations.v1_4 import (
     endpoints_match_reverse,
     junction_config,
     merge_reverse_into_existing,
-    migrate_battery_partitions,
+    migrate_battery_config,
     migrate_connection_config,
     migrate_hub_horizon,
     node_is_junction,
@@ -201,15 +201,15 @@ def _remove_partition_entities(hass: HomeAssistant, entry: ConfigEntry, battery_
             registry.async_remove(entity_entry.entity_id)
 
 
-def _replace_battery_partitions(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Move each battery's undercharge and overcharge partitions into buffers for the battery."""
+def _migrate_batteries(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Move each battery's partitions into buffers for the battery and add the cost of its charge limits."""
     existing_names = _collect_subentry_names(entry)
     battery_ids: set[str] = set()
     for subentry in list(entry.subentries.values()):
         if subentry.subentry_type != battery.ELEMENT_TYPE:
             continue
         battery_ids.add(subentry.subentry_id)
-        migration = migrate_battery_partitions(subentry.data, existing_names=existing_names)
+        migration = migrate_battery_config(subentry.data, existing_names=existing_names)
         hass.config_entries.async_update_subentry(entry, subentry, data=migration.battery)
         for buffer_config in migration.buffers:
             title = str(buffer_config[CONF_NAME])
@@ -297,7 +297,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _remove_reverse_field_entities(hass, entry, connection_ids)
     await _replace_nodes_with_junctions(hass, entry)
-    _replace_battery_partitions(hass, entry)
+    _migrate_batteries(hass, entry)
 
     hass.config_entries.async_update_entry(entry, data=migrate_hub_horizon(entry.data), minor_version=MINOR_VERSION)
     _LOGGER.info("Migration complete for %s entry %s", DOMAIN, entry.entry_id)

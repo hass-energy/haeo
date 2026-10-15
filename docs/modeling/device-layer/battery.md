@@ -92,6 +92,7 @@ Battery creates a single Home Assistant device:
 | `min_charge_percentage`     | Battery             | `min_charge`               | kWh, held with priced slack    |
 | `max_charge_percentage`     | Battery             | `max_charge`               | kWh, held with priced slack    |
 | `salvage_value`             | Battery             | `salvage_value`            | Terminal value for stored kWh  |
+| `charge_limit_cost`         | Battery             | `charge_limit_cost`        | \$/kWh/h outside min/max       |
 | `efficiency_source_target`  | Efficiency segment  | `efficiency_source_target` | Battery to network (discharge) |
 | `efficiency_target_source`  | Efficiency segment  | `efficiency_target_source` | Network to battery (charge)    |
 | `max_power_target_source`   | Power-limit segment | `max_power_target_source`  | Network to battery             |

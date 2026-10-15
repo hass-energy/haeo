@@ -50,6 +50,7 @@ For each time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for ener
 
 - $E_{\min}(t)$: Min charge in kWh, default 0 - `min_charge`
 - $E_{\max}(t)$: Max charge in kWh, default $C(t)$ - `max_charge`
+- $c_{\text{limit}}(t)$: Holding cost for energy outside the min and max charge (\$/kWh/h), required with either limit - `charge_limit_cost`
 - $v_{\text{salvage}}$: Terminal value of stored energy (\$/kWh) - `salvage_value`
 - `outbound_tags`: Tags that discharged power can be placed on (see [Tagged Power](../../tagged-power.md))
 - `inbound_tags`: Tags this battery can consume (charge from) — None means all tags
@@ -85,7 +86,7 @@ $$
 E_{\min}(t) - s_{\min}(t) \leq E_{\text{in}}(t) - E_{\text{out}}(t) \leq E_{\max}(t) + s_{\max}(t) \quad \forall t \in [1, T]
 $$
 
-The slack is priced at 100 \$/kWh for each hour it lasts (see [cost contribution](#cost-contribution)), far above any price difference, so the optimizer treats the min and max charge as hard limits.
+The slack is priced at the limit cost $c_{\text{limit}}$ for each hour it lasts (see [cost contribution](#cost-contribution)), far above any price difference, so the optimizer treats the min and max charge as hard limits.
 The slack exists so that a battery reported outside its limits, for example below its min charge after a long outage, still gives a feasible plan, one that returns it within its limits as quickly as possible.
 
 **Shadow prices**:
@@ -117,10 +118,10 @@ See the [tagged power formulation](../../tagged-power.md#per-tag-balance) for de
 
 ### Cost Contribution
 
-Energy outside the min and max charge costs 100 \$/kWh for each hour it stays there:
+Energy outside the min and max charge costs the limit cost for each hour it stays there:
 
 $$
-\sum_{t=1}^{T} 100 \cdot \left(s_{\min}(t) + s_{\max}(t)\right) \cdot \Delta t_{t-1}
+\sum_{t=1}^{T} c_{\text{limit}}(t-1) \cdot \left(s_{\min}(t) + s_{\max}(t)\right) \cdot \Delta t_{t-1}
 $$
 
 The battery model can include an optional terminal salvage value.

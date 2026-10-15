@@ -10,7 +10,11 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements import battery, buffer
 from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
-from custom_components.haeo.core.schema.migrations.v1_4 import PARTITION_BUFFER_WINDOW, migrate_battery_partitions
+from custom_components.haeo.core.schema.migrations.v1_4 import (
+    LEGACY_CHARGE_LIMIT_COST,
+    PARTITION_BUFFER_WINDOW,
+    migrate_battery_config,
+)
 
 UNDERCHARGE = {
     partitions.CONF_PARTITION_PERCENTAGE: as_constant_value(5.0),
@@ -155,25 +159,29 @@ PARTITION_CASES: dict[str, PartitionCase] = {
 
 
 @pytest.mark.parametrize("case", PARTITION_CASES.values(), ids=PARTITION_CASES.keys())
-def test_migrate_battery_partitions(case: PartitionCase) -> None:
-    """Partitions become limits plus buffers that charge what the partitions priced."""
+def test_migrate_battery_config(case: PartitionCase) -> None:
+    """Partitions become limits plus buffers that charge what the partitions priced, and the limits get their cost."""
     original = copy.deepcopy(case["data"])
     existing_names = set(case["existing_names"])
 
-    result = migrate_battery_partitions(case["data"], existing_names=existing_names)
+    result = migrate_battery_config(case["data"], existing_names=existing_names)
 
     expected_battery = {
         key: value
         for key, value in original.items()
         if key not in (partitions.SECTION_PARTITIONING, partitions.SECTION_UNDERCHARGE, partitions.SECTION_OVERCHARGE)
     }
-    assert result.battery == {**expected_battery, battery.SECTION_LIMITS: case["limits"]}
+    assert result.battery == {
+        **expected_battery,
+        battery.SECTION_LIMITS: case["limits"],
+        battery.SECTION_ADVANCED: {battery.CONF_CHARGE_LIMIT_COST: as_constant_value(LEGACY_CHARGE_LIMIT_COST)},
+    }
     assert list(result.buffers) == case["buffers"]
     assert case["data"] == original
     assert existing_names == case["existing_names"] | {str(b[CONF_NAME]) for b in result.buffers}
 
 
-def test_migrate_battery_partitions_moves_the_value_objects() -> None:
+def test_migrate_battery_config_moves_the_value_objects() -> None:
     """The partition's values and the old limit move into the battery and buffer as the same objects."""
     data = _battery(
         undercharge={
@@ -183,7 +191,7 @@ def test_migrate_battery_partitions_moves_the_value_objects() -> None:
         limits={battery.CONF_MIN_CHARGE_PERCENTAGE: SENSOR_LIMIT},
     )
 
-    result = migrate_battery_partitions(data, existing_names=set())
+    result = migrate_battery_config(data, existing_names=set())
 
     limits = result.battery[battery.SECTION_LIMITS]
     (reserve,) = result.buffers
@@ -195,3 +203,32 @@ def test_migrate_battery_partitions_moves_the_value_objects() -> None:
     assert limits[battery.CONF_MIN_CHARGE_PERCENTAGE] is SENSOR_PERCENTAGE
     assert requirement[buffer.CONF_LEVEL] is SENSOR_LIMIT
     assert pricing[buffer.CONF_SHORTFALL_COST] is SENSOR_COST
+
+
+@pytest.mark.parametrize(
+    ("advanced", "expected"),
+    [
+        pytest.param(
+            {battery.CONF_CHARGE_LIMIT_COST: as_entity_value(["sensor.limit_cost"])},
+            {battery.CONF_CHARGE_LIMIT_COST: as_entity_value(["sensor.limit_cost"])},
+            id="configured_cost_kept",
+        ),
+        pytest.param(
+            {"other": as_constant_value(1.0)},
+            {
+                battery.CONF_CHARGE_LIMIT_COST: as_constant_value(LEGACY_CHARGE_LIMIT_COST),
+                "other": as_constant_value(1.0),
+            },
+            id="cost_added_beside_other_values",
+        ),
+    ],
+)
+def test_migrate_battery_config_keeps_an_existing_advanced_section(
+    advanced: dict[str, object], expected: dict[str, object]
+) -> None:
+    """A battery that already has advanced values keeps them, gaining the legacy cost only when it has none."""
+    data = {**_battery(), battery.SECTION_ADVANCED: advanced}
+
+    result = migrate_battery_config(data, existing_names={"Battery"})
+
+    assert result.battery[battery.SECTION_ADVANCED] == expected

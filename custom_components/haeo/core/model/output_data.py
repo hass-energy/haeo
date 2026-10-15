@@ -24,7 +24,9 @@ class OutputData:
         direction: Power flow direction from the energy system's perspective.
             "+" = production: power added to the system (solar generation, battery discharge, grid import).
             "-" = consumption: power removed from the system (load demand, battery charge, grid export).
-            None = non-directional output (SOC, prices, energy, shadow prices).
+            For a state of charge line, the flow the line holds the batteries ready for:
+            "+" for a level held to discharge from (a reserve), "-" for room held to charge into (headroom).
+            None = non-directional output (plain SOC, prices, energy, shadow prices).
         advanced: Whether the output is intended for advanced diagnostics only.
         state_last: If True, the sensor state uses the last value instead of the first.
             Use for cumulative values where the total is the meaningful current state.
@@ -41,8 +43,6 @@ class OutputData:
             sensor entity. Use to override HAEO's smart-rounding default when a
             sensor has a natural display scale (e.g. dollars to 2 dp). None
             preserves the existing smart-rounding behaviour.
-        bound: Whether a state of charge line is a level the batteries should stay
-            above ("lower") or below ("upper"). None for every other output.
 
     """
 
@@ -56,7 +56,6 @@ class OutputData:
     priority: int | None = None
     fixed: bool = False
     display_precision: int | None = None
-    bound: Literal["lower", "upper"] | None = None
 
     def __init__(
         self,
@@ -71,7 +70,6 @@ class OutputData:
         priority: int | None = None,
         fixed: bool = False,
         display_precision: int | None = None,
-        bound: Literal["lower", "upper"] | None = None,
     ) -> None:
         """Initialize OutputData.
 
@@ -79,7 +77,8 @@ class OutputData:
             type: The output type (power, energy, SOC, etc.).
             unit: The unit of measurement for the output values.
             values: A single value or sequence of values (already extracted from HiGHS types).
-            direction: Power flow direction relative to the element.
+            direction: Power flow direction from the energy system's perspective, or for a
+                state of charge line, the flow the line holds the batteries ready for.
             advanced: Whether the output is intended for advanced diagnostics only.
             state_last: If True, the sensor state uses the last value instead of the first.
             state: Optional scalar that overrides the sensor state. When provided,
@@ -88,7 +87,6 @@ class OutputData:
             priority: The connection priority for this output, if applicable.
             fixed: Whether the output is constrained to equal its forecast (no curtailment).
             display_precision: Optional suggested decimal places for the sensor UI.
-            bound: Whether a state of charge line is a lower or an upper level.
 
         """
         self.type = type
@@ -100,7 +98,6 @@ class OutputData:
         self.priority = priority
         self.fixed = fixed
         self.display_precision = display_precision
-        self.bound = bound
 
         # Normalize to a tuple
         if isinstance(values, np.ndarray):

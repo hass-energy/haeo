@@ -109,6 +109,13 @@
             "salvage_value": "Salvage value"
           },
           "sections": {
+            "advanced": {
+              "data": { "charge_limit_cost": "Limit cost" },
+              "data_description": {
+                "charge_limit_cost": "Holding cost per kWh outside the min and max charge, for every hour it lasts. Keep it far above any price the battery could earn from, so the limits act as hard limits."
+              },
+              "name": "Advanced"
+            },
             "common": { "data": { "connection": "Connection", "name": "Battery Name" }, "name": "Common settings" },
             "efficiency": {
               "data": {
@@ -499,6 +506,7 @@
     "number": {
       "battery_capacity": { "name": "Capacity" },
       "battery_charge_cost": { "name": "Charge cost" },
+      "battery_charge_limit_cost": { "name": "Limit cost" },
       "battery_discharge_cost": { "name": "Discharge cost" },
       "battery_efficiency_source_target": { "name": "Discharge efficiency" },
       "battery_efficiency_target_source": { "name": "Charge efficiency" },

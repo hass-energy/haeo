@@ -79,6 +79,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
+            advanced={"charge_limit_cost": 100.0},
         ),
         "model": [
             {
@@ -89,6 +90,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "min_charge": [1.0, 1.0],
                 "max_charge": [9.0, 9.0],
                 "salvage_value": 0.0,
+                "charge_limit_cost": 100.0,
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -137,6 +139,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
+            advanced={"charge_limit_cost": 100.0},
         ),
         "model": [
             {
@@ -147,6 +150,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "max_charge": [10.0, 10.0],
                 "initial_charge": 5.0,
                 "salvage_value": 0.0,
+                "charge_limit_cost": 100.0,
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -195,6 +199,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
+            advanced={"charge_limit_cost": 100.0},
         ),
         "model": [
             {
@@ -205,6 +210,7 @@ CREATE_CASES: Sequence[CreateCase] = [
                 "max_charge": [8.0, 8.0],
                 "initial_charge": 4.0,
                 "salvage_value": 0.05,
+                "charge_limit_cost": 100.0,
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -258,6 +264,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
+            advanced={"charge_limit_cost": 100.0},
         ),
         "model_outputs": {
             "battery_no_balance": {
@@ -336,6 +343,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
+            advanced={"charge_limit_cost": 100.0},
         ),
         "model_outputs": {
             "battery_no_balance": {
@@ -409,6 +417,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 "efficiency_source_target": np.array([0.95]),
                 "efficiency_target_source": np.array([0.95]),
             },
+            advanced={"charge_limit_cost": 100.0},
         ),
         "model_outputs": {
             "battery_with_thresholds": {

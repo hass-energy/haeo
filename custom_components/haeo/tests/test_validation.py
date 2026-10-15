@@ -8,10 +8,12 @@ from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
+    SECTION_ADVANCED,
     SECTION_LIMITS,
     SECTION_STORAGE,
     BatteryConfigData,
@@ -206,6 +208,7 @@ def test_validate_network_topology_with_battery(include_grid: bool) -> None:
             CONF_EFFICIENCY_SOURCE_TARGET: np.array([95.0, 95.0]),
             CONF_EFFICIENCY_TARGET_SOURCE: np.array([95.0, 95.0]),
         },
+        SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: 100.0},
     }
 
     participants: dict[str, ElementConfigData] = {

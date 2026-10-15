@@ -1,8 +1,9 @@
 """Regression for issue #467: live battery limit edits must reach the LP.
 
-Editing the min or max charge percentage while the integration is running must
-update the live model battery's ``min_charge`` and ``max_charge`` through the
-element updater's ``TrackedParam`` writes, without requiring a full reload.
+Editing the min or max charge percentage, or the cost that holds them, while the
+integration is running must update the live model battery's ``min_charge``,
+``max_charge`` and ``charge_limit_cost`` through the element updater's
+``TrackedParam`` writes, without requiring a full reload.
 """
 
 from unittest.mock import MagicMock
@@ -21,8 +22,10 @@ BATTERY_NAME = "Test Battery"
 BUS_NAME = "DC Bus"
 
 
-def _battery_config(min_charge_ratio: float, max_charge_ratio: float) -> BatteryConfigData:
-    """Build a resolved battery config with the given min and max charge ratios."""
+def _battery_config(
+    min_charge_ratio: float, max_charge_ratio: float, charge_limit_cost: float = 100.0
+) -> BatteryConfigData:
+    """Build a resolved battery config with the given min and max charge ratios and the cost holding them."""
     return BatteryConfigData(
         element_type=ElementType.BATTERY,
         name=BATTERY_NAME,
@@ -44,22 +47,25 @@ def _battery_config(min_charge_ratio: float, max_charge_ratio: float) -> Battery
             "efficiency_source_target": np.array([0.95]),
             "efficiency_target_source": np.array([0.95]),
         },
+        advanced={"charge_limit_cost": np.array([charge_limit_cost])},
     )
 
 
 @pytest.mark.parametrize(
-    ("ratios", "expected_min", "expected_max"),
+    ("edit", "expected_min", "expected_max", "expected_cost"),
     [
-        pytest.param((0.5, 0.9), [5.0, 5.0], [9.0, 9.0], id="min_charge"),
-        pytest.param((0.2, 0.6), [2.0, 2.0], [6.0, 6.0], id="max_charge"),
+        pytest.param((0.5, 0.9, 100.0), [5.0, 5.0], [9.0, 9.0], [100.0], id="min_charge"),
+        pytest.param((0.2, 0.6, 100.0), [2.0, 2.0], [6.0, 6.0], [100.0], id="max_charge"),
+        pytest.param((0.2, 0.9, 40.0), [2.0, 2.0], [9.0, 9.0], [40.0], id="charge_limit_cost"),
     ],
 )
 async def test_charge_limit_edit_updates_live_battery(
-    ratios: tuple[float, float],
+    edit: tuple[float, float, float],
     expected_min: list[float],
     expected_max: list[float],
+    expected_cost: list[float],
 ) -> None:
-    """Editing a charge limit updates the live battery's min and max charge without a rebuild."""
+    """Editing a charge limit or its cost updates the live battery without a rebuild."""
     bus: NodeConfigData = {
         "element_type": ElementType.NODE,
         "name": BUS_NAME,
@@ -79,8 +85,11 @@ async def test_charge_limit_edit_updates_live_battery(
     np.testing.assert_allclose(battery.charge_floor, [2.0, 2.0])
     np.testing.assert_allclose(battery.charge_ceiling, [9.0, 9.0])
 
-    updaters[BATTERY_NAME](_battery_config(*ratios))
+    np.testing.assert_allclose(battery.charge_limit_cost, [100.0])
+
+    updaters[BATTERY_NAME](_battery_config(*edit))
 
     assert network.elements[BATTERY_NAME] is battery
     np.testing.assert_allclose(battery.charge_floor, expected_min)
     np.testing.assert_allclose(battery.charge_ceiling, expected_max)
+    np.testing.assert_allclose(battery.charge_limit_cost, expected_cost)
