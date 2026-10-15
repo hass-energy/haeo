@@ -10,6 +10,7 @@ import {
   type LayoutNode,
   type LayoutResult,
 } from "./layout";
+import { bufferMarkers, bufferRoles, bufferTooltipLines, type BufferRoles } from "./shared";
 import type { TopologyData, TopologyNode, TopologySegment } from "./types";
 
 const NODE_RX = 6;
@@ -19,7 +20,6 @@ const SEGMENT_ICONS: Record<string, string> = {
   PricingSegment: "💲",
   PowerLimitSegment: "⚡",
   EfficiencySegment: "η",
-  SocPricingSegment: "📊",
   TagFilterSegment: "🏷",
   TagPricingSegment: "🏷",
 };
@@ -196,6 +196,7 @@ export function NetworkTopology(props: Props): JSX.Element {
 
   // Build node name → TopologyNode lookup
   const nodeMap = new Map(topology.nodes.map((n) => [n.name, n]));
+  const roles = bufferRoles(topology.buffers);
 
   // Build edge name → tags lookup
   const edgeTags = new Map<string, number[]>();
@@ -237,7 +238,7 @@ export function NetworkTopology(props: Props): JSX.Element {
         </defs>
 
         {/* Groups */}
-        {layout.groups.map((group) => renderGroup(group, nodeMap, edgeTags, setTooltip, hide))}
+        {layout.groups.map((group) => renderGroup(group, nodeMap, roles, edgeTags, setTooltip, hide))}
 
         {/* External edges — VLAN colored */}
         {layout.externalEdges.map((edge) => {
@@ -471,6 +472,7 @@ function renderCompositeArrow(
 function renderGroup(
   group: LayoutGroup,
   nodeMap: Map<string, TopologyNode>,
+  roles: Map<string, BufferRoles>,
   edgeTags: Map<string, number[]>,
   setTooltip: (t: TooltipInfo) => void,
   hide: () => void
@@ -518,7 +520,7 @@ function renderGroup(
       {group.children.map((child) =>
         child.isPill
           ? renderPill(child, group, setTooltip, hide)
-          : renderModelNode(child, group, s?.color ?? "#bbb", nodeMap, setTooltip, hide)
+          : renderModelNode(child, group, s?.color ?? "#bbb", nodeMap, roles.get(child.id), setTooltip, hide)
       )}
     </g>
   );
@@ -529,6 +531,7 @@ function renderModelNode(
   group: LayoutGroup,
   color: string,
   nodeMap: Map<string, TopologyNode>,
+  buffer: BufferRoles | undefined,
   setTooltip: (t: TooltipInfo) => void,
   hide: () => void
 ): JSX.Element {
@@ -544,6 +547,7 @@ function renderModelNode(
     tooltipLines.push(`Produces: ${outTags.map((t) => (t === 0 ? "default" : `VLAN ${String(t)}`)).join(", ")}`);
   if (inTags.length > 0)
     tooltipLines.push(`Accepts: ${inTags.map((t) => (t === 0 ? "default" : `VLAN ${String(t)}`)).join(", ")}`);
+  tooltipLines.push(...bufferTooltipLines(buffer));
 
   return (
     <g
@@ -588,6 +592,11 @@ function renderModelNode(
       >
         {node.id}
       </text>
+      {bufferMarkers(buffer) !== "" && (
+        <text x={nx + node.width - 4} y={ny + 12} text-anchor="end" font-size="10">
+          {bufferMarkers(buffer)}
+        </text>
+      )}
     </g>
   );
 }

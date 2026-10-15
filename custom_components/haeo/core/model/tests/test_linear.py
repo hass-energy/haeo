@@ -85,6 +85,15 @@ def test_numpy_integer_selects_a_single_row() -> None:
     assert repr(x[-1]) == "LinearArray(1 row)\n  [0] x2"
 
 
+def test_integer_array_selects_rows_in_order() -> None:
+    """An integer array picks rows in its own order, repeating any it names twice."""
+    x, _ = _variables(3)
+
+    selected = (x * 2.0 + 1.0)[np.array([2, 0, 2])]
+
+    assert repr(selected) == "LinearArray(3 rows)\n  [0] 2·x2 + 1\n  [1] 2·x0 + 1\n  [2] 2·x2 + 1"
+
+
 def test_sum_of_nothing_raises_a_clear_error() -> None:
     """Summing no arrays names the zeros starting point instead of failing inside numpy."""
     with pytest.raises(ValueError, match=r"LinearArray\.zeros"):

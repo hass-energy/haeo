@@ -41,6 +41,18 @@ def test_connection_power_by_end(solver: Solver, end: Literal["source", "target"
     assert solution_value(solver, result[0]) == pytest.approx(7.5)
 
 
+def test_outbound_and_inbound_connections_follow_the_registered_end(solver: Solver) -> None:
+    """Connections registered at the source end carry power out, and at the target end carry it in."""
+    node = Node(name="test_node", periods=np.array([1.0]), solver=solver)
+    out_first, into, out_second = Mock(spec=Connection), Mock(spec=Connection), Mock(spec=Connection)
+    node.register_connection(out_first, "source")
+    node.register_connection(into, "target")
+    node.register_connection(out_second, "source")
+
+    assert node.outbound_connections == [out_first, out_second]
+    assert node.inbound_connections == [into]
+
+
 def test_constraints_populates_constraint_state(solver: Solver) -> None:
     """Test that constraints() applies constraints via @constraint decorators.
 

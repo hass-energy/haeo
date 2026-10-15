@@ -42,11 +42,11 @@ from custom_components.haeo.core.data.loader.config_loader import load_element_c
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue, Network
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.policy import is_policy_config_data
 from custom_components.haeo.core.schema.horizon_value import is_horizon_preset_value
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config
-from custom_components.haeo.core.schema.migrations.v1_4 import migrate_hub_horizon
+from custom_components.haeo.core.schema.migrations.v1_4 import migrate_battery_config, migrate_hub_horizon
 from custom_components.haeo.core.schema.sections import SECTION_PRICING
 from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
@@ -191,6 +191,21 @@ def normalize_participant_config_for_diag(element_config: dict[str, object]) -> 
 
     migrated = migrate_element_config(element_config)
     return migrated if migrated is not None else element_config
+
+
+def migrate_batteries_for_diag(participants: Mapping[str, dict[str, object]]) -> dict[str, dict[str, object]]:
+    """Migrate battery configs as the v1.4 migration does: partitions become buffers and limits get a cost."""
+    existing_names = set(participants)
+    replaced: dict[str, dict[str, object]] = {}
+    for name, config in participants.items():
+        if config.get(CONF_ELEMENT_TYPE) != ElementType.BATTERY:
+            replaced[name] = config
+            continue
+        migration = migrate_battery_config(config, existing_names=existing_names)
+        replaced[name] = migration.battery
+        for buffer_config in migration.buffers:
+            replaced[str(buffer_config[CONF_NAME])] = buffer_config
+    return replaced
 
 
 def config_horizon_preset(config: Mapping[str, JsonValueType]) -> str:
@@ -1106,6 +1121,7 @@ def run_diagnostics(
         normalized_participants[element_name] = normalize_participant_config_for_diag(element_config_obj)
 
     state_provider = DiagnosticsStateProvider(diag.inputs)
+    normalized_participants = migrate_batteries_for_diag(normalized_participants)
 
     negated_paths = negated_price_paths(normalized_participants)
     loaded_participants: dict[str, ElementConfigData] = {}

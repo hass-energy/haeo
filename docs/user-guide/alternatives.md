@@ -177,7 +177,7 @@ Preset horizons start with 1-minute periods, giving fine control over the near-t
 - **Modern codebase**: Python 3.13+, platinum-level code quality standards, strong typing, comprehensive testing
 - **Lower latency**: Runs alongside Home Assistant instance for minimal delay
 - **Native sensor integration**: Sensors organized into devices, persist between reboots, leverage native HA features
-- **Unique features**: Policy-driven battery charge/discharge and overcharge/undercharge economics, flexible network modeling via connections
+- **Unique features**: Policy-driven battery charge/discharge, buffer (reserve and headroom) economics, flexible network modeling via connections
 - **Extensibility**: Graph structure allows modeling diverse energy systems without code changes
 
 ### Limitations (today)
@@ -219,7 +219,7 @@ That LP-first stance is expected to continue: deferrables will use MILP only whe
 - Users valuing UI-based configuration
 - Systems needing modeling flexibility (AC/DC splits, hybrid inverters, multiple meters)
 - Users who prioritize modern code quality and software architecture
-- Systems requiring flexible battery SOC pricing strategies (overcharge/undercharge economics)
+- Systems requiring flexible battery reserve and headroom buffers
 
 ## Technical comparison
 
@@ -237,17 +237,17 @@ That LP-first stance is expected to continue: deferrables will use MILP only whe
 
 ### Optimization
 
-| Feature                        | HAEO                                             | EMHASS                               |
-| ------------------------------ | ------------------------------------------------ | ------------------------------------ |
-| Algorithm                      | Pure LP; MILP last resort (deferrables planned)  | LP; MILP for deferrable loads        |
-| Solver                         | HiGHS (only option)                              | HiGHS (default, bundled)             |
-| Scheduling model               | Automatic continuous re-optimization             | Day-ahead or MPC (`naive-mpc-optim`) |
-| Power policies (provenance)    | Yes (UI + tagged-flow compiler)                  | No (global/unit costs in config)     |
-| Discrete decisions             | LP-first; integers only if needed (planned)      | Yes for deferrable loads (on/off)    |
-| Time horizon                   | Presets (2–7 days) or a forecast sensor          | Configurable                         |
-| Time resolution                | Multi-resolution (fine near-term, coarser later) | Uniform `optimization_time_step`     |
-| Battery management             | Charge/discharge rates                           | Charge/discharge                     |
-| Overcharge/undercharge pricing | Yes (economic)                                   | No                                   |
+| Feature                      | HAEO                                             | EMHASS                               |
+| ---------------------------- | ------------------------------------------------ | ------------------------------------ |
+| Algorithm                    | Pure LP; MILP last resort (deferrables planned)  | LP; MILP for deferrable loads        |
+| Solver                       | HiGHS (only option)                              | HiGHS (default, bundled)             |
+| Scheduling model             | Automatic continuous re-optimization             | Day-ahead or MPC (`naive-mpc-optim`) |
+| Power policies (provenance)  | Yes (UI + tagged-flow compiler)                  | No (global/unit costs in config)     |
+| Discrete decisions           | LP-first; integers only if needed (planned)      | Yes for deferrable loads (on/off)    |
+| Time horizon                 | Presets (2–7 days) or a forecast sensor          | Configurable                         |
+| Time resolution              | Multi-resolution (fine near-term, coarser later) | Uniform `optimization_time_step`     |
+| Battery management           | Charge/discharge rates                           | Charge/discharge                     |
+| Reserve and headroom pricing | Yes (economic)                                   | No                                   |
 
 ### Integration and setup
 
@@ -297,7 +297,7 @@ That LP-first stance is expected to continue: deferrables will use MILP only whe
 - Prefer native Home Assistant integration with lower latency
 - Want UI-based configuration for all settings
 - Value modern codebase with strong typing and comprehensive testing
-- Need battery overcharge/undercharge economic modeling
+- Need battery reserve and headroom economic modeling
 - Want to model non-standard systems (AC/DC splits, multiple meters, custom connections)
 - Prioritize software quality and maintainability
 
