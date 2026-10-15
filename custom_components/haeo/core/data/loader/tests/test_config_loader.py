@@ -919,7 +919,7 @@ def test_field_with_outputs_loads_each_output_from_its_calendar(monkeypatch: pyt
             "capacity": FieldHint(
                 output_type=OutputType.AVAILABILITY,
                 outputs={
-                    "away": calendar_input(OutputType.AVAILABILITY, "distance", "presence"),
+                    "away": calendar_input(OutputType.AVAILABILITY, "distance", "window_active"),
                     "due": calendar_input(OutputType.ENERGY, "distance", "window_due"),
                 },
             )

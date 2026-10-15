@@ -12,7 +12,7 @@ from typing import Annotated, Literal, NotRequired, Required, get_args, get_orig
 from custom_components.haeo.core.model.const import OutputType
 
 type CalendarParser = Literal["distance", "number", "presence"]
-type CalendarProjection = Literal["presence", "window_active", "window_starts", "window_due"]
+type CalendarProjection = Literal["window_active", "window_starts", "window_due"]
 
 # Projections with one value per horizon boundary rather than per period
 _BOUNDARY_PROJECTIONS: frozenset[CalendarProjection] = frozenset({"window_starts", "window_due"})
@@ -28,11 +28,10 @@ class CalendarFieldHint:
             - 'number': a plain number.
             - 'presence': 1.0 for every event regardless of text.
         projection: Which series the input takes from the events:
-            - 'presence': per period, 1.0 while any event covers it, including
-              events whose text holds no value.
-            - 'window_active': per period, 1.0 inside a window, a run of events
-              with a positive value. Overlapping events merge into one window
-              and events that only touch stay separate.
+            - 'window_active': per period, 1.0 inside a window. Every event is a
+              window, including one whose text holds no value, which is due
+              nothing. Overlapping events merge into one window and events that
+              only touch stay separate.
             - 'window_starts': per boundary, 1.0 where a window starts after the
               horizon start. A window open at the horizon start does not start.
             - 'window_due': per boundary, each window's summed value at its end

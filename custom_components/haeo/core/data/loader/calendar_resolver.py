@@ -48,9 +48,6 @@ _KM_PER_UNIT: Final[dict[str, float]] = {
     "yd": 0.0009144,
 }
 
-# Tolerance for treating a summed event value as zero
-_EPSILON: Final = 1e-9
-
 
 def _convert_distance(value: float, from_unit: str, to_unit: str) -> float:
     """Convert a distance between supported units via the kilometre table."""
@@ -82,23 +79,30 @@ def _fused(values: list[float | None]) -> NDArray[np.float64]:
 
 
 def _windows(
-    span: NDArray[np.float64], edge_start: NDArray[np.float64], edge_end: NDArray[np.float64]
+    count_span: NDArray[np.float64], count_end: NDArray[np.float64], value_start: NDArray[np.float64]
 ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
     """Return each period's window flag, each boundary's start flag, and each window's due value.
 
-    Only events with a positive value form windows. Overlapping events merge
-    into a single window whose value is their sum; events that only touch (one
-    ends at the boundary where the next starts) stay separate windows. A window
-    covering the first period is open at the horizon start, so it never starts
-    at boundary 0, and a window running past the horizon is due at its end.
+    Every event is a window, including one whose text holds no value, which
+    is due nothing. Overlapping events merge into a single window due their
+    summed value; events that only touch (one ends at the boundary where the
+    next starts) stay separate windows. A window covering the first period is
+    open at the horizon start, so it never starts at boundary 0, and a window
+    running past the horizon is due at its end.
+
+    Args:
+        count_span: Number of events covering each boundary.
+        count_end: Number of events ending at each boundary.
+        value_start: Summed event values starting at each boundary.
+
     """
-    n_periods = len(span) - 1
-    active = (span[:-1] > _EPSILON).astype(np.float64)
+    n_periods = len(count_span) - 1
+    active = (count_span[:-1] > 0.0).astype(np.float64)
 
     # An interior boundary splits two in-window periods only when no event
-    # crosses it: everything covering the earlier period ends there.
-    crossing = span[:-2] - edge_end[1:-1]
-    split = (active[:-1] > 0.0) & (active[1:] > 0.0) & (crossing <= _EPSILON)
+    # crosses it: every event covering the earlier period ends there.
+    crossing = count_span[:-2] - count_end[1:-1]
+    split = (active[:-1] > 0.0) & (active[1:] > 0.0) & (crossing <= 0.0)
     opens = (active[1:] > 0.0) & (active[:-1] <= 0.0)
     starts = np.concatenate(([0.0], (opens | split).astype(np.float64), [0.0]))
 
@@ -110,7 +114,7 @@ def _windows(
         if t == 0 or starts[t] > 0.0 or active[t - 1] <= 0.0:
             first = t
         if t == n_periods - 1 or active[t + 1] <= 0.0 or starts[t + 1] > 0.0:
-            due[t + 1] = float(edge_start[first : t + 1].sum())
+            due[t + 1] = float(value_start[first : t + 1].sum())
 
     return active, starts, due
 
@@ -133,14 +137,11 @@ def resolve_calendar(
     windows = extract_calendar_windows(events, _extractor_for(hint.parser))
     boundaries = [datetime.fromtimestamp(ts, tz=UTC) for ts in forecast_times]
 
-    if hint.projection == "presence":
-        presence_windows = [CalendarWindow(start=w.start, end=w.end, value=1.0) for w in windows]
-        return np.minimum(_fused(fuse_windows_to_boundaries(presence_windows, boundaries))[:-1], 1.0)
-
+    counted = [CalendarWindow(start=w.start, end=w.end, value=1.0) for w in windows]
     active, starts, due = _windows(
-        _fused(fuse_windows_to_boundaries(windows, boundaries)),
+        _fused(fuse_windows_to_boundaries(counted, boundaries)),
+        _fused(fuse_window_edges_to_boundaries(counted, boundaries, "end")),
         _fused(fuse_window_edges_to_boundaries(windows, boundaries, "start")),
-        _fused(fuse_window_edges_to_boundaries(windows, boundaries, "end")),
     )
     if hint.projection == "window_active":
         return active

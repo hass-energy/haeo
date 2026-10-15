@@ -35,11 +35,11 @@ def _resolve(
     return result.tolist()
 
 
-def test_presence_covers_every_event_period() -> None:
-    """Presence marks each period an event covers, including events without a value."""
+def test_every_event_is_a_window() -> None:
+    """Each event's periods are in a window, including an event without a value."""
     events = [_event(1, 2, location="50 km"), _event(3, 4, location="Office")]
 
-    assert _resolve(events, "presence") == [0.0, 1.0, 0.0, 1.0]
+    assert _resolve(events, "window_active") == [0.0, 1.0, 0.0, 1.0]
 
 
 def test_window_projections_of_one_event() -> None:
@@ -51,12 +51,21 @@ def test_window_projections_of_one_event() -> None:
     assert _resolve(events, "window_due") == [0.0, 0.0, 0.0, 50.0, 0.0]
 
 
-def test_event_without_a_value_opens_no_window() -> None:
-    """An event whose text holds no value marks presence but forms no window."""
+def test_event_without_a_value_is_a_window_due_nothing() -> None:
+    """An event whose text holds no value is still a window, such as time away without a trip."""
     events = [_event(1, 2, location="Office")]
 
-    assert _resolve(events, "window_active") == [0.0, 0.0, 0.0, 0.0]
+    assert _resolve(events, "window_active") == [0.0, 1.0, 0.0, 0.0]
+    assert _resolve(events, "window_starts") == [0.0, 1.0, 0.0, 0.0, 0.0]
     assert _resolve(events, "window_due") == [0.0] * 5
+
+
+def test_touching_events_without_values_stay_separate_windows() -> None:
+    """Touching events stay separate windows whether or not they hold values."""
+    events = [_event(0, 1, location="Office"), _event(1, 3, location="20 km")]
+
+    assert _resolve(events, "window_starts") == [0.0, 1.0, 0.0, 0.0, 0.0]
+    assert _resolve(events, "window_due") == [0.0, 0.0, 0.0, 20.0, 0.0]
 
 
 def test_overlapping_events_merge_into_one_window() -> None:
@@ -107,7 +116,7 @@ def test_parsers_value_each_event(parser: CalendarParser, location: str | None, 
 
 def test_calendar_without_events_in_the_horizon_resolves_to_zeros() -> None:
     """A calendar whose injected events are all outside the horizon resolves to zeros."""
-    assert _resolve([], "presence") == [0.0] * 4
+    assert _resolve([], "window_active") == [0.0] * 4
 
 
 @pytest.mark.parametrize(
@@ -119,6 +128,6 @@ def test_calendar_without_events_in_the_horizon_resolves_to_zeros() -> None:
 )
 def test_calendar_without_injected_events_is_not_loaded(states: dict[str, FakeEntityState]) -> None:
     """A calendar state that is missing or carries no injected events cannot be resolved."""
-    hint = CalendarFieldHint(parser="distance", projection="presence")
+    hint = CalendarFieldHint(parser="distance", projection="window_active")
 
     assert resolve_calendar(ENTITY_ID, hint, FakeStateMachine(states), BOUNDARY_TIMES) is None

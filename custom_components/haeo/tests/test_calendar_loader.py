@@ -49,7 +49,7 @@ def _calendar_store(
     """Build a store for a calendar input reading a calendar entity's presence."""
     return create_input_store(
         storage=_MemStorage({"type": "entity", "value": [entity_id]}),
-        hint=calendar_input(OutputType.AVAILABILITY, "presence", "presence"),
+        hint=calendar_input(OutputType.AVAILABILITY, "presence", "window_active"),
         get_forecast_timestamps=get_forecast_timestamps,
     )
 
