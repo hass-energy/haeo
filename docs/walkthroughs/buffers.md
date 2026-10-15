@@ -58,8 +58,9 @@ run_guide("sigenergy-system")
 ## The plan without a reserve
 
 Before adding anything, here is what HAEO plans over the next two days.
-The green dashed line is the battery's state of charge, and the bars are its charging and discharging alongside the house and solar.
+The green dashed line is the battery's state of charge, and the bars are its charging and discharging alongside the house, solar, and grid.
 The pale orange is what the solar could produce, and the darker orange what HAEO plans to use.
+The lines on the price axis are the grid's import and export prices.
 
 The battery runs down to its minimum each evening, so an outage then would leave nothing to run the house.
 And it charges all the way to full most days, which wears it faster than it needs to.
@@ -69,8 +70,8 @@ show_forecast_card(
     page,
     hass,
     step="Plan without a reserve or headroom",
-    elements=["Battery", "House load", "Solar"],
-    inputs=["Solar"],
+    elements=["Battery", "Grid", "House load", "Solar"],
+    inputs=["Solar", "Grid"],
     horizon="2d",
 )
 ```
@@ -157,46 +158,35 @@ Use the arrows to flick between the plans with neither, each one, and both.
 - **With both**, the plan keeps the battery between the two lines.
 
 Each buffer has input entities for its window, level, and shortfall cost, so you can change them from a dashboard as these plans do.
+A buffer that is switched off in a plan stays in the legend, greyed out.
 
 ```guide
-everything = ["Battery", "House load", "Solar"]
+# Every plan lists both buffers, turning off the ones it leaves out, so the legends match
+elements = ["Battery", "Grid", "House load", "Solar", "Backup", "Battery care"]
+
+
+def show_plan(step, hidden=()):
+    show_forecast_card(
+        page, hass, step=step, elements=elements, inputs=["Solar", "Grid"], hidden=list(hidden), horizon="2d"
+    )
+
 
 set_input(hass, element="Backup", field="shortfall_cost", value=0.0)
 set_input(hass, element="Battery care", field="shortfall_cost", value=0.0)
-show_forecast_card(
-    page, hass, step="Without a reserve or headroom", elements=everything, inputs=["Solar"], horizon="2d"
-)
+show_plan("Without a reserve or headroom", hidden=["Backup", "Battery care"])
 
 set_input(hass, element="Backup", field="shortfall_cost", value=0.05)
-show_forecast_card(
-    page, hass, step="With a 12 hour reserve", elements=[*everything, "Backup"], inputs=["Solar"], horizon="2d"
-)
+show_plan("With a 12 hour reserve", hidden=["Battery care"])
 
 set_input(hass, element="Backup", field="window", value=4.0)
-show_forecast_card(
-    page, hass, step="With a 4 hour reserve", elements=[*everything, "Backup"], inputs=["Solar"], horizon="2d"
-)
+show_plan("With a 4 hour reserve", hidden=["Battery care"])
 
 set_input(hass, element="Backup", field="shortfall_cost", value=0.0)
 set_input(hass, element="Battery care", field="shortfall_cost", value=0.02)
-show_forecast_card(
-    page,
-    hass,
-    step="Keeping the top 10% free",
-    elements=[*everything, "Battery care"],
-    inputs=["Solar"],
-    horizon="2d",
-)
+show_plan("Keeping the top 10% free", hidden=["Backup"])
 
 set_input(hass, element="Backup", field="shortfall_cost", value=0.05)
-show_forecast_card(
-    page,
-    hass,
-    step="With a 4 hour reserve and the top 10% free",
-    elements=[*everything, "Backup", "Battery care"],
-    inputs=["Solar"],
-    horizon="2d",
-)
+show_plan("With a 4 hour reserve and the top 10% free")
 ```
 
 ## Seeing them in the network
