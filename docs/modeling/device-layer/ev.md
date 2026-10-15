@@ -88,7 +88,7 @@ The pack's initial charge clamps to $[0, C]$ so a glitched state-of-charge senso
 
 ### Reserve demand pricing
 
-An optional reserve keeps a buffer in the pack while away.
+An optional reserve keeps some energy in the pack while away.
 Because the home connections are masked off during trips, the pack can only drain while away — so the lowest level hit during a trip window equals the level at the window's end.
 The reserve is therefore priced with one check per end boundary $e$ of each trip and of each calendar away period, including away periods made only of events without a distance:
 
