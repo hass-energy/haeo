@@ -955,3 +955,23 @@ def test_field_with_outputs_loads_each_output_from_its_calendar(monkeypatch: pyt
     assert "capacity" not in values_storage
     np.testing.assert_allclose(_ndarray(values_storage["away"]), [1.0, 1.0, 1.0])
     assert "due" not in values_storage
+
+
+def test_forecast_field_replays_a_captured_calendar_state() -> None:
+    """A forecast field reading a calendar loads from a captured state carrying its events, as replay does."""
+    # Real epoch times: stepped forecasts need them for their steps to survive forecast cycling
+    start = 1_767_225_600.0
+    forecast_times = (start, start + 3600.0, start + 7200.0, start + 10800.0)
+    event = {
+        "start": "2026-01-01T01:00:00+00:00",
+        "end": "2026-01-01T02:00:00+00:00",
+        "summary": "Demand charge",
+        "location": None,
+        "description": "0.5",
+    }
+    states = {"calendar.demand": FakeEntityState("calendar.demand", "off", {CALENDAR_EVENTS_ATTRIBUTE: [event]})}
+    config = _grid_config(import_price=as_entity_value(["calendar.demand"]))
+
+    loaded = _dict(load_element_config("Grid", config, FakeStateMachine(states), forecast_times))  # type: ignore[arg-type]  # fixtures use loose dicts
+
+    np.testing.assert_allclose(_ndarray(_dict(loaded["pricing"])["price_source_target"]), [0.0, 0.5, 0.0], atol=1e-9)

@@ -330,6 +330,23 @@ template:
 
 HAEO will detect this as a simple forecast format and extract the data.
 
+## Calendars as Forecasts
+
+Any forecast field can read a Home Assistant calendar alongside or instead of a sensor.
+HAEO reads the calendar's events over the horizon as a stepped forecast: each event's number while the event runs, and zero outside events.
+Events that overlap add together.
+A calendar combined with sensors adds to them like any other forecast.
+
+The number comes from the event's location, summary, or description, whichever holds a plain number first.
+It is in the field's own unit, such as \$/kWh for a price, and an event without a number counts as zero.
+
+**Example**: A demand charge of 0.30 \$/kWh on weekday evenings.
+Create a recurring event from 4 pm to 9 pm with `0.30` in its description, then add the calendar to the grid's import price next to the price sensor.
+HAEO adds 0.30 to the import price during each event.
+
+Calendar events are fetched whenever the calendar or the horizon changes.
+If a calendar cannot be read, the field is unavailable and optimization pauses until it can, as it would for an unavailable sensor.
+
 ## Using Constants vs Sensors
 
 For values that don't change over time (fixed prices, baseline loads, power limits), you have two options:

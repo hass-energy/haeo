@@ -96,6 +96,15 @@ def is_number_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldI
     return type(field_info.entity_description).__name__ == "NumberEntityDescription"
 
 
+def accepts_calendar_forecast(field_info: AnyInputFieldInfo) -> bool:
+    """Return True when a field can read a calendar as a forecast.
+
+    A number forecast field reads a calendar's events as a stepped forecast
+    of the number each event holds, like any forecast sensor.
+    """
+    return field_info.time_series and field_info.outputs is None and is_number_field_info(field_info)
+
+
 def is_switch_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldInfo[SwitchEntityDescription]]:
     """Narrow a heterogeneous InputFieldInfo to the SwitchEntityDescription variant.
 

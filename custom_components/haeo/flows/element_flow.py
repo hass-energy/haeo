@@ -10,6 +10,7 @@ This module provides:
 
 from collections.abc import Mapping
 
+from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry, UnknownSubEntry
 from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
 from homeassistant.helpers.selector import SelectOptionDict, SelectSelector, SelectSelectorConfig, SelectSelectorMode
@@ -23,7 +24,12 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.util import UnitSpec
 from custom_components.haeo.core.units import DURATION_UNITS, PRICE_UNIT_SPEC, currency_symbol
 from custom_components.haeo.elements import get_input_fields
-from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldGroups, localize_input_fields
+from custom_components.haeo.elements.input_fields import (
+    AnyInputFieldInfo,
+    InputFieldGroups,
+    accepts_calendar_forecast,
+    localize_input_fields,
+)
 
 
 def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[UnitSpec] | None:
@@ -80,7 +86,8 @@ def build_inclusion_map(
     """Build field name → compatible entity IDs mapping from input fields.
 
     This dynamically generates the inclusion map by looking up each field's
-    output_type and computing which entities are compatible.
+    output_type and computing which entities are compatible. A field that
+    can read a calendar as a forecast also includes every calendar.
 
     Args:
         input_fields: Mapping of InputFieldInfo from element's schema.
@@ -95,7 +102,10 @@ def build_inclusion_map(
     for field_info in input_fields.values():
         unit_spec = get_unit_spec_for_output_type(field_info.output_type)
         if unit_spec is not None:
-            result[field_info.field_name] = filter_compatible_entities(entity_metadata, unit_spec)
+            included = filter_compatible_entities(entity_metadata, unit_spec)
+            if accepts_calendar_forecast(field_info):
+                included.extend(v.entity_id for v in entity_metadata if v.entity_id.startswith(f"{CALENDAR_DOMAIN}."))
+            result[field_info.field_name] = included
 
     return result
 

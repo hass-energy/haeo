@@ -14,6 +14,7 @@ from homeassistant.helpers.event import EventStateChangedData, async_track_state
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
+from custom_components.haeo.calendar_loader import is_calendar_driven
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.data.input_store import InputMode, InputStore
 from custom_components.haeo.core.schema import as_constant_value
@@ -196,10 +197,10 @@ class HaeoInputNumber(NumberEntity):
         if self._uses_forecast:
             self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
 
-        if self._store.hint.calendar is not None:
-            # The calendar loader fetches events and loads calendar inputs; a
-            # calendar's own state carries no events, so this entity only shows
-            # what the store holds.
+        if is_calendar_driven(self._store):
+            # The calendar loader fetches events and loads inputs with a
+            # calendar source; a calendar's own state carries no events, so
+            # this entity only shows what the store holds.
             self._sync_from_store()
         elif self._store.mode == InputMode.EDITABLE:
             # Refresh to signal readiness (mirrors previous _update_editable_forecast path)
@@ -228,7 +229,7 @@ class HaeoInputNumber(NumberEntity):
     @callback
     def _handle_horizon_change(self) -> None:
         """Handle horizon change - refresh with new time windows."""
-        if not self._uses_forecast or self._store.hint.calendar is not None:
+        if not self._uses_forecast or is_calendar_driven(self._store):
             return
         if self._store.mode == InputMode.EDITABLE:
             with self._suppress_self_notifications():

@@ -1,5 +1,7 @@
 """Tests for flows/field_schema.py utilities."""
 
+from dataclasses import replace
+
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
@@ -143,6 +145,25 @@ def test_build_choose_selector_creates_normalizing_choose_selector(
     """NormalizingChooseSelector is created with entity and constant choices."""
     selector = build_choose_selector(number_field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert isinstance(selector, NormalizingChooseSelector)
+
+
+@pytest.mark.parametrize(
+    ("time_series", "expected"),
+    [
+        pytest.param(True, True, id="forecast_field"),
+        pytest.param(False, False, id="scalar_field"),
+    ],
+)
+def test_build_choose_selector_offers_calendars_for_forecast_fields(
+    number_field: InputFieldInfo[NumberEntityDescription], *, time_series: bool, expected: bool
+) -> None:
+    """A number forecast field can pick a calendar, read as a forecast; a scalar field cannot."""
+    field = replace(number_field, time_series=time_series)
+
+    selector = build_choose_selector(field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
+
+    domains = selector.config["choices"][CHOICE_ENTITY]["selector"]["entity"]["domain"]
+    assert ("calendar" in domains) is expected
 
 
 def test_build_choose_selector_entity_first_by_default(

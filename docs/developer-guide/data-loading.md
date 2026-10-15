@@ -174,6 +174,17 @@ The extractor system ([`extractors/`](https://github.com/hass-energy/haeo/tree/m
 | Solcast Solar             | Solar forecasting            | [`solcast_solar.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/solcast_solar.py)                         |
 | Volcast                   | Solar forecasting            | [`volcast.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/volcast.py)                                     |
 | Open-Meteo Solar Forecast | Solar forecasting            | [`open_meteo_solar_forecast.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/open_meteo_solar_forecast.py) |
+| Calendar events           | Calendars as forecasts       | [`calendar_events.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/calendar_events.py)                     |
+
+### Calendar Events
+
+A calendar's state only shows its current or next event, so the calendar extractor cannot read a calendar directly.
+The calendar input loader fetches each calendar's events over the horizon and injects them into the calendar's state as the `haeo_events` attribute, which the extractor reads.
+Input stores capture their source states through the same injecting state machine, so diagnostics hold the events and replay loads them without a calendar to fetch from.
+A calendar without injected events reads as unavailable rather than as its plain state.
+
+The extracted series is a step function padded with zeros well before and after the events.
+A forecast shorter than the horizon repeats daily to fill it, and the padding keeps a calendar's events from repeating.
 
 ### Parser Design
 

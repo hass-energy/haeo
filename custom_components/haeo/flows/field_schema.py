@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from numbers import Real
 from typing import Any  # noqa: TID251  # voluptuous schema dicts and HA Selector overrides are Any by design
 
+from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers.selector import (
@@ -48,6 +49,7 @@ from custom_components.haeo.elements.input_fields import (
     AnyInputFieldInfo,
     InputFieldGroups,
     InputFieldInfo,
+    accepts_calendar_forecast,
     is_number_field_info,
 )
 
@@ -132,12 +134,14 @@ def build_entity_selector(
     *,
     include_entities: list[str] | None = None,
     multiple: bool = True,
+    calendars: bool = False,
 ) -> EntitySelector:  # type: ignore[type-arg]
     """Build an EntitySelector restricted to unit-compatible entities.
 
     Args:
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection (for chaining).
+        calendars: Whether calendars can be picked, read as forecasts.
 
     Returns:
         EntitySelector configured with include_entities list.
@@ -146,7 +150,7 @@ def build_entity_selector(
     entities_to_include = list(include_entities or [])
 
     config: EntitySelectorConfig = {
-        "domain": [DOMAIN, "sensor", "input_number", "number", "switch"],
+        "domain": [DOMAIN, "sensor", "input_number", "number", "switch", *([CALENDAR_DOMAIN] if calendars else [])],
         "multiple": multiple,
     }
     if entities_to_include:
@@ -264,6 +268,7 @@ def build_choose_selector(
     entity_selector = build_entity_selector(
         include_entities=include_entities,
         multiple=multiple,
+        calendars=accepts_calendar_forecast(field_info),
     )
 
     # Build value selector for the "constant" choice based on field type
@@ -385,7 +390,7 @@ def build_choose_field_entries(
         # A field feeding calendar inputs renders as a plain calendar entity
         # picker rather than a choose selector (no constant form exists).
         if reads_calendar(field_info):
-            calendar_selector = EntitySelector(EntitySelectorConfig(domain="calendar", multiple=False))
+            calendar_selector = EntitySelector(EntitySelectorConfig(domain=CALENDAR_DOMAIN, multiple=False))
             marker = vol.Optional(field_info.field_name) if is_optional else vol.Required(field_info.field_name)
             entries[field_info.field_name] = (marker, calendar_selector)
             continue

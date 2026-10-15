@@ -19,7 +19,7 @@ from custom_components.haeo.calendar_loader import CalendarInputLoader, Calendar
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema.field_hints import calendar_input
+from custom_components.haeo.core.schema.field_hints import FieldHint, calendar_input
 from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -67,6 +67,15 @@ def _trip(start_ts: float, end_ts: float) -> CalendarEvent:
         start=datetime.fromtimestamp(start_ts, tz=UTC),
         end=datetime.fromtimestamp(end_ts, tz=UTC),
         summary="Trip",
+    )
+
+
+def _demand(start_ts: float, end_ts: float, summary: str) -> CalendarEvent:
+    """Build a calendar event holding a number in its summary."""
+    return CalendarEvent(
+        start=datetime.fromtimestamp(start_ts, tz=UTC),
+        end=datetime.fromtimestamp(end_ts, tz=UTC),
+        summary=summary,
     )
 
 
@@ -154,6 +163,14 @@ def test_state_machine_passes_through_other_entities() -> None:
     assert state is not None
     assert CALENDAR_EVENTS_ATTRIBUTE not in state.attributes
     assert sm.get("sensor.missing") is None
+
+
+def test_state_machine_reads_a_calendar_without_events_as_missing() -> None:
+    """A calendar whose events were not fetched reads as missing, not as its plain state."""
+    base = FakeStateMachine({ENTITY_ID: FakeEntityState(ENTITY_ID, "off", {})})
+    sm = CalendarStateMachine(base, {ENTITY_ID: None})
+
+    assert sm.get(ENTITY_ID) is None
 
 
 # --- CalendarInputLoader ---
@@ -427,3 +444,38 @@ async def test_cleanup_cancels_running_reloads(hass: HomeAssistant, horizon_mana
     await hass.async_block_till_done()
 
     assert not store.is_ready()
+
+
+async def test_loader_sums_a_calendar_with_a_sensor_in_a_forecast_field(
+    hass: HomeAssistant, horizon_manager: Mock
+) -> None:
+    """A forecast field reading a sensor and a calendar combines them, reloading when the sensor changes.
+
+    The sensor's present value fills the first period, as it does beside any forecast.
+    """
+    # Real epoch times: stepped forecasts need them for their steps to survive forecast cycling
+    start = 1_767_225_600.0
+    timestamps = (start, start + 3600.0, start + 7200.0)
+    horizon_manager.get_forecast_timestamps.return_value = timestamps
+    calendar = await _add_stub_calendar(hass, [_demand(start + 3600.0, start + 7200.0, "2")])
+
+    def _set_base(value: float) -> None:
+        hass.states.async_set("sensor.base", str(value), {"unit_of_measurement": "kW", "device_class": "power"})
+
+    _set_base(1.0)
+    store = create_input_store(
+        storage=_MemStorage({"type": "entity", "value": ["sensor.base", ENTITY_ID]}),
+        hint=FieldHint(output_type=OutputType.POWER, time_series=True),
+        get_forecast_timestamps=lambda: timestamps,
+    )
+    loader = CalendarInputLoader(hass, {("Load", ("forecast", "forecast")): store}, horizon_manager)
+    loader.start()
+    await hass.async_block_till_done()
+    np.testing.assert_allclose(_presence(store), [1.0, 2.0])
+
+    calendar.fail = True
+    _set_base(5.0)
+    await hass.async_block_till_done()
+
+    np.testing.assert_allclose(_presence(store), [5.0, 2.0])
+    loader.cleanup()

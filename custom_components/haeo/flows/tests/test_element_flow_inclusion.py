@@ -95,3 +95,26 @@ def test_build_inclusion_map_includes_compatible_duration_units(entity_id: str, 
     inclusion_map = build_inclusion_map({"window": _field("window", OutputType.DURATION)}, entity_metadata)
 
     assert inclusion_map["window"] == [entity_id]
+
+
+@pytest.mark.parametrize(
+    ("time_series", "expected"),
+    [
+        pytest.param(True, ["sensor.price", "calendar.demand"], id="forecast_field"),
+        pytest.param(False, ["sensor.price"], id="scalar_field"),
+    ],
+)
+def test_build_inclusion_map_includes_calendars_for_forecast_fields(*, time_series: bool, expected: list[str]) -> None:
+    """A number forecast field also includes every calendar, read as a forecast of its events' numbers."""
+    entity_metadata = [
+        EntityMetadata(entity_id="sensor.price", unit_of_measurement="$/kWh"),
+        EntityMetadata(entity_id="calendar.demand", unit_of_measurement=None),
+    ]
+    field = InputFieldInfo(
+        field_name="price",
+        entity_description=NumberEntityDescription(key="price", name="price"),
+        output_type=OutputType.PRICE,
+        time_series=time_series,
+    )
+
+    assert build_inclusion_map({"price": field}, entity_metadata)["price"] == expected
