@@ -221,8 +221,9 @@ This ensures no information loss when sensors report forecasts at different inte
 
 ### Mixed Payloads
 
-When some sensors provide present values and others provide forecasts, the present values become the initial forecast value.
-The combination then proceeds as pure forecast series merging.
+The combiner returns the summed present value and the summed forecast series separately.
+A present value is the reading for now, so the fuser uses it for the first interval (or the first boundary) and the forecast for the rest.
+Without a forecast, the present value repeats across the horizon.
 
 ## Fusion to Horizon
 
