@@ -24,6 +24,8 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.haeo.const import DOMAIN, STATIC_CARD_STATIC_PATH
+from custom_components.haeo.core.schema.elements.element_type import ElementType
+from custom_components.haeo.core.schema.elements.policy import CONF_ENABLED, CONF_RULE_NAME, CONF_RULES
 
 from .capture import ScreenshotContext, guide_step
 
@@ -96,6 +98,26 @@ def set_input(hass: LiveHomeAssistant, *, element: str, field: str, value: float
     entity_id = hass.run_coro(_find_entity())
     hass.call_service("number", "set_value", {"entity_id": entity_id, "value": value})
     _LOGGER.info("Set %s to %s", entity_id, value)
+
+
+def set_policy_rule(hass: LiveHomeAssistant, *, rule: str, enabled: bool) -> None:
+    """Turn a policy rule on or off with its enabled switch, as you would from a dashboard."""
+
+    async def _find_entity() -> str:
+        ha = hass.hass
+        entry = ha.config_entries.async_entries(DOMAIN)[0]
+        policies = next(
+            subentry for subentry in entry.subentries.values() if subentry.subentry_type == ElementType.POLICY
+        )
+        index = next(i for i, item in enumerate(policies.data[CONF_RULES]) if item[CONF_RULE_NAME] == rule)
+        unique_id = f"{entry.entry_id}_{policies.subentry_id}_{CONF_RULES}.{index}.{CONF_ENABLED}"
+        entity_id = er.async_get(ha).async_get_entity_id("switch", DOMAIN, unique_id)
+        assert entity_id is not None, f"Policy rule {rule} has no enabled switch"
+        return entity_id
+
+    entity_id = hass.run_coro(_find_entity())
+    hass.call_service("switch", "turn_on" if enabled else "turn_off", {"entity_id": entity_id})
+    _LOGGER.info("Turned %s %s", entity_id, "on" if enabled else "off")
 
 
 def _hass_payload(hass: LiveHomeAssistant, entity_filter: Callable[[str, dict[str, object]], bool]) -> str:
@@ -322,4 +344,4 @@ def show_topology_card(page: HAPage, hass: LiveHomeAssistant, *, step: str) -> N
     _LOGGER.info("Captured topology card")
 
 
-__all__ = ["optimize", "set_input", "show_forecast_card", "show_topology_card"]
+__all__ = ["optimize", "set_input", "set_policy_rule", "show_forecast_card", "show_topology_card"]

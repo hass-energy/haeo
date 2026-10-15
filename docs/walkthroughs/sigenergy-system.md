@@ -41,7 +41,7 @@ Before starting this configuration, ensure you have:
 
 - Multiple solar array orientations configured in forecast integration
 - Battery SOC sensor available from Sigenergy integration
-- Constant load value determined (see [Load configuration](../user-guide/elements/load.md#determining-your-baseline))
+- Baseline house load determined (see [Load configuration](../user-guide/elements/load.md#determining-your-baseline))
 
 ## Configuration Steps
 
@@ -162,12 +162,13 @@ add_grid(
 
 ### Step 6: Add Load
 
-Configure the base load consumption, connecting to the Switchboard.
+Configure the house's consumption, connecting to the Switchboard.
+This guide uses a steady 1 kW, but a load forecast sensor lets HAEO plan around when you actually use power.
 
 ```guide
 add_load(
     page,
-    name="Constant Load",
+    name="House load",
     connection="Switchboard",
     forecast=ConstantInput(1),
 )
@@ -175,11 +176,11 @@ add_load(
 
 !!! tip "Load Sensors"
 
-    If you don't have a load forecast, create an `input_number` helper for constant load:
+    If you don't have a load forecast, create an `input_number` helper for a steady baseline load:
 
     1. Settings → Devices & Services → Helpers
     2. Create Helper → Number
-    3. Name: "Constant Load Power", Unit: kW, Value: 1.0
+    3. Name: "House Load Power", Unit: kW, Value: 1.0
 
 ### Step 7: Verify Setup
 
@@ -187,6 +188,29 @@ After completing configuration, verify that all elements were created successful
 
 ```guide
 verify_setup(page)
+```
+
+### Step 8: See the plan
+
+HAEO optimizes as soon as the network is complete.
+The [forecast card](../user-guide/lovelace-card.md) shows the plan for the next two days:
+the battery charging from cheap power and solar, discharging through the expensive evening, and the grid making up the difference.
+
+```guide
+show_forecast_card(
+    page,
+    hass,
+    step="Planned power flows",
+    elements=["Battery", "House load", "Solar", "Grid"],
+    inputs=["Solar"],
+    horizon="2d",
+)
+```
+
+The topology card shows the network you built, with the battery and solar on the inverter's DC side and the grid and house on the Switchboard.
+
+```guide
+show_topology_card(page, hass, step="Network topology")
 ```
 
 ## Verification
@@ -205,7 +229,7 @@ In the HAEO integration page, you should see:
 | Battery          | Battery  | Varies   |
 | Solar            | Solar    | Varies   |
 | Grid             | Grid     | Varies   |
-| Constant Load    | Load     | Varies   |
+| House load       | Load     | Varies   |
 
 ### Key Sensors to Monitor
 

@@ -18,7 +18,7 @@ Example usage:
 """
 
 from tests.guides.primitives.capture import ScreenshotContext, guide_step, pause_screenshots, screenshot_context
-from tests.guides.primitives.cards import optimize, set_input, show_forecast_card, show_topology_card
+from tests.guides.primitives.cards import optimize, set_input, set_policy_rule, show_forecast_card, show_topology_card
 from tests.guides.primitives.developer_tools import save_diagnostics
 from tests.guides.primitives.ha_page import HAPage
 from tests.guides.primitives.haeo import (
@@ -69,6 +69,7 @@ __all__ = [
     "save_diagnostics",
     "screenshot_context",
     "set_input",
+    "set_policy_rule",
     "show_forecast_card",
     "show_topology_card",
     "validate_policies",

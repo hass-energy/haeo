@@ -46,6 +46,7 @@ from tests.guides.primitives import (
     save_diagnostics,
     screenshot_context,
     set_input,
+    set_policy_rule,
     show_forecast_card,
     show_topology_card,
     validate_policies,
@@ -249,11 +250,12 @@ def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, obj
         "add_headroom": add_headroom,
         "validate_requirement": validate_requirement,
         "verify_setup": verify_setup,
-        # Card and plan primitives
+        # Plan primitives
+        "optimize": optimize,
+        "set_input": set_input,
+        "set_policy_rule": set_policy_rule,
         "show_forecast_card": show_forecast_card,
         "show_topology_card": show_topology_card,
-        "set_input": set_input,
-        "optimize": optimize,
         # Developer Tools primitives
         "save_diagnostics": save_diagnostics,
         # Guide chaining
