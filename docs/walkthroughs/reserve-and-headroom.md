@@ -41,23 +41,6 @@ It adds up what your loads use and what your generation produces through that wi
 Loads count by the power HAEO plans for them, and generation by what it is forecast to produce.
 A surplus earlier in the window offsets demand that comes after it, and the other way round.
 
-The chart below shows a day with a 6-hour window.
-The bars are the net demand each hour (loads less solar), and the line is the reserve the battery should hold at the start of each hour.
-
-```mermaid
-xychart-beta
-    title "Net demand and 6-hour reserve"
-    x-axis "Hour" [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
-    y-axis "kWh" -4 --> 11
-    bar [0.6, 0.5, 0.5, 0.6, 1.2, 1.5, 0.7, -0.4, -1.6, -2.5, -3.0, -3.2, -3.2, -2.9, -2.0, -0.5, 1.4, 2.7, 2.5, 1.8, 1.2, 0.9, 0.7, 0.6]
-    line [4.9, 5.0, 4.5, 4.0, 3.4, 2.2, 0.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.2, 5.9, 9.1, 10.5, 9.8, 7.7, 5.2, 3.4, 2.2, 1.3, 0.6]
-```
-
-- **Midday needs no reserve**: solar covers the house for the next six hours, so an outage then costs the battery nothing.
-    This is when headroom matters most, since the battery needs room for the surplus.
-- **Early afternoon looks ahead**: at 1 pm the window runs into the evening peak, so HAEO starts asking for a reserve while solar is still producing.
-- **The evening peaks**: at 4 pm the next six hours are the most expensive part of the day for the battery, so the reserve is highest.
-
 ## Prerequisites
 
 This guide builds on the [Sigenergy System walkthrough](sigenergy-system.md).
@@ -81,7 +64,7 @@ show_forecast_card(
     page,
     hass,
     step="Plan without a reserve or headroom",
-    elements=["Battery", "Constant Load", "Solar"],
+    elements=["Battery", "House load", "Solar"],
     inputs=["Solar"],
     horizon="2d",
 )
@@ -108,7 +91,7 @@ Then set the requirement and the cost of falling short:
 add_reserve(
     page,
     name="Backup",
-    loads=["Constant Load"],
+    loads=["House load"],
     generation=["Solar"],
     storage=["Battery"],
     window=ConstantInput(12.0),
@@ -118,7 +101,7 @@ add_reserve(
 validate_requirement(
     hass,
     name="Backup",
-    participants={"loads": ["Constant Load"], "generation": ["Solar"], "storage": ["Battery"]},
+    participants={"loads": ["House load"], "generation": ["Solar"], "storage": ["Battery"]},
 )
 ```
 
@@ -166,7 +149,7 @@ Use the arrows to flick between the plans with neither, each one, and both.
 The reserve and headroom have input entities for their outage length or look-ahead, extra amount, and shortfall cost, so you can change them from a dashboard as these plans do.
 
 ```guide
-everything = ["Battery", "Constant Load", "Solar"]
+everything = ["Battery", "House load", "Solar"]
 
 set_input(hass, element="Backup", field="shortfall_cost", value=0.0)
 set_input(hass, element="Battery care", field="shortfall_cost", value=0.0)
