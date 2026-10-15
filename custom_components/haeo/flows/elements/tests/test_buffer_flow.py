@@ -40,6 +40,7 @@ def _add_elements(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
         ("House", ElementType.LOAD),
         ("Solar", ElementType.SOLAR),
         ("Battery", ElementType.BATTERY),
+        ("Section", ElementType.BATTERY_SECTION),
         ("Grid", ElementType.GRID),
         ("Bus", ElementType.NODE),
     ):
@@ -94,10 +95,10 @@ def _add_buffer(hass: HomeAssistant, hub_entry: MockConfigEntry, data: dict[str,
     return subentry
 
 
-async def test_participant_lists_offer_loads_generation_and_batteries(
+async def test_participant_lists_offer_loads_generation_and_storage(
     hass: HomeAssistant, hub_entry: MockConfigEntry
 ) -> None:
-    """Each participant list offers only the elements that fit it."""
+    """Each participant list offers only the elements that fit it, with batteries and battery sections as storage."""
     _add_elements(hass, hub_entry)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
@@ -106,7 +107,7 @@ async def test_participant_lists_offer_loads_generation_and_batteries(
     assert _section_options(result["data_schema"], SECTION_PARTICIPANTS) == {
         CONF_LOADS: ["House"],
         CONF_GENERATION: ["Solar"],
-        CONF_STORAGE: ["Battery"],
+        CONF_STORAGE: ["Battery", "Section"],
     }
 
 

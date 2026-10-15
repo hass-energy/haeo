@@ -62,7 +62,7 @@ Within a window, a surplus offsets a need that comes after it, but not one befor
 
 ## Batteries
 
-The batteries that hold the buffer.
+The batteries that hold the buffer, which can be any element that stores energy, such as a battery or a battery section.
 They hold it together, so a buffer needing 8 kWh is met by any mix of charge or empty space across them.
 
 ## Window

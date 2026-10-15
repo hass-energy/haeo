@@ -20,7 +20,6 @@ from .buffer import Buffer as Buffer
 from .buffer import BufferElementConfig as BufferElementConfig
 from .buffer import BufferElementTypeName as BufferElementTypeName
 from .buffer import BufferOutputName as BufferOutputName
-from .buffer import BufferStorage as BufferStorage
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .connection import CONNECTION_POWER as CONNECTION_POWER
 from .connection import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_CONNECTION
@@ -118,7 +117,6 @@ __all__ = [
     "Buffer",
     "BufferElementConfig",
     "BufferOutputName",
-    "BufferStorage",
     "Connection",
     "ConnectionElementConfig",
     "ConnectionElementTypeName",

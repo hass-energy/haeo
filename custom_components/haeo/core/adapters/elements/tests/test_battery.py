@@ -12,8 +12,6 @@ from custom_components.haeo.core.adapters.elements.battery import (
     BATTERY_POWER_ACTIVE,
     BATTERY_POWER_CHARGE,
     BATTERY_POWER_DISCHARGE,
-    charge_connection_name,
-    discharge_connection_name,
 )
 from custom_components.haeo.core.adapters.elements.battery import adapter as battery_adapter
 from custom_components.haeo.core.model.elements import (
@@ -340,25 +338,6 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
 
     result = schema_config_available(config, sm=hass.states)
     assert result is True
-
-
-def test_model_elements_name_connections_with_the_connection_name_helpers() -> None:
-    """The battery's connections carry the names the helpers give, so other elements can refer to them."""
-    config_data = _wrap_data(
-        {
-            "name": "test_battery",
-            "connection": "main_bus",
-            "capacity": np.array([10.0, 10.0, 10.0]),
-            "initial_charge_percentage": 0.5,
-        }
-    )
-
-    elements = battery_adapter.model_elements(config_data)
-
-    discharge = _get_connection(elements, discharge_connection_name("test_battery"))
-    charge = _get_connection(elements, charge_connection_name("test_battery"))
-    assert (discharge["source"], discharge["target"]) == ("test_battery", "main_bus")
-    assert (charge["source"], charge["target"]) == ("main_bus", "test_battery")
 
 
 def test_model_elements_omits_efficiency_when_missing() -> None:

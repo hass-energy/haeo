@@ -44,6 +44,7 @@ class ElementAdapter(Protocol):
     can_source: bool
 
     can_sink: bool
+    can_store: bool
 
     def model_elements(self, config: Any) -> list[ModelElementConfig]:
         """Return model element parameters for the loaded config.

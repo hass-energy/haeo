@@ -11,12 +11,14 @@ Instead the element reads the planned power of its loads, the forecast power of 
 | Buffer        | `{name}` | kind, loads, generation, storage, window, level, shortfall cost |
 
 Loads count by the net power flowing into them, so a load whose timing the optimizer chooses moves the requirement with its schedule.
-Generation counts by the limit on the connection it produces through, which is its forecast, so curtailing it in the plan cannot shrink a headroom that exists to make room for it.
-Other connections out of a generator do not count, so its forecast is never counted twice.
+Generation counts by the power limits on the connections out of it, the most the network lets it produce, which is its forecast.
+Curtailing it in the plan cannot shrink a headroom that exists to make room for it.
 
-Each battery in the storage is paired with the connection the buffer flows through: its discharge connection for a reserve and its charge connection for headroom.
-That connection's efficiency converts between the energy the elements need at the network and the energy stored in the battery.
-When no power can flow through a battery's connection, the network leaves it out, and the battery counts without losses.
+Each battery's efficiency comes from the connections it discharges through for a reserve, or charges through for headroom.
+It converts between the energy the elements need at the network and the energy stored in the battery.
+With several such connections the lowest efficiency counts, so the buffer never relies on more than the worst path gives, and a battery with none counts without losses.
+
+The buffer reads all of this from the elements and their connections, so any element that consumes, produces, or stores power can take part, whatever kind of device it is.
 
 ## Devices created
 
@@ -89,15 +91,15 @@ where $c_t$ is the shortfall cost in \$/kWh/h.
 
 ## Parameter mapping
 
-| User configuration | Model field  | Notes                                                                       |
-| ------------------ | ------------ | --------------------------------------------------------------------------- |
-| Kind               | `kind`       | `reserve` or `headroom`                                                     |
-| Loads              | `loads`      | Planned net power into each load                                            |
-| Generation         | `generation` | Forecast power, the limit on the connection each generator produces through |
-| Batteries          | `storage`    | Each battery with its discharge (reserve) or charge (headroom) connection   |
-| Window             | `window`     | Hours                                                                       |
-| Level              | `level`      | Share of capacity at each boundary, or unset to use the min or max charge   |
-| Shortfall cost     | `price`      | \$/kWh/h                                                                    |
+| User configuration | Model field  | Notes                                                                     |
+| ------------------ | ------------ | ------------------------------------------------------------------------- |
+| Kind               | `kind`       | `reserve` or `headroom`                                                   |
+| Loads              | `loads`      | Planned net power into each load                                          |
+| Generation         | `generation` | Forecast power, the limits on the connections out of each generator       |
+| Batteries          | `storage`    | Stored energy, limits, and the efficiency of their connections            |
+| Window             | `window`     | Hours                                                                     |
+| Level              | `level`      | Share of capacity at each boundary, or unset to use the min or max charge |
+| Shortfall cost     | `price`      | \$/kWh/h                                                                  |
 
 ## Outputs
 

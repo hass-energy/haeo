@@ -72,20 +72,6 @@ BUFFER_OUTPUT_NAMES: Final[frozenset[BufferOutputName]] = frozenset(
 _TIME_TOLERANCE: Final = 1e-6
 
 
-class BufferGenerationConfig(TypedDict):
-    """A generator the buffer covers and the connection it produces through, by name."""
-
-    element: str
-    connection: str
-
-
-class BufferStorageConfig(TypedDict):
-    """A battery holding the buffer and the connection the buffer flows through, by name."""
-
-    battery: str
-    connection: str
-
-
 class BufferElementConfig(TypedDict):
     """Configuration for creating a Buffer model element."""
 
@@ -93,25 +79,11 @@ class BufferElementConfig(TypedDict):
     name: str
     kind: BufferKind
     loads: list[str]
-    generation: list[BufferGenerationConfig]
-    storage: list[BufferStorageConfig]
+    generation: list[str]
+    storage: list[str]
     window: float
     level: NDArray[np.float64] | float | None
     price: NDArray[np.float64] | float
-
-
-@dataclass(frozen=True, slots=True)
-class BufferStorage:
-    """A battery holding the buffer and the connection the buffer flows through.
-
-    For a reserve this is the connection the battery discharges through, and for
-    headroom the one it charges through. It is None when the network has no such
-    connection because no power can flow through it, and the battery then counts
-    without losses.
-    """
-
-    battery: Battery
-    connection: Connection[str] | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,8 +148,8 @@ class Buffer(Element[BufferOutputName]):
         solver: Solver,
         kind: BufferKind,
         loads: list[NetworkElement[str]],
-        generation: dict[str, list[PowerLimitSegment]],
-        storage: list[BufferStorage],
+        generation: list[NetworkElement[str]],
+        storage: list[Battery],
         window: float,
         level: NDArray[np.float64] | float | None,
         price: NDArray[np.float64] | float,
@@ -208,25 +180,40 @@ class Buffer(Element[BufferOutputName]):
     @property
     def element_names(self) -> list[str]:
         """Return the names of the loads and generation the buffer covers."""
-        return [*(load.name for load in self._loads), *self._generation]
+        return [element.name for element in (*self._loads, *self._generation)]
 
     @property
     def storage_names(self) -> list[str]:
         """Return the names of the batteries that hold the buffer."""
-        return [storage.battery.name for storage in self._storage]
+        return [battery.name for battery in self._storage]
 
     def _layout(self) -> WindowLayout:
         return window_layout(self.periods, self.window)
 
-    def _efficiency(self, storage: BufferStorage) -> NDArray[np.float64]:
-        """Return the efficiency of the connection the storage meets the buffer through, at each boundary."""
+    def _efficiency(self, battery: Battery) -> NDArray[np.float64]:
+        """Return the efficiency between a battery and the network, at each boundary.
+
+        It is the efficiency of the connections the battery discharges through
+        for a reserve, or charges through for headroom. With several, the lowest
+        is taken, so the buffer never counts on more than the worst path gives.
+        A battery with none counts without losses.
+        """
         n_boundaries = self.n_periods + 1
-        efficiency = np.ones(n_boundaries)
-        segments = storage.connection.segments.values() if storage.connection is not None else ()
-        for segment in segments:
-            if isinstance(segment, EfficiencySegment) and segment.efficiency is not None:
-                efficiency = efficiency * broadcast_to_sequence(segment.efficiency, n_boundaries)
-        return efficiency
+        connections = battery.outbound_connections if self.kind == "reserve" else battery.inbound_connections
+        efficiencies = [
+            np.prod(
+                [
+                    broadcast_to_sequence(segment.efficiency, n_boundaries)
+                    for segment in connection.segments.values()
+                    if isinstance(segment, EfficiencySegment) and segment.efficiency is not None
+                ]
+                or [np.ones(n_boundaries)],
+                axis=0,
+            )
+            for connection in connections
+            if isinstance(connection, Connection)
+        ]
+        return np.min(efficiencies, axis=0) if efficiencies else np.ones(n_boundaries)
 
     def _base(self, battery: Battery) -> NDArray[np.float64]:
         """Return the stored energy the buffer is measured from in a battery, at each boundary.
@@ -240,9 +227,9 @@ class Buffer(Element[BufferOutputName]):
         limit = battery.charge_ceiling
         return limit if self.level is None else np.minimum(limit, self.level * battery.capacity)
 
-    def _network_factor(self, storage: BufferStorage) -> NDArray[np.float64]:
+    def _network_factor(self, battery: Battery) -> NDArray[np.float64]:
         """Return how much energy at the network side each kWh stored in the battery is worth to the buffer."""
-        efficiency = self._efficiency(storage)
+        efficiency = self._efficiency(battery)
         return efficiency if self.kind == "reserve" else 1.0 / efficiency
 
     def _scale(self) -> NDArray[np.float64]:
@@ -252,9 +239,9 @@ class Buffer(Element[BufferOutputName]):
         energy stored in the batteries, exactly for one battery and for
         batteries with the same efficiency.
         """
-        capacity = sum((storage.battery.capacity for storage in self._storage), np.zeros(self.n_periods + 1))
+        capacity = sum((battery.capacity for battery in self._storage), np.zeros(self.n_periods + 1))
         weighted = sum(
-            (self._network_factor(storage) * storage.battery.capacity for storage in self._storage),
+            (self._network_factor(battery) * battery.capacity for battery in self._storage),
             np.zeros(self.n_periods + 1),
         )
         return weighted / capacity
@@ -262,28 +249,38 @@ class Buffer(Element[BufferOutputName]):
     def _available(self) -> LinearArray:
         """Return the network-side energy the storage can provide past its bases, at each boundary."""
         held = [
-            (storage.battery.stored_energy - self._base(storage.battery)) * self._network_factor(storage)
+            (battery.stored_energy - self._base(battery)) * self._network_factor(battery)
             if self.kind == "reserve"
-            else (self._base(storage.battery) - storage.battery.stored_energy) * self._network_factor(storage)
-            for storage in self._storage
+            else (self._base(battery) - battery.stored_energy) * self._network_factor(battery)
+            for battery in self._storage
         ]
         return LinearArray.sum_of([LinearArray.zeros(self.n_periods + 1), *held])
+
+    def _available_generation(self) -> NDArray[np.float64]:
+        """Return the most the generation can produce in each period.
+
+        It is the sum of the power limits on the connections out of each
+        generator, the most the network lets it produce whatever the plan
+        curtails. A connection with no limit adds nothing.
+        """
+        return sum(
+            (
+                broadcast_to_sequence(segment.max_power, self.n_periods)
+                for generator in self._generation
+                for connection in generator.outbound_connections
+                if isinstance(connection, Connection)
+                for segment in connection.segments.values()
+                if isinstance(segment, PowerLimitSegment) and segment.max_power is not None
+            ),
+            np.zeros(self.n_periods),
+        )
 
     def _net_power(self) -> LinearArray:
         """Return the loads' planned power less the generation's available power in each period."""
         net = LinearArray.zeros(self.n_periods)
         for load in self._loads:
             net = net + load.connection_power()
-        available = sum(
-            (
-                broadcast_to_sequence(max_power, self.n_periods)
-                for limits in self._generation.values()
-                for limit in limits
-                if (max_power := limit.max_power) is not None
-            ),
-            np.zeros(self.n_periods),
-        )
-        return net - available
+        return net - self._available_generation()
 
     @constraint
     def buffer_demand_balance(self) -> Rows:
@@ -376,8 +373,8 @@ class Buffer(Element[BufferOutputName]):
     @output
     def buffer_state_of_charge(self) -> OutputData:
         """Output: the combined state of charge the batteries should stay above, or below for headroom."""
-        capacity = sum((storage.battery.capacity for storage in self._storage), np.zeros(self.n_periods + 1))
-        base = sum((self._base(storage.battery) for storage in self._storage), np.zeros(self.n_periods + 1))
+        capacity = sum((battery.capacity for battery in self._storage), np.zeros(self.n_periods + 1))
+        base = sum((self._base(battery) for battery in self._storage), np.zeros(self.n_periods + 1))
         required = self._required_values()
         line = base + required if self.kind == "reserve" else base - required
         ratio = np.clip(line / capacity, 0.0, 1.0)
@@ -399,11 +396,8 @@ __all__ = [
     "Buffer",
     "BufferElementConfig",
     "BufferElementTypeName",
-    "BufferGenerationConfig",
     "BufferKind",
     "BufferOutputName",
-    "BufferStorage",
-    "BufferStorageConfig",
     "WindowLayout",
     "window_layout",
     "window_peaks",

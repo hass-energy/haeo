@@ -21,11 +21,10 @@ from numpy.typing import NDArray
 from .element import Element, NetworkElement
 from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
-from .elements.buffer import Buffer, BufferElementConfig, BufferStorage
+from .elements.buffer import Buffer, BufferElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
-from .elements.segments import PowerLimitSegment
 from .linear import LinearArray, total
 from .solver import Solver
 from .util.solver_rows import RowIndices
@@ -236,6 +235,14 @@ class Network:
 
         return element_instance
 
+    def _network_element(self, buffer_name: str, element_name: str) -> NetworkElement[Any]:
+        """Return the network element a buffer names, raising when there is none."""
+        element = self.elements.get(element_name)
+        if not isinstance(element, NetworkElement):
+            msg = f"Buffer '{buffer_name}' references unknown element '{element_name}'"
+            raise TypeError(msg)
+        return element
+
     def _add_policy_pricing(self, config: PolicyPricingElementConfig) -> PolicyPricing:
         """Create a PolicyPricing element by resolving connection/tag references."""
         name = config["name"]
@@ -267,44 +274,19 @@ class Network:
     def _add_buffer(self, config: BufferElementConfig) -> Buffer:
         """Create a Buffer element by resolving its loads, generation, and storage by name.
 
-        Each battery holds the buffer through the connection named with it, the
-        one it discharges through for a reserve or charges through for headroom.
-        That connection's efficiency scales what the battery can provide.
-        Generation counts by the power limit on the connection named with it.
+        The buffer reads what it needs from the elements and their connections,
+        so any element can take part in a buffer.
         """
         name = config["name"]
-        loads: list[NetworkElement[Any]] = []
-        for load_name in config["loads"]:
-            load = self.elements.get(load_name)
-            if not isinstance(load, NetworkElement):
-                msg = f"Buffer '{name}' references unknown element '{load_name}'"
-                raise TypeError(msg)
-            loads.append(load)
-
-        # Generation counts by the limit on the connection it produces through. Policy
-        # compilation leaves out connections no power can flow through, and a
-        # generator without one produces nothing the buffer can count.
-        generation: dict[str, list[PowerLimitSegment]] = {}
-        for generation_config in config["generation"]:
-            connection = self.elements.get(generation_config["connection"])
-            segments = connection.segments.values() if isinstance(connection, Connection) else ()
-            generation[generation_config["element"]] = [
-                segment
-                for segment in segments
-                if isinstance(segment, PowerLimitSegment) and segment.max_power is not None
-            ]
-
-        storage: list[BufferStorage] = []
-        for storage_config in config["storage"]:
-            battery = self.elements.get(storage_config["battery"])
+        loads = [self._network_element(name, element_name) for element_name in config["loads"]]
+        generation = [self._network_element(name, element_name) for element_name in config["generation"]]
+        storage: list[Battery] = []
+        for battery_name in config["storage"]:
+            battery = self.elements.get(battery_name)
             if not isinstance(battery, Battery):
-                msg = f"Buffer '{name}' references '{storage_config['battery']}', which is not a battery"
+                msg = f"Buffer '{name}' references '{battery_name}', which is not a battery"
                 raise TypeError(msg)
-            # A battery whose connection was left out counts without its losses
-            connection = self.elements.get(storage_config["connection"])
-            storage.append(
-                BufferStorage(battery=battery, connection=connection if isinstance(connection, Connection) else None)
-            )
+            storage.append(battery)
 
         element = Buffer(
             name=name,

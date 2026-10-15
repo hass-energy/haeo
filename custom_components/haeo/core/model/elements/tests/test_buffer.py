@@ -22,7 +22,6 @@ from custom_components.haeo.core.model.elements.buffer import (
     BUFFER_STATE_OF_CHARGE,
     Buffer,
     BufferKind,
-    BufferStorageConfig,
     window_layout,
     window_peaks,
 )
@@ -88,13 +87,24 @@ def _fixed_connection(name: str, source: str, target: str, power: Sequence[float
     }
 
 
+def _efficient_connection(name: str, source: str, target: str, efficiency: float) -> ConnectionElementConfig:
+    return {
+        "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+        "name": name,
+        "source": source,
+        "target": target,
+        "tags": {0},
+        "segments": {"efficiency": {"segment_type": "efficiency", "efficiency": efficiency}},
+    }
+
+
 def _network(
     periods: Sequence[float],
     *,
     initial_charge: float = 5.0,
     min_charge: float | None = None,
     max_charge: float | None = None,
-    efficiency: float = 1.0,
+    efficiency: float | None = 1.0,
     house: Sequence[float] | None = None,
     solar: Sequence[float] | None = None,
     kind: BufferKind = "reserve",
@@ -103,7 +113,8 @@ def _network(
 
     The battery only discharges for a reserve and only charges for headroom, so
     it cannot cycle energy through its losses or shift grid energy in time. With
-    no house or solar nothing flows and its charge stays where it starts.
+    no house or solar nothing flows and its charge stays where it starts. With no
+    efficiency the battery has no connection at all.
     """
     network = Network(name="test", periods=np.asarray(periods, dtype=float))
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "bus", "is_source": False, "is_sink": False})
@@ -119,19 +130,11 @@ def _network(
     if max_charge is not None:
         battery["max_charge"] = max_charge
     network.add(battery)
-    name, source, target = (
-        ("battery:discharge", "battery", "bus") if kind == "reserve" else ("battery:charge", "bus", "battery")
-    )
-    network.add(
-        {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": name,
-            "source": source,
-            "target": target,
-            "tags": {0},
-            "segments": {"efficiency": {"segment_type": "efficiency", "efficiency": efficiency}},
-        }
-    )
+    if efficiency is not None:
+        name, source, target = (
+            ("battery:discharge", "battery", "bus") if kind == "reserve" else ("battery:charge", "bus", "battery")
+        )
+        network.add(_efficient_connection(name, source, target, efficiency))
     if house is None and solar is None:
         return network
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
@@ -160,21 +163,18 @@ def _buffer(
     kind: BufferKind = "reserve",
     loads: list[str] | None = None,
     generation: list[str] | None = None,
-    storage: list[BufferStorageConfig] | None = None,
+    storage: list[str] | None = None,
     window: float = 1.0,
     level: float | None = None,
     price: float = 1.0,
 ) -> BufferElementConfig:
-    connection = "battery:discharge" if kind == "reserve" else "battery:charge"
     return {
         "element_type": MODEL_ELEMENT_TYPE_BUFFER,
         "name": "buffer",
         "kind": kind,
         "loads": loads or [],
-        "generation": [
-            {"element": generator, "connection": f"{generator}:connection"} for generator in generation or []
-        ],
-        "storage": [{"battery": "battery", "connection": connection}] if storage is None else storage,
+        "generation": generation or [],
+        "storage": ["battery"] if storage is None else storage,
         "window": window,
         "level": level,
         "price": price,
@@ -188,25 +188,20 @@ def _values(output: OutputData) -> np.ndarray:
 @pytest.mark.parametrize(
     ("config", "error", "match"),
     [
-        pytest.param(_buffer(loads=["missing"]), TypeError, "unknown element", id="unknown_load"),
+        pytest.param(_buffer(loads=["missing"]), TypeError, "unknown element 'missing'", id="unknown_load"),
+        pytest.param(_buffer(generation=["missing"]), TypeError, "unknown element 'missing'", id="unknown_generation"),
         pytest.param(
-            _buffer(storage=[{"battery": "missing", "connection": "battery:discharge"}]),
-            TypeError,
-            "'missing', which is not a battery",
-            id="unknown_battery",
+            _buffer(storage=["missing"]), TypeError, "'missing', which is not a battery", id="unknown_battery"
         ),
         pytest.param(
-            _buffer(storage=[{"battery": "house", "connection": "battery:discharge"}]),
-            TypeError,
-            "'house', which is not a battery",
-            id="storage_not_a_battery",
+            _buffer(storage=["house"]), TypeError, "'house', which is not a battery", id="storage_not_a_battery"
         ),
     ],
 )
 def test_buffer_rejects_references_it_cannot_resolve(
     config: BufferElementConfig, error: type[Exception], match: str
 ) -> None:
-    """A buffer covers network elements and is held by named batteries through named connections."""
+    """A buffer covers network elements and is held by batteries."""
     network = _network([1.0, 1.0], house=[1.0, 1.0])
 
     with pytest.raises(error, match=match):
@@ -333,43 +328,42 @@ def test_state_of_charge_line_adds_the_requirement_to_the_level(
     np.testing.assert_allclose(_values(outputs[BUFFER_STATE_OF_CHARGE]), line, atol=1e-9)
 
 
-def test_buffer_flows_through_the_named_connection_beside_others() -> None:
-    """A battery with another connection out of it holds the buffer through the one the buffer names."""
-    network = _network([1.0, 1.0], initial_charge=0.0, house=[1.0, 1.0])
-    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "spare", "is_source": False, "is_sink": True})
-    network.add(
-        {
-            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-            "name": "battery:spare",
-            "source": "battery",
-            "target": "spare",
-            "tags": {0},
-            "segments": {"efficiency": {"segment_type": "efficiency", "efficiency": 0.5}},
-        }
-    )
-    network.add(_buffer(loads=["house"], storage=[{"battery": "battery", "connection": "battery:discharge"}]))
-
-    network.optimize()
-    outputs = network.elements["buffer"].outputs()
-
-    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), [1.0, 1.0, 0.0], atol=1e-9)
-    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_SHORTFALL]), [0.0, 1.0, 0.0], atol=1e-9)
-
-
 @pytest.mark.parametrize(
-    ("connection", "required"),
+    ("kind", "spare", "spare_efficiency", "required"),
     [
-        pytest.param("battery:discharge", [2.0, 2.0, 0.0], id="named_connection_losses"),
-        pytest.param("missing", [1.0, 1.0, 0.0], id="absent_connection_counts_without_losses"),
+        pytest.param("reserve", "out", 0.8, [2.0, 2.0, 0.0], id="reserve_takes_the_lower_outbound"),
+        pytest.param("reserve", "out", 0.25, [4.0, 4.0, 0.0], id="reserve_takes_the_lower_outbound_spare"),
+        pytest.param("reserve", "in", 0.25, [2.0, 2.0, 0.0], id="reserve_ignores_inbound"),
+        pytest.param("headroom", "in", 0.25, [0.25, 0.25, 0.0], id="headroom_takes_the_lower_inbound"),
+        pytest.param("headroom", "out", 0.25, [0.5, 0.5, 0.0], id="headroom_ignores_outbound"),
     ],
 )
-def test_storage_counts_the_losses_of_its_connection_when_present(connection: str, required: list[float]) -> None:
-    """A battery whose connection is absent from the network still holds the buffer, without that connection's losses.
+def test_storage_counts_the_lowest_efficiency_of_its_connections_for_its_kind(
+    kind: BufferKind, spare: str, spare_efficiency: float, required: list[float]
+) -> None:
+    """A battery holds the buffer through the worst of the connections a reserve leaves or headroom enters by.
 
-    The house uses 1 kW over a one hour window and the discharge connection is 50% efficient.
+    The battery's own connection is 50% efficient and a second connection runs to
+    or from a passive node. The house uses, or the solar makes, 1 kW over a one
+    hour window, as stored energy before the reserve's losses or after headroom's.
     """
-    network = _network([1.0, 1.0], efficiency=0.5, house=[1.0, 1.0])
-    network.add(_buffer(loads=["house"], storage=[{"battery": "battery", "connection": connection}]))
+    network = _network(
+        [1.0, 1.0],
+        efficiency=0.5,
+        house=[1.0, 1.0] if kind == "reserve" else None,
+        solar=[1.0, 1.0] if kind == "headroom" else None,
+        kind=kind,
+    )
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "spare", "is_source": False, "is_sink": False})
+    source, target = ("battery", "spare") if spare == "out" else ("spare", "battery")
+    network.add(_efficient_connection("battery:spare", source, target, spare_efficiency))
+    network.add(
+        _buffer(
+            kind=kind,
+            loads=["house"] if kind == "reserve" else [],
+            generation=["solar"] if kind == "headroom" else [],
+        )
+    )
 
     network.optimize()
     outputs = network.elements["buffer"].outputs()
@@ -377,17 +371,31 @@ def test_storage_counts_the_losses_of_its_connection_when_present(connection: st
     np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), required, atol=1e-9)
 
 
+def test_storage_without_connections_counts_without_losses() -> None:
+    """A battery with no connections still holds the buffer, at face value."""
+    network = _network([1.0, 1.0], efficiency=None, house=[1.0, 1.0])
+    network.add(_buffer(loads=["house"]))
+
+    network.optimize()
+    outputs = network.elements["buffer"].outputs()
+
+    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), [1.0, 1.0, 0.0], atol=1e-9)
+
+
 @pytest.mark.parametrize(
-    ("connection", "required"),
+    ("extra_limit", "required"),
     [
-        pytest.param("solar:connection", [1.0, 1.0, 0.0], id="own_connection_limit"),
-        pytest.param("missing", [0.0, 0.0, 0.0], id="absent_connection_counts_nothing"),
+        pytest.param(5.0, [6.0, 6.0, 0.0], id="limited_connection_adds"),
+        pytest.param(None, [1.0, 1.0, 0.0], id="unlimited_connection_adds_nothing"),
     ],
 )
-def test_generation_counts_only_the_limit_on_its_named_connection(connection: str, required: list[float]) -> None:
-    """Headroom counts the limit on the generator's named connection and ignores another connection out of it.
+def test_generation_counts_the_limits_on_every_connection_out_of_it(
+    extra_limit: float | None, required: list[float]
+) -> None:
+    """Headroom counts the limits on every connection out of a generator.
 
-    The solar makes 1 kW through its own connection and could send 5 kW more through a second one.
+    The solar makes 1 kW through its own connection and a second connection out of
+    it may carry 5 kW more, or have no limit.
     """
     network = _network([1.0, 1.0], house=[0.0, 0.0], solar=[1.0, 1.0], kind="headroom")
     network.add(
@@ -397,12 +405,15 @@ def test_generation_counts_only_the_limit_on_its_named_connection(connection: st
             "source": "solar",
             "target": "bus",
             "tags": {0},
-            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": np.full(2, 5.0)}},
+            "segments": {
+                "power_limit": {
+                    "segment_type": "power_limit",
+                    "max_power": None if extra_limit is None else np.full(2, extra_limit),
+                }
+            },
         }
     )
-    config = _buffer(kind="headroom")
-    config["generation"] = [{"element": "solar", "connection": connection}]
-    network.add(config)
+    network.add(_buffer(kind="headroom", generation=["solar"]))
 
     network.optimize()
     outputs = network.elements["buffer"].outputs()

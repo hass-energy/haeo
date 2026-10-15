@@ -321,7 +321,7 @@ def test_buffer_serializes_its_participants_not_a_node() -> None:
             "kind": "reserve",
             "loads": ["House"],
             "generation": [],
-            "storage": [{"battery": "Battery", "connection": "Battery:discharge"}],
+            "storage": ["Battery"],
             "window": 4.0,
             "level": None,
             "price": 0.1,

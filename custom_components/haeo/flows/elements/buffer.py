@@ -41,10 +41,10 @@ from custom_components.haeo.flows.field_schema import (
 )
 
 # Which elements each participant list offers, by what the element's adapter can do
-PARTICIPANT_FILTERS: dict[str, Callable[[ElementType, ElementAdapter], bool]] = {
-    CONF_LOADS: lambda _element_type, adapter: adapter.can_sink and not adapter.can_source,
-    CONF_GENERATION: lambda _element_type, adapter: adapter.can_source and not adapter.can_sink,
-    CONF_STORAGE: lambda element_type, _adapter: element_type == ElementType.BATTERY,
+PARTICIPANT_FILTERS: dict[str, Callable[[ElementAdapter], bool]] = {
+    CONF_LOADS: lambda adapter: adapter.can_sink and not adapter.can_source,
+    CONF_GENERATION: lambda adapter: adapter.can_source and not adapter.can_sink,
+    CONF_STORAGE: lambda adapter: adapter.can_store,
 }
 
 
@@ -122,7 +122,7 @@ class BufferSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             for subentry in self._get_entry().subentries.values()
             if subentry.subentry_id != current_id
             and is_element_type(subentry.subentry_type)
-            and offered(subentry.subentry_type, ELEMENT_TYPES[subentry.subentry_type])
+            and offered(ELEMENT_TYPES[subentry.subentry_type])
         ]
         return SelectSelector(SelectSelectorConfig(options=options, multiple=True, mode=SelectSelectorMode.DROPDOWN))
 
