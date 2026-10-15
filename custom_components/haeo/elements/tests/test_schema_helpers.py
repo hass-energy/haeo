@@ -1,6 +1,6 @@
 """Tests for elements schema helper utilities."""
 
-from typing import Literal, NotRequired, Required, TypeAliasType, TypedDict
+from typing import Literal, TypeAliasType, TypedDict
 
 import pytest
 
@@ -100,17 +100,6 @@ def test_get_input_fields_returns_empty_for_none() -> None:
 def test_get_input_fields_returns_empty_for_mapping_without_element_type() -> None:
     """get_input_fields returns empty dict for mapping without element_type key."""
     assert get_input_fields({"some_other_key": "value"}) == {}
-
-
-def test_unwrap_required_type_handles_required_wrappers() -> None:
-    """Test _unwrap_required_type returns underlying Required types."""
-    assert elements_module._unwrap_required_type(NotRequired[bool]) is bool
-    assert elements_module._unwrap_required_type(Required[int]) is int
-
-
-def test_unwrap_required_type_returns_original_type() -> None:
-    """Test _unwrap_required_type returns original type when unwrapped."""
-    assert elements_module._unwrap_required_type(str) is str
 
 
 def test_conforms_to_typed_dict_skips_optional_without_hint() -> None:

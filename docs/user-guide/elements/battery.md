@@ -83,8 +83,8 @@ Internally, each kWh past a limit costs 100 \$/kWh for every hour it stays there
 That keeps a plan possible when the battery already sits outside its limits, for example when it reads 5% with a 10% min charge.
 HAEO then brings it back inside the range as quickly as it can rather than failing to optimize.
 
-To let the battery go past a limit when it pays off, set the limit to the furthest level it may reach and add a [Reserve](reserve.md) or [Headroom](headroom.md) for the range it should normally keep.
-For example, a min charge of 5% and a reserve holding 5% of the capacity at a holding cost behave like a preferred floor of 10% that HAEO dips below for a large enough price spike.
+To let the battery go past a limit when it pays off, set the limit to the furthest level it may reach and add a [buffer](buffer.md) at the level it should normally keep.
+For example, a min charge of 5% and a reserve buffer at a level of 10% with a holding cost behave like a preferred floor of 10% that HAEO dips below for a large enough price spike.
 
 ### Charge and discharge efficiency
 
@@ -143,12 +143,16 @@ This creates a battery that operates in the 20-90% range with no economic penalt
 ### Battery with an extended operating range
 
 Earlier versions of HAEO configured undercharge and overcharge ranges on the battery.
-These ranges are now a [Reserve](reserve.md) and [Headroom](headroom.md) for the battery, and HAEO converted any you had configured when it updated.
+These ranges are now [buffers](buffer.md) for the battery.
+When HAEO updated, it moved each configured range across field for field:
+the outer undercharge or overcharge percentage became the battery's min or max charge,
+and the old min or max charge became the level of a reserve or headroom buffer with the old cost as its shortfall cost.
+
 To let the battery reach 5-95% while preferring 10-90%:
 
 1. Set the battery's **Min Charge Percentage** to 5% and **Max Charge Percentage** to 95%.
-2. Add a reserve with the battery as its storage, no loads or generation, an extra amount of 0.75 kWh (5% of 15 kWh, less the discharge loss), and a shortfall cost such as 0.03 \$/kWh/h.
-3. Add headroom with the battery as its storage, no loads or generation, an extra amount of 0.75 kWh (plus the charge loss), and a shortfall cost such as 0.02 \$/kWh/h.
+2. Add a reserve buffer with the battery as its storage, no loads or generation, a level of 10%, and a shortfall cost such as 0.03 \$/kWh/h.
+3. Add a headroom buffer with the battery as its storage, no loads or generation, a level of 90%, and a shortfall cost such as 0.02 \$/kWh/h.
 
 HAEO then uses the outer 5% at each end only when the price difference outweighs the holding cost for as long as the battery stays there.
 
@@ -262,7 +266,7 @@ HAEO models batteries using a single storage element with separate charge and di
 1. **Battery element**: Tracks stored energy between empty and full, held between the min and max charge by a steep holding cost
 2. **Network connections**: Separate charge and discharge connections apply efficiency and power limits
 
-[Reserves](reserve.md) and [headroom](headroom.md) add requirements on top of the battery, measured from its min and max charge.
+[Buffers](buffer.md) add requirements on top of the battery, measured from their level or from its min and max charge.
 
 ## Troubleshooting
 

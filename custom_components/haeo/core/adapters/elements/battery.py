@@ -128,7 +128,7 @@ class BatteryAdapter:
         elements.append(
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{name}:discharge",
+                "name": discharge_connection_name(name),
                 "source": name,
                 "target": extract_connection_target(config[CONF_CONNECTION]),
                 "segments": discharge_segments,
@@ -138,7 +138,7 @@ class BatteryAdapter:
         elements.append(
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{name}:charge",
+                "name": charge_connection_name(name),
                 "source": extract_connection_target(config[CONF_CONNECTION]),
                 "target": name,
                 "segments": {
@@ -158,8 +158,8 @@ class BatteryAdapter:
         **_kwargs: object,
     ) -> Mapping[BatteryDeviceName, Mapping[BatteryOutputName, OutputData]]:
         """Map model outputs to battery-specific output names."""
-        discharge_conn = model_outputs.get(f"{name}:discharge")
-        charge_conn = model_outputs.get(f"{name}:charge")
+        discharge_conn = model_outputs.get(discharge_connection_name(name))
+        charge_conn = model_outputs.get(charge_connection_name(name))
         period_count = len(expect_output_data(model_outputs[name][model_battery.BATTERY_POWER_CHARGE]).values)
 
         # Each connection reports power at its measured point, where its power limit
@@ -201,6 +201,16 @@ class BatteryAdapter:
 
 
 adapter = BatteryAdapter()
+
+
+def discharge_connection_name(name: str) -> str:
+    """Return the name of the connection a battery discharges through."""
+    return f"{name}:discharge"
+
+
+def charge_connection_name(name: str) -> str:
+    """Return the name of the connection a battery charges through."""
+    return f"{name}:charge"
 
 
 def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> OutputData:

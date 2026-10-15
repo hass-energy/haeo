@@ -646,6 +646,23 @@ def test_build_coordinator_output_uses_last_value_when_state_last() -> None:
     assert output.forecast is not None
 
 
+@pytest.mark.parametrize(
+    "output_data",
+    [
+        OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.2, 0.3), bound="lower"),
+        OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.2, 0.3), bound="upper"),
+        OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.2, 0.3)),
+    ],
+    ids=["lower", "upper", "none"],
+)
+def test_build_coordinator_output_carries_bound(output_data: OutputData) -> None:
+    """The side of the plan an output bounds carries through to the coordinator output."""
+
+    output = _build_coordinator_output(SOLAR_POWER, output_data, forecast_times=_TIMES[:2], currency_sym="$")
+
+    assert output.bound == output_data.bound
+
+
 def test_build_coordinator_output_handles_empty_values() -> None:
     """Empty values should result in None state."""
 

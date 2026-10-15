@@ -1,11 +1,12 @@
-# Reserve and headroom
+# Buffers: reserve and headroom
 
-This guide sets up a reserve and a headroom, the two ways to tell HAEO how much your batteries should hold.
-It explains what each is for, walks through adding them, and shows the plan changing on the forecast card at every step.
+This guide sets up two buffers, the way to tell HAEO how much your batteries should hold back.
+A buffer comes in two kinds: a reserve and headroom.
+The guide explains what each is for, walks through adding them, and shows the plan changing on the forecast card at every step.
 
 ## What are they for?
 
-Without either, HAEO uses your battery purely for savings.
+Without a buffer, HAEO uses your battery purely for savings.
 It happily plans to run the battery down to its minimum charge for an expensive evening, or fill it to the top on cheap power overnight.
 That is the cheapest plan, but it is not always the plan you want.
 
@@ -24,9 +25,9 @@ Use headroom when:
 - **Your solar cannot be curtailed**: once the house is covered and exports are at their limit, the battery is the only place left for the surplus.
     Headroom with your solar as its generation keeps enough room for what is forecast to come.
 - **You want to look after the battery**: many batteries last longer when they spend less time near 100%.
-    A fixed amount of headroom keeps the battery below full, and lets it go higher only when the energy is worth more than the holding cost.
+    Headroom at a level such as 90% keeps the battery below it, and lets it go higher only when the energy is worth more than the holding cost.
 - **You take part in a grid support program**: some demand response and grid stability programs ask you to keep capacity free to absorb power when the grid needs it.
-    A fixed amount of headroom keeps that capacity free, and a sensor can raise it during the hours the program covers.
+    Headroom at a level that leaves that capacity free keeps it free, and a sensor can lower the level during the hours the program covers.
 
 Both follow your forecasts, so they change through the day, and both are soft: HAEO can go past them when that is worth more than the shortfall cost you set.
 
@@ -40,6 +41,10 @@ It adds up what your loads use and what your generation produces through that wi
 
 Loads count by the power HAEO plans for them, and generation by what it is forecast to produce.
 A surplus earlier in the window offsets demand that comes after it, and the other way round.
+
+Both are measured from a level.
+A reserve sits on top of its level, and headroom below it.
+With no level set, they are measured from the battery's min or max charge.
 
 ## Prerequisites
 
@@ -72,7 +77,7 @@ show_forecast_card(
 
 ## Adding a reserve
 
-Click **Reserve** to add one, then pick its participants:
+Click **Buffer** to add one, choose **Reserve: keep energy** as its kind, then pick its participants:
 
 - **Loads**: the loads to keep running through an outage.
     This guide keeps the whole house running.
@@ -83,56 +88,59 @@ Click **Reserve** to add one, then pick its participants:
 
 Then set the requirement and the cost of falling short:
 
-- **Outage length**: 12 hours covers an outage overnight.
-- **Extra reserve**: 2 kWh on top of what the loads need, as a buffer against the forecast being wrong.
+- **Window**: 12 hours covers an outage overnight.
+- **Level**: 15%, so the reserve sits on top of 15% charge rather than the battery's 10% min charge, as a margin against the forecast being wrong.
 - **Shortfall cost**: \$0.05 per kWh short, for every hour the shortfall lasts.
 
 ```guide
-add_reserve(
+add_buffer(
     page,
     name="Backup",
+    kind="reserve",
     loads=["House load"],
     generation=["Solar"],
     storage=["Battery"],
     window=ConstantInput(12.0),
-    minimum=ConstantInput(2.0),
+    level=ConstantInput(15.0),
     shortfall_cost=ConstantInput(0.05),
 )
-validate_requirement(
+validate_buffer(
     hass,
     name="Backup",
+    kind="reserve",
     participants={"loads": ["House load"], "generation": ["Solar"], "storage": ["Battery"]},
 )
 ```
 
-!!! tip "Driving the extra reserve from a sensor"
+!!! tip "Driving the level from a sensor"
 
-    The extra reserve accepts a sensor as well as a constant.
-    Point it at a helper or template sensor to raise the reserve ahead of a storm warning and drop it back to zero afterwards.
+    The level accepts a sensor as well as a constant.
+    Point it at a helper or template sensor to raise the reserve ahead of a storm warning and drop it back afterwards.
 
 ## Adding headroom
 
 This headroom keeps the top 10% of the battery free, so it spends less time full.
-It covers no loads or generation, so it holds just its extra amount: 3.2 kWh, 10% of this system's 32 kWh battery.
+It covers no loads or generation, so it simply keeps the battery below its level of 90%.
 A low shortfall cost lets HAEO fill the top of the battery when the energy is worth it, such as when it will soon be needed.
 
-Click **Headroom** to add one, pick the battery, and set:
+Click **Buffer** to add another, choose **Headroom: keep empty space** as its kind, pick the battery, and set:
 
-- **Look-ahead**: 1 hour.
+- **Window**: 1 hour.
     With no loads or generation it does not change what the headroom holds.
-- **Extra headroom**: 3.2 kWh.
+- **Level**: 90%.
 - **Shortfall cost**: \$0.02 per kWh past the headroom, for every hour it lasts.
 
 ```guide
-add_headroom(
+add_buffer(
     page,
     name="Battery care",
+    kind="headroom",
     storage=["Battery"],
     window=ConstantInput(1.0),
-    minimum=ConstantInput(3.2),
+    level=ConstantInput(90.0),
     shortfall_cost=ConstantInput(0.02),
 )
-validate_requirement(hass, name="Battery care", participants={"storage": ["Battery"]})
+validate_buffer(hass, name="Battery care", kind="headroom", participants={"storage": ["Battery"]})
 ```
 
 ## Comparing the plans
@@ -141,12 +149,14 @@ Use the arrows to flick between the plans with neither, each one, and both.
 
 - **The reserve** appears as a red dotted line, which the battery's state of charge should stay on or above.
     The battery now follows the line down through the evening, holding enough for an outage at every point instead of running down to its minimum.
+    Overnight the line rests on its 15% level.
 - **A shorter outage** lowers the line, and HAEO plans to use more of the battery.
-- **The headroom** appears as a purple dotted line, which the battery's state of charge should stay on or below.
-    The battery now stops short of full unless the extra energy pays for its holding cost.
+- **The headroom** appears as a purple dotted line at 90%, which the battery's state of charge should stay on or below.
+    The battery now waits on the line through the day instead of sitting at full.
+    It only tops up past it for a short spell before the evening, when the energy is about to be used and the holding cost is small.
 - **With both**, the plan keeps the battery between the two lines.
 
-The reserve and headroom have input entities for their outage length or look-ahead, extra amount, and shortfall cost, so you can change them from a dashboard as these plans do.
+Each buffer has input entities for its window, level, and shortfall cost, so you can change them from a dashboard as these plans do.
 
 ```guide
 everything = ["Battery", "House load", "Solar"]
@@ -192,7 +202,7 @@ show_forecast_card(
 ## Seeing them in the network
 
 The topology card marks the batteries holding a reserve with 🛡 and those keeping headroom with ⤒.
-Hover over an element to see which reserves and headroom it holds or is counted in.
+Hover over an element to see which buffers it holds or is counted in.
 
 ```guide
 show_topology_card(page, hass, step="Network with a reserve and headroom")
@@ -202,16 +212,17 @@ show_topology_card(page, hass, step="Network with a reserve and headroom")
 
 ### New devices
 
-Each reserve and headroom appears as its own device with these sensors:
+Each buffer appears as its own device with these sensors:
 
-| Sensor                             | What it shows                                                         |
-| ---------------------------------- | --------------------------------------------------------------------- |
-| Required energy / Required space   | What the batteries should hold or keep free at each point (kWh)       |
-| Available energy / Available space | What the batteries can deliver or absorb at each point, after losses  |
-| Energy shortfall / Space shortfall | How far the batteries fall short (kWh)                                |
-| Reserve / Headroom state of charge | The combined state of charge the batteries should stay above or below |
+| Sensor                 | What it shows                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------ |
+| Required energy        | What the batteries should hold or keep free past the level at each point (kWh) |
+| Available energy       | What the batteries hold or keep free past the level at each point (kWh)        |
+| Energy shortfall       | How far the batteries fall short (kWh)                                         |
+| Buffer state of charge | The combined state of charge the batteries should stay above or below          |
 
-They also have input entities for the window, extra amount, and shortfall cost.
+The energy sensors measure energy stored in the batteries.
+Each buffer also has input entities for its window, level, and shortfall cost.
 
 ### Changes to the plan
 
@@ -232,7 +243,7 @@ Each time the forecast moves forward they are recomputed, so this only affects t
 
 ### Window
 
-A longer outage needs a bigger reserve, and a longer look-ahead needs more headroom.
+A longer window needs a bigger reserve or more headroom.
 If a line sits at 0% or 100% for long stretches, the battery cannot meet it.
 Shorten the window, change which loads and generation it covers, or accept that the shortfall will be priced.
 
@@ -247,19 +258,19 @@ It is charged per kWh short, for every hour the shortfall lasts.
 | 0.05 \$/kWh/h  | Held unless a price spike is well worth it              |
 | 1 \$/kWh/h     | Treated as nearly untouchable                           |
 
-### A fixed amount
+### A fixed level
 
-A reserve or headroom with no loads or generation holds just its extra amount.
-A fixed reserve keeps the battery above a level unless dipping lower is worth the cost, and a fixed headroom keeps it below full the same way.
+A buffer with no loads or generation holds the batteries on one side of its level.
+A reserve keeps the battery above its level unless dipping lower is worth the cost, and headroom keeps it below its level the same way.
 
-- **To look after the battery**, set the extra headroom to the top slice you want to avoid, such as 10% of the capacity, with a low shortfall cost.
+- **To look after the battery**, add headroom at the level you want to stay under, such as 90%, with a low shortfall cost.
     HAEO then fills the top slice only when the energy is worth more than the holding cost for as long as it stays there.
-- **For a grid support program**, set the extra headroom to the capacity you have committed, with a high shortfall cost.
-    If the commitment only covers some hours, drive the extra headroom from a sensor that is zero outside them.
+- **For a grid support program**, add headroom at a level that leaves the capacity you have committed free, with a high shortfall cost.
+    If the commitment only covers some hours, drive the level from a sensor that is 100% outside them.
 
 ### More than one
 
-You can add several of each.
+You can add several buffers of each kind.
 For example, a reserve covering only essential loads over a 24-hour outage, and another covering the whole house over 4 hours.
 Each is priced on its own, so the batteries hold enough for whichever needs more at each point.
 
@@ -272,28 +283,20 @@ Check the required energy or space sensor against your battery's capacity, and r
 
 ### A line is at zero all day
 
-Check that the reserve or headroom includes your loads and generation.
+Check that the buffer includes your loads and generation, or set a level.
 A reserve with much more solar than load, or headroom with much more load than solar, needs nothing.
 
 ## Next steps
 
 <div class="grid cards" markdown>
 
-- :material-shield-check:{ .lg .middle } **Reserve reference**
+- :material-shield-check:{ .lg .middle } **Buffer reference**
 
     ---
 
-    Every reserve field in detail.
+    Every buffer field in detail.
 
-    [:material-arrow-right: Reserve configuration](../user-guide/elements/reserve.md)
-
-- :material-format-vertical-align-top:{ .lg .middle } **Headroom reference**
-
-    ---
-
-    Every headroom field in detail.
-
-    [:material-arrow-right: Headroom configuration](../user-guide/elements/headroom.md)
+    [:material-arrow-right: Buffer configuration](../user-guide/elements/buffer.md)
 
 - :material-calculator:{ .lg .middle } **How they are modeled**
 
@@ -301,6 +304,6 @@ A reserve with much more solar than load, or headroom with much more load than s
 
     The formulation behind reserves and headroom.
 
-    [:material-arrow-right: Reserve and headroom modeling](../modeling/device-layer/reserve.md)
+    [:material-arrow-right: Buffer modeling](../modeling/device-layer/buffer.md)
 
 </div>

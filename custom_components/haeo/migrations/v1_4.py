@@ -2,7 +2,7 @@
 
 Splits bidirectional connections, turns pure-junction nodes into junctions,
 replaces the hub's horizon preset and tiers with a horizon choice, and turns
-battery undercharge and overcharge partitions into reserves and headroom.
+battery undercharge and overcharge partitions into buffers.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.adapters.elements.junction import JUNCTION_DEVICE_JUNCTION, JUNCTION_POWER_BALANCE
 from custom_components.haeo.core.adapters.elements.node import NODE_DEVICE_NODE, NODE_POWER_BALANCE
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, HUB_SECTION_ADVANCED
-from custom_components.haeo.core.schema.elements import battery, connection, junction, node
+from custom_components.haeo.core.schema.elements import battery, buffer, connection, junction, node
 from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
 from custom_components.haeo.core.schema.migrations.v1_4 import (
     REVERSE_TO_FORWARD,
@@ -33,13 +33,8 @@ from custom_components.haeo.core.schema.migrations.v1_4 import (
     migrate_connection_config,
     migrate_hub_horizon,
     node_is_junction,
-    state_value_resolver,
 )
-from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
-from custom_components.haeo.repairs import (
-    create_battery_partition_not_migrated_issue,
-    create_node_replaced_by_junction_issue,
-)
+from custom_components.haeo.repairs import create_node_replaced_by_junction_issue
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -207,40 +202,27 @@ def _remove_partition_entities(hass: HomeAssistant, entry: ConfigEntry, battery_
 
 
 def _replace_battery_partitions(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Move each battery's undercharge and overcharge partitions into a reserve and headroom.
-
-    Values set by entities are read from their current state. A partition whose
-    values cannot be read is dropped with a repair issue, leaving the battery at
-    its min or max charge.
-    """
-    resolve = state_value_resolver(HomeAssistantStateMachine(hass))
+    """Move each battery's undercharge and overcharge partitions into buffers for the battery."""
     existing_names = _collect_subentry_names(entry)
     battery_ids: set[str] = set()
     for subentry in list(entry.subentries.values()):
         if subentry.subentry_type != battery.ELEMENT_TYPE:
             continue
         battery_ids.add(subentry.subentry_id)
-        migration = migrate_battery_partitions(subentry.data, resolve, existing_names=existing_names)
+        migration = migrate_battery_partitions(subentry.data, existing_names=existing_names)
         hass.config_entries.async_update_subentry(entry, subentry, data=migration.battery)
-        for requirement in migration.requirements:
-            title = str(requirement[CONF_NAME])
+        for buffer_config in migration.buffers:
+            title = str(buffer_config[CONF_NAME])
             hass.config_entries.async_add_subentry(
                 entry,
                 ConfigSubentry(
-                    data=MappingProxyType(requirement),
-                    subentry_type=str(requirement[CONF_ELEMENT_TYPE]),
+                    data=MappingProxyType(buffer_config),
+                    subentry_type=buffer.ELEMENT_TYPE,
                     title=title,
                     unique_id=None,
                 ),
             )
-            _LOGGER.info("Created %s from the partitions of battery %s", title, subentry.title)
-        for section in migration.unconverted:
-            _LOGGER.warning(
-                "Battery %s %s partition could not be converted because its sensors have no value",
-                subentry.title,
-                section,
-            )
-            create_battery_partition_not_migrated_issue(hass, entry.entry_id, subentry.title, section)
+            _LOGGER.info("Created buffer %s from the partitions of battery %s", title, subentry.title)
 
     _remove_partition_entities(hass, entry, battery_ids)
 

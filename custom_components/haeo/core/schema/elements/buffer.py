@@ -1,10 +1,8 @@
-"""Reserve element schema definitions.
+"""Buffer element schema definitions.
 
-A reserve keeps enough energy in a group of batteries to cover a group of
-loads, less a group of generators, through a grid outage of a set length.
-
-Headroom shares the same configuration, so its schema builds on the
-``StorageRequirementConfig`` and ``StorageRequirementData`` defined here.
+A buffer keeps energy (a reserve) or empty space (headroom) in a group of
+batteries, for a group of loads and generation over a window of time, measured
+from a level of the batteries' charge.
 """
 
 from typing import Annotated, Final, Literal, NotRequired, TypedDict
@@ -17,25 +15,33 @@ from custom_components.haeo.core.schema.constant_value import ConstantValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.entity_value import EntityValue
 from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints
+from custom_components.haeo.core.schema.none_value import NoneValue
 
-ELEMENT_TYPE = ElementType.RESERVE
+ELEMENT_TYPE = ElementType.BUFFER
 
 SECTION_PARTICIPANTS: Final = "participants"
 SECTION_REQUIREMENT: Final = "requirement"
 SECTION_PRICING: Final = "pricing"
 
+CONF_KIND: Final = "kind"
 CONF_LOADS: Final = "loads"
 CONF_GENERATION: Final = "generation"
 CONF_STORAGE: Final = "storage"
 CONF_WINDOW: Final = "window"
-CONF_MINIMUM: Final = "minimum"
+CONF_LEVEL: Final = "level"
 CONF_SHORTFALL_COST: Final = "shortfall_cost"
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset()
+# A reserve keeps energy in the batteries and headroom keeps empty space
+KIND_RESERVE: Final = "reserve"
+KIND_HEADROOM: Final = "headroom"
+type BufferKind = Literal["reserve", "headroom"]
+BUFFER_KINDS: Final[tuple[BufferKind, ...]] = (KIND_RESERVE, KIND_HEADROOM)
+
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_LEVEL})
 
 
 class ParticipantsConfig(TypedDict):
-    """Elements the reserve covers and the batteries that hold it."""
+    """Elements the buffer covers and the batteries that hold it."""
 
     loads: NotRequired[list[str]]
     generation: NotRequired[list[str]]
@@ -43,35 +49,37 @@ class ParticipantsConfig(TypedDict):
 
 
 class RequirementConfig(TypedDict):
-    """How long an outage the reserve covers and how much extra it holds."""
+    """How far ahead the buffer looks and the charge level it is measured from."""
 
     window: ConstantValue
-    minimum: EntityValue | ConstantValue
+    level: NotRequired[EntityValue | ConstantValue | NoneValue]
 
 
 class RequirementData(TypedDict):
     """Loaded requirement values."""
 
     window: float
-    minimum: NDArray[np.float64] | float
+    level: NotRequired[NDArray[np.float64] | float]
 
 
-class ReservePricingConfig(TypedDict):
-    """Cost of falling short of the reserve."""
+class BufferPricingConfig(TypedDict):
+    """Cost of falling short of the buffer."""
 
     shortfall_cost: EntityValue | ConstantValue
 
 
-class ReservePricingData(TypedDict):
-    """Loaded reserve pricing values."""
+class BufferPricingData(TypedDict):
+    """Loaded buffer pricing values."""
 
     shortfall_cost: NDArray[np.float64] | float
 
 
-class StorageRequirementConfig(TypedDict):
-    """Configuration shared by reserves and headroom, as stored in Home Assistant."""
+class BufferConfigSchema(TypedDict):
+    """Buffer element configuration as stored in Home Assistant."""
 
+    element_type: Literal[ElementType.BUFFER]
     name: str
+    kind: BufferKind
     participants: ParticipantsConfig
     requirement: Annotated[
         RequirementConfig,
@@ -82,19 +90,16 @@ class StorageRequirementConfig(TypedDict):
                     default_mode="value",
                     default_value=12.0,
                 ),
-                CONF_MINIMUM: FieldHint(
-                    output_type=OutputType.ENERGY,
+                CONF_LEVEL: FieldHint(
+                    output_type=OutputType.STATE_OF_CHARGE,
                     time_series=True,
                     boundaries=True,
-                    min_value=0.0,
-                    default_mode="value",
-                    default_value=0.0,
                 ),
             }
         ),
     ]
     pricing: Annotated[
-        ReservePricingConfig,
+        BufferPricingConfig,
         SectionHints(
             {
                 CONF_SHORTFALL_COST: FieldHint(
@@ -109,46 +114,39 @@ class StorageRequirementConfig(TypedDict):
     ]
 
 
-class StorageRequirementData(TypedDict):
-    """Configuration shared by reserves and headroom, with loaded values."""
+class BufferConfigData(TypedDict):
+    """Buffer element configuration with loaded values."""
 
+    element_type: Literal[ElementType.BUFFER]
     name: str
+    kind: BufferKind
     participants: ParticipantsConfig
     requirement: RequirementData
-    pricing: ReservePricingData
-
-
-class ReserveConfigSchema(StorageRequirementConfig):
-    """Reserve element configuration as stored in Home Assistant."""
-
-    element_type: Literal[ElementType.RESERVE]
-
-
-class ReserveConfigData(StorageRequirementData):
-    """Reserve element configuration with loaded values."""
-
-    element_type: Literal[ElementType.RESERVE]
+    pricing: BufferPricingData
 
 
 __all__ = [
+    "BUFFER_KINDS",
     "CONF_GENERATION",
+    "CONF_KIND",
+    "CONF_LEVEL",
     "CONF_LOADS",
-    "CONF_MINIMUM",
     "CONF_SHORTFALL_COST",
     "CONF_STORAGE",
     "CONF_WINDOW",
     "ELEMENT_TYPE",
+    "KIND_HEADROOM",
+    "KIND_RESERVE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_PARTICIPANTS",
     "SECTION_PRICING",
     "SECTION_REQUIREMENT",
+    "BufferConfigData",
+    "BufferConfigSchema",
+    "BufferKind",
+    "BufferPricingConfig",
+    "BufferPricingData",
     "ParticipantsConfig",
     "RequirementConfig",
     "RequirementData",
-    "ReserveConfigData",
-    "ReserveConfigSchema",
-    "ReservePricingConfig",
-    "ReservePricingData",
-    "StorageRequirementConfig",
-    "StorageRequirementData",
 ]

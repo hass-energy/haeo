@@ -1,4 +1,4 @@
-"""Reserve and headroom element configuration flows."""
+"""Buffer element configuration flow."""
 
 from collections.abc import Callable, Mapping
 from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
@@ -10,13 +10,16 @@ import voluptuous as vol
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, ElementAdapter, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.reserve import (
+from custom_components.haeo.core.schema.elements.buffer import (
+    BUFFER_KINDS,
     CONF_GENERATION,
+    CONF_KIND,
+    CONF_LEVEL,
     CONF_LOADS,
-    CONF_MINIMUM,
     CONF_SHORTFALL_COST,
     CONF_STORAGE,
     CONF_WINDOW,
+    KIND_RESERVE,
     SECTION_PARTICIPANTS,
     SECTION_PRICING,
     SECTION_REQUIREMENT,
@@ -45,16 +48,16 @@ PARTICIPANT_FILTERS: dict[str, Callable[[ElementType, ElementAdapter], bool]] = 
 }
 
 
-class ReserveSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
-    """Handle reserve element configuration flows."""
+class BufferSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
+    """Handle buffer element configuration flows."""
 
-    element_type: ElementType = ElementType.RESERVE
+    element_type: ElementType = ElementType.BUFFER
 
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
         return (
             SectionDefinition(key=SECTION_PARTICIPANTS, fields=(CONF_LOADS, CONF_GENERATION, CONF_STORAGE)),
-            SectionDefinition(key=SECTION_REQUIREMENT, fields=(CONF_WINDOW, CONF_MINIMUM)),
+            SectionDefinition(key=SECTION_REQUIREMENT, fields=(CONF_WINDOW, CONF_LEVEL)),
             SectionDefinition(key=SECTION_PRICING, fields=(CONF_SHORTFALL_COST,)),
         )
 
@@ -89,7 +92,17 @@ class ReserveSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             get_input_field_schema_info(self.element_type, input_fields),
             build_sectioned_inclusion_map(input_fields, entity_metadata),
             current_data=sectioned_view(subentry_data),
-            top_level_entries={CONF_NAME: (vol.Required(CONF_NAME), str)},
+            top_level_entries={
+                CONF_NAME: (vol.Required(CONF_NAME), str),
+                CONF_KIND: (
+                    vol.Required(CONF_KIND),
+                    SelectSelector(
+                        SelectSelectorConfig(
+                            options=list(BUFFER_KINDS), mode=SelectSelectorMode.LIST, translation_key="buffer_kind"
+                        )
+                    ),
+                ),
+            },
             extra_field_entries={
                 SECTION_PARTICIPANTS: {
                     field: (vol.Optional(field), self._participant_selector(field)) for field in PARTICIPANT_FILTERS
@@ -125,6 +138,7 @@ class ReserveSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             CONF_NAME: (
                 subentry_data.get(CONF_NAME) if subentry_data else await self._async_get_default_name(self.element_type)
             ),
+            CONF_KIND: subentry_data.get(CONF_KIND) if subentry_data else KIND_RESERVE,
             **build_sectioned_choose_defaults(
                 self._get_sections(),
                 input_fields,
@@ -144,7 +158,7 @@ class ReserveSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors: dict[str, str] = {}
         self._validate_name(as_str(user_input.get(CONF_NAME)), errors)
         if not as_mapping(user_input.get(SECTION_PARTICIPANTS)).get(CONF_STORAGE):
-            errors["base"] = "reserve_storage_required"
+            errors["base"] = "buffer_storage_required"
         errors.update(
             validate_sectioned_choose_fields(
                 user_input,
@@ -167,10 +181,9 @@ class ReserveSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             for field in PARTICIPANT_FILTERS
             if isinstance(values := as_mapping(user_input.get(SECTION_PARTICIPANTS)).get(field), list) and values
         }
-        return {CONF_ELEMENT_TYPE: self.element_type, CONF_NAME: user_input[CONF_NAME], **config}
-
-
-class HeadroomSubentryFlowHandler(ReserveSubentryFlowHandler):
-    """Handle headroom element configuration flows, which share the reserve's form."""
-
-    element_type: ElementType = ElementType.HEADROOM
+        return {
+            CONF_ELEMENT_TYPE: self.element_type,
+            CONF_NAME: user_input[CONF_NAME],
+            CONF_KIND: user_input[CONF_KIND],
+            **config,
+        }

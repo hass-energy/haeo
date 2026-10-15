@@ -2,13 +2,13 @@
 
 from custom_components.haeo.core.schema.elements.grid import CONF_PRICE_SOURCE_TARGET, CONF_PRICE_TARGET_SOURCE, SECTION_PRICING
 from custom_components.haeo.core.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
-from custom_components.haeo.core.schema.elements.reserve import (
-    CONF_MINIMUM,
+from custom_components.haeo.core.schema.elements.buffer import (
+    CONF_LEVEL,
     CONF_SHORTFALL_COST,
     SECTION_REQUIREMENT,
 )
-from custom_components.haeo.core.schema.elements.reserve import ELEMENT_TYPE as RESERVE_TYPE
-from custom_components.haeo.core.schema.elements.reserve import SECTION_PRICING as RESERVE_SECTION_PRICING
+from custom_components.haeo.core.schema.elements.buffer import ELEMENT_TYPE as BUFFER_TYPE
+from custom_components.haeo.core.schema.elements.buffer import SECTION_PRICING as BUFFER_SECTION_PRICING
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
 from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.elements.input_fields import (
@@ -21,14 +21,14 @@ from custom_components.haeo.elements.input_fields import (
 
 def test_localize_input_fields_replaces_currency_placeholder() -> None:
     """Monetary units take the currency symbol and every other field is returned unchanged."""
-    fields = get_input_fields(RESERVE_TYPE)
+    fields = get_input_fields(BUFFER_TYPE)
 
     localized = localize_input_fields(fields, "€")
 
-    cost = localized[RESERVE_SECTION_PRICING][CONF_SHORTFALL_COST]
+    cost = localized[BUFFER_SECTION_PRICING][CONF_SHORTFALL_COST]
     assert is_number_field_info(cost)
     assert cost.entity_description.native_unit_of_measurement == "€/kWh/h"
-    assert localized[SECTION_REQUIREMENT][CONF_MINIMUM] is fields[SECTION_REQUIREMENT][CONF_MINIMUM]
+    assert localized[SECTION_REQUIREMENT][CONF_LEVEL] is fields[SECTION_REQUIREMENT][CONF_LEVEL]
 
 
 def test_localize_input_field_leaves_switch_fields_unchanged() -> None:

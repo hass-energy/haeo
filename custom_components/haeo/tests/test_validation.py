@@ -17,6 +17,7 @@ from custom_components.haeo.core.schema.elements.battery import (
     BatteryConfigData,
 )
 from custom_components.haeo.core.schema.elements.battery_section import CONF_INITIAL_CHARGE, BatterySectionConfigData
+from custom_components.haeo.core.schema.elements.buffer import KIND_RESERVE, BufferConfigData
 from custom_components.haeo.core.schema.elements.connection import (
     CONF_SOURCE,
     CONF_TARGET,
@@ -25,7 +26,6 @@ from custom_components.haeo.core.schema.elements.connection import (
 )
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, SECTION_ROLE, NodeConfigData
-from custom_components.haeo.core.schema.elements.reserve import ReserveConfigData
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
@@ -96,21 +96,22 @@ def test_validate_network_topology_with_implicit_connection() -> None:
     assert result.components == (("grid", "main"),)
 
 
-def test_validate_network_topology_ignores_reserves() -> None:
-    """A reserve reads the elements it covers without being a separate part of the network."""
+def test_validate_network_topology_ignores_buffers() -> None:
+    """A buffer reads the elements it covers without being a separate part of the network."""
     main_node: NodeConfigData = {
         CONF_ELEMENT_TYPE: ElementType.NODE,
         CONF_NAME: "main",
         SECTION_ROLE: {CONF_IS_SOURCE: False, CONF_IS_SINK: False},
     }
-    reserve: ReserveConfigData = {
-        CONF_ELEMENT_TYPE: ElementType.RESERVE,
+    backup: BufferConfigData = {
+        CONF_ELEMENT_TYPE: ElementType.BUFFER,
         CONF_NAME: "backup",
+        "kind": KIND_RESERVE,
         "participants": {"storage": ["main"]},
-        "requirement": {"window": 4.0, "minimum": 0.0},
+        "requirement": {"window": 4.0},
         "pricing": {"shortfall_cost": 0.1},
     }
-    participants: dict[str, ElementConfigData] = {"main_node": main_node, "backup": reserve}
+    participants: dict[str, ElementConfigData] = {"main_node": main_node, "backup": backup}
 
     result = validate_network_topology(participants)
 

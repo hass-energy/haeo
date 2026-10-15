@@ -145,7 +145,7 @@ nav:
       - walkthroughs/index.md
       - Sigenergy System: walkthroughs/sigenergy-system.md
       - Power Policies: walkthroughs/power-policies.md
-      - Reserve and Headroom: walkthroughs/reserve-and-headroom.md
+      - Buffers: walkthroughs/buffers.md
       - Historic Diagnostics: walkthroughs/historic-diagnostics.md
 
   - User Guide:
@@ -165,8 +165,7 @@ nav:
           - Inverter: user-guide/elements/inverter.md
           - Load: user-guide/elements/load.md
           - Solar: user-guide/elements/solar.md
-          - Reserve: user-guide/elements/reserve.md
-          - Headroom: user-guide/elements/headroom.md
+          - Buffer: user-guide/elements/buffer.md
           - Junction: user-guide/elements/junction.md
           - Node: user-guide/elements/node.md
           - Connections: user-guide/elements/connections.md
@@ -201,7 +200,7 @@ nav:
           - Inverter: modeling/device-layer/inverter.md
           - Solar: modeling/device-layer/solar.md
           - Load: modeling/device-layer/loads.md
-          - Reserve and Headroom: modeling/device-layer/reserve.md
+          - Buffer: modeling/device-layer/buffer.md
           - Junction: modeling/device-layer/junction.md
           - Node: modeling/device-layer/node.md
           - Connection: modeling/device-layer/connection.md

@@ -6,7 +6,7 @@ import type {
   LaneType,
   SeriesSourceRole,
 } from "./types";
-import type { ConfigMode } from "./types";
+import type { ConfigMode, ThresholdBound } from "./types";
 import { discoverForecastEntityIds, resolveConfiguredHub } from "./hub-selection";
 
 interface HassEntityState {
@@ -103,7 +103,20 @@ function hashString(value: string): number {
   return hash;
 }
 
-function colorForElement(elementType: ElementType, elementName: string, variant: number): string {
+function colorForSeries(
+  elementType: ElementType,
+  bound: ThresholdBound | null,
+  elementName: string,
+  variant: number
+): string {
+  if (bound === "lower") {
+    const lower = ["#ef4444", "#dc2626", "#f87171", "#b91c1c"];
+    return lower[variant % lower.length] ?? "#ef4444";
+  }
+  if (bound === "upper") {
+    const upper = ["#a855f7", "#9333ea", "#c084fc", "#7e22ce"];
+    return upper[variant % upper.length] ?? "#a855f7";
+  }
   if (elementType === "battery") {
     const green = ["#22c55e", "#16a34a", "#15803d", "#4ade80"];
     return green[variant % green.length] ?? "#22c55e";
@@ -115,14 +128,6 @@ function colorForElement(elementType: ElementType, elementName: string, variant:
   if (elementType === "solar") {
     const solar = ["#f59e0b", "#fbbf24", "#f97316", "#facc15", "#ea580c"];
     return solar[variant % solar.length] ?? "#f59e0b";
-  }
-  if (elementType === "reserve") {
-    const reserve = ["#ef4444", "#dc2626", "#f87171", "#b91c1c"];
-    return reserve[variant % reserve.length] ?? "#ef4444";
-  }
-  if (elementType === "headroom") {
-    const headroom = ["#a855f7", "#9333ea", "#c084fc", "#7e22ce"];
-    return headroom[variant % headroom.length] ?? "#a855f7";
   }
   if (elementType === "load") {
     const load = ["var(--haeo-load-0)", "var(--haeo-load-1)", "var(--haeo-load-2)", "var(--haeo-load-3)"];
@@ -145,8 +150,7 @@ const ELEMENT_TYPES: ReadonlySet<string> = new Set<ElementType>([
   "node",
   "solar",
   "policy",
-  "reserve",
-  "headroom",
+  "buffer",
 ]);
 
 function isElementType(value: string): value is ElementType {
@@ -234,6 +238,8 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
     const configModeRaw = asString(attrs["config_mode"]);
     const configMode: ConfigMode | null =
       configModeRaw === "editable" || configModeRaw === "driven" ? configModeRaw : null;
+    const boundRaw = attrs["bound"];
+    const bound: ThresholdBound | null = boundRaw === "lower" || boundRaw === "upper" ? boundRaw : null;
     const fixed = attrs["fixed"] === true;
     const fieldNameRaw = attrs["field_name"];
     const fieldName = typeof fieldNameRaw === "string" ? fieldNameRaw : null;
@@ -267,6 +273,7 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       outputName,
       outputType,
       configMode,
+      bound,
       fixed,
       direction,
       sourceRole,
@@ -274,7 +281,7 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       lane: inferLane(outputType),
       drawType: inferDrawType(outputType),
       unit,
-      color: colorForElement(elementType, elementName, variant),
+      color: colorForSeries(elementType, bound, elementName, variant),
       times,
       values,
     });

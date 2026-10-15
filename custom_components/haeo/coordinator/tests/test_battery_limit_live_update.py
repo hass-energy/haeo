@@ -76,11 +76,11 @@ async def test_charge_limit_edit_updates_live_battery(
 
     battery = network.elements[BATTERY_NAME]
     assert isinstance(battery, Battery)
-    np.testing.assert_allclose(battery.min_charge, [2.0, 2.0])
-    np.testing.assert_allclose(battery.max_charge, [9.0, 9.0])
+    np.testing.assert_allclose(battery.charge_floor, [2.0, 2.0])
+    np.testing.assert_allclose(battery.charge_ceiling, [9.0, 9.0])
 
     updaters[BATTERY_NAME](_battery_config(*ratios))
 
     assert network.elements[BATTERY_NAME] is battery
-    np.testing.assert_allclose(battery.min_charge, expected_min)
-    np.testing.assert_allclose(battery.max_charge, expected_max)
+    np.testing.assert_allclose(battery.charge_floor, expected_min)
+    np.testing.assert_allclose(battery.charge_ceiling, expected_max)

@@ -1,33 +1,34 @@
 import { describe, expect, it } from "vitest";
 
-import { reserveMarkers, reserveRoles, reserveTooltipLines } from "./shared";
+import { bufferMarkers, bufferRoles, bufferTooltipLines } from "./shared";
 
-describe("reserveRoles", () => {
-  const roles = reserveRoles([
+describe("bufferRoles", () => {
+  const roles = bufferRoles([
     { name: "Backup", kind: "reserve", elements: ["House", "Solar"], storage: ["Battery"] },
     { name: "Essentials", kind: "reserve", elements: ["House"], storage: ["Battery"] },
     { name: "Solar room", kind: "headroom", elements: ["Solar"], storage: ["Battery"] },
   ]);
 
-  it("records which reserves and headroom each node holds and counts toward", () => {
-    expect(reserveTooltipLines(roles.get("Battery"))).toEqual([
-      "Holds reserve: Backup, Essentials",
-      "Holds headroom: Solar room",
+  it("records which buffers each node holds and counts toward", () => {
+    expect(bufferTooltipLines(roles.get("Battery"))).toEqual([
+      "Holds buffer Backup (reserve)",
+      "Holds buffer Essentials (reserve)",
+      "Holds buffer Solar room (headroom)",
     ]);
-    expect(reserveTooltipLines(roles.get("Solar"))).toEqual([
-      "Counted in reserve: Backup",
-      "Counted in headroom: Solar room",
+    expect(bufferTooltipLines(roles.get("Solar"))).toEqual([
+      "Counted in buffer Backup (reserve)",
+      "Counted in buffer Solar room (headroom)",
     ]);
-    expect(reserveTooltipLines(roles.get("Grid"))).toEqual([]);
+    expect(bufferTooltipLines(roles.get("Grid"))).toEqual([]);
   });
 
   it("marks each kind a node holds once", () => {
-    expect(reserveMarkers(roles.get("Battery"))).toBe("🛡 ⤒");
-    expect(reserveMarkers(roles.get("House"))).toBe("");
-    expect(reserveMarkers(undefined)).toBe("");
+    expect(bufferMarkers(roles.get("Battery"))).toBe("🛡 ⤒");
+    expect(bufferMarkers(roles.get("House"))).toBe("");
+    expect(bufferMarkers(undefined)).toBe("");
   });
 
-  it("returns no roles without reserves", () => {
-    expect(reserveRoles(undefined).size).toBe(0);
+  it("returns no roles without buffers", () => {
+    expect(bufferRoles(undefined).size).toBe(0);
   });
 });

@@ -11,19 +11,18 @@ from typing import (
 
 from custom_components.haeo.core.adapters.elements.battery import adapter as battery_adapter
 from custom_components.haeo.core.adapters.elements.battery_section import adapter as battery_section_adapter
+from custom_components.haeo.core.adapters.elements.buffer import adapter as buffer_adapter
 from custom_components.haeo.core.adapters.elements.connection import adapter as connection_adapter
 from custom_components.haeo.core.adapters.elements.grid import adapter as grid_adapter
-from custom_components.haeo.core.adapters.elements.headroom import adapter as headroom_adapter
 from custom_components.haeo.core.adapters.elements.inverter import adapter as inverter_adapter
 from custom_components.haeo.core.adapters.elements.junction import adapter as junction_adapter
 from custom_components.haeo.core.adapters.elements.load import adapter as load_adapter
 from custom_components.haeo.core.adapters.elements.node import adapter as node_adapter
 from custom_components.haeo.core.adapters.elements.policy import adapter as policy_adapter
-from custom_components.haeo.core.adapters.elements.reserve import adapter as reserve_adapter
 from custom_components.haeo.core.adapters.elements.solar import adapter as solar_adapter
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_RESERVE
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BUFFER, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 
@@ -91,8 +90,7 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
     ElementType.NODE: node_adapter,
     ElementType.BATTERY_SECTION: battery_section_adapter,
     ElementType.POLICY: policy_adapter,
-    ElementType.RESERVE: reserve_adapter,
-    ElementType.HEADROOM: headroom_adapter,
+    ElementType.BUFFER: buffer_adapter,
 }
 
 
@@ -106,7 +104,7 @@ def is_element_type(value: object) -> TypeGuard[ElementType]:
     return value in ELEMENT_TYPES
 
 
-_ADD_ORDER: Final[dict[str, int]] = {MODEL_ELEMENT_TYPE_CONNECTION: 1, MODEL_ELEMENT_TYPE_RESERVE: 2}
+_ADD_ORDER: Final[dict[str, int]] = {MODEL_ELEMENT_TYPE_CONNECTION: 1, MODEL_ELEMENT_TYPE_BUFFER: 2}
 
 
 def collect_model_elements(
@@ -119,7 +117,7 @@ def collect_model_elements(
         model_elements = ELEMENT_TYPES[element_type].model_elements(loaded_params)
         all_model_elements.extend(model_elements)
 
-    # Connections join the elements they link, and reserves read both
+    # Connections join the elements they link, and buffers read both
     return sorted(all_model_elements, key=lambda e: _ADD_ORDER.get(e["element_type"], 0))
 
 

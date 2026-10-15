@@ -20,6 +20,7 @@ function makeSeries(overrides: Partial<ForecastSeries> & { key: string }): Forec
     direction: "-",
     sourceRole: "output",
     configMode: null,
+    bound: null,
     fixed: false,
     priority: null,
     lane: "power",

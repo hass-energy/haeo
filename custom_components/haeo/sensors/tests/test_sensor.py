@@ -777,6 +777,44 @@ def test_handle_coordinator_update_sets_fixed_attribute(device_entry: DeviceEntr
     assert attributes["fixed"] is True
 
 
+@pytest.mark.parametrize("bound", ["lower", "upper", None])
+def test_handle_coordinator_update_sets_bound_attribute(
+    device_entry: DeviceEntry, bound: Literal["lower", "upper"] | None
+) -> None:
+    """Outputs that bound a plan expose which side they bound, and other outputs have no bound attribute."""
+    coordinator = _create_mock_coordinator()
+    output = _make_output(
+        type_=OutputType.STATE_OF_CHARGE,
+        unit="%",
+        state=0.5,
+        forecast=None,
+        entity_category=None,
+        device_class=None,
+        state_class=SensorStateClass.MEASUREMENT,
+        options=None,
+    )
+    sensor = HaeoSensor(
+        coordinator,
+        device_entry=device_entry,
+        subentry_key="buffer",
+        device_key=ElementType.BUFFER,
+        element_title="Backup",
+        element_type=ElementType.BUFFER,
+        output_name=LOAD_POWER,
+        output_data=output,
+        unique_id="sensor-id",
+    )
+    sensor.async_write_ha_state = Mock()
+    coordinator.data = _make_coordinator_data({"buffer": {"buffer": {LOAD_POWER: replace(output, bound=bound)}}})
+
+    sensor._handle_coordinator_update()
+
+    attributes = sensor.extra_state_attributes
+    assert attributes is not None
+    assert attributes.get("bound") == bound
+    assert ("bound" in attributes) is (bound is not None)
+
+
 @pytest.mark.parametrize(("advanced", "enabled_default"), [(True, False), (False, True)])
 def test_advanced_outputs_are_disabled_by_default(
     device_entry: DeviceEntry,

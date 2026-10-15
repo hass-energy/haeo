@@ -68,22 +68,6 @@ def create_node_replaced_by_junction_issue(hass: HomeAssistant, entry_id: str, e
     )
 
 
-def create_battery_partition_not_migrated_issue(
-    hass: HomeAssistant, entry_id: str, element_name: str, partition: str
-) -> None:
-    """Create a repair issue for a battery partition whose sensors could not be read to convert it."""
-    async_create_issue(
-        hass,
-        DOMAIN,
-        f"battery_partition_not_migrated_{entry_id}_{element_name}_{partition}",
-        is_fixable=False,
-        is_persistent=True,
-        severity=IssueSeverity.WARNING,
-        translation_key=f"battery_{partition}_not_migrated",
-        translation_placeholders={"element_name": element_name},
-    )
-
-
 def dismiss_entry_issues(hass: HomeAssistant, entry_id: str) -> None:
     """Dismiss every repair issue raised for a config entry."""
     for domain, issue_id in list(ir.async_get(hass).issues):

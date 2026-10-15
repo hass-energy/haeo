@@ -16,6 +16,7 @@ function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
     direction: "-",
     sourceRole: "output",
     configMode: null,
+    bound: null,
     fixed: false,
     priority: null,
     lane: "power",
@@ -29,13 +30,23 @@ function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
 }
 
 describe("seriesIconPath", () => {
-  it("returns a shield icon for a reserve state of charge", () => {
-    const series = makeSeries({ lane: "soc", elementType: "reserve", outputName: "reserve_state_of_charge" });
+  it("returns a shield icon for a lower bound state of charge", () => {
+    const series = makeSeries({
+      lane: "soc",
+      elementType: "buffer",
+      bound: "lower",
+      outputName: "buffer_state_of_charge",
+    });
     expect(seriesIconPath(series)).toBe(mdiIcons["mdiShieldHalfFull"]);
   });
 
-  it("returns a ceiling icon for a headroom state of charge", () => {
-    const series = makeSeries({ lane: "soc", elementType: "headroom", outputName: "headroom_state_of_charge" });
+  it("returns a ceiling icon for an upper bound state of charge", () => {
+    const series = makeSeries({
+      lane: "soc",
+      elementType: "buffer",
+      bound: "upper",
+      outputName: "buffer_state_of_charge",
+    });
     expect(seriesIconPath(series)).toBe(mdiIcons["mdiFormatVerticalAlignTop"]);
   });
 

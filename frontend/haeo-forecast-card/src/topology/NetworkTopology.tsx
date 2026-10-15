@@ -10,7 +10,7 @@ import {
   type LayoutNode,
   type LayoutResult,
 } from "./layout";
-import { reserveMarkers, reserveRoles, reserveTooltipLines, type ReserveRoles } from "./shared";
+import { bufferMarkers, bufferRoles, bufferTooltipLines, type BufferRoles } from "./shared";
 import type { TopologyData, TopologyNode, TopologySegment } from "./types";
 
 const NODE_RX = 6;
@@ -196,7 +196,7 @@ export function NetworkTopology(props: Props): JSX.Element {
 
   // Build node name → TopologyNode lookup
   const nodeMap = new Map(topology.nodes.map((n) => [n.name, n]));
-  const roles = reserveRoles(topology.reserves);
+  const roles = bufferRoles(topology.buffers);
 
   // Build edge name → tags lookup
   const edgeTags = new Map<string, number[]>();
@@ -472,7 +472,7 @@ function renderCompositeArrow(
 function renderGroup(
   group: LayoutGroup,
   nodeMap: Map<string, TopologyNode>,
-  roles: Map<string, ReserveRoles>,
+  roles: Map<string, BufferRoles>,
   edgeTags: Map<string, number[]>,
   setTooltip: (t: TooltipInfo) => void,
   hide: () => void
@@ -531,7 +531,7 @@ function renderModelNode(
   group: LayoutGroup,
   color: string,
   nodeMap: Map<string, TopologyNode>,
-  reserve: ReserveRoles | undefined,
+  buffer: BufferRoles | undefined,
   setTooltip: (t: TooltipInfo) => void,
   hide: () => void
 ): JSX.Element {
@@ -547,7 +547,7 @@ function renderModelNode(
     tooltipLines.push(`Produces: ${outTags.map((t) => (t === 0 ? "default" : `VLAN ${String(t)}`)).join(", ")}`);
   if (inTags.length > 0)
     tooltipLines.push(`Accepts: ${inTags.map((t) => (t === 0 ? "default" : `VLAN ${String(t)}`)).join(", ")}`);
-  tooltipLines.push(...reserveTooltipLines(reserve));
+  tooltipLines.push(...bufferTooltipLines(buffer));
 
   return (
     <g
@@ -592,9 +592,9 @@ function renderModelNode(
       >
         {node.id}
       </text>
-      {reserveMarkers(reserve) !== "" && (
+      {bufferMarkers(buffer) !== "" && (
         <text x={nx + node.width - 4} y={ny + 12} text-anchor="end" font-size="10">
-          {reserveMarkers(reserve)}
+          {bufferMarkers(buffer)}
         </text>
       )}
     </g>

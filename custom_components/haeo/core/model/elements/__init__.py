@@ -14,6 +14,13 @@ from .battery import BatteryConstraintName as BatteryConstraintName
 from .battery import BatteryElementConfig as BatteryElementConfig
 from .battery import BatteryElementTypeName as BatteryElementTypeName
 from .battery import BatteryOutputName as BatteryOutputName
+from .buffer import BUFFER_OUTPUT_NAMES as BUFFER_OUTPUT_NAMES
+from .buffer import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_BUFFER
+from .buffer import Buffer as Buffer
+from .buffer import BufferElementConfig as BufferElementConfig
+from .buffer import BufferElementTypeName as BufferElementTypeName
+from .buffer import BufferOutputName as BufferOutputName
+from .buffer import BufferStorage as BufferStorage
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .connection import CONNECTION_POWER as CONNECTION_POWER
 from .connection import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_CONNECTION
@@ -33,13 +40,6 @@ from .policy_pricing import PolicyPricing as PolicyPricing
 from .policy_pricing import PolicyPricingElementConfig as PolicyPricingElementConfig
 from .policy_pricing import PolicyPricingElementTypeName as PolicyPricingElementTypeName
 from .policy_pricing import PolicyPricingTerm as PolicyPricingTerm
-from .reserve import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_RESERVE
-from .reserve import RESERVE_OUTPUT_NAMES as RESERVE_OUTPUT_NAMES
-from .reserve import Reserve as Reserve
-from .reserve import ReserveElementConfig as ReserveElementConfig
-from .reserve import ReserveElementTypeName as ReserveElementTypeName
-from .reserve import ReserveOutputName as ReserveOutputName
-from .reserve import ReserveStorage as ReserveStorage
 from .segments import EfficiencySegment as EfficiencySegment
 from .segments import PassthroughSegment as PassthroughSegment
 from .segments import PowerLimitSegment as PowerLimitSegment
@@ -54,7 +54,7 @@ ModelElementType = (
     | NodeElementTypeName
     | ConnectionElementTypeName
     | PolicyPricingElementTypeName
-    | ReserveElementTypeName
+    | BufferElementTypeName
 )
 
 # Typed configs for all model elements (discriminated by element_type)
@@ -63,7 +63,7 @@ ModelElementConfig = (
     | NodeElementConfig
     | ConnectionElementConfig
     | PolicyPricingElementConfig
-    | ReserveElementConfig
+    | BufferElementConfig
 )
 
 
@@ -95,19 +95,23 @@ ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
 __all__ = [
     "BATTERY_OUTPUT_NAMES",
     "BATTERY_POWER_CONSTRAINTS",
+    "BUFFER_OUTPUT_NAMES",
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER",
     "ELEMENTS",
     "MODEL_ELEMENT_TYPE_BATTERY",
+    "MODEL_ELEMENT_TYPE_BUFFER",
     "MODEL_ELEMENT_TYPE_CONNECTION",
     "MODEL_ELEMENT_TYPE_NODE",
     "MODEL_ELEMENT_TYPE_POLICY_PRICING",
-    "MODEL_ELEMENT_TYPE_RESERVE",
-    "RESERVE_OUTPUT_NAMES",
     "Battery",
     "BatteryConstraintName",
     "BatteryElementConfig",
     "BatteryOutputName",
+    "Buffer",
+    "BufferElementConfig",
+    "BufferOutputName",
+    "BufferStorage",
     "Connection",
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
@@ -125,10 +129,6 @@ __all__ = [
     "PolicyPricingTerm",
     "PowerLimitSegment",
     "PricingSegment",
-    "Reserve",
-    "ReserveElementConfig",
-    "ReserveOutputName",
-    "ReserveStorage",
     "Segment",
     "SegmentSpec",
     "SegmentType",

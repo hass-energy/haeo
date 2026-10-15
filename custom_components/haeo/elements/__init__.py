@@ -31,8 +31,6 @@ from typing import (
     Final,
     Literal,
     NamedTuple,
-    NotRequired,
-    Required,
     TypeAliasType,
     TypeGuard,
     Union,
@@ -61,6 +59,12 @@ from custom_components.haeo.core.adapters.elements.battery_section import (
     BatterySectionDeviceName,
     BatterySectionOutputName,
 )
+from custom_components.haeo.core.adapters.elements.buffer import (
+    BUFFER_DEVICE_NAMES,
+    BUFFER_OUTPUT_NAMES,
+    BufferDeviceName,
+    BufferOutputName,
+)
 from custom_components.haeo.core.adapters.elements.connection import (
     CONNECTION_DEVICE_NAMES,
     CONNECTION_OUTPUT_NAMES,
@@ -72,12 +76,6 @@ from custom_components.haeo.core.adapters.elements.grid import (
     GRID_OUTPUT_NAMES,
     GridDeviceName,
     GridOutputName,
-)
-from custom_components.haeo.core.adapters.elements.headroom import (
-    HEADROOM_DEVICE_NAMES,
-    HEADROOM_OUTPUT_NAMES,
-    HeadroomDeviceName,
-    HeadroomOutputName,
 )
 from custom_components.haeo.core.adapters.elements.inverter import (
     INVERTER_DEVICE_NAMES,
@@ -104,12 +102,6 @@ from custom_components.haeo.core.adapters.elements.node import (
     NodeOutputName,
 )
 from custom_components.haeo.core.adapters.elements.policy import POLICY_DEVICE_NAMES, PolicyDeviceName
-from custom_components.haeo.core.adapters.elements.reserve import (
-    RESERVE_DEVICE_NAMES,
-    RESERVE_OUTPUT_NAMES,
-    ReserveDeviceName,
-    ReserveOutputName,
-)
 from custom_components.haeo.core.adapters.elements.solar import (
     SOLAR_DEVICE_NAMES,
     SOLAR_OUTPUT_NAMES,
@@ -130,14 +122,14 @@ from custom_components.haeo.core.schema.elements.battery_section import (
     OPTIONAL_INPUT_FIELDS as BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
 )
 from custom_components.haeo.core.schema.elements.battery_section import BatterySectionConfigData
+from custom_components.haeo.core.schema.elements.buffer import OPTIONAL_INPUT_FIELDS as BUFFER_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.buffer import BufferConfigData
 from custom_components.haeo.core.schema.elements.connection import (
     OPTIONAL_INPUT_FIELDS as CONNECTION_OPTIONAL_INPUT_FIELDS,
 )
 from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
 from custom_components.haeo.core.schema.elements.grid import OPTIONAL_INPUT_FIELDS as GRID_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
-from custom_components.haeo.core.schema.elements.headroom import OPTIONAL_INPUT_FIELDS as HEADROOM_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.headroom import HeadroomConfigData
 from custom_components.haeo.core.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
 from custom_components.haeo.core.schema.elements.junction import OPTIONAL_INPUT_FIELDS as JUNCTION_OPTIONAL_INPUT_FIELDS
@@ -147,8 +139,6 @@ from custom_components.haeo.core.schema.elements.load import LoadConfigData
 from custom_components.haeo.core.schema.elements.node import OPTIONAL_INPUT_FIELDS as NODE_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.node import NodeConfigData
 from custom_components.haeo.core.schema.elements.policy import PolicyConfigData
-from custom_components.haeo.core.schema.elements.reserve import OPTIONAL_INPUT_FIELDS as RESERVE_OPTIONAL_INPUT_FIELDS
-from custom_components.haeo.core.schema.elements.reserve import ReserveConfigData
 from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData
 from custom_components.haeo.core.schema.field_hints import extract_field_hints, extract_list_field_hints
@@ -171,8 +161,7 @@ type ElementOutputName = (
     | NodeOutputName
     | JunctionOutputName
     | SolarOutputName
-    | ReserveOutputName
-    | HeadroomOutputName
+    | BufferOutputName
     | NetworkOutputName
 )
 
@@ -186,8 +175,7 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
     | NODE_OUTPUT_NAMES
     | JUNCTION_OUTPUT_NAMES
     | SOLAR_OUTPUT_NAMES
-    | RESERVE_OUTPUT_NAMES
-    | HEADROOM_OUTPUT_NAMES
+    | BUFFER_OUTPUT_NAMES
     | NETWORK_OUTPUT_NAMES
 )
 
@@ -202,8 +190,7 @@ type ElementDeviceName = (
     | JunctionDeviceName
     | SolarDeviceName
     | PolicyDeviceName
-    | ReserveDeviceName
-    | HeadroomDeviceName
+    | BufferDeviceName
     | NetworkDeviceName
 )
 
@@ -220,8 +207,7 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | JUNCTION_DEVICE_NAMES
     | SOLAR_DEVICE_NAMES
     | POLICY_DEVICE_NAMES
-    | RESERVE_DEVICE_NAMES
-    | HEADROOM_DEVICE_NAMES
+    | BUFFER_DEVICE_NAMES
     | NETWORK_DEVICE_NAMES
 )
 
@@ -235,8 +221,7 @@ ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
     ElementType.JUNCTION: frozenset(JUNCTION_DEVICE_NAMES),
     ElementType.NODE: frozenset(NODE_DEVICE_NAMES),
     ElementType.POLICY: frozenset(POLICY_DEVICE_NAMES),
-    ElementType.RESERVE: frozenset(RESERVE_DEVICE_NAMES),
-    ElementType.HEADROOM: frozenset(HEADROOM_DEVICE_NAMES),
+    ElementType.BUFFER: frozenset(BUFFER_DEVICE_NAMES),
     ElementType.SOLAR: frozenset(SOLAR_DEVICE_NAMES),
     ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
 }
@@ -261,8 +246,7 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     ElementType.JUNCTION: JunctionConfigData,
     ElementType.NODE: NodeConfigData,
     ElementType.POLICY: PolicyConfigData,
-    ElementType.RESERVE: ReserveConfigData,
-    ElementType.HEADROOM: HeadroomConfigData,
+    ElementType.BUFFER: BufferConfigData,
     ElementType.SOLAR: SolarConfigData,
 }
 
@@ -276,8 +260,7 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.JUNCTION: JUNCTION_OPTIONAL_INPUT_FIELDS,
     ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
     ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
-    ElementType.RESERVE: RESERVE_OPTIONAL_INPUT_FIELDS,
-    ElementType.HEADROOM: HEADROOM_OPTIONAL_INPUT_FIELDS,
+    ElementType.BUFFER: BUFFER_OPTIONAL_INPUT_FIELDS,
 }
 
 
@@ -297,7 +280,7 @@ def get_input_field_schema_info(
             msg = f"Section '{section_key}' not found in {schema_cls.__name__}"
             raise RuntimeError(msg)
 
-        section_type = _unwrap_required_type(section_hint)
+        section_type = section_hint
         if isinstance(section_type, TypeAliasType):
             section_type = section_type.__value__
 
@@ -323,14 +306,6 @@ def get_input_field_schema_info(
     return results
 
 
-def _unwrap_required_type(expected_type: Any) -> Any:
-    """Return the underlying type for Required/NotRequired hints."""
-    origin = get_origin(expected_type)
-    if origin in (NotRequired, Required):
-        return get_args(expected_type)[0]
-    return expected_type
-
-
 def _conforms_to_typed_dict(
     value: Mapping[str, object],
     typed_dict_cls: type,
@@ -350,7 +325,6 @@ def _conforms_to_typed_dict(
     hints = get_type_hints(typed_dict_cls)
 
     def _matches_type(value_item: object, expected_type: Any) -> bool:
-        expected_type = _unwrap_required_type(expected_type)
         if isinstance(expected_type, TypeAliasType):
             expected_type = expected_type.__value__
 

@@ -21,10 +21,10 @@ from numpy.typing import NDArray
 from .element import Element, NetworkElement
 from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
+from .elements.buffer import Buffer, BufferElementConfig, BufferStorage
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
-from .elements.reserve import Reserve, ReserveElementConfig, ReserveStorage
 from .elements.segments import PowerLimitSegment
 from .linear import LinearArray, total
 from .solver import Solver
@@ -179,7 +179,7 @@ class Network:
     def add(self, element_config: PolicyPricingElementConfig) -> PolicyPricing: ...
 
     @overload
-    def add(self, element_config: ReserveElementConfig) -> Reserve: ...
+    def add(self, element_config: BufferElementConfig) -> Buffer: ...
 
     def add(self, element_config: ModelElementConfig) -> Element[Any]:
         """Add a new element to the network.
@@ -203,8 +203,8 @@ class Network:
         if element_config["element_type"] == "policy_pricing":
             return self._add_policy_pricing(element_config)
 
-        if element_config["element_type"] == "reserve":
-            return self._add_reserve(element_config)
+        if element_config["element_type"] == "buffer":
+            return self._add_buffer(element_config)
 
         element_type = element_config["element_type"]
         kwargs = {key: value for key, value in element_config.items() if key not in ("element_type", "name")}
@@ -264,19 +264,19 @@ class Network:
         self.elements[name] = element
         return element
 
-    def _add_reserve(self, config: ReserveElementConfig) -> Reserve:
-        """Create a Reserve element by resolving its loads, generation, and storage by name.
+    def _add_buffer(self, config: BufferElementConfig) -> Buffer:
+        """Create a Buffer element by resolving its loads, generation, and storage by name.
 
-        Each battery holds a reserve through the one connection it discharges
-        into, and headroom through the one connection it charges from. That
-        connection's efficiency scales what the battery can provide.
+        Each battery holds the buffer through the connection named with it, the
+        one it discharges through for a reserve or charges through for headroom.
+        That connection's efficiency scales what the battery can provide.
         """
         name = config["name"]
         loads: list[NetworkElement[Any]] = []
         for load_name in config["loads"]:
             load = self.elements.get(load_name)
             if not isinstance(load, NetworkElement):
-                msg = f"Reserve '{name}' references unknown element '{load_name}'"
+                msg = f"Buffer '{name}' references unknown element '{load_name}'"
                 raise TypeError(msg)
             loads.append(load)
 
@@ -291,29 +291,26 @@ class Network:
                 if isinstance(segment, PowerLimitSegment) and segment.max_power is not None
             ]
             if not limits:
-                msg = f"Reserve '{name}' needs generator '{generator_name}' to have a limit on the power it produces"
+                msg = f"Buffer '{name}' needs generator '{generator_name}' to have a limit on the power it produces"
                 raise ValueError(msg)
             generation[generator_name] = limits
 
-        direction = "discharge" if config["kind"] == "reserve" else "charge"
-        storage: list[ReserveStorage] = []
-        for battery_name in config["storage"]:
-            battery = self.elements.get(battery_name)
-            if not isinstance(battery, Battery):
-                msg = f"Reserve '{name}' references '{battery_name}', which is not a battery"
+        if not config["storage"]:
+            msg = f"Buffer '{name}' needs at least one battery to hold it"
+            raise ValueError(msg)
+        storage: list[BufferStorage] = []
+        for storage_config in config["storage"]:
+            battery = self.elements.get(storage_config["battery"])
+            connection = self.elements.get(storage_config["connection"])
+            if not isinstance(battery, Battery) or not isinstance(connection, Connection):
+                msg = (
+                    f"Buffer '{name}' needs battery '{storage_config['battery']}' "
+                    f"and its connection '{storage_config['connection']}'"
+                )
                 raise TypeError(msg)
-            connections = [
-                element
-                for element in self.elements.values()
-                if isinstance(element, Connection)
-                and battery_name == (element.source if config["kind"] == "reserve" else element.target)
-            ]
-            if len(connections) != 1:
-                msg = f"Reserve '{name}' needs battery '{battery_name}' to {direction} through exactly one connection"
-                raise ValueError(msg)
-            storage.append(ReserveStorage(battery=battery, connection=connections[0]))
+            storage.append(BufferStorage(battery=battery, connection=connection))
 
-        element = Reserve(
+        element = Buffer(
             name=name,
             periods=self.periods,
             solver=self._solver,
@@ -322,7 +319,7 @@ class Network:
             generation=generation,
             storage=storage,
             window=config["window"],
-            minimum=config["minimum"],
+            level=config["level"],
             price=config["price"],
         )
         self.elements[name] = element

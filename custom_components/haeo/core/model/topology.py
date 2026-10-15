@@ -17,7 +17,7 @@ from typing import (
 
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.element import NetworkElement
-from custom_components.haeo.core.model.elements import Connection, Reserve
+from custom_components.haeo.core.model.elements import Buffer, Connection
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricing
 
 
@@ -34,15 +34,15 @@ def serialize_topology(
 
     Returns:
         Dict with "nodes", "edges", "groups", and optionally "policies" and
-        "reserves" describing the full graph structure including tagged power
-        flow routing and which elements each reserve covers.
+        "buffers" describing the full graph structure including tagged power
+        flow routing and which elements each buffer covers.
 
     """
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
     groups: dict[str, list[str]] = defaultdict(list)
     policies: list[dict[str, Any]] = []
-    reserves: list[dict[str, Any]] = []
+    buffers: list[dict[str, Any]] = []
 
     for name, element in sorted(network.elements.items()):
         if isinstance(element, Connection):
@@ -60,8 +60,8 @@ def serialize_topology(
                 edge_data["tags"] = sorted(tags)
             edges.append(edge_data)
 
-        elif isinstance(element, Reserve):
-            reserves.append(
+        elif isinstance(element, Buffer):
+            buffers.append(
                 {
                     "name": name,
                     "kind": element.kind,
@@ -102,7 +102,7 @@ def serialize_topology(
     }
     if policies:
         result["policies"] = policies
-    if reserves:
-        result["reserves"] = reserves
+    if buffers:
+        result["buffers"] = buffers
 
     return result

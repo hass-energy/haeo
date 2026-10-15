@@ -5,7 +5,7 @@
  * the headless SVG string renderer (render-svg.ts).
  */
 
-import type { RequirementKind, ReservePlacement } from "./types";
+import type { BufferKind, BufferPlacement } from "./types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -16,19 +16,19 @@ export interface Point {
   y: number;
 }
 
-export interface ReserveRoles {
-  /** Reserves and headroom this node holds. */
-  holds: ReservePlacement[];
-  /** Reserves and headroom this node's demand or generation counts toward. */
-  covers: ReservePlacement[];
+export interface BufferRoles {
+  /** Buffers this node holds. */
+  holds: BufferPlacement[];
+  /** Buffers this node's demand or generation counts toward. */
+  covers: BufferPlacement[];
 }
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Markers drawn on batteries that hold a reserve or headroom. */
-export const REQUIREMENT_MARKERS: Record<RequirementKind, string> = { reserve: "🛡", headroom: "⤒" };
+/** Markers drawn on batteries that hold a buffer, by buffer kind. */
+export const BUFFER_MARKERS: Record<BufferKind, string> = { reserve: "🛡", headroom: "⤒" };
 
 export const NODE_RX = 6;
 export const GROUP_RX = 10;
@@ -184,41 +184,37 @@ export function computeArrowHead(
   return { tipX, tipY, left, right };
 }
 
-/** Map each node to the reserves and headroom it holds or counts toward. */
-export function reserveRoles(reserves: ReservePlacement[] | undefined): Map<string, ReserveRoles> {
-  const roles = new Map<string, ReserveRoles>();
-  const rolesFor = (name: string): ReserveRoles => {
+/** Map each node to the buffers it holds or counts toward. */
+export function bufferRoles(buffers: BufferPlacement[] | undefined): Map<string, BufferRoles> {
+  const roles = new Map<string, BufferRoles>();
+  const rolesFor = (name: string): BufferRoles => {
     const existing = roles.get(name);
     if (existing !== undefined) return existing;
-    const created: ReserveRoles = { holds: [], covers: [] };
+    const created: BufferRoles = { holds: [], covers: [] };
     roles.set(name, created);
     return created;
   };
-  for (const reserve of reserves ?? []) {
-    for (const name of reserve.storage) rolesFor(name).holds.push(reserve);
-    for (const name of reserve.elements) rolesFor(name).covers.push(reserve);
+  for (const buffer of buffers ?? []) {
+    for (const name of buffer.storage) rolesFor(name).holds.push(buffer);
+    for (const name of buffer.elements) rolesFor(name).covers.push(buffer);
   }
   return roles;
 }
 
-/** Return the markers for the kinds of requirement a node holds, in a fixed order. */
-export function reserveMarkers(roles: ReserveRoles | undefined): string {
-  const kinds = new Set(roles?.holds.map((reserve) => reserve.kind));
+/** Return the markers for the kinds of buffer a node holds, in a fixed order. */
+export function bufferMarkers(roles: BufferRoles | undefined): string {
+  const kinds = new Set(roles?.holds.map((buffer) => buffer.kind));
   return (["reserve", "headroom"] as const)
     .filter((kind) => kinds.has(kind))
-    .map((kind) => REQUIREMENT_MARKERS[kind])
+    .map((kind) => BUFFER_MARKERS[kind])
     .join(" ");
 }
 
-/** Describe a node's reserve and headroom roles for its tooltip. */
-export function reserveTooltipLines(roles: ReserveRoles | undefined): string[] {
+/** Describe a node's buffer roles for its tooltip. */
+export function bufferTooltipLines(roles: BufferRoles | undefined): string[] {
   if (roles === undefined) return [];
-  const lines: string[] = [];
-  for (const kind of ["reserve", "headroom"] as const) {
-    const held = roles.holds.filter((reserve) => reserve.kind === kind).map((reserve) => reserve.name);
-    const covered = roles.covers.filter((reserve) => reserve.kind === kind).map((reserve) => reserve.name);
-    if (held.length > 0) lines.push(`Holds ${kind}: ${held.join(", ")}`);
-    if (covered.length > 0) lines.push(`Counted in ${kind}: ${covered.join(", ")}`);
-  }
-  return lines;
+  return [
+    ...roles.holds.map((buffer) => `Holds buffer ${buffer.name} (${buffer.kind})`),
+    ...roles.covers.map((buffer) => `Counted in buffer ${buffer.name} (${buffer.kind})`),
+  ];
 }

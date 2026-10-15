@@ -25,21 +25,20 @@ from tests.guides.primitives.haeo import (
     ConstantInput,
     EntityInput,
     add_battery,
+    add_buffer,
     add_grid,
-    add_headroom,
     add_integration,
     add_inverter,
     add_junction,
     add_load,
     add_node,
     add_policies,
-    add_reserve,
     add_solar,
     login,
     reconfigure_policies,
     verify_setup,
 )
-from tests.guides.primitives.validation import validate_policies, validate_requirement
+from tests.guides.primitives.validation import validate_buffer, validate_policies
 
 __all__ = [
     # Field value types
@@ -51,15 +50,14 @@ __all__ = [
     "ScreenshotContext",
     # HAEO element primitives
     "add_battery",
+    "add_buffer",
     "add_grid",
-    "add_headroom",
     "add_integration",
     "add_inverter",
     "add_junction",
     "add_load",
     "add_node",
     "add_policies",
-    "add_reserve",
     "add_solar",
     "guide_step",
     "login",
@@ -72,7 +70,7 @@ __all__ = [
     "set_policy_rule",
     "show_forecast_card",
     "show_topology_card",
+    "validate_buffer",
     "validate_policies",
-    "validate_requirement",
     "verify_setup",
 ]

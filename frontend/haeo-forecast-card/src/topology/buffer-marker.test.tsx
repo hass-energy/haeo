@@ -16,7 +16,7 @@ const topology: TopologyData = {
     { name: "House:connection", source: "Bus", target: "House", segments: [] },
   ],
   groups: { Battery: ["Battery"], Bus: ["Bus"], House: ["House"] },
-  reserves: [{ name: "Backup", kind: "reserve", elements: ["House"], storage: ["Battery"] }],
+  buffers: [{ name: "Backup", kind: "reserve", elements: ["House"], storage: ["Battery"] }],
 };
 
 async function waitFor(condition: () => boolean): Promise<void> {
@@ -25,20 +25,20 @@ async function waitFor(condition: () => boolean): Promise<void> {
   }
 }
 
-describe("reserve markers", () => {
+describe("buffer markers", () => {
   const root = document.createElement("div");
 
   afterEach(() => {
     render(null, root);
   });
 
-  it("marks only the battery holding the reserve in the exported svg", async () => {
+  it("marks only the battery holding the buffer in the exported svg", async () => {
     const svg = await renderTopologySvg(topology);
 
     expect(svg.match(/🛡/gu)).toHaveLength(1);
   });
 
-  it("marks only the battery holding the reserve in the card", async () => {
+  it("marks only the battery holding the buffer in the card", async () => {
     render(<NetworkTopology topology={topology} />, root);
     await waitFor(() => root.querySelector("svg") !== null);
 

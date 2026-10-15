@@ -99,17 +99,11 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Load guide](load.md)
 
-- :material-shield-check:{ .lg .middle } __Reserve configuration__
+- :material-shield-check:{ .lg .middle } __Buffer configuration__
 
-    Backup energy held in your batteries for a grid outage.
+    Energy kept in your batteries for a grid outage, or empty space for the generation that is coming.
 
-    [:material-arrow-right: Reserve guide](reserve.md)
-
-- :material-format-vertical-align-top:{ .lg .middle } __Headroom configuration__
-
-    Empty space kept in your batteries for the generation that is coming.
-
-    [:material-arrow-right: Headroom guide](headroom.md)
+    [:material-arrow-right: Buffer guide](buffer.md)
 
 - :material-source-branch:{ .lg .middle } __Junction configuration__ (Advanced)
 

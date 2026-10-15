@@ -146,20 +146,24 @@ describe("normalizeSeries", () => {
     expect(output[0]!.lane).toBe("soc");
   });
 
-  it("plots a reserve state of charge in the state of charge lane", () => {
+  it.each([
+    { bound: "lower", color: "#ef4444" },
+    { bound: "upper", color: "#a855f7" },
+  ] as const)("plots a $bound bound buffer state of charge as a threshold", ({ bound, color }) => {
     const hass = withSingleHubRegistry({
       states: {
-        "sensor.backup_reserve_state_of_charge": {
-          entity_id: "sensor.backup_reserve_state_of_charge",
+        "sensor.backup_buffer_state_of_charge": {
+          entity_id: "sensor.backup_buffer_state_of_charge",
           attributes: {
             forecast: [
               { time: "2026-03-14T00:00:00Z", value: 30 },
               { time: "2026-03-14T01:00:00Z", value: 20 },
             ],
             field_type: "state_of_charge",
-            output_name: "reserve_state_of_charge",
-            element_type: "reserve",
+            output_name: "buffer_state_of_charge",
+            element_type: "buffer",
             element_name: "Backup",
+            bound,
             unit_of_measurement: "%",
           },
         },
@@ -167,9 +171,10 @@ describe("normalizeSeries", () => {
     });
     const output = normalizeSeries(hass, testHubConfig);
     expect(output).toHaveLength(1);
-    expect(output[0]!.elementType).toBe("reserve");
+    expect(output[0]!.elementType).toBe("buffer");
+    expect(output[0]!.bound).toBe(bound);
     expect(output[0]!.lane).toBe("soc");
-    expect(output[0]!.color).toBe("#ef4444");
+    expect(output[0]!.color).toBe(color);
   });
 
   it("uses friendly_name as label when present", () => {

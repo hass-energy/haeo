@@ -177,7 +177,7 @@ Preset horizons start with 1-minute periods, giving fine control over the near-t
 - **Modern codebase**: Python 3.13+, platinum-level code quality standards, strong typing, comprehensive testing
 - **Lower latency**: Runs alongside Home Assistant instance for minimal delay
 - **Native sensor integration**: Sensors organized into devices, persist between reboots, leverage native HA features
-- **Unique features**: Policy-driven battery charge/discharge, reserve and headroom economics, flexible network modeling via connections
+- **Unique features**: Policy-driven battery charge/discharge, buffer (reserve and headroom) economics, flexible network modeling via connections
 - **Extensibility**: Graph structure allows modeling diverse energy systems without code changes
 
 ### Limitations (today)
@@ -219,7 +219,7 @@ That LP-first stance is expected to continue: deferrables will use MILP only whe
 - Users valuing UI-based configuration
 - Systems needing modeling flexibility (AC/DC splits, hybrid inverters, multiple meters)
 - Users who prioritize modern code quality and software architecture
-- Systems requiring flexible battery reserve and headroom strategies
+- Systems requiring flexible battery reserve and headroom buffers
 
 ## Technical comparison
 

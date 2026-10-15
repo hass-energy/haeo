@@ -26,7 +26,7 @@ def _build_adjacency(participants: Mapping[str, ElementConfigData]) -> dict[str,
         model_elements = adapter.model_elements(loaded_config)
 
         # Elements that carry power are nodes; connections are edges, and
-        # reserves only read the elements they cover
+        # buffers only read the elements they cover
         for elem in model_elements:
             if elem["element_type"] in (MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_NODE):
                 adjacency.setdefault(elem["name"], set())

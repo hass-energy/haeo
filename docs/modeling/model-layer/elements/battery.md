@@ -13,7 +13,7 @@ A battery in HAEO's model layer is a single-section energy storage device with:
 
 !!! note "Multi-Section Batteries"
 
-    Requirements that span batteries, such as holding back energy for an outage, are [Reserve](../../device-layer/reserve.md) elements measured from the min and max charge.
+    Requirements that span batteries, such as holding back energy for an outage, are [Buffer](../../device-layer/buffer.md) elements measured from a level or the min and max charge.
     For explicit multi-section modeling, compose [Battery Section](../../device-layer/battery_section.md) elements with Connection elements.
 
 ## Model Formulation
@@ -223,7 +223,7 @@ The single-section battery model is a building block for more complex battery be
 - **Efficiency losses**: Applied through Connection efficiency parameters
 - **Power limits**: Applied through Connection max_power constraints
 - **Cost penalties**: Applied through Connection price parameters
-- **Reserves and headroom**: Applied through [Reserve](../../device-layer/reserve.md) elements that read stored energy
+- **Reserves and headroom**: Applied through [Buffer](../../device-layer/buffer.md) elements that read stored energy
 
 See the [Battery Device Layer documentation](../../device-layer/battery.md) for how these are composed.
 

@@ -1,4 +1,4 @@
-"""Battery partition keys from before reserves and headroom replaced them.
+"""Battery partition keys from before buffers replaced them.
 
 Batteries used to price an undercharge range below their min charge and an
 overcharge range above their max charge. Migrations still read these keys

@@ -36,15 +36,15 @@ export interface PolicyPlacement {
   terms: PolicyPricingTerm[];
 }
 
-/** A reserve keeps energy for an outage; headroom keeps empty space for surplus. */
-export type RequirementKind = "reserve" | "headroom";
+/** A reserve buffer keeps energy for an outage; a headroom buffer keeps empty space for surplus. */
+export type BufferKind = "reserve" | "headroom";
 
-export interface ReservePlacement {
+export interface BufferPlacement {
   name: string;
-  kind: RequirementKind;
-  /** Loads and generation the reserve covers. */
+  kind: BufferKind;
+  /** Loads and generation the buffer covers. */
   elements: string[];
-  /** Batteries that hold the reserve together. */
+  /** Batteries that hold the buffer together. */
   storage: string[];
 }
 
@@ -54,6 +54,6 @@ export interface TopologyData {
   groups: Record<string, string[]>;
   /** Policy pricing placements (min-cut positions). */
   policies?: PolicyPlacement[];
-  /** Reserves and the elements they cover and are held by. */
-  reserves?: ReservePlacement[];
+  /** Buffers and the elements they cover and are held by. */
+  buffers?: BufferPlacement[];
 }

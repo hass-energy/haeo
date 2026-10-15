@@ -168,6 +168,53 @@
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
+    "buffer": {
+      "flow_title": "Buffer",
+      "entry_type": "Buffer",
+      "initiate_flow": { "user": "Buffer", "reconfigure": "Buffer" },
+      "step": {
+        "user": {
+          "title": "Buffer configuration",
+          "description": "Keep energy in your batteries for an outage (a reserve), or empty space for incoming generation (headroom).",
+          "data": { "kind": "Kind", "name": "Buffer name" },
+          "data_description": {
+            "kind": "A reserve keeps the batteries charged enough. Headroom keeps them empty enough."
+          },
+          "sections": {
+            "participants": {
+              "data": { "generation": "Generation", "loads": "Loads", "storage": "Batteries" },
+              "data_description": {
+                "generation": "Generation that keeps producing through an outage for a reserve, or that headroom keeps space for.",
+                "loads": "Loads to keep running through an outage for a reserve, or that use some of the generation for headroom.",
+                "storage": "Batteries that hold the buffer together."
+              },
+              "name": "Participants"
+            },
+            "pricing": {
+              "data": { "shortfall_cost": "Shortfall cost" },
+              "data_description": {
+                "shortfall_cost": "Holding cost per kWh stored in the batteries past the buffer, for every hour it lasts. Set it high to treat the buffer as nearly untouchable."
+              },
+              "name": "Pricing"
+            },
+            "requirement": {
+              "data": { "level": "Level", "window": "Window" },
+              "data_description": {
+                "level": "Charge level the buffer is measured from: a reserve keeps the batteries above it, headroom below it. Unset, it is the batteries' min or max charge.",
+                "window": "How far ahead to look: the outage to cover for a reserve, or the generation to make room for with headroom."
+              },
+              "name": "Requirement"
+            }
+          }
+        }
+      },
+      "error": {
+        "buffer_storage_required": "Choose at least one battery to hold the buffer",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
     "connection": {
       "flow_title": "Connection",
       "entry_type": "Connection",
@@ -234,50 +281,6 @@
         "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists"
-      },
-      "abort": { "reconfigure_successful": "Configuration updated successfully" }
-    },
-    "headroom": {
-      "flow_title": "Headroom",
-      "entry_type": "Headroom",
-      "initiate_flow": { "user": "Headroom", "reconfigure": "Headroom" },
-      "step": {
-        "user": {
-          "title": "Headroom configuration",
-          "description": "Keep enough empty space in your batteries to absorb the generation that is coming.",
-          "data": { "name": "Headroom name" },
-          "sections": {
-            "participants": {
-              "data": { "generation": "Generation", "loads": "Loads", "storage": "Batteries" },
-              "data_description": {
-                "generation": "Generation the batteries should have room to absorb, such as solar.",
-                "loads": "Loads that use some of the generation before it reaches the batteries.",
-                "storage": "Batteries that keep the headroom together."
-              },
-              "name": "Participants"
-            },
-            "pricing": {
-              "data": { "shortfall_cost": "Shortfall cost" },
-              "data_description": {
-                "shortfall_cost": "Holding cost per kWh the batteries fall short of the headroom, for every hour it lasts. Set it high to keep the room nearly always free."
-              },
-              "name": "Pricing"
-            },
-            "requirement": {
-              "data": { "minimum": "Extra headroom", "window": "Look-ahead" },
-              "data_description": {
-                "minimum": "Empty space to keep on top of what the generation needs.",
-                "window": "How far ahead to keep room for the generation that is coming."
-              },
-              "name": "Requirement"
-            }
-          }
-        }
-      },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists",
-        "reserve_storage_required": "Choose at least one battery to keep the headroom"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -446,50 +449,6 @@
       },
       "abort": { "no_rules": "No policy rules configured", "reconfigure_successful": "Policies updated successfully" }
     },
-    "reserve": {
-      "flow_title": "Reserve",
-      "entry_type": "Reserve",
-      "initiate_flow": { "user": "Reserve", "reconfigure": "Reserve" },
-      "step": {
-        "user": {
-          "title": "Reserve configuration",
-          "description": "Keep enough energy in your batteries to run your loads through a grid outage.",
-          "data": { "name": "Reserve name" },
-          "sections": {
-            "participants": {
-              "data": { "generation": "Generation", "loads": "Loads", "storage": "Batteries" },
-              "data_description": {
-                "generation": "Generation that keeps producing through an outage, such as solar.",
-                "loads": "Loads to keep running through an outage.",
-                "storage": "Batteries that hold the reserve together."
-              },
-              "name": "Participants"
-            },
-            "pricing": {
-              "data": { "shortfall_cost": "Shortfall cost" },
-              "data_description": {
-                "shortfall_cost": "Holding cost per kWh the batteries fall short of the reserve, for every hour it lasts. Set it high to treat the reserve as nearly untouchable."
-              },
-              "name": "Pricing"
-            },
-            "requirement": {
-              "data": { "minimum": "Extra reserve", "window": "Outage length" },
-              "data_description": {
-                "minimum": "Energy to hold on top of what the loads need.",
-                "window": "How long an outage the reserve should cover."
-              },
-              "name": "Requirement"
-            }
-          }
-        }
-      },
-      "error": {
-        "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists",
-        "reserve_storage_required": "Choose at least one battery to hold the reserve"
-      },
-      "abort": { "reconfigure_successful": "Configuration updated successfully" }
-    },
     "solar": {
       "flow_title": "Solar",
       "entry_type": "Solar",
@@ -525,16 +484,15 @@
   "device": {
     "battery": { "name": "{name}" },
     "battery_section": { "name": "{name}" },
+    "buffer": { "name": "{name}" },
     "connection": { "name": "{name}" },
     "grid": { "name": "{name}" },
-    "headroom": { "name": "{name}" },
     "inverter": { "name": "{name}" },
     "junction": { "name": "{name}" },
     "load": { "name": "{name}" },
     "network": { "name": "Optimizer" },
     "node": { "name": "{name}" },
     "policy": { "name": "Policies" },
-    "reserve": { "name": "{name}" },
     "solar": { "name": "{name}" }
   },
   "entity": {
@@ -552,6 +510,9 @@
       "battery_price_source_target": { "name": "Discharge price" },
       "battery_price_target_source": { "name": "Charge price" },
       "battery_salvage_value": { "name": "Salvage value" },
+      "buffer_level": { "name": "Level" },
+      "buffer_shortfall_cost": { "name": "Shortfall cost" },
+      "buffer_window": { "name": "Window" },
       "connection_efficiency_source_target": { "name": "Efficiency" },
       "connection_max_power_source_target": { "name": "Max power" },
       "connection_price_source_target": { "name": "Price" },
@@ -559,9 +520,6 @@
       "grid_max_power_target_source": { "name": "Export limit" },
       "grid_price_source_target": { "name": "Import price" },
       "grid_price_target_source": { "name": "Export price" },
-      "headroom_minimum": { "name": "Extra headroom" },
-      "headroom_shortfall_cost": { "name": "Shortfall cost" },
-      "headroom_window": { "name": "Look-ahead" },
       "inverter_efficiency_source_target": { "name": "DC to AC efficiency" },
       "inverter_efficiency_target_source": { "name": "AC to DC efficiency" },
       "inverter_max_power_source_target": { "name": "Max DC to AC power" },
@@ -570,9 +528,6 @@
       "load_forecast": { "name": "Forecast" },
       "load_price_target_source": { "name": "Consumption value" },
       "policy_price": { "name": "{rule_name} price" },
-      "reserve_minimum": { "name": "Extra reserve" },
-      "reserve_shortfall_cost": { "name": "Shortfall cost" },
-      "reserve_window": { "name": "Outage length" },
       "solar_forecast": { "name": "Forecast" },
       "solar_price_source_target": { "name": "Production price" }
     },
@@ -596,6 +551,10 @@
       "battery_soc_max": { "name": "SOC max shadow price" },
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },
+      "buffer_energy_available": { "name": "Available energy" },
+      "buffer_energy_required": { "name": "Required energy" },
+      "buffer_energy_shortfall": { "name": "Energy shortfall" },
+      "buffer_state_of_charge": { "name": "Buffer state of charge" },
       "connection_power": { "name": "{source} to {target} power" },
       "grid_cost_import": { "name": "Import cost" },
       "grid_cost_net": { "name": "Net cost" },
@@ -605,10 +564,6 @@
       "grid_power_max_export_price": { "name": "Max export power shadow price" },
       "grid_power_max_import_price": { "name": "Max import power shadow price" },
       "grid_revenue_export": { "name": "Export revenue" },
-      "headroom_energy_available": { "name": "Available space" },
-      "headroom_energy_required": { "name": "Required space" },
-      "headroom_energy_shortfall": { "name": "Space shortfall" },
-      "headroom_state_of_charge": { "name": "Headroom state of charge" },
       "horizon": { "name": "Forecast horizon" },
       "inverter_dc_bus_power_balance": { "name": "DC bus power balance shadow price" },
       "inverter_max_power_ac_to_dc_price": { "name": "Max AC to DC power shadow price" },
@@ -631,10 +586,6 @@
       "network_optimization_duration": { "name": "Duration" },
       "network_optimization_status": { "name": "Status" },
       "node_power_balance": { "name": "Power balance shadow price" },
-      "reserve_energy_available": { "name": "Available energy" },
-      "reserve_energy_required": { "name": "Required energy" },
-      "reserve_energy_shortfall": { "name": "Energy shortfall" },
-      "reserve_state_of_charge": { "name": "Reserve state of charge" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
       "solar_power": { "name": "Power" }
     },
@@ -681,14 +632,6 @@
     "setup_failed_transient": { "message": "Setup failed: {error}. Home Assistant will retry automatically." }
   },
   "issues": {
-    "battery_overcharge_not_migrated": {
-      "title": "{element_name} overcharge needs headroom",
-      "description": "{element_name} had an overcharge partition, which batteries no longer have. Its sensors could not be read when Home Assistant started, so it could not be converted, and {element_name} now stops at its max charge.\n\nTo let {element_name} use that range again, raise its max charge and add headroom that keeps the space between the two free, with the overcharge cost as its shortfall cost. You can ignore this issue once you have done so."
-    },
-    "battery_undercharge_not_migrated": {
-      "title": "{element_name} undercharge needs a reserve",
-      "description": "{element_name} had an undercharge partition, which batteries no longer have. Its sensors could not be read when Home Assistant started, so it could not be converted, and {element_name} now stops at its min charge.\n\nTo let {element_name} use that range again, lower its min charge and add a reserve that holds the energy between the two, with the undercharge cost as its shortfall cost. You can ignore this issue once you have done so."
-    },
     "disconnected_network": {
       "title": "System has disconnected components",
       "description": "The system has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the system is fully connected"
@@ -715,6 +658,7 @@
     }
   },
   "selector": {
+    "buffer_kind": { "options": { "headroom": "Headroom: keep empty space", "reserve": "Reserve: keep energy" } },
     "horizon_preset": { "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days" } },
     "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
     "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },

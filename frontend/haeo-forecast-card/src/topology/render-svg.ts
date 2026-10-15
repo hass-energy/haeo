@@ -25,9 +25,9 @@ import {
   esc,
   extendEndpoints,
   offsetPoints,
-  reserveMarkers,
-  reserveRoles,
-  type ReserveRoles,
+  bufferMarkers,
+  bufferRoles,
+  type BufferRoles,
   vlanColor,
 } from "./shared";
 import type { TopologyData, TopologyNode, TopologySegment } from "./types";
@@ -101,7 +101,7 @@ function svgModelNode(
   group: LayoutGroup,
   color: string,
   nodeMap: Map<string, TopologyNode>,
-  reserve: ReserveRoles | undefined
+  buffer: BufferRoles | undefined
 ): string {
   const topoNode = nodeMap.get(node.id);
   const outTags = topoNode?.outbound_tags ?? [];
@@ -130,7 +130,7 @@ function svgModelNode(
   parts.push(
     `<text x="${nx + node.width / 2}" y="${ny + node.height / 2 + 4}" text-anchor="middle" font-size="11" font-weight="600" fill="white">${esc(node.id)}</text>`
   );
-  const markers = reserveMarkers(reserve);
+  const markers = bufferMarkers(buffer);
   if (markers !== "") {
     parts.push(
       `<text x="${nx + node.width - 4}" y="${ny + 12}" text-anchor="end" font-size="10">${esc(markers)}</text>`
@@ -167,7 +167,7 @@ function svgPill(node: LayoutNode, group: LayoutGroup): string {
 function svgGroup(
   group: LayoutGroup,
   nodeMap: Map<string, TopologyNode>,
-  roles: Map<string, ReserveRoles>,
+  roles: Map<string, BufferRoles>,
   edgeTags: Map<string, number[]>
 ): string {
   const s = NODE_STYLES[group.type] ?? NODE_STYLES["unknown"]!;
@@ -237,7 +237,7 @@ export async function renderTopologySvg(topology: TopologyData): Promise<string>
 
   // Build node name → TopologyNode lookup
   const nodeMap = new Map(topology.nodes.map((n) => [n.name, n]));
-  const roles = reserveRoles(topology.reserves);
+  const roles = bufferRoles(topology.buffers);
 
   // Build edge name → tags lookup
   const edgeTags = new Map<string, number[]>();

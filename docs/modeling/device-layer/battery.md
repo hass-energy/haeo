@@ -41,8 +41,8 @@ The model keeps stored energy between them with a steep holding cost rather than
 The initial charge is the current SOC multiplied by the capacity, clamped to the capacity.
 Stored energy and SOC are reported as absolute values.
 
-[Reserves](reserve.md) and headroom measure the energy a battery can deliver from its min charge and the space it can absorb up to its max charge.
-Pair a wider min and max charge with a reserve or headroom to let the battery use an outer range when the price justifies its holding cost.
+[Buffers](buffer.md) measure the energy a battery can deliver above a level, never below its min charge, and the space it can absorb below a level, never above its max charge.
+Pair a wider min and max charge with buffers at narrower levels to let the battery use an outer range when the price justifies its holding cost.
 
 ### Metered terminal convention
 

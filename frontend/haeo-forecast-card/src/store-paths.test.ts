@@ -15,6 +15,7 @@ function socSeries(overrides: Partial<ForecastSeries>): ForecastSeries {
     direction: null,
     sourceRole: "output",
     configMode: null,
+    bound: null,
     fixed: false,
     priority: null,
     lane: "soc",
@@ -28,12 +29,12 @@ function socSeries(overrides: Partial<ForecastSeries>): ForecastSeries {
 }
 
 describe("computeSocPaths", () => {
-  it("marks reserves and headroom as threshold lines and leaves battery lines plain", () => {
+  it("marks bounded lines as thresholds and leaves battery lines plain", () => {
     const paths = computeSocPaths(
       [
         socSeries({}),
-        socSeries({ key: "backup:soc", elementName: "Backup", elementType: "reserve" }),
-        socSeries({ key: "room:soc", elementName: "Room", elementType: "headroom" }),
+        socSeries({ key: "backup:soc", elementName: "Backup", elementType: "buffer", bound: "lower" }),
+        socSeries({ key: "room:soc", elementName: "Room", elementType: "buffer", bound: "upper" }),
       ],
       { min: -1, max: 1 },
       { min: 0, max: 100 },
