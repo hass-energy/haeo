@@ -181,10 +181,16 @@ async def _replace_nodes_with_junctions(hass: HomeAssistant, entry: ConfigEntry)
         _LOGGER.info("Replaced node %s with a junction", subentry.title)
 
 
-_PARTITION_ENTITY_KEYS: tuple[str, ...] = (
+# Partition fields were keyed by section when both partitions were configured
+# and by their bare field name when only one was. Batteries have no other fields
+# with those names.
+_PARTITION_ENTITY_PREFIXES: tuple[str, ...] = (
     partitions.SECTION_UNDERCHARGE,
     partitions.SECTION_OVERCHARGE,
     partitions.CONF_CONFIGURE_PARTITIONS,
+)
+_PARTITION_ENTITY_KEYS: frozenset[str] = frozenset(
+    (partitions.CONF_PARTITION_PERCENTAGE, partitions.CONF_PARTITION_COST)
 )
 
 
@@ -196,7 +202,9 @@ def _remove_partition_entities(hass: HomeAssistant, entry: ConfigEntry, battery_
         if len(parts) != _UNIQUE_ID_PART_COUNT:
             continue
         _, subentry_id, unique_key = parts
-        if subentry_id in battery_ids and unique_key.startswith(_PARTITION_ENTITY_KEYS):
+        if subentry_id in battery_ids and (
+            unique_key.startswith(_PARTITION_ENTITY_PREFIXES) or unique_key in _PARTITION_ENTITY_KEYS
+        ):
             _LOGGER.info("Removing %s because batteries no longer have partitions", entity_entry.entity_id)
             registry.async_remove(entity_entry.entity_id)
 

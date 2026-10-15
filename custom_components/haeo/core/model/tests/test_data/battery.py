@@ -383,19 +383,5 @@ VALID_CASES: list[ElementTestCase] = [
     },
 ]
 
-INVALID_CASES: list[ElementTestCase] = [
-    {
-        "description": f"Battery with a {limit} and no charge limit cost",
-        "factory": Battery,
-        "data": {
-            "name": f"battery_{limit}_without_cost",
-            "periods": np.array([1.0] * 2),
-            "capacity": 10.0,
-            "initial_charge": 5.0,
-            limit: value,
-        },
-        "expected_error": "needs a charge limit cost",
-    }
-    for limit, value in (("min_charge", 2.0), ("max_charge", 8.0))
-]
+INVALID_CASES: list[ElementTestCase] = []
 INVALID_MODEL_PARAMS: list[ElementTestCase] = []

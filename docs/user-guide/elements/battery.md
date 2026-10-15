@@ -129,6 +129,7 @@ It is in the collapsed **Advanced** section and defaults to 100 \$/kWh/h.
 Keep it far above any price the battery could earn from, so the limits act as hard limits.
 Raise it if your prices can spike high enough to make crossing a limit worthwhile for a short while.
 Very large values make the optimization numerically harder, so stay within a few thousand.
+It cannot be negative, and a sensor that reports a negative value stops the optimization with an error.
 
 ## Configuration Examples
 

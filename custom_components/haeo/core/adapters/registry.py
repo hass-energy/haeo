@@ -3,7 +3,6 @@
 from collections.abc import Mapping
 from typing import (
     Any,  # noqa: TID251  # ElementAdapter Protocol: each adapter's config/output types are narrower
-    Final,
     Protocol,
     TypeGuard,
     runtime_checkable,
@@ -22,7 +21,7 @@ from custom_components.haeo.core.adapters.elements.policy import adapter as poli
 from custom_components.haeo.core.adapters.elements.solar import adapter as solar_adapter
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BUFFER, MODEL_ELEMENT_TYPE_CONNECTION
+from custom_components.haeo.core.model.elements import FLOW_READER_ELEMENT_TYPES, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
 
@@ -104,7 +103,11 @@ def is_element_type(value: object) -> TypeGuard[ElementType]:
     return value in ELEMENT_TYPES
 
 
-_ADD_ORDER: Final[dict[str, int]] = {MODEL_ELEMENT_TYPE_CONNECTION: 1, MODEL_ELEMENT_TYPE_BUFFER: 2}
+def _add_order(element_type: str) -> int:
+    """Return when an element is added: connections join the elements they link, and flow readers read both."""
+    if element_type == MODEL_ELEMENT_TYPE_CONNECTION:
+        return 1
+    return 2 if element_type in FLOW_READER_ELEMENT_TYPES else 0
 
 
 def collect_model_elements(
@@ -117,8 +120,7 @@ def collect_model_elements(
         model_elements = ELEMENT_TYPES[element_type].model_elements(loaded_params)
         all_model_elements.extend(model_elements)
 
-    # Connections join the elements they link, and buffers read both
-    return sorted(all_model_elements, key=lambda e: _ADD_ORDER.get(e["element_type"], 0))
+    return sorted(all_model_elements, key=lambda e: _add_order(e["element_type"]))
 
 
 __all__ = [

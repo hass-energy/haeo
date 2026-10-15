@@ -23,9 +23,17 @@ from custom_components.haeo.core.schema import (
     as_entity_value,
 )
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.battery import CONF_CAPACITY, SECTION_STORAGE
+from custom_components.haeo.core.schema.elements.battery import (
+    CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
+    SECTION_ADVANCED,
+    SECTION_STORAGE,
+    BatteryConfigSchema,
+)
+from custom_components.haeo.core.schema.elements.buffer import CONF_SHORTFALL_COST, BufferConfigSchema
+from custom_components.haeo.core.schema.elements.buffer import SECTION_PRICING as BUFFER_SECTION_PRICING
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
-from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints
+from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints, extract_field_hints
 from custom_components.haeo.core.schema.sections import CONF_EFFICIENCY_SOURCE_TARGET, SECTION_EFFICIENCY
 from custom_components.haeo.core.state import StateMachine
 
@@ -782,6 +790,11 @@ def test_load_element_config_from_values_unknown_element_type_raises() -> None:
 _POWER_HINT = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=True)
 _PRICE_HINT = FieldHint(output_type=OutputType.PRICE, time_series=True)
 _SOC_SCALAR_HINT = FieldHint(output_type=OutputType.STATE_OF_CHARGE)
+# Prices are non-negative only when their minimum says so
+_MIN_ZERO_PRICE_HINT = FieldHint(output_type=OutputType.PRICE, time_series=True, min_value=0.0)
+_MIN_NEGATIVE_PRICE_HINT = FieldHint(output_type=OutputType.PRICE, time_series=True, min_value=-1.0)
+_SHORTFALL_COST_HINT = extract_field_hints(BufferConfigSchema)[BUFFER_SECTION_PRICING][CONF_SHORTFALL_COST]
+_CHARGE_LIMIT_COST_HINT = extract_field_hints(BatteryConfigSchema)[SECTION_ADVANCED][CONF_CHARGE_LIMIT_COST]
 
 
 @pytest.mark.parametrize(
@@ -791,6 +804,12 @@ _SOC_SCALAR_HINT = FieldHint(output_type=OutputType.STATE_OF_CHARGE)
         pytest.param(_POWER_HINT, 2.5, [2.5, 2.5, 2.5], id="positive_power_unchanged"),
         pytest.param(_PRICE_HINT, -0.5, [-0.5, -0.5, -0.5], id="negative_price_allowed"),
         pytest.param(_SOC_SCALAR_HINT, -0.005, 0.0, id="slightly_negative_soc_scalar_clamped"),
+        pytest.param(_MIN_ZERO_PRICE_HINT, -0.005, [0.0, 0.0, 0.0], id="slightly_negative_min_zero_price_clamped"),
+        pytest.param(_MIN_NEGATIVE_PRICE_HINT, -0.5, [-0.5, -0.5, -0.5], id="negative_min_price_allowed"),
+        pytest.param(_SHORTFALL_COST_HINT, -0.005, [0.0, 0.0, 0.0], id="slightly_negative_shortfall_cost_clamped"),
+        pytest.param(
+            _CHARGE_LIMIT_COST_HINT, -0.005, [0.0, 0.0, 0.0], id="slightly_negative_charge_limit_cost_clamped"
+        ),
     ],
 )
 def test_entity_values_respect_non_negative_output_types(
@@ -799,7 +818,7 @@ def test_entity_values_respect_non_negative_output_types(
     sensor_value: float,
     expected: list[float] | float,
 ) -> None:
-    """Fields for quantities that cannot be negative clamp slightly negative readings to zero."""
+    """Fields that cannot be negative, by quantity or by minimum, clamp slightly negative readings to zero."""
     monkeypatch.setattr(cl, "load_sensors", lambda *_a: {"sensor.x": sensor_value})
 
     result = cl.resolve_field({"type": "entity", "value": ["sensor.x"]}, hint, FakeStateMachine({}), FORECAST_TIMES)
@@ -812,6 +831,9 @@ def test_entity_values_respect_non_negative_output_types(
     [
         pytest.param(_POWER_HINT, -0.5, id="power"),
         pytest.param(_SOC_SCALAR_HINT, -5.0, id="soc_scalar_in_percent"),
+        pytest.param(_MIN_ZERO_PRICE_HINT, -0.5, id="min_zero_price"),
+        pytest.param(_SHORTFALL_COST_HINT, -0.5, id="shortfall_cost"),
+        pytest.param(_CHARGE_LIMIT_COST_HINT, -0.5, id="charge_limit_cost"),
     ],
 )
 def test_entity_significantly_negative_value_raises(

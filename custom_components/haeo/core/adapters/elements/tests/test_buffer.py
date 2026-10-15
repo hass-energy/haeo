@@ -257,3 +257,41 @@ def test_model_elements_name_each_battery_with_its_connection(
     assert element["kind"] == kind
     assert element["storage"] == [{"battery": "battery", "connection": connection}]
     np.testing.assert_equal(element["level"], expected_level)
+
+
+def test_headroom_builds_on_a_battery_that_cannot_charge() -> None:
+    """Headroom on a battery whose bus has no other source builds without the charge connection compilation drops.
+
+    The battery is the only source for the house, so nothing can charge it, and
+    its space grows as it discharges.
+    """
+    network, outputs = _optimize(
+        [
+            bus_node("bus"),
+            _battery("battery"),
+            _load("house", [1.0] * N_PERIODS),
+            _buffer(loads=["house"], storage=["battery"], kind="headroom", level=0.9),
+        ],
+        name="headroom",
+    )
+
+    assert "battery:charge" not in network.elements
+    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), 0.0, atol=1e-9)
+    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_AVAILABLE]), [4.0, 5.0, 6.0, 7.0, 8.0], atol=1e-9)
+
+
+def test_model_elements_add_connections_before_the_buffer_reading_them() -> None:
+    """Elements come first, then the connections linking them, then the buffer that reads both."""
+    configs: dict[str, ElementConfigData] = {
+        "reserve": _buffer(loads=["house"], generation=["solar"], storage=["battery"]),
+        "solar": _solar([1.0] * N_PERIODS),
+        "battery": _battery("battery"),
+        "house": _load("house", [1.0] * N_PERIODS),
+        "bus": bus_node("bus"),
+    }
+
+    order = [element["element_type"] for element in collect_model_elements(configs)]
+
+    n_connections = order.count("connection")
+    assert n_connections > 0
+    assert order[-n_connections - 1 :] == [*["connection"] * n_connections, "buffer"]

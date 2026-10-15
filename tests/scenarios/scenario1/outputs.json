@@ -486,7 +486,7 @@
       ],
       "friendly_name": "Battery Limit cost",
       "max": 1000.0,
-      "min": -1000.0,
+      "min": 0.0,
       "mode": "auto",
       "source_role": "limit",
       "step": 0.001,

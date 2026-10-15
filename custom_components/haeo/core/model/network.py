@@ -270,6 +270,7 @@ class Network:
         Each battery holds the buffer through the connection named with it, the
         one it discharges through for a reserve or charges through for headroom.
         That connection's efficiency scales what the battery can provide.
+        Generation counts by the power limit on the connection named with it.
         """
         name = config["name"]
         loads: list[NetworkElement[Any]] = []
@@ -280,35 +281,30 @@ class Network:
                 raise TypeError(msg)
             loads.append(load)
 
-        # Generation counts by the limit on the power leaving it
+        # Generation counts by the limit on the connection it produces through. Policy
+        # compilation leaves out connections no power can flow through, and a
+        # generator without one produces nothing the buffer can count.
         generation: dict[str, list[PowerLimitSegment]] = {}
-        for generator_name in config["generation"]:
-            limits = [
+        for generation_config in config["generation"]:
+            connection = self.elements.get(generation_config["connection"])
+            segments = connection.segments.values() if isinstance(connection, Connection) else ()
+            generation[generation_config["element"]] = [
                 segment
-                for element in self.elements.values()
-                if isinstance(element, Connection) and element.source == generator_name
-                for segment in element.segments.values()
+                for segment in segments
                 if isinstance(segment, PowerLimitSegment) and segment.max_power is not None
             ]
-            if not limits:
-                msg = f"Buffer '{name}' needs generator '{generator_name}' to have a limit on the power it produces"
-                raise ValueError(msg)
-            generation[generator_name] = limits
 
-        if not config["storage"]:
-            msg = f"Buffer '{name}' needs at least one battery to hold it"
-            raise ValueError(msg)
         storage: list[BufferStorage] = []
         for storage_config in config["storage"]:
             battery = self.elements.get(storage_config["battery"])
-            connection = self.elements.get(storage_config["connection"])
-            if not isinstance(battery, Battery) or not isinstance(connection, Connection):
-                msg = (
-                    f"Buffer '{name}' needs battery '{storage_config['battery']}' "
-                    f"and its connection '{storage_config['connection']}'"
-                )
+            if not isinstance(battery, Battery):
+                msg = f"Buffer '{name}' references '{storage_config['battery']}', which is not a battery"
                 raise TypeError(msg)
-            storage.append(BufferStorage(battery=battery, connection=connection))
+            # A battery whose connection was left out counts without its losses
+            connection = self.elements.get(storage_config["connection"])
+            storage.append(
+                BufferStorage(battery=battery, connection=connection if isinstance(connection, Connection) else None)
+            )
 
         element = Buffer(
             name=name,

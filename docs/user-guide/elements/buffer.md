@@ -98,6 +98,7 @@ With no loads or generation, a buffer holds the batteries on one side of its lev
 ## Shortfall cost
 
 The holding cost for each kWh stored in the batteries past the buffer, for every hour it stays there.
+It cannot be negative, and a sensor that reports a negative value stops the optimization with an error.
 The cost is a rate that accrues over time, not a one-off charge per kWh used:
 
 $$

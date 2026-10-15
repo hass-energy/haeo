@@ -230,6 +230,7 @@ class BatteryConfigSchema(ConnectedCommonConfig):
                     output_type=OutputType.PRICE_RATE,
                     direction="-",
                     time_series=True,
+                    min_value=0.0,
                     default_mode="value",
                     default_value=100.0,
                 ),

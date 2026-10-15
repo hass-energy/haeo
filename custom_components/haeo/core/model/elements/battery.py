@@ -99,7 +99,7 @@ class Battery(NetworkElement[BatteryOutputName]):
         initial_charge: float,
         min_charge: NDArray[np.float64] | float | None = None,
         max_charge: NDArray[np.float64] | float | None = None,
-        charge_limit_cost: NDArray[np.float64] | float | None = None,
+        charge_limit_cost: NDArray[np.float64] | float = 0.0,
         salvage_value: float = 0.0,
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
@@ -120,11 +120,6 @@ class Battery(NetworkElement[BatteryOutputName]):
         self.initial_charge = initial_charge
         self.min_charge = broadcast_to_sequence(min_charge, n_periods + 1)
         self.max_charge = broadcast_to_sequence(max_charge, n_periods + 1)
-        if charge_limit_cost is None:
-            if min_charge is not None or max_charge is not None:
-                msg = f"Battery '{name}' needs a charge limit cost to hold its min or max charge"
-                raise ValueError(msg)
-            charge_limit_cost = 0.0
         self.charge_limit_cost = broadcast_to_sequence(charge_limit_cost, n_periods)
         self.salvage_value = salvage_value
 

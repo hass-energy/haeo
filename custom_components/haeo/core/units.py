@@ -81,6 +81,14 @@ _DURATION_TO_HOURS: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.DAY: 24.0,
 }
 
+# Factors to each device class's base unit, for every device class that has one
+_TO_BASE_UNIT: Final[dict[DeviceClass, dict[UnitOfMeasurement, float]]] = {
+    DeviceClass.POWER: _POWER_TO_KW,
+    DeviceClass.ENERGY: _ENERGY_TO_KWH,
+    DeviceClass.ENERGY_STORAGE: _ENERGY_TO_KWH,
+    DeviceClass.DURATION: _DURATION_TO_HOURS,
+}
+
 # Durations HAEO reads from sensors, in units it converts to hours
 DURATION_UNITS: Final[tuple[UnitOfMeasurement, ...]] = tuple(_DURATION_TO_HOURS)
 
@@ -183,20 +191,9 @@ def _scale_factor(
         return 1.0
 
     effective_device_class = device_class or _infer_device_class_from_unit(from_unit)
-    base_unit = base_unit_for_device_class(effective_device_class)
-    if base_unit is None or base_unit == from_unit:
+    if effective_device_class is None:
         return 1.0
-
-    if effective_device_class == DeviceClass.POWER:
-        return _POWER_TO_KW.get(from_unit, 1.0)
-
-    if effective_device_class in {DeviceClass.ENERGY, DeviceClass.ENERGY_STORAGE}:
-        return _ENERGY_TO_KWH.get(from_unit, 1.0)
-
-    if effective_device_class == DeviceClass.DURATION:
-        return _DURATION_TO_HOURS.get(from_unit, 1.0)
-
-    return 1.0
+    return _TO_BASE_UNIT.get(effective_device_class, {}).get(from_unit, 1.0)
 
 
 def base_unit_conversion(

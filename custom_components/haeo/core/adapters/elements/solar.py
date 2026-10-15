@@ -70,7 +70,7 @@ class SolarAdapter:
             },
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
-                "name": f"{config['name']}:connection",
+                "name": solar_connection_name(config["name"]),
                 "source": config["name"],
                 "target": extract_connection_target(config[CONF_CONNECTION]),
                 "is_time_sensitive": True,
@@ -87,7 +87,7 @@ class SolarAdapter:
         **_kwargs: object,
     ) -> Mapping[SolarDeviceName, Mapping[SolarOutputName, OutputData]]:
         """Map model outputs to solar-specific output names."""
-        connection = model_outputs.get(f"{name}:connection")
+        connection = model_outputs.get(solar_connection_name(name))
         fixed = not config[SECTION_CURTAILMENT].get(CONF_CURTAILMENT, True)
         forecast = config[SECTION_FORECAST][CONF_FORECAST]
         if connection is not None:
@@ -113,3 +113,8 @@ class SolarAdapter:
 
 
 adapter = SolarAdapter()
+
+
+def solar_connection_name(name: str) -> str:
+    """Return the name of the connection solar produces through."""
+    return f"{name}:connection"

@@ -75,6 +75,12 @@ class ElementSpec:
     output_names: frozenset[str]
 
 
+# Element types that read other elements' power flows, so they are added after the connections
+FLOW_READER_ELEMENT_TYPES: Final[frozenset[str]] = frozenset(
+    (MODEL_ELEMENT_TYPE_BUFFER, MODEL_ELEMENT_TYPE_POLICY_PRICING)
+)
+
+
 # Registry of all model element types.
 # Keys are element type strings used by Network.add().
 ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
@@ -99,6 +105,7 @@ __all__ = [
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER",
     "ELEMENTS",
+    "FLOW_READER_ELEMENT_TYPES",
     "MODEL_ELEMENT_TYPE_BATTERY",
     "MODEL_ELEMENT_TYPE_BUFFER",
     "MODEL_ELEMENT_TYPE_CONNECTION",

@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from typing import Final, Literal
 
 from custom_components.haeo.core.adapters.elements.battery import charge_connection_name, discharge_connection_name
+from custom_components.haeo.core.adapters.elements.solar import solar_connection_name
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -60,7 +61,8 @@ class BufferAdapter:
     def model_elements(self, config: BufferConfigData) -> list[ModelElementConfig]:
         """Create the buffer model element over its loads, generation, and batteries.
 
-        A reserve flows through each battery's discharge connection and headroom
+        Generation counts by the limit on the connection it produces through. A
+        reserve flows through each battery's discharge connection and headroom
         through its charge connection.
         """
         participants = config[SECTION_PARTICIPANTS]
@@ -72,7 +74,10 @@ class BufferAdapter:
                 "name": config["name"],
                 "kind": config[CONF_KIND],
                 "loads": list(participants.get(CONF_LOADS, [])),
-                "generation": list(participants.get(CONF_GENERATION, [])),
+                "generation": [
+                    {"element": generator, "connection": solar_connection_name(generator)}
+                    for generator in participants.get(CONF_GENERATION, [])
+                ],
                 "storage": [
                     {"battery": battery, "connection": connection_name(battery)}
                     for battery in participants[CONF_STORAGE]

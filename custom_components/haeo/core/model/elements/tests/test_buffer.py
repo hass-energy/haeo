@@ -20,6 +20,7 @@ from custom_components.haeo.core.model.elements.buffer import (
     BUFFER_ENERGY_REQUIRED,
     BUFFER_ENERGY_SHORTFALL,
     BUFFER_STATE_OF_CHARGE,
+    Buffer,
     BufferKind,
     BufferStorageConfig,
     window_layout,
@@ -170,7 +171,9 @@ def _buffer(
         "name": "buffer",
         "kind": kind,
         "loads": loads or [],
-        "generation": generation or [],
+        "generation": [
+            {"element": generator, "connection": f"{generator}:connection"} for generator in generation or []
+        ],
         "storage": [{"battery": "battery", "connection": connection}] if storage is None else storage,
         "window": window,
         "level": level,
@@ -186,31 +189,17 @@ def _values(output: OutputData) -> np.ndarray:
     ("config", "error", "match"),
     [
         pytest.param(_buffer(loads=["missing"]), TypeError, "unknown element", id="unknown_load"),
-        pytest.param(_buffer(generation=["house"]), ValueError, "limit on the power it produces", id="unlimited_gen"),
-        pytest.param(_buffer(storage=[]), ValueError, "at least one battery", id="empty_storage"),
         pytest.param(
             _buffer(storage=[{"battery": "missing", "connection": "battery:discharge"}]),
             TypeError,
-            "needs battery 'missing'",
+            "'missing', which is not a battery",
             id="unknown_battery",
         ),
         pytest.param(
             _buffer(storage=[{"battery": "house", "connection": "battery:discharge"}]),
             TypeError,
-            "needs battery 'house'",
+            "'house', which is not a battery",
             id="storage_not_a_battery",
-        ),
-        pytest.param(
-            _buffer(storage=[{"battery": "battery", "connection": "missing"}]),
-            TypeError,
-            "its connection 'missing'",
-            id="unknown_connection",
-        ),
-        pytest.param(
-            _buffer(storage=[{"battery": "battery", "connection": "bus"}]),
-            TypeError,
-            "its connection 'bus'",
-            id="connection_not_a_connection",
         ),
     ],
 )
@@ -365,3 +354,77 @@ def test_buffer_flows_through_the_named_connection_beside_others() -> None:
 
     np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), [1.0, 1.0, 0.0], atol=1e-9)
     np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_SHORTFALL]), [0.0, 1.0, 0.0], atol=1e-9)
+
+
+@pytest.mark.parametrize(
+    ("connection", "required"),
+    [
+        pytest.param("battery:discharge", [2.0, 2.0, 0.0], id="named_connection_losses"),
+        pytest.param("missing", [1.0, 1.0, 0.0], id="absent_connection_counts_without_losses"),
+    ],
+)
+def test_storage_counts_the_losses_of_its_connection_when_present(connection: str, required: list[float]) -> None:
+    """A battery whose connection is absent from the network still holds the buffer, without that connection's losses.
+
+    The house uses 1 kW over a one hour window and the discharge connection is 50% efficient.
+    """
+    network = _network([1.0, 1.0], efficiency=0.5, house=[1.0, 1.0])
+    network.add(_buffer(loads=["house"], storage=[{"battery": "battery", "connection": connection}]))
+
+    network.optimize()
+    outputs = network.elements["buffer"].outputs()
+
+    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), required, atol=1e-9)
+
+
+@pytest.mark.parametrize(
+    ("connection", "required"),
+    [
+        pytest.param("solar:connection", [1.0, 1.0, 0.0], id="own_connection_limit"),
+        pytest.param("missing", [0.0, 0.0, 0.0], id="absent_connection_counts_nothing"),
+    ],
+)
+def test_generation_counts_only_the_limit_on_its_named_connection(connection: str, required: list[float]) -> None:
+    """Headroom counts the limit on the generator's named connection and ignores another connection out of it.
+
+    The solar makes 1 kW through its own connection and could send 5 kW more through a second one.
+    """
+    network = _network([1.0, 1.0], house=[0.0, 0.0], solar=[1.0, 1.0], kind="headroom")
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "solar:extra",
+            "source": "solar",
+            "target": "bus",
+            "tags": {0},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": np.full(2, 5.0)}},
+        }
+    )
+    config = _buffer(kind="headroom")
+    config["generation"] = [{"element": "solar", "connection": connection}]
+    network.add(config)
+
+    network.optimize()
+    outputs = network.elements["buffer"].outputs()
+
+    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), required, atol=1e-9)
+
+
+def test_required_energy_is_computed_once_per_solution() -> None:
+    """Outputs read one required energy array per solution, and a new solve computes it afresh."""
+    network = _network([1.0, 1.0], house=[1.0, 1.0])
+    network.add(_buffer(loads=["house"]))
+    buffer = network.elements["buffer"]
+    assert isinstance(buffer, Buffer)
+    network.optimize()
+
+    first = buffer._required_values()
+    assert buffer._required_values() is first
+
+    buffer.window = 2.0
+    network.optimize()
+    second = buffer._required_values()
+
+    assert second is not first
+    np.testing.assert_allclose(first, [1.0, 1.0, 0.0], atol=1e-9)
+    np.testing.assert_allclose(second, [2.0, 1.0, 0.0], atol=1e-9)

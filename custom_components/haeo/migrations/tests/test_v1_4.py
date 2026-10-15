@@ -500,6 +500,9 @@ async def test_async_migrate_entry_replaces_battery_partitions(hass: HomeAssista
             "overcharge_partition.percentage",
             "overcharge_partition.cost",
             partitions.CONF_CONFIGURE_PARTITIONS,
+            # A battery with only one partition keyed its fields by bare name
+            partitions.CONF_PARTITION_PERCENTAGE,
+            partitions.CONF_PARTITION_COST,
         )
     ]
     capacity_entity_id = _register_number(hass, entry, battery_subentry, battery.CONF_CAPACITY)
@@ -545,7 +548,7 @@ async def test_async_migrate_entry_replaces_battery_partitions(hass: HomeAssista
     }
     assert all(is_element_config_schema(dict(s.data)) for s in buffers.values())
 
-    assert [registry.async_get(entity_id) for entity_id in partition_entity_ids] == [None] * 5
+    assert [registry.async_get(entity_id) for entity_id in partition_entity_ids] == [None] * 7
     assert registry.async_get(capacity_entity_id) is not None
     assert registry.async_get(hub_entity.entity_id) is not None
     assert ir.async_get(hass).issues == {}

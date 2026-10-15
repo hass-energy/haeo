@@ -72,6 +72,13 @@ BUFFER_OUTPUT_NAMES: Final[frozenset[BufferOutputName]] = frozenset(
 _TIME_TOLERANCE: Final = 1e-6
 
 
+class BufferGenerationConfig(TypedDict):
+    """A generator the buffer covers and the connection it produces through, by name."""
+
+    element: str
+    connection: str
+
+
 class BufferStorageConfig(TypedDict):
     """A battery holding the buffer and the connection the buffer flows through, by name."""
 
@@ -86,7 +93,7 @@ class BufferElementConfig(TypedDict):
     name: str
     kind: BufferKind
     loads: list[str]
-    generation: list[str]
+    generation: list[BufferGenerationConfig]
     storage: list[BufferStorageConfig]
     window: float
     level: NDArray[np.float64] | float | None
@@ -98,11 +105,13 @@ class BufferStorage:
     """A battery holding the buffer and the connection the buffer flows through.
 
     For a reserve this is the connection the battery discharges through, and for
-    headroom the one it charges through.
+    headroom the one it charges through. It is None when the network has no such
+    connection because no power can flow through it, and the battery then counts
+    without losses.
     """
 
     battery: Battery
-    connection: Connection[str]
+    connection: Connection[str] | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,6 +202,8 @@ class Buffer(Element[BufferOutputName]):
         self._prefix_peak = solver.add_variables(n_periods + 1, name=f"{name}.prefix_peak", lower=-INF)
         # Stored energy the batteries fall short of the buffer at each boundary after the first
         self._shortfall = solver.add_variables(n_periods, name=f"{name}.shortfall")
+        # The solution the required energy was last computed from, and that energy
+        self._required: tuple[NDArray[np.float64], NDArray[np.float64]] | None = None
 
     @property
     def element_names(self) -> list[str]:
@@ -211,7 +222,8 @@ class Buffer(Element[BufferOutputName]):
         """Return the efficiency of the connection the storage meets the buffer through, at each boundary."""
         n_boundaries = self.n_periods + 1
         efficiency = np.ones(n_boundaries)
-        for segment in storage.connection.segments.values():
+        segments = storage.connection.segments.values() if storage.connection is not None else ()
+        for segment in segments:
             if isinstance(segment, EfficiencySegment) and segment.efficiency is not None:
                 efficiency = efficiency * broadcast_to_sequence(segment.efficiency, n_boundaries)
         return efficiency
@@ -334,9 +346,15 @@ class Buffer(Element[BufferOutputName]):
         return (self._shortfall * (self.price * self.periods)).total()
 
     def _required_values(self) -> NDArray[np.float64]:
-        """Return the stored energy the buffer requires past its bases, from the solved demand."""
-        demand = np.asarray(self.extract_values(self._demand), dtype=float)
-        return (window_peaks(demand, self._layout()) - demand) / self._scale()
+        """Return the stored energy the buffer requires past its bases, from the solved demand.
+
+        It is computed once per solution, so every output reads the same values.
+        """
+        solution = self._solver.column_values()
+        if self._required is None or self._required[0] is not solution:
+            demand = self._demand.value(solution)
+            self._required = (solution, (window_peaks(demand, self._layout()) - demand) / self._scale())
+        return self._required[1]
 
     @output
     def buffer_energy_required(self) -> OutputData:
@@ -381,6 +399,7 @@ __all__ = [
     "Buffer",
     "BufferElementConfig",
     "BufferElementTypeName",
+    "BufferGenerationConfig",
     "BufferKind",
     "BufferOutputName",
     "BufferStorage",
