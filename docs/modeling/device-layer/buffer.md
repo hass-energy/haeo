@@ -74,6 +74,9 @@ Scaling the shortfall this way prices it per kWh stored in the batteries, exactl
 
 Requiring the batteries to provide at least a maximum is the same as requiring them to provide at least every term, so the requirement stays linear even when the loads depend on decisions the optimizer makes.
 
+The requirement holds at every boundary, the first included.
+The batteries' charge at the first boundary is fixed, but the window after it covers the first periods' planned flows, so a load scheduled into the first period counts like any other.
+
 ### Fixed-shape windows
 
 Writing one row per boundary and window point would change the number of rows whenever period widths or the window change.
@@ -84,10 +87,11 @@ Rows that do not currently apply become free rows, so new periods or a new windo
 ### Cost
 
 $$
-C = \sum_{t=1}^{n} c_t \, s_t \, \Delta t_{t-1}
+C = c_0 \, s_0 \, \Delta t_0 + \sum_{t=1}^{n} c_{t-1} \, s_t \, \Delta t_{t-1}
 $$
 
-where $c_t$ is the shortfall cost in \$/kWh/h.
+where $c_k$ is the shortfall cost in \$/kWh/h for period $k$.
+Each boundary is held for the period before it, and the first boundary, which has none, for the first period.
 
 ## Parameter mapping
 
