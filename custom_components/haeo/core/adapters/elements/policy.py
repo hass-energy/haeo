@@ -73,6 +73,7 @@ class PolicyAdapter:
     can_source: bool = False
     can_sink: bool = False
     can_store: bool = False
+    can_consume: bool = False
 
     def model_elements(self, config: PolicyConfigData) -> list[ModelElementConfig]:  # noqa: ARG002 (required by adapter protocol — policy has no model elements)
         """Policy does not create model elements — policies are compiled separately."""

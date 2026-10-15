@@ -122,9 +122,9 @@ class EvAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = True
     can_sink: bool = True
-    # The pack is away for trips and its trip connection would count among its
-    # discharge paths, so buffers do not hold energy in it.
-    can_store: bool = False
+    # A buffer can hold energy in the pack and count the trips as a load
+    can_store: bool = True
+    can_consume: bool = True
 
     def model_elements(self, config: EvConfigData) -> list[ModelElementConfig]:
         """Create model elements for EV configuration.

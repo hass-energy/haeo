@@ -33,6 +33,7 @@ class JunctionAdapter:
     can_source: bool = False
     can_sink: bool = False
     can_store: bool = False
+    can_consume: bool = False
 
     def model_elements(self, config: JunctionConfigData) -> list[ModelElementConfig]:
         """Return a model node that neither produces nor consumes power."""

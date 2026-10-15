@@ -72,6 +72,7 @@ class DeferrableLoadAdapter:
     can_source: bool = False
     can_sink: bool = True
     can_store: bool = False
+    can_consume: bool = True
 
     def model_elements(self, config: DeferrableLoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for deferrable load configuration.
