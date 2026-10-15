@@ -35,6 +35,7 @@ _LOGGER = logging.getLogger(__name__)
 _DOCS_DIR = Path(__file__).parent.parent / "docs"
 
 _FIGURE_SUFFIX = ".svg"
+_DEFAULT_VIEWPORT = {"width": 1280, "height": 800}
 _SVG_SIZE = re.compile(r'<svg[^>]*\swidth="(\d+)"[^>]*\sheight="(\d+)"')
 
 _manifest_cache: dict[str, dict[str, object]] | None = None
@@ -47,7 +48,7 @@ def _load_manifests() -> dict[str, dict[str, object]]:
     Enriches each block with ``_prev_last_screenshot`` — the last screenshot
     of the closest earlier block in the same page manifest that has one,
     ``_viewport`` — the screenshot viewport dimensions from the manifest,
-    and ``_figure_size`` — the size of the block's first figure.
+    and ``_figure_sizes`` — the size of each of the block's figures.
     """
     index: dict[str, dict[str, object]] = {}
     _manifest_mtimes.clear()
@@ -62,7 +63,7 @@ def _load_manifests() -> dict[str, dict[str, object]]:
 
         _manifest_mtimes[manifest_path] = manifest_path.stat().st_mtime
 
-        viewport = data.get("viewport", {"width": 1280, "height": 800})
+        viewport = data.get("viewport", _DEFAULT_VIEWPORT)
         blocks = data.get("blocks", [])
         prev_last: str | None = None
         for block in blocks:
@@ -72,7 +73,7 @@ def _load_manifests() -> dict[str, dict[str, object]]:
             screenshots, figures = _split_captures(block.get("screenshots", []))
             block["_prev_last_screenshot"] = prev_last
             block["_viewport"] = viewport
-            block["_figure_size"] = _figure_size(manifest_path.parent / "light" / figures[0]) if figures else None
+            block["_figure_sizes"] = [_figure_size(manifest_path.parent / "light" / name) for name in figures]
             if screenshots:
                 prev_last = screenshots[-1]
 
@@ -95,13 +96,13 @@ def _split_captures(captures: list[str]) -> tuple[list[str], list[str]]:
     return [name for name in captures if not name.endswith(_FIGURE_SUFFIX)], figures
 
 
-def _figure_size(path: Path) -> dict[str, int] | None:
-    """Return the width and height a figure declares, or None when it cannot be read."""
+def _figure_size(path: Path) -> dict[str, int]:
+    """Return the width and height a figure declares, or the screenshot viewport when it cannot be read."""
     try:
         match = _SVG_SIZE.search(path.read_text(encoding="utf-8")[:2000])
     except OSError:
-        return None
-    return {"width": int(match[1]), "height": int(match[2])} if match else None
+        return dict(_DEFAULT_VIEWPORT)
+    return {"width": int(match[1]), "height": int(match[2])} if match else dict(_DEFAULT_VIEWPORT)
 
 
 def _manifests_changed() -> bool:
@@ -174,11 +175,14 @@ def _screenshot_label(filename: str) -> str:
 
 
 def _render_carousel(
-    captures: list[str], labels: list[str], *, size: dict[str, int], class_name: str, item: str
+    captures: list[str], labels: list[str], *, sizes: list[dict[str, int]], class_name: str, item: str
 ) -> str:
-    """Render captures with prev/next controls, or alone when there is only one."""
+    """Render captures with prev/next controls, or alone when there is only one.
+
+    Each slide carries its own size, so the frame keeps the shape of the slide on show.
+    """
     slides_html: list[str] = []
-    for i, (capture, label) in enumerate(zip(captures, labels, strict=True)):
+    for i, (capture, label, size) in enumerate(zip(captures, labels, sizes, strict=True)):
         active = ' data-active="true"' if i == 0 else ""
         light_src = f"light/{capture}"
         dark_src = f"dark/{capture}"
@@ -187,7 +191,8 @@ def _render_carousel(
             f'  <div class="guide-slide"{active}'
             f' data-light-src="{escape(light_src)}"'
             f' data-dark-src="{escape(dark_src)}"'
-            f' data-label="{escape(label)}">'
+            f' data-label="{escape(label)}"'
+            f' data-width="{size["width"]}" data-height="{size["height"]}">'
             f'    <img class="guide-slide-img" src="" alt="{escape(label)}" loading="lazy">'
             f"  </div>"
         )
@@ -210,7 +215,7 @@ def _render_carousel(
 
     return (
         f'<div class="{class_name}" data-total="{total}"'
-        f' data-width="{size.get("width", 1280)}" data-height="{size.get("height", 800)}">\n'
+        f' data-width="{sizes[0]["width"]}" data-height="{sizes[0]["height"]}">\n'
         f'  <div class="guide-slides">\n{slides}\n  </div>\n'
         f"{controls}"
         f"</div>"
@@ -232,23 +237,23 @@ def _render_block(block: dict[str, object], source: str) -> str:
     if screenshots:
         prev_last: str | None = block.get("_prev_last_screenshot")  # type: ignore[assignment]
         slides = [prev_last, *screenshots] if prev_last else screenshots
-        viewport: dict[str, int] = block.get("_viewport", {"width": 1280, "height": 800})  # type: ignore[assignment]
+        viewport: dict[str, int] = block.get("_viewport", _DEFAULT_VIEWPORT)  # type: ignore[assignment]
         parts.append(
             _render_carousel(
                 slides,
                 [_screenshot_label(name) for name in slides],
-                size=viewport,
+                sizes=[viewport] * len(slides),
                 class_name="guide-slideshow",
                 item="step",
             )
         )
     if figures:
-        figure_size: dict[str, int] = block.get("_figure_size") or {}  # type: ignore[assignment]
+        figure_sizes: list[dict[str, int]] = block["_figure_sizes"]  # type: ignore[assignment]
         parts.append(
             _render_carousel(
                 figures,
                 [_screenshot_label(name) for name in figures],
-                size=figure_size,
+                sizes=figure_sizes,
                 class_name="guide-slideshow guide-figures",
                 item="figure",
             )
