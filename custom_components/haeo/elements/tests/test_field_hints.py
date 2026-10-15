@@ -134,8 +134,8 @@ def test_build_input_fields_translation_key_combines_element_type_and_field_name
 _TRIP_HINT = FieldHint(
     output_type=OutputType.AVAILABILITY,
     outputs={
-        "trip_away": calendar_input(OutputType.AVAILABILITY, "distance", "window_active"),
-        "trip_due": calendar_input(OutputType.ENERGY, "distance", "window_due"),
+        "trip_away": calendar_input(OutputType.AVAILABILITY, "window_active"),
+        "trip_due": calendar_input(OutputType.ENERGY, "window_due"),
     },
 )
 

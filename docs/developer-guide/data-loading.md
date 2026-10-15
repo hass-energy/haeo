@@ -183,6 +183,8 @@ The calendar input loader fetches each calendar's events over the horizon and in
 Input stores capture their source states through the same injecting state machine, so diagnostics hold the events and replay loads them without a calendar to fetch from.
 A calendar without injected events reads as unavailable rather than as its plain state.
 
+Each event's value is a number typed with its unit, converted to base units like a sensor reading, so the extractor reports the base unit and the field's unit check applies to it as to any source.
+A bare number raises an `InputError` rather than being taken as base units, as do events whose units convert to different base units.
 The extracted series is a step function padded with zeros well before and after the events.
 A forecast shorter than the horizon repeats daily to fill it, and the padding keeps a calendar's events from repeating.
 

@@ -70,7 +70,7 @@ def test_load_element_config_uses_present_value_for_scalar_entities(monkeypatch:
     monkeypatch.setattr(
         cl,
         "load_sensors",
-        lambda _provider, entity_ids: {entity_ids[0]: 75.0},
+        lambda _provider, entity_ids, **_kwargs: {entity_ids[0]: 75.0},
     )
     monkeypatch.setattr(
         cl,
@@ -104,7 +104,7 @@ def test_load_element_config_unwraps_entity_wrappers_for_time_series(monkeypatch
     monkeypatch.setattr(
         cl,
         "load_sensors",
-        lambda _provider, entity_ids: {entity_ids[0]: 13.5},
+        lambda _provider, entity_ids, **_kwargs: {entity_ids[0]: 13.5},
     )
     monkeypatch.setattr(
         cl,

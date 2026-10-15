@@ -11,6 +11,7 @@ from typing import Literal, TypeGuard, overload
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 
+from custom_components.haeo.core.data.util.field_units import has_field_unit
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
 from custom_components.haeo.core.units import localize_currency
@@ -99,10 +100,15 @@ def is_number_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldI
 def accepts_calendar_forecast(field_info: AnyInputFieldInfo) -> bool:
     """Return True when a field can read a calendar as a forecast.
 
-    A number forecast field reads a calendar's events as a stepped forecast
-    of the number each event holds, like any forecast sensor.
+    A number forecast field with a unit reads a calendar's events as a
+    stepped forecast of the value each event holds, typed with its unit.
     """
-    return field_info.time_series and field_info.outputs is None and is_number_field_info(field_info)
+    return (
+        field_info.time_series
+        and field_info.outputs is None
+        and has_field_unit(field_info.output_type)
+        and is_number_field_info(field_info)
+    )
 
 
 def is_switch_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldInfo[SwitchEntityDescription]]:

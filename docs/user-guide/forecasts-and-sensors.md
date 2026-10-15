@@ -332,17 +332,19 @@ HAEO will detect this as a simple forecast format and extract the data.
 
 ## Calendars as Forecasts
 
-Any forecast field can read a Home Assistant calendar alongside or instead of a sensor.
-HAEO reads the calendar's events over the horizon as a stepped forecast: each event's number while the event runs, and zero outside events.
+Any forecast field with a unit can read a Home Assistant calendar alongside or instead of a sensor.
+HAEO reads the calendar's events over the horizon as a stepped forecast: each event's value while the event runs, and zero outside events.
 Events that overlap add together.
 A calendar combined with sensors adds to them like any other forecast.
 
-The number comes from the event's location, summary, or description, whichever holds a plain number first.
-It is in the field's own unit, such as \$/kWh for a price, and an event without a number counts as zero.
+An event's value is a number followed by its unit, such as `5 kW`, `500 W`, `0.30 $/kWh`, or `120 €/MWh`.
+HAEO reads it from the event's location, summary, or description, whichever holds a number first, and converts it to the field's unit as it would a sensor reading.
+A number without a unit, or in a unit that does not convert to the field's unit, makes the field unavailable with an error naming the value, rather than being guessed.
+An event without a number counts as zero.
 
 **Example**: A demand charge of 0.30 \$/kWh on weekday evenings.
-Create a recurring event from 4 pm to 9 pm with `0.30` in its description, then add the calendar to the grid's import price next to the price sensor.
-HAEO adds 0.30 to the import price during each event.
+Create a recurring event from 4 pm to 9 pm with `0.30 $/kWh` in its description, then add the calendar to the grid's import price next to the price sensor.
+HAEO adds 0.30 \$/kWh to the import price during each event.
 
 Calendar events are fetched whenever the calendar or the horizon changes.
 If a calendar cannot be read, the field is unavailable and optimization pauses until it can, as it would for an unavailable sensor.

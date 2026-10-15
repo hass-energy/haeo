@@ -1,9 +1,9 @@
 """Calendar event loading — extract time-windowed values from calendar entities.
 
 Calendar entities in HA expose events with start/end times, summary, location,
-and description fields. This loader extracts a numeric value from each event
-using a configurable field + parser, producing ``CalendarWindow`` objects that
-downstream fusers align to the optimization horizon.
+and description fields. An event's value is a number with its unit, such as
+"5 kW", typed in one of its text fields. Events become ``CalendarWindow``
+objects that downstream fusers align to the optimization horizon.
 
 Outside of any window, fused values are None — callers decide how to fill
 gaps (e.g. 0.0 for availability, hold-last for a schedule, etc.).
@@ -43,61 +43,17 @@ class CalendarWindow:
     value: float
 
 
-# Pattern: number (with optional decimal) followed by required unit
-# Examples: "50 km", "30mi", "100.5 miles", "15.2 m"
-_DISTANCE_PATTERN: Final = re.compile(
-    r"^\s*(\d+(?:\.\d+)?)\s*([a-zA-Zμ]+)\s*$",
-)
-
-# Mapping of common distance unit strings to HA UnitOfLength values
-_UNIT_ALIASES: Final[dict[str, str]] = {
-    "km": "km",
-    "kilometer": "km",
-    "kilometers": "km",
-    "kilometre": "km",
-    "kilometres": "km",
-    "mi": "mi",
-    "mile": "mi",
-    "miles": "mi",
-    "m": "m",
-    "meter": "m",
-    "meters": "m",
-    "metre": "m",
-    "metres": "m",
-    "ft": "ft",
-    "feet": "ft",
-    "foot": "ft",
-    "yd": "yd",
-    "yard": "yd",
-    "yards": "yd",
-}
+# A number, optionally signed and with decimals, then an optional unit
+# Examples: "50 km", "5kW", "0.30 $/kWh", "-2.5 kW", "3"
+_QUANTITY_PATTERN: Final = re.compile(r"^\s*([-+]?\d+(?:\.\d+)?)\s*(\S(?:.*\S)?)?\s*$")
 
 
-def parse_distance(text: str) -> tuple[float, str] | None:
-    """Parse a distance value with unit from text.
-
-    Returns (value, normalized_unit) or None if unparseable.
-    """
-    match = _DISTANCE_PATTERN.match(text)
+def parse_quantity(text: str) -> tuple[float, str | None] | None:
+    """Parse a number with an optional unit from text, or None when the text is not one."""
+    match = _QUANTITY_PATTERN.match(text)
     if match is None:
         return None
-
-    value = float(match.group(1))
-    unit_str = match.group(2).lower()
-
-    unit = _UNIT_ALIASES.get(unit_str)
-    if unit is None:
-        return None
-
-    return (value, unit)
-
-
-def parse_number(text: str) -> float | None:
-    """Parse a plain numeric value from text."""
-    try:
-        return float(text.strip())
-    except (ValueError, AttributeError):
-        return None
+    return float(match.group(1)), match.group(2)
 
 
 @dataclass(frozen=True)
@@ -148,73 +104,19 @@ def extract_calendar_windows(
     return sorted(windows, key=lambda w: w.start)
 
 
-# --- Pre-built value extractors ---
-
-_DEFAULT_TEXT_FIELDS: Final[tuple[str, ...]] = ("location", "summary", "description")
+_TEXT_FIELDS: Final[tuple[str, ...]] = ("location", "summary", "description")
 
 
-def make_field_fallback_extractor(
-    parser: Callable[[str], float | None],
-    fields: Sequence[str] = _DEFAULT_TEXT_FIELDS,
-) -> EventValueFn:
-    """Create an extractor that parses the first text field holding a parseable value.
+def event_quantity(event: CalendarEventData) -> tuple[float, str | None] | None:
+    """Return the number and unit of the first text field holding one, or None when no field does.
 
-    Tries fields in order (default: location, summary, description), skipping
-    empty fields and fields the parser cannot read. Returns None when no field
-    yields a value.
+    Fields are tried in order: location, summary, description.
     """
-
-    def _extract(event: CalendarEventData) -> float | None:
-        for field in fields:
-            text = getattr(event, field, None)
-            if text and (value := parser(text)) is not None:
-                return value
-        return None
-
-    return _extract
-
-
-def make_distance_extractor(
-    energy_per_distance: float,
-    target_unit: str,
-    convert_distance: Callable[[float, str, str], float] | None = None,
-) -> EventValueFn:
-    """Create an extractor that parses distance from location and converts to energy.
-
-    Args:
-        energy_per_distance: Energy consumption per unit distance (kWh/unit).
-        target_unit: Distance unit that energy_per_distance is expressed in.
-        convert_distance: Optional unit conversion function.
-
-    Returns:
-        EventValueFn that extracts energy (kWh) from an event's location field.
-
-    """
-
-    def _parse_distance_energy(text: str) -> float | None:
-        parsed = parse_distance(text)
-        if parsed is None:
-            return None
-        raw_distance, raw_unit = parsed
-        if raw_unit != target_unit:
-            if convert_distance is None:
-                return None
-            raw_distance = convert_distance(raw_distance, raw_unit, target_unit)
-        return raw_distance * energy_per_distance
-
-    return make_field_fallback_extractor(_parse_distance_energy)
-
-
-def make_presence_extractor(present_value: float = 1.0) -> EventValueFn:
-    """Create an extractor that returns a constant value for any event.
-
-    Useful for binary availability: value during event, None outside.
-    """
-
-    def _extract(_event: CalendarEventData) -> float | None:
-        return present_value
-
-    return _extract
+    for field in _TEXT_FIELDS:
+        text = getattr(event, field)
+        if text and (quantity := parse_quantity(text)) is not None:
+            return quantity
+    return None
 
 
 def _default_local_timezone() -> tzinfo:

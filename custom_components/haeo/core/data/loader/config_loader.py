@@ -316,7 +316,7 @@ def resolve_field(
         return None
 
     if hint.calendar is not None:
-        return resolve_calendar(unwrapped[0], hint.calendar, sm, forecast_times)
+        return resolve_calendar(unwrapped[0], hint.calendar, hint.output_type, sm, forecast_times)
 
     resolved = _resolve_entities(unwrapped, hint, sm, forecast_times, is_percent=is_percent)
     if negate and resolved is not None:
@@ -380,7 +380,7 @@ def _resolve_entities(
     is_percent: bool,
 ) -> float | np.ndarray | None:
     """Load entity data from state machine and fuse to horizon."""
-    payloads = load_sensors(sm, entity_ids)
+    payloads = load_sensors(sm, entity_ids, output_type=hint.output_type)
     if not payloads:
         return None
 

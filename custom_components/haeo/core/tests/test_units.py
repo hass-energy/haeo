@@ -152,3 +152,21 @@ def test_localize_currency(unit: str | None, currency: str, expected: str | None
 def test_currency_symbol(currency: str, expected: str) -> None:
     """Known currency codes map to their symbol and unknown codes are shown as the code."""
     assert currency_symbol(currency) == expected
+
+
+@pytest.mark.parametrize(
+    ("unit", "expected_value", "expected_unit"),
+    [
+        pytest.param("$/kWh", 0.3, "$/kWh", id="dollars_per_kwh"),
+        pytest.param("AUD/kWh", 0.3, "AUD/kWh", id="currency_code_per_kwh"),
+        pytest.param("€/MWh", 0.0003, "€/kWh", id="per_mwh"),
+        pytest.param("£/Wh", 300.0, "£/kWh", id="per_wh"),
+        pytest.param("$/kWh/h", 0.3, "$/kWh/h", id="price_rate_unchanged"),
+    ],
+)
+def test_prices_convert_to_currency_per_kwh(unit: str, expected_value: float, expected_unit: str) -> None:
+    """A price per energy unit converts to the same currency per kWh."""
+    value, base_unit, _ = convert_to_base_unit(0.3, unit, None)
+
+    assert value == pytest.approx(expected_value)
+    assert base_unit == expected_unit

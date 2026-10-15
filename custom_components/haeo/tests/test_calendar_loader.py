@@ -49,7 +49,7 @@ def _calendar_store(
     """Build a store for a calendar input reading a calendar entity's presence."""
     return create_input_store(
         storage=_MemStorage({"type": "entity", "value": [entity_id]}),
-        hint=calendar_input(OutputType.AVAILABILITY, "presence", "window_active"),
+        hint=calendar_input(OutputType.AVAILABILITY, "window_active"),
         get_forecast_timestamps=get_forecast_timestamps,
     )
 
@@ -457,7 +457,7 @@ async def test_loader_sums_a_calendar_with_a_sensor_in_a_forecast_field(
     start = 1_767_225_600.0
     timestamps = (start, start + 3600.0, start + 7200.0)
     horizon_manager.get_forecast_timestamps.return_value = timestamps
-    calendar = await _add_stub_calendar(hass, [_demand(start + 3600.0, start + 7200.0, "2")])
+    calendar = await _add_stub_calendar(hass, [_demand(start + 3600.0, start + 7200.0, "2000 W")])
 
     def _set_base(value: float) -> None:
         hass.states.async_set("sensor.base", str(value), {"unit_of_measurement": "kW", "device_class": "power"})

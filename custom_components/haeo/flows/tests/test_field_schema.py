@@ -148,17 +148,22 @@ def test_build_choose_selector_creates_normalizing_choose_selector(
 
 
 @pytest.mark.parametrize(
-    ("time_series", "expected"),
+    ("time_series", "output_type", "expected"),
     [
-        pytest.param(True, True, id="forecast_field"),
-        pytest.param(False, False, id="scalar_field"),
+        pytest.param(True, OutputType.POWER, True, id="forecast_field"),
+        pytest.param(False, OutputType.POWER, False, id="scalar_field"),
+        pytest.param(True, OutputType.AVAILABILITY, False, id="forecast_field_without_unit"),
     ],
 )
 def test_build_choose_selector_offers_calendars_for_forecast_fields(
-    number_field: InputFieldInfo[NumberEntityDescription], *, time_series: bool, expected: bool
+    number_field: InputFieldInfo[NumberEntityDescription],
+    *,
+    time_series: bool,
+    output_type: OutputType,
+    expected: bool,
 ) -> None:
-    """A number forecast field can pick a calendar, read as a forecast; a scalar field cannot."""
-    field = replace(number_field, time_series=time_series)
+    """A number forecast field with a unit can pick a calendar, read as a forecast; other fields cannot."""
+    field = replace(number_field, time_series=time_series, output_type=output_type)
 
     selector = build_choose_selector(field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
 
@@ -1385,7 +1390,7 @@ def _calendar_field() -> InputFieldInfo[NumberEntityDescription]:
         output_type=OutputType.ENERGY,
         time_series=True,
         boundaries=True,
-        calendar=CalendarFieldHint(parser="number", projection="window_due"),
+        calendar=CalendarFieldHint(projection="window_due"),
         source_field="window_calendar",
     )
     return InputFieldInfo(

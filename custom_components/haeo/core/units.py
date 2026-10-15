@@ -196,6 +196,17 @@ def _scale_factor(
     return _TO_BASE_UNIT.get(effective_device_class, {}).get(from_unit, 1.0)
 
 
+def _price_conversion(unit: str | UnitOfMeasurement | None) -> tuple[float, str] | None:
+    """Return the factor and base unit for a price per energy unit, such as ``€/MWh`` to ``€/kWh``."""
+    if not isinstance(unit, str):
+        return None
+    currency, separator, energy = str(unit).rpartition("/")
+    energy_unit = UnitOfMeasurement.of(energy)
+    if not separator or not currency or energy_unit is None or energy_unit not in _ENERGY_TO_KWH:
+        return None
+    return 1.0 / _ENERGY_TO_KWH[energy_unit], f"{currency}/{UnitOfMeasurement.KILO_WATT_HOUR}"
+
+
 def base_unit_conversion(
     unit: str | UnitOfMeasurement | None,
     device_class: str | DeviceClass | None,
@@ -203,10 +214,13 @@ def base_unit_conversion(
     """Return the scale factor to the base unit, the base unit, and the parsed device class.
 
     Conversion to base units is a pure scaling, so a series of values sharing a
-    unit converts by multiplying every value by the one factor.
+    unit converts by multiplying every value by the one factor. A price per
+    energy unit converts to the same currency per kWh.
     """
     parsed_unit = UnitOfMeasurement.of(unit)
     parsed_device_class = DeviceClass.of(device_class)
+    if parsed_unit is None and (price := _price_conversion(unit)) is not None:
+        return price[0], price[1], parsed_device_class
     effective_device_class = parsed_device_class or _infer_device_class_from_unit(parsed_unit)
 
     factor = _scale_factor(parsed_unit, parsed_device_class)

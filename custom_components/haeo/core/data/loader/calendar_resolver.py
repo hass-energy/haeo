@@ -9,69 +9,44 @@ asks for, aligned to the optimization horizon.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from custom_components.haeo.core.data.loader.calendar import (
-    CalendarEventData,
     CalendarWindow,
-    EventValueFn,
+    event_quantity,
     extract_calendar_windows,
     load_calendar_events,
-    make_distance_extractor,
-    make_field_fallback_extractor,
-    make_presence_extractor,
-    parse_number,
 )
 from custom_components.haeo.core.data.util.calendar_fuser import (
     fill_none,
     fuse_window_edges_to_boundaries,
     fuse_windows_to_boundaries,
 )
+from custom_components.haeo.core.data.util.field_units import to_field_unit
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from numpy.typing import NDArray
 
-    from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, CalendarParser
+    from custom_components.haeo.core.data.loader.calendar import CalendarEventData
+    from custom_components.haeo.core.model.const import OutputType
+    from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
     from custom_components.haeo.core.state import StateMachine
 
-# Kilometres per supported distance unit, used to normalize parsed distances
-# without importing Home Assistant's unit converters into the core layer.
-_KM_PER_UNIT: Final[dict[str, float]] = {
-    "km": 1.0,
-    "mi": 1.609344,
-    "m": 0.001,
-    "ft": 0.0003048,
-    "yd": 0.0009144,
-}
 
-
-def _convert_distance(value: float, from_unit: str, to_unit: str) -> float:
-    """Convert a distance between supported units via the kilometre table."""
-    return value * _KM_PER_UNIT[from_unit] / _KM_PER_UNIT[to_unit]
-
-
-def _extractor_for(parser: CalendarParser) -> EventValueFn:
-    """Return an extractor that keeps every event, valuing one without a parseable value at 0.0.
+def _event_value(event: CalendarEventData, output_type: OutputType) -> float:
+    """Return an event's value in the input's unit, or 0.0 when its text holds no number.
 
     An event's window is meaningful on its own (the vehicle is away), so an
-    event whose text holds no usable value still covers its periods.
+    event without a number still covers its periods and is due nothing.
     """
-    if parser == "distance":
-        parse = make_distance_extractor(energy_per_distance=1.0, target_unit="km", convert_distance=_convert_distance)
-    elif parser == "number":
-        parse = make_field_fallback_extractor(parse_number)
-    else:
-        parse = make_presence_extractor()
-
-    def _extract(event: CalendarEventData) -> float:
-        value = parse(event)
-        return 0.0 if value is None else value
-
-    return _extract
+    quantity = event_quantity(event)
+    if quantity is None:
+        return 0.0
+    return to_field_unit(*quantity, output_type)
 
 
 def _fused(values: list[float | None]) -> NDArray[np.float64]:
@@ -122,6 +97,7 @@ def _windows(
 def resolve_calendar(
     entity_id: str,
     hint: CalendarFieldHint,
+    output_type: OutputType,
     sm: StateMachine,
     forecast_times: Sequence[float],
 ) -> NDArray[np.float64] | None:
@@ -129,19 +105,28 @@ def resolve_calendar(
 
     Returns None when the calendar's state is missing or carries no injected
     events, so the input reads as not loaded. A calendar with no events in
-    the horizon resolves to all zeros.
+    the horizon resolves to all zeros. Only the due projection reads event
+    values, each converted from the unit typed with it to the input's unit.
+
+    Raises:
+        InputError: If an event's value cannot convert to the input's unit.
+
     """
     events = load_calendar_events(sm.get(entity_id))
     if events is None:
         return None
-    windows = extract_calendar_windows(events, _extractor_for(hint.parser))
     boundaries = [datetime.fromtimestamp(ts, tz=UTC) for ts in forecast_times]
 
-    counted = [CalendarWindow(start=w.start, end=w.end, value=1.0) for w in windows]
+    counted = extract_calendar_windows(events, lambda _event: 1.0)
+    valued = (
+        extract_calendar_windows(events, lambda event: _event_value(event, output_type))
+        if hint.projection == "window_due"
+        else [CalendarWindow(start=w.start, end=w.end, value=0.0) for w in counted]
+    )
     active, starts, due = _windows(
         _fused(fuse_windows_to_boundaries(counted, boundaries)),
         _fused(fuse_window_edges_to_boundaries(counted, boundaries, "end")),
-        _fused(fuse_window_edges_to_boundaries(windows, boundaries, "start")),
+        _fused(fuse_window_edges_to_boundaries(valued, boundaries, "start")),
     )
     if hint.projection == "window_active":
         return active

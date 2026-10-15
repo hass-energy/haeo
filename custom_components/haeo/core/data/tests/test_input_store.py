@@ -401,7 +401,7 @@ def _make_calendar_store() -> InputStore:
     storage = _MemStorage({"type": "entity", "value": ["calendar.trips"]})
     return create_input_store(
         storage=storage,
-        hint=calendar_input(OutputType.AVAILABILITY, "presence", "window_active"),
+        hint=calendar_input(OutputType.AVAILABILITY, "window_active"),
         get_forecast_timestamps=_timestamps,
     )
 

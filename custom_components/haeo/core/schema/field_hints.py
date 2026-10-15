@@ -11,7 +11,6 @@ from typing import Annotated, Literal, NotRequired, Required, get_args, get_orig
 
 from custom_components.haeo.core.model.const import OutputType
 
-type CalendarParser = Literal["distance", "number", "presence"]
 type CalendarProjection = Literal["window_active", "window_starts", "window_due"]
 
 # Projections with one value per horizon boundary rather than per period
@@ -23,10 +22,6 @@ class CalendarFieldHint:
     """How an input resolves its values from the events of a calendar entity.
 
     Attributes:
-        parser: How a numeric value is extracted from each event's text:
-            - 'distance': a distance (e.g. "50 km"), normalized to kilometres.
-            - 'number': a plain number.
-            - 'presence': 1.0 for every event regardless of text.
         projection: Which series the input takes from the events:
             - 'window_active': per period, 1.0 inside a window. Every event is a
               window, including one whose text holds no value, which is due
@@ -36,10 +31,11 @@ class CalendarFieldHint:
               horizon start. A window open at the horizon start does not start.
             - 'window_due': per boundary, each window's summed value at its end
               boundary. A window running past the horizon is due at its end.
+              Each event's value is a number with its unit, such as "40 km",
+              converted to the input's unit.
 
     """
 
-    parser: CalendarParser
     projection: CalendarProjection
 
 
@@ -81,7 +77,7 @@ class FieldHint:
     outputs: Mapping[str, "FieldHint"] | None = None
 
 
-def calendar_input(output_type: OutputType, parser: CalendarParser, projection: CalendarProjection) -> FieldHint:
+def calendar_input(output_type: OutputType, projection: CalendarProjection) -> FieldHint:
     """Return the hint for an input resolved from calendar events.
 
     Calendar inputs are always time series, at boundaries for the projections
@@ -91,7 +87,7 @@ def calendar_input(output_type: OutputType, parser: CalendarParser, projection: 
         output_type=output_type,
         time_series=True,
         boundaries=projection in _BOUNDARY_PROJECTIONS,
-        calendar=CalendarFieldHint(parser=parser, projection=projection),
+        calendar=CalendarFieldHint(projection=projection),
     )
 
 

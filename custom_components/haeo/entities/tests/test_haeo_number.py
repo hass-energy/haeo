@@ -1427,7 +1427,7 @@ async def test_calendar_input_shows_what_the_calendar_loader_puts_in_its_store(
         ),
         output_type=OutputType.AVAILABILITY,
         time_series=True,
-        calendar=CalendarFieldHint(parser="distance", projection="window_active"),
+        calendar=CalendarFieldHint(projection="window_active"),
         source_field="trip_calendar",
     )
     hass.states.async_set("calendar.trips", "on")
