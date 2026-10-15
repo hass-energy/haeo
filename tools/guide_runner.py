@@ -38,10 +38,15 @@ from tests.guides.primitives import (
     add_policies,
     add_solar,
     login,
+    optimize,
     pause_screenshots,
     reconfigure_policies,
     save_diagnostics,
     screenshot_context,
+    set_input,
+    set_policy_rule,
+    show_forecast_card,
+    show_topology_card,
     validate_policies,
     verify_setup,
 )
@@ -239,6 +244,12 @@ def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, obj
         "reconfigure_policies": reconfigure_policies,
         "validate_policies": validate_policies,
         "verify_setup": verify_setup,
+        # Plan primitives
+        "optimize": optimize,
+        "set_input": set_input,
+        "set_policy_rule": set_policy_rule,
+        "show_forecast_card": show_forecast_card,
+        "show_topology_card": show_topology_card,
         # Developer Tools primitives
         "save_diagnostics": save_diagnostics,
         # Guide chaining

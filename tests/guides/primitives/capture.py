@@ -74,7 +74,8 @@ class ScreenshotContext:
     3. The element/field name (e.g., "Import_Price")
     4. Optional step suffix (e.g., "search", "result")
 
-    Filenames add a numeric prefix and .png extension for ordering.
+    Filenames add a numeric prefix for ordering, and end in .png for
+    screenshots or .svg for figures.
     """
 
     output_dir: Path
@@ -105,6 +106,20 @@ class ScreenshotContext:
         if self._stack:
             self._stack.pop()
 
+    def _next_path(self, step: str, suffix: str) -> tuple[str, Path]:
+        """Return the next numbered filename for a capture in the current scope."""
+        self._step_number += 1
+
+        # Build hierarchical name from stack + step
+        # Sanitize names: replace spaces with underscores, remove special chars
+        parts = [self._sanitize(p) for p in self._stack]
+        parts.append(self._sanitize(step))
+        name = ".".join(parts)
+
+        # Include step number for ordering and uniqueness
+        filename = f"{self._step_number:03d}_{name}{suffix}"
+        return filename, self.output_dir / filename
+
     def capture(self, page: Page, step: str) -> Path:
         """Capture a screenshot with hierarchical naming.
 
@@ -116,17 +131,7 @@ class ScreenshotContext:
             Path to the saved screenshot
 
         """
-        self._step_number += 1
-
-        # Build hierarchical name from stack + step
-        # Sanitize names: replace spaces with underscores, remove special chars
-        parts = [self._sanitize(p) for p in self._stack]
-        parts.append(self._sanitize(step))
-        name = ".".join(parts)
-
-        # Include step number for ordering and uniqueness
-        filename = f"{self._step_number:03d}_{name}.png"
-        path = self.output_dir / filename
+        filename, path = self._next_path(step, ".png")
 
         # A readiness probe must never break a screenshot (e.g. mid-navigation
         # execution-context swaps), so failures are swallowed.
@@ -136,6 +141,17 @@ class ScreenshotContext:
         page.screenshot(path=str(path), animations="disabled")
         self.screenshots[filename] = path
 
+        return path
+
+    def save_figure(self, step: str, svg: str) -> Path:
+        """Save a figure, such as a rendered card, as an SVG with hierarchical naming.
+
+        Figures are shown on their own in the documentation rather than as
+        steps of a screenshot slideshow.
+        """
+        filename, path = self._next_path(step, ".svg")
+        path.write_text(svg, encoding="utf-8")
+        self.screenshots[filename] = path
         return path
 
     @staticmethod

@@ -11,9 +11,13 @@ docs directory on first use — no hook or build wrapper needed.
 If no manifest exists (e.g., guide tests haven't been run yet),
 the code block is rendered as a styled placeholder.
 
-Cross-block continuity: blocks after the first in a page automatically
-get the previous block's last screenshot prepended as their first slide,
-providing visual continuity between slideshows.
+Cross-block continuity: a block's screenshot slideshow starts with the
+last screenshot of the closest earlier block that has one, providing visual
+continuity between slideshows.
+
+Figures, such as rendered cards saved as SVG, stand on their own. They are
+shown after the block's screenshots, with arrows to flick between them when
+a block saves more than one, and never carry over into other blocks.
 """
 
 from __future__ import annotations
@@ -21,6 +25,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+import re
 from xml.sax.saxutils import escape
 
 from tools.guide_hashing import compute_content_hash, compute_page_hash, extract_sources
@@ -28,6 +33,9 @@ from tools.guide_hashing import compute_content_hash, compute_page_hash, extract
 _LOGGER = logging.getLogger(__name__)
 
 _DOCS_DIR = Path(__file__).parent.parent / "docs"
+
+_FIGURE_SUFFIX = ".svg"
+_SVG_SIZE = re.compile(r'<svg[^>]*\swidth="(\d+)"[^>]*\sheight="(\d+)"')
 
 _manifest_cache: dict[str, dict[str, object]] | None = None
 _manifest_mtimes: dict[Path, float] = {}
@@ -37,8 +45,9 @@ def _load_manifests() -> dict[str, dict[str, object]]:
     """Scan docs/ for manifest.json files and index blocks by content hash.
 
     Enriches each block with ``_prev_last_screenshot`` — the last screenshot
-    filename from the preceding block in the same page manifest, and
-    ``_viewport`` — the screenshot viewport dimensions from the manifest.
+    of the closest earlier block in the same page manifest that has one,
+    ``_viewport`` — the screenshot viewport dimensions from the manifest,
+    and ``_figure_size`` — the size of the block's first figure.
     """
     index: dict[str, dict[str, object]] = {}
     _manifest_mtimes.clear()
@@ -55,20 +64,17 @@ def _load_manifests() -> dict[str, dict[str, object]]:
 
         viewport = data.get("viewport", {"width": 1280, "height": 800})
         blocks = data.get("blocks", [])
-        for i, block in enumerate(blocks):
+        prev_last: str | None = None
+        for block in blocks:
             if not isinstance(block, dict) or "content_hash" not in block:
                 continue
 
-            # Find the last screenshot of the previous block for carry-over
-            prev_last: str | None = None
-            if i > 0:
-                prev_block = blocks[i - 1]
-                prev_screenshots = prev_block.get("screenshots", [])
-                if prev_screenshots:
-                    prev_last = prev_screenshots[-1]
-
+            screenshots, figures = _split_captures(block.get("screenshots", []))
             block["_prev_last_screenshot"] = prev_last
             block["_viewport"] = viewport
+            block["_figure_size"] = _figure_size(manifest_path.parent / "light" / figures[0]) if figures else None
+            if screenshots:
+                prev_last = screenshots[-1]
 
             content_hash = block["content_hash"]
             if content_hash in index:
@@ -81,6 +87,21 @@ def _load_manifests() -> dict[str, dict[str, object]]:
 
     _LOGGER.debug("Loaded %d guide blocks from manifests", len(index))
     return index
+
+
+def _split_captures(captures: list[str]) -> tuple[list[str], list[str]]:
+    """Split a block's captures into its screenshots and its figures."""
+    figures = [name for name in captures if name.endswith(_FIGURE_SUFFIX)]
+    return [name for name in captures if not name.endswith(_FIGURE_SUFFIX)], figures
+
+
+def _figure_size(path: Path) -> dict[str, int] | None:
+    """Return the width and height a figure declares, or None when it cannot be read."""
+    try:
+        match = _SVG_SIZE.search(path.read_text(encoding="utf-8")[:2000])
+    except OSError:
+        return None
+    return {"width": int(match[1]), "height": int(match[2])} if match else None
 
 
 def _manifests_changed() -> bool:
@@ -129,8 +150,8 @@ def _screenshot_label(filename: str) -> str:
     Transforms "045_add_battery.fill_Battery_Name.filled.png"
     into "Fill Battery Name".
     """
-    # Strip numeric prefix and .png extension
-    name = filename.removesuffix(".png")
+    # Strip numeric prefix and extension
+    name = filename.removesuffix(".png").removesuffix(_FIGURE_SUFFIX)
     # Remove leading NNN_ prefix
     parts = name.split("_", 1)
     if len(parts) > 1 and parts[0].isdigit():
@@ -152,36 +173,15 @@ def _screenshot_label(filename: str) -> str:
     return label
 
 
-def _render_slideshow(block: dict[str, object], source: str) -> str:
-    """Render a screenshot slideshow for a guide block.
-
-    If the block has a predecessor (non-first block in a page), the
-    previous block's last screenshot is prepended as a carry-over slide
-    for visual continuity.
-    """
-    screenshots: list[str] = block.get("screenshots", [])  # type: ignore[assignment]
-
-    if not screenshots:
-        return _render_placeholder(source, "No screenshots captured for this block")
-
-    # Build the full slide list with optional carry-over from previous block
-    all_screenshots: list[str] = []
-    all_labels: list[str] = []
-
-    prev_last: str | None = block.get("_prev_last_screenshot")  # type: ignore[assignment]
-    if prev_last:
-        all_screenshots.append(prev_last)
-        all_labels.append(_screenshot_label(prev_last))
-
-    all_screenshots.extend(screenshots)
-    all_labels.extend(_screenshot_label(f) for f in screenshots)
-
-    # Build slide HTML
+def _render_carousel(
+    captures: list[str], labels: list[str], *, size: dict[str, int], class_name: str, item: str
+) -> str:
+    """Render captures with prev/next controls, or alone when there is only one."""
     slides_html: list[str] = []
-    for i, label in enumerate(all_labels):
+    for i, (capture, label) in enumerate(zip(captures, labels, strict=True)):
         active = ' data-active="true"' if i == 0 else ""
-        light_src = f"light/{all_screenshots[i]}"
-        dark_src = f"dark/{all_screenshots[i]}"
+        light_src = f"light/{capture}"
+        dark_src = f"dark/{capture}"
 
         slides_html.append(
             f'  <div class="guide-slide"{active}'
@@ -193,24 +193,67 @@ def _render_slideshow(block: dict[str, object], source: str) -> str:
         )
 
     slides = "\n".join(slides_html)
-    total = len(all_screenshots)
-
-    viewport: dict[str, int] = block.get("_viewport", {"width": 1280, "height": 800})  # type: ignore[assignment]
-    vp_width = viewport.get("width", 1280)
-    vp_height = viewport.get("height", 800)
+    total = len(captures)
+    if total > 1:
+        controls = (
+            f'  <div class="guide-controls">\n'
+            f'    <button class="guide-prev" aria-label="Previous {item}" disabled>&lsaquo;</button>\n'
+            f'    <span class="guide-counter">1 / {total}</span>\n'
+            f'    <span class="guide-label">{escape(labels[0])}</span>\n'
+            f'    <button class="guide-next" aria-label="Next {item}">&rsaquo;</button>\n'
+            f"  </div>\n"
+        )
+    else:
+        controls = (
+            f'  <div class="guide-controls">\n    <span class="guide-label">{escape(labels[0])}</span>\n  </div>\n'
+        )
 
     return (
-        f'<div class="guide-slideshow" data-total="{total}"'
-        f' data-width="{vp_width}" data-height="{vp_height}">\n'
+        f'<div class="{class_name}" data-total="{total}"'
+        f' data-width="{size.get("width", 1280)}" data-height="{size.get("height", 800)}">\n'
         f'  <div class="guide-slides">\n{slides}\n  </div>\n'
-        f'  <div class="guide-controls">\n'
-        f'    <button class="guide-prev" aria-label="Previous step" disabled>&lsaquo;</button>\n'
-        f'    <span class="guide-counter">1 / {total}</span>\n'
-        f'    <span class="guide-label">{escape(all_labels[0]) if all_labels else ""}</span>\n'
-        f'    <button class="guide-next" aria-label="Next step">&rsaquo;</button>\n'
-        f"  </div>\n"
+        f"{controls}"
         f"</div>"
     )
+
+
+def _render_block(block: dict[str, object], source: str) -> str:
+    """Render a guide block's screenshot slideshow followed by its figures.
+
+    The slideshow starts with the last screenshot of the closest earlier
+    block that has one, for visual continuity between slideshows.
+    """
+    screenshots, figures = _split_captures(block.get("screenshots", []))  # type: ignore[arg-type]
+
+    if not screenshots and not figures:
+        return _render_placeholder(source, "No screenshots captured for this block")
+
+    parts: list[str] = []
+    if screenshots:
+        prev_last: str | None = block.get("_prev_last_screenshot")  # type: ignore[assignment]
+        slides = [prev_last, *screenshots] if prev_last else screenshots
+        viewport: dict[str, int] = block.get("_viewport", {"width": 1280, "height": 800})  # type: ignore[assignment]
+        parts.append(
+            _render_carousel(
+                slides,
+                [_screenshot_label(name) for name in slides],
+                size=viewport,
+                class_name="guide-slideshow",
+                item="step",
+            )
+        )
+    if figures:
+        figure_size: dict[str, int] = block.get("_figure_size") or {}  # type: ignore[assignment]
+        parts.append(
+            _render_carousel(
+                figures,
+                [_screenshot_label(name) for name in figures],
+                size=figure_size,
+                class_name="guide-slideshow guide-figures",
+                item="figure",
+            )
+        )
+    return "\n".join(parts)
 
 
 def _render_placeholder(source: str, message: str) -> str:
@@ -257,7 +300,7 @@ def format_guide(
     if block is None:
         return _render_placeholder(source, "Run guide tests to generate screenshots")
 
-    return _render_slideshow(block, source)
+    return _render_block(block, source)
 
 
 def format_guide_setup(
