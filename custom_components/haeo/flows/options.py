@@ -8,7 +8,7 @@ from homeassistant.config_entries import ConfigFlowResult
 
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_DEBOUNCE_SECONDS, CONF_HORIZON
-from custom_components.haeo.flows.horizon import validate_horizon
+from custom_components.haeo.flows.horizon import async_horizon_preset_labels, validate_horizon
 
 from . import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, get_hub_options_schema
 
@@ -39,5 +39,5 @@ class HubOptionsFlow(config_entries.OptionsFlow):
                 self.hass.config_entries.async_update_entry(self.config_entry, data=new_data)
                 return self.async_create_entry(title="", data={})
 
-        data_schema = get_hub_options_schema(config_entry=self.config_entry)
+        data_schema = get_hub_options_schema(self.config_entry, await async_horizon_preset_labels(self.hass))
         return self.async_show_form(step_id="init", data_schema=data_schema, errors=errors)
