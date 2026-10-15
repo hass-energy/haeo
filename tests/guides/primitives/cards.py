@@ -3,7 +3,8 @@
 Guides show what HAEO plans, not only how to configure it. These primitives
 load the card bundles the integration serves into a page of their own, feed
 them the live Home Assistant state the card would see in a dashboard, and
-capture the result into the current step's screenshots.
+save the rendered card as an SVG figure. The figure carries the card's own
+markup and styles, so it stays sharp at any size, legend included.
 
 Each capture re-runs the optimizer first, so the card reflects every change
 the guide has made so far.
@@ -17,6 +18,7 @@ from datetime import date, datetime
 import json
 import logging
 from typing import TYPE_CHECKING
+from xml.sax.saxutils import quoteattr
 
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
@@ -35,6 +37,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 _PREVIEW_PATH = "/__haeo_card_preview__"
+_HOST_CLASS = "haeo-card-host"
 _RENDER_TIMEOUT_MS = 15000
 
 # Home Assistant's default theme colors, so cards render as they would on a dashboard
@@ -134,25 +137,70 @@ def _is_dark(page: HAPage) -> bool:
     return isinstance(selected, str) and bool(json.loads(selected).get("dark"))
 
 
-@contextmanager
-def _card_page(
-    page: HAPage, hass: LiveHomeAssistant, *, tag: str, config: Mapping[str, object], hass_json: str
-) -> Iterator[Page]:
-    """Open a page of its own showing the card, ready to capture, and close it afterwards."""
-    dark = _is_dark(page)
+def _card_css(dark: bool) -> str:
+    """Return the styles of the card's frame, shared by the preview page and the saved figure."""
     theme = _THEME_VARIABLES[dark]
     variables = "".join(f"{name}: {value};" for name, value in theme.items() if name.startswith("--"))
     color_scheme = "dark" if dark else "light"
+    return (
+        f".card {{ {variables} color-scheme: {color_scheme}; flex: 1; box-sizing: border-box; display: flex;"
+        " background: var(--card-background-color); border-radius: 12px; padding: 16px;"
+        ' font-family: Roboto, "Noto Sans", system-ui, sans-serif; color: var(--primary-text-color); }'
+        f" .card > * {{ flex: 1; }}"
+    )
+
+
+# Flattens the card's shadow root into plain markup, with its styles scoped to a
+# wrapper standing in for the host element, so the card renders inside an SVG.
+_SERIALIZE_CARD_JS = """
+(hostClass) => {
+  const card = document.querySelector('.card');
+  const host = card.firstElementChild;
+  const flat = document.createElement('div');
+  flat.className = hostClass;
+  let css = '';
+  for (const node of host.shadowRoot.childNodes) {
+    if (node.nodeName === 'STYLE') css += node.textContent;
+    else flat.appendChild(node.cloneNode(true));
+  }
+  const style = document.createElement('style');
+  style.textContent = css.replaceAll(':host', '.' + hostClass);
+  flat.prepend(style);
+  const frame = card.cloneNode(false);
+  frame.appendChild(flat);
+  const rect = card.getBoundingClientRect();
+  return { markup: new XMLSerializer().serializeToString(frame), width: rect.width, height: rect.height };
+}
+"""
+
+
+@contextmanager
+def _card_page(
+    page: HAPage,
+    hass: LiveHomeAssistant,
+    *,
+    tag: str,
+    config: Mapping[str, object],
+    hass_json: str,
+    fill_height: bool,
+) -> Iterator[Page]:
+    """Open a page of its own showing the card, ready to capture, and close it afterwards.
+
+    A card that fills the page's height takes the viewport's shape, as a chart
+    does on a dashboard. Otherwise the card takes the height of its content.
+    """
+    dark = _is_dark(page)
+    layout = "height: 100%; display: flex;" if fill_height else "display: block;"
     html = f"""<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
 <style>
-  html, body {{ margin: 0; height: 100%; background: {theme["background"]}; }}
-  body {{ {variables} box-sizing: border-box; padding: 24px; display: flex; color-scheme: {color_scheme}; }}
-  .card {{ flex: 1; background: var(--card-background-color); border-radius: 12px; padding: 16px;
-           box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); display: flex; }}
-  {tag} {{ flex: 1; }}
+  html, body {{ margin: 0; background: {_THEME_VARIABLES[dark]["background"]}; }}
+  html {{ height: 100%; }}
+  body {{ box-sizing: border-box; padding: 24px; {layout} }}
+  .card {{ box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); }}
+  {_card_css(dark)}
 </style>
 <script type="module" src="{STATIC_CARD_STATIC_PATH}/{tag}.min.js"></script>
 </head>
@@ -192,14 +240,36 @@ def _card_page(
         context.close()
 
 
+def _card_svg(preview: Page, *, dark: bool) -> str:
+    """Return the card on the preview page as a standalone SVG."""
+    card = preview.evaluate(_SERIALIZE_CARD_JS, _HOST_CLASS)
+    width = round(card["width"])
+    height = round(card["height"])
+    frame_style = f"width: {width}px; height: {height}px; display: flex;"
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
+        f"<style>{_card_css(dark)}</style>"
+        f'<foreignObject x="0" y="0" width="{width}" height="{height}">'
+        f'<div xmlns="http://www.w3.org/1999/xhtml" style={quoteattr(frame_style)}>'
+        f"{card['markup']}</div></foreignObject></svg>\n"
+    )
+
+
 def _render_card(
-    page: HAPage, hass: LiveHomeAssistant, *, tag: str, config: Mapping[str, object], hass_json: str, step: str
+    page: HAPage,
+    hass: LiveHomeAssistant,
+    *,
+    tag: str,
+    config: Mapping[str, object],
+    hass_json: str,
+    step: str,
+    fill_height: bool,
 ) -> None:
-    """Render a card and capture it into the current step, when screenshots are being taken."""
+    """Render a card and save it as a figure of the current step, when captures are being taken."""
     ctx = ScreenshotContext.current()
     if ctx is not None:
-        with _card_page(page, hass, tag=tag, config=config, hass_json=hass_json) as preview:
-            ctx.capture(preview, step)
+        with _card_page(page, hass, tag=tag, config=config, hass_json=hass_json, fill_height=fill_height) as preview:
+            ctx.save_figure(step, _card_svg(preview, dark=_is_dark(page)))
 
 
 @guide_step
@@ -217,7 +287,7 @@ def show_forecast_card(
     Args:
         page: The guide's page.
         hass: The live Home Assistant instance.
-        step: Name of the captured screenshot, shown as its slideshow label.
+        step: Name of the figure, shown as its label.
         elements: Elements whose forecasts the card shows.
         horizon: How much of the forecast the card shows, as one of its horizon presets.
         inputs: Elements whose input forecasts and limits the card also shows, alongside the plan.
@@ -238,7 +308,7 @@ def show_forecast_card(
         "default_horizon": horizon,
         "tooltip_visible": False,
     }
-    _render_card(page, hass, tag="haeo-forecast-card", config=config, hass_json=hass_json, step=step)
+    _render_card(page, hass, tag="haeo-forecast-card", config=config, hass_json=hass_json, step=step, fill_height=True)
     _LOGGER.info("Captured forecast card for %s", ", ".join(elements))
 
 
@@ -248,7 +318,7 @@ def show_topology_card(page: HAPage, hass: LiveHomeAssistant, *, step: str) -> N
     optimize(hass)
     hass_json = _hass_payload(hass, lambda _entity_id, attributes: "topology" in attributes)
     config = {"type": "custom:haeo-topology-card", "hub_entry_id": _hub_entry_id(hass)}
-    _render_card(page, hass, tag="haeo-topology-card", config=config, hass_json=hass_json, step=step)
+    _render_card(page, hass, tag="haeo-topology-card", config=config, hass_json=hass_json, step=step, fill_height=False)
     _LOGGER.info("Captured topology card")
 
 

@@ -69,13 +69,12 @@ run_guide("sigenergy-system")
 
 ## The plan without a reserve
 
-Before adding anything, here is what HAEO plans for the battery over the next two days.
+Before adding anything, here is what HAEO plans over the next two days.
 The green dashed line is the battery's state of charge, and the bars are its charging and discharging alongside the house and solar.
 The pale orange is what the solar could produce, and the darker orange what HAEO plans to use.
 
-Two things stand out.
 The battery runs down to its minimum each evening, so an outage then would leave nothing to run the house.
-And it is already full when the solar arrives, so much of the solar goes unused.
+And it charges all the way to full most days, which wears it faster than it needs to.
 
 ```guide
 show_forecast_card(
@@ -89,8 +88,6 @@ show_forecast_card(
 ```
 
 ## Adding a reserve
-
-### Step 1: Choose what the reserve covers
 
 Click **Reserve** to add one, then pick its participants:
 
@@ -118,6 +115,11 @@ add_reserve(
     minimum=ConstantInput(2.0),
     shortfall_cost=ConstantInput(0.05),
 )
+validate_requirement(
+    hass,
+    name="Backup",
+    participants={"loads": ["Constant Load"], "generation": ["Solar"], "storage": ["Battery"]},
+)
 ```
 
 !!! tip "Driving the extra reserve from a sensor"
@@ -125,82 +127,86 @@ add_reserve(
     The extra reserve accepts a sensor as well as a constant.
     Point it at a helper or template sensor to raise the reserve ahead of a storm warning and drop it back to zero afterwards.
 
-### Step 2: Check the new plan
-
-The reserve now appears on the forecast card as a red dotted line in the state of charge lane.
-The battery's state of charge should stay on or above it.
-Compare it with the plan above: the battery now follows the line down through the evening, holding enough charge for an outage at every point instead of running down to its minimum.
-
-```guide
-validate_requirement(
-    hass,
-    name="Backup",
-    participants={"loads": ["Constant Load"], "generation": ["Solar"], "storage": ["Battery"]},
-)
-show_forecast_card(page, hass, step="Plan with a 12 hour reserve", elements=["Battery", "Backup"], horizon="2d")
-```
-
-### Step 3: Try a shorter outage
-
-The reserve has input entities for its outage length, extra reserve, and shortfall cost, so you can change them from a dashboard.
-Shortening the outage to 4 hours lowers the line, and HAEO plans to use more of the battery.
-
-```guide
-set_input(hass, element="Backup", field="window", value=4.0)
-show_forecast_card(page, hass, step="Plan with a 4 hour reserve", elements=["Battery", "Backup"], horizon="2d")
-```
-
 ## Adding headroom
 
-### Step 4: Keep room for solar
+This headroom keeps the top 10% of the battery free, so it spends less time full.
+It covers no loads or generation, so it holds just its extra amount: 3.2 kWh, 10% of this system's 32 kWh battery.
+A low shortfall cost lets HAEO fill the top of the battery when the energy is worth it, such as when it will soon be needed.
 
-Click **Headroom** to add one.
-Its participants work the same way, but for absorbing a surplus:
+Click **Headroom** to add one, pick the battery, and set:
 
-- **Loads**: the loads that use some of the generation before it reaches the battery.
-- **Generation**: the generation the battery should have room for.
-- **Batteries**: the batteries that keep the headroom.
-
-This guide looks 1 hour ahead.
-The solar in this system can produce far more in a few hours than its 32 kWh battery holds, so looking further ahead would ask for an empty battery before every sunny morning.
-Choose a look-ahead the battery can meet: one where the required space stays well below its capacity.
+- **Look-ahead**: 1 hour.
+    With no loads or generation it does not change what the headroom holds.
+- **Extra headroom**: 3.2 kWh.
+- **Shortfall cost**: \$0.02 per kWh past the headroom, for every hour it lasts.
 
 ```guide
 add_headroom(
     page,
-    name="Solar headroom",
-    loads=["Constant Load"],
-    generation=["Solar"],
+    name="Battery care",
     storage=["Battery"],
     window=ConstantInput(1.0),
-    minimum=ConstantInput(0.0),
-    shortfall_cost=ConstantInput(0.05),
+    minimum=ConstantInput(3.2),
+    shortfall_cost=ConstantInput(0.02),
 )
+validate_requirement(hass, name="Battery care", participants={"storage": ["Battery"]})
 ```
 
-### Step 5: Check the plan between both lines
+## Comparing the plans
 
-Headroom appears as a purple dotted line: the battery's state of charge should stay on or below it.
-The line dips ahead of the solar, so instead of being full when the solar arrives, the battery leaves room and stores more of it.
-With both added, the plan keeps the battery between the two lines, holding enough for an outage while leaving room for the solar that is coming.
+Use the arrows to flick between the plans with neither, each one, and both.
+
+- **The reserve** appears as a red dotted line, which the battery's state of charge should stay on or above.
+    The battery now follows the line down through the evening, holding enough for an outage at every point instead of running down to its minimum.
+- **A shorter outage** lowers the line, and HAEO plans to use more of the battery.
+- **The headroom** appears as a purple dotted line, which the battery's state of charge should stay on or below.
+    The battery now stops short of full unless the extra energy pays for its holding cost.
+- **With both**, the plan keeps the battery between the two lines.
+
+The reserve and headroom have input entities for their outage length or look-ahead, extra amount, and shortfall cost, so you can change them from a dashboard as these plans do.
 
 ```guide
-validate_requirement(
-    hass,
-    name="Solar headroom",
-    participants={"loads": ["Constant Load"], "generation": ["Solar"], "storage": ["Battery"]},
+everything = ["Battery", "Constant Load", "Solar"]
+
+set_input(hass, element="Backup", field="shortfall_cost", value=0.0)
+set_input(hass, element="Battery care", field="shortfall_cost", value=0.0)
+show_forecast_card(
+    page, hass, step="Without a reserve or headroom", elements=everything, inputs=["Solar"], horizon="2d"
 )
+
+set_input(hass, element="Backup", field="shortfall_cost", value=0.05)
+show_forecast_card(
+    page, hass, step="With a 12 hour reserve", elements=[*everything, "Backup"], inputs=["Solar"], horizon="2d"
+)
+
+set_input(hass, element="Backup", field="window", value=4.0)
+show_forecast_card(
+    page, hass, step="With a 4 hour reserve", elements=[*everything, "Backup"], inputs=["Solar"], horizon="2d"
+)
+
+set_input(hass, element="Backup", field="shortfall_cost", value=0.0)
+set_input(hass, element="Battery care", field="shortfall_cost", value=0.02)
 show_forecast_card(
     page,
     hass,
-    step="Plan with a reserve and headroom",
-    elements=["Battery", "Backup", "Solar headroom", "Solar"],
+    step="Keeping the top 10% free",
+    elements=[*everything, "Battery care"],
+    inputs=["Solar"],
+    horizon="2d",
+)
+
+set_input(hass, element="Backup", field="shortfall_cost", value=0.05)
+show_forecast_card(
+    page,
+    hass,
+    step="With a 4 hour reserve and the top 10% free",
+    elements=[*everything, "Backup", "Battery care"],
     inputs=["Solar"],
     horizon="2d",
 )
 ```
 
-### Step 6: See them in the network
+## Seeing them in the network
 
 The topology card marks the batteries holding a reserve with 🛡 and those keeping headroom with ⤒.
 Hover over an element to see which reserves and headroom it holds or is counted in.
@@ -227,7 +233,7 @@ They also have input entities for the window, extra amount, and shortfall cost.
 ### Changes to the plan
 
 - **A reserve exports less before the evening** and may charge from the grid ahead of it.
-- **Headroom discharges ahead of solar** and holds off on charging from the grid when solar will fill the battery.
+- **Headroom stops short of full**, and with generation included, discharges ahead of it to leave room.
 - **Both give way when it pays**: HAEO goes past a line when the energy is worth more than the shortfall cost for as long as it lasts.
     When a reserve and a headroom ask for more than the battery can do at once, the shortfall costs decide which gives way.
 
