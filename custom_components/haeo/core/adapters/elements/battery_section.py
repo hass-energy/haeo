@@ -61,6 +61,7 @@ class BatterySectionAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
     can_source: bool = True
     can_sink: bool = True
+    can_store: bool = True
 
     def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:
         """Create model elements for BatterySection configuration.

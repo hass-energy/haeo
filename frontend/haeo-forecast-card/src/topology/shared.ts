@@ -5,6 +5,8 @@
  * the headless SVG string renderer (render-svg.ts).
  */
 
+import type { BufferKind, BufferPlacement } from "./types";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -14,9 +16,19 @@ export interface Point {
   y: number;
 }
 
+export interface BufferRoles {
+  /** Buffers this node holds. */
+  holds: BufferPlacement[];
+  /** Buffers this node's demand or generation counts toward. */
+  covers: BufferPlacement[];
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
+
+/** Markers drawn on batteries that hold a buffer, by buffer kind. */
+export const BUFFER_MARKERS: Record<BufferKind, string> = { reserve: "🛡", headroom: "⤒" };
 
 export const NODE_RX = 6;
 export const GROUP_RX = 10;
@@ -41,7 +53,6 @@ export const SEGMENT_ICONS: Record<string, string> = {
   PricingSegment: "💲",
   PowerLimitSegment: "⚡",
   EfficiencySegment: "η",
-  SocPricingSegment: "📊",
   TagFilterSegment: "🏷",
   TagPricingSegment: "🏷",
 };
@@ -171,4 +182,39 @@ export function computeArrowHead(
   const right = { x: baseX - px * ARROW_HALF_W, y: baseY - py * ARROW_HALF_W };
 
   return { tipX, tipY, left, right };
+}
+
+/** Map each node to the buffers it holds or counts toward. */
+export function bufferRoles(buffers: BufferPlacement[] | undefined): Map<string, BufferRoles> {
+  const roles = new Map<string, BufferRoles>();
+  const rolesFor = (name: string): BufferRoles => {
+    const existing = roles.get(name);
+    if (existing !== undefined) return existing;
+    const created: BufferRoles = { holds: [], covers: [] };
+    roles.set(name, created);
+    return created;
+  };
+  for (const buffer of buffers ?? []) {
+    for (const name of buffer.storage) rolesFor(name).holds.push(buffer);
+    for (const name of buffer.elements) rolesFor(name).covers.push(buffer);
+  }
+  return roles;
+}
+
+/** Return the markers for the kinds of buffer a node holds, in a fixed order. */
+export function bufferMarkers(roles: BufferRoles | undefined): string {
+  const kinds = new Set(roles?.holds.map((buffer) => buffer.kind));
+  return (["reserve", "headroom"] as const)
+    .filter((kind) => kinds.has(kind))
+    .map((kind) => BUFFER_MARKERS[kind])
+    .join(" ");
+}
+
+/** Describe a node's buffer roles for its tooltip. */
+export function bufferTooltipLines(roles: BufferRoles | undefined): string[] {
+  if (roles === undefined) return [];
+  return [
+    ...roles.holds.map((buffer) => `Holds buffer ${buffer.name} (${buffer.kind})`),
+    ...roles.covers.map((buffer) => `Counted in buffer ${buffer.name} (${buffer.kind})`),
+  ];
 }

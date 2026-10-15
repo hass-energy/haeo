@@ -75,7 +75,7 @@ add_policies(
     page,
     name="Battery to Load",
     source="Battery",
-    target="Constant Load",
+    target="House load",
     price=0.02,
 )
 ```
@@ -118,6 +118,25 @@ validate_policies(hass, expected_rules=[
 
 ```guide
 reconfigure_policies(page)
+```
+
+## Comparing the plans
+
+Each rule has an enabled switch, so you can turn it off from a dashboard without deleting it.
+Use the arrows to flick from the plan without these rules to the plan with all four, adding one rule at a time.
+Each plan keeps the rules before it.
+
+```guide
+everything = ["Battery", "House load", "Solar", "Grid"]
+rules = ["Solar to Grid", "Battery to Grid", "Battery to Load", "Grid to Battery"]
+
+for rule in rules:
+    set_policy_rule(hass, rule=rule, enabled=False)
+show_forecast_card(page, hass, step="Without these rules", elements=everything, inputs=["Solar"], horizon="2d")
+
+for rule in rules:
+    set_policy_rule(hass, rule=rule, enabled=True)
+    show_forecast_card(page, hass, step=f"Adding {rule}", elements=everything, inputs=["Solar"], horizon="2d")
 ```
 
 ## How policies affect optimization

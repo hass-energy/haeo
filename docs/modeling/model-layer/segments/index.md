@@ -27,7 +27,6 @@ This design means:
 
 ## Segment types
 
-- **[SOC pricing segment](soc-pricing.md)** for battery SOC penalty costs.
 - **[Efficiency segment](efficiency.md)** for loss modeling.
 - **[Power limit segment](power-limit.md)** for power limits.
 - **[Pricing segment](pricing.md)** for transfer costs and fees.

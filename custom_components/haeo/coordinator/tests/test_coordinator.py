@@ -58,6 +58,7 @@ from custom_components.haeo.core.schema import as_connection_target, as_constant
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -66,8 +67,8 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
+    SECTION_ADVANCED,
     SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_STORAGE,
 )
 from custom_components.haeo.core.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
@@ -145,7 +146,9 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                     CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
                     CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
                 },
-                SECTION_PARTITIONING: {},
+                SECTION_ADVANCED: {
+                    CONF_CHARGE_LIMIT_COST: as_constant_value(100.0),
+                },
             }
         ),
         subentry_type=ElementType.BATTERY,
@@ -646,6 +649,23 @@ def test_build_coordinator_output_uses_last_value_when_state_last() -> None:
 
     assert output.state == 3.0  # Last value, not first
     assert output.forecast is not None
+
+
+@pytest.mark.parametrize(
+    "output_data",
+    [
+        OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.2, 0.3), direction="+"),
+        OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.2, 0.3), direction="-"),
+        OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.2, 0.3)),
+    ],
+    ids=["reserve", "headroom", "none"],
+)
+def test_build_coordinator_output_carries_state_of_charge_direction(output_data: OutputData) -> None:
+    """The flow a state of charge line holds the batteries ready for carries through to the coordinator output."""
+
+    output = _build_coordinator_output(SOLAR_POWER, output_data, forecast_times=_TIMES[:2], currency_sym="$")
+
+    assert output.direction == output_data.direction
 
 
 def test_build_coordinator_output_handles_empty_values() -> None:
