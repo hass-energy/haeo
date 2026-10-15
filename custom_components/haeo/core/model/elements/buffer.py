@@ -172,8 +172,8 @@ class Buffer(Element[BufferOutputName]):
         # Peak demand from each boundary to the end of its block, and from the start of its block
         self._suffix_peak = solver.add_variables(n_periods + 1, name=f"{name}.suffix_peak", lower=-INF)
         self._prefix_peak = solver.add_variables(n_periods + 1, name=f"{name}.prefix_peak", lower=-INF)
-        # Stored energy the batteries fall short of the buffer at each boundary after the first
-        self._shortfall = solver.add_variables(n_periods, name=f"{name}.shortfall")
+        # Stored energy the batteries fall short of the buffer at each boundary
+        self._shortfall = solver.add_variables(n_periods + 1, name=f"{name}.shortfall")
         # The solution the required energy was last computed from, and that energy
         self._required: tuple[NDArray[np.float64], NDArray[np.float64]] | None = None
 
@@ -315,32 +315,41 @@ class Buffer(Element[BufferOutputName]):
     def buffer_requirement(self) -> Rows:
         """Hold enough for the peak demand within each boundary's window.
 
-        Each boundary after the first has three rows: the rest of its own block,
-        the start of the next block up to the window end, and the window end
-        itself when it falls inside a period. The window end interpolates between
-        the last boundary inside the window and the next one. Rows that do not
-        apply have no lower bound, so they are free.
+        Each boundary has three rows: the rest of its own block, the start of
+        the next block up to the window end, and the window end itself when it
+        falls inside a period. The window end interpolates between the last
+        boundary inside the window and the next one. Rows that do not apply have
+        no lower bound, so they are free.
+
+        The first boundary's stored energy is fixed, but the window after it
+        holds the first periods' planned flows, so it is held like the rest.
         """
         layout = self._layout()
         demand = self._demand
-        last = layout.last[1:]
-        fraction = layout.fraction[1:]
-        held = self._available()[1:] + self._shortfall * self._scale()[1:] + demand[1:]
+        last = layout.last
+        fraction = layout.fraction
+        held = self._available() + self._shortfall * self._scale() + demand
         end_next = np.minimum(last + 1, self.n_periods)
         end_demand = demand[last] * (1.0 - fraction) + demand[end_next] * fraction
 
         return Rows.concat(
             [
-                held - self._suffix_peak[1:] >= 0.0,
-                held - self._prefix_peak[last] >= np.where(layout.block[last] != layout.block[1:], 0.0, -INF),
+                held - self._suffix_peak >= 0.0,
+                held - self._prefix_peak[last] >= np.where(layout.block[last] != layout.block, 0.0, -INF),
                 held - end_demand >= np.where(fraction > 0.0, 0.0, -INF),
             ]
         )
 
     @cost
     def buffer_shortfall_cost(self) -> LinearArray:
-        """Charge a holding cost for each stored kWh the batteries fall short of the buffer, per hour."""
-        return (self._shortfall * (self.price * self.periods)).total()
+        """Charge a holding cost for each stored kWh the batteries fall short of the buffer, per hour.
+
+        Each boundary after the first is held for the period before it. The first
+        boundary has none before it, so it is held for the first period.
+        """
+        hours = np.concatenate((self.periods[:1], self.periods))
+        price = np.concatenate((self.price[:1], self.price))
+        return (self._shortfall * (price * hours)).total()
 
     def _required_values(self) -> NDArray[np.float64]:
         """Return the stored energy the buffer requires past its bases, from the solved demand.
@@ -367,7 +376,7 @@ class Buffer(Element[BufferOutputName]):
     @output
     def buffer_energy_shortfall(self) -> OutputData:
         """Output: stored energy the batteries fall short of the buffer at each boundary."""
-        shortfall = np.concatenate(([0.0], np.asarray(self.extract_values(self._shortfall), dtype=float)))
+        shortfall = np.asarray(self.extract_values(self._shortfall), dtype=float)
         return OutputData(type=OutputType.ENERGY, unit="kWh", values=tuple(shortfall.tolist()))
 
     @output
