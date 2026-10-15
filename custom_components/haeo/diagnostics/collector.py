@@ -3,6 +3,7 @@
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
+from typing import Final
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import __version__ as ha_version
@@ -12,10 +13,12 @@ from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
+from custom_components.haeo.calendar_loader import async_fetch_calendar_events
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.context import OptimizationContext
-from custom_components.haeo.core.schema import SchemaValue, is_schema_value
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
+from custom_components.haeo.core.schema import SchemaValue, is_calendar_value, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
 from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
 from custom_components.haeo.elements import is_element_config_schema
@@ -34,6 +37,11 @@ from custom_components.haeo.sensor_utils import (
 # ``{"__type": ..., "repr": ...}`` placeholders for those values.
 _REDACTED_CONFIG_KEYS: frozenset[str] = frozenset()
 DIAGNOSTICS_SCHEMA_VERSION = 2
+
+
+# Calendar events fetched for a historical run reach past the longest horizon preset;
+# events beyond the replayed horizon are ignored when it resolves them.
+HISTORICAL_CALENDAR_LOOKAHEAD: Final = timedelta(days=8)
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,6 +180,23 @@ def _config_from_entry(config_entry: HaeoConfigEntry) -> dict[str, object]:
     }
 
 
+def _collect_calendar_entity_ids_from_entry(config_entry: HaeoConfigEntry) -> set[str]:
+    """Collect the calendar entity IDs that calendar fields in the config entry read."""
+
+    def _collect(value: Mapping[str, object], collected: set[str]) -> None:
+        for nested in value.values():
+            if is_calendar_value(nested):
+                collected.add(nested["value"])
+            elif isinstance(nested, Mapping):
+                _collect(nested, collected)
+
+    calendar_entity_ids: set[str] = set()
+    for subentry in config_entry.subentries.values():
+        if subentry.subentry_type != ELEMENT_TYPE_NETWORK:
+            _collect(subentry.data, calendar_entity_ids)
+    return calendar_entity_ids
+
+
 def _collect_entity_ids_from_entry(config_entry: HaeoConfigEntry) -> set[str]:
     """Collect all input entity IDs referenced in config entry subentries."""
     all_entity_ids: set[str] = set()
@@ -192,11 +217,17 @@ async def _fetch_inputs_at(
 ) -> tuple[list[Mapping[str, object]], list[str]]:
     """Fetch input entity states from the recorder at a specific time.
 
+    The recorder never holds the events a live run injects into calendar
+    states, so each calendar's events from ``target_time`` over the longest
+    horizon are fetched from the calendar and injected the same way. A calendar
+    that cannot be queried is reported as missing.
+
     Returns:
         Tuple of (inputs, missing_entity_ids).
 
     """
     all_entity_ids = _collect_entity_ids_from_entry(config_entry)
+    calendar_entity_ids = _collect_calendar_entity_ids_from_entry(config_entry)
     if not all_entity_ids:
         return [], []
 
@@ -217,11 +248,23 @@ async def _fetch_inputs_at(
     states = await recorder.async_add_executor_job(_query)
     entity_states = {eid: slist[0] for eid, slist in states.items() if slist}
 
-    missing_entity_ids = sorted(all_entity_ids - set(entity_states.keys()))
-    inputs: list[Mapping[str, object]] = [
-        state.as_dict() for eid in entity_id_list if (state := entity_states.get(eid)) is not None
-    ]
-    return inputs, missing_entity_ids
+    missing = all_entity_ids - set(entity_states.keys())
+    inputs: list[Mapping[str, object]] = []
+    for eid in entity_id_list:
+        state = entity_states.get(eid)
+        if state is None:
+            continue
+        captured = dict(state.as_dict())
+        if eid in calendar_entity_ids:
+            events = await async_fetch_calendar_events(
+                hass, eid, target_time, target_time + HISTORICAL_CALENDAR_LOOKAHEAD
+            )
+            if events is None:
+                missing.add(eid)
+                continue
+            captured["attributes"] = {**dict(state.attributes), CALENDAR_EVENTS_ATTRIBUTE: events}
+        inputs.append(captured)
+    return inputs, sorted(missing)
 
 
 async def _get_last_run_before(

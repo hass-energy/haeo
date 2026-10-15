@@ -168,48 +168,31 @@ class CalendarInputLoader:
                 return
             states = dict(zip(entity_ids, fetched, strict=True))
             sm = CalendarStateMachine(HomeAssistantStateMachine(self._hass), states)
-            changed = [store for store in self._stores if store.resolve_from_sources(sm) or store.error is not None]
+            # Stores that loaded, rejected their value, or stopped being available
+            # notify, so a failed fetch stops optimization rather than leaving
+            # the last plan in place.
+            was_available = {id(store): store.available for store in self._stores}
+            changed = [
+                store
+                for store in self._stores
+                if store.resolve_from_sources(sm)
+                or store.error is not None
+                or store.available != was_available[id(store)]
+            ]
             for store in changed:
                 store.notify_listeners()
 
     async def _async_fetch_events(self, entity_id: str) -> list[CalendarEventDict] | None:
-        """Fetch upcoming events over the horizon, serialized for the core loader.
-
-        Returns None when the calendar entity cannot be queried (integration not
-        loaded, entity missing, or the query failed).
-        """
+        """Fetch the calendar's events over the current horizon, or None when it cannot be queried."""
         timestamps = self._horizon_manager.get_forecast_timestamps()
         if not timestamps:
             return None
-        start = datetime.fromtimestamp(timestamps[0], tz=UTC)
-        end = datetime.fromtimestamp(timestamps[-1], tz=UTC)
-
-        component = self._hass.data.get(CALENDAR_DOMAIN)
-        if not isinstance(component, EntityComponent):
-            _LOGGER.debug("Calendar integration not loaded; no events for %s", entity_id)
-            return None
-        entity = component.get_entity(entity_id)
-        if not isinstance(entity, CalendarEntity):
-            _LOGGER.debug("Calendar entity %s not found; no events injected", entity_id)
-            return None
-
-        try:
-            calendar_events = await entity.async_get_events(self._hass, start, end)
-        except Exception:
-            _LOGGER.warning("Failed to fetch events from %s", entity_id, exc_info=True)
-            return None
-
-        events = [
-            CalendarEventData(
-                start=_as_datetime(event.start),
-                end=_as_datetime(event.end),
-                summary=event.summary,
-                location=event.location,
-                description=event.description,
-            )
-            for event in calendar_events
-        ]
-        return capture_calendar_events(events)
+        return await async_fetch_calendar_events(
+            self._hass,
+            entity_id,
+            datetime.fromtimestamp(timestamps[0], tz=UTC),
+            datetime.fromtimestamp(timestamps[-1], tz=UTC),
+        )
 
     def cleanup(self) -> None:
         """Unsubscribe from all change sources and cancel running reloads."""
@@ -220,4 +203,41 @@ class CalendarInputLoader:
             task.cancel()
 
 
-__all__ = ["CalendarInputLoader", "CalendarStateMachine"]
+async def async_fetch_calendar_events(
+    hass: HomeAssistant, entity_id: str, start: datetime, end: datetime
+) -> list[CalendarEventDict] | None:
+    """Fetch a calendar's events between two times, serialized for the core loader.
+
+    Calendars answer for past ranges as well as future ones, so the same fetch
+    serves historical diagnostics. Returns None when the calendar entity cannot
+    be queried (integration not loaded, entity missing, or the query failed).
+    """
+    component = hass.data.get(CALENDAR_DOMAIN)
+    if not isinstance(component, EntityComponent):
+        _LOGGER.debug("Calendar integration not loaded; no events for %s", entity_id)
+        return None
+    entity = component.get_entity(entity_id)
+    if not isinstance(entity, CalendarEntity):
+        _LOGGER.debug("Calendar entity %s not found; no events injected", entity_id)
+        return None
+
+    try:
+        calendar_events = await entity.async_get_events(hass, start, end)
+    except Exception:
+        _LOGGER.warning("Failed to fetch events from %s", entity_id, exc_info=True)
+        return None
+
+    events = [
+        CalendarEventData(
+            start=_as_datetime(event.start),
+            end=_as_datetime(event.end),
+            summary=event.summary,
+            location=event.location,
+            description=event.description,
+        )
+        for event in calendar_events
+    ]
+    return capture_calendar_events(events)
+
+
+__all__ = ["CalendarInputLoader", "CalendarStateMachine", "async_fetch_calendar_events"]

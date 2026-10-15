@@ -245,8 +245,10 @@ async def test_loader_without_calendar_stores_is_inert(hass: HomeAssistant, hori
     loader.cleanup()
 
 
-async def test_loader_keeps_previous_value_when_reload_fetch_fails(hass: HomeAssistant, horizon_manager: Mock) -> None:
-    """A failed event fetch leaves the previously loaded events in place."""
+async def test_loader_failed_reload_makes_store_unavailable_and_notifies(
+    hass: HomeAssistant, horizon_manager: Mock
+) -> None:
+    """A failed event fetch makes the store unavailable and tells its listeners, so optimization stops."""
     calendar = await _add_stub_calendar(hass, [_trip(0.0, 3600.0)])
     store = _calendar_store()
     listener = Mock()
@@ -258,9 +260,10 @@ async def test_loader_keeps_previous_value_when_reload_fetch_fails(hass: HomeAss
 
     calendar.fail = True
     await loader.async_load_all()
+    await loader.async_load_all()
 
-    np.testing.assert_allclose(_presence(store), [1.0, 0.0, 0.0])
-    listener.assert_not_called()
+    assert not store.available
+    listener.assert_called_once()
     loader.cleanup()
 
 
