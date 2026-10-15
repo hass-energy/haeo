@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { legendSeriesOrder, seriesIconPath, seriesTooltip } from "./legend-helpers";
 import { mdiCarElectric, mdiCarElectricOutline } from "@mdi/js";
+import { mdiIcons } from "./mdi-icons";
 import type { ForecastSeries } from "./types";
 
 function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
@@ -29,6 +30,29 @@ function makeSeries(overrides: Partial<ForecastSeries> = {}): ForecastSeries {
 }
 
 describe("seriesIconPath", () => {
+  it.each([
+    { direction: "+", icon: "mdiShieldHalfFull" },
+    { direction: "-", icon: "mdiFormatVerticalAlignTop" },
+  ] as const)("returns the $icon icon for a $direction buffer state of charge", ({ direction, icon }) => {
+    const series = makeSeries({
+      lane: "soc",
+      elementType: "buffer",
+      direction,
+      outputName: "buffer_state_of_charge",
+    });
+    expect(seriesIconPath(series)).toBe(mdiIcons[icon]);
+  });
+
+  it("returns a battery icon for a state of charge without a direction", () => {
+    const series = makeSeries({
+      lane: "soc",
+      elementType: "battery",
+      direction: null,
+      outputName: "battery_state_of_charge",
+    });
+    expect(seriesIconPath(series)).toBe(mdiIcons["mdiBatteryMedium"]);
+  });
+
   it("returns an import price icon for import price series", () => {
     const series = makeSeries({ lane: "price", outputName: "import_price" });
     expect(seriesIconPath(series)).toBeTruthy();

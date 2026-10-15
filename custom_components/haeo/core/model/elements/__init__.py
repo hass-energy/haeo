@@ -14,6 +14,12 @@ from .battery import BatteryConstraintName as BatteryConstraintName
 from .battery import BatteryElementConfig as BatteryElementConfig
 from .battery import BatteryElementTypeName as BatteryElementTypeName
 from .battery import BatteryOutputName as BatteryOutputName
+from .buffer import BUFFER_OUTPUT_NAMES as BUFFER_OUTPUT_NAMES
+from .buffer import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_BUFFER
+from .buffer import Buffer as Buffer
+from .buffer import BufferElementConfig as BufferElementConfig
+from .buffer import BufferElementTypeName as BufferElementTypeName
+from .buffer import BufferOutputName as BufferOutputName
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .connection import CONNECTION_POWER as CONNECTION_POWER
 from .connection import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_CONNECTION
@@ -56,26 +62,26 @@ from .segments import PricingSegment as PricingSegment
 from .segments import Segment as Segment
 from .segments import SegmentSpec as SegmentSpec
 from .segments import SegmentType as SegmentType
-from .segments import SocPricingSegment as SocPricingSegment
-from .segments import SocPricingSegmentSpec as SocPricingSegmentSpec
 
 # Type for all model element types
 ModelElementType = (
     BatteryElementTypeName
-    | DeferrableLoadElementTypeName
     | NodeElementTypeName
     | ConnectionElementTypeName
     | PolicyPricingElementTypeName
+    | BufferElementTypeName
+    | DeferrableLoadElementTypeName
     | SchedulableLoadElementTypeName
 )
 
 # Typed configs for all model elements (discriminated by element_type)
 ModelElementConfig = (
     BatteryElementConfig
-    | DeferrableLoadElementConfig
     | NodeElementConfig
     | ConnectionElementConfig
     | PolicyPricingElementConfig
+    | BufferElementConfig
+    | DeferrableLoadElementConfig
     | SchedulableLoadElementConfig
 )
 
@@ -86,6 +92,12 @@ class ElementSpec:
 
     factory: type
     output_names: frozenset[str]
+
+
+# Element types that read other elements' power flows, so they are added after the connections
+FLOW_READER_ELEMENT_TYPES: Final[frozenset[str]] = frozenset(
+    (MODEL_ELEMENT_TYPE_BUFFER, MODEL_ELEMENT_TYPE_POLICY_PRICING)
+)
 
 
 # Registry of all model element types.
@@ -116,12 +128,15 @@ ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
 __all__ = [
     "BATTERY_OUTPUT_NAMES",
     "BATTERY_POWER_CONSTRAINTS",
+    "BUFFER_OUTPUT_NAMES",
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER",
     "DEFERRABLE_LOAD_OUTPUT_NAMES",
     "ELEMENTS",
+    "FLOW_READER_ELEMENT_TYPES",
     "INTEGER_MODES",
     "MODEL_ELEMENT_TYPE_BATTERY",
+    "MODEL_ELEMENT_TYPE_BUFFER",
     "MODEL_ELEMENT_TYPE_CONNECTION",
     "MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD",
     "MODEL_ELEMENT_TYPE_NODE",
@@ -132,6 +147,9 @@ __all__ = [
     "BatteryConstraintName",
     "BatteryElementConfig",
     "BatteryOutputName",
+    "Buffer",
+    "BufferElementConfig",
+    "BufferOutputName",
     "Connection",
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
@@ -161,6 +179,4 @@ __all__ = [
     "Segment",
     "SegmentSpec",
     "SegmentType",
-    "SocPricingSegment",
-    "SocPricingSegmentSpec",
 ]

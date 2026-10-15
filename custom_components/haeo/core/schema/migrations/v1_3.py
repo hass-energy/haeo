@@ -51,6 +51,7 @@ from custom_components.haeo.core.schema.elements import (
     node,
     solar,
 )
+from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_CURTAILMENT,
@@ -243,13 +244,13 @@ def _migrate_element_to_sectioned(data: Mapping[str, object]) -> dict[str, objec
         if (legacy_efficiency := get_value("efficiency")) is not None:
             efficiency.setdefault(battery.CONF_EFFICIENCY_SOURCE_TARGET, to_schema_value(legacy_efficiency))
             efficiency.setdefault(battery.CONF_EFFICIENCY_TARGET_SOURCE, to_schema_value(legacy_efficiency))
-        add_if_present(partitioning, battery.CONF_CONFIGURE_PARTITIONS)
-        if isinstance(undercharge_raw := data.get(battery.SECTION_UNDERCHARGE), dict):
+        add_if_present(partitioning, partitions.CONF_CONFIGURE_PARTITIONS)
+        if isinstance(undercharge_raw := data.get(partitions.SECTION_UNDERCHARGE), dict):
             undercharge.update(undercharge_raw)
-        if isinstance(overcharge_raw := data.get(battery.SECTION_OVERCHARGE), dict):
+        if isinstance(overcharge_raw := data.get(partitions.SECTION_OVERCHARGE), dict):
             overcharge.update(overcharge_raw)
-        convert_section_values(undercharge, (battery.CONF_PARTITION_PERCENTAGE, battery.CONF_PARTITION_COST))
-        convert_section_values(overcharge, (battery.CONF_PARTITION_PERCENTAGE, battery.CONF_PARTITION_COST))
+        convert_section_values(undercharge, (partitions.CONF_PARTITION_PERCENTAGE, partitions.CONF_PARTITION_COST))
+        convert_section_values(overcharge, (partitions.CONF_PARTITION_PERCENTAGE, partitions.CONF_PARTITION_COST))
 
         migrated |= {
             battery.SECTION_STORAGE: storage,
@@ -257,9 +258,9 @@ def _migrate_element_to_sectioned(data: Mapping[str, object]) -> dict[str, objec
             SECTION_POWER_LIMITS: power_limits,
             SECTION_PRICING: pricing,
             SECTION_EFFICIENCY: efficiency,
-            battery.SECTION_PARTITIONING: partitioning,
-            battery.SECTION_UNDERCHARGE: undercharge,
-            battery.SECTION_OVERCHARGE: overcharge,
+            partitions.SECTION_PARTITIONING: partitioning,
+            partitions.SECTION_UNDERCHARGE: undercharge,
+            partitions.SECTION_OVERCHARGE: overcharge,
         }
         return migrated
 

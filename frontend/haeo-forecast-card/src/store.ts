@@ -678,8 +678,10 @@ export class ForecastCardStore {
         continue;
       }
 
-      // Hide all policy element series by default.
-      if (series.elementType === "policy") {
+      // Hide all policy element series and load price outputs (summary marginal prices) by default.
+      const isLoadPriceOutput =
+        series.elementType === "load" && series.sourceRole === "output" && series.outputType === "price";
+      if (series.elementType === "policy" || isLoadPriceOutput) {
         const before = this.hiddenSeriesKeys.size;
         this.hiddenSeriesKeys.add(series.key);
         hiddenChanged ||= this.hiddenSeriesKeys.size !== before;

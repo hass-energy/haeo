@@ -132,9 +132,13 @@ class LinearArray:
         ]
         return _format_rows("LinearArray", lines)
 
-    def __getitem__(self, key: int | np.integer | slice) -> Self:
-        """Return the selected rows. An integer selects a single row, kept as an array of one."""
-        rows = key if isinstance(key, slice) else slice(int(key), int(key) + 1 or None)
+    def __getitem__(self, key: int | np.integer | slice | NDArray[np.integer]) -> Self:
+        """Return the selected rows.
+
+        An integer selects a single row, kept as an array of one. An integer array
+        selects its rows in order, repeating any that appear more than once.
+        """
+        rows = key if isinstance(key, slice | np.ndarray) else slice(int(key), int(key) + 1 or None)
         return type(self)(cols=self.cols[rows], coefs=self.coefs[rows], constant=self.constant[rows])
 
     def _with_rows(self, count: int) -> Self:

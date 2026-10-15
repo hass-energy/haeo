@@ -77,25 +77,29 @@ The objective minimizes the sum of all element costs.
 
 ### Solution Process
 
-Optimization uses lexicographic multiobjective solving with calibrated blending:
+Optimization is lexicographic: the plan has the lowest cost, and among equally cheap plans, the lowest secondary time-preference objective.
+The secondary breaks ties among cost-equivalent solutions by preferring earlier energy transfers.
 
-**Phase 1: Minimize primary objective**
-
-The network minimizes total cost (the primary objective).
-
-**Phase 2: Minimize secondary objective**
-
-The primary objective is constrained to equal its optimal value, and the solver minimizes the secondary time-preference objective.
-This breaks ties among cost-equivalent solutions by preferring earlier energy transfers.
-
-**Calibration (default mode)**
-
-After the first lexicographic solve, a binary search finds the largest blend weight that preserves primary cost optimality.
+Both are reached with a single blended solve of `primary + weight * secondary`, which warm-starts efficiently and gives shadow prices from the plan's own basis.
+On the first optimization, a binary search finds the largest blend weight whose plan is still cost-optimal, and the weight starts a quarter of a decade below it.
 A larger weight gives the secondary objective more influence, producing better tie-breaking in degenerate regions.
-Subsequent optimizations use this blended objective (`primary + weight * secondary`) in a single solve, which warm-starts efficiently.
 
-A full three-phase lexicographic mode is also available (`mode="lex"`) that adds a Phase 3 re-minimization of the primary with the secondary constrained.
-This restores dual values (shadow prices) that reflect pure primary-cost sensitivities, at the cost of an additional solve per optimization.
+No single weight suits every input: too large and the secondary trades away cost, too small and its differences fall below the solver's tolerance, leaving ties unresolved.
+Each blended plan is therefore checked at its basis.
+The reduced costs there are the slopes of an objective along each way of moving away from the plan.
+The cost is priced at the plan's basis without any simplex iterations, which leaves the plan and its basis unchanged.
+If some move would lower the cost, the weight is too large and is lowered, half a decade (a factor of $\sqrt{10}$) at a time.
+Otherwise, the moves that leave the cost unchanged lead to equally cheap plans, and if one of them lowers the secondary, the weight is too small and is raised.
+The secondary needs no pricing of its own: at a fixed basis reduced costs are linear in the objective, so its reduced costs are the blended solve's minus the cost's, divided by the weight.
+The weight is never raised to a weight already found too large for the cost in that optimization, so the cheapest plan always comes first.
+Between a weight known too small and one known too large, the weight is bisected, and the blended solve is repeated from the same basis.
+The weight settled on is kept for later solves, and since inputs change, no weight is ruled out for good.
+If no weight puts the plan in order without failing the cost, the cost-optimal plan is kept; if none is cost-optimal at all, the cost alone is solved.
+
+The primary objective is priced last, so its dual values at the plan's basis are the shadow prices: the blended duals without the secondary's contribution.
+
+The secondary's reduced costs are scaled by the small blend weight, so the solver runs with feasibility tolerances of $10^{-9}$ rather than the HiGHS default of $10^{-7}$.
+At the default, tie-breaking differences can fall below the tolerance and leave equally cheap plans unresolved.
 
 ### Solution Outcomes
 
@@ -246,9 +250,10 @@ $$
 \text{minimize} \sum_{\text{connections}} \sum_{t=0}^{T-1} w_{p,t} \cdot E_c(t)
 $$
 
-Where $p$ is the connection priority derived from endpoint element types, $w_{p,t} = p \cdot T + (t + 1)$ assigns monotonically increasing weights by priority group and time step, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
-Connections with different priorities receive non-overlapping weight ranges.
-Connections with the same priority share the same per-period weight sequence.
+Where $p$ is the connection's priority, $w_{p,t} = p \cdot T + (t + 1) + \tfrac{1}{2} u_{p,t}$ assigns monotonically increasing weights by connection and time step, and $E_c(t)$ is the energy transferred through connection $c$ at time $t$.
+Each connection has its own priority, so connections receive non-overlapping weight ranges.
+The small fixed offset $u_{p,t} \in [0, 1)$, the fractional part of the square root of a distinct prime per connection and period, breaks exact ties between equally cheap plans, which would otherwise be decided by the order of the solver's rows.
+See [connection](model-layer/connections/connection.md) for why it is needed.
 
 The secondary objective does not affect the optimal cost.
 It only selects among cost-equivalent solutions for deterministic, physically intuitive schedules.

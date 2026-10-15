@@ -31,7 +31,8 @@ export type ElementType =
   | "node"
   | "schedulable_load"
   | "solar"
-  | "policy";
+  | "policy"
+  | "buffer";
 export type CardOutputType = "power" | "price" | "state_of_charge";
 export type LaneType = "power" | "price" | "soc" | "shadow" | "other";
 export type DrawType = "step" | "line";

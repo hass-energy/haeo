@@ -287,6 +287,16 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         """
         self._connections.append((connection, end))
 
+    @property
+    def outbound_connections(self) -> list[_ConnectionLike]:
+        """Return the connections that carry power away from this element."""
+        return [connection for connection, end in self._connections if end == "source"]
+
+    @property
+    def inbound_connections(self) -> list[_ConnectionLike]:
+        """Return the connections that carry power into this element."""
+        return [connection for connection, end in self._connections if end == "target"]
+
     # --- Element power protocol ---
 
     def element_power_produced(self) -> LinearArray | None:

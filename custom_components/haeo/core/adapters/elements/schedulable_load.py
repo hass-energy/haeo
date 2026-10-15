@@ -77,6 +77,7 @@ class SchedulableLoadAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = False
     can_sink: bool = True
+    can_store: bool = False
 
     def model_elements(self, config: SchedulableLoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for schedulable load configuration.

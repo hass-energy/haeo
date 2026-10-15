@@ -47,14 +47,14 @@ def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[Un
             return [PERCENTAGE]
         case OutputType.PRICE:
             return PRICE_UNIT_SPEC
+        case OutputType.DURATION:
+            return [unit.value for unit in DURATION_UNITS]
         case OutputType.PRICE_RATE:
             return None
         case OutputType.DISTANCE:
             return UnitOfLength
         case OutputType.ENERGY_PER_DISTANCE:
             return [unit.value for unit in ENERGY_DISTANCE_UNITS]
-        case OutputType.DURATION:
-            return [unit.value for unit in DURATION_UNITS]
         case _:
             # STATUS, AVAILABILITY, COST, SHADOW_PRICE - no unit filtering
             return None

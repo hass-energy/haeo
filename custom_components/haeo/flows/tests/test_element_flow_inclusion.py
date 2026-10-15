@@ -113,3 +113,24 @@ def test_energy_per_distance_accepts_only_convertible_consumption_units(unit: st
     )
 
     assert (inclusion_map["energy_per_distance"] == ["sensor.consumption"]) is included
+
+
+@pytest.mark.parametrize(
+    ("entity_id", "unit"),
+    [
+        ("sensor.duration_s", "s"),
+        ("sensor.duration_min", "min"),
+        ("sensor.duration_h", "h"),
+        ("sensor.duration_d", "d"),
+    ],
+)
+def test_build_inclusion_map_includes_compatible_duration_units(entity_id: str, unit: str) -> None:
+    """Duration fields accept the time units HAEO converts to hours."""
+    entity_metadata = [
+        EntityMetadata(entity_id=entity_id, unit_of_measurement=unit),
+        EntityMetadata(entity_id="sensor.duration_ms", unit_of_measurement="ms"),
+        EntityMetadata(entity_id="sensor.power", unit_of_measurement="kW"),
+    ]
+    inclusion_map = build_inclusion_map({"window": _field("window", OutputType.DURATION)}, entity_metadata)
+
+    assert inclusion_map["window"] == [entity_id]

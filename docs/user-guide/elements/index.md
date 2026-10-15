@@ -111,6 +111,12 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Load guide](load.md)
 
+- :material-shield-check:{ .lg .middle } __Buffer configuration__
+
+    Energy kept in your batteries for a grid outage, or empty space for the generation that is coming.
+
+    [:material-arrow-right: Buffer guide](buffer.md)
+
 - :material-dishwasher:{ .lg .middle } __Schedulable load configuration__
 
     Appliances that run a fixed program once inside each calendar window.

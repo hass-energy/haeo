@@ -8,6 +8,8 @@ from typing import Any  # noqa: TID251
 import numpy as np
 import pytest
 
+from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model.elements.battery import Battery, BatteryElementConfig
 from custom_components.haeo.core.model.elements.node import Node
 from custom_components.haeo.core.model.linear import LinearArray, total
 from custom_components.haeo.core.model.solver import Solver
@@ -181,3 +183,80 @@ def test_extract_values_handles_none() -> None:
 
     assert isinstance(result, tuple)
     assert len(result) == 0
+
+
+@pytest.mark.parametrize(
+    ("max_charge", "ceiling"),
+    [
+        pytest.param(None, 12.0, id="unset_max_follows_capacity"),
+        pytest.param(8.0, 8.0, id="set_max_stays"),
+    ],
+)
+def test_battery_charge_ceiling_reads_capacity_live(max_charge: float | None, ceiling: float) -> None:
+    """A battery with no max charge fills to its capacity after the capacity changes, and one with a max to it."""
+    network = Network(name="test", periods=np.ones(2))
+    config: BatteryElementConfig = {
+        "element_type": "battery",
+        "name": "battery",
+        "capacity": 10.0,
+        "initial_charge": 5.0,
+        "charge_limit_cost": 100.0,
+    }
+    if max_charge is not None:
+        config["max_charge"] = max_charge
+    network.add(config)
+    network.add({"element_type": "node", "name": "grid", "is_source": True, "is_sink": False})
+    network.add(
+        {
+            "element_type": "connection",
+            "name": "grid:charge",
+            "source": "grid",
+            "target": "battery",
+            "tags": {0},
+            "segments": {"pricing": {"segment_type": "pricing", "price": -1.0}},
+        }
+    )
+    network.optimize()
+    battery = network.elements["battery"]
+    assert isinstance(battery, Battery)
+
+    battery.capacity = np.full(3, 12.0)
+    network.optimize()
+
+    np.testing.assert_allclose(battery.charge_ceiling, ceiling)
+    assert battery.outputs()["battery_energy_stored"].values[-1] == pytest.approx(ceiling)
+
+
+def test_battery_charge_limit_cost_updates_live() -> None:
+    """Lowering the charge limit cost below what discharging earns lets the battery go below its min charge."""
+    network = Network(name="test", periods=np.ones(2))
+    network.add(
+        {
+            "element_type": "battery",
+            "name": "battery",
+            "capacity": 10.0,
+            "initial_charge": 5.0,
+            "min_charge": 2.0,
+            "charge_limit_cost": 100.0,
+        }
+    )
+    network.add({"element_type": "node", "name": "grid", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": "connection",
+            "name": "battery:discharge",
+            "source": "battery",
+            "target": "grid",
+            "tags": {0},
+            "segments": {"pricing": {"segment_type": "pricing", "price": -50.0}},
+        }
+    )
+    network.optimize()
+    battery = network.elements["battery"]
+    assert isinstance(battery, Battery)
+    assert battery.outputs()["battery_energy_stored"].values[-1] == pytest.approx(2.0)
+
+    battery.charge_limit_cost = np.full(2, 10.0)
+    network.optimize()
+
+    assert battery.outputs()["battery_energy_stored"].values[-1] == pytest.approx(0.0)

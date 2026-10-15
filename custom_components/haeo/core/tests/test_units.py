@@ -52,11 +52,11 @@ def test_base_unit_for_device_class(device_class: DeviceClass | None, expected: 
         (18.0, UnitOfMeasurement.KILO_WATT_HOUR_PER_100_KILOMETER, DeviceClass.ENERGY_DISTANCE, 0.18),
         (180.0, UnitOfMeasurement.WATT_HOUR_PER_KILOMETER, None, 0.18),
         (0.2, UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER, DeviceClass.ENERGY_DISTANCE, 0.2),
-        # Duration conversions
+        # Duration conversions to hours
         (90.0, UnitOfMeasurement.MINUTE, DeviceClass.DURATION, 1.5),
-        (5400.0, UnitOfMeasurement.SECOND, None, 1.5),
-        (2.0, UnitOfMeasurement.HOUR, DeviceClass.DURATION, 2.0),
+        (7200.0, UnitOfMeasurement.SECOND, DeviceClass.DURATION, 2.0),
         (1.0, UnitOfMeasurement.DAY, DeviceClass.DURATION, 24.0),
+        (30.0, UnitOfMeasurement.MINUTE, None, 0.5),
         # No conversion when already in base unit
         (5.0, UnitOfMeasurement.KILO_WATT, DeviceClass.POWER, 5.0),
         # Fallback conversion when device_class is missing but unit is informative

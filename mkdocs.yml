@@ -146,6 +146,7 @@ nav:
       - Sigenergy System: walkthroughs/sigenergy-system.md
       - Adding an EV: walkthroughs/adding-an-ev.md
       - Power Policies: walkthroughs/power-policies.md
+      - Buffers: walkthroughs/buffers.md
       - Historic Diagnostics: walkthroughs/historic-diagnostics.md
 
   - User Guide:
@@ -168,6 +169,7 @@ nav:
           - Load: user-guide/elements/load.md
           - Schedulable Load: user-guide/elements/schedulable_load.md
           - Solar: user-guide/elements/solar.md
+          - Buffer: user-guide/elements/buffer.md
           - Junction: user-guide/elements/junction.md
           - Node: user-guide/elements/node.md
           - Connections: user-guide/elements/connections.md
@@ -192,7 +194,6 @@ nav:
               - Connection: modeling/model-layer/connections/connection.md
           - Segments:
               - modeling/model-layer/segments/index.md
-              - SOC pricing segment: modeling/model-layer/segments/soc-pricing.md
               - Efficiency segment: modeling/model-layer/segments/efficiency.md
               - Power limit segment: modeling/model-layer/segments/power-limit.md
               - Pricing segment: modeling/model-layer/segments/pricing.md
@@ -207,6 +208,7 @@ nav:
           - Inverter: modeling/device-layer/inverter.md
           - Solar: modeling/device-layer/solar.md
           - Load: modeling/device-layer/loads.md
+          - Buffer: modeling/device-layer/buffer.md
           - Schedulable Load: modeling/device-layer/schedulable_load.md
           - Junction: modeling/device-layer/junction.md
           - Node: modeling/device-layer/node.md

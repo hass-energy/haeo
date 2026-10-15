@@ -140,6 +140,8 @@ class SchedulableLoadConfigSchema(ConnectedCommonConfig):
                 CONF_DURATION: FieldHint(
                     output_type=OutputType.DURATION,
                     time_series=False,
+                    min_value=0.0,
+                    step=0.05,
                 ),
             }
         ),

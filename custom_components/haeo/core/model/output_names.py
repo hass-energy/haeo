@@ -7,6 +7,7 @@ translations, and other integration code that needs to reference all possible ou
 from typing import Final
 
 from .elements.battery import BATTERY_OUTPUT_NAMES, BatteryOutputName
+from .elements.buffer import BUFFER_OUTPUT_NAMES, BufferOutputName
 from .elements.connection import CONNECTION_OUTPUT_NAMES, ConnectionOutputName
 from .elements.deferrable_load import DEFERRABLE_LOAD_OUTPUT_NAMES, DeferrableLoadOutputName
 from .elements.node import NODE_OUTPUT_NAMES, NodeOutputName
@@ -14,7 +15,12 @@ from .elements.schedulable_load import SCHEDULABLE_LOAD_OUTPUT_NAMES, Schedulabl
 
 # Combined type for all possible output names
 type ModelOutputName = (
-    BatteryOutputName | ConnectionOutputName | DeferrableLoadOutputName | NodeOutputName | SchedulableLoadOutputName
+    BatteryOutputName
+    | BufferOutputName
+    | ConnectionOutputName
+    | DeferrableLoadOutputName
+    | NodeOutputName
+    | SchedulableLoadOutputName
 )
 
 # Model-level output names
@@ -24,12 +30,14 @@ MODEL_OUTPUT_NAMES: Final[frozenset[str]] = frozenset(
         *CONNECTION_OUTPUT_NAMES,
         *DEFERRABLE_LOAD_OUTPUT_NAMES,
         *NODE_OUTPUT_NAMES,
+        *BUFFER_OUTPUT_NAMES,
         *SCHEDULABLE_LOAD_OUTPUT_NAMES,
     }
 )
 
 __all__ = [
     "BATTERY_OUTPUT_NAMES",
+    "BUFFER_OUTPUT_NAMES",
     "CONNECTION_OUTPUT_NAMES",
     "DEFERRABLE_LOAD_OUTPUT_NAMES",
     "MODEL_OUTPUT_NAMES",

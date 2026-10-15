@@ -30,7 +30,7 @@ See individual element pages for details on which connections are created.
 When adapters create multiple model elements or devices, they use a colon-separated naming convention:
 
 - Main element: `{name}` (e.g., `Battery`)
-- Sub-elements: `{name}:{subname}` (e.g., `Battery:connection`, `Battery:undercharge`)
+- Sub-elements: `{name}:{subname}` (e.g., `Battery:connection`, `Battery:discharge`)
 
 This prevents naming collisions and groups related components visually in Home Assistant.
 
@@ -93,6 +93,14 @@ This prevents naming collisions and groups related components visually in Home A
     Power consumption modeling.
 
     [:material-arrow-right: Load modeling](loads.md)
+
+- :material-shield-check:{ .lg .middle } **Buffer**
+
+    ---
+
+    Energy or empty space held across batteries over a window of time.
+
+    [:material-arrow-right: Buffer modeling](buffer.md)
 
 - :material-dishwasher:{ .lg .middle } **Schedulable load**
 

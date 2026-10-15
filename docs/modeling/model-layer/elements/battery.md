@@ -8,12 +8,12 @@ A battery in HAEO's model layer is a single-section energy storage device with:
 
 - **Energy capacity**: Maximum stored energy
 - **Cumulative energy tracking**: Monotonically increasing charge/discharge variables
-- **State of charge constraints**: Energy bounds within capacity
+- **State of charge constraints**: Energy bounds within capacity, and min and max charge kept with priced slack
 - **Power balance**: Integration with network through connections
 
 !!! note "Multi-Section Batteries"
 
-    Complex battery behavior (undercharge/overcharge ranges and cost penalties) is implemented at the [device adapter layer](../../device-layer/battery.md) using SOC pricing on the connection.
+    Requirements that span batteries, such as holding back energy for an outage, are [Buffer](../../device-layer/buffer.md) elements measured from a level or the min and max charge.
     For explicit multi-section modeling, compose [Battery Section](../../device-layer/battery_section.md) elements with Connection elements.
 
 ## Model Formulation
@@ -28,7 +28,10 @@ Power is calculated from the change in energy between consecutive boundaries div
 For each time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for energy state):
 
 - $E_{\text{in}}(t)$: Cumulative energy charged into battery (kWh, monotonically increasing)
+
 - $E_{\text{out}}(t)$: Cumulative energy discharged from battery (kWh, monotonically increasing)
+
+- $s_{\min}(t), s_{\max}(t) \geq 0$: Energy below the min charge and above the max charge (kWh), for $t \in \{1, \ldots, T\}$
 
 **Initial conditions**:
 
@@ -49,6 +52,9 @@ For each time step $t \in \{0, 1, \ldots, T\}$ (note: $T+1$ time points for ener
 
 **Optional parameters**:
 
+- $E_{\min}(t)$: Min charge in kWh, default 0 - `min_charge`
+- $E_{\max}(t)$: Max charge in kWh, default $C(t)$ - `max_charge`
+- $c_{\text{limit}}(t)$: Holding cost for energy outside the min and max charge (\$/kWh/h), required with either limit - `charge_limit_cost`
 - $v_{\text{salvage}}$: Terminal value of stored energy (\$/kWh) - `salvage_value`
 - $L(t)$: Reserve level the stored energy should not drop below (kWh) - `reserve_level`, defaults to 0
 - $m(t)$: Reserve mask selecting the boundaries where the reserve applies (1 at masked boundaries, 0 elsewhere) - `reserve_mask`
@@ -81,10 +87,19 @@ $$
 0 \leq E_{\text{in}}(t) - E_{\text{out}}(t) \leq C(t) \quad \forall t \in [1, T]
 $$
 
+Net energy stays within the min and max charge, or the slack carries the difference:
+
+$$
+E_{\min}(t) - s_{\min}(t) \leq E_{\text{in}}(t) - E_{\text{out}}(t) \leq E_{\max}(t) + s_{\max}(t) \quad \forall t \in [1, T]
+$$
+
+The slack is priced at the limit cost $c_{\text{limit}}$ for each hour it lasts (see [cost contribution](#cost-contribution)), far above any price difference, so the optimizer treats the min and max charge as hard limits.
+The slack exists so that a battery reported outside its limits, for example below its min charge after a long outage, still gives a feasible plan, one that returns it within its limits as quickly as possible.
+
 **Shadow prices**:
 
-- `soc_max`: Marginal value of additional storage capacity. Negative values indicate the battery is full and more capacity would reduce costs.
-- `soc_min`: Marginal value of deeper discharge. Positive values indicate the battery is empty and the ability to extract more energy would reduce costs.
+- `soc_max`: Marginal value of a higher max charge. Negative values indicate the battery is held at its max charge and more room would reduce costs.
+- `soc_min`: Marginal value of a lower min charge. Positive values indicate the battery is held at its min charge and the ability to extract more energy would reduce costs.
 
 #### 3. Power Balance Constraint
 
@@ -132,6 +147,12 @@ It is zero where the battery comfortably holds the reserve.
 
 ### Cost Contribution
 
+Energy outside the min and max charge costs the limit cost for each hour it stays there:
+
+$$
+\sum_{t=1}^{T} c_{\text{limit}}(t-1) \cdot \left(s_{\min}(t) + s_{\max}(t)\right) \cdot \Delta t_{t-1}
+$$
+
 The battery model can include an optional terminal salvage value.
 When configured, it credits the final stored energy at time $T$:
 
@@ -148,7 +169,7 @@ $$
 This is demand-level pricing.
 The charge is on the depth of the drop at each masked boundary, not integrated over every interval spent below the reserve.
 
-Other costs (efficiency losses, degradation penalties, SOC pricing) are applied through [Connection](../connections/index.md) elements in the device adapter layer.
+Other costs (efficiency losses, degradation penalties) are applied through [Connection](../connections/index.md) elements in the device adapter layer.
 
 ### Outputs
 
@@ -168,7 +189,7 @@ The model tracks cumulative energy flows rather than absolute stored energy:
 
 This approach:
 
-- Eliminates the need for slack variables
+- Keeps charging and discharging as separate, non-negative quantities
 - Uses only linear constraints (no binary variables required)
 - Enables efficient LP solving
 
@@ -249,7 +270,7 @@ The single-section battery model is a building block for more complex battery be
 - **Efficiency losses**: Applied through Connection efficiency parameters
 - **Power limits**: Applied through Connection max_power constraints
 - **Cost penalties**: Applied through Connection price parameters
-- **SOC pricing incentives**: Applied through Connection SOC pricing segments
+- **Reserves and headroom**: Applied through [Buffer](../../device-layer/buffer.md) elements that read stored energy
 
 See the [Battery Device Layer documentation](../../device-layer/battery.md) for how these are composed.
 

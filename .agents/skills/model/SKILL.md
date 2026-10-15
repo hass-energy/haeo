@@ -97,11 +97,23 @@ The period update and warm start tests are the ones that notice.
 
 ## Optimization
 
-`Network.optimize()` runs a calibrated scheme: a lexicographic solve first (minimize cost, then minimize a time-preference secondary objective to break ties deterministically), then a calibrated blend weight, then single blended solves.
-This exists so repeated solves warm-start cleanly and still produce meaningful shadow prices.
+`Network.optimize()` minimizes cost, then breaks ties between equally cheap plans with a time-preference secondary objective.
+It does this with a blended objective, cost plus a calibrated weight times the secondary, checked after each solve.
+This exists so repeated solves warm-start cleanly and shadow prices come from the same basis as the plan.
 Degenerate LPs have many optimal solutions; the secondary objective is what stops sensor values jittering between equally optimal plans.
 
+- The plan must match the lexicographic optimum; shadow prices may differ between formulations, since which binding constraint carries a dual is not controllable.
+    `_lexicographic_reference` in the network tests computes that optimum exactly, minimizing the cost and then the secondary with the cost bounded, for tests to compare against.
+
+- Every blended plan is checked at its basis: the cost is priced with a zero-iteration solve, and the weight is lowered when the plan is not cost-optimal.
+    The secondary's reduced costs are the blended ones minus the cost's, divided by the weight, and the weight is raised when a cost-free move improves the secondary, but never to a weight that failed the cost in the same optimization.
+    Do not remove either check to save time: a stale weight silently trades cost for tie-breaking when too large, and leaves ties to the solver path when too small.
+
+- The time-preference weights must not be a sum of a connection term and a time term alone, or swaps between connections across periods tie exactly.
+    The fixed offset from `tie_break_offset` prevents that.
+
 - Catch optimization failures gracefully and return appropriate status indicators.
+
 - Log solver diagnostics at debug level.
 
 ## Policy compilation

@@ -7,6 +7,7 @@ from custom_components.haeo.core.schema.elements.battery_section import (
     BatterySectionConfigData,
     BatterySectionConfigSchema,
 )
+from custom_components.haeo.core.schema.elements.buffer import BufferConfigData, BufferConfigSchema
 from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData, ConnectionConfigSchema
 from custom_components.haeo.core.schema.elements.deferrable_load import (
     DeferrableLoadConfigData,
@@ -38,6 +39,7 @@ ElementConfigSchema = (
     | NodeConfigSchema
     | JunctionConfigSchema
     | PolicyConfigSchema
+    | BufferConfigSchema
     | SchedulableLoadConfigSchema
     | ConnectionConfigSchema
 )
@@ -54,6 +56,7 @@ ElementConfigData = (
     | NodeConfigData
     | JunctionConfigData
     | PolicyConfigData
+    | BufferConfigData
     | SchedulableLoadConfigData
     | ConnectionConfigData
 )
@@ -61,6 +64,7 @@ ElementConfigData = (
 ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
     ElementType.BATTERY: BatteryConfigSchema,
     ElementType.BATTERY_SECTION: BatterySectionConfigSchema,
+    ElementType.BUFFER: BufferConfigSchema,
     ElementType.CONNECTION: ConnectionConfigSchema,
     ElementType.DEFERRABLE_LOAD: DeferrableLoadConfigSchema,
     ElementType.EV: EvConfigSchema,

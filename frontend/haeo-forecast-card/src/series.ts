@@ -103,7 +103,21 @@ function hashString(value: string): number {
   return hash;
 }
 
-function colorForElement(elementType: ElementType, elementName: string, variant: number): string {
+function colorForSeries(
+  elementType: ElementType,
+  outputType: CardOutputType,
+  direction: "+" | "-" | null,
+  elementName: string,
+  variant: number
+): string {
+  if (outputType === "state_of_charge" && direction === "+") {
+    const reserve = ["#ef4444", "#dc2626", "#f87171", "#b91c1c"];
+    return reserve[variant % reserve.length] ?? "#ef4444";
+  }
+  if (outputType === "state_of_charge" && direction === "-") {
+    const headroom = ["#a855f7", "#9333ea", "#c084fc", "#7e22ce"];
+    return headroom[variant % headroom.length] ?? "#a855f7";
+  }
   if (elementType === "battery") {
     const green = ["#22c55e", "#16a34a", "#15803d", "#4ade80"];
     return green[variant % green.length] ?? "#22c55e";
@@ -134,6 +148,7 @@ function colorForElement(elementType: ElementType, elementName: string, variant:
 const ELEMENT_TYPE_KEYS: Record<ElementType, true> = {
   battery: true,
   battery_section: true,
+  buffer: true,
   connection: true,
   deferrable_load: true,
   ev: true,
@@ -274,7 +289,7 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       lane: inferLane(outputType),
       drawType: inferDrawType(outputType),
       unit,
-      color: colorForElement(elementType, elementName, variant),
+      color: colorForSeries(elementType, outputType, direction, elementName, variant),
       times,
       values,
     });
