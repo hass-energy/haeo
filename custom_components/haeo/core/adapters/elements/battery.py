@@ -5,7 +5,6 @@ from dataclasses import replace
 from typing import Final, Literal
 
 import numpy as np
-from numpy.typing import NDArray
 
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
@@ -38,12 +37,6 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-
-# Default ratio values for optional fields applied by adapter
-DEFAULTS: Final[dict[str, float]] = {
-    CONF_MIN_CHARGE_PERCENTAGE: 0.0,
-    CONF_MAX_CHARGE_PERCENTAGE: 1.0,
-}
 
 type BatteryOutputName = Literal[
     "battery_power_charge",
@@ -104,17 +97,20 @@ class BatteryAdapter:
         capacity_first = float(capacity[0])
         initial_charge = min(max(storage[CONF_INITIAL_CHARGE_PERCENTAGE] * capacity_first, 0.0), capacity_first)
 
-        elements: list[ModelElementConfig] = [
-            {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-                "name": name,
-                "capacity": capacity,
-                "initial_charge": initial_charge,
-                "min_charge": battery_min_ratio(config) * capacity,
-                "max_charge": battery_max_ratio(config) * capacity,
-                "salvage_value": config[SECTION_PRICING].get(CONF_SALVAGE_VALUE, 0.0),
-            }
-        ]
+        battery: model_battery.BatteryElementConfig = {
+            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "name": name,
+            "capacity": capacity,
+            "initial_charge": initial_charge,
+            "salvage_value": config[SECTION_PRICING].get(CONF_SALVAGE_VALUE, 0.0),
+        }
+        # Unset limits leave the battery free to run from empty to full
+        limits = config[SECTION_LIMITS]
+        if (min_ratio := limits.get(CONF_MIN_CHARGE_PERCENTAGE)) is not None:
+            battery["min_charge"] = min_ratio * capacity
+        if (max_ratio := limits.get(CONF_MAX_CHARGE_PERCENTAGE)) is not None:
+            battery["max_charge"] = max_ratio * capacity
+        elements: list[ModelElementConfig] = [battery]
 
         max_discharge = power_limits.get(CONF_MAX_POWER_SOURCE_TARGET)
         max_charge = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
@@ -205,16 +201,6 @@ class BatteryAdapter:
 
 
 adapter = BatteryAdapter()
-
-
-def battery_min_ratio(config: BatteryConfigData) -> NDArray[np.float64] | float:
-    """Return the battery's min charge as a ratio of its capacity."""
-    return config[SECTION_LIMITS].get(CONF_MIN_CHARGE_PERCENTAGE, DEFAULTS[CONF_MIN_CHARGE_PERCENTAGE])
-
-
-def battery_max_ratio(config: BatteryConfigData) -> NDArray[np.float64] | float:
-    """Return the battery's max charge as a ratio of its capacity."""
-    return config[SECTION_LIMITS].get(CONF_MAX_CHARGE_PERCENTAGE, DEFAULTS[CONF_MAX_CHARGE_PERCENTAGE])
 
 
 def _calculate_soc(total_energy: OutputData, config: BatteryConfigData) -> OutputData:

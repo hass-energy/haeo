@@ -4,30 +4,16 @@ Also holds the helpers headroom shares, since a headroom is a reserve of empty
 space rather than of energy.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Final, Literal
 
-import numpy as np
-
-from custom_components.haeo.core.adapters.elements.battery import battery_max_ratio, battery_min_ratio
 from custom_components.haeo.core.adapters.output_utils import expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
-from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_RESERVE
 from custom_components.haeo.core.model.elements import reserve as model_reserve
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.model.util import broadcast_to_sequence
-from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
-from custom_components.haeo.core.schema.elements.battery import (
-    CONF_CAPACITY,
-    CONF_EFFICIENCY_SOURCE_TARGET,
-    CONF_EFFICIENCY_TARGET_SOURCE,
-    SECTION_EFFICIENCY,
-    BatteryConfigData,
-    is_battery_config_data,
-)
-from custom_components.haeo.core.schema.elements.battery import SECTION_STORAGE as BATTERY_SECTION_STORAGE
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.reserve import (
     CONF_GENERATION,
     CONF_LOADS,
@@ -90,57 +76,16 @@ def requirement_model_element(
 
 
 def requirement_outputs(
-    name: str,
-    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
-    config: StorageRequirementData,
-    participants: Mapping[str, ElementConfigData],
-    kind: model_reserve.ReserveKind,
+    name: str, model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
 ) -> tuple[OutputData, OutputData, OutputData, OutputData]:
     """Return the required, available, and shortfall energy and the state of charge line."""
     outputs = model_outputs[name]
-    required = expect_output_data(outputs[model_reserve.RESERVE_ENERGY_REQUIRED])
-    batteries = [
-        battery
-        for battery_name in config[SECTION_PARTICIPANTS][CONF_STORAGE]
-        if is_battery_config_data(battery := participants[battery_name])
-    ]
     return (
-        required,
+        expect_output_data(outputs[model_reserve.RESERVE_ENERGY_REQUIRED]),
         expect_output_data(outputs[model_reserve.RESERVE_ENERGY_AVAILABLE]),
         expect_output_data(outputs[model_reserve.RESERVE_ENERGY_SHORTFALL]),
-        _state_of_charge(required, batteries, kind),
+        expect_output_data(outputs[model_reserve.RESERVE_STATE_OF_CHARGE]),
     )
-
-
-def _state_of_charge(
-    required: OutputData, batteries: Sequence[BatteryConfigData], kind: model_reserve.ReserveKind
-) -> OutputData:
-    """Return the combined state of charge line for the requirement.
-
-    For a reserve, the batteries should stay above their min charge plus the
-    reserve stored at their discharge efficiency. For headroom, they should stay
-    below their max charge less the space the headroom takes up at their charge
-    efficiency. Efficiencies are weighted by capacity, so the line is exact for
-    a single battery and for batteries with the same efficiency.
-    """
-    n_boundaries = len(required.values)
-    efficiency_field = CONF_EFFICIENCY_SOURCE_TARGET if kind == "reserve" else CONF_EFFICIENCY_TARGET_SOURCE
-    capacity = np.zeros(n_boundaries)
-    limit_energy = np.zeros(n_boundaries)
-    weighted_efficiency = np.zeros(n_boundaries)
-    for battery in batteries:
-        battery_capacity = np.asarray(battery[BATTERY_SECTION_STORAGE][CONF_CAPACITY], dtype=float)
-        efficiency = broadcast_to_sequence(battery[SECTION_EFFICIENCY].get(efficiency_field, 1.0), n_boundaries)
-        limit_ratio = battery_min_ratio(battery) if kind == "reserve" else battery_max_ratio(battery)
-        capacity += battery_capacity
-        limit_energy += limit_ratio * battery_capacity
-        weighted_efficiency += efficiency * battery_capacity
-    required_energy = np.asarray(required.values, dtype=float)
-    if kind == "reserve":
-        ratio = np.minimum((limit_energy + required_energy * capacity / weighted_efficiency) / capacity, 1.0)
-    else:
-        ratio = np.maximum((limit_energy - required_energy * weighted_efficiency / capacity) / capacity, 0.0)
-    return OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=tuple(ratio.tolist()))
 
 
 class ReserveAdapter:
@@ -160,15 +105,10 @@ class ReserveAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
-        *,
-        config: ReserveConfigData,
-        participants: Mapping[str, ElementConfigData],
         **_kwargs: object,
     ) -> Mapping[ReserveDeviceName, Mapping[ReserveOutputName, OutputData]]:
         """Map model outputs to reserve output names."""
-        required, available, shortfall, state_of_charge = requirement_outputs(
-            name, model_outputs, config, participants, "reserve"
-        )
+        required, available, shortfall, state_of_charge = requirement_outputs(name, model_outputs)
         return {
             RESERVE_DEVICE_RESERVE: {
                 RESERVE_ENERGY_REQUIRED: required,

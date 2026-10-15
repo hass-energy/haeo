@@ -417,7 +417,7 @@ def test_model_elements_passes_efficiency_when_present() -> None:
 @pytest.mark.parametrize(
     ("limits", "initial", "expected_min", "expected_max", "expected_initial"),
     [
-        pytest.param({}, 0.5, [0.0, 0.0, 0.0], [10.0, 10.0, 10.0], 5.0, id="default_limits"),
+        pytest.param({}, 0.5, None, None, 5.0, id="unset_limits"),
         pytest.param(
             {"min_charge_percentage": np.array([0.1, 0.2, 0.2]), "max_charge_percentage": np.array([0.9, 0.8, 0.8])},
             0.5,
@@ -434,18 +434,18 @@ def test_model_elements_passes_efficiency_when_present() -> None:
             0.5,
             id="initial_below_min_kept_absolute",
         ),
-        pytest.param({}, -0.1, [0.0, 0.0, 0.0], [10.0, 10.0, 10.0], 0.0, id="initial_clamped_to_empty"),
-        pytest.param({}, 1.2, [0.0, 0.0, 0.0], [10.0, 10.0, 10.0], 10.0, id="initial_clamped_to_capacity"),
+        pytest.param({}, -0.1, None, None, 0.0, id="initial_clamped_to_empty"),
+        pytest.param({}, 1.2, None, None, 10.0, id="initial_clamped_to_capacity"),
     ],
 )
 def test_model_elements_battery_charge_bounds(
     limits: dict[str, object],
     initial: float,
-    expected_min: list[float],
-    expected_max: list[float],
+    expected_min: list[float] | None,
+    expected_max: list[float] | None,
     expected_initial: float,
 ) -> None:
-    """The model battery spans the full capacity with min and max charge passed through in kWh."""
+    """The model battery spans the full capacity, with min and max charge in kWh only when they are set."""
     config_data = _wrap_data(
         {
             "name": "test_battery",
@@ -460,8 +460,11 @@ def test_model_elements_battery_charge_bounds(
     battery_element = next(e for e in elements if e["element_type"] == MODEL_ELEMENT_TYPE_BATTERY)
 
     np.testing.assert_allclose(battery_element["capacity"], [10.0, 10.0, 10.0])
-    np.testing.assert_allclose(np.asarray(battery_element.get("min_charge"), dtype=float), expected_min)
-    np.testing.assert_allclose(np.asarray(battery_element.get("max_charge"), dtype=float), expected_max)
+    for key, expected in (("min_charge", expected_min), ("max_charge", expected_max)):
+        if expected is None:
+            assert key not in battery_element
+        else:
+            np.testing.assert_allclose(battery_element[key], expected)
     assert battery_element["initial_charge"] == pytest.approx(expected_initial)
 
 

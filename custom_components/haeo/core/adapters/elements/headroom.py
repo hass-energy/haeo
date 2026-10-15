@@ -7,7 +7,7 @@ from custom_components.haeo.core.adapters.elements.reserve import requirement_mo
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.headroom import ELEMENT_TYPE, HeadroomConfigData
 
 type HeadroomOutputName = Literal[
@@ -50,15 +50,10 @@ class HeadroomAdapter:
         self,
         name: str,
         model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
-        *,
-        config: HeadroomConfigData,
-        participants: Mapping[str, ElementConfigData],
         **_kwargs: object,
     ) -> Mapping[HeadroomDeviceName, Mapping[HeadroomOutputName, OutputData]]:
         """Map model outputs to headroom output names."""
-        required, available, shortfall, state_of_charge = requirement_outputs(
-            name, model_outputs, config, participants, "headroom"
-        )
+        required, available, shortfall, state_of_charge = requirement_outputs(name, model_outputs)
         return {
             HEADROOM_DEVICE_HEADROOM: {
                 HEADROOM_ENERGY_REQUIRED: required,

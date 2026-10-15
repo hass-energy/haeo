@@ -514,7 +514,6 @@ def format_output_table_from_network(
                 model_outputs=model_outputs,
                 config=element_config,
                 periods=network.periods,
-                participants=loaded_participants,
             )
             # Flatten device outputs: {device_name: {output_name: OutputData}}
             for device_name, device_outputs in element_outputs.items():
@@ -725,7 +724,6 @@ def extract_rows_from_network(
                 model_outputs=model_outputs,
                 config=element_config,
                 periods=network.periods,
-                participants=loaded_participants,
             )
             for device_name, device_outputs in element_outputs.items():
                 adapter_outputs[f"{element_name}:{device_name}"] = dict(device_outputs)

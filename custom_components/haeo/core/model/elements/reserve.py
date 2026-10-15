@@ -48,6 +48,7 @@ type ReserveOutputName = Literal[
     "reserve_energy_required",
     "reserve_energy_available",
     "reserve_energy_shortfall",
+    "reserve_state_of_charge",
 ]
 
 RESERVE_OUTPUT_NAMES: Final[frozenset[ReserveOutputName]] = frozenset(
@@ -55,6 +56,7 @@ RESERVE_OUTPUT_NAMES: Final[frozenset[ReserveOutputName]] = frozenset(
         RESERVE_ENERGY_REQUIRED := "reserve_energy_required",
         RESERVE_ENERGY_AVAILABLE := "reserve_energy_available",
         RESERVE_ENERGY_SHORTFALL := "reserve_energy_shortfall",
+        RESERVE_STATE_OF_CHARGE := "reserve_state_of_charge",
     )
 )
 
@@ -173,6 +175,15 @@ class Reserve(Element[ReserveOutputName]):
     def _layout(self) -> WindowLayout:
         return window_layout(self.periods, self.window)
 
+    def _efficiency(self, storage: ReserveStorage) -> NDArray[np.float64]:
+        """Return the efficiency of the connection the storage meets the requirement through, at each boundary."""
+        n_boundaries = self.n_periods + 1
+        efficiency = np.ones(n_boundaries)
+        for segment in storage.connection.segments.values():
+            if isinstance(segment, EfficiencySegment) and segment.efficiency is not None:
+                efficiency = efficiency * broadcast_to_sequence(segment.efficiency, n_boundaries)
+        return efficiency
+
     def _available(self) -> LinearArray:
         """Return what the storage can provide at each boundary, measured at the network side.
 
@@ -183,10 +194,7 @@ class Reserve(Element[ReserveOutputName]):
         n_boundaries = self.n_periods + 1
         held: list[LinearArray] = []
         for storage in self._storage:
-            efficiency = np.ones(n_boundaries)
-            for segment in storage.connection.segments.values():
-                if isinstance(segment, EfficiencySegment) and segment.efficiency is not None:
-                    efficiency = efficiency * broadcast_to_sequence(segment.efficiency, n_boundaries)
+            efficiency = self._efficiency(storage)
             battery = storage.battery
             if self.kind == "reserve":
                 held.append((battery.stored_energy - battery.min_charge) * efficiency)
@@ -313,6 +321,32 @@ class Reserve(Element[ReserveOutputName]):
         shortfall = np.maximum(self._required_values() - self._available_values(), 0.0)
         return OutputData(type=OutputType.ENERGY, unit="kWh", values=tuple(shortfall.tolist()))
 
+    @output
+    def reserve_state_of_charge(self) -> OutputData:
+        """Output: the combined state of charge the storage should stay above, or below for headroom.
+
+        A reserve adds the requirement, stored at the discharge efficiency, to
+        the min charge. Headroom takes the requirement, stored at the charge
+        efficiency, away from the max charge. Efficiencies are weighted by
+        capacity, so the line is exact for a single battery and for batteries
+        with the same efficiency.
+        """
+        n_boundaries = self.n_periods + 1
+        capacity = np.zeros(n_boundaries)
+        limit = np.zeros(n_boundaries)
+        weighted_efficiency = np.zeros(n_boundaries)
+        for storage in self._storage:
+            battery = storage.battery
+            capacity += battery.capacity
+            limit += battery.min_charge if self.kind == "reserve" else battery.max_charge
+            weighted_efficiency += self._efficiency(storage) * battery.capacity
+        required = self._required_values()
+        if self.kind == "reserve":
+            ratio = np.minimum((limit + required * capacity / weighted_efficiency) / capacity, 1.0)
+        else:
+            ratio = np.maximum((limit - required * weighted_efficiency / capacity) / capacity, 0.0)
+        return OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=tuple(ratio.tolist()))
+
 
 __all__ = [
     "ELEMENT_TYPE",
@@ -320,6 +354,7 @@ __all__ = [
     "RESERVE_ENERGY_REQUIRED",
     "RESERVE_ENERGY_SHORTFALL",
     "RESERVE_OUTPUT_NAMES",
+    "RESERVE_STATE_OF_CHARGE",
     "Reserve",
     "ReserveElementConfig",
     "ReserveElementTypeName",
