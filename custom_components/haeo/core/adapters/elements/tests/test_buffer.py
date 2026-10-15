@@ -344,3 +344,50 @@ def test_model_elements_add_connections_before_the_buffer_reading_them() -> None
     n_connections = order.count("connection")
     assert n_connections > 0
     assert order[-n_connections - 1 :] == [*["connection"] * n_connections, "buffer"]
+
+
+@pytest.mark.parametrize("window", [8.0, 48.0, 1000.0], ids=["window_8h", "window_48h", "window_1000h"])
+@pytest.mark.parametrize("kind", ["reserve", "headroom"])
+def test_buffer_beyond_what_the_battery_can_hold_still_optimizes(kind: BufferKind, window: float) -> None:
+    """A buffer no battery could meet leaves a priced shortfall instead of making the plan infeasible.
+
+    A long window over a steady 5 kW house asks a 10 kWh battery for far more
+    reserve than it holds, and 20 kW of solar asks it for far more room. The
+    plan still solves, the battery does the best it can, and the shortfall is
+    exactly the gap left over.
+    """
+    house = [5.0] * N_PERIODS
+    solar = [20.0] * N_PERIODS if kind == "headroom" else [0.0] * N_PERIODS
+    network, outputs = _optimize(
+        [
+            bus_node("bus"),
+            _grid(export_price=[0.0] * N_PERIODS),
+            _battery("battery"),
+            _load("house", house),
+            _solar(solar),
+            _buffer(
+                loads=["house"],
+                generation=["solar"] if kind == "headroom" else [],
+                storage=["battery"],
+                kind=kind,
+                window=window,
+            ),
+        ],
+        name=kind,
+    )
+
+    required = _values(outputs[BUFFER_ENERGY_REQUIRED])
+    available = _values(outputs[BUFFER_ENERGY_AVAILABLE])
+    shortfall = _values(outputs[BUFFER_ENERGY_SHORTFALL])
+    state_of_charge = _values(outputs[BUFFER_STATE_OF_CHARGE])
+
+    assert np.isfinite(network.optimize())
+    # The window runs past the end of the horizon, so the requirement tapers off there
+    beyond = required > 10.0
+    assert beyond[1]
+    # Where no battery could meet it, the battery holds all it can: full for a reserve, empty for headroom
+    np.testing.assert_allclose(available[1:][beyond[1:]], 10.0, atol=1e-6)
+    np.testing.assert_allclose(state_of_charge[beyond], 1.0 if kind == "reserve" else 0.0)
+    # The shortfall is exactly the part of the requirement left uncovered
+    np.testing.assert_allclose(shortfall[1:], np.maximum(required[1:] - available[1:], 0.0), atol=1e-6)
+    assert np.all((state_of_charge >= 0.0) & (state_of_charge <= 1.0))
