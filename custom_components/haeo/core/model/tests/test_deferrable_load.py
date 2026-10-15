@@ -425,9 +425,8 @@ def test_scalar_parameter_updates_are_broadcast() -> None:
     assert cost == pytest.approx(2.0 * 0.1 + 3.0 * 2.0)
 
 
-@pytest.mark.parametrize("buffered", [False, True])
-def test_reserve_buffer_counts_the_planned_load(*, buffered: bool) -> None:
-    """A reserve buffer counts a deferrable load by its planned power, so the plan spreads it to keep the reserve."""
+def _reserve_network() -> tuple[Network, DeferrableLoad]:
+    """Build a grid-fed deferrable load due in periods 1-3 beside a 2 kWh battery that only backs a reserve."""
     network = Network(name="test_network", periods=np.array([1.0] * 4))
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": False})
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "bus", "is_source": False, "is_sink": False})
@@ -472,29 +471,39 @@ def test_reserve_buffer_counts_the_planned_load(*, buffered: bool) -> None:
             "tags": {1},
         }
     )
-    if buffered:
-        buffer = network.add(
-            {
-                "element_type": MODEL_ELEMENT_TYPE_BUFFER,
-                "name": "buffer",
-                "kind": "reserve",
-                "loads": ["load"],
-                "generation": [],
-                "storage": ["battery"],
-                "window": 1.0,
-                "level": None,
-                "price": 50.0,
-            }
-        )
+    return network, load
+
+
+def test_unbuffered_deferrable_load_takes_the_cheapest_period() -> None:
+    """Without a reserve the whole requirement takes the cheapest period."""
+    network, load = _reserve_network()
+
+    network.optimize()
+
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_power"), [0.0, 3.0, 0.0, 0.0], atol=1e-9)
+
+
+def test_reserve_buffer_counts_the_planned_load() -> None:
+    """A reserve buffer counts a deferrable load by its planned power, so the plan spreads it to keep the reserve."""
+    network, load = _reserve_network()
+    buffer = network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_BUFFER,
+            "name": "buffer",
+            "kind": "reserve",
+            "loads": ["load"],
+            "generation": [],
+            "storage": ["battery"],
+            "window": 1.0,
+            "level": None,
+            "price": 50.0,
+        }
+    )
 
     network.optimize()
 
     power = _outputs(load, "deferrable_load_power")
     assert power.sum() == pytest.approx(3.0)
-    if not buffered:
-        # Unbuffered, the whole requirement takes the cheapest period.
-        np.testing.assert_allclose(power, [0.0, 3.0, 0.0, 0.0], atol=1e-9)
-        return
     # The 2 kWh battery covers at most 2 kWh of the next hour's planned load, so no hour plans more.
     assert power.max() <= 2.0 + 1e-9
     required = np.asarray(buffer.outputs()[BUFFER_ENERGY_REQUIRED].values)
