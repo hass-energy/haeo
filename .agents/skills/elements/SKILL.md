@@ -77,7 +77,7 @@ Reuse the shared field groups in `core/schema/sections/` rather than redeclaring
 
 The `ElementAdapter` protocol in `core/adapters/registry.py` requires:
 
-- Attributes `element_type`, `advanced`, `connectivity`, `can_source`, `can_sink`
+- Attributes `element_type`, `advanced`, `connectivity`, `can_source`, `can_sink`, `can_store`
 - `model_elements(config)` — transform loaded config into model element params
 - `outputs(name, model_outputs, **kwargs)` — map model outputs to device outputs
 

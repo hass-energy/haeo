@@ -21,6 +21,7 @@ from numpy.typing import NDArray
 from .element import Element, NetworkElement
 from .elements import ELEMENTS, ModelElementConfig
 from .elements.battery import Battery, BatteryElementConfig
+from .elements.buffer import Buffer, BufferElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
@@ -176,6 +177,9 @@ class Network:
     @overload
     def add(self, element_config: PolicyPricingElementConfig) -> PolicyPricing: ...
 
+    @overload
+    def add(self, element_config: BufferElementConfig) -> Buffer: ...
+
     def add(self, element_config: ModelElementConfig) -> Element[Any]:
         """Add a new element to the network.
 
@@ -197,6 +201,9 @@ class Network:
 
         if element_config["element_type"] == "policy_pricing":
             return self._add_policy_pricing(element_config)
+
+        if element_config["element_type"] == "buffer":
+            return self._add_buffer(element_config)
 
         element_type = element_config["element_type"]
         kwargs = {key: value for key, value in element_config.items() if key not in ("element_type", "name")}
@@ -228,6 +235,14 @@ class Network:
 
         return element_instance
 
+    def _network_element(self, buffer_name: str, element_name: str) -> NetworkElement[Any]:
+        """Return the network element a buffer names, raising when there is none."""
+        element = self.elements.get(element_name)
+        if not isinstance(element, NetworkElement):
+            msg = f"Buffer '{buffer_name}' references unknown element '{element_name}'"
+            raise TypeError(msg)
+        return element
+
     def _add_policy_pricing(self, config: PolicyPricingElementConfig) -> PolicyPricing:
         """Create a PolicyPricing element by resolving connection/tag references."""
         name = config["name"]
@@ -253,6 +268,38 @@ class Network:
             terms=config["terms"],
         )
         element.label = config.get("label", "")
+        self.elements[name] = element
+        return element
+
+    def _add_buffer(self, config: BufferElementConfig) -> Buffer:
+        """Create a Buffer element by resolving its loads, generation, and storage by name.
+
+        The buffer reads what it needs from the elements and their connections,
+        so any element can take part in a buffer.
+        """
+        name = config["name"]
+        loads = [self._network_element(name, element_name) for element_name in config["loads"]]
+        generation = [self._network_element(name, element_name) for element_name in config["generation"]]
+        storage: list[Battery] = []
+        for battery_name in config["storage"]:
+            battery = self.elements.get(battery_name)
+            if not isinstance(battery, Battery):
+                msg = f"Buffer '{name}' references '{battery_name}', which is not a battery"
+                raise TypeError(msg)
+            storage.append(battery)
+
+        element = Buffer(
+            name=name,
+            periods=self.periods,
+            solver=self._solver,
+            kind=config["kind"],
+            loads=loads,
+            generation=generation,
+            storage=storage,
+            window=config["window"],
+            level=config["level"],
+            price=config["price"],
+        )
         self.elements[name] = element
         return element
 

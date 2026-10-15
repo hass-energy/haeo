@@ -13,7 +13,7 @@ HAEO creates three main network sensors:
 Total cost over the optimization horizon in dollars.
 
 - **Lower is better**: HAEO minimizes this value
-- **Includes**: Grid import/export costs, configured SOC pricing costs, connection transfer costs
+- **Includes**: Grid import/export costs, buffer shortfall costs, connection transfer costs
 - **Unit**: \$ (or your configured currency)
 
 !!! info "Lexicographic ordering"

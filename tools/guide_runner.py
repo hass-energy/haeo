@@ -29,6 +29,7 @@ from tests.guides.primitives import (
     EntityInput,
     HAPage,
     add_battery,
+    add_buffer,
     add_grid,
     add_integration,
     add_inverter,
@@ -47,6 +48,7 @@ from tests.guides.primitives import (
     set_policy_rule,
     show_forecast_card,
     show_topology_card,
+    validate_buffer,
     validate_policies,
     verify_setup,
 )
@@ -243,6 +245,8 @@ def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, obj
         "add_policies": add_policies,
         "reconfigure_policies": reconfigure_policies,
         "validate_policies": validate_policies,
+        "add_buffer": add_buffer,
+        "validate_buffer": validate_buffer,
         "verify_setup": verify_setup,
         # Plan primitives
         "optimize": optimize,

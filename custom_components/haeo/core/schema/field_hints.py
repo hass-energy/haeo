@@ -27,7 +27,6 @@ class FieldHint:
         default_mode: Controls config flow pre-selection ('entity' or 'value').
         default_value: Value to pre-fill when default_mode='value'.
         force_required: Force value to be required, overriding schema optionality.
-        device_type: Optional device type override for sub-device inputs.
 
     """
 
@@ -41,7 +40,6 @@ class FieldHint:
     default_mode: Literal["entity", "value"] | None = None
     default_value: float | bool | None = None
     force_required: bool | None = None
-    device_type: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -13,7 +13,7 @@ replays another as its setup, the cards are not rendered at all.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 import json
 import logging
@@ -208,6 +208,18 @@ async () => {
 }
 """
 
+# Turns elements off with their legend toggles, as a reader clicking the legend would
+_HIDE_ELEMENTS_JS = """
+(names) => {
+  const root = document.querySelector('.card').firstElementChild.shadowRoot;
+  for (const name of names) {
+    const toggle = root.querySelector(`[title="Toggle ${name} series"]`);
+    if (toggle === null) throw new Error(`No legend toggle for ${name}`);
+    toggle.click();
+  }
+}
+"""
+
 _SERIALIZE_CARD_JS = r"""
 (hostClass) => {
   const card = document.querySelector('.card');
@@ -241,6 +253,7 @@ def _card_page(
     hass_json: str,
     fill_height: bool,
     dark: bool,
+    hidden: Sequence[str] = (),
 ) -> Iterator[Page]:
     """Open a page of its own showing the card, ready to capture, and close it afterwards.
 
@@ -292,6 +305,8 @@ def _card_page(
             f"() => document.querySelector('{tag}')?.shadowRoot?.querySelector('svg path') != null",
             timeout=_RENDER_TIMEOUT_MS,
         )
+        if hidden:
+            preview.evaluate(_HIDE_ELEMENTS_JS, list(hidden))
         if not preview.evaluate(_WAIT_SETTLED_JS):
             msg = f"{tag} kept changing and never settled for a capture"
             raise RuntimeError(msg)
@@ -325,13 +340,14 @@ def _render_card(
     entity_filter: Callable[[str, dict[str, object]], bool],
     step: str,
     fill_height: bool,
+    hidden: Sequence[str] = (),
 ) -> None:
     """Optimize, render a card from the entities that pass the filter, and save it as a figure of the current step."""
     optimize(hass)
     hass_json = _hass_payload(hass, entity_filter)
     dark = _is_dark(page)
     with _card_page(
-        page, hass, tag=tag, config=config, hass_json=hass_json, fill_height=fill_height, dark=dark
+        page, hass, tag=tag, config=config, hass_json=hass_json, fill_height=fill_height, dark=dark, hidden=hidden
     ) as preview:
         ctx.save_figure(step, _card_svg(preview, dark=dark))
 
@@ -345,6 +361,7 @@ def show_forecast_card(
     elements: list[str],
     horizon: str = "full",
     inputs: list[str] | None = None,
+    hidden: list[str] | None = None,
 ) -> None:
     """Capture the forecast card showing the planned forecasts of the named elements.
 
@@ -355,6 +372,9 @@ def show_forecast_card(
         elements: Elements whose planned forecasts the card shows.
         horizon: How much of the forecast the card shows, as one of its horizon presets.
         inputs: Elements whose input forecasts and limits the card also shows, alongside the plan.
+        hidden: Elements the card lists in its legend but draws nothing for, as if turned off
+            there. Listing the same elements in a set of figures keeps their legends, and so
+            their charts, the same size.
 
     """
     ctx = ScreenshotContext.current()
@@ -384,6 +404,7 @@ def show_forecast_card(
         entity_filter=_shows,
         step=step,
         fill_height=True,
+        hidden=hidden or [],
     )
     _LOGGER.info("Captured forecast card for %s", ", ".join(elements))
 

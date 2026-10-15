@@ -32,7 +32,7 @@ The Connection creates per-tag LP variables for the input power flow — one per
 
 When no tags are specified, a single default tag is used (always-tagged paradigm).
 
-Segments do **not** create their own variables (except SOC pricing, which creates auxiliary slack variables).
+Segments do **not** create their own variables.
 Instead, the Connection passes its power variables through the segment chain.
 Each segment derives its `power_in` from the segment before it and exposes a `power_out` expression.
 

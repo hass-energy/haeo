@@ -32,6 +32,7 @@ class JunctionAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
     can_source: bool = False
     can_sink: bool = False
+    can_store: bool = False
 
     def model_elements(self, config: JunctionConfigData) -> list[ModelElementConfig]:
         """Return a model node that neither produces nor consumes power."""

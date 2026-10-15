@@ -19,9 +19,11 @@ from homeassistant.setup import ATTR_COMPONENT
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from conftest import add_participant
 from custom_components.haeo import (
     HaeoRuntimeData,
     _async_register_static_frontend_resources,
+    _cleanup_buffer_participants,
     _element_flow_in_progress,
     _ensure_required_subentries,
     async_remove_config_entry_device,
@@ -54,8 +56,15 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
     SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_STORAGE,
+)
+from custom_components.haeo.core.schema.elements.buffer import (
+    CONF_GENERATION,
+    CONF_KIND,
+    CONF_LOADS,
+    CONF_STORAGE,
+    KIND_RESERVE,
+    SECTION_PARTICIPANTS,
 )
 from custom_components.haeo.core.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
@@ -112,7 +121,6 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                     CONF_SALVAGE_VALUE: as_constant_value(0.0),
                 },
                 SECTION_EFFICIENCY: {},
-                SECTION_PARTITIONING: {},
             }
         ),
         subentry_type=ElementType.BATTERY,
@@ -1054,3 +1062,65 @@ async def test_async_register_static_skips_when_card_not_found(
         await _async_register_static_frontend_resources(hass)
 
     mock_http.async_register_static_paths.assert_not_called()
+
+
+def _add_buffer(hass: HomeAssistant, hub_entry: MockConfigEntry, participants: dict[str, list[str]]) -> ConfigSubentry:
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.BUFFER,
+                CONF_NAME: "Backup",
+                CONF_KIND: KIND_RESERVE,
+                SECTION_PARTICIPANTS: participants,
+            }
+        ),
+        subentry_type=ElementType.BUFFER,
+        title="Backup",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+    return subentry
+
+
+@pytest.mark.parametrize(
+    ("participants", "expected"),
+    [
+        pytest.param(
+            {CONF_LOADS: ["House", "Pool"], CONF_GENERATION: ["Solar", "Wind"], CONF_STORAGE: ["Battery", "Old"]},
+            {CONF_LOADS: ["House"], CONF_GENERATION: ["Solar"], CONF_STORAGE: ["Battery"]},
+            id="deleted_elements_removed",
+        ),
+        pytest.param(
+            {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery"]},
+            {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery"]},
+            id="unchanged",
+        ),
+    ],
+)
+def test_cleanup_buffer_participants_strips_deleted_elements(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    participants: dict[str, list[str]],
+    expected: dict[str, list[str]],
+) -> None:
+    """Deleting an element removes it from every buffer that named it."""
+    add_participant(hass, mock_hub_entry, "House", ElementType.LOAD)
+    add_participant(hass, mock_hub_entry, "Solar", ElementType.SOLAR)
+    add_participant(hass, mock_hub_entry, "Battery", ElementType.BATTERY)
+    subentry = _add_buffer(hass, mock_hub_entry, participants)
+
+    _cleanup_buffer_participants(hass, mock_hub_entry)
+
+    assert mock_hub_entry.subentries[subentry.subentry_id].data[SECTION_PARTICIPANTS] == expected
+
+
+def test_cleanup_buffer_participants_removes_buffer_without_batteries(
+    hass: HomeAssistant, mock_hub_entry: MockConfigEntry
+) -> None:
+    """A buffer whose last battery is deleted holds nothing, so it is removed."""
+    add_participant(hass, mock_hub_entry, "House", ElementType.LOAD)
+    subentry = _add_buffer(hass, mock_hub_entry, {CONF_LOADS: ["House"], CONF_STORAGE: ["Battery"]})
+
+    _cleanup_buffer_participants(hass, mock_hub_entry)
+
+    assert subentry.subentry_id not in mock_hub_entry.subentries

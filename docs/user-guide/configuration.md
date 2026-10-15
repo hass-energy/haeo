@@ -130,9 +130,6 @@ Most elements are configured in a single step where you enter:
 2. **Connection target**: Which element this connects to (for elements that require connections)
 3. **Input fields**: For each field, choose how to provide the value
 
-Some elements add a follow-up step when optional settings are enabled.
-For example, the battery flow adds a partitions step when you enable undercharge and overcharge configuration.
-
 #### Input field options
 
 Each input field provides a dropdown with these choices:
