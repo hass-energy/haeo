@@ -80,6 +80,9 @@ function initSlideshow(slideshow) {
     const targetSlide = slides[current];
     const targetImg = targetSlide.querySelector(".guide-slide-img");
     const targetSrc = getSlideSrc(targetSlide, getThemeMode());
+    const slideWidth = parseInt(targetSlide.dataset.width, 10) || w;
+    const slideHeight = parseInt(targetSlide.dataset.height, 10) || h;
+    slidesContainer.style.aspectRatio = `${slideWidth} / ${slideHeight}`;
 
     // Switch active slide and show loading state
     slides.forEach((slide, i) => {
