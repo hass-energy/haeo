@@ -304,3 +304,19 @@ def test_negative_deficit_price_rejected() -> None:
 
     with pytest.raises(ValueError, match="deficit_price must be non-negative"):
         network.optimize()
+
+
+@pytest.mark.parametrize("integer_mode", ["none", "first", "all"])
+def test_time_preference_never_outweighs_cost(integer_mode: IntegerMode) -> None:
+    """The secondary objective's preference for earlier power never buys a dearer start."""
+    network, load = _build_network(
+        supply_price=[0.2, 0.199, 0.3, 0.3],
+        profile_power=[1.0],
+        profile_duration=[1.0],
+        integer_mode=integer_mode,
+    )
+
+    cost = network.optimize()
+
+    np.testing.assert_allclose(_outputs(load, "schedulable_load_power"), [0.0, 1.0, 0.0, 0.0], atol=1e-9)
+    assert cost == pytest.approx(0.199)
