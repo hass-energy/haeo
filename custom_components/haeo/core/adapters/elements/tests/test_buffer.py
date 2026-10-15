@@ -399,5 +399,5 @@ def test_buffer_beyond_what_the_battery_can_hold_still_optimizes(kind: BufferKin
     np.testing.assert_allclose(available[1:][beyond[1:]], 10.0, atol=1e-6)
     np.testing.assert_allclose(state_of_charge[beyond], 1.0 if kind == "reserve" else 0.0)
     # The shortfall is exactly the part of the requirement left uncovered
-    np.testing.assert_allclose(shortfall[1:], np.maximum(required[1:] - available[1:], 0.0), atol=1e-6)
+    np.testing.assert_allclose(shortfall, np.maximum(required - available, 0.0), atol=1e-6)
     assert np.all((state_of_charge >= 0.0) & (state_of_charge <= 1.0))
