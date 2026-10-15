@@ -43,7 +43,6 @@ class FieldHint:
         default_mode: Controls config flow pre-selection ('entity' or 'value').
         default_value: Value to pre-fill when default_mode='value'.
         force_required: Force value to be required, overriding schema optionality.
-        device_type: Optional device type override for sub-device inputs.
         calendar: When set, the field accepts a calendar entity whose events are
             resolved into horizon-aligned arrays using this hint.
 
@@ -59,7 +58,6 @@ class FieldHint:
     default_mode: Literal["entity", "value"] | None = None
     default_value: float | bool | None = None
     force_required: bool | None = None
-    device_type: str | None = None
     calendar: CalendarFieldHint | None = None
 
 

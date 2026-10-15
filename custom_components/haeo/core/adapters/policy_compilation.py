@@ -31,12 +31,16 @@ See docs/developer-guide/vlan-optimization.md for optimization proofs.
 from collections import defaultdict, deque
 from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
-from typing import NotRequired, TypedDict
+from typing import NotRequired, TypedDict, TypeGuard
 
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, ModelElementConfig
+from custom_components.haeo.core.model.elements import (
+    FLOW_READER_ELEMENT_TYPES,
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    ModelElementConfig,
+)
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.elements.deferrable_load import DeferrableLoadElementConfig
@@ -46,6 +50,18 @@ from custom_components.haeo.core.model.elements.policy_pricing import PolicyPric
 
 # Non-connection element configs (nodes, batteries, deferrable loads) that can carry tags
 _TaggableConfig = NodeElementConfig | BatteryElementConfig | DeferrableLoadElementConfig
+
+
+def _is_taggable(elem: ModelElementConfig) -> TypeGuard[_TaggableConfig]:
+    """Return whether an element produces or consumes power itself, so it carries tags.
+
+    Connections carry power between elements, and flow readers only read the
+    planned flows; every other element is a network element.
+    """
+    return (
+        elem["element_type"] != MODEL_ELEMENT_TYPE_CONNECTION and elem["element_type"] not in FLOW_READER_ELEMENT_TYPES
+    )
+
 
 # A rule grouping identifies a rule by its source/destination sets,
 # independent of price. Rules with the same grouping share VLAN structure.
@@ -97,18 +113,21 @@ def compile_policies(
         policy rule index to pricing element names.
 
     """
-    # Partition by element type — connections have source/target fields
+    # Partition by element type — connections have source/target fields, nodes and
+    # batteries carry tags, and the rest read other elements' flows so they are
+    # added after the connections
     connections: list[ConnectionElementConfig] = []
     non_connections: list[ModelElementConfig] = []
+    dependents: list[ModelElementConfig] = []
     by_name: dict[str, _TaggableConfig] = {}
     for elem in elements:
         if elem["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION:
             connections.append(elem)
-        elif elem["element_type"] == MODEL_ELEMENT_TYPE_POLICY_PRICING:
-            non_connections.append(elem)
-        else:
+        elif _is_taggable(elem):
             by_name[elem["name"]] = elem
             non_connections.append(elem)
+        else:
+            dependents.append(elem)
 
     if not connections:
         return CompilationResult(elements=elements, pricing_rule_map={})
@@ -304,7 +323,7 @@ def compile_policies(
             pricing_rule_map[rule_idx] = rule_pricing_names
 
     return CompilationResult(
-        elements=[*non_connections, *tagged_connections, *pricing_elements],
+        elements=[*non_connections, *tagged_connections, *dependents, *pricing_elements],
         pricing_rule_map=pricing_rule_map,
     )
 

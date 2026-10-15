@@ -13,6 +13,7 @@ class DeviceClass(StrEnum):
     POWER = "power"
     ENERGY = "energy"
     ENERGY_STORAGE = "energy_storage"
+    DURATION = "duration"
     MONETARY = "monetary"
     DISTANCE = "distance"
     ENERGY_DISTANCE = "energy_distance"
@@ -40,6 +41,10 @@ class UnitOfMeasurement(StrEnum):
     DOLLAR_PER_KWH = "$/kWh"
     DOLLAR_PER_KWH_PER_HOUR = "$/kWh/h"
     PERCENT = "%"
+    SECOND = "s"
+    MINUTE = "min"
+    HOUR = "h"
+    DAY = "d"
     MILLIMETER = "mm"
     CENTIMETER = "cm"
     METER = "m"
@@ -66,6 +71,7 @@ BASE_UNITS: Final[dict[DeviceClass, UnitOfMeasurement]] = {
     DeviceClass.POWER: UnitOfMeasurement.KILO_WATT,
     DeviceClass.ENERGY: UnitOfMeasurement.KILO_WATT_HOUR,
     DeviceClass.ENERGY_STORAGE: UnitOfMeasurement.KILO_WATT_HOUR,
+    DeviceClass.DURATION: UnitOfMeasurement.HOUR,
     DeviceClass.DISTANCE: UnitOfMeasurement.KILOMETER,
     DeviceClass.ENERGY_DISTANCE: UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER,
 }
@@ -82,6 +88,13 @@ _ENERGY_TO_KWH: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.KILO_WATT_HOUR: 1.0,
     UnitOfMeasurement.MEGA_WATT_HOUR: 1000.0,
     UnitOfMeasurement.GIGA_WATT_HOUR: 1_000_000.0,
+}
+
+_DURATION_TO_HOURS: Final[dict[UnitOfMeasurement, float]] = {
+    UnitOfMeasurement.SECOND: 1 / 3600,
+    UnitOfMeasurement.MINUTE: 1 / 60,
+    UnitOfMeasurement.HOUR: 1.0,
+    UnitOfMeasurement.DAY: 24.0,
 }
 
 _LENGTH_TO_KM: Final[dict[UnitOfMeasurement, float]] = {
@@ -105,6 +118,19 @@ _ENERGY_DISTANCE_TO_KWH_PER_KM: Final[dict[UnitOfMeasurement, float]] = {
 }
 
 ENERGY_DISTANCE_UNITS: Final[tuple[UnitOfMeasurement, ...]] = tuple(_ENERGY_DISTANCE_TO_KWH_PER_KM)
+
+# Factors to each device class's base unit, for every device class that has one
+_TO_BASE_UNIT: Final[dict[DeviceClass, dict[UnitOfMeasurement, float]]] = {
+    DeviceClass.POWER: _POWER_TO_KW,
+    DeviceClass.ENERGY: _ENERGY_TO_KWH,
+    DeviceClass.ENERGY_STORAGE: _ENERGY_TO_KWH,
+    DeviceClass.DURATION: _DURATION_TO_HOURS,
+    DeviceClass.DISTANCE: _LENGTH_TO_KM,
+    DeviceClass.ENERGY_DISTANCE: _ENERGY_DISTANCE_TO_KWH_PER_KM,
+}
+
+# Durations HAEO reads from sensors, in units it converts to hours
+DURATION_UNITS: Final[tuple[UnitOfMeasurement, ...]] = tuple(_DURATION_TO_HOURS)
 
 ENERGY_UNITS: Final[tuple[UnitOfMeasurement, ...]] = (
     UnitOfMeasurement.WATT_HOUR,
@@ -185,6 +211,9 @@ def _infer_device_class_from_unit(unit: UnitOfMeasurement | None) -> DeviceClass
     }:
         return DeviceClass.ENERGY
 
+    if unit in _DURATION_TO_HOURS:
+        return DeviceClass.DURATION
+
     if unit in _LENGTH_TO_KM:
         return DeviceClass.DISTANCE
 
@@ -199,15 +228,6 @@ def base_unit_for_device_class(device_class: DeviceClass | None) -> UnitOfMeasur
     return BASE_UNITS.get(device_class) if device_class is not None else None
 
 
-_TO_BASE_FACTORS: Final[dict[DeviceClass, dict[UnitOfMeasurement, float]]] = {
-    DeviceClass.POWER: _POWER_TO_KW,
-    DeviceClass.ENERGY: _ENERGY_TO_KWH,
-    DeviceClass.ENERGY_STORAGE: _ENERGY_TO_KWH,
-    DeviceClass.DISTANCE: _LENGTH_TO_KM,
-    DeviceClass.ENERGY_DISTANCE: _ENERGY_DISTANCE_TO_KWH_PER_KM,
-}
-
-
 def _base_factor(unit: UnitOfMeasurement | None, device_class: DeviceClass | None) -> float | None:
     """Return the factor converting *unit* to the device class's base unit, or None if it cannot."""
     base_unit = base_unit_for_device_class(device_class)
@@ -215,7 +235,7 @@ def _base_factor(unit: UnitOfMeasurement | None, device_class: DeviceClass | Non
         return None
     if unit == base_unit:
         return 1.0
-    return _TO_BASE_FACTORS[device_class].get(unit)
+    return _TO_BASE_UNIT[device_class].get(unit)
 
 
 def base_unit_conversion(

@@ -46,6 +46,7 @@ _NON_NEGATIVE_OUTPUT_TYPES = frozenset(
         OutputType.ENERGY,
         OutputType.STATE_OF_CHARGE,
         OutputType.EFFICIENCY,
+        OutputType.DURATION,
     }
 )
 
@@ -375,12 +376,12 @@ def is_percent_field(hint: FieldHint) -> bool:
 
 
 def _is_non_negative_field(hint: FieldHint) -> bool:
-    """Return True when a field's output type is a quantity that cannot be negative.
+    """Return True when a field cannot be negative: a physical quantity, or a field whose minimum is zero or more.
 
-    Deciding by output type means runtime input stores and offline loading
+    Deciding from the hint means runtime input stores and offline loading
     (diagnostics, simulation, scenarios) treat the same values the same way.
     """
-    return hint.output_type in _NON_NEGATIVE_OUTPUT_TYPES
+    return hint.output_type in _NON_NEGATIVE_OUTPUT_TYPES or (hint.min_value is not None and hint.min_value >= 0)
 
 
 def resolve_constant(

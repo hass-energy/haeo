@@ -31,8 +31,6 @@ from typing import (
     Final,
     Literal,
     NamedTuple,
-    NotRequired,
-    Required,
     TypeAliasType,
     TypeGuard,
     Union,
@@ -60,6 +58,12 @@ from custom_components.haeo.core.adapters.elements.battery_section import (
     BATTERY_SECTION_OUTPUT_NAMES,
     BatterySectionDeviceName,
     BatterySectionOutputName,
+)
+from custom_components.haeo.core.adapters.elements.buffer import (
+    BUFFER_DEVICE_NAMES,
+    BUFFER_OUTPUT_NAMES,
+    BufferDeviceName,
+    BufferOutputName,
 )
 from custom_components.haeo.core.adapters.elements.connection import (
     CONNECTION_DEVICE_NAMES,
@@ -130,6 +134,8 @@ from custom_components.haeo.core.schema.elements.battery_section import (
     OPTIONAL_INPUT_FIELDS as BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
 )
 from custom_components.haeo.core.schema.elements.battery_section import BatterySectionConfigData
+from custom_components.haeo.core.schema.elements.buffer import OPTIONAL_INPUT_FIELDS as BUFFER_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.buffer import BufferConfigData
 from custom_components.haeo.core.schema.elements.connection import (
     OPTIONAL_INPUT_FIELDS as CONNECTION_OPTIONAL_INPUT_FIELDS,
 )
@@ -175,6 +181,7 @@ type ElementOutputName = (
     | NodeOutputName
     | JunctionOutputName
     | SolarOutputName
+    | BufferOutputName
     | NetworkOutputName
 )
 
@@ -190,6 +197,7 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
     | NODE_OUTPUT_NAMES
     | JUNCTION_OUTPUT_NAMES
     | SOLAR_OUTPUT_NAMES
+    | BUFFER_OUTPUT_NAMES
     | NETWORK_OUTPUT_NAMES
 )
 
@@ -206,6 +214,7 @@ type ElementDeviceName = (
     | JunctionDeviceName
     | SolarDeviceName
     | PolicyDeviceName
+    | BufferDeviceName
     | NetworkDeviceName
 )
 
@@ -224,6 +233,7 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | JUNCTION_DEVICE_NAMES
     | SOLAR_DEVICE_NAMES
     | POLICY_DEVICE_NAMES
+    | BUFFER_DEVICE_NAMES
     | NETWORK_DEVICE_NAMES
 )
 
@@ -239,6 +249,7 @@ ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
     ElementType.JUNCTION: frozenset(JUNCTION_DEVICE_NAMES),
     ElementType.NODE: frozenset(NODE_DEVICE_NAMES),
     ElementType.POLICY: frozenset(POLICY_DEVICE_NAMES),
+    ElementType.BUFFER: frozenset(BUFFER_DEVICE_NAMES),
     ElementType.SOLAR: frozenset(SOLAR_DEVICE_NAMES),
     ELEMENT_TYPE_NETWORK: frozenset(NETWORK_DEVICE_NAMES),
 }
@@ -265,6 +276,7 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     ElementType.JUNCTION: JunctionConfigData,
     ElementType.NODE: NodeConfigData,
     ElementType.POLICY: PolicyConfigData,
+    ElementType.BUFFER: BufferConfigData,
     ElementType.SOLAR: SolarConfigData,
 }
 
@@ -280,6 +292,7 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.JUNCTION: JUNCTION_OPTIONAL_INPUT_FIELDS,
     ElementType.NODE: NODE_OPTIONAL_INPUT_FIELDS,
     ElementType.SOLAR: SOLAR_OPTIONAL_INPUT_FIELDS,
+    ElementType.BUFFER: BUFFER_OPTIONAL_INPUT_FIELDS,
 }
 
 
@@ -290,7 +303,6 @@ def get_input_field_schema_info(
     """Return schema metadata for input fields grouped by section."""
     schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
     schema_hints = get_type_hints(schema_cls)
-    schema_optional_keys: frozenset[str] = getattr(schema_cls, "__optional_keys__", frozenset())
 
     results: dict[str, dict[str, FieldSchemaInfo]] = {}
 
@@ -300,7 +312,7 @@ def get_input_field_schema_info(
             msg = f"Section '{section_key}' not found in {schema_cls.__name__}"
             raise RuntimeError(msg)
 
-        section_type = _unwrap_required_type(section_hint)
+        section_type = section_hint
         if isinstance(section_type, TypeAliasType):
             section_type = section_type.__value__
 
@@ -309,7 +321,6 @@ def get_input_field_schema_info(
             raise RuntimeError(msg)
 
         section_optional_keys: frozenset[str] = getattr(section_type, "__optional_keys__", frozenset())
-        section_is_optional = section_key in schema_optional_keys
         section_hints = get_type_hints(section_type)
 
         section_info: dict[str, FieldSchemaInfo] = {}
@@ -318,20 +329,13 @@ def get_input_field_schema_info(
             if field_type is None:
                 msg = f"Field '{section_key}.{field_name}' not found in {section_type.__name__}"
                 raise RuntimeError(msg)
-            is_optional = section_is_optional or field_name in section_optional_keys
-            section_info[field_name] = FieldSchemaInfo(value_type=field_type, is_optional=is_optional)
+            section_info[field_name] = FieldSchemaInfo(
+                value_type=field_type, is_optional=field_name in section_optional_keys
+            )
 
         results[section_key] = section_info
 
     return results
-
-
-def _unwrap_required_type(expected_type: Any) -> Any:
-    """Return the underlying type for Required/NotRequired hints."""
-    origin = get_origin(expected_type)
-    if origin in (NotRequired, Required):
-        return get_args(expected_type)[0]
-    return expected_type
 
 
 def _conforms_to_typed_dict(
@@ -353,7 +357,6 @@ def _conforms_to_typed_dict(
     hints = get_type_hints(typed_dict_cls)
 
     def _matches_type(value_item: object, expected_type: Any) -> bool:
-        expected_type = _unwrap_required_type(expected_type)
         if isinstance(expected_type, TypeAliasType):
             expected_type = expected_type.__value__
 
