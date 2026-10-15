@@ -29,6 +29,7 @@ export type ElementType =
   | "junction"
   | "load"
   | "node"
+  | "schedulable_load"
   | "solar"
   | "policy"
   | "buffer";

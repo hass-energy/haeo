@@ -14,7 +14,7 @@ from typing import (
     overload,
 )
 
-from highspy import Highs, HighsModelStatus
+from highspy import Highs, HighsModelStatus, HighsVarType
 import numpy as np
 from numpy.typing import NDArray
 
@@ -26,6 +26,7 @@ from .elements.connection import Connection, ConnectionElementConfig, Connection
 from .elements.deferrable_load import DeferrableLoad, DeferrableLoadElementConfig
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
+from .elements.schedulable_load import SchedulableLoad, SchedulableLoadElementConfig
 from .linear import LinearArray, total
 from .solver import Solver
 from .util.solver_rows import RowIndices
@@ -50,6 +51,8 @@ _CAL_MARGIN: Final = 0.25  # step back from upper boundary (log10 decades)
 _REDUCED_COST_TOLERANCE: Final = 1e-7
 # A value within this of a bound is treated as at that bound
 _BOUND_TOLERANCE: Final = 1e-9
+# Relative tolerance for a plan with integer columns to match the cost-only optimum
+_INTEGER_COST_TOLERANCE: Final = 1e-7
 # Factor the blend weight moves by until a weight is known on each side. Half a
 # decade is about as wide as the narrowest range of working weights seen, so one
 # step from just outside it usually lands inside.
@@ -122,6 +125,12 @@ class Network:
         self._solver = Solver()
         # Weight the last blended solve settled on, where the next one starts
         self._blend_weight: float | None = None
+        # Columns elements require to be integer
+        self._integer_cols: NDArray[np.int32] = np.zeros(0, dtype=np.int32)
+        # Integer columns fixed at their solved values, with their own bounds
+        self._fixed_integers: tuple[NDArray[np.float64], NDArray[np.float64]] | None = None
+        # Cost-only optimum over the integer decisions, when there are integer columns
+        self._integer_cost: float | None = None
 
         # Redirect HiGHS logging to Python logger at debug level
         self._solver.cbLogging += self._log_callback
@@ -174,6 +183,9 @@ class Network:
 
     @overload
     def add(self, element_config: NodeElementConfig) -> Node: ...
+
+    @overload
+    def add(self, element_config: SchedulableLoadElementConfig) -> SchedulableLoad: ...
 
     @overload
     def add(self, element_config: ConnectionElementConfig) -> Connection[ConnectionOutputName]: ...
@@ -379,6 +391,9 @@ class Network:
         all_col_indices = np.arange(n_vars, dtype=np.int32)
         cost_vectors = _build_cost_vectors((primary, secondary), n_vars)
 
+        self._mark_integers()
+        self._integer_cost = self._cost_optimum(all_col_indices, cost_vectors) if len(self._integer_cols) else None
+
         if self._blend_weight is None:
             self._blend_weight = self._calibrate_blend_weight(all_col_indices, cost_vectors)
 
@@ -410,7 +425,7 @@ class Network:
             # Keep the previous weight, and take the cheapest plan without the order
             _LOGGER.warning("No blend weight gives a cost-optimal plan; solving for the cost alone")
             _set_cost_vector(h, all_col_indices, cost_vectors[0])
-            h.run()
+            self._run_plan()
             return _ensure_optimal(h)
 
         if not order_optimal:
@@ -433,10 +448,16 @@ class Network:
         leaves the cost unchanged lowers the secondary. Rows count as variables too,
         with their activity as the value. A solve that fails counts as not
         cost-optimal, so the weight is lowered.
+
+        Integer columns are fixed for the pricing, so reduced costs cannot see a
+        cheaper integer decision. A plan with integer columns is cost-optimal only
+        when its cost also matches the cost-only optimum. Among cost-optimal integer
+        decisions, the mixed-integer solve of the blended objective already picks
+        the one the secondary prefers.
         """
         h = self._solver
         _set_cost_vector(h, all_col_indices, cost_vectors[0] + weight * cost_vectors[1])
-        h.run()
+        self._run_plan()
         if h.getModelStatus() != HighsModelStatus.kOptimal:
             return math.nan, False, True
         plan_cost = float(cost_vectors[0] @ h.column_values())
@@ -450,6 +471,10 @@ class Network:
         finally:
             h.setOptionValue("simplex_iteration_limit", _UNLIMITED_ITERATIONS)
         cost_optimal = h.getInfo().max_dual_infeasibility <= _REDUCED_COST_TOLERANCE
+        if self._integer_cost is not None:
+            # Reduced costs only see moves of the continuous columns, so a cheaper integer decision needs the optimum
+            bound = self._integer_cost + _INTEGER_COST_TOLERANCE * max(1.0, abs(self._integer_cost))
+            cost_optimal = cost_optimal and plan_cost <= bound
 
         solution = h.getSolution()
         cost = np.concatenate([solution.col_dual, solution.row_dual])
@@ -472,6 +497,58 @@ class Network:
         rises = (secondary[moves] < -_REDUCED_COST_TOLERANCE) & (value < upper - _BOUND_TOLERANCE)
         falls = (secondary[moves] > _REDUCED_COST_TOLERANCE) & (value > lower + _BOUND_TOLERANCE)
         return plan_cost, cost_optimal, not (rises | falls).any()
+
+    def _mark_integers(self) -> None:
+        """Collect the columns elements require to be integer, releasing any the previous solve fixed."""
+        self._release_integers()
+        integer = [variables for element in self.elements.values() if (variables := element.integer_variables())]
+        self._integer_cols = np.unique(np.concatenate([variables.cols[:, 0] for variables in integer] or [[]])).astype(
+            np.int32
+        )
+        if len(self._integer_cols):
+            # Integer plans are compared against the cost-only optimum, so it must be exact
+            self._solver.setOptionValue("mip_rel_gap", 0.0)
+
+    def _release_integers(self) -> None:
+        """Restore the bounds of integer columns fixed by the last plan solve and make them integer again."""
+        h = self._solver
+        cols = self._integer_cols
+        if self._fixed_integers is not None:
+            lower, upper = self._fixed_integers
+            h.changeColsBounds(len(cols), cols, lower, upper)
+            self._fixed_integers = None
+        if len(cols):
+            h.changeColsIntegrality(len(cols), cols, np.full(len(cols), HighsVarType.kInteger))
+
+    def _cost_optimum(self, all_col_indices: NDArray[np.int32], cost_vectors: list[NDArray[np.float64]]) -> float:
+        """Return the lowest cost over every plan, integer decisions included."""
+        h = self._solver
+        _set_cost_vector(h, all_col_indices, cost_vectors[0])
+        self._run_plan()
+        _ensure_optimal(h)
+        return float(cost_vectors[0] @ h.column_values())
+
+    def _run_plan(self) -> None:
+        """Solve the current objective, leaving a linear program with valid duals.
+
+        With integer columns the solve is mixed-integer, which reports no
+        duals. The integer columns are then fixed at their solved values and
+        made continuous, and the same objective is solved again as a linear
+        program. The plan keeps its integer decisions and the duals the blend
+        weight checks and shadow prices read become valid. The next plan solve
+        releases the columns again.
+        """
+        h = self._solver
+        self._release_integers()
+        h.run()
+        cols = self._integer_cols
+        if len(cols) and h.getModelStatus() == HighsModelStatus.kOptimal:
+            _, _, _, lower, upper, _ = h.getCols(len(cols), cols)
+            values = np.round(h.column_values()[cols])
+            h.changeColsIntegrality(len(cols), cols, np.full(len(cols), HighsVarType.kContinuous))
+            h.changeColsBounds(len(cols), cols, values, values)
+            self._fixed_integers = (np.asarray(lower), np.asarray(upper))
+            h.run()
 
     def _calibrate_blend_weight(
         self,

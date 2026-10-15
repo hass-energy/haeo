@@ -25,7 +25,7 @@ from custom_components.haeo.core.model.linear import LinearArray, Rows
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
 from custom_components.haeo.core.model.solver import Solver
-from custom_components.haeo.core.model.util import broadcast_to_sequence, require_non_negative
+from custom_components.haeo.core.model.util import broadcast_to_sequence, require_non_negative, window_carry, window_end
 
 # Model element type for deferrable loads
 ELEMENT_TYPE: Final = "deferrable_load"
@@ -190,20 +190,12 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         return broadcast_to_sequence(value, self.n_periods + 1)
 
     def _carry(self) -> NDArray[np.float64]:
-        """Return 1 for each period that continues the window of the boundary before it.
-
-        A period carries the accumulator forward when it is inside a window
-        and no window starts at its opening boundary. Every other period
-        starts the accumulator from zero.
-        """
-        return self._in_window() * (1.0 - self._boundaries(self.window_start)[:-1])
+        """Return 1 for each period that continues the window of the boundary before it."""
+        return window_carry(self._in_window(), self._boundaries(self.window_start))
 
     def _window_end(self) -> NDArray[np.float64]:
         """Return 1 at boundaries 1..T where a window ends."""
-        in_window = self._in_window()
-        next_in_window = np.append(in_window[1:], 0.0)
-        next_continues = next_in_window * (1.0 - self._boundaries(self.window_start)[1:])
-        return in_window * (1.0 - next_continues)
+        return window_end(self._in_window(), self._boundaries(self.window_start))
 
     def _settled_requirement(self) -> NDArray[np.float64]:
         """Return the requirement settled at boundaries 1..T.

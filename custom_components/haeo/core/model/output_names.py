@@ -11,10 +11,16 @@ from .elements.buffer import BUFFER_OUTPUT_NAMES, BufferOutputName
 from .elements.connection import CONNECTION_OUTPUT_NAMES, ConnectionOutputName
 from .elements.deferrable_load import DEFERRABLE_LOAD_OUTPUT_NAMES, DeferrableLoadOutputName
 from .elements.node import NODE_OUTPUT_NAMES, NodeOutputName
+from .elements.schedulable_load import SCHEDULABLE_LOAD_OUTPUT_NAMES, SchedulableLoadOutputName
 
 # Combined type for all possible output names
 type ModelOutputName = (
-    BatteryOutputName | ConnectionOutputName | DeferrableLoadOutputName | NodeOutputName | BufferOutputName
+    BatteryOutputName
+    | BufferOutputName
+    | ConnectionOutputName
+    | DeferrableLoadOutputName
+    | NodeOutputName
+    | SchedulableLoadOutputName
 )
 
 # Model-level output names
@@ -25,6 +31,7 @@ MODEL_OUTPUT_NAMES: Final[frozenset[str]] = frozenset(
         *DEFERRABLE_LOAD_OUTPUT_NAMES,
         *NODE_OUTPUT_NAMES,
         *BUFFER_OUTPUT_NAMES,
+        *SCHEDULABLE_LOAD_OUTPUT_NAMES,
     }
 )
 
@@ -35,9 +42,11 @@ __all__ = [
     "DEFERRABLE_LOAD_OUTPUT_NAMES",
     "MODEL_OUTPUT_NAMES",
     "NODE_OUTPUT_NAMES",
+    "SCHEDULABLE_LOAD_OUTPUT_NAMES",
     "BatteryOutputName",
     "ConnectionOutputName",
     "DeferrableLoadOutputName",
     "ModelOutputName",
     "NodeOutputName",
+    "SchedulableLoadOutputName",
 ]

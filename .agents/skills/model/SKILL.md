@@ -109,6 +109,11 @@ Degenerate LPs have many optimal solutions; the secondary objective is what stop
     The secondary's reduced costs are the blended ones minus the cost's, divided by the weight, and the weight is raised when a cost-free move improves the secondary, but never to a weight that failed the cost in the same optimization.
     Do not remove either check to save time: a stale weight silently trades cost for tie-breaking when too large, and leaves ties to the solver path when too small.
 
+- Integer variables, declared by an element's `integer_variables()`, make each plan solve mixed-integer.
+    The network then fixes them at their solved values and re-solves as an LP, so the checks above and the shadow prices read valid duals.
+    Reduced costs cannot see a cheaper integer decision, so with integer columns cost optimality is also judged against a cost-only MIP solved once per optimization with a zero MIP gap.
+    Networks without integer columns skip both, so the LP path stays as it is.
+
 - The time-preference weights must not be a sum of a connection term and a time term alone, or swaps between connections across periods tie exactly.
     The fixed offset from `tie_break_offset` prevents that.
 

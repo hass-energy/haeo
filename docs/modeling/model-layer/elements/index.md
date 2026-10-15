@@ -5,7 +5,7 @@ They represent physical devices that produce, consume, store, or route power.
 
 ## Element types
 
-HAEO provides three element types that serve different roles in the network:
+HAEO provides four element types that serve different roles in the network:
 
 **[Battery](battery.md)**:
 Energy storage with state of charge tracking.
@@ -18,6 +18,10 @@ Settles each window at its end, pricing any shortfall so unmeetable requirements
 **[Node](node.md)**:
 Power sources, sinks, and junction points.
 Enforces power balance (Kirchhoff's law) at connection points.
+
+**[Schedulable load](schedulable_load.md)**:
+Fixed power profile run once per scheduled window, unable to stop once started.
+Chooses each run's start, prices missed runs, and can make the start-now decision integer.
 
 ## Common characteristics
 
@@ -85,6 +89,14 @@ This separation keeps the Model Layer focused on optimization mathematics while 
     Power balance points for sources, sinks, and junctions.
 
     [:material-arrow-right: Node formulation](node.md)
+
+- :material-dishwasher:{ .lg .middle } **Schedulable load model**
+
+    ---
+
+    Fixed-profile runs started once per window, with optional integer starts.
+
+    [:material-arrow-right: Schedulable load formulation](schedulable_load.md)
 
 - :material-connection:{ .lg .middle } **Connections**
 

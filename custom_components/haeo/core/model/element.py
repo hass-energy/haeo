@@ -145,6 +145,15 @@ class Element[OutputNameT: str]:
             return ()
         return tuple(expr.value(self._solver.column_values()).tolist())
 
+    def integer_variables(self) -> LinearArray | None:
+        """Return the variables this element requires to take integer values, one per row.
+
+        The network makes these integer for the solve, then fixes them at
+        their solved values and re-solves the remaining linear program so
+        shadow prices stay available.
+        """
+        return None
+
     def outputs(self) -> Mapping[OutputNameT, OutputData]:
         """Return output specifications for the element.
 

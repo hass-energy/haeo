@@ -47,9 +47,10 @@ from custom_components.haeo.core.model.elements.deferrable_load import Deferrabl
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
+from custom_components.haeo.core.model.elements.schedulable_load import SchedulableLoadElementConfig
 
-# Non-connection element configs (nodes, batteries, deferrable loads) that can carry tags
-_TaggableConfig = NodeElementConfig | BatteryElementConfig | DeferrableLoadElementConfig
+# Non-connection element configs (nodes, batteries, loads) that can carry tags
+_TaggableConfig = NodeElementConfig | BatteryElementConfig | DeferrableLoadElementConfig | SchedulableLoadElementConfig
 
 
 def _is_taggable(elem: ModelElementConfig) -> TypeGuard[_TaggableConfig]:

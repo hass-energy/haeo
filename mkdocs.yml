@@ -167,6 +167,7 @@ nav:
           - Grid: user-guide/elements/grid.md
           - Inverter: user-guide/elements/inverter.md
           - Load: user-guide/elements/load.md
+          - Schedulable Load: user-guide/elements/schedulable_load.md
           - Solar: user-guide/elements/solar.md
           - Buffer: user-guide/elements/buffer.md
           - Junction: user-guide/elements/junction.md
@@ -187,6 +188,7 @@ nav:
               - Battery: modeling/model-layer/elements/battery.md
               - Deferrable load: modeling/model-layer/elements/deferrable_load.md
               - Node: modeling/model-layer/elements/node.md
+              - Schedulable load: modeling/model-layer/elements/schedulable_load.md
           - Connections:
               - modeling/model-layer/connections/index.md
               - Connection: modeling/model-layer/connections/connection.md
@@ -207,6 +209,7 @@ nav:
           - Solar: modeling/device-layer/solar.md
           - Load: modeling/device-layer/loads.md
           - Buffer: modeling/device-layer/buffer.md
+          - Schedulable Load: modeling/device-layer/schedulable_load.md
           - Junction: modeling/device-layer/junction.md
           - Node: modeling/device-layer/node.md
           - Connection: modeling/device-layer/connection.md

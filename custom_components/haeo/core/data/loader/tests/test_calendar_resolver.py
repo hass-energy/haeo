@@ -45,6 +45,7 @@ def test_distance_event_produces_boundary_arrays() -> None:
     np.testing.assert_allclose(result["value_span"], [0.0, 50.0, 0.0, 0.0])
     np.testing.assert_allclose(result["value_edge_start"], [0.0, 50.0, 0.0, 0.0])
     np.testing.assert_allclose(result["value_edge_end"], [0.0, 0.0, 50.0, 0.0])
+    assert result["horizon_start"] == BOUNDARY_TIMES[0]
 
 
 def test_distance_units_normalize_to_km() -> None:

@@ -568,6 +568,48 @@
       },
       "abort": { "no_rules": "No policy rules configured", "reconfigure_successful": "Policies updated successfully" }
     },
+    "schedulable_load": {
+      "flow_title": "Schedulable Load",
+      "entry_type": "Schedulable Load",
+      "initiate_flow": { "user": "Schedulable Load", "reconfigure": "Schedulable Load" },
+      "step": {
+        "user": {
+          "title": "Schedulable Load Configuration",
+          "description": "Configure a load that runs once inside each calendar window and finishes once started",
+          "data": {
+            "connection": "Connection",
+            "deficit_price": "Missed run price",
+            "duration": "Run duration",
+            "integer_mode": "Start decision",
+            "name": "Schedulable Load Name",
+            "power": "Power",
+            "running": "Running",
+            "window_calendar": "Run window calendar"
+          },
+          "sections": {
+            "advanced": {
+              "data": { "integer_mode": "Start decision" },
+              "data_description": {
+                "integer_mode": "How strictly the optimizer treats each start as all or nothing. Linear is fastest but can split a run across starts; Start now keeps the decision to start in the current interval all or nothing; All starts makes every start all or nothing and solves slowest."
+              },
+              "name": "Advanced"
+            },
+            "common": {
+              "data": { "connection": "Connection", "name": "Schedulable Load Name" },
+              "name": "Common settings"
+            },
+            "pricing": { "data": { "deficit_price": "Missed run price" }, "name": "Pricing" },
+            "profile": { "data": { "duration": "Run duration", "power": "Power" }, "name": "Run profile" },
+            "schedule": {
+              "data": { "running": "Running", "window_calendar": "Run window calendar" },
+              "name": "Schedule"
+            }
+          }
+        }
+      },
+      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
     "solar": {
       "flow_title": "Solar",
       "entry_type": "Solar",
@@ -614,6 +656,7 @@
     "network": { "name": "Optimizer" },
     "node": { "name": "{name}" },
     "policy": { "name": "Policies" },
+    "schedulable_load": { "name": "{name}" },
     "solar": { "name": "{name}" }
   },
   "entity": {
@@ -668,6 +711,10 @@
       "load_forecast": { "name": "Forecast" },
       "load_price_target_source": { "name": "Consumption value" },
       "policy_price": { "name": "{rule_name} price" },
+      "schedulable_load_deficit_price": { "name": "Missed run price" },
+      "schedulable_load_duration": { "name": "Run duration" },
+      "schedulable_load_power": { "name": "Power" },
+      "schedulable_load_running": { "name": "Running" },
       "solar_forecast": { "name": "Forecast" },
       "solar_price_source_target": { "name": "Production price" }
     },
@@ -740,6 +787,9 @@
       "network_optimization_duration": { "name": "Duration" },
       "network_optimization_status": { "name": "Status" },
       "node_power_balance": { "name": "Power balance shadow price" },
+      "schedulable_load_energy_missed": { "name": "Energy missed" },
+      "schedulable_load_power": { "name": "Power" },
+      "schedulable_load_start": { "name": "Start" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
       "solar_power": { "name": "Power" }
     },
@@ -816,6 +866,7 @@
     "horizon_preset": { "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days" } },
     "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
     "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },
+    "integer_mode": { "options": { "all": "All starts", "first": "Start now", "none": "Linear" } },
     "policy_endpoint": { "choices": { "elements": "Elements", "none": "Any" } }
   },
   "services": {
