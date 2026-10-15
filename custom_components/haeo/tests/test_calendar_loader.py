@@ -19,7 +19,7 @@ from custom_components.haeo.calendar_loader import CalendarInputLoader, Calendar
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, FieldHint
+from custom_components.haeo.core.schema.field_hints import calendar_input
 from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,24 +46,19 @@ def _calendar_store(
     entity_id: str = ENTITY_ID,
     get_forecast_timestamps: Callable[[], tuple[float, ...]] = lambda: FORECAST_TIMESTAMPS,
 ) -> InputStore:
-    """Build a calendar-driven store for a calendar entity."""
+    """Build a store for a calendar input reading a calendar entity's presence."""
     return create_input_store(
-        storage=_MemStorage({"type": "calendar", "value": entity_id}),
-        hint=FieldHint(
-            output_type=OutputType.ENERGY,
-            time_series=True,
-            boundaries=True,
-            calendar=CalendarFieldHint(parser="presence"),
-        ),
+        storage=_MemStorage({"type": "entity", "value": [entity_id]}),
+        hint=calendar_input(OutputType.AVAILABILITY, "presence", "presence"),
         get_forecast_timestamps=get_forecast_timestamps,
     )
 
 
 def _presence(store: InputStore) -> np.ndarray:
-    """Return the resolved presence array of a loaded calendar store."""
+    """Return the resolved per-period presence of a loaded calendar store."""
     value = store.value
-    assert isinstance(value, dict)
-    return value["presence"]
+    assert isinstance(value, np.ndarray)
+    return value
 
 
 def _trip(start_ts: float, end_ts: float) -> CalendarEvent:
@@ -183,9 +178,7 @@ async def test_loader_fetches_events_and_loads_store(hass: HomeAssistant, horizo
     await hass.async_block_till_done()
 
     assert store.available
-    value = store.value
-    assert isinstance(value, dict)
-    np.testing.assert_allclose(value["presence"], [1.0, 0.0, 0.0])
+    np.testing.assert_allclose(_presence(store), [1.0, 0.0])
     loader.cleanup()
 
 
@@ -211,9 +204,7 @@ async def test_loader_reloads_on_calendar_state_change(hass: HomeAssistant, hori
     loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
     loader.start()
     await hass.async_block_till_done()
-    value = store.value
-    assert isinstance(value, dict)
-    np.testing.assert_allclose(value["presence"], [0.0, 0.0, 0.0])
+    np.testing.assert_allclose(_presence(store), [0.0, 0.0])
 
     component: EntityComponent[CalendarEntity] = hass.data[CALENDAR_DOMAIN]
     entity = component.get_entity(ENTITY_ID)
@@ -228,9 +219,7 @@ async def test_loader_reloads_on_calendar_state_change(hass: HomeAssistant, hori
     hass.states.async_set(ENTITY_ID, "on")
     await hass.async_block_till_done()
 
-    value = store.value
-    assert isinstance(value, dict)
-    np.testing.assert_allclose(value["presence"], [0.0, 1.0, 0.0])
+    np.testing.assert_allclose(_presence(store), [0.0, 1.0])
     loader.cleanup()
 
 
@@ -282,41 +271,30 @@ async def test_loader_initial_fetch_failure_leaves_store_not_ready(hass: HomeAss
     loader.cleanup()
 
 
-async def test_loader_replays_captured_events_without_calendar_entity(
-    hass: HomeAssistant,
-    horizon_manager: Mock,
-) -> None:
-    """Captured events in the persisted value resolve even when no calendar entity exists."""
-    store = create_input_store(
-        storage=_MemStorage(
-            {
-                "type": "calendar",
-                "value": ENTITY_ID,
-                "events": [
-                    {
-                        "start": "1970-01-01T00:00:00+00:00",
-                        "end": "1970-01-01T01:00:00+00:00",
-                        "summary": "Trip",
-                        "location": None,
-                        "description": None,
-                    }
-                ],
-            }
-        ),
-        hint=FieldHint(
-            output_type=OutputType.ENERGY,
-            time_series=True,
-            boundaries=True,
-            calendar=CalendarFieldHint(parser="presence"),
-        ),
-        get_forecast_timestamps=lambda: FORECAST_TIMESTAMPS,
+async def test_loader_replays_events_a_captured_state_carries(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """A replayed calendar state that already carries events resolves without a calendar to fetch from."""
+    hass.states.async_set(
+        ENTITY_ID,
+        "on",
+        {
+            CALENDAR_EVENTS_ATTRIBUTE: [
+                {
+                    "start": "1970-01-01T00:00:00+00:00",
+                    "end": "1970-01-01T01:00:00+00:00",
+                    "summary": "Trip",
+                    "location": None,
+                    "description": None,
+                }
+            ]
+        },
     )
-    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    store = _calendar_store()
+    loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_presence")): store}, horizon_manager)
 
     loader.start()
     await hass.async_block_till_done()
 
-    np.testing.assert_allclose(_presence(store), [1.0, 0.0, 0.0])
+    np.testing.assert_allclose(_presence(store), [1.0, 0.0])
     loader.cleanup()
 
 
@@ -342,7 +320,7 @@ async def test_loader_reloads_all_stores_before_listeners_run(hass: HomeAssistan
 
     assert len(observed) == 1
     assert observed[0] is loads.value
-    np.testing.assert_allclose(_presence(loads), [0.0, 1.0, 0.0])
+    np.testing.assert_allclose(_presence(loads), [0.0, 1.0])
     loader.cleanup()
 
 
@@ -353,7 +331,7 @@ async def test_loader_reloads_on_horizon_change(hass: HomeAssistant, horizon_man
     loader = CalendarInputLoader(hass, {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
     loader.start()
     await hass.async_block_till_done()
-    np.testing.assert_allclose(_presence(store), [0.0, 1.0, 0.0])
+    np.testing.assert_allclose(_presence(store), [0.0, 1.0])
 
     new_timestamps = (3600.0, 7200.0, 10800.0)
     horizon_manager.get_forecast_timestamps.return_value = new_timestamps
@@ -362,7 +340,7 @@ async def test_loader_reloads_on_horizon_change(hass: HomeAssistant, horizon_man
     await hass.async_block_till_done()
 
     assert store.forecast_timestamps == new_timestamps
-    np.testing.assert_allclose(_presence(store), [1.0, 0.0, 0.0])
+    np.testing.assert_allclose(_presence(store), [1.0, 0.0])
     loader.cleanup()
 
 
@@ -410,7 +388,7 @@ async def test_loader_applies_overlapping_reloads_in_trigger_order(hass: HomeAss
     stale_gate.set()
     await asyncio.gather(older, newer)
 
-    np.testing.assert_allclose(_presence(store), [0.0, 1.0, 0.0])
+    np.testing.assert_allclose(_presence(store), [0.0, 1.0])
     loader.cleanup()
 
 

@@ -52,7 +52,7 @@ def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[Un
         case OutputType.PRICE_RATE:
             return None
         case _:
-            # STATUS, COST, SHADOW_PRICE - no unit filtering
+            # STATUS, AVAILABILITY, COST, SHADOW_PRICE - no unit filtering
             return None
 
 

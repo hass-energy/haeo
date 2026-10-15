@@ -7,6 +7,7 @@ import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader import config_loader as cl
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.data.loader.config_loader import (
     _resolve_list_items,
     load_element_config,
@@ -33,7 +34,12 @@ from custom_components.haeo.core.schema.elements.battery import (
 from custom_components.haeo.core.schema.elements.buffer import CONF_SHORTFALL_COST, BufferConfigSchema
 from custom_components.haeo.core.schema.elements.buffer import SECTION_PRICING as BUFFER_SECTION_PRICING
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
-from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints, extract_field_hints
+from custom_components.haeo.core.schema.field_hints import (
+    FieldHint,
+    ListFieldHints,
+    calendar_input,
+    extract_field_hints,
+)
 from custom_components.haeo.core.schema.sections import CONF_EFFICIENCY_SOURCE_TARGET, SECTION_EFFICIENCY
 from custom_components.haeo.core.state import StateMachine
 
@@ -901,3 +907,51 @@ def test_entity_duration_rejects_negative() -> None:
     )
     with pytest.raises(InputError):
         load_element_config("Backup", config, sm, FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
+
+
+# -- fields with outputs --
+
+
+def test_field_with_outputs_loads_each_output_from_its_calendar(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each output of a field resolves from the field's calendar, and the field itself is not loaded."""
+    hints = {
+        "storage": {
+            "capacity": FieldHint(
+                output_type=OutputType.AVAILABILITY,
+                outputs={
+                    "away": calendar_input(OutputType.AVAILABILITY, "distance", "presence"),
+                    "due": calendar_input(OutputType.ENERGY, "distance", "window_due"),
+                },
+            )
+        }
+    }
+    monkeypatch.setattr(cl, "extract_field_hints", lambda _schema: hints)
+    event = {
+        "start": "1970-01-01T01:00:00+00:00",
+        "end": "1970-01-01T02:00:00+00:00",
+        "summary": "Trip",
+        "location": "40 km",
+        "description": None,
+    }
+    states = {"calendar.trips": FakeEntityState("calendar.trips", "on", {CALENDAR_EVENTS_ATTRIBUTE: [event]})}
+    config = _battery_config(capacity={"type": "entity", "value": ["calendar.trips"]})
+
+    loaded = _dict(load_element_config("Battery", config, FakeStateMachine(states), FORECAST_TIMES))  # type: ignore[arg-type]  # fixtures use loose dicts
+    storage = _dict(loaded["storage"])
+
+    assert "capacity" not in storage
+    np.testing.assert_allclose(_ndarray(storage["away"]), [0.0, 1.0, 0.0])
+    np.testing.assert_allclose(_ndarray(storage["due"]), [0.0, 0.0, 40.0, 0.0])
+
+    from_values = _dict(
+        load_element_config_from_values(
+            "Battery",
+            config,  # type: ignore[arg-type]  # fixtures use loose dicts
+            {("storage", "away"): np.ones(3)},
+            FORECAST_TIMES,
+        )
+    )
+    values_storage = _dict(from_values["storage"])
+    assert "capacity" not in values_storage
+    np.testing.assert_allclose(_ndarray(values_storage["away"]), [1.0, 1.0, 1.0])
+    assert "due" not in values_storage

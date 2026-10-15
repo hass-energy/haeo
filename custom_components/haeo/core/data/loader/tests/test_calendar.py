@@ -7,7 +7,9 @@ import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader.calendar import (
+    CALENDAR_EVENTS_ATTRIBUTE,
     CalendarEventData,
+    CalendarEventDict,
     EventValueFn,
     capture_calendar_events,
     extract_calendar_windows,
@@ -22,35 +24,6 @@ from custom_components.haeo.core.data.util.calendar_fuser import (
     fuse_window_edges_to_boundaries,
     fuse_windows_to_boundaries,
 )
-from custom_components.haeo.core.schema.calendar_value import CalendarValue, as_calendar_value, is_calendar_value
-
-# --- calendar_value schema ---
-
-
-def test_as_calendar_value() -> None:
-    """Create a calendar value from entity ID."""
-    val = as_calendar_value("calendar.ev_trips")
-    assert val["type"] == "calendar"
-    assert val["value"] == "calendar.ev_trips"
-    assert val["events"] is None
-
-
-def test_is_calendar_value_valid() -> None:
-    """Detect valid calendar values."""
-    assert is_calendar_value({"type": "calendar", "value": "calendar.ev"})
-    assert is_calendar_value({"type": "calendar", "value": "calendar.ev", "events": None})
-
-
-def test_is_calendar_value_invalid() -> None:
-    """Reject non-calendar values."""
-    assert not is_calendar_value({"type": "entity", "value": ["sensor.x"]})
-    assert not is_calendar_value({"type": "calendar"})  # missing value
-    assert not is_calendar_value({"type": "calendar", "value": 42})  # value not string
-    assert not is_calendar_value("not a dict")
-    assert not is_calendar_value(None)
-
-
-# --- parse_distance ---
 
 
 def test_parse_distance_km() -> None:
@@ -327,15 +300,18 @@ def test_extract_custom_value_fn() -> None:
     assert windows[0].start == _dt(14)
 
 
-# --- load_calendar_events (diagnostic replay) ---
+# --- load_calendar_events ---
+
+
+def _calendar_state(events: list[dict[str, object]] | list[CalendarEventDict]) -> FakeEntityState:
+    """Return a calendar state carrying injected events."""
+    return FakeEntityState(entity_id="calendar.ev", state="on", attributes={CALENDAR_EVENTS_ATTRIBUTE: events})
 
 
 def test_load_from_captured_events() -> None:
     """Load events from pre-captured diagnostics data."""
-    value: CalendarValue = {
-        "type": "calendar",
-        "value": "calendar.ev_trips",
-        "events": [
+    state = _calendar_state(
+        [
             {
                 "start": "2025-01-01T09:00:00+00:00",
                 "end": "2025-01-01T10:00:00+00:00",
@@ -350,10 +326,11 @@ def test_load_from_captured_events() -> None:
                 "location": "50 km",
                 "description": None,
             },
-        ],
-    }
+        ]
+    )
 
-    events = load_calendar_events(value, FakeStateMachine({}))
+    events = load_calendar_events(state)
+    assert events is not None
     assert len(events) == 2
     assert events[0].summary == "Work"
     assert events[0].location == "50 km"
@@ -362,7 +339,6 @@ def test_load_from_captured_events() -> None:
 
 def test_load_from_entity_state() -> None:
     """Load events from entity state attributes (live path)."""
-    value: CalendarValue = {"type": "calendar", "value": "calendar.ev", "events": None}
     sm = FakeStateMachine(
         {
             "calendar.ev": FakeEntityState(
@@ -383,21 +359,19 @@ def test_load_from_entity_state() -> None:
         }
     )
 
-    events = load_calendar_events(value, sm)
+    events = load_calendar_events(sm.get("calendar.ev"))
+    assert events is not None
     assert len(events) == 1
     assert events[0].location == "30 km"
 
 
 def test_load_missing_entity() -> None:
-    """Return empty list when entity not found."""
-    value: CalendarValue = {"type": "calendar", "value": "calendar.missing", "events": None}
-    events = load_calendar_events(value, FakeStateMachine({}))
-    assert events == []
+    """A missing calendar state has no events to load."""
+    assert load_calendar_events(None) is None
 
 
 def test_load_no_haeo_events_attr() -> None:
-    """Return empty list when entity has no haeo_events attribute."""
-    value: CalendarValue = {"type": "calendar", "value": "calendar.plain", "events": None}
+    """A calendar state without injected events cannot be resolved."""
     sm = FakeStateMachine(
         {
             "calendar.plain": FakeEntityState(
@@ -407,8 +381,7 @@ def test_load_no_haeo_events_attr() -> None:
             ),
         }
     )
-    events = load_calendar_events(value, sm)
-    assert events == []
+    assert load_calendar_events(sm.get("calendar.plain")) is None
 
 
 # --- capture_calendar_events ---
@@ -426,8 +399,8 @@ def test_capture_roundtrip() -> None:
     assert captured[0]["summary"] == "Work"
 
     # Reload from captured data
-    value: CalendarValue = {"type": "calendar", "value": "calendar.ev", "events": captured}
-    reloaded = load_calendar_events(value, FakeStateMachine({}))
+    reloaded = load_calendar_events(_calendar_state(captured))
+    assert reloaded is not None
     assert len(reloaded) == 2
     assert reloaded[0].summary == "Work"
     assert reloaded[0].location == "50 km"
@@ -437,10 +410,8 @@ def test_capture_roundtrip() -> None:
 def test_load_naive_datetime_gets_default_tz() -> None:
     """Naive ISO timestamps are normalized to the supplied default timezone."""
     sydney = ZoneInfo("Australia/Sydney")
-    value: CalendarValue = {
-        "type": "calendar",
-        "value": "calendar.ev",
-        "events": [
+    state = _calendar_state(
+        [
             {
                 "start": "2025-01-01T09:00:00",
                 "end": "2025-01-01T10:00:00",
@@ -448,10 +419,11 @@ def test_load_naive_datetime_gets_default_tz() -> None:
                 "location": None,
                 "description": None,
             },
-        ],
-    }
+        ]
+    )
 
-    events = load_calendar_events(value, FakeStateMachine({}), default_tz=sydney)
+    events = load_calendar_events(state, default_tz=sydney)
+    assert events is not None
     assert len(events) == 1
     assert events[0].start.tzinfo == sydney
     assert events[0].end.tzinfo == sydney
@@ -459,10 +431,8 @@ def test_load_naive_datetime_gets_default_tz() -> None:
 
 def test_load_offset_aware_datetime_preserved() -> None:
     """Offset-aware timestamps keep their original timezone."""
-    value: CalendarValue = {
-        "type": "calendar",
-        "value": "calendar.ev",
-        "events": [
+    state = _calendar_state(
+        [
             {
                 "start": "2025-01-01T09:00:00+00:00",
                 "end": "2025-01-01T10:00:00+00:00",
@@ -470,20 +440,19 @@ def test_load_offset_aware_datetime_preserved() -> None:
                 "location": None,
                 "description": None,
             },
-        ],
-    }
+        ]
+    )
 
-    events = load_calendar_events(value, FakeStateMachine({}), default_tz=ZoneInfo("Australia/Sydney"))
+    events = load_calendar_events(state, default_tz=ZoneInfo("Australia/Sydney"))
+    assert events is not None
     assert events[0].start.tzinfo == UTC
 
 
 def test_naive_and_aware_datetimes_fuse_without_error() -> None:
     """Mixed naive/aware inputs no longer break horizon fusion after normalization."""
     sydney = ZoneInfo("Australia/Sydney")
-    value: CalendarValue = {
-        "type": "calendar",
-        "value": "calendar.ev",
-        "events": [
+    state = _calendar_state(
+        [
             {
                 "start": "2025-01-01T09:00:00",
                 "end": "2025-01-01T10:00:00",
@@ -491,9 +460,10 @@ def test_naive_and_aware_datetimes_fuse_without_error() -> None:
                 "location": "50 km",
                 "description": None,
             },
-        ],
-    }
-    events = load_calendar_events(value, FakeStateMachine({}), default_tz=sydney)
+        ]
+    )
+    events = load_calendar_events(state, default_tz=sydney)
+    assert events is not None
     extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
     windows = extract_calendar_windows(events, extractor)
     boundaries = [datetime(2025, 1, 1, h, tzinfo=sydney) for h in (8, 9, 10, 11)]
@@ -509,10 +479,8 @@ def test_naive_and_aware_datetimes_fuse_without_error() -> None:
 
 def test_load_skips_invalid_event_dicts() -> None:
     """Skip events with invalid or missing start/end fields."""
-    value: CalendarValue = {
-        "type": "calendar",
-        "value": "calendar.ev",
-        "events": [
+    state = _calendar_state(
+        [
             {
                 "start": "not-a-date",
                 "end": "2025-01-01T10:00:00+00:00",
@@ -536,9 +504,10 @@ def test_load_skips_invalid_event_dicts() -> None:
                 "location": None,
                 "description": None,
             },
-        ],
-    }
-    events = load_calendar_events(value, FakeStateMachine({}))
+        ]
+    )
+    events = load_calendar_events(state)
+    assert events is not None
     assert len(events) == 1
     assert events[0].summary == "Valid"
 

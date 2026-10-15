@@ -29,12 +29,7 @@ from custom_components.haeo.coordinator import CoordinatorData, HaeoDataUpdateCo
 from custom_components.haeo.core.adapters.elements.grid import GRID_POWER_IMPORT
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
-from custom_components.haeo.core.schema import (
-    as_calendar_value,
-    as_connection_target,
-    as_constant_value,
-    as_entity_value,
-)
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
@@ -1454,7 +1449,7 @@ def _calendar_hub(hass: HomeAssistant) -> MockConfigEntry:
     hass.config_entries.async_add_subentry(
         entry,
         ConfigSubentry(
-            data=MappingProxyType({CONF_NAME: "EV", "trip": {"trip_calendar": as_calendar_value("calendar.trips")}}),
+            data=MappingProxyType({CONF_NAME: "EV", "trip": {"trip_calendar": as_entity_value(["calendar.trips"])}}),
             subentry_type="ev",
             title="EV",
             unique_id=None,

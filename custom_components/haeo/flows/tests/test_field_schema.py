@@ -10,11 +10,9 @@ import voluptuous as vol
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import (
-    CalendarValue,
     ConstantValue,
     EntityValue,
     NoneValue,
-    as_calendar_value,
     as_constant_value,
     as_entity_value,
     as_none_value,
@@ -1359,14 +1357,21 @@ def test_convert_sectioned_choose_data_to_config_handles_non_mapping_section(
 
 
 def _calendar_field() -> InputFieldInfo[NumberEntityDescription]:
-    """Create a calendar-driven input field for testing."""
+    """Create a config field feeding a calendar input, for testing."""
+    output = InputFieldInfo(
+        field_name="window_due",
+        entity_description=NumberEntityDescription(key="window_due"),
+        output_type=OutputType.ENERGY,
+        time_series=True,
+        boundaries=True,
+        calendar=CalendarFieldHint(parser="number", projection="window_due"),
+        source_field="window_calendar",
+    )
     return InputFieldInfo(
         field_name="window_calendar",
         entity_description=NumberEntityDescription(key="window_calendar"),
         output_type=OutputType.ENERGY,
-        time_series=True,
-        boundaries=True,
-        calendar=CalendarFieldHint(parser="number"),
+        outputs={"window_due": output},
     )
 
 
@@ -1376,7 +1381,7 @@ def test_calendar_field_renders_a_calendar_entity_selector() -> None:
 
     entries = build_choose_field_entries(
         _field_map(field),
-        field_schema={"window_calendar": FieldSchemaInfo(value_type=CalendarValue, is_optional=False)},
+        field_schema={"window_calendar": FieldSchemaInfo(value_type=EntityValue, is_optional=False)},
         inclusion_map={},
     )
 
@@ -1393,7 +1398,7 @@ def test_optional_calendar_field_uses_an_optional_marker() -> None:
 
     entries = build_choose_field_entries(
         _field_map(field),
-        field_schema={"window_calendar": FieldSchemaInfo(value_type=CalendarValue | NoneValue, is_optional=True)},
+        field_schema={"window_calendar": FieldSchemaInfo(value_type=EntityValue | NoneValue, is_optional=True)},
         inclusion_map={},
     )
 
@@ -1401,13 +1406,13 @@ def test_optional_calendar_field_uses_an_optional_marker() -> None:
     assert isinstance(marker, vol.Optional)
 
 
-def test_convert_stores_a_calendar_schema_value() -> None:
-    """A selected calendar entity is stored as a calendar schema value."""
+def test_convert_stores_the_calendar_as_an_entity_value() -> None:
+    """A selected calendar is stored as an ordinary entity value."""
     field = _calendar_field()
 
     config = convert_choose_data_to_config({"window_calendar": "calendar.pool_pump"}, _field_map(field))
 
-    assert config["window_calendar"] == as_calendar_value("calendar.pool_pump")
+    assert config["window_calendar"] == as_entity_value(["calendar.pool_pump"])
 
 
 def test_convert_accepts_a_single_element_list() -> None:
@@ -1416,7 +1421,7 @@ def test_convert_accepts_a_single_element_list() -> None:
 
     config = convert_choose_data_to_config({"window_calendar": ["calendar.pool_pump"]}, _field_map(field))
 
-    assert config["window_calendar"] == as_calendar_value("calendar.pool_pump")
+    assert config["window_calendar"] == as_entity_value(["calendar.pool_pump"])
 
 
 def test_convert_empty_calendar_selection_becomes_none() -> None:
@@ -1432,6 +1437,6 @@ def test_get_choose_default_surfaces_the_calendar_entity() -> None:
     """Reconfigure pre-fills the picker with the stored entity ID."""
     field = _calendar_field()
 
-    default = get_choose_default(field, {"window_calendar": as_calendar_value("calendar.pool_pump")})
+    default = get_choose_default(field, {"window_calendar": as_entity_value(["calendar.pool_pump"])})
 
     assert default == "calendar.pool_pump"

@@ -52,8 +52,11 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         time_series: Whether this field is time series (list) or scalar
         boundaries: Whether time series values are at boundaries (n+1 values) vs intervals (n values)
         defaults: Default pre-selection behavior for config flow fields
-        calendar: When set, the field is driven by a calendar entity and gets
-            no input entity of its own
+        calendar: When set, the input resolves its values from the events of the
+            calendar entity it reads
+        outputs: When set, the config field feeds these inputs instead of being
+            an input itself, keyed by their field names
+        source_field: For an input fed by another config field, that field's name
 
     Note:
         Whether a field is optional (can be disabled in config flow) is determined
@@ -72,6 +75,8 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     # Force value to be required, even if its optional in the schema
     force_required: bool | None = None
     calendar: CalendarFieldHint | None = None
+    outputs: "Mapping[str, AnyInputFieldInfo] | None" = None
+    source_field: str | None = None
 
 
 # Union of the two concrete field-info instantiations; use when handling

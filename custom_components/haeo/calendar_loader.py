@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from homeassistant.helpers.event import EventStateChangedData
 
     from custom_components.haeo.core.data.input_store import InputStore
-    from custom_components.haeo.core.schema.calendar_value import CalendarEventDict
+    from custom_components.haeo.core.data.loader.calendar import CalendarEventDict
     from custom_components.haeo.horizon import HorizonManager
     from custom_components.haeo.input_stores import InputStoreMap
 
@@ -74,7 +74,8 @@ class CalendarStateMachine(StateMachine):
     """State machine decorator that augments calendar entities with events.
 
     Calendars mapped to None had their events fetch fail, so they read as
-    unavailable rather than as an empty calendar.
+    unavailable rather than as an empty calendar, unless their state already
+    carries events, as a replayed diagnostics or scenario state does.
     """
 
     def __init__(self, base: StateMachine, events_by_entity: Mapping[str, list[CalendarEventDict] | None]) -> None:
@@ -89,7 +90,7 @@ class CalendarStateMachine(StateMachine):
             return state
         events = self._events_by_entity[entity_id]
         if events is None:
-            return None
+            return state if CALENDAR_EVENTS_ATTRIBUTE in state.attributes else None
         return _CalendarEventState(state, events)
 
 
@@ -112,7 +113,7 @@ class CalendarInputLoader:
         """Initialize the loader over a prebuilt store map."""
         self._hass = hass
         self._horizon_manager = horizon_manager
-        self._stores: list[InputStore] = [store for store in stores.values() if store.source_kind == "calendar"]
+        self._stores: list[InputStore] = [store for store in stores.values() if store.hint.calendar is not None]
         self._unsubs: list[Callable[[], None]] = []
         self._load_lock = asyncio.Lock()
         self._tasks: set[asyncio.Task[None]] = set()

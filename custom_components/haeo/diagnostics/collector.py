@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Final
 
+from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant, State
@@ -18,7 +19,7 @@ from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
-from custom_components.haeo.core.schema import SchemaValue, is_calendar_value, is_schema_value
+from custom_components.haeo.core.schema import SchemaValue, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
 from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
 from custom_components.haeo.elements import is_element_config_schema
@@ -145,8 +146,6 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
                 for entity_id in entity_ids:
                     if isinstance(entity_id, str) and "." in entity_id:
                         collected.add(entity_id)
-            case {"type": "calendar", "value": str(entity_id)} if "." in entity_id:
-                collected.add(entity_id)
             case {"type": _}:
                 return
             case Mapping():
@@ -180,23 +179,6 @@ def _config_from_entry(config_entry: HaeoConfigEntry) -> dict[str, object]:
     }
 
 
-def _collect_calendar_entity_ids_from_entry(config_entry: HaeoConfigEntry) -> set[str]:
-    """Collect the calendar entity IDs that calendar fields in the config entry read."""
-
-    def _collect(value: Mapping[str, object], collected: set[str]) -> None:
-        for nested in value.values():
-            if is_calendar_value(nested):
-                collected.add(nested["value"])
-            elif isinstance(nested, Mapping):
-                _collect(nested, collected)
-
-    calendar_entity_ids: set[str] = set()
-    for subentry in config_entry.subentries.values():
-        if subentry.subentry_type != ELEMENT_TYPE_NETWORK:
-            _collect(subentry.data, calendar_entity_ids)
-    return calendar_entity_ids
-
-
 def _collect_entity_ids_from_entry(config_entry: HaeoConfigEntry) -> set[str]:
     """Collect all input entity IDs referenced in config entry subentries."""
     all_entity_ids: set[str] = set()
@@ -227,7 +209,7 @@ async def _fetch_inputs_at(
 
     """
     all_entity_ids = _collect_entity_ids_from_entry(config_entry)
-    calendar_entity_ids = _collect_calendar_entity_ids_from_entry(config_entry)
+    calendar_entity_ids = {eid for eid in all_entity_ids if eid.startswith(f"{CALENDAR_DOMAIN}.")}
     if not all_entity_ids:
         return [], []
 

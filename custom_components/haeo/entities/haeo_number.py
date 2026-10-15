@@ -196,7 +196,12 @@ class HaeoInputNumber(NumberEntity):
         if self._uses_forecast:
             self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
 
-        if self._store.mode == InputMode.EDITABLE:
+        if self._store.hint.calendar is not None:
+            # The calendar loader fetches events and loads calendar inputs; a
+            # calendar's own state carries no events, so this entity only shows
+            # what the store holds.
+            self._sync_from_store()
+        elif self._store.mode == InputMode.EDITABLE:
             # Refresh to signal readiness (mirrors previous _update_editable_forecast path)
             with self._suppress_self_notifications():
                 self._store.refresh()
@@ -223,7 +228,7 @@ class HaeoInputNumber(NumberEntity):
     @callback
     def _handle_horizon_change(self) -> None:
         """Handle horizon change - refresh with new time windows."""
-        if not self._uses_forecast:
+        if not self._uses_forecast or self._store.hint.calendar is not None:
             return
         if self._store.mode == InputMode.EDITABLE:
             with self._suppress_self_notifications():

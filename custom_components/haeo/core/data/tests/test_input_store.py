@@ -14,9 +14,10 @@ import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.input_store import InputMode, InputStore, create_input_store
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
-from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, FieldHint
+from custom_components.haeo.core.schema.field_hints import FieldHint, calendar_input
 
 FORECAST_TIMESTAMPS: tuple[float, ...] = (0.0, 300.0, 600.0)
 
@@ -392,32 +393,21 @@ def test_horizon_start_scalar_returns_none() -> None:
     assert store.horizon_start is None
 
 
-# --- Calendar-driven stores ---
+# --- Calendar inputs ---
 
 
 def _make_calendar_store() -> InputStore:
-    """Build a calendar-driven store with a presence parser hint."""
-    storage = _MemStorage({"type": "calendar", "value": "calendar.trips"})
-    hint = FieldHint(
-        output_type=OutputType.ENERGY,
-        time_series=True,
-        boundaries=True,
-        calendar=CalendarFieldHint(parser="presence"),
+    """Build a store for a calendar input, reading an ordinary entity value."""
+    storage = _MemStorage({"type": "entity", "value": ["calendar.trips"]})
+    return create_input_store(
+        storage=storage,
+        hint=calendar_input(OutputType.AVAILABILITY, "presence", "presence"),
+        get_forecast_timestamps=_timestamps,
     )
-    return create_input_store(storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
 
 
-def test_create_input_store_calendar_is_driven() -> None:
-    """Calendar schema values create driven stores with calendar source kind."""
-    store = _make_calendar_store()
-
-    assert store.mode == InputMode.DRIVEN
-    assert store.source_kind == "calendar"
-    assert store.source_entity_ids == ["calendar.trips"]
-
-
-async def test_calendar_store_loads_boundary_data() -> None:
-    """A calendar store resolves injected events into boundary arrays."""
+async def test_calendar_store_resolves_injected_events_like_a_sensor() -> None:
+    """A calendar input is an ordinary driven store whose source state carries injected events."""
     store = _make_calendar_store()
     event = {
         "start": "1970-01-01T00:00:00+00:00",
@@ -426,52 +416,27 @@ async def test_calendar_store_loads_boundary_data() -> None:
         "location": None,
         "description": None,
     }
-    sm = FakeStateMachine({"calendar.trips": FakeEntityState("calendar.trips", "on", {"haeo_events": [event]})})
+    sm = FakeStateMachine(
+        {"calendar.trips": FakeEntityState("calendar.trips", "on", {CALENDAR_EVENTS_ATTRIBUTE: [event]})}
+    )
 
+    assert store.mode == InputMode.DRIVEN
     assert await store.async_load(sm)
     assert store.available
-    value = store.value
-    assert isinstance(value, dict)
-    np.testing.assert_allclose(value["presence"], [1.0, 0.0, 0.0])
-    assert store.native_value is None
-    assert store.display_values is None
+    assert store.display_values == (1.0, 0.0)
     assert store.forecast_timestamps == FORECAST_TIMESTAMPS
 
 
-async def test_calendar_store_missing_entity_is_unavailable() -> None:
-    """A calendar store with no entity state fails to load."""
+@pytest.mark.parametrize(
+    "states",
+    [
+        pytest.param({}, id="missing_state"),
+        pytest.param({"calendar.trips": FakeEntityState("calendar.trips", "on", {})}, id="no_injected_events"),
+    ],
+)
+async def test_calendar_store_without_injected_events_is_unavailable(states: dict[str, FakeEntityState]) -> None:
+    """A calendar input whose state is missing or carries no events fails to load."""
     store = _make_calendar_store()
 
-    assert not await store.async_load(FakeStateMachine({}))
+    assert not await store.async_load(FakeStateMachine(states))
     assert not store.available
-
-
-async def test_calendar_store_replays_captured_events() -> None:
-    """Captured events in the persisted value resolve without entity state."""
-    storage = _MemStorage(
-        {
-            "type": "calendar",
-            "value": "calendar.trips",
-            "events": [
-                {
-                    "start": "1970-01-01T00:00:00+00:00",
-                    "end": "1970-01-01T00:05:00+00:00",
-                    "summary": "Trip",
-                    "location": None,
-                    "description": None,
-                }
-            ],
-        }
-    )
-    hint = FieldHint(
-        output_type=OutputType.ENERGY,
-        time_series=True,
-        boundaries=True,
-        calendar=CalendarFieldHint(parser="presence"),
-    )
-    store = create_input_store(storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
-
-    assert await store.async_load(FakeStateMachine({}))
-    value = store.value
-    assert isinstance(value, dict)
-    np.testing.assert_allclose(value["presence"], [1.0, 0.0, 0.0])

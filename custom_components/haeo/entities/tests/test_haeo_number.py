@@ -14,12 +14,15 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import EntityPlatform
+from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.data.input_store import InputMode, create_input_store
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.core.schema import (
     SchemaValue,
@@ -30,7 +33,7 @@ from custom_components.haeo.core.schema import (
 )
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
-from custom_components.haeo.core.schema.field_hints import FieldHint
+from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, FieldHint
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY
 from custom_components.haeo.elements import find_nested_config_path, get_nested_config_value_by_path
@@ -251,6 +254,7 @@ def _make_entity(
         direction=field_info.direction,
         time_series=field_info.time_series,
         boundaries=field_info.boundaries,
+        calendar=field_info.calendar,
     )
     store = create_input_store(
         storage=storage,
@@ -1407,3 +1411,55 @@ async def test_unrecorded_attributes_based_on_config(
         assert entity._state_info["unrecorded_attributes"] == FORECAST_UNRECORDED_ATTRIBUTES
     else:
         assert entity._state_info["unrecorded_attributes"] == frozenset()
+
+
+async def test_calendar_input_shows_what_the_calendar_loader_puts_in_its_store(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """A calendar input's entity never loads its calendar's plain state; it shows the store the loader fills."""
+    field_info = InputFieldInfo(
+        field_name="trip_away",
+        entity_description=NumberEntityDescription(
+            key="trip_away", translation_key="trip_away", native_min_value=0.0, native_max_value=1.0
+        ),
+        output_type=OutputType.AVAILABILITY,
+        time_series=True,
+        calendar=CalendarFieldHint(parser="distance", projection="presence"),
+        source_field="trip_calendar",
+    )
+    hass.states.async_set("calendar.trips", "on")
+    subentry = _create_subentry("Test EV", {"trip_calendar": "calendar.trips"})
+    config_entry.runtime_data = None
+    entity = _make_entity(
+        hass,
+        config_entry,
+        subentry,
+        field_info,
+        device_entry,
+        horizon_manager,
+        field_path=(SECTION_EFFICIENCY, "trip_calendar"),
+    )
+
+    await _add_entity_to_hass(hass, entity)
+    event = {
+        "start": dt_util.utc_from_timestamp(horizon_manager.get_forecast_timestamps()[0]).isoformat(),
+        "end": dt_util.utc_from_timestamp(horizon_manager.get_forecast_timestamps()[1]).isoformat(),
+        "summary": "Trip",
+        "location": None,
+        "description": None,
+    }
+    loaded_state = FakeEntityState("calendar.trips", "on", {CALENDAR_EVENTS_ATTRIBUTE: [event]})
+    assert entity.store.resolve_from_sources(FakeStateMachine({"calendar.trips": loaded_state}))
+    entity.store.notify_listeners()
+    assert entity.native_value == 1.0
+
+    # The calendar's own state carries no events; it must not reload the store
+    hass.states.async_set("calendar.trips", "off")
+    entity._handle_horizon_change()
+    await hass.async_block_till_done()
+
+    assert entity.store.available
+    assert entity.native_value == 1.0

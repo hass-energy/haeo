@@ -34,12 +34,10 @@ from custom_components.haeo.core.schema import (
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
     SchemaValue,
-    as_calendar_value,
     as_constant_value,
     as_entity_value,
     as_none_value,
     get_schema_value_kinds,
-    is_calendar_value,
     is_constant_value,
     is_entity_value,
     is_none_value,
@@ -351,6 +349,11 @@ def build_choose_schema_entry(
     return vol.Required(field_name), selector
 
 
+def reads_calendar(field_info: AnyInputFieldInfo) -> bool:
+    """Return True when a config field feeds inputs resolved from a calendar's events."""
+    return bool(field_info.outputs) and any(output.calendar is not None for output in field_info.outputs.values())
+
+
 def build_choose_field_entries(
     input_fields: Mapping[str, AnyInputFieldInfo],
     *,
@@ -379,9 +382,9 @@ def build_choose_field_entries(
             raise RuntimeError(msg)
         is_optional = schema_info.is_optional and not field_info.force_required
 
-        # Calendar-driven fields render as a plain calendar entity picker
-        # rather than a choose selector (no constant form exists).
-        if field_info.calendar is not None:
+        # A field feeding calendar inputs renders as a plain calendar entity
+        # picker rather than a choose selector (no constant form exists).
+        if reads_calendar(field_info):
             calendar_selector = EntitySelector(EntitySelectorConfig(domain="calendar", multiple=False))
             marker = vol.Optional(field_info.field_name) if is_optional else vol.Required(field_info.field_name)
             entries[field_info.field_name] = (marker, calendar_selector)
@@ -617,9 +620,8 @@ def get_choose_default(
     current_value = _get_nested_value(current_data, field_name) if current_data is not None else None
 
     if is_entity_value(current_value):
-        return current_value["value"]
-    if is_calendar_value(current_value):
-        return current_value["value"]
+        # The single calendar picker takes the entity ID rather than a list
+        return current_value["value"][0] if reads_calendar(field_info) else current_value["value"]
     if is_constant_value(current_value):
         return current_value["value"]
     if is_none_value(current_value):
@@ -670,11 +672,11 @@ def convert_choose_data_to_config(
         if field_name not in field_names:
             continue
 
-        # Calendar fields store a calendar schema value from the entity picker
-        if input_fields[field_name].calendar is not None:
+        # The calendar picker returns one entity ID, stored like any entity value
+        if reads_calendar(input_fields[field_name]):
             entity_id = value[0] if isinstance(value, list) and value else value
             if isinstance(entity_id, str) and entity_id:
-                config[field_name] = as_calendar_value(entity_id)
+                config[field_name] = as_entity_value([entity_id])
             else:
                 config[field_name] = as_none_value()
             continue
@@ -758,7 +760,7 @@ def preprocess_choose_selector_input(
                 result[field_name] = value.get(CHOICE_CONSTANT)
         # Handle discriminated schema values
         elif is_schema_value(value):
-            if is_entity_value(value) or is_constant_value(value) or is_calendar_value(value):
+            if is_entity_value(value) or is_constant_value(value):
                 result[field_name] = value["value"]
             else:
                 result[field_name] = None

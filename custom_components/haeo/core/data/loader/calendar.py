@@ -15,16 +15,23 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 import re
-from typing import TYPE_CHECKING, Final
-
-from custom_components.haeo.core.schema.calendar_value import CalendarEventDict
+from typing import TYPE_CHECKING, Final, TypedDict
 
 if TYPE_CHECKING:
-    from custom_components.haeo.core.schema.calendar_value import CalendarValue
-    from custom_components.haeo.core.state import StateMachine
+    from custom_components.haeo.core.state import EntityState
 
 # State attribute carrying fetched events, injected by the HA-level calendar loader
 CALENDAR_EVENTS_ATTRIBUTE: Final = "haeo_events"
+
+
+class CalendarEventDict(TypedDict):
+    """Serialized calendar event, as injected into a calendar state and captured in diagnostics."""
+
+    start: str
+    end: str
+    summary: str | None
+    location: str | None
+    description: str | None
 
 
 @dataclass(frozen=True)
@@ -232,50 +239,33 @@ def _optional_str(value: object) -> str | None:
 
 
 def load_calendar_events(
-    value: CalendarValue,
-    sm: StateMachine,
+    state: EntityState | None,
     *,
     default_tz: tzinfo | None = None,
-) -> list[CalendarEventData]:
-    """Load calendar events from a CalendarValue schema field.
+) -> list[CalendarEventData] | None:
+    """Load the events injected into a calendar entity's state.
 
-    Two paths based on type discrimination:
-    - If ``value["events"]`` is populated (diagnostic replay), parse directly
-    - Otherwise, load from the StateMachine (live HA entity)
-
-    The live path reads events from the entity's ``haeo_events`` attribute,
-    which must be injected by the HA-level calendar service caller before
-    the core loader sees it.
+    Home Assistant calendar states only show the current or next event, so
+    the HA-level calendar loader fetches the horizon's events and injects them
+    as the ``haeo_events`` attribute. Captured states keep the attribute, so
+    diagnostics and scenarios replay the same events.
 
     Args:
-        value: Calendar schema value with entity_id and optional captured events.
-        sm: State machine for entity state lookup.
+        state: The calendar entity's state.
         default_tz: Timezone assumed for naive event timestamps. Defaults to
             the system local timezone.
 
     Returns:
-        List of CalendarEventData objects.
+        The events, or None when the state is missing or carries no injected
+        events, so the input cannot be resolved.
 
     """
-    tz = default_tz if default_tz is not None else _default_local_timezone()
-
-    # Path 1: Events already captured (diagnostic replay / scenario test)
-    captured = value.get("events")
-    if captured is not None:
-        return _parse_event_dicts(captured, default_tz=tz)
-
-    # Path 2: Load from entity state
-    entity_id = value["value"]
-    state = sm.get(entity_id)
     if state is None:
-        return []
-
-    # Events are expected in the events attribute, injected by the HA-level
-    # adapter before the core loader runs.
+        return None
     raw_events = state.attributes.get(CALENDAR_EVENTS_ATTRIBUTE)
     if not isinstance(raw_events, list):
-        return []
-
+        return None
+    tz = default_tz if default_tz is not None else _default_local_timezone()
     return _parse_event_dicts(raw_events, default_tz=tz)
 
 
@@ -284,8 +274,7 @@ def capture_calendar_events(
 ) -> list[CalendarEventDict]:
     """Serialize calendar events for diagnostics capture.
 
-    Produces the format stored in CalendarValue.events and in
-    entity state attributes for diagnostic replay.
+    Produces the format injected into calendar entity states.
     """
     return [
         CalendarEventDict(

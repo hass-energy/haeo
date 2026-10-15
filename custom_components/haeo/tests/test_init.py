@@ -49,6 +49,7 @@ from custom_components.haeo.core.const import (
     HORIZON_PRESET_2_DAYS,
 )
 from custom_components.haeo.core.data.util.input_values import InputError
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import (
@@ -67,6 +68,7 @@ from custom_components.haeo.core.schema.elements.buffer import (
     SECTION_PARTICIPANTS,
 )
 from custom_components.haeo.core.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
+from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
@@ -566,7 +568,7 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
 
     # Create a mock input store that never becomes ready
     class NeverReadyStore:
-        source_kind = "entity"
+        hint = FieldHint(output_type=OutputType.POWER_LIMIT)
         source_entity_ids: ClassVar[list[str]] = ["sensor.limit"]
 
         def __init__(self) -> None:
@@ -666,7 +668,7 @@ async def test_setup_reentry_after_timeout_failure(
 
     # Create a mock input store that fails first time, succeeds second time
     class ConditionalReadyStore:
-        source_kind = "entity"
+        hint = FieldHint(output_type=OutputType.POWER_LIMIT)
         error = None
 
         def __init__(self) -> None:

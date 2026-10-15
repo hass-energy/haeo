@@ -4,8 +4,9 @@ from homeassistant.components.number.const import DEFAULT_MAX_VALUE, DEFAULT_MIN
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.elements.grid import GridConfigSchema
-from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints, extract_field_hints
+from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints, calendar_input, extract_field_hints
 from custom_components.haeo.core.schema.sections import CONF_PRICE_SOURCE_TARGET, SECTION_PRICING
+from custom_components.haeo.elements import config_field_path, iter_input_field_paths
 from custom_components.haeo.elements.input_fields import is_number_field_info
 from custom_components.haeo.elements.field_hints import (
     OUTPUT_TYPE_DEFAULTS,
@@ -128,3 +129,39 @@ def test_build_input_fields_translation_key_combines_element_type_and_field_name
     fields = build_input_fields("grid", extract_field_hints(GridConfigSchema))
 
     assert fields[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET].entity_description.translation_key == ("grid_price_source_target")
+
+
+_TRIP_HINT = FieldHint(
+    output_type=OutputType.AVAILABILITY,
+    outputs={
+        "trip_away": calendar_input(OutputType.AVAILABILITY, "distance", "presence"),
+        "trip_due": calendar_input(OutputType.ENERGY, "distance", "window_due"),
+    },
+)
+
+
+def test_field_with_outputs_feeds_an_input_per_output() -> None:
+    """A field with outputs keeps one config field and gets an input for each output, reading that field."""
+    fields = build_input_fields("ev", {"trip": {"trip_calendar": _TRIP_HINT}})
+
+    field_info = fields["trip"]["trip_calendar"]
+    assert field_info.outputs is not None
+    assert {name: output.source_field for name, output in field_info.outputs.items()} == {
+        "trip_away": "trip_calendar",
+        "trip_due": "trip_calendar",
+    }
+    assert field_info.outputs["trip_due"].entity_description.translation_key == "ev_trip_due"
+    assert field_info.outputs["trip_due"].boundaries
+    assert not field_info.outputs["trip_away"].boundaries
+
+    paths = iter_input_field_paths(fields)
+    assert [path for path, _info in paths] == [("trip", "trip_away"), ("trip", "trip_due")]
+    assert [config_field_path(path, info) for path, info in paths] == [("trip", "trip_calendar")] * 2
+
+
+def test_field_without_outputs_reads_its_own_path() -> None:
+    """An ordinary field is its own input and reads its own config path."""
+    fields = build_input_fields("grid", extract_field_hints(GridConfigSchema))
+
+    path, info = next((p, i) for p, i in iter_input_field_paths(fields) if p == (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))
+    assert config_field_path(path, info) == path
