@@ -23,6 +23,7 @@ from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBo
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
+    MODEL_ELEMENT_TYPE_BUFFER,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
     MODEL_ELEMENT_TYPE_NODE,
@@ -874,3 +875,100 @@ def test_no_reserve_means_no_reserve_output() -> None:
 
     outputs = adapter.outputs("ev", {n: e.outputs() for n, e in network.elements.items()}, config=config)[EV_DEVICE_EV]
     assert EV_RESERVE_SHORTFALL not in outputs
+
+
+# --- Buffers ---
+
+
+def _buffered_home_network(*, loads: list[str], storage: list[str]) -> Network:
+    """Solve a house, a home battery and a V2G EV with a 10 kWh trip in period 3 under a 2 hour reserve."""
+    n = 4
+    network = Network(name="test", periods=np.ones(n))
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "home", "is_source": False, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": False})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "grid:import",
+            "source": "grid",
+            "target": "home",
+            "tags": {1},
+            "segments": {"pricing": {"segment_type": "pricing", "price": np.array([0.1, 0.3, 0.3, 0.3])}},
+        }
+    )
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "house", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "house:connection",
+            "source": "home",
+            "target": "house",
+            "tags": {1},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": np.ones(n), "fixed": True}},
+        }
+    )
+    network.add(
+        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 20.0, "initial_charge": 2.0}
+    )
+    for name, source, target in (("battery:charge", "home", "battery"), ("battery:discharge", "battery", "home")):
+        network.add(
+            {
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": name,
+                "source": source,
+                "target": target,
+                "tags": {1},
+                "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 5.0}},
+            }
+        )
+    config = _ev_config(
+        charging={"max_charge_rate": 10.0, "max_discharge_rate": 10.0},
+        trip={
+            "trip_calendar": _boundary_data(
+                presence=[0.0, 0.0, 0.0, 1.0, 0.0],
+                value_edge_start=[0.0, 0.0, 0.0, 50.0, 0.0],
+                value_edge_end=[0.0, 0.0, 0.0, 0.0, 50.0],
+            ),
+            "connected": 1.0,
+        },
+    )
+    for element in sorted(adapter.model_elements(config), key=lambda e: e["element_type"] != "node"):
+        if element["element_type"] == "connection":
+            element.setdefault("tags", {1})  # type: ignore[typeddict-unknown-key]  # spec allows tags
+        network.add(element)
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_BUFFER,
+            "name": "buffer",
+            "kind": "reserve",
+            "loads": loads,
+            "generation": [],
+            "storage": storage,
+            "window": 2.0,
+            "level": None,
+            "price": 1.0,
+        }
+    )
+    network.optimize()
+    return network
+
+
+def test_buffer_counts_the_ev_trips_as_its_load() -> None:
+    """An EV picked as a buffer load counts its trip energy, not its charging, toward the requirement."""
+    network = _buffered_home_network(loads=["house", "ev"], storage=["battery"])
+
+    required = network.elements["buffer"].outputs()["buffer_energy_required"].values
+    # 1 kWh of house and the 10 kWh trip fall in the window from boundary 2.
+    assert required[2] == pytest.approx(12.0)
+
+
+def test_buffer_holds_the_trip_energy_in_the_ev_pack() -> None:
+    """With the EV also holding the buffer, trip energy already in the pack counts, so nothing extra is held."""
+    holding = _buffered_home_network(loads=["house", "ev"], storage=["battery", "ev"])
+    home_only = _buffered_home_network(loads=["house", "ev"], storage=["battery"])
+
+    available = holding.elements["buffer"].outputs()["buffer_energy_available"].values
+    assert available[2] == pytest.approx(12.0)
+    # The pack's 10 kWh covers the trip, so the home battery is not filled for it.
+    assert holding.elements["battery"].outputs()[BATTERY_ENERGY_STORED].values[2] == pytest.approx(2.0)
+    assert home_only.elements["battery"].outputs()[BATTERY_ENERGY_STORED].values[2] == pytest.approx(12.0)

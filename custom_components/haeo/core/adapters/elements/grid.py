@@ -71,6 +71,7 @@ class GridAdapter:
     can_source: bool = True
     can_sink: bool = True
     can_store: bool = False
+    can_consume: bool = False
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:
         """Create model elements for Grid configuration."""
