@@ -122,14 +122,14 @@ validate_buffer(
 
 This headroom keeps the top 10% of the battery free, so it spends less time full.
 It covers no loads or generation, so it simply keeps the battery below its level of 90%.
-A low shortfall cost lets HAEO fill the top of the battery when the energy is worth it, such as when it will soon be needed.
+A firm shortfall cost keeps the battery under its level, while still leaving HAEO free to cross it if prices ever make that worth far more.
 
 Click **Buffer** to add another, choose **Headroom: keep empty space** as its kind, pick the battery, and set:
 
 - **Window**: 1 hour.
     With no loads or generation it does not change what the headroom holds.
 - **Level**: 90%.
-- **Shortfall cost**: \$0.02 per kWh past the headroom, for every hour it lasts.
+- **Shortfall cost**: \$0.50 per kWh past the headroom, for every hour it lasts.
 
 ```guide
 add_buffer(
@@ -139,7 +139,7 @@ add_buffer(
     storage=["Battery"],
     window=ConstantInput(1.0),
     level=ConstantInput(90.0),
-    shortfall_cost=ConstantInput(0.02),
+    shortfall_cost=ConstantInput(0.5),
 )
 validate_buffer(hass, name="Battery care", kind="headroom", participants={"storage": ["Battery"]})
 ```
@@ -154,7 +154,6 @@ Use the arrows to flick between the plans with neither, each one, and both.
 - **A shorter outage** lowers the line, and HAEO plans to use more of the battery.
 - **The headroom** appears as a purple dotted line at 90%, which the battery's state of charge should stay on or below.
     The battery now waits on the line through the day instead of sitting at full.
-    It only tops up past it for a short spell before the evening, when the energy is about to be used and the holding cost is small.
 - **With both**, the plan keeps the battery between the two lines.
 
 Each buffer has input entities for its window, level, and shortfall cost, so you can change them from a dashboard as these plans do.
@@ -182,7 +181,7 @@ set_input(hass, element="Backup", field="window", value=4.0)
 show_plan("With a 4 hour reserve", hidden=["Battery care"])
 
 set_input(hass, element="Backup", field="shortfall_cost", value=0.0)
-set_input(hass, element="Battery care", field="shortfall_cost", value=0.02)
+set_input(hass, element="Battery care", field="shortfall_cost", value=0.5)
 show_plan("Keeping the top 10% free", hidden=["Backup"])
 
 set_input(hass, element="Backup", field="shortfall_cost", value=0.05)
@@ -253,8 +252,8 @@ It is charged per kWh short, for every hour the shortfall lasts.
 A buffer with no loads or generation holds the batteries on one side of its level.
 A reserve keeps the battery above its level unless dipping lower is worth the cost, and headroom keeps it below its level the same way.
 
-- **To look after the battery**, add headroom at the level you want to stay under, such as 90%, with a low shortfall cost.
-    HAEO then fills the top slice only when the energy is worth more than the holding cost for as long as it stays there.
+- **To look after the battery**, add headroom at the level you want to stay under, such as 90%.
+    A firm shortfall cost, such as \$0.50 per kWh per hour, keeps the battery under it, and a lower one lets HAEO fill the top slice when the energy is worth more than the holding cost for as long as it stays there.
 - **For a grid support program**, add headroom at a level that leaves the capacity you have committed free, with a high shortfall cost.
     If the commitment only covers some hours, drive the level from a sensor that is 100% outside them.
 
