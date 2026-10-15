@@ -96,6 +96,12 @@ Between a weight known too small and one known too large, the weight is bisected
 The weight settled on is kept for later solves, and since inputs change, no weight is ruled out for good.
 If no weight puts the plan in order without failing the cost, the cost-optimal plan is kept; if none is cost-optimal at all, the cost alone is solved.
 
+Elements can require integer variables, such as the [schedulable load's](model-layer/elements/schedulable_load.md#integer-starts) start decisions.
+Each plan solve is then mixed-integer, and the integer variables are fixed at their solved values so the same objective can be solved again as a linear program with valid duals.
+Reduced costs at that basis only see moves of the continuous variables, not a cheaper integer decision.
+So a plan with integer variables is cost-optimal only when its cost also matches the cost-only optimum, solved once per optimization with a zero MIP gap.
+Networks without integer variables skip both steps.
+
 The primary objective is priced last, so its dual values at the plan's basis are the shadow prices: the blended duals without the secondary's contribution.
 
 The secondary's reduced costs are scaled by the small blend weight, so the solver runs with feasibility tolerances of $10^{-9}$ rather than the HiGHS default of $10^{-7}$.

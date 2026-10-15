@@ -142,8 +142,6 @@ class Network:
 
         # Apply tunable solver options
         self.options.apply(self._solver)
-        # Integer plans are compared against the cost-only optimum, so it must be exact
-        self._solver.setOptionValue("mip_rel_gap", 0.0)
 
     @staticmethod
     def _log_callback(_log_type: int, message: str) -> None:
@@ -507,6 +505,9 @@ class Network:
         self._integer_cols = np.unique(np.concatenate([variables.cols[:, 0] for variables in integer] or [[]])).astype(
             np.int32
         )
+        if len(self._integer_cols):
+            # Integer plans are compared against the cost-only optimum, so it must be exact
+            self._solver.setOptionValue("mip_rel_gap", 0.0)
 
     def _release_integers(self) -> None:
         """Restore the bounds of integer columns fixed by the last plan solve and make them integer again."""
