@@ -7,14 +7,14 @@ save the rendered card as an SVG figure. The figure carries the card's own
 markup and styles, so it stays sharp at any size, legend included.
 
 Each capture re-runs the optimizer first, so the card reflects every change
-the guide has made so far.
+the guide has made so far. While captures are paused, such as when a guide
+replays another as its setup, the cards are not rendered at all.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
-from datetime import date, datetime
 import json
 import logging
 from typing import TYPE_CHECKING
@@ -22,6 +22,7 @@ from xml.sax.saxutils import quoteattr
 
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.json import json_dumps
 
 from custom_components.haeo.const import DOMAIN, STATIC_CARD_STATIC_PATH
 from custom_components.haeo.core.schema.elements.element_type import ElementType
@@ -50,6 +51,7 @@ _THEME_VARIABLES = {
         "--secondary-text-color": "#727272",
         "--divider-color": "rgba(0, 0, 0, 0.12)",
         "--primary-color": "#009ac7",
+        "--error-color": "#db4437",
         "background": "#f5f5f5",
     },
     True: {
@@ -58,16 +60,10 @@ _THEME_VARIABLES = {
         "--secondary-text-color": "#9b9b9b",
         "--divider-color": "rgba(225, 225, 225, 0.12)",
         "--primary-color": "#009ac7",
+        "--error-color": "#db4437",
         "background": "#111111",
     },
 }
-
-
-def _json_default(value: object) -> str:
-    """Serialize datetimes in state attributes the way the frontend receives them."""
-    if isinstance(value, (datetime, date)):
-        return value.isoformat()
-    return str(value)
 
 
 def _hub_entry_id(hass: LiveHomeAssistant) -> str:
@@ -85,17 +81,36 @@ def optimize(hass: LiveHomeAssistant) -> None:
     hass.run_coro(_optimize(), timeout=120)
 
 
-def set_input(hass: LiveHomeAssistant, *, element: str, field: str, value: float) -> None:
-    """Set one of an element's input entities, as you would from a dashboard."""
+def _find_input(hass: LiveHomeAssistant, domain: str, *, element: str, field: str) -> str:
+    """Return the entity of an element's input, named by its field or by its path such as ``pricing.price``.
 
-    async def _find_entity() -> str:
-        return next(
+    Raises:
+        ValueError: If no input or more than one matches, such as a field name
+            used in several sections of the element.
+
+    """
+
+    async def _matches() -> list[str]:
+        return [
             state.entity_id
-            for state in hass.hass.states.async_all("number")
-            if state.attributes.get("element_name") == element and state.attributes.get("field_name") == field
-        )
+            for state in hass.hass.states.async_all(domain)
+            if state.attributes.get("element_name") == element
+            and field in (state.attributes.get("field_name"), state.attributes.get("field_path"))
+        ]
 
-    entity_id = hass.run_coro(_find_entity())
+    matches = hass.run_coro(_matches())
+    if len(matches) != 1:
+        msg = f"Expected one {domain} input {field!r} on {element}, found {matches or 'none'}"
+        raise ValueError(msg)
+    return matches[0]
+
+
+def set_input(hass: LiveHomeAssistant, *, element: str, field: str, value: float) -> None:
+    """Set one of an element's input entities, as you would from a dashboard.
+
+    Name the field by its path, such as ``pricing.price``, when the element uses its name in more than one section.
+    """
+    entity_id = _find_input(hass, "number", element=element, field=field)
     hass.call_service("number", "set_value", {"entity_id": entity_id, "value": value})
     _LOGGER.info("Set %s to %s", entity_id, value)
 
@@ -103,19 +118,16 @@ def set_input(hass: LiveHomeAssistant, *, element: str, field: str, value: float
 def set_policy_rule(hass: LiveHomeAssistant, *, rule: str, enabled: bool) -> None:
     """Turn a policy rule on or off with its enabled switch, as you would from a dashboard."""
 
-    async def _find_entity() -> str:
-        ha = hass.hass
-        entry = ha.config_entries.async_entries(DOMAIN)[0]
+    async def _rule_path() -> tuple[str, str]:
+        entry = hass.hass.config_entries.async_entries(DOMAIN)[0]
         policies = next(
             subentry for subentry in entry.subentries.values() if subentry.subentry_type == ElementType.POLICY
         )
         index = next(i for i, item in enumerate(policies.data[CONF_RULES]) if item[CONF_RULE_NAME] == rule)
-        unique_id = f"{entry.entry_id}_{policies.subentry_id}_{CONF_RULES}.{index}.{CONF_ENABLED}"
-        entity_id = er.async_get(ha).async_get_entity_id("switch", DOMAIN, unique_id)
-        assert entity_id is not None, f"Policy rule {rule} has no enabled switch"
-        return entity_id
+        return policies.title, f"{CONF_RULES}.{index}.{CONF_ENABLED}"
 
-    entity_id = hass.run_coro(_find_entity())
+    element, path = hass.run_coro(_rule_path())
+    entity_id = _find_input(hass, "switch", element=element, field=path)
     hass.call_service("switch", "turn_on" if enabled else "turn_off", {"entity_id": entity_id})
     _LOGGER.info("Turned %s %s", entity_id, "on" if enabled else "off")
 
@@ -150,7 +162,7 @@ def _hass_payload(hass: LiveHomeAssistant, entity_filter: Callable[[str, dict[st
             },
         }
 
-    return json.dumps(hass.run_coro(_collect()), default=_json_default)
+    return json_dumps(hass.run_coro(_collect()))
 
 
 def _is_dark(page: HAPage) -> bool:
@@ -174,7 +186,29 @@ def _card_css(dark: bool) -> str:
 
 # Flattens the card's shadow root into plain markup, with its styles scoped to a
 # wrapper standing in for the host element, so the card renders inside an SVG.
-_SERIALIZE_CARD_JS = """
+# ``:host(selector)`` becomes the wrapper with that selector.
+# Waits until the card's markup stops changing across several painted frames,
+# so lazily loaded parts, resize-driven layout, and the legend are all in place.
+_WAIT_SETTLED_JS = """
+async () => {
+  const root = document.querySelector('.card').firstElementChild.shadowRoot;
+  const frame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  if (document.fonts) await document.fonts.ready;
+  let previous = null;
+  let stable = 0;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    await frame();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const markup = root.innerHTML;
+    stable = markup === previous ? stable + 1 : 0;
+    if (stable >= 3) return true;
+    previous = markup;
+  }
+  return false;
+}
+"""
+
+_SERIALIZE_CARD_JS = r"""
 (hostClass) => {
   const card = document.querySelector('.card');
   const host = card.firstElementChild;
@@ -185,8 +219,9 @@ _SERIALIZE_CARD_JS = """
     if (node.nodeName === 'STYLE') css += node.textContent;
     else flat.appendChild(node.cloneNode(true));
   }
+  if (css.includes(':host-context')) throw new Error('Cards using :host-context cannot be flattened');
   const style = document.createElement('style');
-  style.textContent = css.replaceAll(':host', '.' + hostClass);
+  style.textContent = css.replace(/:host\(([^)]*)\)/g, '.' + hostClass + '$1').replaceAll(':host', '.' + hostClass);
   flat.prepend(style);
   const frame = card.cloneNode(false);
   frame.appendChild(flat);
@@ -205,13 +240,13 @@ def _card_page(
     config: Mapping[str, object],
     hass_json: str,
     fill_height: bool,
+    dark: bool,
 ) -> Iterator[Page]:
     """Open a page of its own showing the card, ready to capture, and close it afterwards.
 
     A card that fills the page's height takes the viewport's shape, as a chart
     does on a dashboard. Otherwise the card takes the height of its content.
     """
-    dark = _is_dark(page)
     layout = "height: 100%; display: flex;" if fill_height else "display: block;"
     html = f"""<!doctype html>
 <html>
@@ -257,6 +292,9 @@ def _card_page(
             f"() => document.querySelector('{tag}')?.shadowRoot?.querySelector('svg path') != null",
             timeout=_RENDER_TIMEOUT_MS,
         )
+        if not preview.evaluate(_WAIT_SETTLED_JS):
+            msg = f"{tag} kept changing and never settled for a capture"
+            raise RuntimeError(msg)
         yield preview
     finally:
         context.close()
@@ -280,18 +318,22 @@ def _card_svg(preview: Page, *, dark: bool) -> str:
 def _render_card(
     page: HAPage,
     hass: LiveHomeAssistant,
+    ctx: ScreenshotContext,
     *,
     tag: str,
     config: Mapping[str, object],
-    hass_json: str,
+    entity_filter: Callable[[str, dict[str, object]], bool],
     step: str,
     fill_height: bool,
 ) -> None:
-    """Render a card and save it as a figure of the current step, when captures are being taken."""
-    ctx = ScreenshotContext.current()
-    if ctx is not None:
-        with _card_page(page, hass, tag=tag, config=config, hass_json=hass_json, fill_height=fill_height) as preview:
-            ctx.save_figure(step, _card_svg(preview, dark=_is_dark(page)))
+    """Optimize, render a card from the entities that pass the filter, and save it as a figure of the current step."""
+    optimize(hass)
+    hass_json = _hass_payload(hass, entity_filter)
+    dark = _is_dark(page)
+    with _card_page(
+        page, hass, tag=tag, config=config, hass_json=hass_json, fill_height=fill_height, dark=dark
+    ) as preview:
+        ctx.save_figure(step, _card_svg(preview, dark=dark))
 
 
 @guide_step
@@ -310,37 +352,59 @@ def show_forecast_card(
         page: The guide's page.
         hass: The live Home Assistant instance.
         step: Name of the figure, shown as its label.
-        elements: Elements whose forecasts the card shows.
+        elements: Elements whose planned forecasts the card shows.
         horizon: How much of the forecast the card shows, as one of its horizon presets.
         inputs: Elements whose input forecasts and limits the card also shows, alongside the plan.
 
     """
-    optimize(hass)
-    hass_json = _hass_payload(
-        hass,
-        lambda _entity_id, attributes: (
-            attributes.get("element_name") in elements
-            and "forecast" in attributes
-            and ("config_mode" not in attributes or attributes.get("element_name") in (inputs or []))
-        ),
-    )
+    ctx = ScreenshotContext.current()
+    if ctx is None:
+        return
+    shown_inputs = inputs or []
+
+    def _shows(_entity_id: str, attributes: dict[str, object]) -> bool:
+        if "forecast" not in attributes:
+            return False
+        if "config_mode" in attributes:
+            return attributes.get("element_name") in shown_inputs
+        return attributes.get("element_name") in elements
+
     config = {
         "type": "custom:haeo-forecast-card",
         "hub_entry_id": _hub_entry_id(hass),
         "default_horizon": horizon,
         "tooltip_visible": False,
     }
-    _render_card(page, hass, tag="haeo-forecast-card", config=config, hass_json=hass_json, step=step, fill_height=True)
+    _render_card(
+        page,
+        hass,
+        ctx,
+        tag="haeo-forecast-card",
+        config=config,
+        entity_filter=_shows,
+        step=step,
+        fill_height=True,
+    )
     _LOGGER.info("Captured forecast card for %s", ", ".join(elements))
 
 
 @guide_step
 def show_topology_card(page: HAPage, hass: LiveHomeAssistant, *, step: str) -> None:
     """Capture the topology card for the whole network."""
-    optimize(hass)
-    hass_json = _hass_payload(hass, lambda _entity_id, attributes: "topology" in attributes)
+    ctx = ScreenshotContext.current()
+    if ctx is None:
+        return
     config = {"type": "custom:haeo-topology-card", "hub_entry_id": _hub_entry_id(hass)}
-    _render_card(page, hass, tag="haeo-topology-card", config=config, hass_json=hass_json, step=step, fill_height=False)
+    _render_card(
+        page,
+        hass,
+        ctx,
+        tag="haeo-topology-card",
+        config=config,
+        entity_filter=lambda _entity_id, attributes: "topology" in attributes,
+        step=step,
+        fill_height=False,
+    )
     _LOGGER.info("Captured topology card")
 
 
