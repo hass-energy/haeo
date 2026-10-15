@@ -83,8 +83,8 @@ This means HAEO calculates the average power or price over each optimization per
 
 For the optimization horizon:
 
-- **Position 0**: Present value at the horizon start time
-- **Position 1+**: Average value over each subsequent time interval
+- **Each position**: Average value over that time interval
+- **Position 0**: Replaced by the present value when the field also reads a sensor without a forecast (see [Multiple Sensors](#multiple-sensors))
 
 This approach accurately represents energy consumption and costs over time.
 
@@ -117,7 +117,9 @@ HAEO combines them automatically.
 - Present values **sum together**
 - Forecast series **merge on shared timestamps and sum**
 - With only present values, the summed value repeats across the horizon
-- With a forecast, the summed present value is the value for now (the first period) and the summed forecast covers the rest
+- With a forecast, the summed present value is the value for now and the summed forecast covers the rest.
+    "Now" is the first period, or the horizon start for point-in-time fields such as capacity.
+- Each forecast adds zero outside its own time range
 
 **Example scenarios**:
 
@@ -136,17 +138,18 @@ sensor_2: sensor.solar_ground_forecast
 **Scenario 2: One forecast sensor, one simple sensor**
 
 ```yaml
-sensor_1: sensor.solar_array_forecast
+sensor_1: sensor.nordpool_price
 # Provides forecast series [...predictions...]
 
-sensor_2: sensor.current_load
-# Provides current value: 1.5 kW
+sensor_2: sensor.network_tariff
+# Provides current value: 0.08 $/kWh
 
-# Result: 1.5 kW for the first period, then the forecast series
+# Result: 0.08 $/kWh for the first period, then the price forecast alone
 ```
 
 A present value is a reading of now, not a constant to add to every period.
-To add a constant across the horizon, give it a forecast, for example a template sensor with a `forecast` attribute.
+To add a constant to every period, use a [custom forecast sensor](#creating-custom-forecast-sensors) whose forecast already includes it, such as a template that adds the tariff to each price point.
+For loads, configure the constant as its own load element instead (see [combining constant and variable loads](elements/load.md#combining-constant-and-variable-loads)).
 
 This makes it easy to model multiple solar arrays, price components, or load sources without manual calculation.
 
@@ -375,6 +378,7 @@ During element configuration, select the input_number entity in the entity selec
 | **Max Power (source → target)** | input_number.max_power_source_target   |
 
 HAEO treats input_number helpers like any other sensor, reading the current value and repeating it across the optimization horizon.
+Combined with a forecast sensor in the same field, the helper's value only applies to the first period (see [Multiple Sensors](#multiple-sensors)).
 
 **Benefits of input_number helpers**:
 

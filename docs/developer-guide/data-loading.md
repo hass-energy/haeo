@@ -141,7 +141,7 @@ A sensor provides either:
 - **Present value** (float): Current reading at query time
 - **Forecast series** (list of timestamp/value tuples): Future predictions
 
-This distinction drives all downstream processing: present values repeat across horizons, forecast series interpolate and cycle.
+This distinction drives all downstream processing: a present value is the reading for now, and forecast series interpolate and cycle (see [Present Values and Forecasts](#present-values-and-forecasts)).
 
 ### Format Detection
 
@@ -219,7 +219,7 @@ When combining forecast series with different timestamps, the system:
 
 This ensures no information loss when sensors report forecasts at different intervals (e.g., 30-minute vs hourly).
 
-### Mixed Payloads
+### Present Values and Forecasts
 
 The combiner returns the summed present value and the summed forecast series separately.
 A present value is the reading for now, so the fuser uses it for the first interval (or the first boundary) and the forecast for the rest.

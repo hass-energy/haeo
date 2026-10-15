@@ -159,12 +159,13 @@ This approach:
 
 Combine multiple load sources in a single element:
 
-| Field        | Value                                                                                               |
-| ------------ | --------------------------------------------------------------------------------------------------- |
-| **Name**     | Total House Load                                                                                    |
-| **Forecast** | input_number.base_load, sensor.ev_charger_schedule, sensor.pool_pump_schedule, sensor.hvac_forecast |
+| Field        | Value                                                                       |
+| ------------ | --------------------------------------------------------------------------- |
+| **Name**     | Total House Load                                                            |
+| **Forecast** | sensor.ev_charger_schedule, sensor.pool_pump_schedule, sensor.hvac_forecast |
 
-HAEO automatically sums all sensors at each timestamp, allowing you to model complex load profiles from simple components.
+HAEO sums the forecasts at each timestamp, allowing you to model complex load profiles from simple components.
+A sensor without a forecast only sets the first period when combined with forecasts, so configure a constant baseline as its own load element (see [above](#combining-constant-and-variable-loads)).
 
 ## Configuration Examples
 
@@ -185,15 +186,6 @@ Time-varying consumption with forecast:
 | ------------ | --------------------------------- |
 | **Name**     | House Load                        |
 | **Forecast** | sensor.house_consumption_forecast |
-
-### Combined Constant and Variable
-
-Baseline plus variable components:
-
-| Field        | Value                                                  |
-| ------------ | ------------------------------------------------------ |
-| **Name**     | Total Load                                             |
-| **Forecast** | input_number.baseline_power, sensor.appliance_forecast |
 
 ### Multiple Variable Sources
 

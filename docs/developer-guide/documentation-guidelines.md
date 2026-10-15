@@ -195,7 +195,8 @@ Before committing documentation changes, verify:
 ### Sensor behavior
 
 - [ ] Sensors provide EITHER present value OR forecast, never both
-- [ ] Multiple sensors combine additively (sum at each timestamp)
+- [ ] Multiple sensors sum: present values together, forecasts at each timestamp
+- [ ] A present value beside a forecast is the value for now only, not added to every period
 - [ ] Forecast cycling uses natural period alignment, not arbitrary repetition
 - [ ] Interpolation is trapezoidal (interval averages), not point sampling
 
