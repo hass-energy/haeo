@@ -1,6 +1,6 @@
 """Tests for EV element model mapping and trip optimization behavior."""
 
-from typing import NamedTuple
+from typing import NamedTuple, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -880,8 +880,22 @@ def test_no_reserve_means_no_reserve_output() -> None:
 # --- Buffers ---
 
 
-def _buffered_home_network(*, loads: list[str], storage: list[str]) -> Network:
-    """Solve a house, a home battery and a V2G EV with a 10 kWh trip in period 3 under a 2 hour reserve."""
+class _BufferSpec(TypedDict):
+    loads: list[str]
+    storage: list[str]
+    window: float
+    level: float | None
+
+
+def _reserve(loads: list[str], storage: list[str], *, window: float = 2.0, level: float | None = None) -> _BufferSpec:
+    return {"loads": loads, "storage": storage, "window": window, "level": level}
+
+
+def _buffered_home_network(buffers: dict[str, _BufferSpec], *, trip_periods: tuple[int, int] = (3, 4)) -> Network:
+    """Solve a house, a home battery, and a V2G EV with a 10 kWh trip under reserve buffers.
+
+    Grid energy is cheapest in period 0. The trip covers periods ``trip_periods[0]`` up to ``trip_periods[1]``.
+    """
     n = 4
     network = Network(name="test", periods=np.ones(n))
     network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "home", "is_source": False, "is_sink": False})
@@ -925,9 +939,9 @@ def _buffered_home_network(*, loads: list[str], storage: list[str]) -> Network:
         charging={"max_charge_rate": 10.0, "max_discharge_rate": 10.0},
         trip={
             "trip_calendar": _boundary_data(
-                presence=[0.0, 0.0, 0.0, 1.0, 0.0],
-                value_edge_start=[0.0, 0.0, 0.0, 50.0, 0.0],
-                value_edge_end=[0.0, 0.0, 0.0, 0.0, 50.0],
+                presence=[1.0 if trip_periods[0] <= t < trip_periods[1] else 0.0 for t in range(n + 1)],
+                value_edge_start=[50.0 if t == trip_periods[0] else 0.0 for t in range(n + 1)],
+                value_edge_end=[50.0 if t == trip_periods[1] else 0.0 for t in range(n + 1)],
             ),
             "connected": 1.0,
         },
@@ -936,39 +950,62 @@ def _buffered_home_network(*, loads: list[str], storage: list[str]) -> Network:
         if element["element_type"] == "connection":
             element.setdefault("tags", {1})  # type: ignore[typeddict-unknown-key]  # spec allows tags
         network.add(element)
-    network.add(
-        {
-            "element_type": MODEL_ELEMENT_TYPE_BUFFER,
-            "name": "buffer",
-            "kind": "reserve",
-            "loads": loads,
-            "generation": [],
-            "storage": storage,
-            "window": 2.0,
-            "level": None,
-            "price": 1.0,
-        }
-    )
+    for name, spec in buffers.items():
+        network.add(
+            {
+                "element_type": MODEL_ELEMENT_TYPE_BUFFER,
+                "name": name,
+                "kind": "reserve",
+                "generation": [],
+                "price": 1.0,
+                **spec,
+            }
+        )
     network.optimize()
     return network
 
 
 def test_buffer_counts_the_ev_trips_as_its_load() -> None:
     """An EV picked as a buffer load counts its trip energy, not its charging, toward the requirement."""
-    network = _buffered_home_network(loads=["house", "ev"], storage=["battery"])
+    network = _buffered_home_network({"reserve": _reserve(["house", "ev"], ["battery"])})
 
-    required = network.elements["buffer"].outputs()["buffer_energy_required"].values
+    required = network.elements["reserve"].outputs()["buffer_energy_required"].values
     # 1 kWh of house and the 10 kWh trip fall in the window from boundary 2.
     assert required[2] == pytest.approx(12.0)
 
 
 def test_buffer_holds_the_trip_energy_in_the_ev_pack() -> None:
     """With the EV also holding the buffer, trip energy already in the pack counts, so nothing extra is held."""
-    holding = _buffered_home_network(loads=["house", "ev"], storage=["battery", "ev"])
-    home_only = _buffered_home_network(loads=["house", "ev"], storage=["battery"])
+    holding = _buffered_home_network({"reserve": _reserve(["house", "ev"], ["battery", "ev"])})
+    home_only = _buffered_home_network({"reserve": _reserve(["house", "ev"], ["battery"])})
 
-    available = holding.elements["buffer"].outputs()["buffer_energy_available"].values
+    available = holding.elements["reserve"].outputs()["buffer_energy_available"].values
     assert available[2] == pytest.approx(12.0)
     # The pack's 10 kWh covers the trip, so the home battery is not filled for it.
     assert holding.elements["battery"].outputs()[BATTERY_ENERGY_STORED].values[2] == pytest.approx(2.0)
     assert home_only.elements["battery"].outputs()[BATTERY_ENERGY_STORED].values[2] == pytest.approx(12.0)
+
+
+def test_buffers_over_the_same_batteries_each_hold_their_own_requirement() -> None:
+    """A home reserve, a whole-system emergency reserve, and an EV margin hold together over shared batteries."""
+    buffers = {
+        "home_reserve": _reserve(["house"], ["battery"]),
+        "emergency": _reserve(["house", "ev"], ["battery", "ev"], window=4.0),
+        "ev_margin": _reserve(["ev"], ["ev"], window=4.0, level=0.2),
+    }
+    together = _buffered_home_network(buffers, trip_periods=(1, 3))
+    margin_only = _buffered_home_network({"ev_margin": buffers["ev_margin"]}, trip_periods=(1, 3))
+
+    def shortfall(network: Network, name: str) -> list[float]:
+        return list(network.elements[name].outputs()["buffer_energy_shortfall"].values)
+
+    # The home and emergency reserves are met wherever the plan can still act: the batteries start
+    # with 7 kWh against the 14 kWh the emergency reserve asks for now.
+    assert shortfall(together, "home_reserve") == pytest.approx([0.0] * 5)
+    assert shortfall(together, "emergency") == pytest.approx([7.0, 0.0, 0.0, 0.0, 0.0])
+    # The EV margin is the binding one, so it sets the plan the others share.
+    np.testing.assert_allclose(
+        together.elements["ev:charge"].outputs()["connection_power"].values,
+        margin_only.elements["ev:charge"].outputs()["connection_power"].values,
+        atol=1e-9,
+    )
