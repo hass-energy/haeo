@@ -238,8 +238,26 @@ def test_empty_reserve_shortfall_matches_required(
     demand = np.concatenate(([0.0], np.cumsum(np.asarray(house) * np.asarray(periods))))
     expected = (np.interp(times + window, times, demand) - demand) / efficiency
     np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), expected, atol=1e-9)
-    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_SHORTFALL])[1:], expected[1:], atol=1e-9)
+    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_SHORTFALL]), expected, atol=1e-9)
     np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_AVAILABLE]), 0.0, atol=1e-9)
+
+
+def test_first_period_consumption_counts_toward_the_first_boundary() -> None:
+    """A load planned in the first period falls in the first boundary's window, so it is held and priced.
+
+    The battery starts with 2 kWh for a house that uses 3 kWh in the first hour,
+    so the first boundary falls 1 kWh short, priced for the first period.
+    """
+    network = _network([1.0, 1.0], initial_charge=2.0, house=[3.0, 0.0])
+    network.add(_buffer(loads=["house"], window=1.0, price=0.5))
+
+    network.optimize()
+    outputs = network.elements["buffer"].outputs()
+
+    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), [3.0, 0.0, 0.0], atol=1e-9)
+    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_SHORTFALL]), [1.0, 0.0, 0.0], atol=1e-9)
+    buffer = network.elements["buffer"]
+    assert sum(buffer.extract_values(buffer.cost())) == pytest.approx(0.5 * 1.0 * 1.0)
 
 
 @pytest.mark.parametrize(
@@ -279,7 +297,7 @@ def test_buffer_measures_from_its_level_within_the_battery_limits(
     assert soc.direction == ("+" if kind == "reserve" else "-")
     np.testing.assert_allclose(_values(soc), line)
     np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_REQUIRED]), 0.0, atol=1e-9)
-    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_SHORTFALL]), [0.0, shortfall, shortfall], atol=1e-9)
+    np.testing.assert_allclose(_values(outputs[BUFFER_ENERGY_SHORTFALL]), [shortfall] * 3, atol=1e-9)
 
 
 @pytest.mark.parametrize("kind", ["reserve", "headroom"])
@@ -289,13 +307,15 @@ def test_shortfall_costs_the_stored_energy_past_the_level(kind: BufferKind, effi
 
     The battery holds 5 kWh of 10 and the buffer's level is 3 kWh past it, which
     is what a battery partition charged for holding the battery past its limit.
+    The first boundary is held for the first period as well, a cost the plan
+    cannot change since the battery's charge there is fixed.
     """
     network = _network([1.0, 0.5, 2.0], efficiency=efficiency, kind=kind)
     network.add(_buffer(kind=kind, level=0.8 if kind == "reserve" else 0.2, price=0.5))
 
     cost = network.optimize()
 
-    assert cost == pytest.approx(0.5 * 3.0 * 3.5)
+    assert cost == pytest.approx(0.5 * 3.0 * (1.0 + 3.5))
 
 
 @pytest.mark.parametrize(
