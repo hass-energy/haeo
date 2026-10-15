@@ -134,7 +134,7 @@ See [Modeling Documentation](../modeling/index.md) for mathematical formulations
 ### Optimization
 
 Uses the HiGHS linear programming solver directly via the `highspy` Python bindings to solve the energy optimization problem.
-The default calibrated mode performs a two-phase lexicographic solve on the first call (minimize cost, then minimize a time-preference secondary objective to break ties deterministically), calibrates a blend weight, and uses a single blended solve on subsequent calls for efficient warm-starts with proper shadow prices.
+It minimizes cost, then a time-preference secondary objective to break ties deterministically, with a single blended solve per call. The first call calibrates the blend weight, and every plan is checked and re-solved with another weight if needed, which keeps warm starts efficient and shadow prices from the plan's own basis.
 
 Elements use decorators to declare constraints and costs, which the network automatically aggregates.
 When parameters update (like forecast changes), only affected constraints are rebuilt (warm start optimization).

@@ -30,6 +30,16 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
 )
+from custom_components.haeo.core.schema.elements.buffer import (
+    CONF_GENERATION,
+    CONF_LEVEL,
+    CONF_LOADS,
+    CONF_SHORTFALL_COST,
+    CONF_STORAGE,
+    CONF_WINDOW,
+    SECTION_PARTICIPANTS,
+    BufferKind,
+)
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.sections import (
     CONF_FORECAST,
@@ -160,6 +170,13 @@ def _field_label(element_type: str, section_key: str, field_name: str) -> str:
     section = _json_dict(sections[section_key])
     data = _json_dict(section["data"])
     return _json_str(data[field_name])
+
+
+def _buffer_kind_label(kind: BufferKind) -> str:
+    """Get the display label for a buffer kind option."""
+    selectors = _json_dict(_load_translations()["selector"])
+    options = _json_dict(_json_dict(selectors["buffer_kind"])["options"])
+    return _json_str(options[kind])
 
 
 # endregion
@@ -394,7 +411,7 @@ def add_battery(
         page,
         et,
         fields,
-        collapsed_sections=frozenset({"efficiency", "partitioning"}),
+        collapsed_sections=frozenset({"efficiency"}),
     )
 
     with page.expect_config_reload():
@@ -623,6 +640,48 @@ def add_policies(
             page.close_element_dialog()
 
     _LOGGER.info("Policy rule added: %s", name)
+
+
+@guide_step
+def add_buffer(
+    page: HAPage,
+    *,
+    name: str,
+    kind: BufferKind,
+    storage: list[str],
+    window: EntityInput | ConstantInput,
+    loads: list[str] | None = None,
+    generation: list[str] | None = None,
+    level: EntityInput | ConstantInput | None = None,
+    shortfall_cost: ConstantInput | None = None,
+) -> None:
+    """Add a buffer keeping energy (a reserve) or empty space (headroom) in batteries over a window."""
+    et = ElementType.BUFFER
+    _LOGGER.info("Adding Buffer: %s (%s)", name, kind)
+
+    # Once a buffer exists its subentry group has a button with the same label
+    page.click_button(_button_label(et), first=True)
+    page.wait_for_dialog(_dialog_title(et))
+
+    page.fill_textbox(_name_label(et), name)
+    page.select_list_option(_buffer_kind_label(kind))
+
+    for field_name, elements in ((CONF_LOADS, loads), (CONF_GENERATION, generation), (CONF_STORAGE, storage)):
+        if elements:
+            page.select_dropdown_multi(_field_label(et, SECTION_PARTICIPANTS, field_name), elements)
+
+    fields: dict[str, FieldInput] = {CONF_WINDOW: window}
+    if level is not None:
+        fields[CONF_LEVEL] = level
+    if shortfall_cost is not None:
+        fields[CONF_SHORTFALL_COST] = shortfall_cost
+    _fill_element_fields(page, et, fields)
+
+    with page.expect_config_reload():
+        page.submit()
+        page.close_element_dialog()
+
+    _LOGGER.info("Buffer added: %s", name)
 
 
 @guide_step

@@ -266,6 +266,25 @@ Walkthrough pages in `docs/walkthroughs/` contain `guide` fenced code blocks tha
 The guide runner (`tools/guide_runner.py`) extracts these blocks, executes them sequentially against a live HA instance, and captures screenshots into per-block directories.
 Consecutive blocks share the same browser and HA context so state accumulates across steps.
 
+### Showing the plan
+
+Guides can show what HAEO plans, not only how to configure it.
+The card primitives in `tests/guides/primitives/cards.py` render the integration's own Lovelace cards from the live instance's data and save them as SVG figures:
+
+- `show_forecast_card(page, hass, step=..., elements=[...])` re-runs the optimizer and captures the forecast card showing those elements' plans.
+    Pass `inputs=[...]` to also show some elements' input forecasts, such as a solar forecast next to the solar HAEO plans to use, and `horizon` to choose how much of the forecast to show.
+- `show_topology_card(page, hass, step=...)` captures the topology card.
+- `set_input(hass, element=..., field=..., value=...)` changes an input entity, as a user would from a dashboard, so the next card shows what the change does.
+- `set_policy_rule(hass, rule=..., enabled=...)` turns a policy rule on or off with its enabled switch.
+
+The cards load from the bundles the integration serves, on a page of their own in Home Assistant's default theme for the mode being captured.
+Each figure carries the card's own markup and styles inside the SVG, so it stays sharp at any size, legend included.
+Rebuild the bundles with `npm run build` in `frontend/haeo-forecast-card` after changing the cards, so guides show the current version.
+
+Figures stand apart from the screenshots of configuring HAEO.
+A block's screenshots form a slideshow that starts with the last screenshot of the closest earlier block that has one, while its figures follow on their own and never carry over.
+When a block saves several figures, readers flick between them with arrows, which suits comparing variants of a plan: change inputs with `set_input` between captures in one block.
+
 Screenshots are content-hash cached: a `manifest.json` maps each block's content hash to its screenshot directory.
 If a block's content hasn't changed, its screenshots are reused without re-running.
 
