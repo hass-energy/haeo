@@ -24,7 +24,9 @@ class OutputData:
         direction: Power flow direction from the energy system's perspective.
             "+" = production: power added to the system (solar generation, battery discharge, grid import).
             "-" = consumption: power removed from the system (load demand, battery charge, grid export).
-            None = non-directional output (SOC, prices, energy, shadow prices).
+            For a state of charge line, the flow the line holds the batteries ready for:
+            "+" for a level held to discharge from (a reserve), "-" for room held to charge into (headroom).
+            None = non-directional output (plain SOC, prices, energy, shadow prices).
         advanced: Whether the output is intended for advanced diagnostics only.
         state_last: If True, the sensor state uses the last value instead of the first.
             Use for cumulative values where the total is the meaningful current state.
@@ -75,7 +77,8 @@ class OutputData:
             type: The output type (power, energy, SOC, etc.).
             unit: The unit of measurement for the output values.
             values: A single value or sequence of values (already extracted from HiGHS types).
-            direction: Power flow direction relative to the element.
+            direction: Power flow direction from the energy system's perspective, or for a
+                state of charge line, the flow the line holds the batteries ready for.
             advanced: Whether the output is intended for advanced diagnostics only.
             state_last: If True, the sensor state uses the last value instead of the first.
             state: Optional scalar that overrides the sensor state. When provided,

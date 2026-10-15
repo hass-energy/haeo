@@ -4,6 +4,7 @@ import numpy as np
 
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BUFFER
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
@@ -296,3 +297,38 @@ def test_groups_sorted_alphabetically() -> None:
     )
 
     assert list(result["groups"].keys()) == ["Alpha", "Zebra"]
+
+
+def test_buffer_serializes_its_participants_not_a_node() -> None:
+    """A buffer lists the elements it covers and the batteries holding it instead of appearing as a node."""
+    network = _make_network()
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "Bus", "is_sink": False, "is_source": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "House", "is_sink": True, "is_source": False})
+    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "Battery", "capacity": 10.0, "initial_charge": 5.0})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "Battery:discharge",
+            "source": "Battery",
+            "target": "Bus",
+            "tags": {0},
+        }
+    )
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_BUFFER,
+            "name": "Backup",
+            "kind": "reserve",
+            "loads": ["House"],
+            "generation": [],
+            "storage": ["Battery"],
+            "window": 4.0,
+            "level": None,
+            "price": 0.1,
+        }
+    )
+
+    result = serialize_topology(network, element_types={"House": "load", "Battery": "battery", "Backup": "buffer"})
+
+    assert result["buffers"] == [{"name": "Backup", "kind": "reserve", "elements": ["House"], "storage": ["Battery"]}]
+    assert "Backup" not in {node["name"] for node in result["nodes"]}

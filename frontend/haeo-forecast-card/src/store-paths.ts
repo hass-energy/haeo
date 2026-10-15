@@ -15,6 +15,8 @@ export interface LineSvgPath {
   key: string;
   color: string;
   d: string;
+  /** Extra class for lines drawn as thresholds rather than measured values. */
+  className?: string;
 }
 
 export function computePowerShapes(
@@ -143,5 +145,7 @@ export function computeSocPaths(
     key: series.key,
     color: series.color,
     d: linePath(series.times, series.values, xScale, yScaleSoc),
+    // A directional line is a level the batteries are held ready to discharge from or charge into, so it is drawn as a threshold
+    ...(series.direction !== null ? { className: "thresholdLine" } : {}),
   }));
 }

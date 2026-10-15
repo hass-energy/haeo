@@ -13,6 +13,7 @@ class DeviceClass(StrEnum):
     POWER = "power"
     ENERGY = "energy"
     ENERGY_STORAGE = "energy_storage"
+    DURATION = "duration"
     MONETARY = "monetary"
 
     @classmethod
@@ -38,6 +39,10 @@ class UnitOfMeasurement(StrEnum):
     DOLLAR_PER_KWH = "$/kWh"
     DOLLAR_PER_KWH_PER_HOUR = "$/kWh/h"
     PERCENT = "%"
+    SECOND = "s"
+    MINUTE = "min"
+    HOUR = "h"
+    DAY = "d"
 
     @classmethod
     def of(cls, value: object) -> "UnitOfMeasurement | None":
@@ -52,6 +57,7 @@ BASE_UNITS: Final[dict[DeviceClass, UnitOfMeasurement]] = {
     DeviceClass.POWER: UnitOfMeasurement.KILO_WATT,
     DeviceClass.ENERGY: UnitOfMeasurement.KILO_WATT_HOUR,
     DeviceClass.ENERGY_STORAGE: UnitOfMeasurement.KILO_WATT_HOUR,
+    DeviceClass.DURATION: UnitOfMeasurement.HOUR,
 }
 
 _POWER_TO_KW: Final[dict[UnitOfMeasurement, float]] = {
@@ -67,6 +73,24 @@ _ENERGY_TO_KWH: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.MEGA_WATT_HOUR: 1000.0,
     UnitOfMeasurement.GIGA_WATT_HOUR: 1_000_000.0,
 }
+
+_DURATION_TO_HOURS: Final[dict[UnitOfMeasurement, float]] = {
+    UnitOfMeasurement.SECOND: 1 / 3600,
+    UnitOfMeasurement.MINUTE: 1 / 60,
+    UnitOfMeasurement.HOUR: 1.0,
+    UnitOfMeasurement.DAY: 24.0,
+}
+
+# Factors to each device class's base unit, for every device class that has one
+_TO_BASE_UNIT: Final[dict[DeviceClass, dict[UnitOfMeasurement, float]]] = {
+    DeviceClass.POWER: _POWER_TO_KW,
+    DeviceClass.ENERGY: _ENERGY_TO_KWH,
+    DeviceClass.ENERGY_STORAGE: _ENERGY_TO_KWH,
+    DeviceClass.DURATION: _DURATION_TO_HOURS,
+}
+
+# Durations HAEO reads from sensors, in units it converts to hours
+DURATION_UNITS: Final[tuple[UnitOfMeasurement, ...]] = tuple(_DURATION_TO_HOURS)
 
 ENERGY_UNITS: Final[tuple[UnitOfMeasurement, ...]] = (
     UnitOfMeasurement.WATT_HOUR,
@@ -147,6 +171,9 @@ def _infer_device_class_from_unit(unit: UnitOfMeasurement | None) -> DeviceClass
     }:
         return DeviceClass.ENERGY
 
+    if unit in _DURATION_TO_HOURS:
+        return DeviceClass.DURATION
+
     return None
 
 
@@ -164,17 +191,9 @@ def _scale_factor(
         return 1.0
 
     effective_device_class = device_class or _infer_device_class_from_unit(from_unit)
-    base_unit = base_unit_for_device_class(effective_device_class)
-    if base_unit is None or base_unit == from_unit:
+    if effective_device_class is None:
         return 1.0
-
-    if effective_device_class == DeviceClass.POWER:
-        return _POWER_TO_KW.get(from_unit, 1.0)
-
-    if effective_device_class in {DeviceClass.ENERGY, DeviceClass.ENERGY_STORAGE}:
-        return _ENERGY_TO_KWH.get(from_unit, 1.0)
-
-    return 1.0
+    return _TO_BASE_UNIT.get(effective_device_class, {}).get(from_unit, 1.0)
 
 
 def base_unit_conversion(

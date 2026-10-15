@@ -43,6 +43,7 @@ class NodeAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
     can_source: bool = True
     can_sink: bool = True
+    can_store: bool = False
 
     def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Node configuration."""

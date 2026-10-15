@@ -5,10 +5,12 @@ import pytest
 
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_BUFFER,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_NODE,
     SegmentSpec,
 )
+from custom_components.haeo.core.model.elements.buffer import BUFFER_ENERGY_REQUIRED, BUFFER_ENERGY_SHORTFALL
 from custom_components.haeo.core.model.elements.deferrable_load import DeferrableLoad, DeferrableLoadOutputName
 
 
@@ -421,3 +423,80 @@ def test_scalar_parameter_updates_are_broadcast() -> None:
 
     np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_shortfall"), [0.0, 0.0, 3.0], atol=1e-9)
     assert cost == pytest.approx(2.0 * 0.1 + 3.0 * 2.0)
+
+
+@pytest.mark.parametrize("buffered", [False, True])
+def test_reserve_buffer_counts_the_planned_load(*, buffered: bool) -> None:
+    """A reserve buffer counts a deferrable load by its planned power, so the plan spreads it to keep the reserve."""
+    network = Network(name="test_network", periods=np.array([1.0] * 4))
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "bus", "is_source": False, "is_sink": False})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "grid:import",
+            "source": "grid",
+            "target": "bus",
+            "tags": {1},
+            "segments": {"pricing": {"segment_type": "pricing", "price": np.array([0.2, 0.1, 0.2, 0.2])}},
+        }
+    )
+    # The battery holds its 2 kWh: it has no connections, so it only backs the reserve.
+    network.add(
+        {
+            "element_type": "battery",
+            "name": "battery",
+            "capacity": 10.0,
+            "initial_charge": 2.0,
+            "charge_limit_cost": 100.0,
+        }
+    )
+    load = network.add(
+        {
+            "element_type": "deferrable_load",
+            "name": "load",
+            "in_window": np.array([0.0, 1.0, 1.0, 1.0]),
+            "window_start": np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
+            "requirement": np.array([0.0, 0.0, 0.0, 0.0, 3.0]),
+            "deficit_price": 10.0,
+            "is_source": False,
+            "is_sink": True,
+        }
+    )
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "bus:load",
+            "source": "bus",
+            "target": "load",
+            "tags": {1},
+        }
+    )
+    if buffered:
+        buffer = network.add(
+            {
+                "element_type": MODEL_ELEMENT_TYPE_BUFFER,
+                "name": "buffer",
+                "kind": "reserve",
+                "loads": ["load"],
+                "generation": [],
+                "storage": ["battery"],
+                "window": 1.0,
+                "level": None,
+                "price": 50.0,
+            }
+        )
+
+    network.optimize()
+
+    power = _outputs(load, "deferrable_load_power")
+    assert power.sum() == pytest.approx(3.0)
+    if not buffered:
+        # Unbuffered, the whole requirement takes the cheapest period.
+        np.testing.assert_allclose(power, [0.0, 3.0, 0.0, 0.0], atol=1e-9)
+        return
+    # The 2 kWh battery covers at most 2 kWh of the next hour's planned load, so no hour plans more.
+    assert power.max() <= 2.0 + 1e-9
+    required = np.asarray(buffer.outputs()[BUFFER_ENERGY_REQUIRED].values)
+    np.testing.assert_allclose(required[1:4], power[1:], atol=1e-9)
+    np.testing.assert_allclose(buffer.outputs()[BUFFER_ENERGY_SHORTFALL].values, [0.0] * 5, atol=1e-9)

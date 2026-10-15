@@ -30,7 +30,7 @@ A Battery Section element represents:
 
 Unlike the standard Battery element, Battery Section does not create:
 
-- Multiple SOC sections (undercharge, normal, overcharge)
+- Min and max charge limits
 - Internal node for power routing
 - Implicit connections to other elements
 

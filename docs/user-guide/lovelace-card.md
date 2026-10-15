@@ -9,6 +9,8 @@ The card reads `forecast` attributes from HAEO output sensors.
 It automatically groups series into lanes (`power`, `price`, `soc`, `shadow`, `other`).
 Power and price series are drawn with step-post semantics.
 State-of-charge series are drawn as continuous lines.
+A [buffer](elements/buffer.md) is drawn as a dotted line in the state-of-charge lane.
+A line your batteries' combined charge should stay above, such as a reserve, is red, and one it should stay below, such as headroom, is purple.
 
 ## Prerequisites
 
@@ -70,6 +72,9 @@ hub_entry_id: <your_haeo_hub_config_entry_id>
 ```
 
 Use the visual card editor to select a HAEO hub. The card resolves the hub's optimization status sensor at runtime.
+
+Batteries that hold a reserve [buffer](elements/buffer.md) show a 🛡 marker, and those that keep a headroom buffer show ⤒.
+Hover over an element to see which buffers it holds or is counted in.
 
 ### Topology card options
 

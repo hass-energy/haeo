@@ -136,7 +136,7 @@ def _optimize_hybrid_system(
         power_limits={},
         pricing={"salvage_value": salvage_value},
         efficiency={},
-        partitioning={},
+        advanced={"charge_limit_cost": 100.0},
     )
     model_outputs = optimize_participants(
         {
