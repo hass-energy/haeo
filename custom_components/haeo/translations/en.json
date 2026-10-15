@@ -96,7 +96,6 @@
           "data": {
             "capacity": "Capacity",
             "charge_cost": "Charge cost",
-            "configure_partitions": "Configure battery partitions",
             "connection": "Connection",
             "discharge_cost": "Discharge cost",
             "efficiency_source_target": "Discharge efficiency",
@@ -110,6 +109,13 @@
             "salvage_value": "Salvage value"
           },
           "sections": {
+            "advanced": {
+              "data": { "charge_limit_cost": "Limit cost" },
+              "data_description": {
+                "charge_limit_cost": "Holding cost per kWh outside the min and max charge, for every hour it lasts. Keep it far above any price the battery could earn from, so the limits act as hard limits."
+              },
+              "name": "Advanced"
+            },
             "common": { "data": { "connection": "Connection", "name": "Battery Name" }, "name": "Common settings" },
             "efficiency": {
               "data": {
@@ -121,10 +127,6 @@
             "limits": {
               "data": { "max_charge_percentage": "Max Charge Level", "min_charge_percentage": "Min Charge Level" },
               "name": "Limits"
-            },
-            "partitioning": {
-              "data": { "configure_partitions": "Configure battery partitions" },
-              "name": "Battery partitions"
             },
             "power_limits": {
               "data": {
@@ -144,34 +146,6 @@
             "storage": {
               "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
               "name": "Storage"
-            }
-          }
-        },
-        "partition_values": {
-          "title": "Battery Partition Values",
-          "description": "Enter values for the partition input sources",
-          "data": { "cost": "Cost", "percentage": "Percentage" }
-        },
-        "partitions": {
-          "title": "Battery Partitions",
-          "description": "Select entities for undercharge and overcharge regions",
-          "data": { "cost": "Cost", "percentage": "Percentage" },
-          "sections": {
-            "overcharge": {
-              "data": { "cost": "Overcharge cost", "percentage": "Overcharge percentage" },
-              "data_description": {
-                "cost": "Holding cost per kWh stored above the overcharge percentage, charged for every hour it stays there. For example, 0.02 means keeping 1 kWh above this level for 10 hours costs 0.20.",
-                "percentage": "State of charge above which the overcharge cost applies."
-              },
-              "name": "Overcharge settings"
-            },
-            "undercharge": {
-              "data": { "cost": "Undercharge cost", "percentage": "Undercharge percentage" },
-              "data_description": {
-                "cost": "Holding cost per kWh stored below the undercharge percentage, charged for every hour it stays there. For example, 0.02 means keeping 1 kWh below this level for 10 hours costs 0.20.",
-                "percentage": "State of charge below which the undercharge cost applies."
-              },
-              "name": "Undercharge settings"
             }
           }
         }
@@ -199,6 +173,53 @@
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
+    "buffer": {
+      "flow_title": "Buffer",
+      "entry_type": "Buffer",
+      "initiate_flow": { "user": "Buffer", "reconfigure": "Buffer" },
+      "step": {
+        "user": {
+          "title": "Buffer configuration",
+          "description": "Keep energy in your batteries for an outage (a reserve), or empty space for incoming generation (headroom).",
+          "data": { "kind": "Kind", "name": "Buffer name" },
+          "data_description": {
+            "kind": "A reserve keeps the batteries charged enough. Headroom keeps them empty enough."
+          },
+          "sections": {
+            "participants": {
+              "data": { "generation": "Generation", "loads": "Loads", "storage": "Batteries" },
+              "data_description": {
+                "generation": "Generation that keeps producing through an outage for a reserve, or that headroom keeps space for.",
+                "loads": "Loads to keep running through an outage for a reserve, or that use some of the generation for headroom.",
+                "storage": "Batteries that hold the buffer together."
+              },
+              "name": "Participants"
+            },
+            "pricing": {
+              "data": { "shortfall_cost": "Shortfall cost" },
+              "data_description": {
+                "shortfall_cost": "Holding cost per kWh stored in the batteries past the buffer, for every hour it lasts. Set it high to treat the buffer as nearly untouchable."
+              },
+              "name": "Pricing"
+            },
+            "requirement": {
+              "data": { "level": "Level", "window": "Window" },
+              "data_description": {
+                "level": "Charge level the buffer is measured from: a reserve keeps the batteries above it, headroom below it. Unset, it is the batteries' min or max charge.",
+                "window": "How far ahead to look: the outage to cover for a reserve, or the generation to make room for with headroom."
+              },
+              "name": "Requirement"
+            }
+          }
+        }
+      },
+      "error": {
+        "buffer_storage_required": "Choose at least one battery to hold the buffer",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "connection": {
@@ -582,6 +603,7 @@
   "device": {
     "battery": { "name": "{name}" },
     "battery_section": { "name": "{name}" },
+    "buffer": { "name": "{name}" },
     "connection": { "name": "{name}" },
     "deferrable_load": { "name": "{name}" },
     "ev": { "name": "{name}" },
@@ -598,6 +620,7 @@
     "number": {
       "battery_capacity": { "name": "Capacity" },
       "battery_charge_cost": { "name": "Charge cost" },
+      "battery_charge_limit_cost": { "name": "Limit cost" },
       "battery_discharge_cost": { "name": "Discharge cost" },
       "battery_efficiency_source_target": { "name": "Discharge efficiency" },
       "battery_efficiency_target_source": { "name": "Charge efficiency" },
@@ -606,13 +629,12 @@
       "battery_max_power_source_target": { "name": "Max discharge power" },
       "battery_max_power_target_source": { "name": "Max charge power" },
       "battery_min_charge_percentage": { "name": "Min charge" },
-      "battery_overcharge_partition_cost": { "name": "Overcharge cost" },
-      "battery_overcharge_partition_percentage": { "name": "Overcharge percentage" },
       "battery_price_source_target": { "name": "Discharge price" },
       "battery_price_target_source": { "name": "Charge price" },
       "battery_salvage_value": { "name": "Salvage value" },
-      "battery_undercharge_partition_cost": { "name": "Undercharge cost" },
-      "battery_undercharge_partition_percentage": { "name": "Undercharge percentage" },
+      "buffer_level": { "name": "Level" },
+      "buffer_shortfall_cost": { "name": "Shortfall cost" },
+      "buffer_window": { "name": "Window" },
       "connection_efficiency_source_target": { "name": "Efficiency" },
       "connection_max_power_source_target": { "name": "Max power" },
       "connection_price_source_target": { "name": "Price" },
@@ -669,6 +691,10 @@
       "battery_soc_max": { "name": "SOC max shadow price" },
       "battery_soc_min": { "name": "SOC min shadow price" },
       "battery_state_of_charge": { "name": "State of charge" },
+      "buffer_energy_available": { "name": "Available energy" },
+      "buffer_energy_required": { "name": "Required energy" },
+      "buffer_energy_shortfall": { "name": "Energy shortfall" },
+      "buffer_state_of_charge": { "name": "Buffer state of charge" },
       "connection_power": { "name": "{source} to {target} power" },
       "deferrable_load_energy_delivered": { "name": "Energy delivered" },
       "deferrable_load_energy_overage": { "name": "Energy overage" },
@@ -786,6 +812,7 @@
     }
   },
   "selector": {
+    "buffer_kind": { "options": { "headroom": "Headroom: keep empty space", "reserve": "Reserve: keep energy" } },
     "horizon_preset": { "options": { "2_days": "2 days", "3_days": "3 days", "5_days": "5 days", "7_days": "7 days" } },
     "horizon_source": { "choices": { "entity": "Forecast sensor", "preset": "Preset" } },
     "input_source": { "choices": { "constant": "Constant", "entity": "Entity", "none": "None" } },

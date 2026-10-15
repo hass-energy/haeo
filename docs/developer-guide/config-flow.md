@@ -130,17 +130,6 @@ Element configuration is sectioned, with optional sections only present when con
             "efficiency_source_target": 95.0,
             "efficiency_target_source": 95.0,
         },
-        "partitioning": {
-            "configure_partitions": True,
-        },
-        "undercharge": {
-            "percentage": 5.0,
-            "cost": 1.5,
-        },
-        "overcharge": {
-            "percentage": 95.0,
-            "cost": 1.0,
-        },
     },
 }
 ```
@@ -217,9 +206,6 @@ Most elements configure all inputs in a single step:
 2. For each input field, user selects "Entity", "Constant", or "None"
 3. Based on selection, user either picks entities from a dropdown or enters a constant value inline
 4. Submit creates the element with all configuration
-
-Some elements add a follow-up step when optional settings are enabled.
-For example, the battery flow presents a second step for undercharge and overcharge partitions when the user enables partitioning.
 
 ### UI Sections
 

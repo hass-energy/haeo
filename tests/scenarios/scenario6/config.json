@@ -10,6 +10,7 @@
     "Battery": {
       "name": "Battery",
       "element_type": "battery",
+      "advanced": { "charge_limit_cost": { "type": "constant", "value": 100.0 } },
       "connection": { "type": "connection_target", "value": "Inverter" },
       "efficiency": {
         "efficiency_source_target": { "type": "constant", "value": 98.0 },
@@ -19,8 +20,6 @@
         "max_charge_percentage": { "type": "constant", "value": 100.0 },
         "min_charge_percentage": { "type": "constant", "value": 5.0 }
       },
-      "overcharge": {},
-      "partitioning": {},
       "power_limits": {
         "max_power_source_target": { "type": "entity", "value": ["sensor.sigen_plant_ess_rated_discharging_power"] },
         "max_power_target_source": { "type": "entity", "value": ["sensor.sigen_plant_ess_rated_charging_power"] }
@@ -29,8 +28,7 @@
       "storage": {
         "capacity": { "type": "entity", "value": ["sensor.sigen_plant_rated_energy_capacity"] },
         "initial_charge_percentage": { "type": "entity", "value": ["sensor.sigen_plant_battery_state_of_charge"] }
-      },
-      "undercharge": {}
+      }
     },
     "Grid": {
       "name": "Grid",

@@ -1,7 +1,7 @@
 import type { JSX } from "preact";
 
 interface OverlayLineLayerProps {
-  paths: Array<{ key: string; color: string; d: string }>;
+  paths: Array<{ key: string; color: string; d: string; className?: string }>;
   highlightedSeries: string | null;
   focusedSeriesKeys: Set<string>;
   cssClass: string;
@@ -22,7 +22,7 @@ export function OverlayLineLayer(props: OverlayLineLayerProps): JSX.Element {
         return (
           <path
             key={series.key}
-            className={`lineSeries ${props.cssClass} ${isActive ? "active" : ""}`}
+            className={`lineSeries ${props.cssClass} ${series.className ?? ""} ${isActive ? "active" : ""}`}
             stroke={series.color}
             opacity={opacity}
             d={series.d}

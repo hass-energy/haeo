@@ -21,7 +21,7 @@ from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_CHARGE_COST,
-    CONF_CONFIGURE_PARTITIONS,
+    CONF_CHARGE_LIMIT_COST,
     CONF_DISCHARGE_COST,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -31,6 +31,7 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
+    SECTION_ADVANCED,
     SECTION_EFFICIENCY,
     SECTION_LIMITS,
     SECTION_POWER_LIMITS,
@@ -381,6 +382,7 @@ def _wrap_battery_input(user_input: Mapping[str, object]) -> dict[str, object]:
             for key in (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE)
             if key in user_input
         },
+        SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: 100.0},
     }
 
 
@@ -397,7 +399,6 @@ def _base_battery_input() -> dict[str, object]:
         CONF_EFFICIENCY_TARGET_SOURCE: 0.95,
         CONF_MAX_POWER_TARGET_SOURCE: 5.0,
         CONF_MAX_POWER_SOURCE_TARGET: 5.0,
-        CONF_CONFIGURE_PARTITIONS: False,
     }
 
 

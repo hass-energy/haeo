@@ -21,7 +21,7 @@ from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_T
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.util import UnitSpec
-from custom_components.haeo.core.units import ENERGY_DISTANCE_UNITS, PRICE_UNIT_SPEC, currency_symbol
+from custom_components.haeo.core.units import DURATION_UNITS, ENERGY_DISTANCE_UNITS, PRICE_UNIT_SPEC, currency_symbol
 from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldGroups, localize_input_fields
 
@@ -47,6 +47,8 @@ def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[Un
             return [PERCENTAGE]
         case OutputType.PRICE:
             return PRICE_UNIT_SPEC
+        case OutputType.DURATION:
+            return [unit.value for unit in DURATION_UNITS]
         case OutputType.PRICE_RATE:
             return None
         case OutputType.DISTANCE:
@@ -54,7 +56,7 @@ def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[Un
         case OutputType.ENERGY_PER_DISTANCE:
             return [unit.value for unit in ENERGY_DISTANCE_UNITS]
         case _:
-            # STATUS, AVAILABILITY, COST, DURATION, SHADOW_PRICE - no unit filtering
+            # STATUS, AVAILABILITY, COST, SHADOW_PRICE - no unit filtering
             return None
 
 

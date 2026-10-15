@@ -32,12 +32,13 @@ from custom_components.haeo.core.schema import as_connection_target, as_constant
 from custom_components.haeo.core.schema.elements import ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
+    SECTION_ADVANCED,
     SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_STORAGE,
 )
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
@@ -121,7 +122,7 @@ def _battery_config(
         SECTION_POWER_LIMITS: power_limits,
         SECTION_PRICING: pricing,
         SECTION_EFFICIENCY: efficiency_section,
-        SECTION_PARTITIONING: {},
+        SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: as_constant_value(100.0)},
     }
 
 

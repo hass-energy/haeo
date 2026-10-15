@@ -4,7 +4,6 @@ from collections.abc import Mapping
 from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
-from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfig
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
@@ -12,24 +11,19 @@ from custom_components.haeo.core.schema import get_connection_target_name, norma
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_CHARGE_COST,
-    CONF_CONFIGURE_PARTITIONS,
+    CONF_CHARGE_LIMIT_COST,
     CONF_DISCHARGE_COST,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
     CONF_MIN_CHARGE_PERCENTAGE,
-    CONF_PARTITION_COST,
-    CONF_PARTITION_PERCENTAGE,
     CONF_SALVAGE_VALUE,
     ELEMENT_TYPE,
-    PARTITION_FIELD_NAMES,
+    SECTION_ADVANCED,
     SECTION_LIMITS,
-    SECTION_OVERCHARGE,
-    SECTION_PARTITIONING,
     SECTION_PRICING,
     SECTION_STORAGE,
-    SECTION_UNDERCHARGE,
     SURFACED_PRICE_HINTS,
 )
 from custom_components.haeo.core.schema.sections import (
@@ -64,30 +58,12 @@ from custom_components.haeo.sections import (
     pricing_section,
 )
 
-PARTITION_SECTION_DEFINITIONS = (
-    SectionDefinition(
-        key=SECTION_UNDERCHARGE,
-        fields=(CONF_PARTITION_PERCENTAGE, CONF_PARTITION_COST),
-        collapsed=False,
-    ),
-    SectionDefinition(
-        key=SECTION_OVERCHARGE,
-        fields=(CONF_PARTITION_PERCENTAGE, CONF_PARTITION_COST),
-        collapsed=False,
-    ),
-)
-
 # Surfaced policy field names (not stored in battery config)
 SURFACED_POLICY_FIELDS: frozenset[str] = frozenset({CONF_CHARGE_COST, CONF_DISCHARGE_COST})
 
 
 class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     """Handle battery element configuration flows."""
-
-    def __init__(self) -> None:
-        """Initialize the flow handler."""
-        super().__init__()
-        self._step1_data: dict[str, object] = {}
 
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the main configuration step."""
@@ -106,12 +82,8 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             power_limits_section((CONF_MAX_POWER_TARGET_SOURCE, CONF_MAX_POWER_SOURCE_TARGET), collapsed=False),
             pricing_section((CONF_SALVAGE_VALUE, CONF_CHARGE_COST, CONF_DISCHARGE_COST), collapsed=False),
             efficiency_section((CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE), collapsed=True),
-            SectionDefinition(key=SECTION_PARTITIONING, fields=(CONF_CONFIGURE_PARTITIONS,), collapsed=True),
+            SectionDefinition(key=SECTION_ADVANCED, fields=(CONF_CHARGE_LIMIT_COST,), collapsed=True),
         )
-
-    def _get_partition_sections(self) -> tuple[SectionDefinition, ...]:
-        """Return sections for the partition configuration step."""
-        return PARTITION_SECTION_DEFINITIONS
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
         """Handle user step: name, connection, and input configuration."""
@@ -142,13 +114,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         errors = self._validate_user_input(user_input, input_fields)
 
         if user_input is not None and not errors:
-            self._step1_data = user_input
-            # Check if partitions are enabled
-            if as_mapping(user_input.get(SECTION_PARTITIONING)).get(CONF_CONFIGURE_PARTITIONS):
-                return await self.async_step_partitions()
-            # No partitions - finalize directly
-            config = self._build_config(user_input, {})
-            return self._finalize(config)
+            return self._finalize(self._build_config(user_input), user_input)
 
         entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
@@ -172,26 +138,6 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         schema = self.add_suggested_values_to_schema(schema, defaults)
 
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
-
-    async def async_step_partitions(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
-        """Handle partition configuration step."""
-        errors = self._validate_partition_input(user_input)
-        subentry = self._get_subentry()
-        subentry_data: dict[str, object] | None = dict(subentry.data) if subentry else None
-
-        if user_input is not None and not errors:
-            config = self._build_config(self._step1_data, user_input)
-            return self._finalize(config)
-
-        input_fields = self._get_input_fields(ELEMENT_TYPE)
-        entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
-        section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
-
-        schema = self._build_partition_schema(input_fields, section_inclusion_map, subentry_data)
-        defaults = user_input if user_input is not None else self._build_partition_defaults(input_fields, subentry_data)
-        schema = self.add_suggested_values_to_schema(schema, defaults)
-
-        return self.async_show_form(step_id="partitions", data_schema=schema, errors=errors)
 
     def _build_schema(
         self,
@@ -219,31 +165,7 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 participants=participants,
                 current_connection=current_connection,
             ),
-            extra_field_entries={
-                SECTION_PARTITIONING: {
-                    CONF_CONFIGURE_PARTITIONS: (
-                        vol.Optional(CONF_CONFIGURE_PARTITIONS),
-                        BooleanSelector(BooleanSelectorConfig()),
-                    )
-                },
-                SECTION_PRICING: surfaced_entries,
-            },
-        )
-
-    def _build_partition_schema(
-        self,
-        input_fields: InputFieldGroups,
-        section_inclusion_map: dict[str, dict[str, list[str]]],
-        subentry_data: Mapping[str, object] | None = None,
-    ) -> vol.Schema:
-        """Build the schema for partition fields."""
-        field_schema = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
-        return build_sectioned_choose_schema(
-            self._get_partition_sections(),
-            input_fields,
-            field_schema,
-            section_inclusion_map,
-            current_data=sectioned_view(subentry_data),
+            extra_field_entries={SECTION_PRICING: surfaced_entries},
         )
 
     def _build_defaults(
@@ -261,15 +183,6 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             if subentry_data
             else None
         )
-        # Check if partitions were previously configured
-        has_partitions = False
-        if subentry_data:
-            for section_key in (SECTION_UNDERCHARGE, SECTION_OVERCHARGE):
-                partition_section = as_mapping(subentry_data.get(section_key))
-                if any(partition_section.get(field_name) is not None for field_name in PARTITION_FIELD_NAMES):
-                    has_partitions = True
-                    break
-
         hub_entry = self._get_entry()
         element_name = as_str(subentry_data.get(CONF_NAME)) if subentry_data else None
         surfaced_fields = get_surfaced_input_fields(ELEMENT_TYPE)
@@ -279,30 +192,13 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             self._get_sections(),
             input_fields,
             current_data=subentry_data,
-            base_defaults={
-                SECTION_PARTITIONING: {
-                    CONF_CONFIGURE_PARTITIONS: has_partitions,
-                },
-                SECTION_PRICING: surfaced_defaults,
-            },
+            base_defaults={SECTION_PRICING: surfaced_defaults},
         )
         return {
             CONF_NAME: default_name if subentry_data is None else subentry_data.get(CONF_NAME),
             CONF_CONNECTION: connection_default,
             **section_defaults,
         }
-
-    def _build_partition_defaults(
-        self,
-        input_fields: InputFieldGroups,
-        subentry_data: Mapping[str, object] | None = None,
-    ) -> dict[str, dict[str, object]]:
-        """Build default values for the partition form."""
-        return build_sectioned_choose_defaults(
-            self._get_partition_sections(),
-            input_fields,
-            current_data=subentry_data,
-        )
 
     def _validate_user_input(
         self,
@@ -322,27 +218,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 input_fields,
                 field_schema,
                 self._get_sections(),
-                exclude_fields=(*PARTITION_FIELD_NAMES, *SURFACED_POLICY_FIELDS),
+                exclude_fields=tuple(SURFACED_POLICY_FIELDS),
             )
         )
         return errors if errors else None
 
-    def _validate_partition_input(self, user_input: object | None) -> dict[str, str] | None:
-        """Validate partition input and return errors dict if any.
-
-        All partition fields are optional, so no validation is needed.
-        This method exists for consistency with the validation pattern and
-        can be extended if required partition fields are added in the future.
-        """
-        if user_input is None:
-            return None
-        return None
-
-    def _build_config(
-        self,
-        main_input: Mapping[str, object],
-        partition_input: Mapping[str, object],
-    ) -> dict[str, object]:
+    def _build_config(self, main_input: Mapping[str, object]) -> dict[str, object]:
         """Build final config dict from user input."""
         input_fields = self._get_input_fields(ELEMENT_TYPE)
         sections = self._get_sections()
@@ -353,17 +234,6 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             exclude_fields=tuple(SURFACED_POLICY_FIELDS),
         )
 
-        if partition_input:
-            partition_sections = self._get_partition_sections()
-            partition_config = convert_sectioned_choose_data_to_config(
-                partition_input,
-                input_fields,
-                partition_sections,
-            )
-            for section_key in (SECTION_UNDERCHARGE, SECTION_OVERCHARGE):
-                if section_key in partition_config:
-                    config_dict[section_key] = partition_config[section_key]
-
         return {
             CONF_ELEMENT_TYPE: ELEMENT_TYPE,
             CONF_NAME: main_input[CONF_NAME],
@@ -371,12 +241,12 @@ class BatterySubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             **config_dict,
         }
 
-    def _finalize(self, config: dict[str, object]) -> SubentryFlowResult:
+    def _finalize(self, config: dict[str, object], user_input: Mapping[str, object]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry and saving surfaced rules."""
-        name = str(self._step1_data[CONF_NAME])
+        name = str(user_input[CONF_NAME])
 
         # Save surfaced policy rules from the pricing section input
-        pricing_input = as_mapping(self._step1_data.get(SECTION_PRICING))
+        pricing_input = as_mapping(user_input.get(SECTION_PRICING))
         hub_entry = self._get_entry()
         translations = self._surfaced_rule_translations(name)
         subentry = self._get_subentry()
