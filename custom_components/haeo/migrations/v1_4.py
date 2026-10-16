@@ -124,6 +124,14 @@ def _swap_node_for_junction(hass: HomeAssistant, entry: ConfigEntry, subentry: C
         )
         kept_entity_ids.append(entity_entry.entity_id)
 
+    # Home Assistant 2026.9+ gives a device a single owner, so the config entry link
+    # above only takes effect once the subentry link is removed in a separate call.
+    # Entities still linked to the subentry would be removed with it, so this follows them
+    if device is not None:
+        device_registry.async_update_device(
+            device.id, remove_config_entry_id=entry.entry_id, remove_config_subentry_id=subentry.subentry_id
+        )
+
     hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)
     hass.config_entries.async_add_subentry(
         entry,
