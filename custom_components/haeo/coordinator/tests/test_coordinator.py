@@ -92,7 +92,7 @@ from custom_components.haeo.elements import get_element_configs
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.input_stores import build_input_stores
 
-_TIMES = tuple(datetime(2024, 6, 1, tzinfo=UTC) + timedelta(minutes=30 * i) for i in range(3))
+_TIMES = tuple(datetime(2024, 6, 1, tzinfo=UTC) + timedelta(minutes=30 * i) for i in range(4))
 
 
 @pytest.fixture
@@ -590,6 +590,33 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
         {"time": forecast_times[0], "value": 1.2},
         {"time": forecast_times[1], "value": 3.4},
     ]
+
+
+def test_build_coordinator_output_maps_interval_values_onto_period_starts() -> None:
+    """Interval values take the first n of the n+1 boundary times."""
+    output = _build_coordinator_output(
+        SOLAR_POWER,
+        OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0)),
+        forecast_times=_TIMES[:3],
+        currency_sym="$",
+    )
+
+    assert output.forecast == [
+        {"time": _TIMES[0], "value": 1.0},
+        {"time": _TIMES[1], "value": 2.0},
+    ]
+
+
+@pytest.mark.parametrize("value_count", [2, 5], ids=["too-few", "too-many"])
+def test_build_coordinator_output_rejects_values_that_do_not_fit_the_forecast_times(value_count: int) -> None:
+    """Values that are neither interval nor boundary values fail instead of being truncated."""
+    with pytest.raises(ValueError, match=f"has {value_count} values for 4 forecast times"):
+        _build_coordinator_output(
+            SOLAR_POWER,
+            OutputData(type=OutputType.POWER, unit="kW", values=tuple(float(v) for v in range(value_count))),
+            forecast_times=_TIMES[:4],
+            currency_sym="$",
+        )
 
 
 def test_forecast_datetimes_are_in_home_assistant_time_zone() -> None:
