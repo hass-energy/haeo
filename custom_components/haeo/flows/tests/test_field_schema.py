@@ -1414,8 +1414,7 @@ def test_calendar_field_renders_a_calendar_entity_selector() -> None:
     marker, selector = entries["window_calendar"]
     assert marker.schema == "window_calendar"
     assert isinstance(marker, vol.Required)
-    assert selector.config["domain"] == ["calendar"]
-    assert selector.config["multiple"] is False
+    assert selector.serialize() == {"selector": {"entity": {"domain": ["calendar"], "multiple": False, "reorder": False}}}
 
 
 def test_optional_calendar_field_uses_an_optional_marker() -> None:

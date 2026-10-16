@@ -19,7 +19,7 @@ from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.calendar_loader import CalendarInputLoader, CalendarStateMachine
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
-from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE, CalendarEventDict
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.field_hints import FieldHint, calendar_input
 from custom_components.haeo.horizon import HorizonManager
@@ -90,6 +90,11 @@ def horizon_manager() -> Mock:
     return manager
 
 
+def _overlapping(events: list[CalendarEvent], start: datetime, end: datetime) -> list[CalendarEvent]:
+    """Return the events overlapping a range, as a calendar's fetch does."""
+    return [event for event in events if event.end_datetime_local > start and event.start_datetime_local < end]
+
+
 class _StubCalendar(CalendarEntity):
     """Calendar entity double returning canned events."""
 
@@ -108,15 +113,15 @@ class _StubCalendar(CalendarEntity):
     async def async_get_events(
         self,
         hass: HomeAssistant,  # noqa: ARG002 (signature fixed by CalendarEntity)
-        start_date: datetime,  # noqa: ARG002
-        end_date: datetime,  # noqa: ARG002
+        start_date: datetime,
+        end_date: datetime,
     ) -> list[CalendarEvent]:
-        """Return all canned events regardless of range, yielding like a real fetch."""
+        """Return the canned events overlapping the range, yielding like a real fetch."""
         await asyncio.sleep(0)
         if self.fail:
             msg = "Calendar backend unreachable"
             raise HomeAssistantError(msg)
-        return self._events
+        return _overlapping(self._events, start_date, end_date)
 
 
 async def _add_stub_calendars(hass: HomeAssistant, *calendars: _StubCalendar) -> None:
@@ -140,8 +145,16 @@ async def _add_stub_calendar(hass: HomeAssistant, events: list[CalendarEvent]) -
 def test_state_machine_injects_events_for_known_calendars() -> None:
     """Known calendar entities get events merged into their attributes."""
     base = FakeStateMachine({ENTITY_ID: FakeEntityState(ENTITY_ID, "on", {"existing": 1})})
-    events = [{"start": "2026-01-01T00:00:00+00:00", "end": "2026-01-01T01:00:00+00:00"}]
-    sm = CalendarStateMachine(base, {ENTITY_ID: events})  # type: ignore[arg-type]  # test uses plain dicts
+    events = [
+        CalendarEventDict(
+            start="2026-01-01T00:00:00+00:00",
+            end="2026-01-01T01:00:00+00:00",
+            summary="Trip",
+            location=None,
+            description=None,
+        )
+    ]
+    sm = CalendarStateMachine(base, {ENTITY_ID: events})
 
     state = sm.get(ENTITY_ID)
 
@@ -374,13 +387,13 @@ class _GatedCalendar(_StubCalendar):
     async def async_get_events(
         self,
         hass: HomeAssistant,  # noqa: ARG002 (signature fixed by CalendarEntity)
-        start_date: datetime,  # noqa: ARG002
-        end_date: datetime,  # noqa: ARG002
+        start_date: datetime,
+        end_date: datetime,
     ) -> list[CalendarEvent]:
-        """Return the next queued events after waiting for that fetch's gate."""
+        """Return the next queued events overlapping the range after waiting for that fetch's gate."""
         events, gate = self.responses.pop(0)
         await gate.wait()
-        return events
+        return _overlapping(events, start_date, end_date)
 
 
 async def test_loader_applies_overlapping_reloads_in_trigger_order(hass: HomeAssistant, horizon_manager: Mock) -> None:

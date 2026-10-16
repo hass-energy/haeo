@@ -26,6 +26,7 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    Selector,
 )
 import voluptuous as vol
 
@@ -71,7 +72,7 @@ class SectionDefinition:
 # Calendar-driven fields use a plain entity picker instead of a choose
 # selector. EntitySelector loses its type argument through HA's selector
 # registry decorator.
-type FieldEntry = tuple[vol.Marker, NormalizingChooseSelector | EntitySelector]  # type: ignore[type-arg]
+type FieldEntry = tuple[vol.Marker, Selector[ChooseSelectorConfig] | Selector[EntitySelectorConfig]]
 
 
 def _get_nested_value(data: Mapping[str, object], field_name: str) -> object | None:
