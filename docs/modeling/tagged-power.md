@@ -94,6 +94,14 @@ where $b_{n,v,t}$ is the node's net production on tag $v$.
 The node-role semantics above determine which tags carry which sign of $b$:
 source-only nodes have $b > 0$ only on their own tag, sink-only nodes have $b \le 0$ on any admitted tag, and junctions have $b = 0$ for every tag.
 
+### Balance shadow price
+
+Each element publishes one power balance shadow price per period.
+Without tags it is the dual of the single energy balance row.
+With tags it is the dual of the balance of the lowest tag the element admits.
+Tag 0 carries unpolicied power, so wherever it reaches an element this is the price of ordinary energy there.
+The other tag balances and the rows that split production and consumption across tags sit in a separate constraint that publishes nothing.
+
 ### Policy pricing
 
 Each policy contributes a pricing term summed over its *priced edges* — the minimum edge cut on the policy's tag subgraph separating the policy's sources from its destinations:

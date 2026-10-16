@@ -81,6 +81,7 @@ Where $P_{\text{connection}}(t)$ is the sum of power flows from all connected [C
 
 The Element base class creates per-tag power balance constraints for all elements with tagged connections.
 See the [tagged power formulation](../../tagged-power.md#per-tag-balance) for details.
+The power balance shadow price comes from one of these balances, as described in [balance shadow price](../../tagged-power.md#balance-shadow-price).
 
 ### Cost Contribution
 

@@ -360,26 +360,51 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
             }
         return self._produced_by_tag
 
+    def _tag_routing(self) -> tuple[set[int], set[int]]:
+        """Return the connection tags that produced and consumed power can use."""
+        tags = self.connection_tags()
+        outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
+        inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
+        return outbound, inbound
+
+    def _tag_balance(self, tag: int) -> Rows:
+        """Return the energy balance rows for one tag that this element balances."""
+        terms = [self.connection_power_for_tag(tag)]
+        outbound, inbound = self._tag_routing()
+        if tag in outbound and self.element_power_produced() is not None:
+            terms.append(self._get_produced_by_tag(outbound)[tag])
+        if tag in inbound and self.element_power_consumed() is not None:
+            terms.append(-self._get_consumed_by_tag(inbound)[tag])
+        return LinearArray.sum_of(terms) * self.periods == 0
+
+    def _balanced_tags(self) -> list[int]:
+        """Return the tags this element balances, in ascending order.
+
+        A tag is balanced when produced power can be placed on it or consumed power
+        can draw from it. Every other tag is blocked at this element.
+        """
+        outbound, inbound = self._tag_routing()
+        return sorted(outbound | inbound)
+
     @constraint(output=True, unit="$/kWh")
     def element_power_balance(self) -> Rows:
-        """Per-tag energy balance: for each tag, (connection + produced - consumed) * dt == 0.
+        """Energy balance: (connection + produced - consumed) * dt == 0, one row per period.
 
         Formulated in energy units (kWh) so that shadow prices are $/kWh,
         independent of period width. Power (kW) is multiplied by the period
         duration (h) to give energy (kWh) for each balance constraint.
 
-        Production is decomposed across ``outbound_tags`` via per-tag variables.
-        Consumption is decomposed across ``inbound_tags`` via per-tag variables.
-        Tags outside both sets are blocked (each connection's per-tag flow == 0).
+        With tagged connections this is the balance of the lowest balanced tag.
+        Tag 0 carries unpolicied power, so wherever it reaches the element this is
+        the price of ordinary energy there. The other tags balance in
+        ``element_tag_balance``.
 
         Output: shadow price indicating the marginal value of energy at this element.
-        Has no rows when there are no connections and no external power.
+        Has no rows when there is nothing to balance.
         """
-        dt = self.periods  # hours per period
-        tags = self.connection_tags()
-        produced = self.element_power_produced()
-        consumed = self.element_power_consumed()
-        if not tags:
+        if not self.connection_tags():
+            produced = self.element_power_produced()
+            consumed = self.element_power_consumed()
             if not self._connections and produced is None and consumed is None:
                 return Rows.concat([])
             terms = [self.connection_power()]
@@ -387,16 +412,32 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
                 terms.append(produced)
             if consumed is not None:
                 terms.append(-consumed)
-            return LinearArray.sum_of(terms) * dt == 0
+            return LinearArray.sum_of(terms) * self.periods == 0
 
-        # Determine which tags can carry produced/consumed power
-        outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
-        inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
+        balanced = self._balanced_tags()
+        return self._tag_balance(balanced[0]) if balanced else Rows.concat([])
+
+    @constraint
+    def element_tag_balance(self) -> Rows:
+        """Route energy across tags: decomposition, the remaining tag balances, and blocked tags.
+
+        Production is decomposed across ``outbound_tags`` via per-tag variables.
+        Consumption is decomposed across ``inbound_tags`` via per-tag variables.
+        Every balanced tag after the first balances here, and tags outside both
+        sets are blocked (each connection's per-tag flow == 0).
+        Has no rows when the connections carry no tags.
+        """
+        dt = self.periods  # hours per period
+        tags = self.connection_tags()
+        if not tags:
+            return Rows.concat([])
+        produced = self.element_power_produced()
+        consumed = self.element_power_consumed()
+        outbound, inbound = self._tag_routing()
 
         blocks: list[Rows] = []
 
         # Decompose production across outbound tags
-        produced_by_tag: dict[int, LinearArray] = {}
         if produced is not None:
             if outbound:
                 produced_by_tag = self._get_produced_by_tag(outbound)
@@ -405,7 +446,6 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
                 blocks.append(produced * dt == 0)
 
         # Decompose consumption across inbound tags
-        consumed_by_tag: dict[int, LinearArray] = {}
         if consumed is not None:
             if inbound:
                 consumed_by_tag = self._get_consumed_by_tag(inbound)
@@ -413,22 +453,14 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
             else:
                 blocks.append(consumed * dt == 0)
 
-        # Per-tag power balance
-        for tag in sorted(tags):
-            if tag in outbound or tag in inbound:
-                terms = [self.connection_power_for_tag(tag)]
-                if tag in produced_by_tag:
-                    terms.append(produced_by_tag[tag])
-                if tag in consumed_by_tag:
-                    terms.append(-consumed_by_tag[tag])
-                blocks.append(LinearArray.sum_of(terms) * dt == 0)
-            else:
-                blocks.extend(
-                    (conn.power_into_source_for_tag(tag) if end == "source" else conn.power_into_target_for_tag(tag))
-                    * dt
-                    == 0
-                    for conn, end in self._connections
-                    if tag in conn.connection_tags()
-                )
+        blocks.extend(self._tag_balance(tag) for tag in self._balanced_tags()[1:])
+
+        # Block tags outside both sets on every connection that carries them
+        blocks.extend(
+            (conn.power_into_source_for_tag(tag) if end == "source" else conn.power_into_target_for_tag(tag)) * dt == 0
+            for tag in sorted(tags - outbound - inbound)
+            for conn, end in self._connections
+            if tag in conn.connection_tags()
+        )
 
         return Rows.concat(blocks)

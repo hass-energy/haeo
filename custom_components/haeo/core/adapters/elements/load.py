@@ -141,7 +141,7 @@ class LoadAdapter:
         # power-balance shadow price (node_dual, $/kWh, already period-integrated)
         # so that cost = energy * node_dual is in $.
         source_name = extract_connection_target(config[CONF_CONNECTION])
-        node_dual = _node_dual_values(model_outputs, source_name, len(periods)) if len(periods) > 0 else None
+        node_dual = _node_dual_values(model_outputs, source_name)
         if node_dual is not None:
             power_values = tuple(float(v) for v in power.values)
             period_values = tuple(float(v) for v in periods)
@@ -153,28 +153,15 @@ class LoadAdapter:
 def _node_dual_values(
     model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
     source_name: str,
-    n_periods: int,
 ) -> tuple[float, ...] | None:
-    """Return the source-node power-balance shadow price ($/kWh).
+    """Return the source-node power-balance shadow price ($/kWh), one value per period.
 
-    Uses the first ``n_periods`` of ``element_power_balance``: the same series
-    that the node's canonical ``node_power_balance`` sensor exposes in Home
-    Assistant (the coordinator zips values with ``n_periods+1`` timestamps
-    using ``strict=False``, so trailing tag-balance / decomposition blocks are
-    already dropped from the published forecast). Multiplying load energy
-    (``power * dt``) by this $/kWh price gives the per-step cost in dollars.
-
-    Since PR #426 (DEFAULT_TAG removal), ``element_power_balance`` is a flat
-    list of per-period constraints. For a multi-tag node the layout is
-    ``[optional production-decomp block, optional consumption-decomp block,
-    one per-tag balance block per tag]``, each of length ``n_periods``. The
-    first block always carries a balance dual whose magnitude matches the
-    user-visible switchboard shadow price, which is the correct marginal
-    cost for an additional unit of load energy at this node.
+    This is the same series that the node's ``node_power_balance`` sensor
+    exposes in Home Assistant. Multiplying load energy (``power * dt``) by this
+    $/kWh price gives the per-step cost in dollars.
 
     Returns None when the source node has no ``element_power_balance`` output
-    (e.g. unconstrained pass-through nodes) or when the dual length is not a
-    whole multiple of ``n_periods`` (defensive: would indicate a layout bug).
+    (e.g. unconstrained pass-through nodes).
     """
     source_outputs = model_outputs.get(source_name)
     if source_outputs is None:
@@ -182,10 +169,7 @@ def _node_dual_values(
     dual = expect_output_data(source_outputs.get(ELEMENT_POWER_BALANCE))
     if dual is None:
         return None
-    values = tuple(float(v) for v in dual.values)
-    if len(values) == 0 or len(values) % n_periods != 0:
-        return None
-    return values[:n_periods]
+    return tuple(float(v) for v in dual.values)
 
 
 def _stats_outputs(
