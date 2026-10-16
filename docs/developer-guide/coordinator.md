@@ -82,6 +82,8 @@ See [Input Entities](inputs.md) for details on how data loading works.
 The network optimization runs in an executor thread via `hass.async_add_executor_job()` to avoid blocking the event loop.
 The coordinator calls `network.optimize()`, which uses the bundled HiGHS solver.
 This blocking operation is tracked for diagnostics timing.
+When the solver ends without an optimal plan, such as for an infeasible network, `network.optimize()` raises `OptimizationFailedError` carrying the solver status.
+The coordinator turns it into a translated `UpdateFailed`, so Home Assistant logs a one-line error instead of a traceback.
 
 **Network building and warm start**:
 

@@ -34,7 +34,7 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMENT_TYPE, DEFAULT_DEBOUNCE_SECONDS
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
-from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.core.model import ModelOutputName, Network, OptimizationFailedError, OutputData, OutputType
 from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.util import extract_unit_parts
@@ -760,7 +760,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._apply_pending_element_updates()
 
             # Perform the optimization
-            cost = await self.hass.async_add_executor_job(network.optimize)
+            try:
+                cost = await self.hass.async_add_executor_job(network.optimize)
+            except OptimizationFailedError as err:
+                raise UpdateFailed(
+                    translation_domain=DOMAIN,
+                    translation_key="optimization_failed",
+                    translation_placeholders={"status": err.status},
+                ) from err
 
             end_time = time.time()
             optimization_duration = end_time - start_time

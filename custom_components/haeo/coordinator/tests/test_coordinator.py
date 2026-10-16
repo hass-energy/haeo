@@ -53,7 +53,7 @@ from custom_components.haeo.core.const import (
 )
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model import Network, OutputData, OutputType
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import (
@@ -1890,3 +1890,44 @@ async def test_async_update_data_raises_translated_input_error(
         "entities": "sensor.import_limit",
         "value": "-4.5",
     }
+
+
+async def test_async_refresh_reports_infeasible_network_as_update_failed(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """An infeasible network fails the update with a translated error instead of an unexpected-error traceback."""
+    _get_mock_horizon(mock_runtime_data).periods_seconds = [3600]
+
+    # Five kilowatts must flow out of a node that cannot supply any power
+    network = Network(name="test", periods=np.array([1.0]))
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "src", "is_source": False, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "dst", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "src",
+            "target": "dst",
+            "tags": {1},
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": 5.0, "fixed": True},
+                "pricing": {"segment_type": "pricing", "price": 0.1},
+            },
+        }
+    )
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = network
+
+    with patch.object(coordinator, "_load_from_input_stores", return_value={}):
+        await coordinator.async_refresh()
+
+    assert coordinator.last_update_success is False
+    assert isinstance(coordinator.last_exception, UpdateFailed)
+    assert coordinator.last_exception.translation_key == "optimization_failed"
+    assert coordinator.last_exception.translation_placeholders == {"status": "Infeasible"}
+    assert "Unexpected error" not in caplog.text
+    assert "Traceback" not in caplog.text
