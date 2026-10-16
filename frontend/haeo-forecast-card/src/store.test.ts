@@ -1,3 +1,4 @@
+import { isObservable } from "mobx";
 import { describe, expect, it, vi } from "vitest";
 
 import { ForecastCardStore } from "./store";
@@ -6,6 +7,18 @@ import { DEFAULT_TEST_HUB, loadScenarioHassState, withSingleHubRegistry } from "
 const testConfig = { type: "custom:haeo-forecast-card" as const, hub_entry_id: DEFAULT_TEST_HUB };
 
 describe("ForecastCardStore", () => {
+  it("holds hass and the series cache by reference without deep-observing them", () => {
+    const store = new ForecastCardStore();
+    const hass = loadScenarioHassState("scenario2");
+    store.setHass(hass);
+    store.setConfig(testConfig);
+
+    expect(store.hass).toBe(hass);
+    expect(isObservable(store.hass)).toBe(false);
+    expect(store.normalizedSeries.length).toBeGreaterThan(0);
+    expect(isObservable(store.normalizedSeriesCache)).toBe(false);
+  });
+
   it("builds filtered visible series from real scenario outputs", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario2"));
