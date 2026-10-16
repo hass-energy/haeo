@@ -89,16 +89,15 @@ class HaeoInputSwitch(SwitchEntity):
         field_path_key = ".".join(self._field_path)
         is_list_item_field = len(self._field_path) >= LIST_ITEM_FIELD_PATH_LENGTH
         unique_key = field_info.field_name
-        if is_list_item_field:
-            unique_key = field_path_key
-        elif len(self._field_path) == SECTION_FIELD_PATH_LENGTH and _field_name_is_reused_in_other_sections(
-            subentry.data,
-            current_section=self._field_path[0],
-            field_name=field_info.field_name,
-        ):
-            unique_key = (
-                f"{field_info.device_type}.{field_info.field_name}" if field_info.device_type else field_path_key
+        if is_list_item_field or (
+            len(self._field_path) == SECTION_FIELD_PATH_LENGTH
+            and _field_name_is_reused_in_other_sections(
+                subentry.data,
+                current_section=self._field_path[0],
+                field_name=field_info.field_name,
             )
+        ):
+            unique_key = field_path_key
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{unique_key}"
 
         # Use entity description directly from field info

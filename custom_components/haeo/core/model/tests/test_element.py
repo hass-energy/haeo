@@ -5,14 +5,17 @@ import operator
 from typing import Literal
 from unittest.mock import Mock
 
-from highspy import Highs, HighsModelStatus
-from highspy.highs import HighspyArray
+from highspy import HighsModelStatus
 import numpy as np
 import pytest
 
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, Element, NetworkElement
 from custom_components.haeo.core.model.elements.connection import Connection
 from custom_components.haeo.core.model.elements.node import Node
+from custom_components.haeo.core.model.linear import LinearArray
+from custom_components.haeo.core.model.solver import Solver
+from custom_components.haeo.core.model.tests.test_data import minimize, solution_value
+from custom_components.haeo.core.model.util.solver_rows import add_rows
 
 
 @pytest.mark.parametrize(
@@ -23,22 +26,34 @@ from custom_components.haeo.core.model.elements.node import Node
     ],
     ids=["source", "target"],
 )
-def test_connection_power_by_end(solver: Highs, end: Literal["source", "target"], attr: str) -> None:
+def test_connection_power_by_end(solver: Solver, end: Literal["source", "target"], attr: str) -> None:
     """Connection power aggregates from the correct attribute for source/target ends."""
     node = Node(name="test_node", periods=np.array([1.0] * 3), solver=solver)
-    power = solver.addVariables(3, lb=-10, ub=10, name_prefix=f"power_{end}_", out_array=True)
+    power = solver.add_variables(3, lower=-10, upper=10, name="power")
 
     mock_connection = Mock(spec=Connection)
     setattr(mock_connection, attr, power)
     node.register_connection(mock_connection, end)
 
     result = node.connection_power()
-    solver.addConstr(power[0] == 7.5)
-    solver.minimize(result[0])
-    assert solver.val(result[0]) == pytest.approx(7.5)
+    add_rows(solver, power[0] == 7.5)
+    minimize(solver, result[0])
+    assert solution_value(solver, result[0]) == pytest.approx(7.5)
 
 
-def test_constraints_populates_constraint_state(solver: Highs) -> None:
+def test_outbound_and_inbound_connections_follow_the_registered_end(solver: Solver) -> None:
+    """Connections registered at the source end carry power out, and at the target end carry it in."""
+    node = Node(name="test_node", periods=np.array([1.0]), solver=solver)
+    out_first, into, out_second = Mock(spec=Connection), Mock(spec=Connection), Mock(spec=Connection)
+    node.register_connection(out_first, "source")
+    node.register_connection(into, "target")
+    node.register_connection(out_second, "source")
+
+    assert node.outbound_connections == [out_first, out_second]
+    assert node.inbound_connections == [into]
+
+
+def test_constraints_populates_constraint_state(solver: Solver) -> None:
     """Test that constraints() applies constraints via @constraint decorators.
 
     With the reactive pattern, constraints are discovered via @constraint decorators
@@ -59,7 +74,7 @@ def test_constraints_populates_constraint_state(solver: Highs) -> None:
     assert constraints_dict[ELEMENT_POWER_BALANCE] is not None
 
 
-def test_connection_power_with_multiple_connections(solver: Highs) -> None:
+def test_connection_power_with_multiple_connections(solver: Solver) -> None:
     """Test connection_power with multiple connections including both source and target ends.
 
     Total net power = sum of all connection power_into_* values.
@@ -70,12 +85,12 @@ def test_connection_power_with_multiple_connections(solver: Highs) -> None:
     node = Node(name="test_node", periods=np.array([1.0] * 3), solver=h)
 
     # Create first mock connection (node as source)
-    power_into_source_1 = h.addVariables(3, lb=-10, ub=10, name_prefix="conn1_into_source_", out_array=True)
+    power_into_source_1 = h.add_variables(3, lower=-10, upper=10, name="power_into_source_1")
     mock_conn1 = Mock(spec=Connection)
     mock_conn1.power_into_source = power_into_source_1
 
     # Create second mock connection (node as target)
-    power_into_target_2 = h.addVariables(3, lb=-10, ub=10, name_prefix="conn2_into_target_", out_array=True)
+    power_into_target_2 = h.add_variables(3, lower=-10, upper=10, name="power_into_target_2")
     mock_conn2 = Mock(spec=Connection)
     mock_conn2.power_into_target = power_into_target_2
 
@@ -93,14 +108,14 @@ def test_connection_power_with_multiple_connections(solver: Highs) -> None:
     # conn1 (source): power_into_source = -1.6
     # conn2 (target): power_into_target = 4.64
     # Total net power: -1.6 + 4.64 = 3.04
-    h.addConstr(power_into_source_1[2] == -1.6)
-    h.addConstr(power_into_target_2[2] == 4.64)
-    h.minimize(result[2])
+    add_rows(h, power_into_source_1[2] == -1.6)
+    add_rows(h, power_into_target_2[2] == 4.64)
+    minimize(h, result[2])
 
-    assert h.val(result[2]) == pytest.approx(3.04)
+    assert solution_value(h, result[2]) == pytest.approx(3.04)
 
 
-def test_element_default_outputs(solver: Highs) -> None:
+def test_element_default_outputs(solver: Solver) -> None:
     """Test Element base class default outputs() returns empty dict."""
 
     # Create a minimal Element subclass that doesn't override outputs()
@@ -117,7 +132,7 @@ def test_element_default_outputs(solver: Highs) -> None:
 
 
 def _make_mock_connection(
-    solver: Highs,
+    solver: Solver,
     n_periods: int,
     tags: set[int],
     name: str,
@@ -126,15 +141,15 @@ def _make_mock_connection(
     mock = Mock(spec=Connection)
     mock.connection_tags.return_value = tags
 
-    power_in: dict[int, HighspyArray] = {}
-    power_out: dict[int, HighspyArray] = {}
+    power_in: dict[int, LinearArray] = {}
+    power_out: dict[int, LinearArray] = {}
     for tag in tags:
-        p_in = solver.addVariables(n_periods, lb=0, ub=100, name_prefix=f"{name}_pin{tag}_", out_array=True)
-        p_out = solver.addVariables(n_periods, lb=0, ub=100, name_prefix=f"{name}_pout{tag}_", out_array=True)
+        p_in = solver.add_variables(n_periods, upper=100, name="p_in")
+        p_out = solver.add_variables(n_periods, upper=100, name="p_out")
         power_in[tag] = p_in
         power_out[tag] = p_out
         # Efficiency 1:1 for simplicity
-        solver.addConstrs(p_out == p_in)
+        add_rows(solver, p_out == p_in)
 
     mock.power_into_source_for_tag = Mock(side_effect=lambda t: -power_in[t])
     mock.power_into_target_for_tag = Mock(side_effect=lambda t: power_out[t])
@@ -149,7 +164,7 @@ def _make_mock_connection(
 # ---------------------------------------------------------------------------
 
 
-def test_multi_tag_outbound_does_not_duplicate_production(solver: Highs) -> None:
+def test_multi_tag_outbound_does_not_duplicate_production(solver: Solver) -> None:
     """Production should be decomposed across outbound tags, not duplicated.
 
     When a source element has outbound_tags={1, 2} and produces 10 kW,
@@ -175,11 +190,11 @@ def test_multi_tag_outbound_does_not_duplicate_production(solver: Highs) -> None
     # Apply constraints and optimize: minimize production cost
     node.constraints()
     # Force total outflow = 10 kW via connections
-    solver.addConstr(-conn1.power_into_source_for_tag(1)[0] + (-conn2.power_into_source_for_tag(2)[0]) == 10)
+    add_rows(solver, -conn1.power_into_source_for_tag(1)[0] + (-conn2.power_into_source_for_tag(2)[0]) == 10)
     produced = node.element_power_produced()
     assert produced is not None
-    solver.minimize(produced[0])
-    assert solver.val(produced[0]) == pytest.approx(10.0, abs=0.01)
+    minimize(solver, produced[0])
+    assert solution_value(solver, produced[0]) == pytest.approx(10.0, abs=0.01)
 
 
 # ---------------------------------------------------------------------------
@@ -196,7 +211,7 @@ def test_multi_tag_outbound_does_not_duplicate_production(solver: Highs) -> None
     ids=["empty-inbound-forces-consumption-zero", "empty-outbound-forces-production-zero"],
 )
 def test_empty_tag_overlap_forces_variable_to_zero(
-    solver: Highs,
+    solver: Solver,
     is_source: bool,
     is_sink: bool,
     tags_kwarg: dict[str, set[int]],
@@ -224,10 +239,10 @@ def test_empty_tag_overlap_forces_variable_to_zero(
 
     node.constraints()
     variable = getattr(node, variable_attr)
-    solver.minimize(-variable[0])
+    minimize(solver, -variable[0])
     status = solver.getModelStatus()
     assert status == HighsModelStatus.kOptimal, f"Expected Optimal but got {solver.modelStatusToString(status)}"
-    assert solver.val(variable[0]) == pytest.approx(0.0, abs=0.01)
+    assert solution_value(solver, variable[0]) == pytest.approx(0.0, abs=0.01)
 
 
 # ---------------------------------------------------------------------------
@@ -235,7 +250,7 @@ def test_empty_tag_overlap_forces_variable_to_zero(
 # ---------------------------------------------------------------------------
 
 
-def test_blocked_tag_forces_per_connection_flow_to_zero(solver: Highs) -> None:
+def test_blocked_tag_forces_per_connection_flow_to_zero(solver: Solver) -> None:
     """Tags outside outbound/inbound must have zero flow per-connection, not just net-zero.
 
     If a node has outbound_tags={1} and inbound_tags={1}, tag 2 should be
@@ -265,9 +280,9 @@ def test_blocked_tag_forces_per_connection_flow_to_zero(solver: Highs) -> None:
     # conn_out sends 5 kW tag-2 out. Net zero at node, but should be blocked.
     # We maximize tag-2 inflow on conn_in; if blocking works, it should be 0.
     tag2_in = conn_in.power_into_target_for_tag(2)
-    solver.minimize(-tag2_in[0])
+    minimize(solver, -tag2_in[0])
 
-    assert solver.val(tag2_in[0]) == pytest.approx(0.0, abs=0.01)
+    assert solution_value(solver, tag2_in[0]) == pytest.approx(0.0, abs=0.01)
 
 
 # ---------------------------------------------------------------------------
@@ -275,7 +290,7 @@ def test_blocked_tag_forces_per_connection_flow_to_zero(solver: Highs) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_untagged_connection_uses_simple_balance(solver: Highs) -> None:
+def test_untagged_connection_uses_simple_balance(solver: Solver) -> None:
     """When connections carry no tags, element_power_balance uses the simple path.
 
     The simple path is: connection_power() + produced - consumed == 0,
@@ -294,7 +309,7 @@ def test_untagged_connection_uses_simple_balance(solver: Highs) -> None:
     # Mock connection with no tags (empty set)
     mock = Mock(spec=Connection)
     mock.connection_tags.return_value = set()
-    power_into_source = solver.addVariables(n, lb=-100, ub=0, name_prefix="conn_src_", out_array=True)
+    power_into_source = solver.add_variables(n, lower=-100, upper=0, name="power_into_source")
     mock.power_into_source = power_into_source
 
     node.register_connection(mock, "source")
@@ -302,14 +317,14 @@ def test_untagged_connection_uses_simple_balance(solver: Highs) -> None:
     node.constraints()
 
     # Force outflow of 5 kW and verify production matches
-    solver.addConstr(power_into_source[0] == -5.0)
+    add_rows(solver, power_into_source[0] == -5.0)
     produced = node.element_power_produced()
     assert produced is not None
-    solver.minimize(produced[0])
-    assert solver.val(produced[0]) == pytest.approx(5.0, abs=0.01)
+    minimize(solver, produced[0])
+    assert solution_value(solver, produced[0]) == pytest.approx(5.0, abs=0.01)
 
 
-def test_disconnected_element_returns_no_constraints(solver: Highs) -> None:
+def test_disconnected_element_returns_no_constraints(solver: Solver) -> None:
     """A network element with no connections and no production/consumption has no balance rows.
 
     This exercises the early return in element_power_balance when there are no
@@ -325,10 +340,10 @@ def test_disconnected_element_returns_no_constraints(solver: Highs) -> None:
         solver=solver,
         output_names=frozenset(),
     )
-    assert element.element_power_balance() == []
+    assert len(element.element_power_balance()) == 0
 
 
-def test_passthrough_element_constrains_connection_to_zero(solver: Highs) -> None:
+def test_passthrough_element_constrains_connection_to_zero(solver: Solver) -> None:
     """A passthrough element (no production/consumption) constrains its connection power to zero."""
 
     class Passthrough(NetworkElement[str]):
@@ -344,16 +359,16 @@ def test_passthrough_element_constrains_connection_to_zero(solver: Highs) -> Non
 
     mock = Mock(spec=Connection)
     mock.connection_tags.return_value = set()
-    power = solver.addVariables(n, lb=-100, ub=100, name_prefix="conn_", out_array=True)
+    power = solver.add_variables(n, lower=-100, upper=100, name="power")
     mock.power_into_source = power
     element.register_connection(mock, "source")
 
     element.constraints()
-    solver.minimize(-power[0])
-    assert solver.val(power[0]) == pytest.approx(0.0, abs=0.01)
+    minimize(solver, -power[0])
+    assert solution_value(solver, power[0]) == pytest.approx(0.0, abs=0.01)
 
 
-def test_blocked_tag_skips_connection_without_tag(solver: Highs) -> None:
+def test_blocked_tag_skips_connection_without_tag(solver: Solver) -> None:
     """Blocked-tag loop skips connections that don't carry the blocked tag.
 
     When a node blocks tag 2 but one connection only carries tag 1,
@@ -381,5 +396,5 @@ def test_blocked_tag_skips_connection_without_tag(solver: Highs) -> None:
 
     # Tag 2 flows on conn1 should be blocked
     tag2_in = conn1.power_into_target_for_tag(2)
-    solver.minimize(-tag2_in[0])
-    assert solver.val(tag2_in[0]) == pytest.approx(0.0, abs=0.01)
+    minimize(solver, -tag2_in[0])
+    assert solution_value(solver, tag2_in[0]) == pytest.approx(0.0, abs=0.01)

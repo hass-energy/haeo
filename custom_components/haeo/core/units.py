@@ -13,6 +13,7 @@ class DeviceClass(StrEnum):
     POWER = "power"
     ENERGY = "energy"
     ENERGY_STORAGE = "energy_storage"
+    DURATION = "duration"
     MONETARY = "monetary"
 
     @classmethod
@@ -38,6 +39,10 @@ class UnitOfMeasurement(StrEnum):
     DOLLAR_PER_KWH = "$/kWh"
     DOLLAR_PER_KWH_PER_HOUR = "$/kWh/h"
     PERCENT = "%"
+    SECOND = "s"
+    MINUTE = "min"
+    HOUR = "h"
+    DAY = "d"
 
     @classmethod
     def of(cls, value: object) -> "UnitOfMeasurement | None":
@@ -52,6 +57,7 @@ BASE_UNITS: Final[dict[DeviceClass, UnitOfMeasurement]] = {
     DeviceClass.POWER: UnitOfMeasurement.KILO_WATT,
     DeviceClass.ENERGY: UnitOfMeasurement.KILO_WATT_HOUR,
     DeviceClass.ENERGY_STORAGE: UnitOfMeasurement.KILO_WATT_HOUR,
+    DeviceClass.DURATION: UnitOfMeasurement.HOUR,
 }
 
 _POWER_TO_KW: Final[dict[UnitOfMeasurement, float]] = {
@@ -67,6 +73,24 @@ _ENERGY_TO_KWH: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.MEGA_WATT_HOUR: 1000.0,
     UnitOfMeasurement.GIGA_WATT_HOUR: 1_000_000.0,
 }
+
+_DURATION_TO_HOURS: Final[dict[UnitOfMeasurement, float]] = {
+    UnitOfMeasurement.SECOND: 1 / 3600,
+    UnitOfMeasurement.MINUTE: 1 / 60,
+    UnitOfMeasurement.HOUR: 1.0,
+    UnitOfMeasurement.DAY: 24.0,
+}
+
+# Factors to each device class's base unit, for every device class that has one
+_TO_BASE_UNIT: Final[dict[DeviceClass, dict[UnitOfMeasurement, float]]] = {
+    DeviceClass.POWER: _POWER_TO_KW,
+    DeviceClass.ENERGY: _ENERGY_TO_KWH,
+    DeviceClass.ENERGY_STORAGE: _ENERGY_TO_KWH,
+    DeviceClass.DURATION: _DURATION_TO_HOURS,
+}
+
+# Durations HAEO reads from sensors, in units it converts to hours
+DURATION_UNITS: Final[tuple[UnitOfMeasurement, ...]] = tuple(_DURATION_TO_HOURS)
 
 ENERGY_UNITS: Final[tuple[UnitOfMeasurement, ...]] = (
     UnitOfMeasurement.WATT_HOUR,
@@ -147,6 +171,9 @@ def _infer_device_class_from_unit(unit: UnitOfMeasurement | None) -> DeviceClass
     }:
         return DeviceClass.ENERGY
 
+    if unit in _DURATION_TO_HOURS:
+        return DeviceClass.DURATION
+
     return None
 
 
@@ -155,29 +182,37 @@ def base_unit_for_device_class(device_class: DeviceClass | None) -> UnitOfMeasur
     return BASE_UNITS.get(device_class) if device_class is not None else None
 
 
-def _convert_value(
-    value: float,
+def _scale_factor(
     from_unit: UnitOfMeasurement | None,
     device_class: DeviceClass | None,
 ) -> float:
-    """Convert *value* expressed in *from_unit* to the canonical base unit."""
+    """Return the factor that converts a value in *from_unit* to the canonical base unit."""
     if from_unit is None:
-        return value
+        return 1.0
 
     effective_device_class = device_class or _infer_device_class_from_unit(from_unit)
-    base_unit = base_unit_for_device_class(effective_device_class)
-    if base_unit is None or base_unit == from_unit:
-        return value
+    if effective_device_class is None:
+        return 1.0
+    return _TO_BASE_UNIT.get(effective_device_class, {}).get(from_unit, 1.0)
 
-    if effective_device_class == DeviceClass.POWER:
-        factor = _POWER_TO_KW.get(from_unit)
-        return value * factor if factor is not None else value
 
-    if effective_device_class in {DeviceClass.ENERGY, DeviceClass.ENERGY_STORAGE}:
-        factor = _ENERGY_TO_KWH.get(from_unit)
-        return value * factor if factor is not None else value
+def base_unit_conversion(
+    unit: str | UnitOfMeasurement | None,
+    device_class: str | DeviceClass | None,
+) -> tuple[float, UnitOfMeasurement | str | None, DeviceClass | None]:
+    """Return the scale factor to the base unit, the base unit, and the parsed device class.
 
-    return value
+    Conversion to base units is a pure scaling, so a series of values sharing a
+    unit converts by multiplying every value by the one factor.
+    """
+    parsed_unit = UnitOfMeasurement.of(unit)
+    parsed_device_class = DeviceClass.of(device_class)
+    effective_device_class = parsed_device_class or _infer_device_class_from_unit(parsed_unit)
+
+    factor = _scale_factor(parsed_unit, parsed_device_class)
+    base_unit = base_unit_for_device_class(effective_device_class) or parsed_unit or unit
+
+    return factor, base_unit, parsed_device_class
 
 
 def convert_to_base_unit(
@@ -186,11 +221,5 @@ def convert_to_base_unit(
     device_class: str | DeviceClass | None,
 ) -> tuple[float, UnitOfMeasurement | str | None, DeviceClass | None]:
     """Convert value to base unit, parsing string unit/device_class if needed."""
-    parsed_unit = UnitOfMeasurement.of(unit)
-    parsed_device_class = DeviceClass.of(device_class)
-    effective_device_class = parsed_device_class or _infer_device_class_from_unit(parsed_unit)
-
-    converted_value = _convert_value(value, parsed_unit, parsed_device_class)
-    base_unit = base_unit_for_device_class(effective_device_class) or parsed_unit or unit
-
-    return converted_value, base_unit, parsed_device_class
+    factor, base_unit, parsed_device_class = base_unit_conversion(unit, device_class)
+    return value * factor, base_unit, parsed_device_class

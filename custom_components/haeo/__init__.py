@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+import hashlib
 import logging
 from pathlib import Path
 from types import MappingProxyType
@@ -30,6 +31,8 @@ from custom_components.haeo.const import (
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.schema.elements.buffer import CONF_STORAGE, SECTION_PARTICIPANTS
+from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import PolicyRuleConfig
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
@@ -65,6 +68,9 @@ OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR]
 # Timeout in seconds for waiting for input entities to be ready
 INPUT_ENTITY_READY_TIMEOUT = 5
 
+# Directory holding the built Lovelace card bundles
+CARD_STATIC_DIR = Path(__file__).parent / STATIC_CARD_STATIC_DIR
+
 
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     """Set up the HAEO integration.
@@ -74,6 +80,19 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     await _async_register_static_frontend_resources(hass)
     await async_setup_services(hass)
     return True
+
+
+def card_static_url(static_dir: Path) -> str:
+    """Return the URL the card bundles in the static directory are served under.
+
+    The URL ends in a hash of every bundle file, so each build is served from a
+    URL of its own and browsers can cache it indefinitely.
+    """
+    digest = hashlib.sha256()
+    for path in sorted(static_dir.glob("*.js")):
+        digest.update(path.name.encode())
+        digest.update(path.read_bytes())
+    return f"{STATIC_CARD_STATIC_PATH}/{digest.hexdigest()[:12]}"
 
 
 async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None:
@@ -89,23 +108,18 @@ async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None
         _LOGGER.debug("HTTP component unavailable; skipping static card registration")
         return
 
-    integration_dir = Path(__file__).parent
-    static_dir = integration_dir / STATIC_CARD_STATIC_DIR
-    available_bundles = [
-        url_path for file_path, url_path in STATIC_CARD_BUNDLES if (integration_dir / file_path).exists()
-    ]
+    available_bundles = [name for name in STATIC_CARD_BUNDLES if (CARD_STATIC_DIR / name).exists()]
     if not available_bundles:
-        _LOGGER.debug("No static card bundles found in %s", static_dir)
+        _LOGGER.debug("No static card bundles found in %s", CARD_STATIC_DIR)
         return
 
-    await http.async_register_static_paths(
-        [StaticPathConfig(STATIC_CARD_STATIC_PATH, str(static_dir), cache_headers=False)]
-    )
+    static_url = await hass.async_add_executor_job(card_static_url, CARD_STATIC_DIR)
+    await http.async_register_static_paths([StaticPathConfig(static_url, str(CARD_STATIC_DIR), cache_headers=True)])
 
     async def _register_card_urls(hass: HomeAssistant, _component: str) -> None:
         """Register each available card bundle as a Lovelace resource."""
-        for url_path in available_bundles:
-            add_extra_js_url(hass, url_path)
+        for name in available_bundles:
+            add_extra_js_url(hass, f"{static_url}/{name}")
 
     # add_extra_js_url writes to a registry the frontend component only creates during its
     # own setup, so calling it here would race with startup ordering. Defer registration
@@ -226,6 +240,7 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     flow_in_progress = _element_flow_in_progress(hass, entry)
     if not flow_in_progress:
         _cleanup_policy_rules(hass, entry)
+        _cleanup_buffer_participants(hass, entry)
 
     _LOGGER.info("HAEO configuration changed, reloading integration")
 
@@ -331,6 +346,29 @@ def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     if changed:
         _save_policy_rules(hass, entry, cleaned)
+
+
+def _cleanup_buffer_participants(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove deleted element references from buffer participants.
+
+    Each buffer names its loads, generation, and batteries, so deleting one of
+    those elements leaves a dangling name that is stripped here. A buffer left
+    with no batteries holds nothing, so it is removed, as a policy rule is when
+    one of its sides loses all its elements.
+    """
+    current_element_names = {subentry.title for subentry in entry.subentries.values()}
+    buffers = [subentry for subentry in entry.subentries.values() if subentry.subentry_type == ElementType.BUFFER]
+    for subentry in buffers:
+        participants = subentry.data[SECTION_PARTICIPANTS]
+        cleaned = {
+            field: [name for name in names if name in current_element_names] for field, names in participants.items()
+        }
+        if not cleaned[CONF_STORAGE]:
+            hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)
+        elif cleaned != participants:
+            hass.config_entries.async_update_subentry(
+                entry, subentry, data={**subentry.data, SECTION_PARTICIPANTS: cleaned}
+            )
 
 
 def _raise_for_rejected_inputs(input_stores: InputStoreMap) -> None:

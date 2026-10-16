@@ -13,11 +13,13 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import itertools
 import json
 from pathlib import Path
 
 from homeassistant.util.json import JsonValueType
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
@@ -27,12 +29,12 @@ from custom_components.haeo.core.adapters.policy_compilation import compile_poli
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
-from custom_components.haeo.core.model.network import CalibratedOptions, LexOptions, Network, SolveOptions
+from custom_components.haeo.core.model.network import Network
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.policy import is_policy_config_data
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.elements import is_element_config_schema
-from tools.diag.cli import config_horizon_preset
+from tools.diag.cli import config_horizon_preset, migrate_batteries_for_diag
 
 # ---------------------------------------------------------------------------
 # Lightweight StateMachine backed by scenario inputs.json
@@ -96,13 +98,19 @@ def _load_scenario(
 
 
 def _participants_from_config(config: Mapping[str, JsonValueType]) -> dict[str, ElementConfigSchema]:
-    """Narrow a scenario config's participants section to ElementConfigSchema entries."""
+    """Migrate a scenario config's batteries as v1.4 does and narrow its participants to ElementConfigSchema entries."""
     participants_raw = config["participants"]
     if not isinstance(participants_raw, dict):
         msg = "Scenario config participants must be an object"
         raise TypeError(msg)
-    participants: dict[str, ElementConfigSchema] = {}
+    raw_configs: dict[str, dict[str, object]] = {}
     for name, participant_config in participants_raw.items():
+        if not isinstance(participant_config, dict):
+            msg = f"Scenario participant {name!r} must be an object"
+            raise TypeError(msg)
+        raw_configs[name] = dict(participant_config)
+    participants: dict[str, ElementConfigSchema] = {}
+    for name, participant_config in migrate_batteries_for_diag(raw_configs).items():
         if not is_element_config_schema(participant_config):
             msg = f"Scenario participant {name!r} is not a valid element config"
             raise TypeError(msg)
@@ -114,7 +122,6 @@ def _build_network(
     config: dict[str, JsonValueType],
     sm: _ScenarioStateMachine,
     frozen_dt: datetime,
-    options: SolveOptions | None = None,
 ) -> tuple[Network, dict[str, ElementUpdater]]:
     """Build a Network from scenario data without Home Assistant."""
     participants = _participants_from_config(config)
@@ -124,10 +131,7 @@ def _build_network(
 
     loaded_configs = load_element_configs(participants, sm, forecast_times)
 
-    if options is None:
-        network = Network(name="benchmark", periods=periods_hours)
-    else:
-        network = Network(name="benchmark", periods=periods_hours, options=options)
+    network = Network(name="benchmark", periods=periods_hours)
 
     sorted_model_elements = collect_model_elements(loaded_configs)
 
@@ -170,18 +174,19 @@ def _load_configs(
     return load_element_configs(_participants_from_config(config), sm, forecast_times)
 
 
-def _load_shifted_configs(
+def _load_shifted_horizon(
     config: dict[str, JsonValueType],
     sm: _ScenarioStateMachine,
     frozen_dt: datetime,
     shift_seconds: int,
-) -> dict[str, ElementConfigData]:
-    """Load element configs with time shifted forward."""
+) -> tuple[NDArray[np.float64], dict[str, ElementConfigData]]:
+    """Return the period widths (hours) and element configs for a horizon shifted forward."""
     shifted_epoch = frozen_dt.timestamp() + shift_seconds
     shifted_dt = datetime.fromtimestamp(shifted_epoch, tz=UTC)
     shifted_periods = preset_periods_seconds(config_horizon_preset(config), start_time=shifted_dt)
     shifted_forecast_times = generate_forecast_timestamps(shifted_periods, start_time=shifted_epoch)
-    return load_element_configs(_participants_from_config(config), sm, shifted_forecast_times)
+    configs = load_element_configs(_participants_from_config(config), sm, shifted_forecast_times)
+    return np.asarray(shifted_periods, dtype=float) / 3600, configs
 
 
 # ---------------------------------------------------------------------------
@@ -203,12 +208,6 @@ _scenarios = _discover_scenarios()
 # ---------------------------------------------------------------------------
 
 
-_MODES: list[SolveOptions] = [
-    CalibratedOptions(),
-    LexOptions(),
-]
-
-
 _benchmark_params = [
     pytest.mark.benchmark,
     pytest.mark.timeout(120),
@@ -218,7 +217,6 @@ _benchmark_params = [
         ids=[s.name for s in _scenarios],
         indirect=["scenario_path"],
     ),
-    pytest.mark.parametrize("options", _MODES, ids=[m.mode for m in _MODES]),
 ]
 
 
@@ -229,14 +227,14 @@ def _apply_marks[F: Callable[..., None]](fn: F) -> F:
 
 
 @_apply_marks
-def test_cold_start(scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
+def test_cold_start(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
     """Build network from scratch and optimize."""
     config, inputs, freeze_timestamp = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
 
     def run() -> float:
-        net, _ = _build_network(config, sm, frozen_dt, options=options)
+        net, _ = _build_network(config, sm, frozen_dt)
         return net.optimize()
 
     result = benchmark(run)
@@ -244,14 +242,14 @@ def test_cold_start(scenario_path: Path, options: SolveOptions, benchmark: Bench
 
 
 @_apply_marks
-def test_update_all(scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
+def test_update_all(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
     """Update all element parameters and re-optimize."""
     config, inputs, freeze_timestamp = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
 
     loaded_configs = _load_configs(config, sm, frozen_dt)
-    network, updaters = _build_network(config, sm, frozen_dt, options=options)
+    network, updaters = _build_network(config, sm, frozen_dt)
     network.optimize()  # prime
 
     def run() -> float:
@@ -266,21 +264,30 @@ def test_update_all(scenario_path: Path, options: SolveOptions, benchmark: Bench
 
 
 @_apply_marks
-def test_time_shift(scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
-    """Shift forecast times forward one tick and re-optimize."""
+def test_time_shift(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
+    """Roll the horizon forward one tick and re-optimize, as each optimization cycle does.
+
+    Rounds alternate between the original and the shifted horizon, so every round
+    changes the period widths and forecasts rather than re-solving unchanged inputs.
+    """
     config, inputs, freeze_timestamp = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
 
     periods_seconds = preset_periods_seconds(config_horizon_preset(config), start_time=frozen_dt)
-    shift_seconds = periods_seconds[0]
-    shifted_configs = _load_shifted_configs(config, sm, frozen_dt, shift_seconds)
+    horizons = [
+        _load_shifted_horizon(config, sm, frozen_dt, 0),
+        _load_shifted_horizon(config, sm, frozen_dt, periods_seconds[0]),
+    ]
 
-    network, updaters = _build_network(config, sm, frozen_dt, options=options)
+    network, updaters = _build_network(config, sm, frozen_dt)
     network.optimize()  # prime
+    rounds = itertools.count(1)
 
     def run() -> float:
-        for elem_name, elem_config in shifted_configs.items():
+        periods_hours, configs = horizons[next(rounds) % 2]
+        network.update_periods(periods_hours)
+        for elem_name, elem_config in configs.items():
             updater = updaters.get(elem_name)
             if updater is not None:
                 updater(elem_config)
@@ -291,13 +298,13 @@ def test_time_shift(scenario_path: Path, options: SolveOptions, benchmark: Bench
 
 
 @_apply_marks
-def test_warm_reentrant(scenario_path: Path, options: SolveOptions, benchmark: BenchmarkFixture) -> None:
+def test_warm_reentrant(scenario_path: Path, benchmark: BenchmarkFixture) -> None:
     """Re-optimize with no parameter changes (warm start)."""
     config, inputs, freeze_timestamp = _load_scenario(scenario_path)
     frozen_dt = datetime.fromisoformat(freeze_timestamp)
     sm = _ScenarioStateMachine(inputs)
 
-    network, _ = _build_network(config, sm, frozen_dt, options=options)
+    network, _ = _build_network(config, sm, frozen_dt)
     network.optimize()  # prime
 
     result = benchmark(network.optimize)

@@ -189,7 +189,9 @@ Preset horizons start with 1-minute periods, giving fine control over the near-t
 - **Modern codebase**: Python 3.13+, platinum-level code quality standards, strong typing, comprehensive testing
 - **Lower latency**: Runs alongside Home Assistant instance for minimal delay
 - **Native sensor integration**: Sensors organized into devices, persist between reboots, leverage native HA features
+- **Buffers**: Reserve energy for a grid outage, sized from the loads, generation, and outage length you choose, or keep headroom for generation that is coming ([buffer element](elements/buffer.md))
 - **Pure LP solve**: No integer variables, so solve time stays predictable on Home Assistant hardware
+- **Deterministic plans**: Ties between equally cheap plans are broken the same way every time, so the plan does not flip between runs with the same inputs
 - **Shadow prices**: Sensors report the marginal value of power balance, SOC limits, and other binding constraints
 - **Extensibility**: Graph structure allows modeling diverse energy systems without code changes
 
@@ -234,6 +236,7 @@ That LP-first stance is expected to continue: deferrables will use MILP only whe
 - Users valuing UI-based configuration
 - Systems needing modeling flexibility (AC/DC splits, hybrid inverters, multiple meters)
 - Users who prioritize modern code quality and software architecture
+- Systems needing an outage reserve or headroom for generation the batteries must absorb
 
 ## Technical comparison
 
@@ -261,7 +264,7 @@ That LP-first stance is expected to continue: deferrables will use MILP only whe
 | Time horizon                 | Presets (2–7 days) or a forecast sensor          | Configurable                                    |
 | Time resolution              | Multi-resolution (fine near-term, coarser later) | Uniform `optimization_time_step`                |
 | Battery management           | Charge/discharge rates                           | Charge/discharge, SOC-dependent charge derating |
-| Low/high SOC pricing         | Yes (undercharge/overcharge zones)               | Yes (SOC deficit/surplus costs)                 |
+| Reserve and headroom         | Buffers sized from loads, generation, and window | Fixed SOC deficit/surplus thresholds and costs  |
 | End-of-horizon battery value | Salvage value per kWh                            | Soft final SOC target, optional reward          |
 | Efficiency modeling          | Constant or time-varying per direction           | Constant; optional inverter power curves        |
 | Demand (capacity) charges    | No                                               | Yes (windows, intervals, multiple components)   |
@@ -317,6 +320,7 @@ That LP-first stance is expected to continue: deferrables will use MILP only whe
 - Want UI-based configuration for all settings
 - Value modern codebase with strong typing and comprehensive testing
 - Want a pure LP solve with predictable run time
+- Need an outage reserve or generation headroom held across your batteries
 - Want to model non-standard systems (AC/DC splits, multiple meters, custom connections)
 - Prioritize software quality and maintainability
 

@@ -1,7 +1,7 @@
 # Battery Modeling
 
 The Battery device composes a single [Battery model](../model-layer/elements/battery.md) element and two [Connections](../model-layer/connections/connection.md), one for discharging and one for charging.
-SOC preferences are encoded directly in the discharge connection via the SOC pricing segment.
+The min and max charge are limits on the battery element itself.
 
 ## Model Elements Created
 
@@ -21,29 +21,28 @@ graph LR
 
 The adapter creates three model elements:
 
-| Model Element                                          | Name               | Parameters From Configuration                    |
-| ------------------------------------------------------ | ------------------ | ------------------------------------------------ |
-| [Battery](../model-layer/elements/battery.md)          | `{name}`           | Capacity range, initial charge, salvage value    |
-| [Connection](../model-layer/connections/connection.md) | `{name}:discharge` | Efficiency, power limits, SOC pricing (optional) |
-| [Connection](../model-layer/connections/connection.md) | `{name}:charge`    | Power limits, efficiency                         |
+| Model Element                                          | Name               | Parameters From Configuration                               |
+| ------------------------------------------------------ | ------------------ | ----------------------------------------------------------- |
+| [Battery](../model-layer/elements/battery.md)          | `{name}`           | Capacity, initial charge, min and max charge, salvage value |
+| [Connection](../model-layer/connections/connection.md) | `{name}:discharge` | Efficiency, power limits                                    |
+| [Connection](../model-layer/connections/connection.md) | `{name}:charge`    | Power limits, efficiency                                    |
 
 ## Architecture Details
 
-### Capacity range and offsets
+### Charge limits
 
-The battery model tracks stored energy within a bounded range:
-
-- **Lower bound**: undercharge percentage when configured, otherwise `min_charge_percentage`
-- **Upper bound**: overcharge percentage when configured, otherwise `max_charge_percentage`
-
-The model capacity is:
+The battery model stores energy from empty to its full capacity $C(t)$, and the adapter converts the percentage limits to energy:
 
 $$
-C_{\text{model}}(t) = (\text{upper\%}(t) - \text{lower\%}(t)) \cdot C(t)
+E_{\min}(t) = \text{min\%}(t) \cdot C(t), \qquad E_{\max}(t) = \text{max\%}(t) \cdot C(t)
 $$
 
-Stored energy is measured relative to the lower bound.
-User-facing energy and SOC add the lower bound offset back to the model values.
+The model keeps stored energy between them with a steep holding cost rather than a hard bound, so a battery reported outside its limits still gives a plan.
+The initial charge is the current SOC multiplied by the capacity, clamped to the capacity.
+Stored energy and SOC are reported as absolute values.
+
+[Buffers](buffer.md) measure the energy a battery can deliver above a level, never below its min charge, and the space it can absorb below a level, never above its max charge.
+Pair a wider min and max charge with buffers at narrower levels to let the battery use an outer range when the price justifies its holding cost.
 
 ### Metered terminal convention
 
@@ -53,10 +52,10 @@ In the model the terminals are the bus end of the battery's connections, and eff
 
 Each connection therefore places its efficiency segment next to the battery and its power-limit segment at the bus end:
 
-| Connection         | Segment order                                 | Power limit applies to     |
-| ------------------ | --------------------------------------------- | -------------------------- |
-| `{name}:discharge` | efficiency, power limit, SOC pricing (if set) | Power delivered to the bus |
-| `{name}:charge`    | power limit, efficiency                       | Power drawn from the bus   |
+| Connection         | Segment order           | Power limit applies to     |
+| ------------------ | ----------------------- | -------------------------- |
+| `{name}:discharge` | efficiency, power limit | Power delivered to the bus |
+| `{name}:charge`    | power limit, efficiency | Power drawn from the bus   |
 
 With discharge efficiency $\eta_d$, charge efficiency $\eta_c$, and terminal powers $P_d$ and $P_c$:
 
@@ -69,20 +68,6 @@ E(t+1) = E(t) + \left(\eta_c P_c(t) - \frac{P_d(t)}{\eta_d}\right) \Delta t
 $$
 
 The charge, discharge, and active power sensors all report terminal power, so they match what a meter on the battery would read.
-
-### SOC pricing segment
-
-When undercharge or overcharge costs are configured, the connection includes the SOC pricing segment:
-
-- **Undercharge penalty** applies while SOC is below `min_charge_percentage`
-- **Overcharge penalty** applies while SOC is above `max_charge_percentage`
-
-Both costs are holding rates in \$/kWh/h.
-The penalty for each period is the energy outside the threshold multiplied by the rate and the period duration in hours.
-See the [SOC pricing segment](../model-layer/segments/soc-pricing.md) for the formulation.
-
-These are soft constraints driven by cost.
-The battery can operate outside the preferred range when prices justify it, but it will never exceed the configured lower/upper bounds.
 
 ### Salvage value
 
@@ -100,21 +85,18 @@ Battery creates a single Home Assistant device:
 
 ## Parameter mapping
 
-| User Configuration          | Model Element(s)      | Model Parameter                            | Notes                          |
-| --------------------------- | --------------------- | ------------------------------------------ | ------------------------------ |
-| `capacity`                  | Battery               | Capacity range from lower/upper SOC bounds | kWh, boundaries                |
-| `initial_charge_percentage` | Battery               | `initial_charge` (offset by lower bound)   | kWh                            |
-| `min_charge_percentage`     | Battery + SOC pricing | Preferred minimum SOC threshold            | Penalty threshold              |
-| `max_charge_percentage`     | Battery + SOC pricing | Preferred maximum SOC threshold            | Penalty threshold              |
-| Undercharge percentage      | Battery               | Lower bound for SOC range                  | Hard minimum                   |
-| Overcharge percentage       | Battery               | Upper bound for SOC range                  | Hard maximum                   |
-| Undercharge cost            | SOC pricing segment   | `discharge_energy_price`                   | \$/kWh/h below min SOC         |
-| Overcharge cost             | SOC pricing segment   | `charge_capacity_price`                    | \$/kWh/h above max SOC         |
-| `salvage_value`             | Battery               | `salvage_value`                            | Terminal value for stored kWh  |
-| `efficiency_source_target`  | Efficiency segment    | `efficiency_source_target`                 | Battery to network (discharge) |
-| `efficiency_target_source`  | Efficiency segment    | `efficiency_target_source`                 | Network to battery (charge)    |
-| `max_power_target_source`   | Power-limit segment   | `max_power_target_source`                  | Network to battery             |
-| `max_power_source_target`   | Power-limit segment   | `max_power_source_target`                  | Battery to network             |
+| User Configuration          | Model Element(s)    | Model Parameter            | Notes                          |
+| --------------------------- | ------------------- | -------------------------- | ------------------------------ |
+| `capacity`                  | Battery             | `capacity`                 | kWh, boundaries                |
+| `initial_charge_percentage` | Battery             | `initial_charge`           | kWh                            |
+| `min_charge_percentage`     | Battery             | `min_charge`               | kWh, held with priced slack    |
+| `max_charge_percentage`     | Battery             | `max_charge`               | kWh, held with priced slack    |
+| `salvage_value`             | Battery             | `salvage_value`            | Terminal value for stored kWh  |
+| `charge_limit_cost`         | Battery             | `charge_limit_cost`        | \$/kWh/h outside min/max       |
+| `efficiency_source_target`  | Efficiency segment  | `efficiency_source_target` | Battery to network (discharge) |
+| `efficiency_target_source`  | Efficiency segment  | `efficiency_target_source` | Network to battery (charge)    |
+| `max_power_target_source`   | Power-limit segment | `max_power_target_source`  | Network to battery             |
+| `max_power_source_target`   | Power-limit segment | `max_power_source_target`  | Battery to network             |
 
 ## Output Mapping
 

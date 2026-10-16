@@ -5,7 +5,7 @@ import pytest
 from custom_components.haeo.core.units import (
     DeviceClass,
     UnitOfMeasurement,
-    _convert_value,
+    _scale_factor,
     base_unit_for_device_class,
     convert_to_base_unit,
     currency_symbol,
@@ -19,6 +19,7 @@ from custom_components.haeo.core.units import (
         (DeviceClass.POWER, "kW"),
         (DeviceClass.ENERGY, "kWh"),
         (DeviceClass.ENERGY_STORAGE, "kWh"),
+        (DeviceClass.DURATION, "h"),
         (None, None),
     ],
 )
@@ -41,6 +42,11 @@ def test_base_unit_for_device_class(device_class: DeviceClass | None, expected: 
         (5.0, UnitOfMeasurement.KILO_WATT_HOUR, DeviceClass.ENERGY, 5.0),
         # Energy storage uses same base unit as energy
         (1000.0, UnitOfMeasurement.WATT_HOUR, DeviceClass.ENERGY_STORAGE, 1.0),
+        # Duration conversions to hours
+        (90.0, UnitOfMeasurement.MINUTE, DeviceClass.DURATION, 1.5),
+        (7200.0, UnitOfMeasurement.SECOND, DeviceClass.DURATION, 2.0),
+        (1.0, UnitOfMeasurement.DAY, DeviceClass.DURATION, 24.0),
+        (30.0, UnitOfMeasurement.MINUTE, None, 0.5),
         # No conversion when already in base unit
         (5.0, UnitOfMeasurement.KILO_WATT, DeviceClass.POWER, 5.0),
         # Fallback conversion when device_class is missing but unit is informative
@@ -56,14 +62,14 @@ def test_base_unit_for_device_class(device_class: DeviceClass | None, expected: 
         (100.0, None, DeviceClass.POWER, 100.0),
     ],
 )
-def test_convert_value(
+def test_scale_factor(
     value: float,
     unit: UnitOfMeasurement | None,
     device_class: DeviceClass | None,
     expected: float,
 ) -> None:
     """Test unit conversion to base units for various device classes and units."""
-    assert _convert_value(value, unit, device_class) == pytest.approx(expected)
+    assert value * _scale_factor(unit, device_class) == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(

@@ -1,3 +1,4 @@
+import { isObservable } from "mobx";
 import { describe, expect, it, vi } from "vitest";
 
 import { ForecastCardStore } from "./store";
@@ -6,6 +7,18 @@ import { DEFAULT_TEST_HUB, loadScenarioHassState, withSingleHubRegistry } from "
 const testConfig = { type: "custom:haeo-forecast-card" as const, hub_entry_id: DEFAULT_TEST_HUB };
 
 describe("ForecastCardStore", () => {
+  it("holds hass and the series cache by reference without deep-observing them", () => {
+    const store = new ForecastCardStore();
+    const hass = loadScenarioHassState("scenario2");
+    store.setHass(hass);
+    store.setConfig(testConfig);
+
+    expect(store.hass).toBe(hass);
+    expect(isObservable(store.hass)).toBe(false);
+    expect(store.normalizedSeries.length).toBeGreaterThan(0);
+    expect(isObservable(store.normalizedSeriesCache)).toBe(false);
+  });
+
   it("builds filtered visible series from real scenario outputs", () => {
     const store = new ForecastCardStore();
     store.setHass(loadScenarioHassState("scenario2"));
@@ -270,6 +283,93 @@ describe("ForecastCardStore", () => {
 
     expect(store.hiddenSeriesKeys.size).toBe(1);
     expect(store.visibilityRevision).toBe(1);
+  });
+
+  it("hides load price outputs by default and lets them be toggled on", () => {
+    const forecast = [
+      { time: "2026-03-14T00:00:00Z", value: 0.3 },
+      { time: "2026-03-14T00:10:00Z", value: 0.3 },
+    ];
+    const store = new ForecastCardStore();
+    store.setHass(
+      withSingleHubRegistry({
+        states: {
+          "sensor.load_horizon_price": {
+            entity_id: "sensor.load_horizon_price",
+            attributes: {
+              field_type: "price",
+              output_name: "load_horizon_average_marginal_price",
+              element_type: "load",
+              element_name: "House",
+              unit_of_measurement: "$/kWh",
+              source_role: "output",
+              forecast,
+            },
+          },
+          "sensor.load_24h_price": {
+            entity_id: "sensor.load_24h_price",
+            attributes: {
+              field_type: "price",
+              output_name: "load_next_24h_average_marginal_price",
+              element_type: "load",
+              element_name: "House",
+              unit_of_measurement: "$/kWh",
+              source_role: "output",
+              forecast,
+            },
+          },
+          "sensor.load_power": {
+            entity_id: "sensor.load_power",
+            attributes: {
+              field_type: "power",
+              output_name: "load_power",
+              direction: "-",
+              element_type: "load",
+              element_name: "House",
+              unit_of_measurement: "kW",
+              source_role: "output",
+              forecast,
+            },
+          },
+          "sensor.grid_import_price": {
+            entity_id: "sensor.grid_import_price",
+            attributes: {
+              field_type: "price",
+              output_name: "grid_import_price",
+              element_type: "grid",
+              element_name: "Grid",
+              unit_of_measurement: "$/kWh",
+              source_role: "output",
+              forecast,
+            },
+          },
+        },
+      })
+    );
+    store.setConfig({
+      ...testConfig,
+      entities: ["sensor.load_horizon_price", "sensor.load_24h_price", "sensor.load_power", "sensor.grid_import_price"],
+    });
+
+    const horizonKey = "sensor.load_horizon_price:load_horizon_average_marginal_price";
+    const dayKey = "sensor.load_24h_price:load_next_24h_average_marginal_price";
+    expect([...store.hiddenSeriesKeys].sort()).toEqual([horizonKey, dayKey].sort());
+    const visibleKeys = store.visibleSeries.map((series) => series.key);
+    expect(visibleKeys).toContain("sensor.load_power:load_power");
+    expect(visibleKeys).toContain("sensor.grid_import_price:grid_import_price");
+    expect(visibleKeys).not.toContain(horizonKey);
+
+    store.toggleSeriesVisibility(horizonKey);
+    expect(store.hiddenSeriesKeys.has(horizonKey)).toBe(false);
+    expect(store.visibleSeries.map((series) => series.key)).toContain(horizonKey);
+    expect(store.hiddenSeriesKeys.has(dayKey)).toBe(true);
+
+    // A forced-visible series stays visible when the series refresh.
+    store.setConfig({
+      ...testConfig,
+      entities: ["sensor.load_horizon_price", "sensor.load_24h_price", "sensor.load_power", "sensor.grid_import_price"],
+    });
+    expect(store.hiddenSeriesKeys.has(horizonKey)).toBe(false);
   });
 
   it("keeps potential totals for fixed elements", () => {

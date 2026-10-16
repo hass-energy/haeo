@@ -1,5 +1,6 @@
 """Number entity for HAEO input configuration."""
 
+import asyncio
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from datetime import datetime
@@ -86,6 +87,9 @@ class HaeoInputNumber(NumberEntity):
         # triggered, so only sibling entities sharing the store react.
         self._suppress_store_change = False
 
+        # A reload from source entities queued but not yet started
+        self._pending_reload: asyncio.Task[None] | None = None
+
         # Set device_entry to link entity to device
         self.device_entry = device_entry
 
@@ -99,16 +103,15 @@ class HaeoInputNumber(NumberEntity):
         field_path_key = ".".join(self._field_path)
         is_list_item_field = len(self._field_path) >= LIST_ITEM_FIELD_PATH_LENGTH
         unique_key = field_info.field_name
-        if is_list_item_field:
-            unique_key = field_path_key
-        elif len(self._field_path) == SECTION_FIELD_PATH_LENGTH and _field_name_is_reused_in_other_sections(
-            subentry.data,
-            current_section=self._field_path[0],
-            field_name=field_info.field_name,
-        ):
-            unique_key = (
-                f"{field_info.device_type}.{field_info.field_name}" if field_info.device_type else field_path_key
+        if is_list_item_field or (
+            len(self._field_path) == SECTION_FIELD_PATH_LENGTH
+            and _field_name_is_reused_in_other_sections(
+                subentry.data,
+                current_section=self._field_path[0],
+                field_name=field_info.field_name,
             )
+        ):
+            unique_key = field_path_key
         self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{unique_key}"
 
         # Use entity description directly from field info
@@ -200,6 +203,7 @@ class HaeoInputNumber(NumberEntity):
             self._sync_from_store()
         else:
             # Subscribe to source entity changes for DRIVEN mode
+            self.async_on_remove(self._cancel_pending_reload)
             self.async_on_remove(
                 async_track_state_change_event(
                     self.hass,
@@ -227,6 +231,7 @@ class HaeoInputNumber(NumberEntity):
             self._sync_from_store()
             self.async_write_ha_state()
         else:
+            # Reload at once so the store is never left on the previous horizon
             self.hass.async_create_task(self._async_load_sync_and_update())
 
     @callback
@@ -240,7 +245,31 @@ class HaeoInputNumber(NumberEntity):
     @callback
     def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
         """Handle source entity state change."""
-        self.hass.async_create_task(self._async_load_sync_and_update())
+        self._schedule_reload()
+
+    @callback
+    def _schedule_reload(self) -> None:
+        """Queue one reload from source entities for the next event loop iteration.
+
+        Forecast integrations write all of their entities in a single pass, and a
+        field reads every one of its sources on each reload. Deferring the reload
+        lets every change in that pass arrive first, so they share one reload
+        rather than each re-reading all of the sources.
+        """
+        if self._pending_reload is None:
+            self._pending_reload = self.hass.async_create_task(self._async_pending_reload(), eager_start=False)
+
+    async def _async_pending_reload(self) -> None:
+        """Run the queued reload, letting later source changes queue another."""
+        self._pending_reload = None
+        await self._async_load_sync_and_update()
+
+    @callback
+    def _cancel_pending_reload(self) -> None:
+        """Cancel a queued reload so it does not run after the entity is removed."""
+        if self._pending_reload is not None:
+            self._pending_reload.cancel()
+            self._pending_reload = None
 
     async def _async_load_sync_and_update(self) -> None:
         """Load data, sync attributes, and write state."""

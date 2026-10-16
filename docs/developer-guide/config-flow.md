@@ -130,17 +130,6 @@ Element configuration is sectioned, with optional sections only present when con
             "efficiency_source_target": 95.0,
             "efficiency_target_source": 95.0,
         },
-        "partitioning": {
-            "configure_partitions": True,
-        },
-        "undercharge": {
-            "percentage": 5.0,
-            "cost": 1.5,
-        },
-        "overcharge": {
-            "percentage": 95.0,
-            "cost": 1.0,
-        },
     },
 }
 ```
@@ -218,9 +207,6 @@ Most elements configure all inputs in a single step:
 3. Based on selection, user either picks entities from a dropdown or enters a constant value inline
 4. Submit creates the element with all configuration
 
-Some elements add a follow-up step when optional settings are enabled.
-For example, the battery flow presents a second step for undercharge and overcharge partitions when the user enables partitioning.
-
 ### UI Sections
 
 Config flows group related fields using `data_entry_flow.section` so advanced settings can be collapsed by default.
@@ -228,6 +214,10 @@ Shared section definitions live in `custom_components/haeo/sections/` and includ
 Element-specific sections live alongside the element flow and schema.
 When using sections, translation strings for labels must live under
 `step.<step_id>.sections.<section_key>.data.<field_name>` (and `data_description` if needed).
+
+The Home Assistant frontend only shows errors keyed by `base` or by a top-level form field, not by a field inside a section.
+`validate_sectioned_choose_fields()` therefore keys each error by its section, which shows it above that section.
+An error keyed by a field inside a section would re-show the form with no visible message.
 
 ### Implementation Pattern
 

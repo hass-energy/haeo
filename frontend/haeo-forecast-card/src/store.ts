@@ -1,4 +1,4 @@
-import { computed, makeAutoObservable } from "mobx";
+import { computed, makeAutoObservable, observable } from "mobx";
 
 import { clamp, linearScale } from "./geometry";
 import { computeHoverIndices, sharedTimeline } from "./hover";
@@ -94,6 +94,10 @@ export class ForecastCardStore {
   constructor(instanceId = 0) {
     this.instanceId = instanceId;
     makeAutoObservable(this, {
+      // Both are replaced wholesale and never mutated in place. Deep-observing
+      // Home Assistant's whole state tree on every update blocks the main thread.
+      hass: observable.ref,
+      normalizedSeriesCache: observable.ref,
       instanceId: false,
       plotPathsSnapshot: false,
       plotPathsSnapshotKey: false,
@@ -678,8 +682,10 @@ export class ForecastCardStore {
         continue;
       }
 
-      // Hide all policy element series by default.
-      if (series.elementType === "policy") {
+      // Hide all policy element series and load price outputs (summary marginal prices) by default.
+      const isLoadPriceOutput =
+        series.elementType === "load" && series.sourceRole === "output" && series.outputType === "price";
+      if (series.elementType === "policy" || isLoadPriceOutput) {
         const before = this.hiddenSeriesKeys.size;
         this.hiddenSeriesKeys.add(series.key);
         hiddenChanged ||= this.hiddenSeriesKeys.size !== before;

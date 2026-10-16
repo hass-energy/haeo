@@ -78,7 +78,7 @@ def test_is_element_config_schema_valid_node_minimal() -> None:
 
 
 def test_is_element_config_schema_valid_battery() -> None:
-    """Test is_element_config_schema with valid battery config."""
+    """A battery config is valid with its advanced section and invalid without it."""
     valid_config = {
         "element_type": "battery",
         "name": "test_battery",
@@ -99,11 +99,11 @@ def test_is_element_config_schema_valid_battery() -> None:
             "salvage_value": as_constant_value(0.0),
         },
         battery.SECTION_EFFICIENCY: {},
-        battery.SECTION_PARTITIONING: {},
-        battery.SECTION_UNDERCHARGE: {},
-        battery.SECTION_OVERCHARGE: {},
+        battery.SECTION_ADVANCED: {battery.CONF_CHARGE_LIMIT_COST: as_constant_value(100.0)},
     }
     assert is_element_config_schema(valid_config) is True
+    del valid_config[battery.SECTION_ADVANCED]
+    assert is_element_config_schema(valid_config) is False
 
 
 def test_is_element_config_schema_valid_battery_without_salvage_value() -> None:
@@ -126,9 +126,7 @@ def test_is_element_config_schema_valid_battery_without_salvage_value() -> None:
         },
         battery.SECTION_PRICING: {},
         battery.SECTION_EFFICIENCY: {},
-        battery.SECTION_PARTITIONING: {},
-        battery.SECTION_UNDERCHARGE: {},
-        battery.SECTION_OVERCHARGE: {},
+        battery.SECTION_ADVANCED: {battery.CONF_CHARGE_LIMIT_COST: as_constant_value(100.0)},
     }
     assert is_element_config_schema(valid_config) is True
 

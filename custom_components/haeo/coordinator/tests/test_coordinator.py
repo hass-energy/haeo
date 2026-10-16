@@ -36,6 +36,7 @@ from custom_components.haeo.coordinator import (
     _build_coordinator_output,
     _build_optimization_context,
     detect_currency_symbol,
+    forecast_datetimes,
 )
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_DEVICE_BATTERY, BATTERY_POWER_CHARGE
 from custom_components.haeo.core.adapters.elements.connection import CONNECTION_DEVICE_CONNECTION, CONNECTION_POWER
@@ -57,6 +58,7 @@ from custom_components.haeo.core.schema import as_connection_target, as_constant
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -65,8 +67,8 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_MAX_POWER_TARGET_SOURCE,
     CONF_MIN_CHARGE_PERCENTAGE,
     CONF_SALVAGE_VALUE,
+    SECTION_ADVANCED,
     SECTION_LIMITS,
-    SECTION_PARTITIONING,
     SECTION_STORAGE,
 )
 from custom_components.haeo.core.schema.elements.connection import CONF_SOURCE, CONF_TARGET, SECTION_ENDPOINTS
@@ -89,6 +91,8 @@ from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import get_element_configs
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.input_stores import build_input_stores
+
+_TIMES = tuple(datetime(2024, 6, 1, tzinfo=UTC) + timedelta(minutes=30 * i) for i in range(4))
 
 
 @pytest.fixture
@@ -142,7 +146,9 @@ def mock_battery_subentry(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) 
                     CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
                     CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
                 },
-                SECTION_PARTITIONING: {},
+                SECTION_ADVANCED: {
+                    CONF_CHARGE_LIMIT_COST: as_constant_value(100.0),
+                },
             }
         ),
         subentry_type=ElementType.BATTERY,
@@ -572,7 +578,7 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
     """Forecast data is mapped onto ISO timestamps when lengths match."""
 
     base_time = datetime(2024, 6, 1, tzinfo=UTC)
-    forecast_times = (int(base_time.timestamp()), int((base_time + timedelta(minutes=30)).timestamp()))
+    forecast_times = (base_time, base_time + timedelta(minutes=30))
     output = _build_coordinator_output(
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=(1.2, 3.4)),
@@ -580,28 +586,53 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
         currency_sym="$",
     )
 
-    assert output.forecast is not None
-    assert [item["value"] for item in output.forecast] == [1.2, 3.4]
+    assert output.forecast == [
+        {"time": forecast_times[0], "value": 1.2},
+        {"time": forecast_times[1], "value": 3.4},
+    ]
 
 
-def test_build_coordinator_output_handles_timestamp_errors(monkeypatch: pytest.MonkeyPatch) -> None:
-    """ValueError from datetime conversion should clear the forecast payload."""
-
-    class _ErrorDatetime:
-        @staticmethod
-        def fromtimestamp(*_args: Any, **_kwargs: Any) -> None:
-            raise ValueError
-
-    monkeypatch.setattr("custom_components.haeo.coordinator.coordinator.datetime", _ErrorDatetime)
-
+def test_build_coordinator_output_maps_interval_values_onto_period_starts() -> None:
+    """Interval values take the first n of the n+1 boundary times."""
     output = _build_coordinator_output(
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0)),
-        forecast_times=(1, 2),
+        forecast_times=_TIMES[:3],
         currency_sym="$",
     )
 
-    assert output.forecast is None
+    assert output.forecast == [
+        {"time": _TIMES[0], "value": 1.0},
+        {"time": _TIMES[1], "value": 2.0},
+    ]
+
+
+@pytest.mark.parametrize("value_count", [2, 5], ids=["too-few", "too-many"])
+def test_build_coordinator_output_rejects_values_that_do_not_fit_the_forecast_times(value_count: int) -> None:
+    """Values that are neither interval nor boundary values fail instead of being truncated."""
+    with pytest.raises(ValueError, match=f"has {value_count} values for 4 forecast times"):
+        _build_coordinator_output(
+            SOLAR_POWER,
+            OutputData(type=OutputType.POWER, unit="kW", values=tuple(float(v) for v in range(value_count))),
+            forecast_times=_TIMES[:4],
+            currency_sym="$",
+        )
+
+
+def test_forecast_datetimes_are_in_home_assistant_time_zone() -> None:
+    """Horizon timestamps convert to aware datetimes in the configured time zone."""
+    base_time = datetime(2024, 6, 1, tzinfo=UTC)
+
+    times = forecast_datetimes([base_time.timestamp(), (base_time + timedelta(minutes=30)).timestamp()])
+
+    local_tz = dt_util.get_default_time_zone()
+    assert times == (base_time.astimezone(local_tz), (base_time + timedelta(minutes=30)).astimezone(local_tz))
+    assert [time.tzinfo for time in times or ()] == [local_tz, local_tz]
+
+
+def test_forecast_datetimes_out_of_range_returns_none() -> None:
+    """A timestamp datetime cannot represent leaves the outputs without forecasts."""
+    assert forecast_datetimes([0.0, 4e11]) is None
 
 
 def test_build_coordinator_output_sets_status_options() -> None:
@@ -625,7 +656,7 @@ def test_build_coordinator_output_skips_forecast_for_single_value() -> None:
     output = _build_coordinator_output(
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=(5.0,)),
-        forecast_times=(1, 2),
+        forecast_times=_TIMES[:2],
         currency_sym="$",
     )
 
@@ -639,12 +670,29 @@ def test_build_coordinator_output_uses_last_value_when_state_last() -> None:
     output = _build_coordinator_output(
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0, 3.0), state_last=True),
-        forecast_times=(1, 2, 3),
+        forecast_times=_TIMES[:3],
         currency_sym="$",
     )
 
     assert output.state == 3.0  # Last value, not first
     assert output.forecast is not None
+
+
+@pytest.mark.parametrize(
+    "output_data",
+    [
+        OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.2, 0.3), direction="+"),
+        OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.2, 0.3), direction="-"),
+        OutputData(type=OutputType.STATE_OF_CHARGE, unit="%", values=(0.2, 0.3)),
+    ],
+    ids=["reserve", "headroom", "none"],
+)
+def test_build_coordinator_output_carries_state_of_charge_direction(output_data: OutputData) -> None:
+    """The flow a state of charge line holds the batteries ready for carries through to the coordinator output."""
+
+    output = _build_coordinator_output(SOLAR_POWER, output_data, forecast_times=_TIMES[:2], currency_sym="$")
+
+    assert output.direction == output_data.direction
 
 
 def test_build_coordinator_output_handles_empty_values() -> None:
@@ -653,7 +701,7 @@ def test_build_coordinator_output_handles_empty_values() -> None:
     output = _build_coordinator_output(
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=()),
-        forecast_times=(1, 2),
+        forecast_times=_TIMES[:2],
         currency_sym="$",
     )
 

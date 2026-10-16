@@ -144,6 +144,39 @@ describe("normalizeSeries", () => {
     expect(output).toHaveLength(1);
     expect(output[0]!.drawType).toBe("line");
     expect(output[0]!.lane).toBe("soc");
+    expect(output[0]!.direction).toBeNull();
+    expect(output[0]!.color).toBe("#22c55e");
+  });
+
+  it.each([
+    { direction: "+", color: "#ef4444" },
+    { direction: "-", color: "#a855f7" },
+  ] as const)("plots a $direction buffer state of charge as a threshold", ({ direction, color }) => {
+    const hass = withSingleHubRegistry({
+      states: {
+        "sensor.backup_buffer_state_of_charge": {
+          entity_id: "sensor.backup_buffer_state_of_charge",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 30 },
+              { time: "2026-03-14T01:00:00Z", value: 20 },
+            ],
+            field_type: "state_of_charge",
+            output_name: "buffer_state_of_charge",
+            element_type: "buffer",
+            element_name: "Backup",
+            direction,
+            unit_of_measurement: "%",
+          },
+        },
+      },
+    });
+    const output = normalizeSeries(hass, testHubConfig);
+    expect(output).toHaveLength(1);
+    expect(output[0]!.elementType).toBe("buffer");
+    expect(output[0]!.direction).toBe(direction);
+    expect(output[0]!.lane).toBe("soc");
+    expect(output[0]!.color).toBe(color);
   });
 
   it("uses friendly_name as label when present", () => {

@@ -1,6 +1,6 @@
 ---
 name: model
-description: Linear programming model layer standards — constraints, costs, decision variables, connection segments, reactive parameter tracking, shadow prices, and the HiGHS solve strategy. Use when working under custom_components/haeo/core/model/, when optimization results look wrong, when the model is infeasible, or when solve time regresses.
+description: Linear programming model layer standards — LinearArray expressions and Rows, constraints, costs, decision variables, connection segments, reactive parameter tracking, shadow prices, and the HiGHS solve strategy. Use when working under custom_components/haeo/core/model/, when optimization results look wrong, when the model is infeasible, or when solve time regresses.
 ---
 
 # Model layer development
@@ -37,6 +37,33 @@ A single device element expands into several of these through its adapter's `mod
 Adding a physical behavior rarely means a new model element type.
 Connections are composed of **segments**, so a new kind of loss, limit, or charge is a new `Segment` subclass added to the chain rather than a branch inside `Connection`.
 
+## Writing expressions
+
+Expressions are `LinearArray` values from `core/model/linear.py`: one row per period, held as column index and coefficient matrices.
+Build every constraint and cost from whole-horizon arrays, never one Python object or loop iteration per period.
+The cost of rebuilding the LP then stays flat as the horizon grows, which is what keeps each optimization cycle cheap.
+
+- Create variables with `solver.add_variables(count, name=..., lower=..., upper=...)`, which returns one row per column.
+    Name each group after the element and quantity it holds, such as `f"{self.name}.energy_in"`.
+- Combine arrays with `+`, `-`, and `*` by a scalar or one value per row.
+    A single row such as `energy[0]` or `stored[-1]` broadcasts against per-row values, as in numpy.
+- Compare with `<=`, `>=`, or `==` to get `Rows`, which a `@constraint` method returns.
+    Combine several blocks with `Rows.concat([...])`.
+- Return `expr.free()` for rows that do not currently apply, so the LP keeps its shape and the rows can bind later.
+- A `@cost` method returns a single row: `(power * price * self.periods).total()`.
+- Start a sum that may have no terms from `LinearArray.zeros(count)`; `LinearArray.sum_of([])` is an error.
+
+Per-period differences are expressed as values, not as different code per period:
+
+- Use a 0/1 mask or per-period bounds to switch rows on and off, as window masks do.
+- When each row reaches several periods of another array with varying coefficients, build the coefficient matrix with numpy and write `matrix @ array`.
+    Zero entries add no terms, so a matrix whose reach changes with parameters keeps a fixed LP shape.
+- Properties of individual columns, such as making a variable integer, are not rows: select the columns by slicing the variable array, as in `start[:1]`, and read their solver indices from `.cols[:, 0]`.
+
+`solver.describe(rows)` prints each row as maths over named columns, such as `Battery.energy_in[3] - Battery.energy_in[4] <= 0`, which is the quickest way to check a constraint.
+Printing a `LinearArray` or `Rows` directly shows the same rows over solver column indices.
+Evaluate an expression in the current solution with `expr.value(solver.column_values())`.
+
 ## Constraints and costs
 
 - Express all constraints as linear inequalities or equalities.
@@ -70,11 +97,23 @@ The period update and warm start tests are the ones that notice.
 
 ## Optimization
 
-`Network.optimize()` runs a calibrated scheme: a lexicographic solve first (minimize cost, then minimize a time-preference secondary objective to break ties deterministically), then a calibrated blend weight, then single blended solves.
-This exists so repeated solves warm-start cleanly and still produce meaningful shadow prices.
+`Network.optimize()` minimizes cost, then breaks ties between equally cheap plans with a time-preference secondary objective.
+It does this with a blended objective, cost plus a calibrated weight times the secondary, checked after each solve.
+This exists so repeated solves warm-start cleanly and shadow prices come from the same basis as the plan.
 Degenerate LPs have many optimal solutions; the secondary objective is what stops sensor values jittering between equally optimal plans.
 
+- The plan must match the lexicographic optimum; shadow prices may differ between formulations, since which binding constraint carries a dual is not controllable.
+    `_lexicographic_reference` in the network tests computes that optimum exactly, minimizing the cost and then the secondary with the cost bounded, for tests to compare against.
+
+- Every blended plan is checked at its basis: the cost is priced with a zero-iteration solve, and the weight is lowered when the plan is not cost-optimal.
+    The secondary's reduced costs are the blended ones minus the cost's, divided by the weight, and the weight is raised when a cost-free move improves the secondary, but never to a weight that failed the cost in the same optimization.
+    Do not remove either check to save time: a stale weight silently trades cost for tie-breaking when too large, and leaves ties to the solver path when too small.
+
+- The time-preference weights must not be a sum of a connection term and a time term alone, or swaps between connections across periods tie exactly.
+    The fixed offset from `tie_break_offset` prevents that.
+
 - Catch optimization failures gracefully and return appropriate status indicators.
+
 - Log solver diagnostics at debug level.
 
 ## Policy compilation

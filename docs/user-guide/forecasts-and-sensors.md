@@ -116,7 +116,8 @@ HAEO combines them automatically.
 
 - Present values **sum together**
 - Forecast series **merge on shared timestamps and sum**
-- Result: combined present value + combined forecast series
+- With only present values, the summed value repeats across the horizon
+- With a forecast, the summed present value is the value for now (the first period) and the summed forecast covers the rest
 
 **Example scenarios**:
 
@@ -138,11 +139,14 @@ sensor_2: sensor.solar_ground_forecast
 sensor_1: sensor.solar_array_forecast
 # Provides forecast series [...predictions...]
 
-sensor_2: sensor.constant_load
+sensor_2: sensor.current_load
 # Provides current value: 1.5 kW
 
-# Result: Forecast series (array predictions) + 1.5 kW at each timestamp
+# Result: 1.5 kW for the first period, then the forecast series
 ```
+
+A present value is a reading of now, not a constant to add to every period.
+To add a constant across the horizon, give it a forecast, for example a template sensor with a `forecast` attribute.
 
 This makes it easy to model multiple solar arrays, price components, or load sources without manual calculation.
 

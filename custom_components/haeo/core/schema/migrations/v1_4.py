@@ -1,12 +1,14 @@
 """Pure config transformation logic for the v1.4 migration.
 
 Connections become unidirectional, nodes that neither source nor sink power
-become junctions, and the hub's horizon preset and tiers become a horizon choice.
+become junctions, the hub's horizon preset and tiers become a horizon choice,
+and battery undercharge and overcharge partitions become buffers.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 
 from custom_components.haeo.core.const import (
     CONF_ELEMENT_TYPE,
@@ -19,14 +21,16 @@ from custom_components.haeo.core.const import (
     HUB_SECTION_TIERS,
 )
 from custom_components.haeo.core.schema import (
+    as_constant_value,
     get_connection_target_name,
     is_connection_target,
     is_constant_value,
     is_none_value,
     normalize_connection_target,
 )
-from custom_components.haeo.core.schema.elements import connection, junction, node
+from custom_components.haeo.core.schema.elements import battery, buffer, connection, junction, node
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
+from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -95,7 +99,7 @@ def _reverse_connection_name(base_name: str, source_name: str, target_name: str)
     return f"{base_name} ({target_name} to {source_name})"
 
 
-def _unique_connection_name(base_name: str, existing_names: set[str]) -> str:
+def _unique_name(base_name: str, existing_names: set[str]) -> str:
     if base_name not in existing_names:
         return base_name
     suffix = 2
@@ -146,7 +150,7 @@ def migrate_connection_config(
     base_name = str(migrated.get(CONF_NAME, "Connection"))
     reverse_name = _reverse_connection_name(base_name, source_name, target_name)
     if existing_names is not None:
-        reverse_name = _unique_connection_name(reverse_name, existing_names)
+        reverse_name = _unique_name(reverse_name, existing_names)
 
     reverse_data: dict[str, object] = {
         CONF_ELEMENT_TYPE: connection.ELEMENT_TYPE,
@@ -225,12 +229,110 @@ def migrate_hub_horizon(data: Mapping[str, object]) -> dict[str, object]:
     return migrated
 
 
+# Window of the buffers partitions become. They cover no loads or generation,
+# so the window does not change what they hold.
+PARTITION_BUFFER_WINDOW = 1.0
+
+# The cost batteries held their min and max charge with before it was configurable
+LEGACY_CHARGE_LIMIT_COST = 100.0
+
+
+@dataclass(frozen=True, slots=True)
+class BatteryMigration:
+    """A migrated battery config, and the buffers that replace its partitions.
+
+    Attributes:
+        battery: The battery config without partitions and with its advanced section.
+        buffers: Buffer configs holding what the partitions priced.
+
+    """
+
+    battery: dict[str, object]
+    buffers: tuple[dict[str, object], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _PartitionKind:
+    section: str
+    limit_key: str
+    kind: buffer.BufferKind
+
+
+_PARTITION_KINDS: tuple[_PartitionKind, ...] = (
+    _PartitionKind(partitions.SECTION_UNDERCHARGE, battery.CONF_MIN_CHARGE_PERCENTAGE, buffer.KIND_RESERVE),
+    _PartitionKind(partitions.SECTION_OVERCHARGE, battery.CONF_MAX_CHARGE_PERCENTAGE, buffer.KIND_HEADROOM),
+)
+
+_PARTITION_SECTIONS: frozenset[str] = frozenset(
+    (partitions.SECTION_PARTITIONING, partitions.SECTION_UNDERCHARGE, partitions.SECTION_OVERCHARGE)
+)
+
+
+def migrate_battery_config(data: Mapping[str, object], *, existing_names: set[str]) -> BatteryMigration:
+    """Replace a battery's partitions with buffers and add the cost of its charge limits.
+
+    The battery's advanced section gets the limit cost its min and max charge
+    were held with before it was configurable.
+
+    A partition let the battery go past its limit to the partition percentage,
+    charging a holding cost for each kWh stored past the limit. The partition
+    percentage becomes the battery's limit, and a buffer for the battery takes
+    the old limit as its level and the partition cost as its shortfall cost,
+    so every plan costs what it did. Values move across as they are, sensors
+    included. A partition past an unset limit priced nothing, so it only moves
+    the limit.
+
+    Buffer names are made unique against ``existing_names``, which gains each new name.
+    """
+    migrated = {key: value for key, value in data.items() if key not in _PARTITION_SECTIONS}
+    limits = _section_dict(data, battery.SECTION_LIMITS)
+    buffers: list[dict[str, object]] = []
+    battery_name = str(data[CONF_NAME])
+
+    for kind in _PARTITION_KINDS:
+        partition = _section_dict(data, kind.section)
+        percentage = partition.get(partitions.CONF_PARTITION_PERCENTAGE)
+        cost = partition.get(partitions.CONF_PARTITION_COST)
+        if not (_is_configured_value(percentage) and _is_configured_value(cost)):
+            continue
+        old_limit = limits.get(kind.limit_key)
+        limits[kind.limit_key] = percentage
+        if not _is_configured_value(old_limit):
+            continue
+        name = _unique_name(f"{battery_name} {kind.kind}", existing_names)
+        existing_names.add(name)
+        buffers.append(
+            {
+                CONF_ELEMENT_TYPE: buffer.ELEMENT_TYPE,
+                CONF_NAME: name,
+                buffer.CONF_KIND: kind.kind,
+                buffer.SECTION_PARTICIPANTS: {buffer.CONF_STORAGE: [battery_name]},
+                buffer.SECTION_REQUIREMENT: {
+                    buffer.CONF_WINDOW: as_constant_value(PARTITION_BUFFER_WINDOW),
+                    buffer.CONF_LEVEL: old_limit,
+                },
+                buffer.SECTION_PRICING: {buffer.CONF_SHORTFALL_COST: cost},
+            }
+        )
+
+    migrated[battery.SECTION_LIMITS] = limits
+    migrated[battery.SECTION_ADVANCED] = {
+        battery.CONF_CHARGE_LIMIT_COST: as_constant_value(LEGACY_CHARGE_LIMIT_COST),
+        **_section_dict(data, battery.SECTION_ADVANCED),
+    }
+    return BatteryMigration(migrated, tuple(buffers))
+
+
 __all__ = [
+    "LEGACY_CHARGE_LIMIT_COST",
+    "PARTITION_BUFFER_WINDOW",
     "REVERSE_TO_FORWARD",
+    "BatteryMigration",
     "endpoint_name",
     "endpoints_match_reverse",
     "junction_config",
     "merge_reverse_into_existing",
+    "migrate_battery_config",
     "migrate_connection_config",
     "migrate_hub_horizon",
     "node_is_junction",

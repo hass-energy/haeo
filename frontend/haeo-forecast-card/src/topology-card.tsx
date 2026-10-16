@@ -1,5 +1,6 @@
 import { buildHubConfigForm } from "./config-form";
 import { discoverHaeoHubEntryId } from "./hub-selection";
+import { registerCardElement } from "./register-card-element";
 import type { HassLike } from "./series";
 import type { TopologyCardController } from "./topology-card-controller";
 import { topologyCardSize, TOPOLOGY_DEFAULT_LAYOUT_HEIGHT_PX } from "./topology-layout";
@@ -114,6 +115,4 @@ export class HaeoTopologyCard extends HTMLElement {
   }
 }
 
-if (!customElements.get("haeo-topology-card")) {
-  customElements.define("haeo-topology-card", HaeoTopologyCard);
-}
+registerCardElement("haeo-topology-card", HaeoTopologyCard);

@@ -1,7 +1,8 @@
 """Migration helpers for config entry version 1.4.
 
-Splits bidirectional connections, turns pure-junction nodes into junctions, and
-replaces the hub's horizon preset and tiers with a horizon choice.
+Splits bidirectional connections, turns pure-junction nodes into junctions,
+replaces the hub's horizon preset and tiers with a horizon choice, and turns
+battery undercharge and overcharge partitions into buffers.
 """
 
 from __future__ import annotations
@@ -20,13 +21,15 @@ from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.adapters.elements.junction import JUNCTION_DEVICE_JUNCTION, JUNCTION_POWER_BALANCE
 from custom_components.haeo.core.adapters.elements.node import NODE_DEVICE_NODE, NODE_POWER_BALANCE
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, HUB_SECTION_ADVANCED
-from custom_components.haeo.core.schema.elements import connection, junction, node
+from custom_components.haeo.core.schema.elements import battery, buffer, connection, junction, node
+from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
 from custom_components.haeo.core.schema.migrations.v1_4 import (
     REVERSE_TO_FORWARD,
     endpoint_name,
     endpoints_match_reverse,
     junction_config,
     merge_reverse_into_existing,
+    migrate_battery_config,
     migrate_connection_config,
     migrate_hub_horizon,
     node_is_junction,
@@ -121,6 +124,14 @@ def _swap_node_for_junction(hass: HomeAssistant, entry: ConfigEntry, subentry: C
         )
         kept_entity_ids.append(entity_entry.entity_id)
 
+    # Home Assistant 2026.9+ gives a device a single owner, so the config entry link
+    # above only takes effect once the subentry link is removed in a separate call.
+    # Entities still linked to the subentry would be removed with it, so this follows them
+    if device is not None:
+        device_registry.async_update_device(
+            device.id, remove_config_entry_id=entry.entry_id, remove_config_subentry_id=subentry.subentry_id
+        )
+
     hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)
     hass.config_entries.async_add_subentry(
         entry,
@@ -176,6 +187,60 @@ async def _replace_nodes_with_junctions(hass: HomeAssistant, entry: ConfigEntry)
 
         _swap_node_for_junction(hass, entry, subentry)
         _LOGGER.info("Replaced node %s with a junction", subentry.title)
+
+
+# Partition fields were keyed by section when both partitions were configured
+# and by their bare field name when only one was. Batteries have no other fields
+# with those names.
+_PARTITION_ENTITY_PREFIXES: tuple[str, ...] = (
+    partitions.SECTION_UNDERCHARGE,
+    partitions.SECTION_OVERCHARGE,
+    partitions.CONF_CONFIGURE_PARTITIONS,
+)
+_PARTITION_ENTITY_KEYS: frozenset[str] = frozenset(
+    (partitions.CONF_PARTITION_PERCENTAGE, partitions.CONF_PARTITION_COST)
+)
+
+
+def _remove_partition_entities(hass: HomeAssistant, entry: ConfigEntry, battery_ids: set[str]) -> None:
+    """Remove the input entities of battery partition fields, which batteries no longer have."""
+    registry = er.async_get(hass)
+    for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        parts = entity_entry.unique_id.split("_", 2)
+        if len(parts) != _UNIQUE_ID_PART_COUNT:
+            continue
+        _, subentry_id, unique_key = parts
+        if subentry_id in battery_ids and (
+            unique_key.startswith(_PARTITION_ENTITY_PREFIXES) or unique_key in _PARTITION_ENTITY_KEYS
+        ):
+            _LOGGER.info("Removing %s because batteries no longer have partitions", entity_entry.entity_id)
+            registry.async_remove(entity_entry.entity_id)
+
+
+def _migrate_batteries(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Move each battery's partitions into buffers for the battery and add the cost of its charge limits."""
+    existing_names = _collect_subentry_names(entry)
+    battery_ids: set[str] = set()
+    for subentry in list(entry.subentries.values()):
+        if subentry.subentry_type != battery.ELEMENT_TYPE:
+            continue
+        battery_ids.add(subentry.subentry_id)
+        migration = migrate_battery_config(subentry.data, existing_names=existing_names)
+        hass.config_entries.async_update_subentry(entry, subentry, data=migration.battery)
+        for buffer_config in migration.buffers:
+            title = str(buffer_config[CONF_NAME])
+            hass.config_entries.async_add_subentry(
+                entry,
+                ConfigSubentry(
+                    data=MappingProxyType(buffer_config),
+                    subentry_type=buffer.ELEMENT_TYPE,
+                    title=title,
+                    unique_id=None,
+                ),
+            )
+            _LOGGER.info("Created buffer %s from the partitions of battery %s", title, subentry.title)
+
+    _remove_partition_entities(hass, entry, battery_ids)
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -248,6 +313,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _remove_reverse_field_entities(hass, entry, connection_ids)
     await _replace_nodes_with_junctions(hass, entry)
+    _migrate_batteries(hass, entry)
 
     hass.config_entries.async_update_entry(entry, data=migrate_hub_horizon(entry.data), minor_version=MINOR_VERSION)
     _LOGGER.info("Migration complete for %s entry %s", DOMAIN, entry.entry_id)

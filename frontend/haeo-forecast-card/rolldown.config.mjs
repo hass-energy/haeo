@@ -44,7 +44,7 @@ const browserTreeshake = {
 // rendering controller (preact, MobX, ELK) is split into a lazily-imported
 // chunk so element registration never waits on it to download or evaluate.
 // Chunk filenames are stable (no content hash) and prefixed per card to avoid
-// collisions and repo churn.
+// collisions and repo churn. The integration versions their URL instead.
 export default defineConfig([
   {
     input: resolve(rootDir, "src/index.ts"),
