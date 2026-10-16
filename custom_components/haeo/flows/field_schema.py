@@ -150,11 +150,6 @@ def build_entity_selector(
     return EntitySelector(config)
 
 
-def _is_optional_field(field_schema: FieldSchemaInfo, field_info: AnyInputFieldInfo) -> bool:
-    """Return whether a field may be left without a value."""
-    return field_schema.is_optional and not field_info.force_required
-
-
 def _get_allowed_choices(field_schema: FieldSchemaInfo, field_info: AnyInputFieldInfo) -> frozenset[str]:
     kinds = get_schema_value_kinds(field_schema.value_type)
     choices: set[str] = set()
@@ -375,7 +370,7 @@ def build_choose_field_entries(
         if schema_info is None:
             msg = f"Missing schema metadata for field '{field_info.field_name}'"
             raise RuntimeError(msg)
-        is_optional = _is_optional_field(schema_info, field_info)
+        is_optional = schema_info.is_optional and not field_info.force_required
         allowed_choices = _get_allowed_choices(schema_info, field_info)
         include_entities = inclusion_map.get(field_info.field_name)
         preferred = get_preferred_choice(field_info, current_data, allowed_choices=allowed_choices)
@@ -807,7 +802,9 @@ def validate_choose_fields(
         if schema_info is None:
             msg = f"Missing schema metadata for field '{field_name}'"
             raise RuntimeError(msg)
-        if _is_optional_field(schema_info, field_info):
+        is_optional = schema_info.is_optional and not field_info.force_required
+
+        if is_optional:
             continue
 
         value = user_input.get(field_name)
