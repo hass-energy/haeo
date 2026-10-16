@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import Iterable
+from pathlib import Path
 from types import MappingProxyType
 from typing import ClassVar
 from unittest.mock import AsyncMock, Mock
@@ -21,6 +22,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
 from custom_components.haeo import (
+    CARD_STATIC_DIR,
     HaeoRuntimeData,
     _async_register_static_frontend_resources,
     _cleanup_buffer_participants,
@@ -32,6 +34,7 @@ from custom_components.haeo import (
     async_setup_entry,
     async_unload_entry,
     async_update_listener,
+    card_static_url,
 )
 from custom_components.haeo.const import (
     CONF_INTEGRATION_TYPE,
@@ -987,7 +990,7 @@ async def test_setup_preserves_config_entry_error_exception(
 
 
 async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistant) -> None:
-    """Test that async_setup registers each card bundle as its own resource."""
+    """Test that async_setup serves the bundles under a versioned URL with cache headers."""
     mock_http = Mock()
     mock_http.async_register_static_paths = AsyncMock()
     hass.http = mock_http  # type: ignore[attr-defined]
@@ -1002,11 +1005,11 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     mock_http.async_register_static_paths.assert_called_once()
     configs: list[StaticPathConfig] = mock_http.async_register_static_paths.call_args[0][0]
     assert len(configs) == 1
-    assert configs[0].url_path == STATIC_CARD_STATIC_PATH
+    static_url = card_static_url(CARD_STATIC_DIR)
+    assert configs[0].url_path == static_url
     assert configs[0].path.endswith(STATIC_CARD_STATIC_DIR)
-    registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
-    for _file_path, url_path in STATIC_CARD_BUNDLES:
-        assert url_path in registered_urls
+    assert configs[0].cache_headers is True
+    assert hass.data[DATA_EXTRA_MODULE_URL].urls == {f"{static_url}/{name}" for name in STATIC_CARD_BUNDLES}
 
 
 async def test_async_setup_registers_static_urls_when_frontend_sets_up_later(hass: HomeAssistant) -> None:
@@ -1035,9 +1038,8 @@ async def test_async_setup_registers_static_urls_when_frontend_sets_up_later(has
     hass.bus.async_fire(EVENT_COMPONENT_LOADED, {ATTR_COMPONENT: "frontend"})
     await hass.async_block_till_done()
 
-    registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
-    for _file_path, url_path in STATIC_CARD_BUNDLES:
-        assert url_path in registered_urls
+    static_url = card_static_url(CARD_STATIC_DIR)
+    assert hass.data[DATA_EXTRA_MODULE_URL].urls == {f"{static_url}/{name}" for name in STATIC_CARD_BUNDLES}
 
 
 async def test_async_register_static_skips_when_http_unavailable(
@@ -1062,6 +1064,20 @@ async def test_async_register_static_skips_when_card_not_found(
         await _async_register_static_frontend_resources(hass)
 
     mock_http.async_register_static_paths.assert_not_called()
+
+
+def test_card_static_url_changes_with_bundle_contents(tmp_path: Path) -> None:
+    """Test that rebuilding a bundle moves the URL it is served under, so no cached copy goes stale."""
+    (tmp_path / "haeo-forecast-card.min.js").write_text("a")
+    (tmp_path / "haeo-forecast-card.forecast-card-controller.js").write_text("b")
+    first = card_static_url(tmp_path)
+
+    assert first.startswith(f"{STATIC_CARD_STATIC_PATH}/")
+    assert card_static_url(tmp_path) == first
+
+    (tmp_path / "haeo-forecast-card.forecast-card-controller.js").write_text("c")
+
+    assert card_static_url(tmp_path) != first
 
 
 def _add_buffer(hass: HomeAssistant, hub_entry: MockConfigEntry, participants: dict[str, list[str]]) -> ConfigSubentry:
