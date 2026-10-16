@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import logging
 from typing import TYPE_CHECKING
 
@@ -28,10 +29,11 @@ from custom_components.haeo.flows.horizon import horizon_field
 _LOGGER = logging.getLogger(__name__)
 
 
-def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
+def get_hub_setup_schema(preset_labels: Mapping[str, str], suggested_name: str | None = None) -> vol.Schema:
     """Get simplified schema for initial hub setup.
 
     Args:
+        preset_labels: Translated label of each horizon preset
         suggested_name: Optional suggested name for the hub (translatable default)
 
     Returns:
@@ -67,7 +69,7 @@ def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
                     vol.Length(max=255, msg="Name cannot be longer than 255 characters"),
                 ),
             ),
-            CONF_HORIZON: horizon_field(),
+            CONF_HORIZON: horizon_field(preset_labels),
         },
         HUB_SECTION_ADVANCED: {
             CONF_ADVANCED_MODE: (
@@ -79,11 +81,12 @@ def get_hub_setup_schema(suggested_name: str | None = None) -> vol.Schema:
     return vol.Schema(build_section_schema(sections, field_entries))
 
 
-def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
+def get_hub_options_schema(config_entry: ConfigEntry, preset_labels: Mapping[str, str]) -> vol.Schema:
     """Get simplified schema for hub options (edit) flow.
 
     Args:
         config_entry: Config entry to get current values from
+        preset_labels: Translated label of each horizon preset
 
     Returns:
         Voluptuous schema with the planning horizon and basic settings.
@@ -105,7 +108,7 @@ def get_hub_options_schema(config_entry: ConfigEntry) -> vol.Schema:
     )
     field_entries = {
         HUB_SECTION_COMMON: {
-            CONF_HORIZON: horizon_field(config_entry.data[HUB_SECTION_COMMON][CONF_HORIZON]),
+            CONF_HORIZON: horizon_field(preset_labels, config_entry.data[HUB_SECTION_COMMON][CONF_HORIZON]),
         },
         HUB_SECTION_ADVANCED: {
             CONF_DEBOUNCE_SECONDS: (
