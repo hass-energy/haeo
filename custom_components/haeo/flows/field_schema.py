@@ -156,14 +156,13 @@ def _is_optional_field(field_schema: FieldSchemaInfo, field_info: AnyInputFieldI
 
 
 def _get_allowed_choices(field_schema: FieldSchemaInfo, field_info: AnyInputFieldInfo) -> frozenset[str]:
-    """Return the choices a field offers, with "none" only for optional fields."""
     kinds = get_schema_value_kinds(field_schema.value_type)
     choices: set[str] = set()
     if VALUE_TYPE_ENTITY in kinds:
         choices.add(CHOICE_ENTITY)
     if VALUE_TYPE_CONSTANT in kinds:
         choices.add(CHOICE_CONSTANT)
-    if VALUE_TYPE_NONE in kinds and _is_optional_field(field_schema, field_info):
+    if VALUE_TYPE_NONE in kinds and not field_info.force_required:
         choices.add(CHOICE_NONE)
     return frozenset(choices)
 
