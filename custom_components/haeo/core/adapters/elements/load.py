@@ -138,38 +138,16 @@ class LoadAdapter:
             load_outputs[LOAD_FORECAST_LIMIT_PRICE] = shadow
 
         # Cumulative + rolling-24h statistics. Marginal cost uses the source-node
-        # power-balance shadow price (node_dual, $/kWh, already period-integrated)
-        # so that cost = energy * node_dual is in $.
+        # power-balance shadow price ($/kWh) so that cost = energy * price is in $.
         source_name = extract_connection_target(config[CONF_CONNECTION])
-        node_dual = _node_dual_values(model_outputs, source_name)
-        if node_dual is not None:
+        node_price = expect_output_data(model_outputs.get(source_name, {}).get(ELEMENT_POWER_BALANCE))
+        if node_price is not None and len(periods) > 0:
             power_values = tuple(float(v) for v in power.values)
             period_values = tuple(float(v) for v in periods)
+            node_dual = tuple(float(v) for v in node_price.values)
             load_outputs.update(_stats_outputs(power_values, node_dual, period_values))
 
         return {LOAD_DEVICE_LOAD: load_outputs}
-
-
-def _node_dual_values(
-    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]],
-    source_name: str,
-) -> tuple[float, ...] | None:
-    """Return the source-node power-balance shadow price ($/kWh), one value per period.
-
-    This is the same series that the node's ``node_power_balance`` sensor
-    exposes in Home Assistant. Multiplying load energy (``power * dt``) by this
-    $/kWh price gives the per-step cost in dollars.
-
-    Returns None when the source node has no ``element_power_balance`` output
-    (e.g. unconstrained pass-through nodes).
-    """
-    source_outputs = model_outputs.get(source_name)
-    if source_outputs is None:
-        return None
-    dual = expect_output_data(source_outputs.get(ELEMENT_POWER_BALANCE))
-    if dual is None:
-        return None
-    return tuple(float(v) for v in dual.values)
 
 
 def _stats_outputs(
@@ -181,7 +159,7 @@ def _stats_outputs(
 
     Cost is integrated as ``cost[t] = power[t] * periods[t] * node_dual[t]``
     ($) where ``node_dual[t]`` is the source-node power-balance shadow price
-    in $/kWh (see ``Node.element_power_balance``: the LP balance is
+    in $/kWh (see ``NetworkElement.power_balance_price``: the LP balance is
     formulated in energy units so the dual is independent of period width).
     The ``power * periods`` factor is the per-step energy in kWh, so cost is
     ``energy[t] * node_dual[t]`` and totals are correct for variable-width

@@ -1,8 +1,8 @@
 """Power balance shadow prices of elements that produce or consume power.
 
-Each element publishes one energy balance dual per period. With tagged
-connections, the per-tag routing rows sit in a separate constraint, so their
-duals (which carry the opposite sign for production) never reach the output.
+Each element publishes one energy balance dual per period. The duals of the
+rows that split production across tags carry the opposite sign, so they must
+never reach the output.
 """
 
 import numpy as np
