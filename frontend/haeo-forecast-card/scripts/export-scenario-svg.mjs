@@ -8,6 +8,9 @@ import { performance as nodePerformance } from "node:perf_hooks";
 import { resolve, dirname } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
+
+import { resolveCardEntry } from "./card-bundle.mjs";
+
 let JSDOM;
 try {
   ({ JSDOM } = await import("jsdom"));
@@ -15,10 +18,6 @@ try {
   console.error("Missing jsdom — run: npm --prefix frontend/haeo-forecast-card ci");
   process.exit(1);
 }
-
-const rootDir = resolve(import.meta.dirname, "..");
-const workspaceRoot = resolve(rootDir, "..", "..");
-const bundlePath = resolve(workspaceRoot, "custom_components", "haeo", "www", "haeo-forecast-card.min.js");
 
 const SCENARIO_EXPORT_HUB = "scenario-export";
 const SCENARIO_EXPORT_DEVICE = "dev-scenario-export";
@@ -213,7 +212,7 @@ function isChartSized(svg) {
 }
 
 async function renderCard(window, hass, entities) {
-  await import(pathToFileURL(bundlePath).href);
+  await import(pathToFileURL(await resolveCardEntry("haeo-forecast-card")).href);
 
   const element = window.document.createElement("haeo-forecast-card");
   element.getBoundingClientRect = () => CARD_RECT;

@@ -2,6 +2,8 @@
 
 import asyncio
 from collections.abc import Iterable
+from pathlib import Path
+import re
 from types import MappingProxyType
 from typing import ClassVar
 from unittest.mock import AsyncMock, Mock
@@ -21,6 +23,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
 from custom_components.haeo import (
+    CARD_STATIC_DIR,
     HaeoRuntimeData,
     _async_register_static_frontend_resources,
     _cleanup_buffer_participants,
@@ -32,12 +35,12 @@ from custom_components.haeo import (
     async_setup_entry,
     async_unload_entry,
     async_update_listener,
+    card_entry_urls,
 )
 from custom_components.haeo.const import (
     CONF_INTEGRATION_TYPE,
     DOMAIN,
     INTEGRATION_TYPE_HUB,
-    STATIC_CARD_BUNDLES,
     STATIC_CARD_STATIC_DIR,
     STATIC_CARD_STATIC_PATH,
 )
@@ -986,8 +989,18 @@ async def test_setup_preserves_config_entry_error_exception(
 # ---------------------------------------------------------------------------
 
 
+_HASHED_CARD_ENTRY = re.compile(r"^haeo-[a-z-]+-card\.entry\.[\w-]+\.js$")
+
+
+def _hashed_card_entry_urls_on_disk() -> set[str]:
+    """Return the served URL of every content-hashed card entry bundle that was built."""
+    names = sorted(path.name for path in CARD_STATIC_DIR.iterdir() if _HASHED_CARD_ENTRY.match(path.name))
+    assert [name.split(".")[0] for name in names] == ["haeo-forecast-card", "haeo-topology-card"]
+    return {f"{STATIC_CARD_STATIC_PATH}/{name}" for name in names}
+
+
 async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistant) -> None:
-    """Test that async_setup registers each card bundle as its own resource."""
+    """Test that async_setup serves the bundles with cache headers and registers each hashed entry."""
     mock_http = Mock()
     mock_http.async_register_static_paths = AsyncMock()
     hass.http = mock_http  # type: ignore[attr-defined]
@@ -1004,9 +1017,8 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     assert len(configs) == 1
     assert configs[0].url_path == STATIC_CARD_STATIC_PATH
     assert configs[0].path.endswith(STATIC_CARD_STATIC_DIR)
-    registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
-    for _file_path, url_path in STATIC_CARD_BUNDLES:
-        assert url_path in registered_urls
+    assert configs[0].cache_headers is True
+    assert set(hass.data[DATA_EXTRA_MODULE_URL].urls) == _hashed_card_entry_urls_on_disk()
 
 
 async def test_async_setup_registers_static_urls_when_frontend_sets_up_later(hass: HomeAssistant) -> None:
@@ -1035,9 +1047,7 @@ async def test_async_setup_registers_static_urls_when_frontend_sets_up_later(has
     hass.bus.async_fire(EVENT_COMPONENT_LOADED, {ATTR_COMPONENT: "frontend"})
     await hass.async_block_till_done()
 
-    registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
-    for _file_path, url_path in STATIC_CARD_BUNDLES:
-        assert url_path in registered_urls
+    assert set(hass.data[DATA_EXTRA_MODULE_URL].urls) == _hashed_card_entry_urls_on_disk()
 
 
 async def test_async_register_static_skips_when_http_unavailable(
@@ -1049,16 +1059,30 @@ async def test_async_register_static_skips_when_http_unavailable(
     # No error raised - registration simply skipped
 
 
-async def test_async_register_static_skips_when_card_not_found(
-    hass: HomeAssistant,
-) -> None:
-    """Test that static registration is skipped when card bundle file is missing."""
+def test_card_entry_urls_lists_only_entry_bundles(tmp_path: Path) -> None:
+    """Test that only files marked as entries are registered, not their chunks or stale fixed names."""
+    for name in (
+        "haeo-topology-card.entry.Zx9_k2.js",
+        "haeo-forecast-card.entry.a1B2c3.js",
+        "haeo-forecast-card.forecast-card-controller.d4E5f6.js",
+        "haeo-forecast-card.min.js",
+    ):
+        (tmp_path / name).write_text("")
+
+    assert card_entry_urls(tmp_path) == [
+        f"{STATIC_CARD_STATIC_PATH}/haeo-forecast-card.entry.a1B2c3.js",
+        f"{STATIC_CARD_STATIC_PATH}/haeo-topology-card.entry.Zx9_k2.js",
+    ]
+
+
+async def test_async_register_static_skips_when_card_not_found(hass: HomeAssistant, tmp_path: Path) -> None:
+    """Test that static registration is skipped when no card bundle has been built."""
     mock_http = Mock()
     mock_http.async_register_static_paths = AsyncMock()
     hass.http = mock_http  # type: ignore[attr-defined]
 
     with pytest.MonkeyPatch.context() as mp:
-        mp.setattr("custom_components.haeo.Path.exists", lambda _self: False)
+        mp.setattr("custom_components.haeo.CARD_STATIC_DIR", tmp_path)
         await _async_register_static_frontend_resources(hass)
 
     mock_http.async_register_static_paths.assert_not_called()

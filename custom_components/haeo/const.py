@@ -23,14 +23,13 @@ ELEMENT_TYPE_NETWORK: Final = "network"
 # registered as a separate frontend resource. Keeping the cards independent
 # (no shared chunks or cross-file imports) ensures one card's bundle can never
 # break registration of another when browser or service-worker caches differ.
+#
+# Every bundle filename carries a content hash, so the files can be served with
+# long-lived cache headers: no URL survives a rebuild to serve a stale copy. Each
+# card's entry bundle is marked `.entry.` and discovered on disk at startup.
 STATIC_CARD_STATIC_PATH: Final = "/haeo-static"
 STATIC_CARD_STATIC_DIR: Final = "www"
-
-# (relative file path under the integration directory, served URL path)
-STATIC_CARD_BUNDLES: Final[tuple[tuple[str, str], ...]] = (
-    ("www/haeo-forecast-card.min.js", "/haeo-static/haeo-forecast-card.min.js"),
-    ("www/haeo-topology-card.min.js", "/haeo-static/haeo-topology-card.min.js"),
-)
+STATIC_CARD_ENTRY_GLOB: Final = "*.entry.*.js"
 
 # Optimization statuses
 OPTIMIZATION_STATUS_SUCCESS: Final = "success"
