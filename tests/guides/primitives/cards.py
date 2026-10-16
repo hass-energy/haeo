@@ -24,7 +24,8 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.json import json_dumps
 
-from custom_components.haeo.const import DOMAIN, STATIC_CARD_STATIC_PATH
+from custom_components.haeo import CARD_STATIC_DIR, card_static_url
+from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import CONF_ENABLED, CONF_RULE_NAME, CONF_RULES
 
@@ -272,7 +273,7 @@ def _card_page(
   .card {{ box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); }}
   {_card_css(dark)}
 </style>
-<script type="module" src="{STATIC_CARD_STATIC_PATH}/{tag}.min.js"></script>
+<script type="module" src="{card_static_url(CARD_STATIC_DIR)}/{tag}.min.js"></script>
 </head>
 <body><div class="card"></div></body>
 </html>"""
