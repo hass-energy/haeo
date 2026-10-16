@@ -24,7 +24,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.json import json_dumps
 
-from custom_components.haeo import CARD_STATIC_DIR, card_entry_urls
+from custom_components.haeo import CARD_STATIC_DIR, card_static_url
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import CONF_ENABLED, CONF_RULE_NAME, CONF_RULES
@@ -262,7 +262,6 @@ def _card_page(
     does on a dashboard. Otherwise the card takes the height of its content.
     """
     layout = "height: 100%; display: flex;" if fill_height else "display: block;"
-    scripts = "\n".join(f'<script type="module" src="{url}"></script>' for url in card_entry_urls(CARD_STATIC_DIR))
     html = f"""<!doctype html>
 <html>
 <head>
@@ -274,7 +273,7 @@ def _card_page(
   .card {{ box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); }}
   {_card_css(dark)}
 </style>
-{scripts}
+<script type="module" src="{card_static_url(CARD_STATIC_DIR)}/{tag}.min.js"></script>
 </head>
 <body><div class="card"></div></body>
 </html>"""

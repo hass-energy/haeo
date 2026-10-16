@@ -4,10 +4,9 @@ import { pathToFileURL } from "node:url";
 
 import { JSDOM } from "jsdom";
 
-import { resolveCardEntry } from "./card-bundle.mjs";
-
 const rootDir = resolve(import.meta.dirname, "..");
 const workspaceRoot = resolve(rootDir, "..", "..");
+const bundlePath = resolve(workspaceRoot, "custom_components", "haeo", "www", "haeo-forecast-card.min.js");
 const outputDir = resolve(rootDir, "previews");
 const scenarioPath = resolve(workspaceRoot, "tests", "scenarios", "scenario1", "outputs.json");
 const outputSvg = resolve(outputDir, "card-preview.svg");
@@ -87,7 +86,7 @@ async function main() {
   globalThis.requestAnimationFrame = (cb) => setTimeout(() => cb(Date.now()), 16);
   globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
 
-  await import(pathToFileURL(await resolveCardEntry("haeo-forecast-card")).href);
+  await import(pathToFileURL(bundlePath).href);
 
   const element = window.document.createElement("haeo-forecast-card");
   element.setConfig({

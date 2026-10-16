@@ -23,7 +23,7 @@ There is nothing to add by hand.
 The integration serves its cards and registers them with the Home Assistant frontend when Home Assistant starts.
 
 If you added a Lovelace resource for `/haeo-static/haeo-forecast-card.min.js` under an older release, remove it from **Settings -> Dashboards -> Resources**.
-That file no longer exists, and a cached copy loaded beside the current card can stop the card from appearing.
+That URL no longer serves the card, and a cached copy loaded beside the current card can stop the card from appearing.
 
 ## Basic card config
 
