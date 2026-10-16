@@ -144,7 +144,7 @@ async def test_user_step_with_constant_creates_entry(
     )
     invalid_result = await flow.async_step_user(user_input=invalid_input)
     assert invalid_result.get("type") == FlowResultType.FORM
-    assert CONF_CAPACITY in invalid_result.get("errors", {})
+    assert invalid_result.get("errors") == {SECTION_STORAGE: "required"}
 
     result = await flow.async_step_user(user_input=user_input)
 

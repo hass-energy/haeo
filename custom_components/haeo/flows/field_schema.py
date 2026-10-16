@@ -150,14 +150,20 @@ def build_entity_selector(
     return EntitySelector(config)
 
 
+def _is_optional_field(field_schema: FieldSchemaInfo, field_info: AnyInputFieldInfo) -> bool:
+    """Return whether a field may be left without a value."""
+    return field_schema.is_optional and not field_info.force_required
+
+
 def _get_allowed_choices(field_schema: FieldSchemaInfo, field_info: AnyInputFieldInfo) -> frozenset[str]:
+    """Return the choices a field offers, with "none" only for optional fields."""
     kinds = get_schema_value_kinds(field_schema.value_type)
     choices: set[str] = set()
     if VALUE_TYPE_ENTITY in kinds:
         choices.add(CHOICE_ENTITY)
     if VALUE_TYPE_CONSTANT in kinds:
         choices.add(CHOICE_CONSTANT)
-    if VALUE_TYPE_NONE in kinds and not field_info.force_required:
+    if VALUE_TYPE_NONE in kinds and _is_optional_field(field_schema, field_info):
         choices.add(CHOICE_NONE)
     return frozenset(choices)
 
@@ -370,7 +376,7 @@ def build_choose_field_entries(
         if schema_info is None:
             msg = f"Missing schema metadata for field '{field_info.field_name}'"
             raise RuntimeError(msg)
-        is_optional = schema_info.is_optional and not field_info.force_required
+        is_optional = _is_optional_field(schema_info, field_info)
         allowed_choices = _get_allowed_choices(schema_info, field_info)
         include_entities = inclusion_map.get(field_info.field_name)
         preferred = get_preferred_choice(field_info, current_data, allowed_choices=allowed_choices)
@@ -531,21 +537,26 @@ def validate_sectioned_choose_fields(
     *,
     exclude_fields: tuple[str, ...] = (),
 ) -> dict[str, str]:
-    """Validate choose fields for sectioned input."""
+    """Validate choose fields for sectioned input.
+
+    Errors are keyed by section because Home Assistant only shows errors for
+    top-level form fields, so an error keyed by a field inside a section would
+    re-show the form without telling the user why.
+    """
     errors: dict[str, str] = {}
     for section_def in sections:
         section_input = user_input.get(section_def.key, {})
         if not isinstance(section_input, Mapping):
             continue
         section_fields = input_fields.get(section_def.key, {})
-        errors.update(
-            validate_choose_fields(
-                dict(section_input),
-                section_fields,
-                field_schema.get(section_def.key, {}),
-                exclude_fields=exclude_fields,
-            )
+        section_errors = validate_choose_fields(
+            dict(section_input),
+            section_fields,
+            field_schema.get(section_def.key, {}),
+            exclude_fields=exclude_fields,
         )
+        if section_errors:
+            errors[section_def.key] = next(iter(section_errors.values()))
     return errors
 
 
@@ -797,9 +808,7 @@ def validate_choose_fields(
         if schema_info is None:
             msg = f"Missing schema metadata for field '{field_name}'"
             raise RuntimeError(msg)
-        is_optional = schema_info.is_optional and not field_info.force_required
-
-        if is_optional:
+        if _is_optional_field(schema_info, field_info):
             continue
 
         value = user_input.get(field_name)

@@ -198,7 +198,7 @@ async def test_user_step_with_constant_creates_entry(
     invalid_result = await flow.async_step_user(user_input=invalid_input)
     assert invalid_result.get("type") == FlowResultType.FORM
     assert invalid_result.get("step_id") == "user"
-    assert CONF_MAX_POWER_DC_TO_AC in invalid_result.get("errors", {})
+    assert invalid_result.get("errors") == {SECTION_POWER_LIMITS: "required"}
 
     # Submit with constant values using choose selector format
     user_input = _wrap_input(
@@ -297,7 +297,7 @@ async def test_reconfigure_with_constant_updates_entry(
     invalid_result = await flow.async_step_reconfigure(user_input=invalid_input)
     assert invalid_result.get("type") == FlowResultType.FORM
     assert invalid_result.get("step_id") == "user"
-    assert CONF_MAX_POWER_DC_TO_AC in invalid_result.get("errors", {})
+    assert invalid_result.get("errors") == {SECTION_POWER_LIMITS: "required"}
 
     # Change to constant values
     user_input = _wrap_input(
