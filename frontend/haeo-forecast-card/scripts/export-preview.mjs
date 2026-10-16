@@ -113,3 +113,6 @@ async function main() {
 }
 
 await main();
+// The card keeps its element registered on an interval for a while after load,
+// which would hold the process open after the render is written.
+process.exit(0);

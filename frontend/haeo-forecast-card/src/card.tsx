@@ -1,5 +1,6 @@
 import { buildHubConfigForm } from "./config-form";
 import { discoverHaeoHubEntryId } from "./hub-selection";
+import { registerCardElement } from "./register-card-element";
 import type { HassLike } from "./series";
 import type { ForecastCardConfig } from "./types";
 import type { ForecastCardController } from "./forecast-card-controller";
@@ -129,6 +130,4 @@ export class HaeoForecastCard extends HTMLElement {
   }
 }
 
-if (!customElements.get("haeo-forecast-card")) {
-  customElements.define("haeo-forecast-card", HaeoForecastCard);
-}
+registerCardElement("haeo-forecast-card", HaeoForecastCard);
