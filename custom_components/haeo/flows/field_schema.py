@@ -531,21 +531,26 @@ def validate_sectioned_choose_fields(
     *,
     exclude_fields: tuple[str, ...] = (),
 ) -> dict[str, str]:
-    """Validate choose fields for sectioned input."""
+    """Validate choose fields for sectioned input.
+
+    Errors are keyed by section because Home Assistant only shows errors for
+    top-level form fields, so an error keyed by a field inside a section would
+    re-show the form without telling the user why.
+    """
     errors: dict[str, str] = {}
     for section_def in sections:
         section_input = user_input.get(section_def.key, {})
         if not isinstance(section_input, Mapping):
             continue
         section_fields = input_fields.get(section_def.key, {})
-        errors.update(
-            validate_choose_fields(
-                dict(section_input),
-                section_fields,
-                field_schema.get(section_def.key, {}),
-                exclude_fields=exclude_fields,
-            )
+        section_errors = validate_choose_fields(
+            dict(section_input),
+            section_fields,
+            field_schema.get(section_def.key, {}),
+            exclude_fields=exclude_fields,
         )
+        if section_errors:
+            errors[section_def.key] = next(iter(section_errors.values()))
     return errors
 
 
