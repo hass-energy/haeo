@@ -625,6 +625,9 @@
     "no_history_at_time": {
       "message": "No history available at time {time} for: {missing}. The recorder may not have data this far back."
     },
+    "optimization_failed": {
+      "message": "HAEO could not find a plan (solver status: {status}). This usually means your element limits and forecasts cannot all be met at the same time."
+    },
     "self_referential_field_missing": {
       "message": "Configuration error for field {field}: The entity created by this field was selected, but the field is missing from the stored configuration. This may indicate corrupted configuration data. Please recreate the element."
     },

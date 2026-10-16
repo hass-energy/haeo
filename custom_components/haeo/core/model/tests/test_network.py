@@ -8,7 +8,7 @@ from highspy import HighsBasisStatus, HighsModelStatus
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.model import Network
+from custom_components.haeo.core.model import Network, OptimizationFailedError
 from custom_components.haeo.core.model import network as network_module
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY
@@ -284,40 +284,14 @@ def test_log_callback_handles_empty_message() -> None:
     Network._log_callback(1, "   ")  # Whitespace only
 
 
-def test_network_optimize_raises_on_solver_failure(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Optimize should surface solver failure status with context."""
-    network = Network(name="test_network", periods=np.array([1.0]))
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "node", "is_sink": True, "is_source": True})
-
-    def mock_optimize() -> float:
-        for element in network.elements.values():
-            element.constraints()
-        # Mock the model status to indicate failure
-        monkeypatch.setattr(network._solver, "getModelStatus", lambda: HighsModelStatus.kUnbounded)
-        network._solver.run()
-        status = network._solver.getModelStatus()
-        if status != HighsModelStatus.kOptimal:
-            msg = f"Optimization failed with status: {network._solver.modelStatusToString(status)}"
-            raise ValueError(msg)
-        return network._solver.getObjectiveValue()
-
-    with pytest.raises(ValueError, match="Optimization failed with status: Unbounded"):
-        mock_optimize()
-
-
-def test_network_optimize_raises_on_infeasible_network(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Test optimize() raises ValueError when network optimization fails."""
-    # Create a network with objectives (needs connections for secondary)
+def test_network_optimize_raises_on_solver_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A solve that never ends optimal fails with the solver's status once every weight has been tried."""
     network = Network(name="test_network", periods=np.array([1.0]))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "src", "is_source": True, "is_sink": False})
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "dst", "is_source": False, "is_sink": True})
     network.add(
         {
-            "element_type": "connection",
+            "element_type": ELEMENT_TYPE_CONNECTION,
             "name": "conn",
             "source": "src",
             "target": "dst",
@@ -325,30 +299,40 @@ def test_network_optimize_raises_on_infeasible_network(
             "segments": {"pricing": {"segment_type": "pricing", "price": 0.10}},
         }
     )
+    monkeypatch.setattr(network._solver, "getModelStatus", lambda: HighsModelStatus.kUnbounded)
 
-    # Track if run() has been called
-    run_called = False
-
-    original_run = network._solver.run
-    original_get_model_status = network._solver.getModelStatus
-
-    def mock_run() -> None:
-        nonlocal run_called
-        original_run()
-        run_called = True
-
-    def mock_get_model_status() -> HighsModelStatus:
-        # After run() is called, return a non-optimal status
-        if run_called:
-            return HighsModelStatus.kInfeasible
-        return original_get_model_status()
-
-    monkeypatch.setattr(network._solver, "run", mock_run)
-    monkeypatch.setattr(network._solver, "getModelStatus", mock_get_model_status)
-
-    # This should raise ValueError with the error message from optimize()
-    with pytest.raises(ValueError, match="Optimization failed with status:"):
+    with pytest.raises(OptimizationFailedError, match="Optimization failed with status: Unbounded") as exc_info:
         network.optimize()
+
+    assert exc_info.value.status == "Unbounded"
+
+
+def test_network_optimize_raises_on_infeasible_network() -> None:
+    """An infeasible network fails on its first solve without searching blend weights."""
+    network = Network(name="test_network", periods=np.array([1.0]))
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "src", "is_source": False, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "dst", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "conn",
+            "source": "src",
+            "target": "dst",
+            "tags": {1},
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": 5.0, "fixed": True},
+                "pricing": {"segment_type": "pricing", "price": 0.10},
+            },
+        }
+    )
+    run = Mock(wraps=network._solver.run)
+    network._solver.run = run
+
+    with pytest.raises(OptimizationFailedError) as exc_info:
+        network.optimize()
+
+    assert exc_info.value.status == "Infeasible"
+    run.assert_called_once()
 
 
 def test_network_cost_with_multiple_elements() -> None:

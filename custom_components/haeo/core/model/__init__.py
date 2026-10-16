@@ -20,6 +20,7 @@ from .elements.connection import ConnectionOutputName as ConnectionOutputName
 from .elements.node import Node as Node
 from .elements.node import NodeOutputName as NodeOutputName
 from .network import Network as Network
+from .network import OptimizationFailedError as OptimizationFailedError
 from .output_data import ModelOutputValue, OutputData
 from .output_names import ModelOutputName
 
@@ -41,6 +42,7 @@ __all__ = [
     "NetworkElement",
     "Node",
     "NodeOutputName",
+    "OptimizationFailedError",
     "OutputData",
     "OutputType",
 ]
