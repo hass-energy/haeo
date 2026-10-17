@@ -238,8 +238,8 @@ A forecast with no points, such as a calendar without events, adds nothing.
 
 ### Mixed Payloads
 
-The combiner returns the summed present value and the summed forecast series separately.
-A present value is the reading for now, so the fuser uses it for the first interval (or the first boundary) and the forecast for the rest.
+`split_sensor_payloads()` returns the summed present value and each forecast series separately.
+A present value is the reading for now, so `fuse_sensor_payloads()` uses it for the first interval (or the first boundary) and the forecasts for the rest.
 Without a forecast, the present value repeats across the horizon.
 
 ## Fusion to Horizon
