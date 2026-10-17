@@ -14,9 +14,10 @@ import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.input_store import InputMode, InputStore, create_input_store
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
-from custom_components.haeo.core.schema.field_hints import FieldHint
+from custom_components.haeo.core.schema.field_hints import FieldHint, calendar_input
 
 FORECAST_TIMESTAMPS: tuple[float, ...] = (0.0, 300.0, 600.0)
 
@@ -390,3 +391,52 @@ def test_horizon_start_scalar_returns_none() -> None:
     store.refresh()
 
     assert store.horizon_start is None
+
+
+# --- Calendar inputs ---
+
+
+def _make_calendar_store() -> InputStore:
+    """Build a store for a calendar input, reading an ordinary entity value."""
+    storage = _MemStorage({"type": "entity", "value": ["calendar.trips"]})
+    return create_input_store(
+        storage=storage,
+        hint=calendar_input(OutputType.AVAILABILITY, "window_active"),
+        get_forecast_timestamps=_timestamps,
+    )
+
+
+async def test_calendar_store_resolves_injected_events_like_a_sensor() -> None:
+    """A calendar input is an ordinary driven store whose source state carries injected events."""
+    store = _make_calendar_store()
+    event = {
+        "start": "1970-01-01T00:00:00+00:00",
+        "end": "1970-01-01T00:05:00+00:00",
+        "summary": "Trip",
+        "location": None,
+        "description": None,
+    }
+    sm = FakeStateMachine(
+        {"calendar.trips": FakeEntityState("calendar.trips", "on", {CALENDAR_EVENTS_ATTRIBUTE: [event]})}
+    )
+
+    assert store.mode == InputMode.DRIVEN
+    assert await store.async_load(sm)
+    assert store.available
+    assert store.display_values == (1.0, 0.0)
+    assert store.forecast_timestamps == FORECAST_TIMESTAMPS
+
+
+@pytest.mark.parametrize(
+    "states",
+    [
+        pytest.param({}, id="missing_state"),
+        pytest.param({"calendar.trips": FakeEntityState("calendar.trips", "on", {})}, id="no_injected_events"),
+    ],
+)
+async def test_calendar_store_without_injected_events_is_unavailable(states: dict[str, FakeEntityState]) -> None:
+    """A calendar input whose state is missing or carries no events fails to load."""
+    store = _make_calendar_store()
+
+    assert not await store.async_load(FakeStateMachine(states))
+    assert not store.available

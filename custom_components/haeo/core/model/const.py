@@ -28,6 +28,7 @@ class OutputType(StrEnum):
 
     Other types:
         STATUS: Boolean or categorical status
+        AVAILABILITY: Binary availability schedule (0-1)
         DURATION: Time duration
         SHADOW_PRICE: Shadow prices from LP constraints
 
@@ -43,5 +44,6 @@ class OutputType(StrEnum):
     EFFICIENCY = auto()
     COST = auto()
     STATUS = auto()
+    AVAILABILITY = auto()
     DURATION = auto()
     SHADOW_PRICE = auto()

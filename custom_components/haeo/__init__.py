@@ -22,6 +22,7 @@ from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.setup import async_when_setup
 
+from custom_components.haeo.calendar_loader import CalendarInputLoader
 from custom_components.haeo.const import (
     DOMAIN,
     ELEMENT_TYPE_NETWORK,
@@ -425,6 +426,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # stores are the system's source of truth; entities wrap them for display
     # and the coordinator reads their resolved values.
     runtime_data.input_stores = build_input_stores(hass, entry, horizon_manager)
+
+    # A calendar's state carries no events, so stores reading a calendar are
+    # loaded by a loader that fetches its events over the horizon.
+    calendar_loader = CalendarInputLoader(hass, entry.entry_id, runtime_data.input_stores, horizon_manager)
+    calendar_loader.start()
+    entry.async_on_unload(calendar_loader.cleanup)
 
     # Create the coordinator from the same subentry snapshot used to build the
     # input stores, before setting up platforms. Platform setup and store

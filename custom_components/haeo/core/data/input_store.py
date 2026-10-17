@@ -29,6 +29,8 @@ from custom_components.haeo.core.schema import as_entity_value
 from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.state import EntityState, StateMachine
 
+type InputValue = bool | float | np.ndarray
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -83,7 +85,7 @@ class InputStore:
         self._negate = negate
 
         self._constant: float | bool | None = initial_value
-        self._value: bool | float | np.ndarray | None = None
+        self._value: InputValue | None = None
         self._available = False
         self._error: InputError | None = None
         self._loaded_timestamps: tuple[float, ...] = ()
@@ -126,7 +128,7 @@ class InputStore:
     # --- Values ---
 
     @property
-    def value(self) -> bool | float | np.ndarray | None:
+    def value(self) -> InputValue | None:
         """Return the resolved value in optimization units.
 
         For time-series numeric fields this is a numpy array; for scalar fields
@@ -233,7 +235,7 @@ class InputStore:
 
         return _unsub
 
-    def _notify(self) -> None:
+    def notify_listeners(self) -> None:
         """Fire all registered change listeners."""
         for listener in list(self._listeners):
             listener()
@@ -259,10 +261,25 @@ class InputStore:
             self._resolve_from_constant(mark_ready=True)
 
     async def async_load(self, sm: StateMachine) -> bool:
-        """Resolve data from source entities via the provided state machine.
+        """Resolve data from source entities and notify listeners.
 
         Returns True if data was successfully loaded, False otherwise. Does not
         modify state on failure (keeps previous values).
+        """
+        loaded = self.resolve_from_sources(sm)
+        if loaded or self._error is not None:
+            self.notify_listeners()
+        return loaded
+
+    def resolve_from_sources(self, sm: StateMachine) -> bool:
+        """Resolve data from source entities without notifying listeners.
+
+        Lets a caller reload several stores before any listener runs, then
+        notify each with :meth:`notify_listeners`. Returns True if data was
+        successfully loaded, False otherwise. Does not modify state on failure
+        (keeps previous values). A rejected value is recorded in :attr:`error`
+        and should still be notified, so consumers report it rather than
+        silently keeping the previous value.
         """
         self._captured_source_states = {
             eid: state for eid in self._source_entity_ids if (state := sm.get(eid)) is not None
@@ -283,12 +300,9 @@ class InputStore:
                 negate=self._negate,
             )
         except InputError as err:
-            # Notify so consumers run and report the rejected value rather than
-            # silently keeping the previous one.
             self._error = err
             self._available = False
             self._settled.set()
-            self._notify()
             return False
         except Exception:
             _LOGGER.debug(
@@ -316,7 +330,6 @@ class InputStore:
         self._loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
         self._data_ready.set()
         self._settled.set()
-        self._notify()
         return True
 
     def _resolve_from_constant(self, *, mark_ready: bool) -> None:
@@ -334,7 +347,7 @@ class InputStore:
         if mark_ready:
             self._data_ready.set()
             self._settled.set()
-            self._notify()
+            self.notify_listeners()
 
 
 def create_input_store(
@@ -411,4 +424,4 @@ def create_input_store(
             raise RuntimeError(msg)
 
 
-__all__ = ["InputMode", "InputStore", "create_input_store"]
+__all__ = ["InputMode", "InputStore", "InputValue", "create_input_store"]

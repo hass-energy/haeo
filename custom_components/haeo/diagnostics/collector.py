@@ -1,9 +1,12 @@
 """Core diagnostics collection logic."""
 
+import asyncio
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
+from typing import Final
 
+from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import __version__ as ha_version
 from homeassistant.core import HomeAssistant, State
@@ -12,9 +15,11 @@ from homeassistant.loader import async_get_integration
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
+from custom_components.haeo.calendar_loader import async_fetch_calendar_events
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.context import OptimizationContext
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE, CalendarEventDict
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
 from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
@@ -34,6 +39,11 @@ from custom_components.haeo.sensor_utils import (
 # ``{"__type": ..., "repr": ...}`` placeholders for those values.
 _REDACTED_CONFIG_KEYS: frozenset[str] = frozenset()
 DIAGNOSTICS_SCHEMA_VERSION = 2
+
+
+# Calendar events fetched for a historical run reach past the longest horizon preset;
+# events beyond the replayed horizon are ignored when it resolves them.
+HISTORICAL_CALENDAR_LOOKAHEAD: Final = timedelta(days=8)
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,8 +147,6 @@ def _extract_entity_ids_from_config(config: ElementConfigSchema) -> set[str]:
                 for entity_id in entity_ids:
                     if isinstance(entity_id, str) and "." in entity_id:
                         collected.add(entity_id)
-            case {"type": "calendar", "value": str(entity_id)} if "." in entity_id:
-                collected.add(entity_id)
             case {"type": _}:
                 return
             case Mapping():
@@ -192,6 +200,11 @@ async def _fetch_inputs_at(
 ) -> tuple[list[Mapping[str, object]], list[str]]:
     """Fetch input entity states from the recorder at a specific time.
 
+    The recorder never holds the events a live run injects into calendar
+    states, so each calendar's events from ``target_time`` over the longest
+    horizon are fetched from the calendar and injected the same way. A calendar
+    that cannot be queried is reported as missing.
+
     Returns:
         Tuple of (inputs, missing_entity_ids).
 
@@ -217,11 +230,30 @@ async def _fetch_inputs_at(
     states = await recorder.async_add_executor_job(_query)
     entity_states = {eid: slist[0] for eid, slist in states.items() if slist}
 
-    missing_entity_ids = sorted(all_entity_ids - set(entity_states.keys()))
-    inputs: list[Mapping[str, object]] = [
-        state.as_dict() for eid in entity_id_list if (state := entity_states.get(eid)) is not None
+    found = [entity_states[eid] for eid in entity_id_list if eid in entity_states]
+    calendars = [state.entity_id for state in found if state.entity_id.startswith(f"{CALENDAR_DOMAIN}.")]
+    fetched = await asyncio.gather(
+        *(
+            async_fetch_calendar_events(hass, eid, target_time, target_time + HISTORICAL_CALENDAR_LOOKAHEAD)
+            for eid in calendars
+        )
+    )
+    events = dict(zip(calendars, fetched, strict=True))
+    unqueryable = {eid for eid, calendar_events in events.items() if calendar_events is None}
+
+    inputs = [
+        _captured_state(state, events.get(state.entity_id)) for state in found if state.entity_id not in unqueryable
     ]
-    return inputs, missing_entity_ids
+    missing = (all_entity_ids - set(entity_states)) | unqueryable
+    return inputs, sorted(missing)
+
+
+def _captured_state(state: State, events: list[CalendarEventDict] | None) -> Mapping[str, object]:
+    """Return a state as captured, carrying the events fetched for a calendar."""
+    captured = state.as_dict()
+    if events is None:
+        return captured
+    return {**captured, "attributes": {**state.attributes, CALENDAR_EVENTS_ATTRIBUTE: events}}
 
 
 async def _get_last_run_before(

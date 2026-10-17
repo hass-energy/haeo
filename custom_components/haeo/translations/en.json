@@ -628,6 +628,9 @@
     "input_entities_not_ready": {
       "message": "Input entities not ready after {timeout} seconds: {not_ready}. Some sensors may not be available yet."
     },
+    "input_unit_incompatible": {
+      "message": "Input {field} of {element} needs a value in {expected}, but {entities} supplied one in {unit}, which does not convert."
+    },
     "missing_sensors": {
       "message": "HAEO cannot load data for {unavailable_sensors}. Verify each referenced sensor exists and is reporting data."
     },
@@ -652,6 +655,10 @@
     "setup_failed_transient": { "message": "Setup failed: {error}. Home Assistant will retry automatically." }
   },
   "issues": {
+    "calendar_event_values_ignored": {
+      "title": "Calendar events with values {element} cannot use",
+      "description": "Input {field} of {element} reads {calendars}, but these events hold values it cannot use, so it ignores them:\n{events}\n\nTo fix this issue:\n1. Open each event listed above in its calendar\n2. Type its value as a number followed by a unit that converts to {unit}, such as 5 kW, 500 W, or 0.30 $/kWh\n3. Save the event; this issue clears automatically once every event's value can be used"
+    },
     "disconnected_network": {
       "title": "System has disconnected components",
       "description": "The system has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the system is fully connected"

@@ -8,8 +8,9 @@ Home Assistant's ChooseSelector, allowing users to pick between "Entity"
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from numbers import Real
-from typing import Any  # noqa: TID251  # voluptuous schema dicts and HA Selector overrides are Any by design
+from typing import Any, Final  # noqa: TID251  # voluptuous schema dicts and HA Selector overrides are Any by design
 
+from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers.selector import (
@@ -38,7 +39,6 @@ from custom_components.haeo.core.schema import (
     as_entity_value,
     as_none_value,
     get_schema_value_kinds,
-    is_calendar_value,
     is_constant_value,
     is_entity_value,
     is_none_value,
@@ -49,7 +49,9 @@ from custom_components.haeo.elements.input_fields import (
     AnyInputFieldInfo,
     InputFieldGroups,
     InputFieldInfo,
+    accepts_calendar_forecast,
     is_number_field_info,
+    reads_calendar,
 )
 
 # Choose selector choice keys (used for config flow data and translations)
@@ -65,6 +67,19 @@ class SectionDefinition:
     key: str
     fields: tuple[str, ...]
     collapsed: bool = False
+
+
+# Domains an entity choice offers
+_ENTITY_DOMAINS: Final = (DOMAIN, "sensor", "input_number", "number", "switch")
+
+
+def entity_domains(field_info: AnyInputFieldInfo) -> list[str]:
+    """Return the domains a field's entity choice offers: calendars only, or with calendars read as forecasts."""
+    if reads_calendar(field_info):
+        return [CALENDAR_DOMAIN]
+    if accepts_calendar_forecast(field_info):
+        return [*_ENTITY_DOMAINS, CALENDAR_DOMAIN]
+    return list(_ENTITY_DOMAINS)
 
 
 def _get_nested_value(data: Mapping[str, object], field_name: str) -> object | None:
@@ -127,12 +142,14 @@ def build_entity_selector(
     *,
     include_entities: list[str] | None = None,
     multiple: bool = True,
+    domains: Sequence[str] = _ENTITY_DOMAINS,
 ) -> EntitySelector:  # type: ignore[type-arg]
     """Build an EntitySelector restricted to unit-compatible entities.
 
     Args:
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection (for chaining).
+        domains: Domains the selector offers.
 
     Returns:
         EntitySelector configured with include_entities list.
@@ -141,7 +158,7 @@ def build_entity_selector(
     entities_to_include = list(include_entities or [])
 
     config: EntitySelectorConfig = {
-        "domain": [DOMAIN, "sensor", "input_number", "number", "switch"],
+        "domain": list(domains),
         "multiple": multiple,
     }
     if entities_to_include:
@@ -259,6 +276,7 @@ def build_choose_selector(
     entity_selector = build_entity_selector(
         include_entities=include_entities,
         multiple=multiple,
+        domains=entity_domains(field_info),
     )
 
     # Build value selector for the "constant" choice based on field type
@@ -736,7 +754,7 @@ def preprocess_choose_selector_input(
                 result[field_name] = value.get(CHOICE_CONSTANT)
         # Handle discriminated schema values
         elif is_schema_value(value):
-            if is_entity_value(value) or is_constant_value(value) or is_calendar_value(value):
+            if is_entity_value(value) or is_constant_value(value):
                 result[field_name] = value["value"]
             else:
                 result[field_name] = None

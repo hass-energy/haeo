@@ -3,137 +3,46 @@
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader.calendar import (
+    CALENDAR_EVENTS_ATTRIBUTE,
     CalendarEventData,
+    CalendarEventDict,
     capture_calendar_events,
-    extract_calendar_windows,
+    event_quantity,
+    event_windows,
     load_calendar_events,
-    make_distance_extractor,
-    make_field_fallback_extractor,
-    make_presence_extractor,
-    parse_distance,
-    parse_number,
+    parse_quantity,
 )
 from custom_components.haeo.core.data.util.calendar_fuser import (
     fuse_window_edges_to_boundaries,
     fuse_windows_to_boundaries,
 )
-from custom_components.haeo.core.schema.calendar_value import CalendarValue, as_calendar_value, is_calendar_value
+from custom_components.haeo.core.model.const import OutputType
 
-# --- calendar_value schema ---
-
-
-def test_as_calendar_value() -> None:
-    """Create a calendar value from entity ID."""
-    val = as_calendar_value("calendar.ev_trips")
-    assert val["type"] == "calendar"
-    assert val["value"] == "calendar.ev_trips"
-    assert val["events"] is None
+# --- parse_quantity ---
 
 
-def test_is_calendar_value_valid() -> None:
-    """Detect valid calendar values."""
-    assert is_calendar_value({"type": "calendar", "value": "calendar.ev"})
-    assert is_calendar_value({"type": "calendar", "value": "calendar.ev", "events": None})
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        pytest.param("50 km", (50.0, "km"), id="number_and_unit"),
+        pytest.param("5kW", (5.0, "kW"), id="no_space"),
+        pytest.param("  0.30 $/kWh  ", (0.30, "$/kWh"), id="price_with_whitespace"),
+        pytest.param("-2.5 kW", (-2.5, "kW"), id="negative"),
+        pytest.param("42", (42.0, None), id="bare_number"),
+        pytest.param("Office", None, id="no_number"),
+        pytest.param("", None, id="empty"),
+    ],
+)
+def test_parse_quantity(text: str, expected: tuple[float, str | None] | None) -> None:
+    """A number parses with the unit typed after it, if any."""
+    assert parse_quantity(text) == expected
 
 
-def test_is_calendar_value_invalid() -> None:
-    """Reject non-calendar values."""
-    assert not is_calendar_value({"type": "entity", "value": ["sensor.x"]})
-    assert not is_calendar_value({"type": "calendar"})  # missing value
-    assert not is_calendar_value({"type": "calendar", "value": 42})  # value not string
-    assert not is_calendar_value("not a dict")
-    assert not is_calendar_value(None)
-
-
-# --- parse_distance ---
-
-
-def test_parse_distance_km() -> None:
-    """Parse distance km."""
-    assert parse_distance("50 km") == (50.0, "km")
-
-
-def test_parse_distance_miles() -> None:
-    """Parse distance miles."""
-    assert parse_distance("30mi") == (30.0, "mi")
-
-
-def test_parse_distance_decimal() -> None:
-    """Parse distance decimal."""
-    assert parse_distance("100.5 kilometers") == (100.5, "km")
-
-
-def test_parse_distance_metres() -> None:
-    """Parse distance metres."""
-    assert parse_distance("15.2 m") == (15.2, "m")
-
-
-def test_parse_distance_feet() -> None:
-    """Parse distance feet."""
-    assert parse_distance("500 feet") == (500.0, "ft")
-
-
-def test_parse_distance_yards() -> None:
-    """Parse distance yards."""
-    assert parse_distance("100 yd") == (100.0, "yd")
-
-
-def test_parse_distance_unknown_unit() -> None:
-    """Parse distance unknown unit."""
-    assert parse_distance("50 furlongs") is None
-
-
-def test_parse_distance_no_number() -> None:
-    """Parse distance no number."""
-    assert parse_distance("home") is None
-
-
-def test_parse_distance_empty() -> None:
-    """Parse distance empty."""
-    assert parse_distance("") is None
-
-
-def test_parse_distance_whitespace() -> None:
-    """Parse distance whitespace."""
-    assert parse_distance("  50  km  ") == (50.0, "km")
-
-
-def test_parse_distance_integer() -> None:
-    """Parse distance integer."""
-    assert parse_distance("100km") == (100.0, "km")
-
-
-# --- parse_number ---
-
-
-def test_parse_number_integer() -> None:
-    """Parse number integer."""
-    assert parse_number("42") == 42.0
-
-
-def test_parse_number_decimal() -> None:
-    """Parse number decimal."""
-    assert parse_number("3.14") == 3.14
-
-
-def test_parse_number_whitespace() -> None:
-    """Parse number whitespace."""
-    assert parse_number("  7.5  ") == 7.5
-
-
-def test_parse_number_invalid() -> None:
-    """Parse number invalid."""
-    assert parse_number("abc") is None
-
-
-def test_parse_number_empty() -> None:
-    """Parse number empty."""
-    assert parse_number("") is None
-
-
-# --- extract_calendar_windows ---
+# --- event_quantity ---
 
 
 def _dt(hour: int, minute: int = 0) -> datetime:
@@ -144,157 +53,71 @@ def _event(start_h: int, end_h: int, location: str | None = None) -> CalendarEve
     return CalendarEventData(start=_dt(start_h), end=_dt(end_h), location=location)
 
 
-def test_extract_with_presence_extractor() -> None:
-    """Extract with presence extractor."""
-    events = [_event(9, 10), _event(14, 16)]
-    windows = extract_calendar_windows(events, make_presence_extractor())
-    assert len(windows) == 2
-    assert windows[0].value == 1.0
-    assert windows[1].value == 1.0
+@pytest.mark.parametrize(
+    ("event", "expected"),
+    [
+        pytest.param(CalendarEventData(start=_dt(9), end=_dt(10), location="50 km"), (50.0, "km"), id="location"),
+        pytest.param(
+            CalendarEventData(start=_dt(9), end=_dt(10), location="Office", summary="50 km"),
+            (50.0, "km"),
+            id="summary_after_unparseable_location",
+        ),
+        pytest.param(
+            CalendarEventData(start=_dt(9), end=_dt(10), location="Office", summary="Commute", description="2 kW"),
+            (2.0, "kW"),
+            id="description_last",
+        ),
+        pytest.param(
+            CalendarEventData(start=_dt(9), end=_dt(10), location="Office", summary="Commute"),
+            None,
+            id="no_field_parses",
+        ),
+        pytest.param(CalendarEventData(start=_dt(9), end=_dt(10)), None, id="no_fields"),
+    ],
+)
+def test_event_quantity_uses_first_field_holding_a_number(
+    event: CalendarEventData, expected: tuple[float, str | None] | None
+) -> None:
+    """The first of location, summary, and description holding a number gives the event's quantity."""
+    assert event_quantity(event) == expected
 
 
-def test_extract_with_distance_extractor() -> None:
-    """Extract with distance extractor."""
-    events = [
-        CalendarEventData(start=_dt(9), end=_dt(10), location="50 km"),
-        CalendarEventData(start=_dt(14), end=_dt(16), location="30 km"),
-    ]
-    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
-    windows = extract_calendar_windows(events, extractor)
-    assert len(windows) == 2
-    assert windows[0].value == 10.0  # 50 * 0.2
-    assert windows[1].value == 6.0  # 30 * 0.2
+# --- event_windows ---
 
 
-def test_extract_skips_no_location() -> None:
-    """Extract skips no location."""
-    events = [CalendarEventData(start=_dt(9), end=_dt(10), location=None)]
-    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
-    windows = extract_calendar_windows(events, extractor)
-    assert len(windows) == 0
+def test_every_event_is_a_window_holding_its_value() -> None:
+    """Each event becomes a window holding its value in the input's unit, or zero when it has none it can use."""
+    events = [_event(9, 10, location="Office"), _event(11, 12, location="3"), _event(14, 16, location="3000 W")]
+
+    windows = event_windows(events, OutputType.POWER)
+
+    assert [w.value for w in windows] == [0.0, 0.0, 3.0]
 
 
-def test_extract_skips_unparseable_location() -> None:
-    """Extract skips unparseable location."""
-    events = [CalendarEventData(start=_dt(9), end=_dt(10), location="home")]
-    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
-    windows = extract_calendar_windows(events, extractor)
-    assert len(windows) == 0
+def test_event_windows_skip_events_ending_before_they_start() -> None:
+    """An event that ends before it starts is not a window."""
+    assert event_windows([_event(10, 9, location="1 kW")], OutputType.POWER) == []
 
 
-def test_extract_end_before_start_skipped() -> None:
-    """Extract end before start skipped."""
-    events = [_event(10, 9)]
-    windows = extract_calendar_windows(events, make_presence_extractor())
-    assert len(windows) == 0
+def test_event_windows_sorted_by_start() -> None:
+    """Windows are sorted by start."""
+    windows = event_windows([_event(14, 16), _event(9, 10)], OutputType.POWER)
+
+    assert [w.start for w in windows] == [_dt(9), _dt(14)]
 
 
-def test_extract_sorted_by_start() -> None:
-    """Extract sorted by start."""
-    events = [_event(14, 16), _event(9, 10)]
-    windows = extract_calendar_windows(events, make_presence_extractor())
-    assert windows[0].start == _dt(9)
-    assert windows[1].start == _dt(14)
+# --- load_calendar_events ---
 
 
-def test_extract_unit_conversion() -> None:
-    """Extract unit conversion."""
-    events = [CalendarEventData(start=_dt(9), end=_dt(10), location="10 mi")]
-
-    def convert(value: float, from_unit: str, to_unit: str) -> float:
-        if from_unit == "mi" and to_unit == "km":
-            return value * 1.60934
-        return value
-
-    extractor = make_distance_extractor(
-        energy_per_distance=0.2,
-        target_unit="km",
-        convert_distance=convert,
-    )
-    windows = extract_calendar_windows(events, extractor)
-    assert len(windows) == 1
-    assert abs(windows[0].value - 10 * 1.60934 * 0.2) < 0.001
-
-
-def test_extract_distance_mixed_units_no_converter() -> None:
-    """Skip events with mismatched units when no converter provided."""
-    events = [CalendarEventData(start=_dt(9), end=_dt(10), location="10 mi")]
-    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
-    windows = extract_calendar_windows(events, extractor)
-    assert len(windows) == 0  # skipped because mi != km and no converter
-
-
-def test_field_fallback_uses_location() -> None:
-    """Field fallback parses distance from location first."""
-    events = [CalendarEventData(start=_dt(9), end=_dt(10), location="50 km")]
-    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
-    windows = extract_calendar_windows(events, extractor)
-    assert len(windows) == 1
-    assert windows[0].value == 10.0
-
-
-def test_field_fallback_uses_summary_when_location_empty() -> None:
-    """Field fallback tries summary when location is empty."""
-    events = [CalendarEventData(start=_dt(9), end=_dt(10), summary="30 km")]
-    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
-    windows = extract_calendar_windows(events, extractor)
-    assert len(windows) == 1
-    assert windows[0].value == 6.0
-
-
-def test_field_fallback_uses_description_last() -> None:
-    """Field fallback tries description after location and summary."""
-    events = [CalendarEventData(start=_dt(9), end=_dt(10), description="25 km")]
-    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
-    windows = extract_calendar_windows(events, extractor)
-    assert len(windows) == 1
-    assert windows[0].value == 5.0
-
-
-def test_field_fallback_skips_when_all_fields_empty() -> None:
-    """Field fallback skips events with no usable text fields."""
-    events = [CalendarEventData(start=_dt(9), end=_dt(10))]
-    extractor = make_field_fallback_extractor(parse_number)
-    windows = extract_calendar_windows(events, extractor)
-    assert len(windows) == 0
-
-
-def test_field_fallback_with_number_parser() -> None:
-    """Field fallback works with arbitrary parsers."""
-    events = [CalendarEventData(start=_dt(9), end=_dt(10), summary="42")]
-    extractor = make_field_fallback_extractor(parse_number)
-    windows = extract_calendar_windows(events, extractor)
-    assert len(windows) == 1
-    assert windows[0].value == 42.0
-
-
-def test_extract_custom_value_fn() -> None:
-    """Test with a completely custom extraction function."""
-    events = [
-        CalendarEventData(start=_dt(9), end=_dt(10), summary="Meeting"),
-        CalendarEventData(start=_dt(14), end=_dt(16), summary="3.5 kW"),
-    ]
-
-    def extract_power(event: CalendarEventData) -> float | None:
-        if event.summary is None:
-            return None
-        return parse_number(event.summary.replace(" kW", ""))
-
-    windows = extract_calendar_windows(events, extract_power)
-    assert len(windows) == 1
-    assert windows[0].value == 3.5
-    assert windows[0].start == _dt(14)
-
-
-# --- load_calendar_events (diagnostic replay) ---
+def _calendar_state(events: list[dict[str, object]] | list[CalendarEventDict]) -> FakeEntityState:
+    """Return a calendar state carrying injected events."""
+    return FakeEntityState(entity_id="calendar.ev", state="on", attributes={CALENDAR_EVENTS_ATTRIBUTE: events})
 
 
 def test_load_from_captured_events() -> None:
     """Load events from pre-captured diagnostics data."""
-    value: CalendarValue = {
-        "type": "calendar",
-        "value": "calendar.ev_trips",
-        "events": [
+    state = _calendar_state(
+        [
             {
                 "start": "2025-01-01T09:00:00+00:00",
                 "end": "2025-01-01T10:00:00+00:00",
@@ -309,10 +132,11 @@ def test_load_from_captured_events() -> None:
                 "location": "50 km",
                 "description": None,
             },
-        ],
-    }
+        ]
+    )
 
-    events = load_calendar_events(value, FakeStateMachine({}))
+    events = load_calendar_events(state)
+    assert events is not None
     assert len(events) == 2
     assert events[0].summary == "Work"
     assert events[0].location == "50 km"
@@ -321,7 +145,6 @@ def test_load_from_captured_events() -> None:
 
 def test_load_from_entity_state() -> None:
     """Load events from entity state attributes (live path)."""
-    value: CalendarValue = {"type": "calendar", "value": "calendar.ev", "events": None}
     sm = FakeStateMachine(
         {
             "calendar.ev": FakeEntityState(
@@ -342,21 +165,19 @@ def test_load_from_entity_state() -> None:
         }
     )
 
-    events = load_calendar_events(value, sm)
+    events = load_calendar_events(sm.get("calendar.ev"))
+    assert events is not None
     assert len(events) == 1
     assert events[0].location == "30 km"
 
 
 def test_load_missing_entity() -> None:
-    """Return empty list when entity not found."""
-    value: CalendarValue = {"type": "calendar", "value": "calendar.missing", "events": None}
-    events = load_calendar_events(value, FakeStateMachine({}))
-    assert events == []
+    """A missing calendar state has no events to load."""
+    assert load_calendar_events(None) is None
 
 
 def test_load_no_haeo_events_attr() -> None:
-    """Return empty list when entity has no haeo_events attribute."""
-    value: CalendarValue = {"type": "calendar", "value": "calendar.plain", "events": None}
+    """A calendar state without injected events cannot be resolved."""
     sm = FakeStateMachine(
         {
             "calendar.plain": FakeEntityState(
@@ -366,8 +187,7 @@ def test_load_no_haeo_events_attr() -> None:
             ),
         }
     )
-    events = load_calendar_events(value, sm)
-    assert events == []
+    assert load_calendar_events(sm.get("calendar.plain")) is None
 
 
 # --- capture_calendar_events ---
@@ -385,8 +205,8 @@ def test_capture_roundtrip() -> None:
     assert captured[0]["summary"] == "Work"
 
     # Reload from captured data
-    value: CalendarValue = {"type": "calendar", "value": "calendar.ev", "events": captured}
-    reloaded = load_calendar_events(value, FakeStateMachine({}))
+    reloaded = load_calendar_events(_calendar_state(captured))
+    assert reloaded is not None
     assert len(reloaded) == 2
     assert reloaded[0].summary == "Work"
     assert reloaded[0].location == "50 km"
@@ -396,10 +216,8 @@ def test_capture_roundtrip() -> None:
 def test_load_naive_datetime_gets_default_tz() -> None:
     """Naive ISO timestamps are normalized to the supplied default timezone."""
     sydney = ZoneInfo("Australia/Sydney")
-    value: CalendarValue = {
-        "type": "calendar",
-        "value": "calendar.ev",
-        "events": [
+    state = _calendar_state(
+        [
             {
                 "start": "2025-01-01T09:00:00",
                 "end": "2025-01-01T10:00:00",
@@ -407,10 +225,11 @@ def test_load_naive_datetime_gets_default_tz() -> None:
                 "location": None,
                 "description": None,
             },
-        ],
-    }
+        ]
+    )
 
-    events = load_calendar_events(value, FakeStateMachine({}), default_tz=sydney)
+    events = load_calendar_events(state, default_tz=sydney)
+    assert events is not None
     assert len(events) == 1
     assert events[0].start.tzinfo == sydney
     assert events[0].end.tzinfo == sydney
@@ -418,10 +237,8 @@ def test_load_naive_datetime_gets_default_tz() -> None:
 
 def test_load_offset_aware_datetime_preserved() -> None:
     """Offset-aware timestamps keep their original timezone."""
-    value: CalendarValue = {
-        "type": "calendar",
-        "value": "calendar.ev",
-        "events": [
+    state = _calendar_state(
+        [
             {
                 "start": "2025-01-01T09:00:00+00:00",
                 "end": "2025-01-01T10:00:00+00:00",
@@ -429,49 +246,46 @@ def test_load_offset_aware_datetime_preserved() -> None:
                 "location": None,
                 "description": None,
             },
-        ],
-    }
+        ]
+    )
 
-    events = load_calendar_events(value, FakeStateMachine({}), default_tz=ZoneInfo("Australia/Sydney"))
+    events = load_calendar_events(state, default_tz=ZoneInfo("Australia/Sydney"))
+    assert events is not None
     assert events[0].start.tzinfo == UTC
 
 
 def test_naive_and_aware_datetimes_fuse_without_error() -> None:
     """Mixed naive/aware inputs no longer break horizon fusion after normalization."""
     sydney = ZoneInfo("Australia/Sydney")
-    value: CalendarValue = {
-        "type": "calendar",
-        "value": "calendar.ev",
-        "events": [
+    state = _calendar_state(
+        [
             {
                 "start": "2025-01-01T09:00:00",
                 "end": "2025-01-01T10:00:00",
                 "summary": None,
-                "location": "50 km",
+                "location": "50 kWh",
                 "description": None,
             },
-        ],
-    }
-    events = load_calendar_events(value, FakeStateMachine({}), default_tz=sydney)
-    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
-    windows = extract_calendar_windows(events, extractor)
+        ]
+    )
+    events = load_calendar_events(state, default_tz=sydney)
+    assert events is not None
+    windows = event_windows(events, OutputType.ENERGY)
     boundaries = [datetime(2025, 1, 1, h, tzinfo=sydney) for h in (8, 9, 10, 11)]
 
     active = fuse_windows_to_boundaries(windows, boundaries)
     starts = fuse_window_edges_to_boundaries(windows, boundaries, edge="start")
     ends = fuse_window_edges_to_boundaries(windows, boundaries, edge="end")
 
-    assert active == [None, 10.0, None, None]
-    assert starts == [None, 10.0, None, None]
-    assert ends == [None, None, 10.0, None]
+    assert active == [None, 50.0, None, None]
+    assert starts == [None, 50.0, None, None]
+    assert ends == [None, None, 50.0, None]
 
 
 def test_load_skips_invalid_event_dicts() -> None:
     """Skip events with invalid or missing start/end fields."""
-    value: CalendarValue = {
-        "type": "calendar",
-        "value": "calendar.ev",
-        "events": [
+    state = _calendar_state(
+        [
             {
                 "start": "not-a-date",
                 "end": "2025-01-01T10:00:00+00:00",
@@ -495,16 +309,9 @@ def test_load_skips_invalid_event_dicts() -> None:
                 "location": None,
                 "description": None,
             },
-        ],
-    }
-    events = load_calendar_events(value, FakeStateMachine({}))
+        ]
+    )
+    events = load_calendar_events(state)
+    assert events is not None
     assert len(events) == 1
     assert events[0].summary == "Valid"
-
-
-def test_extract_unit_mismatch_without_converter_skipped() -> None:
-    """A distance in a different unit is skipped when no converter is given."""
-    events = [CalendarEventData(start=_dt(9), end=_dt(10), location="10 mi")]
-    extractor = make_distance_extractor(energy_per_distance=0.2, target_unit="km")
-    windows = extract_calendar_windows(events, extractor)
-    assert len(windows) == 0

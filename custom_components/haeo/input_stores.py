@@ -22,6 +22,7 @@ from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 from custom_components.haeo.elements import (
     InputFieldPath,
+    config_field_path,
     get_input_fields,
     get_list_input_fields,
     get_nested_config_value_by_path,
@@ -86,6 +87,7 @@ def _hint_from_field_info(field_info: AnyInputFieldInfo) -> FieldHint:
         direction=field_info.direction,
         time_series=field_info.time_series,
         boundaries=field_info.boundaries,
+        calendar=field_info.calendar,
     )
 
 
@@ -132,11 +134,12 @@ def build_input_stores(
         subentry_negated_paths = negated_paths.get(subentry.title, frozenset())
 
         for field_path, field_info in iter_input_field_paths(all_fields):
-            config_value = get_nested_config_value_by_path(subentry.data, field_path)
+            source_path = config_field_path(field_path, field_info)
+            config_value = get_nested_config_value_by_path(subentry.data, source_path)
             if config_value is None or is_none_value(config_value):
                 continue
 
-            storage = SubentryStorage(hass, config_entry, subentry.subentry_id, field_path)
+            storage = SubentryStorage(hass, config_entry, subentry.subentry_id, source_path)
             store = create_input_store(
                 storage=storage,
                 hint=_hint_from_field_info(field_info),

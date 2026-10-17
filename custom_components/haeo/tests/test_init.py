@@ -668,6 +668,7 @@ async def test_setup_reentry_after_timeout_failure(
 
     # Create a mock input store that fails first time, succeeds second time
     class ConditionalReadyStore:
+        source_entity_ids: ClassVar[list[str]] = []
         error = None
 
         def __init__(self) -> None:

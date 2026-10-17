@@ -12,8 +12,7 @@ import numpy as np
 
 from custom_components.haeo.core.adapters.registry import is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
-from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
+from custom_components.haeo.core.data.util.forecast_combiner import fuse_sensor_payloads, split_sensor_payloads
 from custom_components.haeo.core.data.util.input_values import enforce_non_negative
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import SchemaValue
@@ -25,11 +24,13 @@ from custom_components.haeo.core.schema.field_hints import (
     ListFieldHints,
     extract_field_hints,
     extract_list_field_hints,
+    field_inputs,
 )
 from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 from custom_components.haeo.core.state import StateMachine
 
+from .calendar_resolver import resolve_calendar
 from .sensor_loader import load_sensors
 
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
@@ -95,27 +96,30 @@ def load_element_config(
         if not isinstance(section_config, Mapping):
             continue
 
-        for field_name, hint in section_fields.items():
+        for field_name, field_hint in section_fields.items():
             value = section_config.get(field_name)
-            if value is None:
-                if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                    _section_dict(loaded, section_name)[field_name] = default
-                continue
+            if field_hint.outputs:
+                _section_dict(loaded, section_name).pop(field_name, None)
+            for input_name, hint in field_inputs(field_name, field_hint):
+                if value is None:
+                    if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
+                        _section_dict(loaded, section_name)[input_name] = default
+                    continue
 
-            resolved = resolve_field(
-                value, hint, sm, forecast_times, negate=(section_name, field_name) in negated_paths
-            )
-            if resolved is _REMOVE:
-                if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                    _section_dict(loaded, section_name)[field_name] = default
+                resolved = resolve_field(
+                    value, hint, sm, forecast_times, negate=(section_name, input_name) in negated_paths
+                )
+                if resolved is _REMOVE:
+                    if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
+                        _section_dict(loaded, section_name)[input_name] = default
+                    else:
+                        loaded_section = loaded.get(section_name)
+                        if isinstance(loaded_section, dict):
+                            loaded_section.pop(input_name, None)
+                elif resolved is None and (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
+                    _section_dict(loaded, section_name)[input_name] = default
                 else:
-                    loaded_section = loaded.get(section_name)
-                    if isinstance(loaded_section, dict):
-                        loaded_section.pop(field_name, None)
-            elif resolved is None and (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                _section_dict(loaded, section_name)[field_name] = default
-            else:
-                _section_dict(loaded, section_name)[field_name] = resolved
+                    _section_dict(loaded, section_name)[input_name] = resolved
 
     # Resolve list-based input fields (e.g. policy rules with entity prices)
     list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
@@ -196,25 +200,28 @@ def load_element_config_from_values(
     loaded[CONF_NAME] = element_name
 
     for section_name, section_fields in field_hints.items():
-        for field_name, hint in section_fields.items():
-            path = (section_name, field_name)
-            default = _default_for_hint(hint, forecast_times)
+        for field_name, field_hint in section_fields.items():
+            if field_hint.outputs:
+                _section_dict(loaded, section_name).pop(field_name, None)
+            for input_name, hint in field_inputs(field_name, field_hint):
+                path = (section_name, input_name)
+                default = _default_for_hint(hint, forecast_times)
 
-            if path in field_values:
-                resolved = field_values[path]
-                if resolved is None and default is not _REMOVE:
-                    _section_dict(loaded, section_name)[field_name] = default
+                if path in field_values:
+                    resolved = field_values[path]
+                    if resolved is None and default is not _REMOVE:
+                        _section_dict(loaded, section_name)[input_name] = default
+                    else:
+                        _section_dict(loaded, section_name)[input_name] = resolved
+                    continue
+
+                # No store for this input: disabled/none or absent in config.
+                if default is not _REMOVE:
+                    _section_dict(loaded, section_name)[input_name] = default
                 else:
-                    _section_dict(loaded, section_name)[field_name] = resolved
-                continue
-
-            # No store for this field: disabled/none or absent in config.
-            if default is not _REMOVE:
-                _section_dict(loaded, section_name)[field_name] = default
-            else:
-                loaded_section = loaded.get(section_name)
-                if isinstance(loaded_section, dict):
-                    loaded_section.pop(field_name, None)
+                    loaded_section = loaded.get(section_name)
+                    if isinstance(loaded_section, dict):
+                        loaded_section.pop(input_name, None)
 
     list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
     for list_key, hints in list_hints.items():
@@ -307,6 +314,9 @@ def resolve_field(
     if not unwrapped:
         return None
 
+    if hint.calendar is not None:
+        return resolve_calendar(unwrapped, hint.calendar, hint.output_type, sm, forecast_times)
+
     resolved = _resolve_entities(unwrapped, hint, sm, forecast_times, is_percent=is_percent)
     if negate and resolved is not None:
         return -resolved
@@ -369,18 +379,16 @@ def _resolve_entities(
     is_percent: bool,
 ) -> float | np.ndarray | None:
     """Load entity data from state machine and fuse to horizon."""
-    payloads = load_sensors(sm, entity_ids)
+    payloads = load_sensors(sm, entity_ids, output_type=hint.output_type)
     if not payloads:
         return None
 
-    present_value, forecast_series = combine_sensor_payloads(payloads)
+    present_value, forecast_series = split_sensor_payloads(payloads)
 
     if not hint.time_series:
         raw = [present_value if present_value is not None else 0.0]
-    elif hint.boundaries:
-        raw = fuse_to_boundaries(present_value, forecast_series, list(forecast_times))
     else:
-        raw = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
+        raw = fuse_sensor_payloads(present_value, forecast_series, list(forecast_times), boundaries=hint.boundaries)
 
     values = np.array(raw, dtype=np.float64)
     if _is_non_negative_field(hint):
