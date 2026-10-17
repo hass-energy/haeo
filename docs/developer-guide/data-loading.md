@@ -174,6 +174,19 @@ The extractor system ([`extractors/`](https://github.com/hass-energy/haeo/tree/m
 | Solcast Solar             | Solar forecasting            | [`solcast_solar.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/solcast_solar.py)                         |
 | Volcast                   | Solar forecasting            | [`volcast.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/volcast.py)                                     |
 | Open-Meteo Solar Forecast | Solar forecasting            | [`open_meteo_solar_forecast.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/open_meteo_solar_forecast.py) |
+| Calendar events           | Calendars as forecasts       | [`calendar_events.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/calendar_events.py)                     |
+
+### Calendar Events
+
+A calendar's state only shows its current or next event, so the calendar extractor cannot read a calendar directly.
+The calendar input loader fetches each calendar's events over the horizon and injects them into the calendar's state as the `haeo_events` attribute, which the extractor reads.
+Input stores capture their source states through the same injecting state machine, so diagnostics hold the events and replay loads them without a calendar to fetch from.
+A calendar without injected events reads as unavailable rather than as its plain state.
+
+Each event's value is a number typed with its unit.
+`extract()` takes the input's output type, and the calendar extractor converts each event's value to the input's unit with `to_field_unit()`.
+An event whose value the input cannot use, such as a bare number, is ignored, and the calendar input loader raises a repair issue listing those events, so one mistyped event never makes the input unavailable.
+The extracted series is a step function padded with zeros well before and after the events, so it covers the horizon: a calendar is zero outside its events rather than repeating, and it fuses on its own beside other forecasts.
 
 ### Parser Design
 
@@ -211,18 +224,23 @@ This matches physical reality: two solar arrays produce combined power, multiple
 
 ### Timestamp Alignment
 
-When combining forecast series with different timestamps, the system:
+`fuse_sensor_payloads()` splits forecasts by whether they cover the whole horizon.
+Forecasts covering only part of it merge first:
 
-1. Creates a union of all timestamps from all sensors
-2. Interpolates each sensor's values to this common timestamp set
+1. Creates a union of all timestamps from the partial forecasts
+2. Interpolates each forecast's values to this common timestamp set, zero outside its own range
 3. Sums interpolated values at each timestamp
 
-This ensures no information loss when sensors report forecasts at different intervals (e.g., 30-minute vs hourly).
+The merged forecast then fuses to the horizon, repeating if it ends early, so forecasts for consecutive windows (today and tomorrow) join before they repeat.
+Each forecast covering the whole horizon fuses on its own and adds to the result.
+Merging one into the partial forecasts would make the merged forecast cover the horizon too, stopping the partial ones from repeating.
+A forecast with no points, such as a calendar without events, adds nothing.
 
 ### Mixed Payloads
 
-When some sensors provide present values and others provide forecasts, the present values become the initial forecast value.
-The combination then proceeds as pure forecast series merging.
+`split_sensor_payloads()` returns the summed present value and each forecast series separately.
+A present value is the reading for now, so `fuse_sensor_payloads()` uses it for the first interval (or the first boundary) and the forecasts for the rest.
+Without a forecast, the present value repeats across the horizon.
 
 ## Fusion to Horizon
 

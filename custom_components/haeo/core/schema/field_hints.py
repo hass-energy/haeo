@@ -5,26 +5,38 @@ alongside their schema definitions. The elements layer will transform these
 hints into full HA InputFieldInfo and EntityDescription objects.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Annotated, Literal, NotRequired, Required, get_args, get_origin, get_type_hints
 
 from custom_components.haeo.core.model.const import OutputType
 
+type CalendarProjection = Literal["window_active", "window_starts", "window_due"]
+
+# Projections with one value per horizon boundary rather than per period
+_BOUNDARY_PROJECTIONS: frozenset[CalendarProjection] = frozenset({"window_starts", "window_due"})
+
 
 @dataclass(frozen=True, slots=True)
 class CalendarFieldHint:
-    """Metadata for a config field driven by a calendar entity.
+    """How an input resolves its values from the events of a calendar entity.
 
     Attributes:
-        parser: How a numeric value is extracted from each calendar event:
-            - 'distance': parse a distance (e.g. "50 km") from the event text,
-              normalized to kilometres.
-            - 'number': parse a plain number from the event text.
-            - 'presence': value 1.0 for every event regardless of text.
+        projection: Which series the input takes from the events:
+            - 'window_active': per period, 1.0 inside a window. Every event is a
+              window, including one whose text holds no value, which is due
+              nothing. Overlapping events merge into one window and events that
+              only touch stay separate.
+            - 'window_starts': per boundary, 1.0 where a window starts after the
+              horizon start. A window open at the horizon start does not start.
+            - 'window_due': per boundary, each window's summed value at its end
+              boundary. A window running past the horizon is due at its end.
+              Each event's value is a number with its unit, such as "40 km",
+              converted to the input's unit.
 
     """
 
-    parser: Literal["distance", "number", "presence"] = "presence"
+    projection: CalendarProjection
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,8 +55,11 @@ class FieldHint:
         default_mode: Controls config flow pre-selection ('entity' or 'value').
         default_value: Value to pre-fill when default_mode='value'.
         force_required: Force value to be required, overriding schema optionality.
-        calendar: When set, the field accepts a calendar entity whose events are
-            resolved into horizon-aligned arrays using this hint.
+        calendar: When set, the input resolves its values from the events of the
+            calendars it reads.
+        outputs: When set, the field feeds these inputs, keyed by their loaded
+            field names, instead of being an input itself. The calendars it
+            reads can so feed several inputs, each with its own entity.
 
     """
 
@@ -59,6 +74,26 @@ class FieldHint:
     default_value: float | bool | None = None
     force_required: bool | None = None
     calendar: CalendarFieldHint | None = None
+    outputs: Mapping[str, "FieldHint"] | None = None
+
+
+def calendar_input(output_type: OutputType, projection: CalendarProjection) -> FieldHint:
+    """Return the hint for an input resolved from calendar events.
+
+    Calendar inputs are always time series, at boundaries for the projections
+    that place values there.
+    """
+    return FieldHint(
+        output_type=output_type,
+        time_series=True,
+        boundaries=projection in _BOUNDARY_PROJECTIONS,
+        calendar=CalendarFieldHint(projection=projection),
+    )
+
+
+def field_inputs(field_name: str, hint: FieldHint) -> list[tuple[str, FieldHint]]:
+    """Return the inputs a config field feeds, as (loaded field name, hint): its outputs, or itself."""
+    return list(hint.outputs.items()) if hint.outputs else [(field_name, hint)]
 
 
 @dataclass(frozen=True, slots=True)

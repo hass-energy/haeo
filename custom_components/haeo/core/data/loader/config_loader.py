@@ -7,17 +7,17 @@ forecast fusion, and unit conversion -- all without HA dependencies.
 """
 
 from collections.abc import Callable, Collection, Mapping, Sequence
+from datetime import UTC, datetime
 
 import numpy as np
 
 from custom_components.haeo.core.adapters.registry import is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
-from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
-from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
+from custom_components.haeo.core.data.util.field_units import NON_NEGATIVE_OUTPUT_TYPES
+from custom_components.haeo.core.data.util.forecast_combiner import fuse_sensor_payloads, split_sensor_payloads
 from custom_components.haeo.core.data.util.input_values import enforce_non_negative
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import SchemaValue
-from custom_components.haeo.core.schema.calendar_value import is_calendar_value
 from custom_components.haeo.core.schema.constant_value import is_constant_value
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
@@ -26,29 +26,19 @@ from custom_components.haeo.core.schema.field_hints import (
     ListFieldHints,
     extract_field_hints,
     extract_list_field_hints,
+    field_inputs,
 )
 from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 from custom_components.haeo.core.state import EntityState, StateMachine
 from custom_components.haeo.core.units import DeviceClass, base_unit_conversion
 
-from .calendar_resolver import CalendarBoundaryData, resolve_calendar_field
+from .calendar import load_calendar_events, open_since_field, open_window_start
+from .calendar_resolver import resolve_calendar
 from .sensor_loader import load_sensors
 from .source_history import Reading, all_off, off_periods_field, read_off_periods, read_readings, readings_field
 
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
-
-# Physical quantities that cannot be negative. Prices can, and switches have no sign.
-_NON_NEGATIVE_OUTPUT_TYPES = frozenset(
-    {
-        OutputType.POWER,
-        OutputType.POWER_LIMIT,
-        OutputType.ENERGY,
-        OutputType.STATE_OF_CHARGE,
-        OutputType.EFFICIENCY,
-        OutputType.DURATION,
-    }
-)
 
 
 def load_element_config(
@@ -99,29 +89,32 @@ def load_element_config(
         if not isinstance(section_config, Mapping):
             continue
 
-        for field_name, hint in section_fields.items():
+        for field_name, field_hint in section_fields.items():
             value = section_config.get(field_name)
-            if value is None:
-                if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                    _section_dict(loaded, section_name)[field_name] = default
-                continue
+            if field_hint.outputs:
+                _section_dict(loaded, section_name).pop(field_name, None)
+            for input_name, hint in field_inputs(field_name, field_hint):
+                if value is None:
+                    if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
+                        _section_dict(loaded, section_name)[input_name] = default
+                    continue
 
-            resolved = resolve_field(
-                value, hint, sm, forecast_times, negate=(section_name, field_name) in negated_paths
-            )
-            if resolved is _REMOVE:
-                if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                    _section_dict(loaded, section_name)[field_name] = default
+                resolved = resolve_field(
+                    value, hint, sm, forecast_times, negate=(section_name, input_name) in negated_paths
+                )
+                if resolved is _REMOVE:
+                    if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
+                        _section_dict(loaded, section_name)[input_name] = default
+                    else:
+                        loaded_section = loaded.get(section_name)
+                        if isinstance(loaded_section, dict):
+                            loaded_section.pop(input_name, None)
+                elif resolved is None and (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
+                    _section_dict(loaded, section_name)[input_name] = default
                 else:
-                    loaded_section = loaded.get(section_name)
-                    if isinstance(loaded_section, dict):
-                        loaded_section.pop(field_name, None)
-            elif resolved is None and (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                _section_dict(loaded, section_name)[field_name] = default
-            else:
-                _section_dict(loaded, section_name)[field_name] = resolved
+                    _section_dict(loaded, section_name)[input_name] = resolved
 
-            _load_source_history(loaded, section_name, field_name, value, hint, sm.get)
+            _load_beside_field(loaded, section_name, field_name, value, field_hint, sm.get, forecast_times)
 
     # Resolve list-based input fields (e.g. policy rules with entity prices)
     list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
@@ -164,7 +157,7 @@ def load_element_configs(
 def load_element_config_from_values(
     element_name: str,
     element_config: ElementConfigSchema,
-    field_values: Mapping[tuple[str, ...], bool | float | np.ndarray | CalendarBoundaryData | None],
+    field_values: Mapping[tuple[str, ...], bool | float | np.ndarray | None],
     forecast_times: Sequence[float],
     source_states: Mapping[str, EntityState],
 ) -> ElementConfigData:
@@ -181,9 +174,10 @@ def load_element_config_from_values(
         element_name: Display name for the element.
         element_config: Raw element config dict (sectioned format).
         field_values: Map of field path to its resolved value.
-        forecast_times: Boundary timestamps (used only for type-driven defaults).
+        forecast_times: Boundary timestamps (used for type-driven defaults and
+            the horizon start).
         source_states: Source entity states captured when the values resolved,
-            read for the last off time of availability fields.
+            read for the data loaded beside their fields.
 
     Returns:
         Loaded configuration with resolved time series and scalar values.
@@ -205,30 +199,40 @@ def load_element_config_from_values(
     loaded[CONF_NAME] = element_name
 
     for section_name, section_fields in field_hints.items():
-        for field_name, hint in section_fields.items():
-            path = (section_name, field_name)
-            default = _default_for_hint(hint, forecast_times)
+        for field_name, field_hint in section_fields.items():
+            if field_hint.outputs:
+                _section_dict(loaded, section_name).pop(field_name, None)
+            for input_name, hint in field_inputs(field_name, field_hint):
+                path = (section_name, input_name)
+                default = _default_for_hint(hint, forecast_times)
 
-            if path in field_values:
-                resolved = field_values[path]
-                if resolved is None and default is not _REMOVE:
-                    _section_dict(loaded, section_name)[field_name] = default
+                if path in field_values:
+                    resolved = field_values[path]
+                    if resolved is None and default is not _REMOVE:
+                        _section_dict(loaded, section_name)[input_name] = default
+                    else:
+                        _section_dict(loaded, section_name)[input_name] = resolved
+                    continue
+
+                # No store for this input: disabled/none or absent in config.
+                if default is not _REMOVE:
+                    _section_dict(loaded, section_name)[input_name] = default
                 else:
-                    _section_dict(loaded, section_name)[field_name] = resolved
-                section_config = element_config.get(section_name)
-                if isinstance(section_config, Mapping):
-                    _load_source_history(
-                        loaded, section_name, field_name, section_config.get(field_name), hint, source_states.get
-                    )
-                continue
+                    loaded_section = loaded.get(section_name)
+                    if isinstance(loaded_section, dict):
+                        loaded_section.pop(input_name, None)
 
-            # No store for this field: disabled/none or absent in config.
-            if default is not _REMOVE:
-                _section_dict(loaded, section_name)[field_name] = default
-            else:
-                loaded_section = loaded.get(section_name)
-                if isinstance(loaded_section, dict):
-                    loaded_section.pop(field_name, None)
+            section_config = element_config.get(section_name)
+            if isinstance(section_config, Mapping):
+                _load_beside_field(
+                    loaded,
+                    section_name,
+                    field_name,
+                    section_config.get(field_name),
+                    field_hint,
+                    source_states.get,
+                    forecast_times,
+                )
 
     list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
     for list_key, hints in list_hints.items():
@@ -253,26 +257,36 @@ def load_element_config_from_values(
     return loaded  # type: ignore[return-value]
 
 
-def _load_source_history(
+def _load_beside_field(
     loaded: dict[str, object],
     section_name: str,
     field_name: str,
     value: object,
     hint: FieldHint,
     get_state: Callable[[str], EntityState | None],
+    forecast_times: Sequence[float],
 ) -> None:
-    """Load the injected history of an entity-driven field's sources beside the field.
+    """Load what an entity-driven field's source states carry beyond their value, beside the field.
 
     An availability field gets the periods its sources were all off, under
     :func:`off_periods_field`, as the field reads on while any source does.
     A distance field gets its source's readings in base units, under
-    :func:`readings_field`. Sources without injected history are left out,
-    and so is the key when none has any.
+    :func:`readings_field`. A field feeding calendar inputs gets when the
+    window open at the horizon start began, under :func:`open_since_field`.
+    Each key is left out when the sources carry nothing for it.
     """
     if not is_entity_value(value) or not value["value"]:
         return
     entity_ids = value["value"]
-    if hint.output_type is OutputType.AVAILABILITY:
+    if hint.outputs and any(output.calendar is not None for output in hint.outputs.values()):
+        calendars = [load_calendar_events(get_state(entity_id)) for entity_id in entity_ids]
+        events = [event for found in calendars if found for event in found]
+        opened = (
+            open_window_start(events, datetime.fromtimestamp(forecast_times[0], tz=UTC)) if forecast_times else None
+        )
+        if opened is not None:
+            _section_dict(loaded, section_name)[open_since_field(field_name)] = opened
+    elif hint.output_type is OutputType.AVAILABILITY:
         found = [periods for entity_id in entity_ids if (periods := read_off_periods(get_state(entity_id))) is not None]
         if found:
             _section_dict(loaded, section_name)[off_periods_field(field_name)] = all_off(found)
@@ -326,7 +340,7 @@ def resolve_field(
     forecast_times: Sequence[float],
     *,
     negate: bool = False,
-) -> _Sentinel | bool | float | np.ndarray | CalendarBoundaryData | None:
+) -> _Sentinel | bool | float | np.ndarray | None:
     """Resolve a single field value based on its schema type and hint metadata.
 
     Shared by the config loader (whole-element resolution) and ``InputStore``
@@ -340,11 +354,6 @@ def resolve_field(
 
     if isinstance(value, bool):
         return value
-
-    if is_calendar_value(value):
-        if hint.calendar is None:
-            return None
-        return resolve_calendar_field(value, hint.calendar, sm, forecast_times)
 
     if is_constant_value(value):
         unwrapped: float | bool | Sequence[str] = value["value"]
@@ -364,6 +373,9 @@ def resolve_field(
     if not unwrapped:
         return None
 
+    if hint.calendar is not None:
+        return resolve_calendar(unwrapped, hint.calendar, hint.output_type, sm, forecast_times)
+
     resolved = _resolve_entities(unwrapped, hint, sm, forecast_times, is_percent=is_percent)
     if negate and resolved is not None:
         return -resolved
@@ -381,7 +393,7 @@ def _is_non_negative_field(hint: FieldHint) -> bool:
     Deciding from the hint means runtime input stores and offline loading
     (diagnostics, simulation, scenarios) treat the same values the same way.
     """
-    return hint.output_type in _NON_NEGATIVE_OUTPUT_TYPES or (hint.min_value is not None and hint.min_value >= 0)
+    return hint.output_type in NON_NEGATIVE_OUTPUT_TYPES or (hint.min_value is not None and hint.min_value >= 0)
 
 
 def resolve_constant(
@@ -426,18 +438,16 @@ def _resolve_entities(
     is_percent: bool,
 ) -> float | np.ndarray | None:
     """Load entity data from state machine and fuse to horizon."""
-    payloads = load_sensors(sm, entity_ids)
+    payloads = load_sensors(sm, entity_ids, output_type=hint.output_type)
     if not payloads:
         return None
 
-    present_value, forecast_series = combine_sensor_payloads(payloads)
+    present_value, forecast_series = split_sensor_payloads(payloads)
 
     if not hint.time_series:
         raw = [present_value if present_value is not None else 0.0]
-    elif hint.boundaries:
-        raw = fuse_to_boundaries(present_value, forecast_series, list(forecast_times))
     else:
-        raw = fuse_to_intervals(present_value, forecast_series, list(forecast_times))
+        raw = fuse_sensor_payloads(present_value, forecast_series, list(forecast_times), boundaries=hint.boundaries)
 
     values = np.array(raw, dtype=np.float64)
     if _is_non_negative_field(hint):

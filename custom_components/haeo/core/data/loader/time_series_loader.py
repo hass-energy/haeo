@@ -2,8 +2,7 @@
 
 from collections.abc import Sequence
 
-from custom_components.haeo.core.data.util.forecast_combiner import combine_sensor_payloads
-from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_boundaries, fuse_to_intervals
+from custom_components.haeo.core.data.util.forecast_combiner import fuse_sensor_payloads, split_sensor_payloads
 from custom_components.haeo.core.schema import EntityValue
 from custom_components.haeo.core.state import StateMachine
 
@@ -65,9 +64,9 @@ class TimeSeriesLoader:
             msg = f"Sensors not found or unavailable: {', '.join(missing)}"
             raise ValueError(msg)
 
-        present_value, forecast_series = combine_sensor_payloads(payloads)
+        present_value, forecast_series = split_sensor_payloads(payloads)
 
-        return fuse_to_intervals(present_value, forecast_series, forecast_times)
+        return fuse_sensor_payloads(present_value, forecast_series, forecast_times, boundaries=False)
 
     async def load_boundaries(
         self,
@@ -113,6 +112,6 @@ class TimeSeriesLoader:
             msg = f"Sensors not found or unavailable: {', '.join(missing)}"
             raise ValueError(msg)
 
-        present_value, forecast_series = combine_sensor_payloads(payloads)
+        present_value, forecast_series = split_sensor_payloads(payloads)
 
-        return fuse_to_boundaries(present_value, forecast_series, forecast_times)
+        return fuse_sensor_payloads(present_value, forecast_series, forecast_times, boundaries=True)

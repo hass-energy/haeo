@@ -28,6 +28,7 @@ from custom_components.haeo.const import (
 from custom_components.haeo.coordinator import CoordinatorData, HaeoDataUpdateCoordinator, OptimizationContext
 from custom_components.haeo.core.adapters.elements.grid import GRID_POWER_IMPORT
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.battery import (
@@ -62,6 +63,7 @@ from custom_components.haeo.diagnostics import (
 )
 from custom_components.haeo.diagnostics.collector import (
     DIAGNOSTICS_SCHEMA_VERSION,
+    HISTORICAL_CALENDAR_LOOKAHEAD,
     _collect_entity_ids_from_entry,
     _extract_entity_ids_from_config,
     _fetch_inputs_at,
@@ -1438,3 +1440,54 @@ def test_get_horizon_sensor_entity_id_not_found(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
 
     assert get_horizon_sensor_entity_id(hass, entry) is None
+
+
+def _calendar_hub(hass: HomeAssistant) -> MockConfigEntry:
+    """Return a hub with one element whose trip section reads calendar.trips."""
+    entry = MockConfigEntry(domain=DOMAIN, data=_hub_entry_data(), entry_id="hub_entry")
+    entry.add_to_hass(hass)
+    hass.config_entries.async_add_subentry(
+        entry,
+        ConfigSubentry(
+            data=MappingProxyType({CONF_NAME: "EV", "trip": {"trip_calendar": as_entity_value(["calendar.trips"])}}),
+            subentry_type="ev",
+            title="EV",
+            unique_id=None,
+        ),
+    )
+    return entry
+
+
+@pytest.mark.parametrize(("fetched", "expect_missing"), [([{"summary": "Trip"}], False), (None, True)])
+async def test_fetch_inputs_at_injects_calendar_events_fetched_for_the_run(
+    hass: HomeAssistant, fetched: list[dict[str, str]] | None, *, expect_missing: bool
+) -> None:
+    """Historical inputs carry each calendar's events from the run, which the recorder never holds."""
+    entry = _calendar_hub(hass)
+    target_time = datetime(2024, 1, 1, tzinfo=UTC)
+    mock_recorder = Mock()
+    mock_recorder.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
+    fetch = AsyncMock(return_value=fetched)
+
+    with (
+        patch("custom_components.haeo.diagnostics.collector.get_recorder_instance", return_value=mock_recorder),
+        patch(
+            "custom_components.haeo.diagnostics.collector._collect_entity_ids_from_entry",
+            return_value={"calendar.trips"},
+        ),
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
+            return_value={"calendar.trips": [State("calendar.trips", "off", {"friendly_name": "Trips"})]},
+        ),
+        patch("custom_components.haeo.diagnostics.collector.async_fetch_calendar_events", fetch),
+    ):
+        inputs, missing = await _fetch_inputs_at(hass, entry, target_time)
+
+    fetch.assert_awaited_once_with(hass, "calendar.trips", target_time, target_time + HISTORICAL_CALENDAR_LOOKAHEAD)
+    if expect_missing:
+        assert inputs == []
+        assert missing == ["calendar.trips"]
+    else:
+        assert missing == []
+        [captured] = inputs
+        assert captured["attributes"] == {"friendly_name": "Trips", CALENDAR_EVENTS_ATTRIBUTE: fetched}

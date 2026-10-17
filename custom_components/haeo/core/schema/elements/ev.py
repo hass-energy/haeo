@@ -5,12 +5,12 @@ from typing import Annotated, Final, Literal, NotRequired, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
+from custom_components.haeo.core.data.loader.calendar import open_since_field
 from custom_components.haeo.core.data.loader.source_history import OffPeriod, Reading
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import CalendarValue, ConstantValue, EntityValue, NoneValue
+from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, FieldHint, SectionHints
+from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints, calendar_input
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -47,6 +47,13 @@ CONF_CONNECTED: Final = "connected"
 # read unplugged, from Home Assistant's history.
 CONF_CONNECTED_OFF_PERIODS: Final = "connected_off_periods"
 CONF_TRIP_CALENDAR: Final = "trip_calendar"
+# Inputs the trip calendar feeds: the periods away, where trips start, and
+# the distance each trip covers at its end.
+CONF_AWAY: Final = "away"
+CONF_TRIP_START: Final = "trip_start"
+CONF_TRIP_DISTANCE: Final = "trip_distance"
+# Loaded beside the trip calendar: when the trip open at the horizon start began.
+CONF_TRIP_OPEN_SINCE: Final = open_since_field(CONF_TRIP_CALENDAR)
 CONF_ODOMETER: Final = "odometer"
 # Loaded beside the odometer field: its recorded readings, from Home
 # Assistant's history.
@@ -116,12 +123,12 @@ class ChargingData(TypedDict):
 class TripConfig(TypedDict, total=False):
     """Trip availability configuration.
 
-    The trip calendar drives future availability and per-trip energy
-    requirements; the connected sensor pins the present plugged-in state.
-    Odometer readings correct mid-trip energy accounting.
+    The trip calendars drive future availability and per-trip distances; the
+    connected sensor pins the present plugged-in state. Odometer readings
+    correct mid-trip energy accounting.
     """
 
-    trip_calendar: CalendarValue | NoneValue
+    trip_calendar: EntityValue | NoneValue
     connected: EntityValue | NoneValue
     odometer: EntityValue | NoneValue
     reserve_soc: EntityValue | ConstantValue | NoneValue
@@ -129,9 +136,12 @@ class TripConfig(TypedDict, total=False):
 
 
 class TripData(TypedDict, total=False):
-    """Loaded trip availability values."""
+    """Loaded trip availability values, with the inputs the trip calendar feeds."""
 
-    trip_calendar: CalendarBoundaryData
+    away: NDArray[np.float64]
+    trip_start: NDArray[np.float64]
+    trip_distance: NDArray[np.float64]
+    trip_calendar_open_since: float
     connected: NDArray[np.float64] | float
     connected_off_periods: list[OffPeriod]
     odometer: float
@@ -209,9 +219,11 @@ class EvConfigSchema(ConnectedCommonConfig):
                 {
                     CONF_TRIP_CALENDAR: FieldHint(
                         output_type=OutputType.DISTANCE,
-                        time_series=True,
-                        boundaries=True,
-                        calendar=CalendarFieldHint(parser="distance"),
+                        outputs={
+                            CONF_AWAY: calendar_input(OutputType.AVAILABILITY, "window_active"),
+                            CONF_TRIP_START: calendar_input(OutputType.AVAILABILITY, "window_starts"),
+                            CONF_TRIP_DISTANCE: calendar_input(OutputType.DISTANCE, "window_due"),
+                        },
                     ),
                     CONF_CONNECTED: FieldHint(
                         output_type=OutputType.AVAILABILITY,
@@ -229,6 +241,7 @@ class EvConfigSchema(ConnectedCommonConfig):
                     CONF_RESERVE_PRICE: FieldHint(
                         output_type=OutputType.PRICE,
                         time_series=True,
+                        boundaries=True,
                         min_value=0.0,
                     ),
                 }
@@ -243,6 +256,7 @@ class EvConfigSchema(ConnectedCommonConfig):
                     CONF_PUBLIC_CHARGING_PRICE: FieldHint(
                         output_type=OutputType.PRICE,
                         time_series=True,
+                        boundaries=True,
                         min_value=0.0,
                     ),
                 }
@@ -300,6 +314,7 @@ class EvConfigData(ConnectedCommonData):
 
 
 __all__ = [
+    "CONF_AWAY",
     "CONF_CAPACITY",
     "CONF_CONNECTED",
     "CONF_CONNECTED_OFF_PERIODS",
@@ -313,6 +328,9 @@ __all__ = [
     "CONF_RESERVE_PRICE",
     "CONF_RESERVE_SOC",
     "CONF_TRIP_CALENDAR",
+    "CONF_TRIP_DISTANCE",
+    "CONF_TRIP_OPEN_SINCE",
+    "CONF_TRIP_START",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_CHARGING",

@@ -1,12 +1,7 @@
 """Test EV config flow data for choose selector approach."""
 
 from custom_components.haeo.core.const import CONF_NAME
-from custom_components.haeo.core.schema import (
-    as_calendar_value,
-    as_connection_target,
-    as_constant_value,
-    as_entity_value,
-)
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements.ev import (
     CONF_CAPACITY,
     CONF_CONNECTED,
@@ -50,7 +45,7 @@ VALID_DATA = [
                 CONF_MAX_DISCHARGE_RATE: as_constant_value(5.0),
             },
             SECTION_TRIP: {
-                CONF_TRIP_CALENDAR: as_calendar_value("calendar.ev_trips"),
+                CONF_TRIP_CALENDAR: as_entity_value(["calendar.ev_trips"]),
                 CONF_CONNECTED: as_entity_value(["binary_sensor.ev_plugged_in"]),
                 CONF_ODOMETER: as_entity_value(["sensor.ev_odometer"]),
                 CONF_RESERVE_SOC: as_constant_value(20.0),

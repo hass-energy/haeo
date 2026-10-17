@@ -10,6 +10,10 @@
  * environment.
  */
 
+import { afterAll } from "vitest";
+
+import { stopCardElementRetries } from "./register-card-element";
+
 /* eslint-disable @typescript-eslint/no-empty-function */
 
 // --- matchMedia ---
@@ -81,3 +85,9 @@ document.createElementNS = function (ns: string | null, tag: string) {
   }
   return el;
 } as typeof document.createElementNS;
+
+// --- Card element registration retries ---
+// Loading a card module starts an interval that keeps its custom element
+// registered for a while. Cancel it when each test file ends so it cannot fire
+// into the next file's environment.
+afterAll(stopCardElementRetries);
