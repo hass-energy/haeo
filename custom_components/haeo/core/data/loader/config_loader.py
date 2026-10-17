@@ -380,7 +380,7 @@ def _resolve_entities(
 ) -> float | np.ndarray | None:
     """Load entity data from state machine and fuse to horizon."""
     payloads = load_sensors(sm, entity_ids, output_type=hint.output_type)
-    if not payloads:
+    if payloads is None:
         return None
 
     present_value, forecast_series = split_sensor_payloads(payloads)

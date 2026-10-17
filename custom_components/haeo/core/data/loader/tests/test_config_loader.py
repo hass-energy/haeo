@@ -269,8 +269,8 @@ def test_efficiency_defaults_to_unity(
 def test_unavailable_efficiency_entity_defaults_to_unity(monkeypatch: pytest.MonkeyPatch) -> None:
     """Unavailable efficiency entity data falls back to 100% defaults."""
 
-    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, float]:
-        return {}
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> None:
+        return None
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
 
@@ -339,8 +339,8 @@ def test_price_field_resolves_to_none(
 ) -> None:
     """Price field resolves to None for unavailable, empty, or unrecognized values."""
 
-    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, float]:
-        return {}
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> None:
+        return None
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
 
@@ -348,6 +348,20 @@ def test_price_field_resolves_to_none(
     result = _load_grid(config)
 
     assert _dict(result["pricing"])["price_source_target"] is None
+
+
+def test_price_field_with_one_of_several_sensors_unavailable_resolves_to_none() -> None:
+    """One unavailable sensor makes a summed input unavailable rather than summing the rest."""
+    price_attributes = {"unit_of_measurement": "$/kWh"}
+    states = {
+        "sensor.price_a": FakeEntityState("sensor.price_a", "0.2", price_attributes),
+        "sensor.price_b": FakeEntityState("sensor.price_b", "unavailable", price_attributes),
+    }
+    config = _grid_config(import_price={"type": "entity", "value": ["sensor.price_a", "sensor.price_b"]})
+
+    loaded = _dict(load_element_config("Grid", config, FakeStateMachine(states), FORECAST_TIMES))  # type: ignore[arg-type]  # fixtures use loose dicts
+
+    assert _dict(loaded["pricing"])["price_source_target"] is None
 
 
 def test_element_name_set_on_result() -> None:
@@ -599,8 +613,8 @@ def test_resolve_list_items_zero_price_loads(items: list[dict[str, object]]) -> 
 def test_resolve_list_items_unavailable_entity_sets_none(monkeypatch: pytest.MonkeyPatch) -> None:
     """When entity resolution returns None, the field is set to None."""
 
-    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, float]:
-        return {}
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> None:
+        return None
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
 

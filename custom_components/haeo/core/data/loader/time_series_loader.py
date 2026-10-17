@@ -19,9 +19,7 @@ class TimeSeriesLoader:
         if not entity_ids:
             return False
 
-        payloads = load_sensors(sm, entity_ids)
-
-        return len(payloads) == len(entity_ids)
+        return load_sensors(sm, entity_ids) is not None
 
     async def load_intervals(
         self,
@@ -55,13 +53,8 @@ class TimeSeriesLoader:
 
         payloads = load_sensors(sm, entity_ids)
 
-        if not payloads:
-            msg = "No time series data available"
-            raise ValueError(msg)
-
-        if len(payloads) < len(entity_ids):
-            missing = set(entity_ids) - set(payloads.keys())
-            msg = f"Sensors not found or unavailable: {', '.join(missing)}"
+        if payloads is None:
+            msg = f"Sensors not found or unavailable among: {', '.join(entity_ids)}"
             raise ValueError(msg)
 
         present_value, forecast_series = split_sensor_payloads(payloads)
@@ -103,13 +96,8 @@ class TimeSeriesLoader:
 
         payloads = load_sensors(sm, entity_ids)
 
-        if not payloads:
-            msg = "No time series data available"
-            raise ValueError(msg)
-
-        if len(payloads) < len(entity_ids):
-            missing = set(entity_ids) - set(payloads.keys())
-            msg = f"Sensors not found or unavailable: {', '.join(missing)}"
+        if payloads is None:
+            msg = f"Sensors not found or unavailable among: {', '.join(entity_ids)}"
             raise ValueError(msg)
 
         present_value, forecast_series = split_sensor_payloads(payloads)

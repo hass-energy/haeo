@@ -34,7 +34,7 @@ async def test_time_series_loader_available_handles_missing_sensor() -> None:
     assert loader.available(sm=FakeStateMachine({}), value=as_entity_value(["sensor.missing"])) is False
 
     # Loading a missing sensor should raise an error
-    with pytest.raises(ValueError, match=r"No time series data available"):
+    with pytest.raises(ValueError, match="Sensors not found or unavailable"):
         await loader.load_intervals(
             sm=FakeStateMachine({}), value=as_entity_value(["sensor.missing"]), forecast_times=[0]
         )
@@ -59,7 +59,7 @@ async def test_time_series_loader_available_requires_valid_sensor_data() -> None
     assert loader.available(sm=sm, value=as_entity_value(["sensor.unavailable"])) is False
 
     # Loading should raise an error
-    with pytest.raises(ValueError, match=r"No time series data available"):
+    with pytest.raises(ValueError, match="Sensors not found or unavailable"):
         await loader.load_intervals(sm=sm, value=as_entity_value(["sensor.unavailable"]), forecast_times=[0])
 
 
@@ -243,7 +243,7 @@ async def test_load_boundaries_raises_when_no_data_available() -> None:
         }
     )
 
-    with pytest.raises(ValueError, match="No time series data available"):
+    with pytest.raises(ValueError, match="Sensors not found or unavailable"):
         await loader.load_boundaries(
             sm=sm,
             value=as_entity_value(["sensor.capacity"]),

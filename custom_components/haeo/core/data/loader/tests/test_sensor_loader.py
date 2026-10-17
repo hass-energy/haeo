@@ -94,17 +94,12 @@ async def test_load_sensors_returns_mapping() -> None:
 
     payloads = load_sensors(sm, ["sensor.a", "sensor.b"])
 
-    assert "sensor.a" in payloads
-    assert "sensor.b" in payloads
-    # Simple values are returned as floats
-    assert isinstance(payloads["sensor.a"], float)
-    assert isinstance(payloads["sensor.b"], float)
-    assert payloads["sensor.a"] == 1.0
-    assert payloads["sensor.b"] == 0.5
+    assert payloads == {"sensor.a": 1.0, "sensor.b": 0.5}
 
 
-async def test_load_sensors_excludes_unavailable() -> None:
-    """Load sensors excludes sensors that are unavailable or missing."""
+@pytest.mark.parametrize("failing_id", ["sensor.unavailable", "sensor.missing"])
+async def test_load_sensors_is_unavailable_when_any_sensor_is(failing_id: str) -> None:
+    """One unavailable or missing sensor makes the whole set unavailable instead of being left out."""
 
     sm = FakeStateMachine(
         {
@@ -121,9 +116,4 @@ async def test_load_sensors_excludes_unavailable() -> None:
         }
     )
 
-    payloads = load_sensors(sm, ["sensor.a", "sensor.unavailable", "sensor.missing"])
-
-    assert "sensor.a" in payloads
-    assert "sensor.unavailable" not in payloads
-    assert "sensor.missing" not in payloads
-    assert len(payloads) == 1
+    assert load_sensors(sm, ["sensor.a", failing_id]) is None

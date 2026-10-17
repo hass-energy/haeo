@@ -48,8 +48,8 @@ def test_time_series_loader_available_missing_payloads(monkeypatch: pytest.Monke
 
     loader = TimeSeriesLoader()
 
-    def fake_load_sensors(_sm: FakeStateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
-        return {entity_ids[0]: 0.0}
+    def fake_load_sensors(_sm: FakeStateMachine, _entity_ids: Sequence[str]) -> None:
+        return None
 
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 
@@ -157,36 +157,15 @@ async def test_time_series_loader_load_requires_entity_ids() -> None:
 
 
 @pytest.mark.asyncio
-async def test_time_series_loader_load_fails_when_no_payloads(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """load() should raise when no sensor provided usable data."""
-
-    loader = TimeSeriesLoader()
-
-    def fake_load_sensors(_sm: FakeStateMachine, _entity_ids: Sequence[str]) -> dict[str, float]:
-        return {}
-
-    monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
-
-    with pytest.raises(ValueError, match="No time series data available"):
-        await loader.load_intervals(
-            sm=FakeStateMachine({}),
-            value=as_entity_value(["sensor.present", "sensor.forecast"]),
-            forecast_times=[0, 60],
-        )
-
-
-@pytest.mark.asyncio
 async def test_time_series_loader_load_fails_when_sensor_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """load() should raise when at least one referenced sensor failed to load."""
+    """load() should raise, naming the sensors, when the referenced sensors cannot all load."""
 
     loader = TimeSeriesLoader()
 
-    def fake_load_sensors(_sm: FakeStateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
-        return {entity_ids[0]: 0.0}
+    def fake_load_sensors(_sm: FakeStateMachine, _entity_ids: Sequence[str]) -> None:
+        return None
 
     monkeypatch.setattr(tsl, "load_sensors", fake_load_sensors)
 

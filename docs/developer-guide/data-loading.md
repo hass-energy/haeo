@@ -222,6 +222,8 @@ Multiple sensors combine additively:
 
 This matches physical reality: two solar arrays produce combined power, multiple price components sum to total cost.
 
+`load_sensors()` returns None when any sensor is missing or has no data, so the field is unavailable rather than summing the sensors that remain.
+
 ### Timestamp Alignment
 
 `fuse_sensor_payloads()` splits forecasts by whether they cover the whole horizon.
