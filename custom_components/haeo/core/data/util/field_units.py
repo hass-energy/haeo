@@ -7,6 +7,18 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.util import UnitSpec, matches_unit_spec
 from custom_components.haeo.core.units import UnitOfMeasurement, base_unit_conversion
 
+# Physical quantities that cannot be negative. Prices can, and switches have no sign.
+NON_NEGATIVE_OUTPUT_TYPES: Final = frozenset(
+    {
+        OutputType.POWER,
+        OutputType.POWER_LIMIT,
+        OutputType.ENERGY,
+        OutputType.STATE_OF_CHARGE,
+        OutputType.EFFICIENCY,
+        OutputType.DURATION,
+    }
+)
+
 # The base unit each input field's values are in, with how to name it to a user
 _FIELD_UNITS: Final[dict[OutputType, tuple[UnitSpec, str]]] = {
     OutputType.POWER: (UnitOfMeasurement.KILO_WATT.value, UnitOfMeasurement.KILO_WATT.value),
@@ -54,8 +66,11 @@ def to_field_unit(value: float, unit: str | None, output_type: OutputType) -> fl
 
     A field with a unit needs the value to state a convertible unit; a bare
     number is never taken to be in HAEO's own units. A field without a unit
-    takes a bare number. Returns None for a value the field cannot use.
+    takes a bare number. A quantity that cannot be negative takes no negative
+    value. Returns None for a value the field cannot use.
     """
+    if value < 0 and output_type in NON_NEGATIVE_OUTPUT_TYPES:
+        return None
     if output_type not in _FIELD_UNITS:
         return value if unit is None else None
     if unit is None:
@@ -66,4 +81,4 @@ def to_field_unit(value: float, unit: str | None, output_type: OutputType) -> fl
     return value * factor
 
 
-__all__ = ["check_source_unit", "field_unit_label", "has_field_unit", "to_field_unit"]
+__all__ = ["NON_NEGATIVE_OUTPUT_TYPES", "check_source_unit", "field_unit_label", "has_field_unit", "to_field_unit"]

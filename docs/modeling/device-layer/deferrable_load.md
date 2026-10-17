@@ -26,10 +26,10 @@ The adapter creates two model elements:
 
 ### Window scheduling
 
-Calendar events define run windows, and the energy in each event's text (kWh) is that window's requirement.
-Only events with a positive energy form windows; an event without a usable number keeps no window open.
+Calendar events define run windows, and the energy typed with its unit in each event's text is that window's requirement.
+Every event is a window; one without a usable energy needs nothing.
 
-The [deferrable load model](../model-layer/elements/deferrable_load.md) needs windows that never overlap, so the adapter prepares them from the calendar:
+The [deferrable load model](../model-layer/elements/deferrable_load.md) needs windows that never overlap, so the window calendar feeds three inputs that resolve them:
 
 - **Overlapping events merge** into one window whose requirement is the sum of their energies.
     Merging is transitive: an event that overlaps two others joins all three.
@@ -38,7 +38,7 @@ The [deferrable load model](../model-layer/elements/deferrable_load.md) needs wi
     A requirement that cannot fit in the clamped window is priced as a shortfall, and the shortfall relaxes as the horizon moves forward.
 
 Window edges snap outward to the containing period boundaries, as for every calendar field.
-The adapter passes the result to the model as three masks: which periods are inside a window, where windows start, and each window's requirement at its end boundary.
+The adapter passes these inputs to the model unchanged: which periods are inside a window, where windows start, and each window's requirement at its end boundary.
 Power can only flow while a window is open, and the connection caps it at the configured max power.
 
 ### Energy already delivered
@@ -74,9 +74,9 @@ The deferrable load element creates a single Home Assistant device:
 | User configuration | Model element(s)               | Model parameter                            | Notes                                       |
 | ------------------ | ------------------------------ | ------------------------------------------ | ------------------------------------------- |
 | `window_calendar`  | Deferrable load `{name}`       | `in_window`, `window_start`, `requirement` | Overlaps merged, clamped to the horizon end |
-| `energy_delivered` | Deferrable load `{name}`       | `initial_energy`                           | Seeds the open window only, clamped ≥ 0     |
-| `deficit_price`    | Deferrable load `{name}`       | `deficit_price`                            | Defaults to \$10/kWh, clamped ≥ 0           |
-| `overage_price`    | Deferrable load `{name}`       | `overage_price`                            | Optional, clamped ≥ 0; unset caps delivery  |
+| `energy_delivered` | Deferrable load `{name}`       | `initial_energy`                           | Seeds the open window only                  |
+| `deficit_price`    | Deferrable load `{name}`       | `deficit_price`                            | Defaults to \$10/kWh                        |
+| `overage_price`    | Deferrable load `{name}`       | `overage_price`                            | Optional; unset caps delivery               |
 | `max_power`        | Connection `{name}:connection` | Power limit segment                        | Optional                                    |
 
 ## Output mapping

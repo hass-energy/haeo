@@ -5,11 +5,10 @@ from typing import Annotated, Final, Literal, NotRequired, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import CalendarValue, ConstantValue, EntityValue, NoneValue
+from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, FieldHint, SectionHints
+from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints, calendar_input
 from custom_components.haeo.core.schema.sections import ConnectedCommonConfig, ConnectedCommonData
 
 ELEMENT_TYPE = ElementType.DEFERRABLE_LOAD
@@ -22,6 +21,11 @@ SECTION_PRICING: Final = "pricing"
 # Schedule section field names
 CONF_WINDOW_CALENDAR: Final = "window_calendar"
 CONF_ENERGY_DELIVERED: Final = "energy_delivered"
+
+# Inputs the window calendar feeds
+CONF_IN_WINDOW: Final = "in_window"
+CONF_WINDOW_START: Final = "window_start"
+CONF_REQUIREMENT: Final = "requirement"
 
 # Power section field names
 CONF_MAX_POWER: Final = "max_power"
@@ -50,20 +54,22 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
 class ScheduleConfig(TypedDict):
     """Run window schedule configuration.
 
-    The calendar drives the run windows and their energy requirements; the
-    optional delivered energy sensor reports how much the currently open
+    The calendars drive the run windows and the energy each must receive;
+    the optional delivered energy sensor reports how much the currently open
     window has already received, so re-optimizing mid-window does not demand
     that energy again.
     """
 
-    window_calendar: CalendarValue
+    window_calendar: EntityValue
     energy_delivered: NotRequired[EntityValue | NoneValue]
 
 
 class ScheduleData(TypedDict):
-    """Loaded run window schedule."""
+    """Loaded run window schedule, with the inputs the window calendar feeds."""
 
-    window_calendar: CalendarBoundaryData
+    in_window: NDArray[np.float64]
+    window_start: NDArray[np.float64]
+    requirement: NDArray[np.float64]
     energy_delivered: NotRequired[float]
 
 
@@ -112,9 +118,11 @@ class DeferrableLoadConfigSchema(ConnectedCommonConfig):
             {
                 CONF_WINDOW_CALENDAR: FieldHint(
                     output_type=OutputType.ENERGY,
-                    time_series=True,
-                    boundaries=True,
-                    calendar=CalendarFieldHint(parser="number"),
+                    outputs={
+                        CONF_IN_WINDOW: calendar_input(OutputType.AVAILABILITY, "window_active"),
+                        CONF_WINDOW_START: calendar_input(OutputType.AVAILABILITY, "window_starts"),
+                        CONF_REQUIREMENT: calendar_input(OutputType.ENERGY, "window_due"),
+                    },
                 ),
                 CONF_ENERGY_DELIVERED: FieldHint(
                     output_type=OutputType.ENERGY,
@@ -145,6 +153,7 @@ class DeferrableLoadConfigSchema(ConnectedCommonConfig):
                 CONF_DEFICIT_PRICE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=True,
+                    boundaries=True,
                     min_value=0.0,
                     default_mode="value",
                     default_value=DEFAULT_DEFICIT_PRICE,
@@ -152,6 +161,7 @@ class DeferrableLoadConfigSchema(ConnectedCommonConfig):
                 CONF_OVERAGE_PRICE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=True,
+                    boundaries=True,
                     min_value=0.0,
                 ),
             }
@@ -171,9 +181,12 @@ class DeferrableLoadConfigData(ConnectedCommonData):
 __all__ = [
     "CONF_DEFICIT_PRICE",
     "CONF_ENERGY_DELIVERED",
+    "CONF_IN_WINDOW",
     "CONF_MAX_POWER",
     "CONF_OVERAGE_PRICE",
+    "CONF_REQUIREMENT",
     "CONF_WINDOW_CALENDAR",
+    "CONF_WINDOW_START",
     "DEFAULT_DEFICIT_PRICE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",

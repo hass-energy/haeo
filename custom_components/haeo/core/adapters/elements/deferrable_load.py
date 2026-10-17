@@ -4,9 +4,6 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Final, Literal
 
-import numpy as np
-
-from custom_components.haeo.core.adapters.calendar_windows import calendar_windows, extend_to_boundaries
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -28,9 +25,11 @@ from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.deferrable_load import (
     CONF_DEFICIT_PRICE,
     CONF_ENERGY_DELIVERED,
+    CONF_IN_WINDOW,
     CONF_MAX_POWER,
     CONF_OVERAGE_PRICE,
-    CONF_WINDOW_CALENDAR,
+    CONF_REQUIREMENT,
+    CONF_WINDOW_START,
     ELEMENT_TYPE,
     SECTION_POWER,
     SECTION_PRICING,
@@ -81,11 +80,11 @@ class DeferrableLoadAdapter:
         2. {name}:connection - Connection (network → load)
 
         Calendar events define the run windows; each event's text carries the
-        energy (kWh) that window must receive. Overlapping events merge into
-        one window with their energy summed. Each window is settled at its
-        end: a shortfall is priced at the deficit price, and delivery beyond
-        the requirement is priced at the overage price, or forbidden when no
-        overage price is configured.
+        energy that window must receive, such as "3 kWh". Overlapping events
+        merge into one window with their energy summed. Each window is settled
+        at its end: a shortfall is priced at the deficit price, and delivery
+        beyond the requirement is priced at the overage price, or forbidden
+        when no overage price is configured.
 
         Energy the delivered sensor reports becomes the initial energy of the
         window open at the horizon start, so each re-optimization only plans
@@ -96,30 +95,17 @@ class DeferrableLoadAdapter:
         pricing = config[SECTION_PRICING]
         power = config.get(SECTION_POWER, {})
 
-        windows = calendar_windows(schedule[CONF_WINDOW_CALENDAR])
-        n_boundaries = len(windows.requirement)
-
-        # A negative reading is a sensor fault, never energy taken back out.
-        initial_energy = max(schedule.get(CONF_ENERGY_DELIVERED, 0.0), 0.0)
-
-        # Penalty prices are clamped at zero: the model rejects negative
-        # prices, and an entity can report one even though the form cannot.
-        deficit_price = np.maximum(pricing[CONF_DEFICIT_PRICE], 0.0)
-        overage_price = pricing.get(CONF_OVERAGE_PRICE)
-
         load: DeferrableLoadElementConfig = {
             "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
             "name": name,
             "is_source": False,
             "is_sink": True,
-            "in_window": windows.in_window,
-            "window_start": windows.window_start,
-            "requirement": windows.requirement,
-            "initial_energy": initial_energy,
-            "deficit_price": extend_to_boundaries(deficit_price, n_boundaries),
-            "overage_price": (
-                None if overage_price is None else extend_to_boundaries(np.maximum(overage_price, 0.0), n_boundaries)
-            ),
+            "in_window": schedule[CONF_IN_WINDOW],
+            "window_start": schedule[CONF_WINDOW_START],
+            "requirement": schedule[CONF_REQUIREMENT],
+            "initial_energy": schedule.get(CONF_ENERGY_DELIVERED, 0.0),
+            "deficit_price": pricing[CONF_DEFICIT_PRICE],
+            "overage_price": pricing.get(CONF_OVERAGE_PRICE),
         }
 
         max_power = power.get(CONF_MAX_POWER)
