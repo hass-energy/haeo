@@ -15,6 +15,7 @@ from homeassistant.helpers.selector import (
     SelectSelectorConfig,
     SelectSelectorMode,
 )
+from homeassistant.util import dt as dt_util
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_HORIZON, HORIZON_PRESET_5_DAYS, HORIZON_PRESET_DAYS
@@ -93,7 +94,7 @@ def validate_horizon(hass: HomeAssistant, horizon: HorizonValue, errors: dict[st
         errors[CONF_HORIZON] = "horizon_entity_invalid"
         return
     try:
-        forecast_boundaries(state)
+        forecast_boundaries(state, dt_util.get_default_time_zone())
     except ValueError:
         errors[CONF_HORIZON] = "horizon_entity_invalid"
 

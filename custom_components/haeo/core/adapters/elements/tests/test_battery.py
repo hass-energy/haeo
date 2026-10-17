@@ -24,6 +24,7 @@ from custom_components.haeo.core.model.elements.segments import is_efficiency_sp
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
 from custom_components.haeo.core.schema.elements import battery
 from custom_components.haeo.elements.availability import schema_config_available
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 
 from .conftest import bus_node, grid_at, optimize_participants
 
@@ -193,7 +194,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         }
     )
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 
@@ -215,7 +216,7 @@ async def test_available_returns_false_when_required_power_sensor_missing(hass: 
         }
     )
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is False
 
 
@@ -233,7 +234,7 @@ async def test_available_returns_false_when_capacity_sensor_missing(hass: HomeAs
         }
     )
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is False
 
 
@@ -255,7 +256,7 @@ async def test_available_returns_false_when_required_sensor_missing(hass: HomeAs
         }
     )
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is False
 
 
@@ -276,7 +277,7 @@ async def test_available_with_list_entity_ids_all_exist(hass: HomeAssistant) -> 
         }
     )
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 
@@ -297,7 +298,7 @@ async def test_available_with_list_entity_ids_one_missing(hass: HomeAssistant) -
         }
     )
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is False
 
 
@@ -316,7 +317,7 @@ async def test_available_with_empty_list_returns_true(hass: HomeAssistant) -> No
         }
     )
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 
@@ -336,7 +337,7 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
         }
     )
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 

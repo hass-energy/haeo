@@ -66,7 +66,7 @@ def load_sensor(sm: StateMachine, entity_id: str, *, output_type: OutputType | N
         return None
 
     try:
-        extracted = extract(state, output_type=output_type)
+        extracted = extract(state, time_zone=sm.time_zone, output_type=output_type)
     except ValueError:
         return None
     if output_type is not None:

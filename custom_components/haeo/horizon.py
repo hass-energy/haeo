@@ -105,7 +105,7 @@ class HorizonManager:
             _LOGGER.warning("Keeping the current horizon because %s is not available", entity_id)
             return False
         try:
-            boundaries = forecast_boundaries(state)
+            boundaries = forecast_boundaries(state, dt_util.get_default_time_zone())
         except ValueError as err:
             _LOGGER.warning("Keeping the current horizon: %s", err)
             return False

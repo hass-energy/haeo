@@ -5,6 +5,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType, solar
 from custom_components.haeo.elements.availability import schema_config_available
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 
 from .conftest import set_forecast_sensor
 
@@ -21,7 +22,7 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
         solar.SECTION_CURTAILMENT: {"curtailment": as_constant_value(value=True)},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 
@@ -35,5 +36,5 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
         solar.SECTION_CURTAILMENT: {"curtailment": as_constant_value(value=True)},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is False

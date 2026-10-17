@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import UTC
 
 from homeassistant.util.json import JsonValueType
 import numpy as np
@@ -52,7 +53,7 @@ def test_load_element_config_unwraps_constant_wrappers() -> None:
         "initial_charge_percentage": {"type": "constant", "value": 50.0},
     }
 
-    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([], UTC), (0.0, 1800.0, 3600.0))
 
     np.testing.assert_allclose(loaded["storage"]["capacity"], np.array([13.5, 13.5, 13.5]))
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.5)
@@ -83,7 +84,7 @@ def test_load_element_config_uses_present_value_for_scalar_entities(monkeypatch:
         lambda *_args, **_kwargs: pytest.fail("fuse_sensor_payloads should not run for scalar fields"),
     )
 
-    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([], UTC), (0.0, 1800.0, 3600.0))
 
     assert loaded["storage"]["initial_charge_percentage"] == pytest.approx(0.75)
 
@@ -112,7 +113,7 @@ def test_load_element_config_unwraps_entity_wrappers_for_time_series(monkeypatch
         lambda *_args, **_kwargs: [13.5, 13.4, 13.3],
     )
 
-    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([], UTC), (0.0, 1800.0, 3600.0))
 
     np.testing.assert_allclose(loaded["storage"]["capacity"], np.array([13.5, 13.4, 13.3]))
 
@@ -128,7 +129,7 @@ def test_load_element_config_drops_none_wrappers() -> None:
         "salvage_value": {"type": "none"},
     }
 
-    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
+    loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([], UTC), (0.0, 1800.0, 3600.0))
 
     assert "salvage_value" not in loaded["pricing"]
 
@@ -320,11 +321,11 @@ def test_infer_interval_starts_from_outputs_prefers_interval_series() -> None:
         },
     }
 
-    starts = diag.infer_interval_starts_from_outputs(outputs, config)
+    starts = diag.infer_interval_starts_from_outputs(outputs, config, UTC)
 
     assert starts == [
-        diag.parse_datetime_to_timestamp("2026-01-01T00:00:00+00:00"),
-        diag.parse_datetime_to_timestamp("2026-01-01T00:05:00+00:00"),
+        diag.parse_datetime_to_timestamp("2026-01-01T00:00:00+00:00", UTC),
+        diag.parse_datetime_to_timestamp("2026-01-01T00:05:00+00:00", UTC),
     ]
 
 
@@ -344,9 +345,9 @@ def test_infer_interval_starts_from_outputs_supports_legacy_price_fields() -> No
         }
     }
 
-    starts = diag.infer_interval_starts_from_outputs(outputs, config)
+    starts = diag.infer_interval_starts_from_outputs(outputs, config, UTC)
 
     assert starts == [
-        diag.parse_datetime_to_timestamp("2026-01-01T00:00:00+00:00"),
-        diag.parse_datetime_to_timestamp("2026-01-01T01:00:00+00:00"),
+        diag.parse_datetime_to_timestamp("2026-01-01T00:00:00+00:00", UTC),
+        diag.parse_datetime_to_timestamp("2026-01-01T01:00:00+00:00", UTC),
     ]

@@ -5,6 +5,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.core.adapters.elements.node import adapter as node_adapter
 from custom_components.haeo.core.schema.elements import ElementType, node
 from custom_components.haeo.elements.availability import schema_config_available
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 
 
 async def test_available_returns_true(hass: HomeAssistant) -> None:
@@ -15,7 +16,7 @@ async def test_available_returns_true(hass: HomeAssistant) -> None:
         node.SECTION_ROLE: {"is_source": False, "is_sink": False},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 

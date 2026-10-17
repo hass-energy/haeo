@@ -5,6 +5,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.core.schema import as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType, battery_section
 from custom_components.haeo.elements.availability import schema_config_available
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -26,7 +27,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         },
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 
@@ -44,5 +45,5 @@ async def test_available_returns_false_when_sensor_missing(hass: HomeAssistant) 
         },
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is False

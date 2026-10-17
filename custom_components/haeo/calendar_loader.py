@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Coroutine, Mapping
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, tzinfo
 import logging
 from typing import TYPE_CHECKING
 
@@ -97,6 +97,11 @@ class CalendarStateMachine(StateMachine):
         """Initialize with a base state machine and per-entity event lists."""
         self._base = base
         self._events_by_entity = events_by_entity
+
+    @property
+    def time_zone(self) -> tzinfo:
+        """Return the base state machine's time zone."""
+        return self._base.time_zone
 
     def get(self, entity_id: str) -> EntityState | None:
         """Return the entity state, with events merged for known calendars."""
@@ -249,7 +254,9 @@ class CalendarInputLoader:
             ignored = [
                 f"{event.start.isoformat()} {event.summary or ''}: {typed}"
                 for eid in calendars
-                for event, typed in rejected_events(load_calendar_events(sm.get(eid)) or [], store.hint.output_type)
+                for event, typed in rejected_events(
+                    load_calendar_events(sm.get(eid), sm.time_zone) or [], store.hint.output_type
+                )
             ]
             if ignored:
                 create_calendar_event_values_issue(

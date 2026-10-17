@@ -11,13 +11,14 @@ from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.junction import JunctionConfigData, JunctionConfigSchema
 from custom_components.haeo.elements.availability import schema_config_available
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 
 
 async def test_available_returns_true(hass: HomeAssistant) -> None:
     """A junction has no sensor dependencies, so it is always available."""
     config: JunctionConfigSchema = {"element_type": ElementType.JUNCTION, "name": "Switchboard"}
 
-    assert schema_config_available(config, sm=hass.states) is True
+    assert schema_config_available(config, sm=HomeAssistantStateMachine(hass)) is True
 
 
 def test_model_elements_is_pure_junction() -> None:

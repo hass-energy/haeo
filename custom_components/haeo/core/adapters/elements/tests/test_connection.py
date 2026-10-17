@@ -12,6 +12,7 @@ from custom_components.haeo.core.schema import as_connection_target, as_constant
 from custom_components.haeo.core.schema.elements import ElementType, connection
 from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
 from custom_components.haeo.elements.availability import schema_config_available
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 
 from .conftest import bus_node, grid_at, optimize_participants
 
@@ -35,7 +36,7 @@ async def test_available_returns_true_with_no_optional_fields(hass: HomeAssistan
         connection.SECTION_EFFICIENCY: {},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 
@@ -63,7 +64,7 @@ async def test_available_returns_true_when_optional_sensors_exist(hass: HomeAssi
         },
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 
@@ -83,7 +84,7 @@ async def test_available_returns_false_when_optional_sensor_missing(hass: HomeAs
         connection.SECTION_EFFICIENCY: {},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is False
 
 
@@ -103,7 +104,7 @@ async def test_available_returns_false_when_efficiency_sensor_missing(hass: Home
         },
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is False
 
 
@@ -127,7 +128,7 @@ async def test_available_returns_true_with_constant_values(hass: HomeAssistant) 
         },
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 

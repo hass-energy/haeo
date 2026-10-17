@@ -90,7 +90,7 @@ def resolve_calendar(
     converted from the unit typed with it to the input's unit; an event whose
     value the input cannot use is still a window, due nothing.
     """
-    calendars = [load_calendar_events(sm.get(entity_id)) for entity_id in entity_ids]
+    calendars = [load_calendar_events(sm.get(entity_id), sm.time_zone) for entity_id in entity_ids]
     if any(events is None for events in calendars):
         return None
     windows = event_windows([event for events in calendars if events for event in events], output_type)

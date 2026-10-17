@@ -135,7 +135,7 @@ def test_load_from_captured_events() -> None:
         ]
     )
 
-    events = load_calendar_events(state)
+    events = load_calendar_events(state, UTC)
     assert events is not None
     assert len(events) == 2
     assert events[0].summary == "Work"
@@ -165,7 +165,7 @@ def test_load_from_entity_state() -> None:
         }
     )
 
-    events = load_calendar_events(sm.get("calendar.ev"))
+    events = load_calendar_events(sm.get("calendar.ev"), UTC)
     assert events is not None
     assert len(events) == 1
     assert events[0].location == "30 km"
@@ -173,7 +173,7 @@ def test_load_from_entity_state() -> None:
 
 def test_load_missing_entity() -> None:
     """A missing calendar state has no events to load."""
-    assert load_calendar_events(None) is None
+    assert load_calendar_events(None, UTC) is None
 
 
 def test_load_no_haeo_events_attr() -> None:
@@ -187,7 +187,7 @@ def test_load_no_haeo_events_attr() -> None:
             ),
         }
     )
-    assert load_calendar_events(sm.get("calendar.plain")) is None
+    assert load_calendar_events(sm.get("calendar.plain"), UTC) is None
 
 
 # --- capture_calendar_events ---
@@ -205,7 +205,7 @@ def test_capture_roundtrip() -> None:
     assert captured[0]["summary"] == "Work"
 
     # Reload from captured data
-    reloaded = load_calendar_events(_calendar_state(captured))
+    reloaded = load_calendar_events(_calendar_state(captured), UTC)
     assert reloaded is not None
     assert len(reloaded) == 2
     assert reloaded[0].summary == "Work"
@@ -213,9 +213,9 @@ def test_capture_roundtrip() -> None:
     assert reloaded[1].start.hour == 17
 
 
-def test_load_naive_datetime_gets_default_tz() -> None:
-    """Naive ISO timestamps are normalized to the supplied default timezone."""
-    sydney = ZoneInfo("Australia/Sydney")
+def test_load_naive_datetime_reads_local_time() -> None:
+    """Naive ISO timestamps are read in the supplied local time zone, including half-hour offsets."""
+    adelaide = ZoneInfo("Australia/Adelaide")
     state = _calendar_state(
         [
             {
@@ -228,11 +228,12 @@ def test_load_naive_datetime_gets_default_tz() -> None:
         ]
     )
 
-    events = load_calendar_events(state, default_tz=sydney)
+    events = load_calendar_events(state, adelaide)
     assert events is not None
     assert len(events) == 1
-    assert events[0].start.tzinfo == sydney
-    assert events[0].end.tzinfo == sydney
+    # Adelaide is UTC+10:30 in January
+    assert events[0].start == datetime(2024, 12, 31, 22, 30, tzinfo=UTC)
+    assert events[0].end == datetime(2024, 12, 31, 23, 30, tzinfo=UTC)
 
 
 def test_load_offset_aware_datetime_preserved() -> None:
@@ -249,7 +250,7 @@ def test_load_offset_aware_datetime_preserved() -> None:
         ]
     )
 
-    events = load_calendar_events(state, default_tz=ZoneInfo("Australia/Sydney"))
+    events = load_calendar_events(state, ZoneInfo("Australia/Sydney"))
     assert events is not None
     assert events[0].start.tzinfo == UTC
 
@@ -268,7 +269,7 @@ def test_naive_and_aware_datetimes_fuse_without_error() -> None:
             },
         ]
     )
-    events = load_calendar_events(state, default_tz=sydney)
+    events = load_calendar_events(state, sydney)
     assert events is not None
     windows = event_windows(events, OutputType.ENERGY)
     boundaries = [datetime(2025, 1, 1, h, tzinfo=sydney) for h in (8, 9, 10, 11)]
@@ -311,7 +312,7 @@ def test_load_skips_invalid_event_dicts() -> None:
             },
         ]
     )
-    events = load_calendar_events(state)
+    events = load_calendar_events(state, UTC)
     assert events is not None
     assert len(events) == 1
     assert events[0].summary == "Valid"

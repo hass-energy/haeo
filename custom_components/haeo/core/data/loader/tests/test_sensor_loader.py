@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -49,6 +50,36 @@ def test_load_sensor_forecast_returns_series() -> None:
             (int((start + timedelta(hours=1)).timestamp()), 1.5),
             (int((start + timedelta(hours=2)).timestamp()), 2.5),
         ]
+
+
+def test_load_sensor_reads_naive_forecast_times_in_the_state_machine_time_zone() -> None:
+    """Forecast times without a time zone are local times in the state machine's time zone."""
+
+    sm = FakeStateMachine(
+        {
+            "sensor.forecast": FakeEntityState(
+                entity_id="sensor.forecast",
+                state="1.0",
+                attributes={
+                    "forecast": [
+                        {"time": "2025-07-01T12:00:00", "value": 1.0},
+                        {"time": "2025-07-01T12:30:00", "value": 2.0},
+                    ],
+                    "device_class": "power",
+                    "unit_of_measurement": "kW",
+                },
+            )
+        },
+        time_zone=ZoneInfo("Australia/Adelaide"),
+    )
+
+    payload = load_sensor(sm, "sensor.forecast")
+
+    # Adelaide is UTC+09:30 in July
+    assert payload == [
+        (datetime(2025, 7, 1, 2, 30, tzinfo=UTC).timestamp(), 1.0),
+        (datetime(2025, 7, 1, 3, 0, tzinfo=UTC).timestamp(), 2.0),
+    ]
 
 
 def test_load_sensor_returns_none_when_unavailable() -> None:

@@ -27,6 +27,7 @@ from custom_components.haeo.core.schema.elements import ElementType, inverter
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData
 from custom_components.haeo.elements.availability import schema_config_available
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 
 from .conftest import bus_node, grid_at, optimize_participants
 
@@ -52,7 +53,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         inverter.SECTION_EFFICIENCY: {},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 
@@ -72,7 +73,7 @@ async def test_available_returns_false_when_first_sensor_missing(hass: HomeAssis
         inverter.SECTION_EFFICIENCY: {},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is False
 
 
@@ -92,7 +93,7 @@ async def test_available_returns_false_when_second_sensor_missing(hass: HomeAssi
         inverter.SECTION_EFFICIENCY: {},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is False
 
 
@@ -106,7 +107,7 @@ async def test_available_returns_true_when_limits_missing(hass: HomeAssistant) -
         inverter.SECTION_EFFICIENCY: {},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 

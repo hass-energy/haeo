@@ -7,6 +7,7 @@ from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements import load as load_element
 from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.elements.availability import schema_config_available
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 
 from .conftest import set_sensor
 
@@ -23,7 +24,7 @@ async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssi
         load_element.SECTION_CURTAILMENT: {},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 
@@ -37,7 +38,7 @@ async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAs
         load_element.SECTION_CURTAILMENT: {},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is False
 
 

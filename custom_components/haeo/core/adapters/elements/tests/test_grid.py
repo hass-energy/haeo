@@ -5,6 +5,7 @@ from homeassistant.core import HomeAssistant
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType, grid
 from custom_components.haeo.elements.availability import schema_config_available
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 
 
 def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
@@ -28,7 +29,7 @@ async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) ->
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 
@@ -47,7 +48,7 @@ async def test_available_returns_false_when_import_price_missing(hass: HomeAssis
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is False
 
 
@@ -66,7 +67,7 @@ async def test_available_returns_false_when_export_price_missing(hass: HomeAssis
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is False
 
 
@@ -83,7 +84,7 @@ async def test_available_with_constant_prices(hass: HomeAssistant) -> None:
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
 
 
@@ -102,5 +103,5 @@ async def test_available_with_entity_schema_value(hass: HomeAssistant) -> None:
         grid.SECTION_POWER_LIMITS: {},
     }
 
-    result = schema_config_available(config, sm=hass.states)
+    result = schema_config_available(config, sm=HomeAssistantStateMachine(hass))
     assert result is True
