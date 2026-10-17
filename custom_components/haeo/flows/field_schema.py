@@ -8,8 +8,9 @@ Home Assistant's ChooseSelector, allowing users to pick between "Entity"
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from numbers import Real
-from typing import Any  # noqa: TID251  # voluptuous schema dicts and HA Selector overrides are Any by design
+from typing import Any, Final  # noqa: TID251  # voluptuous schema dicts and HA Selector overrides are Any by design
 
+from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers.selector import (
@@ -34,12 +35,10 @@ from custom_components.haeo.core.schema import (
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
     SchemaValue,
-    as_calendar_value,
     as_constant_value,
     as_entity_value,
     as_none_value,
     get_schema_value_kinds,
-    is_calendar_value,
     is_constant_value,
     is_entity_value,
     is_none_value,
@@ -50,7 +49,9 @@ from custom_components.haeo.elements.input_fields import (
     AnyInputFieldInfo,
     InputFieldGroups,
     InputFieldInfo,
+    accepts_calendar_forecast,
     is_number_field_info,
+    reads_calendar,
 )
 
 # Choose selector choice keys (used for config flow data and translations)
@@ -68,10 +69,17 @@ class SectionDefinition:
     collapsed: bool = False
 
 
-# Calendar-driven fields use a plain entity picker instead of a choose
-# selector. EntitySelector loses its type argument through HA's selector
-# registry decorator.
-type FieldEntry = tuple[vol.Marker, NormalizingChooseSelector | EntitySelector]  # type: ignore[type-arg]
+# Domains an entity choice offers
+_ENTITY_DOMAINS: Final = (DOMAIN, "sensor", "input_number", "number", "switch")
+
+
+def entity_domains(field_info: AnyInputFieldInfo) -> list[str]:
+    """Return the domains a field's entity choice offers: calendars only, or with calendars read as forecasts."""
+    if reads_calendar(field_info):
+        return [CALENDAR_DOMAIN]
+    if accepts_calendar_forecast(field_info):
+        return [*_ENTITY_DOMAINS, CALENDAR_DOMAIN]
+    return list(_ENTITY_DOMAINS)
 
 
 def _get_nested_value(data: Mapping[str, object], field_name: str) -> object | None:
@@ -134,12 +142,14 @@ def build_entity_selector(
     *,
     include_entities: list[str] | None = None,
     multiple: bool = True,
+    domains: Sequence[str] = _ENTITY_DOMAINS,
 ) -> EntitySelector:  # type: ignore[type-arg]
     """Build an EntitySelector restricted to unit-compatible entities.
 
     Args:
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection (for chaining).
+        domains: Domains the selector offers.
 
     Returns:
         EntitySelector configured with include_entities list.
@@ -148,7 +158,7 @@ def build_entity_selector(
     entities_to_include = list(include_entities or [])
 
     config: EntitySelectorConfig = {
-        "domain": [DOMAIN, "sensor", "input_number", "number", "switch"],
+        "domain": list(domains),
         "multiple": multiple,
     }
     if entities_to_include:
@@ -266,6 +276,7 @@ def build_choose_selector(
     entity_selector = build_entity_selector(
         include_entities=include_entities,
         multiple=multiple,
+        domains=entity_domains(field_info),
     )
 
     # Build value selector for the "constant" choice based on field type
@@ -322,7 +333,7 @@ def build_choose_schema_entry(
     include_entities: list[str] | None = None,
     multiple: bool = True,
     preferred_choice: str = CHOICE_ENTITY,
-) -> FieldEntry:
+) -> tuple[vol.Marker, NormalizingChooseSelector]:
     """Build a schema entry using NormalizingChooseSelector.
 
     Args:
@@ -357,7 +368,7 @@ def build_choose_field_entries(
     field_schema: Mapping[str, FieldSchemaInfo],
     inclusion_map: dict[str, list[str]],
     current_data: Mapping[str, object] | None = None,
-) -> dict[str, FieldEntry]:
+) -> dict[str, tuple[vol.Marker, NormalizingChooseSelector]]:
     """Build choose selector entries for input fields.
 
     Args:
@@ -370,7 +381,7 @@ def build_choose_field_entries(
         Mapping of field_name -> (marker, selector) for schema insertion.
 
     """
-    entries: dict[str, FieldEntry] = {}
+    entries: dict[str, tuple[vol.Marker, NormalizingChooseSelector]] = {}
 
     for field_info in input_fields.values():
         schema_info = field_schema.get(field_info.field_name)
@@ -378,15 +389,6 @@ def build_choose_field_entries(
             msg = f"Missing schema metadata for field '{field_info.field_name}'"
             raise RuntimeError(msg)
         is_optional = schema_info.is_optional and not field_info.force_required
-
-        # Calendar-driven fields render as a plain calendar entity picker
-        # rather than a choose selector (no constant form exists).
-        if field_info.calendar is not None:
-            calendar_selector = EntitySelector(EntitySelectorConfig(domain="calendar", multiple=False))
-            marker = vol.Optional(field_info.field_name) if is_optional else vol.Required(field_info.field_name)
-            entries[field_info.field_name] = (marker, calendar_selector)
-            continue
-
         allowed_choices = _get_allowed_choices(schema_info, field_info)
         include_entities = inclusion_map.get(field_info.field_name)
         preferred = get_preferred_choice(field_info, current_data, allowed_choices=allowed_choices)
@@ -547,21 +549,26 @@ def validate_sectioned_choose_fields(
     *,
     exclude_fields: tuple[str, ...] = (),
 ) -> dict[str, str]:
-    """Validate choose fields for sectioned input."""
+    """Validate choose fields for sectioned input.
+
+    Errors are keyed by section because Home Assistant only shows errors for
+    top-level form fields, so an error keyed by a field inside a section would
+    re-show the form without telling the user why.
+    """
     errors: dict[str, str] = {}
     for section_def in sections:
         section_input = user_input.get(section_def.key, {})
         if not isinstance(section_input, Mapping):
             continue
         section_fields = input_fields.get(section_def.key, {})
-        errors.update(
-            validate_choose_fields(
-                dict(section_input),
-                section_fields,
-                field_schema.get(section_def.key, {}),
-                exclude_fields=exclude_fields,
-            )
+        section_errors = validate_choose_fields(
+            dict(section_input),
+            section_fields,
+            field_schema.get(section_def.key, {}),
+            exclude_fields=exclude_fields,
         )
+        if section_errors:
+            errors[section_def.key] = next(iter(section_errors.values()))
     return errors
 
 
@@ -618,8 +625,6 @@ def get_choose_default(
 
     if is_entity_value(current_value):
         return current_value["value"]
-    if is_calendar_value(current_value):
-        return current_value["value"]
     if is_constant_value(current_value):
         return current_value["value"]
     if is_none_value(current_value):
@@ -668,15 +673,6 @@ def convert_choose_data_to_config(
         if field_name in exclude_keys:
             continue
         if field_name not in field_names:
-            continue
-
-        # Calendar fields store a calendar schema value from the entity picker
-        if input_fields[field_name].calendar is not None:
-            entity_id = value[0] if isinstance(value, list) and value else value
-            if isinstance(entity_id, str) and entity_id:
-                config[field_name] = as_calendar_value(entity_id)
-            else:
-                config[field_name] = as_none_value()
             continue
 
         # Disabled/none choice
@@ -758,7 +754,7 @@ def preprocess_choose_selector_input(
                 result[field_name] = value.get(CHOICE_CONSTANT)
         # Handle discriminated schema values
         elif is_schema_value(value):
-            if is_entity_value(value) or is_constant_value(value) or is_calendar_value(value):
+            if is_entity_value(value) or is_constant_value(value):
                 result[field_name] = value["value"]
             else:
                 result[field_name] = None

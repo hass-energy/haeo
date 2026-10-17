@@ -1,15 +1,12 @@
 """Tests for schema value utilities."""
 
 from custom_components.haeo.core.schema import (
-    VALUE_TYPE_CALENDAR,
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
-    CalendarValue,
     ConstantValue,
     EntityValue,
     NoneValue,
-    as_calendar_value,
     as_constant_value,
     as_entity_value,
     as_none_value,
@@ -31,7 +28,6 @@ def test_get_schema_value_kinds_handles_direct_types() -> None:
     assert get_schema_value_kinds(EntityValue) == {VALUE_TYPE_ENTITY}
     assert get_schema_value_kinds(ConstantValue) == {VALUE_TYPE_CONSTANT}
     assert get_schema_value_kinds(NoneValue) == {VALUE_TYPE_NONE}
-    assert get_schema_value_kinds(CalendarValue) == {VALUE_TYPE_CALENDAR}
 
 
 def test_get_schema_value_kinds_returns_empty_for_unknown() -> None:
@@ -44,7 +40,6 @@ def test_is_schema_value_recognizes_all_variants() -> None:
     assert is_schema_value(as_entity_value(["sensor.power"]))
     assert is_schema_value(as_constant_value(1.5))
     assert is_schema_value(as_none_value())
-    assert is_schema_value(as_calendar_value("calendar.trips"))
 
 
 def test_is_schema_value_rejects_non_schema_values() -> None:

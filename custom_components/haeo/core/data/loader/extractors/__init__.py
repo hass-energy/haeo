@@ -6,6 +6,7 @@ from typing import Final, NamedTuple
 
 import numpy as np
 
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement, base_unit_conversion, convert_to_base_unit
 
@@ -13,6 +14,7 @@ from . import (
     aemo_nem,
     amber2mqtt,
     amberelectric,
+    calendar_events,
     emhass,
     flow_power,
     haeo,
@@ -28,6 +30,7 @@ ExtractorFormat = (
     aemo_nem.Format
     | amber2mqtt.Format
     | amberelectric.Format
+    | calendar_events.Format
     | emhass.Format
     | flow_power.Format
     | haeo.Format
@@ -42,6 +45,7 @@ DataExtractor = (
     type[aemo_nem.Parser]
     | type[amber2mqtt.Parser]
     | type[amberelectric.Parser]
+    | type[calendar_events.Parser]
     | type[emhass.Parser]
     | type[flow_power.Parser]
     | type[haeo.Parser]
@@ -57,6 +61,7 @@ FORMATS: dict[ExtractorFormat, DataExtractor] = {
     aemo_nem.DOMAIN: aemo_nem.Parser,
     amber2mqtt.DOMAIN: amber2mqtt.Parser,
     amberelectric.DOMAIN: amberelectric.Parser,
+    calendar_events.DOMAIN: calendar_events.Parser,
     emhass.DOMAIN: emhass.Parser,
     flow_power.DOMAIN: flow_power.Parser,
     haeo.DOMAIN: haeo.Parser,
@@ -89,15 +94,21 @@ class ExtractedData(NamedTuple):
     """Unit of measurement after conversion to base units. (None if unknown)"""
 
 
-def extract(state: EntityState) -> ExtractedData:
-    """Extract data from a State object and convert to base units."""
+def extract(state: EntityState, *, output_type: OutputType | None = None) -> ExtractedData:
+    """Extract data from a State object and convert to base units.
+
+    A calendar reads the value typed in each event against the input's output
+    type when it is given, so values the input cannot use are ignored.
+    """
 
     # Extract raw data and unit
-    data: Sequence[tuple[int, float]] | float
+    data: Sequence[tuple[float, float]] | float
     unit: UnitOfMeasurement | str | None
     device_class: DeviceClass | None
 
-    if aemo_nem.Parser.detect(state):
+    if calendar_events.Parser.detect(state):
+        data, unit, device_class = calendar_events.Parser.extract(state, output_type)
+    elif aemo_nem.Parser.detect(state):
         data, unit, device_class = aemo_nem.Parser.extract(state)
     elif amber2mqtt.Parser.detect(state):
         data, unit, device_class = amber2mqtt.Parser.extract(state)
