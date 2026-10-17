@@ -415,8 +415,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # and the coordinator reads their resolved values.
     runtime_data.input_stores = build_input_stores(hass, entry, horizon_manager)
 
-    # Calendar-driven stores have no input entity to load them; a dedicated
-    # loader fetches upcoming events and keeps them aligned with the horizon.
+    # A calendar's state carries no events, so stores reading a calendar are
+    # loaded by a loader that fetches its events over the horizon.
     calendar_loader = CalendarInputLoader(hass, entry.entry_id, runtime_data.input_stores, horizon_manager)
     calendar_loader.start()
     entry.async_on_unload(calendar_loader.cleanup)

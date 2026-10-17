@@ -27,7 +27,6 @@ from custom_components.haeo.core.data.loader.calendar import (
     CALENDAR_EVENTS_ATTRIBUTE,
     CalendarEventData,
     capture_calendar_events,
-    format_event_quantity,
     load_calendar_events,
     rejected_events,
 )
@@ -135,12 +134,11 @@ class CalendarInputLoader:
         self._hass = hass
         self._entry_id = entry_id
         self._horizon_manager = horizon_manager
-        self._keyed_stores: dict[InputStoreKey, InputStore] = {
+        self._stores: dict[InputStoreKey, InputStore] = {
             key: store for key, store in stores.items() if is_calendar_driven(store)
         }
-        self._stores: list[InputStore] = list(self._keyed_stores.values())
         self._calendars = sorted(
-            {eid for store in self._stores for eid in store.source_entity_ids if is_calendar_entity(eid)}
+            {eid for store in self._stores.values() for eid in store.source_entity_ids if is_calendar_entity(eid)}
         )
         self._events: dict[str, list[CalendarEventDict] | None] = {}
         self._events_horizon: tuple[float, ...] = ()
@@ -159,7 +157,7 @@ class CalendarInputLoader:
             return
 
         other_sources = sorted(
-            {eid for store in self._stores for eid in store.source_entity_ids if not is_calendar_entity(eid)}
+            {eid for store in self._stores.values() for eid in store.source_entity_ids if not is_calendar_entity(eid)}
         )
 
         @callback
@@ -199,11 +197,10 @@ class CalendarInputLoader:
         async with self._load_lock:
             timestamps = self._horizon_manager.get_forecast_timestamps()
             fetched = await asyncio.gather(*(self._async_fetch_events(entity_id) for entity_id in self._calendars))
-            if self._horizon_manager.get_forecast_timestamps() != timestamps:
-                return
-            self._events = dict(zip(self._calendars, fetched, strict=True))
-            self._events_horizon = timestamps
-            self._resolve_stores()
+            if self._horizon_manager.get_forecast_timestamps() == timestamps:
+                self._events = dict(zip(self._calendars, fetched, strict=True))
+                self._events_horizon = timestamps
+                self._resolve_stores()
 
     async def async_resolve(self) -> None:
         """Reload all stores from the kept events, after another source changed.
@@ -212,9 +209,8 @@ class CalendarInputLoader:
         the move scheduled resolves the stores instead.
         """
         async with self._load_lock:
-            if self._events_horizon != self._horizon_manager.get_forecast_timestamps():
-                return
-            self._resolve_stores()
+            if self._events_horizon == self._horizon_manager.get_forecast_timestamps():
+                self._resolve_stores()
 
     def _resolve_stores(self) -> None:
         """Resolve every store, then notify the ones that changed.
@@ -226,11 +222,11 @@ class CalendarInputLoader:
         last plan in place.
         """
         sm = CalendarStateMachine(HomeAssistantStateMachine(self._hass), self._events)
-        was_available = {id(store): store.available for store in self._stores}
+        was_available = {key: store.available for key, store in self._stores.items()}
         changed = [
             store
-            for store in self._stores
-            if store.resolve_from_sources(sm) or store.error is not None or store.available != was_available[id(store)]
+            for key, store in self._stores.items()
+            if store.resolve_from_sources(sm) or store.error is not None or store.available != was_available[key]
         ]
         for store in changed:
             store.notify_listeners()
@@ -239,37 +235,38 @@ class CalendarInputLoader:
     def _report_ignored_event_values(self, sm: StateMachine) -> None:
         """Raise a repair issue for each input ignoring calendar events whose values it cannot use.
 
-        Window flags do not read event values, so only inputs that do, a
-        forecast or a window's due value, can ignore one.
+        Only inputs reading event values, a forecast or a window's due value,
+        in a unit can ignore one; window flags do not read them.
         """
-        for (element_name, field_path), store in self._keyed_stores.items():
-            hint = store.hint
-            if hint.calendar is not None and hint.calendar.projection != "window_due":
-                continue
+        reading_values = {
+            key: (store, unit)
+            for key, store in self._stores.items()
+            if (unit := field_unit_label(store.hint.output_type)) is not None
+            and (store.hint.calendar is None or store.hint.calendar.projection == "window_due")
+        }
+        for (element_name, field_path), (store, unit) in reading_values.items():
             calendars = [eid for eid in store.source_entity_ids if is_calendar_entity(eid)]
             ignored = [
-                f"{event.summary or 'Event'} at {event.start.isoformat()}: {format_event_quantity(event)}"
+                f"{event.start.isoformat()} {event.summary or ''}: {typed}"
                 for eid in calendars
-                for event in rejected_events(load_calendar_events(sm.get(eid)) or [], hint.output_type)
+                for event, typed in rejected_events(load_calendar_events(sm.get(eid)) or [], store.hint.output_type)
             ]
-            if not ignored:
+            if ignored:
+                create_calendar_event_values_issue(
+                    self._hass,
+                    self._entry_id,
+                    element_name,
+                    field_path,
+                    calendars=calendars,
+                    events=ignored,
+                    unit=unit,
+                )
+            else:
                 dismiss_calendar_event_values_issue(self._hass, self._entry_id, element_name, field_path)
-                continue
-            create_calendar_event_values_issue(
-                self._hass,
-                self._entry_id,
-                element_name,
-                field_path,
-                calendars=calendars,
-                events=ignored,
-                expected=field_unit_label(hint.output_type) or "plain numbers",
-            )
 
     async def _async_fetch_events(self, entity_id: str) -> list[CalendarEventDict] | None:
         """Fetch the calendar's events over the current horizon, or None when it cannot be queried."""
         timestamps = self._horizon_manager.get_forecast_timestamps()
-        if not timestamps:
-            return None
         return await async_fetch_calendar_events(
             self._hass,
             entity_id,

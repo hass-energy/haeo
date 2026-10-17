@@ -315,7 +315,7 @@ def resolve_field(
         return None
 
     if hint.calendar is not None:
-        return resolve_calendar(unwrapped[0], hint.calendar, hint.output_type, sm, forecast_times)
+        return resolve_calendar(unwrapped, hint.calendar, hint.output_type, sm, forecast_times)
 
     resolved = _resolve_entities(unwrapped, hint, sm, forecast_times, is_percent=is_percent)
     if negate and resolved is not None:

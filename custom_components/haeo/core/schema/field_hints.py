@@ -56,10 +56,10 @@ class FieldHint:
         default_value: Value to pre-fill when default_mode='value'.
         force_required: Force value to be required, overriding schema optionality.
         calendar: When set, the input resolves its values from the events of the
-            calendar entity it reads.
+            calendars it reads.
         outputs: When set, the field feeds these inputs, keyed by their loaded
-            field names, instead of being an input itself. One calendar can so
-            feed several inputs, each with its own entity.
+            field names, instead of being an input itself. The calendars it
+            reads can so feed several inputs, each with its own entity.
 
     """
 

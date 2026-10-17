@@ -1,5 +1,6 @@
 """Core diagnostics collection logic."""
 
+import asyncio
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
@@ -18,7 +19,7 @@ from custom_components.haeo.calendar_loader import async_fetch_calendar_events
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.context import OptimizationContext
-from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE, CalendarEventDict
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
 from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
@@ -209,7 +210,6 @@ async def _fetch_inputs_at(
 
     """
     all_entity_ids = _collect_entity_ids_from_entry(config_entry)
-    calendar_entity_ids = {eid for eid in all_entity_ids if eid.startswith(f"{CALENDAR_DOMAIN}.")}
     if not all_entity_ids:
         return [], []
 
@@ -230,23 +230,30 @@ async def _fetch_inputs_at(
     states = await recorder.async_add_executor_job(_query)
     entity_states = {eid: slist[0] for eid, slist in states.items() if slist}
 
-    missing = all_entity_ids - set(entity_states.keys())
-    inputs: list[Mapping[str, object]] = []
-    for eid in entity_id_list:
-        state = entity_states.get(eid)
-        if state is None:
-            continue
-        captured = dict(state.as_dict())
-        if eid in calendar_entity_ids:
-            events = await async_fetch_calendar_events(
-                hass, eid, target_time, target_time + HISTORICAL_CALENDAR_LOOKAHEAD
-            )
-            if events is None:
-                missing.add(eid)
-                continue
-            captured["attributes"] = {**dict(state.attributes), CALENDAR_EVENTS_ATTRIBUTE: events}
-        inputs.append(captured)
+    found = [entity_states[eid] for eid in entity_id_list if eid in entity_states]
+    calendars = [state.entity_id for state in found if state.entity_id.startswith(f"{CALENDAR_DOMAIN}.")]
+    fetched = await asyncio.gather(
+        *(
+            async_fetch_calendar_events(hass, eid, target_time, target_time + HISTORICAL_CALENDAR_LOOKAHEAD)
+            for eid in calendars
+        )
+    )
+    events = dict(zip(calendars, fetched, strict=True))
+    unqueryable = {eid for eid, calendar_events in events.items() if calendar_events is None}
+
+    inputs = [
+        _captured_state(state, events.get(state.entity_id)) for state in found if state.entity_id not in unqueryable
+    ]
+    missing = (all_entity_ids - set(entity_states)) | unqueryable
     return inputs, sorted(missing)
+
+
+def _captured_state(state: State, events: list[CalendarEventDict] | None) -> Mapping[str, object]:
+    """Return a state as captured, carrying the events fetched for a calendar."""
+    captured = state.as_dict()
+    if events is None:
+        return captured
+    return {**captured, "attributes": {**state.attributes, CALENDAR_EVENTS_ATTRIBUTE: events}}
 
 
 async def _get_last_run_before(

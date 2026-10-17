@@ -283,7 +283,7 @@ def create_calendar_event_values_issue(
     *,
     calendars: Sequence[str],
     events: Sequence[str],
-    expected: str,
+    unit: str,
 ) -> None:
     """Create a repair issue for calendar events whose values an input ignores."""
     async_create_issue(
@@ -299,7 +299,7 @@ def create_calendar_event_values_issue(
             "field": ".".join(field_path),
             "calendars": ", ".join(calendars),
             "events": "\n".join(f"- {event}" for event in events),
-            "expected": expected,
+            "unit": unit,
         },
     )
 

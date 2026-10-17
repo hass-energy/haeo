@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import Callable, Mapping
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 import logging
 from unittest.mock import Mock
 
@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.entity_component import EntityComponent
+from homeassistant.util import dt as dt_util
 import numpy as np
 import pytest
 
@@ -524,7 +525,7 @@ async def test_loader_raises_a_repair_for_event_values_an_input_ignores(
     assert issue is not None
     assert issue.translation_placeholders is not None
     assert "2" in issue.translation_placeholders["events"]
-    assert issue.translation_placeholders["expected"] == "kW"
+    assert issue.translation_placeholders["unit"] == "kW"
 
     calendar._events = [_demand(0.0, 3600.0, "2 kW")]
     await loader.async_load_all()
@@ -541,4 +542,35 @@ async def test_loader_raises_no_repair_for_window_flags(hass: HomeAssistant, hor
     await hass.async_block_till_done()
 
     assert not [issue_id for domain, issue_id in ir.async_get(hass).issues if domain == DOMAIN]
+    loader.cleanup()
+
+
+async def test_loader_reads_all_day_events_from_local_midnight(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """An all-day event covers its days from local midnight."""
+    start = dt_util.start_of_local_day(datetime(2026, 1, 1, tzinfo=dt_util.get_default_time_zone()))
+    timestamps = (start.timestamp() - 3600.0, start.timestamp(), start.timestamp() + 3600.0)
+    horizon_manager.get_forecast_timestamps.return_value = timestamps
+    await _add_stub_calendar(hass, [CalendarEvent(start=date(2026, 1, 1), end=date(2026, 1, 2), summary="Away")])
+    store = _calendar_store(get_forecast_timestamps=lambda: timestamps)
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_away")): store}, horizon_manager)
+
+    loader.start()
+    await hass.async_block_till_done()
+
+    np.testing.assert_allclose(_presence(store), [0.0, 1.0])
+    loader.cleanup()
+
+
+async def test_loader_leaves_a_store_unavailable_when_its_calendar_is_missing(
+    hass: HomeAssistant, horizon_manager: Mock
+) -> None:
+    """A calendar the calendar integration does not know cannot be fetched, so its store stays unavailable."""
+    await _add_stub_calendar(hass, [_trip(0.0, 3600.0)])
+    store = _calendar_store("calendar.unknown")
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_away")): store}, horizon_manager)
+
+    loader.start()
+    await hass.async_block_till_done()
+
+    assert not store.available
     loader.cleanup()

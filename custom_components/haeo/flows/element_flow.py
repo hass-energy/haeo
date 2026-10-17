@@ -29,6 +29,7 @@ from custom_components.haeo.elements.input_fields import (
     InputFieldGroups,
     accepts_calendar_forecast,
     localize_input_fields,
+    reads_calendar,
 )
 
 
@@ -86,8 +87,9 @@ def build_inclusion_map(
     """Build field name → compatible entity IDs mapping from input fields.
 
     This dynamically generates the inclusion map by looking up each field's
-    output_type and computing which entities are compatible. A field that
-    can read a calendar as a forecast also includes every calendar.
+    output_type and computing which entities are compatible. A field feeding
+    calendar inputs includes only calendars, and a field that can read a
+    calendar as a forecast also includes every calendar.
 
     Args:
         input_fields: Mapping of InputFieldInfo from element's schema.
@@ -99,13 +101,16 @@ def build_inclusion_map(
     """
     result: dict[str, list[str]] = {}
 
+    calendars = [v.entity_id for v in entity_metadata if v.entity_id.startswith(f"{CALENDAR_DOMAIN}.")]
     for field_info in input_fields.values():
         unit_spec = get_unit_spec_for_output_type(field_info.output_type)
-        if unit_spec is not None:
+        if reads_calendar(field_info):
+            result[field_info.field_name] = calendars
+        elif unit_spec is not None:
             included = filter_compatible_entities(entity_metadata, unit_spec)
-            if accepts_calendar_forecast(field_info):
-                included.extend(v.entity_id for v in entity_metadata if v.entity_id.startswith(f"{CALENDAR_DOMAIN}."))
-            result[field_info.field_name] = included
+            result[field_info.field_name] = (
+                [*included, *calendars] if accepts_calendar_forecast(field_info) else included
+            )
 
     return result
 

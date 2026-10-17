@@ -1401,69 +1401,19 @@ def _calendar_field() -> InputFieldInfo[NumberEntityDescription]:
     )
 
 
-def test_calendar_field_renders_a_calendar_entity_selector() -> None:
-    """Calendar fields get a plain entity picker, not a choose selector."""
+def test_calendar_field_offers_only_calendars() -> None:
+    """A field feeding calendar inputs is an ordinary entity choice offering only calendars."""
     field = _calendar_field()
 
     entries = build_choose_field_entries(
         _field_map(field),
         field_schema={"window_calendar": FieldSchemaInfo(value_type=EntityValue, is_optional=False)},
-        inclusion_map={},
+        inclusion_map={"window_calendar": ["calendar.pool_pump"]},
     )
 
-    marker, selector = entries["window_calendar"]
-    assert marker.schema == "window_calendar"
-    assert isinstance(marker, vol.Required)
-    assert selector.serialize() == {
-        "selector": {"entity": {"domain": ["calendar"], "multiple": False, "reorder": False}}
-    }
-
-
-def test_optional_calendar_field_uses_an_optional_marker() -> None:
-    """Optional calendar fields are not required in the schema."""
-    field = _calendar_field()
-
-    entries = build_choose_field_entries(
-        _field_map(field),
-        field_schema={"window_calendar": FieldSchemaInfo(value_type=EntityValue | NoneValue, is_optional=True)},
-        inclusion_map={},
-    )
-
-    marker, _selector = entries["window_calendar"]
-    assert isinstance(marker, vol.Optional)
-
-
-def test_convert_stores_the_calendar_as_an_entity_value() -> None:
-    """A selected calendar is stored as an ordinary entity value."""
-    field = _calendar_field()
-
-    config = convert_choose_data_to_config({"window_calendar": "calendar.pool_pump"}, _field_map(field))
-
-    assert config["window_calendar"] == as_entity_value(["calendar.pool_pump"])
-
-
-def test_convert_accepts_a_single_element_list() -> None:
-    """Entity pickers may hand back a one-element list."""
-    field = _calendar_field()
-
-    config = convert_choose_data_to_config({"window_calendar": ["calendar.pool_pump"]}, _field_map(field))
-
-    assert config["window_calendar"] == as_entity_value(["calendar.pool_pump"])
-
-
-def test_convert_empty_calendar_selection_becomes_none() -> None:
-    """Clearing the picker disables the field."""
-    field = _calendar_field()
-
-    config = convert_choose_data_to_config({"window_calendar": ""}, _field_map(field))
-
-    assert config["window_calendar"] == as_none_value()
-
-
-def test_get_choose_default_surfaces_the_calendar_entity() -> None:
-    """Reconfigure pre-fills the picker with the stored entity ID."""
-    field = _calendar_field()
-
-    default = get_choose_default(field, {"window_calendar": as_entity_value(["calendar.pool_pump"])})
-
-    assert default == "calendar.pool_pump"
+    _marker, selector = entries["window_calendar"]
+    assert isinstance(selector, NormalizingChooseSelector)
+    entity = selector.config["choices"][CHOICE_ENTITY]["selector"]["entity"]
+    assert entity["domain"] == ["calendar"]
+    assert entity["include_entities"] == ["calendar.pool_pump"]
+    assert list(selector.config["choices"]) == [CHOICE_ENTITY]

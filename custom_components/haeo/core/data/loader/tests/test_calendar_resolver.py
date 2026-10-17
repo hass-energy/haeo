@@ -31,7 +31,7 @@ def _resolve(
     events: list[dict[str, str | None]], projection: CalendarProjection, output_type: OutputType = OutputType.ENERGY
 ) -> list[float]:
     sm = FakeStateMachine({ENTITY_ID: FakeEntityState(ENTITY_ID, "on", {CALENDAR_EVENTS_ATTRIBUTE: events})})
-    result = resolve_calendar(ENTITY_ID, CalendarFieldHint(projection=projection), output_type, sm, BOUNDARY_TIMES)
+    result = resolve_calendar([ENTITY_ID], CalendarFieldHint(projection=projection), output_type, sm, BOUNDARY_TIMES)
     assert result is not None
     return result.tolist()
 
@@ -156,4 +156,25 @@ def test_calendar_without_injected_events_is_not_loaded(states: dict[str, FakeEn
     """A calendar state that is missing or carries no injected events cannot be resolved."""
     hint = CalendarFieldHint(projection="window_active")
 
-    assert resolve_calendar(ENTITY_ID, hint, OutputType.AVAILABILITY, FakeStateMachine(states), BOUNDARY_TIMES) is None
+    assert (
+        resolve_calendar([ENTITY_ID], hint, OutputType.AVAILABILITY, FakeStateMachine(states), BOUNDARY_TIMES) is None
+    )
+
+
+def test_events_of_every_calendar_count_together() -> None:
+    """An input reading several calendars resolves their events together, and is not loaded while one is missing."""
+    other = "calendar.other"
+    states = {
+        ENTITY_ID: FakeEntityState(ENTITY_ID, "on", {CALENDAR_EVENTS_ATTRIBUTE: [_event(0, 1, location="1 kWh")]}),
+        other: FakeEntityState(other, "on", {CALENDAR_EVENTS_ATTRIBUTE: [_event(2, 3, location="2 kWh")]}),
+    }
+    hint = CalendarFieldHint(projection="window_due")
+
+    due = resolve_calendar([ENTITY_ID, other], hint, OutputType.ENERGY, FakeStateMachine(states), BOUNDARY_TIMES)
+
+    assert due is not None
+    assert due.tolist() == [0.0, 1.0, 0.0, 2.0, 0.0]
+    del states[other]
+    assert (
+        resolve_calendar([ENTITY_ID, other], hint, OutputType.ENERGY, FakeStateMachine(states), BOUNDARY_TIMES) is None
+    )

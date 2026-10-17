@@ -8,7 +8,7 @@ Home Assistant's ChooseSelector, allowing users to pick between "Entity"
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from numbers import Real
-from typing import Any  # noqa: TID251  # voluptuous schema dicts and HA Selector overrides are Any by design
+from typing import Any, Final  # noqa: TID251  # voluptuous schema dicts and HA Selector overrides are Any by design
 
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.components.number import NumberEntityDescription
@@ -26,7 +26,6 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
-    Selector,
 )
 import voluptuous as vol
 
@@ -52,6 +51,7 @@ from custom_components.haeo.elements.input_fields import (
     InputFieldInfo,
     accepts_calendar_forecast,
     is_number_field_info,
+    reads_calendar,
 )
 
 # Choose selector choice keys (used for config flow data and translations)
@@ -69,10 +69,17 @@ class SectionDefinition:
     collapsed: bool = False
 
 
-# Calendar-driven fields use a plain entity picker instead of a choose
-# selector. EntitySelector loses its type argument through HA's selector
-# registry decorator.
-type FieldEntry = tuple[vol.Marker, Selector[ChooseSelectorConfig] | Selector[EntitySelectorConfig]]
+# Domains an entity choice offers
+_ENTITY_DOMAINS: Final = (DOMAIN, "sensor", "input_number", "number", "switch")
+
+
+def entity_domains(field_info: AnyInputFieldInfo) -> list[str]:
+    """Return the domains a field's entity choice offers: calendars only, or with calendars read as forecasts."""
+    if reads_calendar(field_info):
+        return [CALENDAR_DOMAIN]
+    if accepts_calendar_forecast(field_info):
+        return [*_ENTITY_DOMAINS, CALENDAR_DOMAIN]
+    return list(_ENTITY_DOMAINS)
 
 
 def _get_nested_value(data: Mapping[str, object], field_name: str) -> object | None:
@@ -135,14 +142,14 @@ def build_entity_selector(
     *,
     include_entities: list[str] | None = None,
     multiple: bool = True,
-    calendars: bool = False,
+    domains: Sequence[str] = _ENTITY_DOMAINS,
 ) -> EntitySelector:  # type: ignore[type-arg]
     """Build an EntitySelector restricted to unit-compatible entities.
 
     Args:
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection (for chaining).
-        calendars: Whether calendars can be picked, read as forecasts.
+        domains: Domains the selector offers.
 
     Returns:
         EntitySelector configured with include_entities list.
@@ -151,7 +158,7 @@ def build_entity_selector(
     entities_to_include = list(include_entities or [])
 
     config: EntitySelectorConfig = {
-        "domain": [DOMAIN, "sensor", "input_number", "number", "switch", *([CALENDAR_DOMAIN] if calendars else [])],
+        "domain": list(domains),
         "multiple": multiple,
     }
     if entities_to_include:
@@ -269,7 +276,7 @@ def build_choose_selector(
     entity_selector = build_entity_selector(
         include_entities=include_entities,
         multiple=multiple,
-        calendars=accepts_calendar_forecast(field_info),
+        domains=entity_domains(field_info),
     )
 
     # Build value selector for the "constant" choice based on field type
@@ -326,7 +333,7 @@ def build_choose_schema_entry(
     include_entities: list[str] | None = None,
     multiple: bool = True,
     preferred_choice: str = CHOICE_ENTITY,
-) -> FieldEntry:
+) -> tuple[vol.Marker, NormalizingChooseSelector]:
     """Build a schema entry using NormalizingChooseSelector.
 
     Args:
@@ -355,18 +362,13 @@ def build_choose_schema_entry(
     return vol.Required(field_name), selector
 
 
-def reads_calendar(field_info: AnyInputFieldInfo) -> bool:
-    """Return True when a config field feeds inputs resolved from a calendar's events."""
-    return bool(field_info.outputs) and any(output.calendar is not None for output in field_info.outputs.values())
-
-
 def build_choose_field_entries(
     input_fields: Mapping[str, AnyInputFieldInfo],
     *,
     field_schema: Mapping[str, FieldSchemaInfo],
     inclusion_map: dict[str, list[str]],
     current_data: Mapping[str, object] | None = None,
-) -> dict[str, FieldEntry]:
+) -> dict[str, tuple[vol.Marker, NormalizingChooseSelector]]:
     """Build choose selector entries for input fields.
 
     Args:
@@ -379,7 +381,7 @@ def build_choose_field_entries(
         Mapping of field_name -> (marker, selector) for schema insertion.
 
     """
-    entries: dict[str, FieldEntry] = {}
+    entries: dict[str, tuple[vol.Marker, NormalizingChooseSelector]] = {}
 
     for field_info in input_fields.values():
         schema_info = field_schema.get(field_info.field_name)
@@ -387,15 +389,6 @@ def build_choose_field_entries(
             msg = f"Missing schema metadata for field '{field_info.field_name}'"
             raise RuntimeError(msg)
         is_optional = schema_info.is_optional and not field_info.force_required
-
-        # A field feeding calendar inputs renders as a plain calendar entity
-        # picker rather than a choose selector (no constant form exists).
-        if reads_calendar(field_info):
-            calendar_selector = EntitySelector(EntitySelectorConfig(domain=CALENDAR_DOMAIN, multiple=False))
-            marker = vol.Optional(field_info.field_name) if is_optional else vol.Required(field_info.field_name)
-            entries[field_info.field_name] = (marker, calendar_selector)
-            continue
-
         allowed_choices = _get_allowed_choices(schema_info, field_info)
         include_entities = inclusion_map.get(field_info.field_name)
         preferred = get_preferred_choice(field_info, current_data, allowed_choices=allowed_choices)
@@ -626,8 +619,7 @@ def get_choose_default(
     current_value = _get_nested_value(current_data, field_name) if current_data is not None else None
 
     if is_entity_value(current_value):
-        # The single calendar picker takes the entity ID rather than a list
-        return current_value["value"][0] if reads_calendar(field_info) else current_value["value"]
+        return current_value["value"]
     if is_constant_value(current_value):
         return current_value["value"]
     if is_none_value(current_value):
@@ -676,15 +668,6 @@ def convert_choose_data_to_config(
         if field_name in exclude_keys:
             continue
         if field_name not in field_names:
-            continue
-
-        # The calendar picker returns one entity ID, stored like any entity value
-        if reads_calendar(input_fields[field_name]):
-            entity_id = value[0] if isinstance(value, list) and value else value
-            if isinstance(entity_id, str) and entity_id:
-                config[field_name] = as_entity_value([entity_id])
-            else:
-                config[field_name] = as_none_value()
             continue
 
         # Disabled/none choice

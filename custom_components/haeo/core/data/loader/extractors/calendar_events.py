@@ -20,14 +20,12 @@ from typing import Final, Literal, TypeGuard
 
 from custom_components.haeo.core.data.loader.calendar import (
     CALENDAR_EVENTS_ATTRIBUTE,
-    CalendarEventData,
-    event_quantity,
-    event_value,
+    event_windows,
     load_calendar_events,
 )
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.state import EntityState
-from custom_components.haeo.core.units import DeviceClass, base_unit_conversion
+from custom_components.haeo.core.units import DeviceClass
 
 Format = Literal["calendar"]
 DOMAIN: Format = "calendar"
@@ -53,31 +51,25 @@ class Parser:
     ) -> tuple[Sequence[tuple[float, float]] | float, str | None, DeviceClass | None]:
         """Return the events' values as step-function points, or no points when there are none.
 
-        With the input's output type, each value converts to the input's unit
-        and the series carries no unit to convert further. Without it, values
-        convert to base units, keeping the events whose unit has the same base
-        unit as the first event's.
+        Each value converts to the input's unit, so the series carries no unit
+        to convert further. Without the input's output type, event values
+        cannot be read, so the calendar has no points.
 
         Each change in the summed value gets a point at the old value and one at
         the new value at the same time, which the caller separates so the fuser
         does not interpolate between them. Zero points well before and after
         the events stop the series from repeating across the horizon.
         """
-        events = load_calendar_events(state) or []
         if output_type is None:
-            values, unit = _base_unit_values(events)
-        else:
-            values, unit = [(event, event_value(event, output_type)) for event in events], None
-
+            return [], None, None
         changes: dict[float, float] = {}
-        for event, value in values:
-            if not value:
-                continue
-            start, end = event.start.timestamp(), event.end.timestamp()
-            changes[start] = changes.get(start, 0.0) + value
-            changes[end] = changes.get(end, 0.0) - value
+        for window in event_windows(load_calendar_events(state) or [], output_type):
+            if window.value:
+                start, end = window.start.timestamp(), window.end.timestamp()
+                changes[start] = changes.get(start, 0.0) + window.value
+                changes[end] = changes.get(end, 0.0) - window.value
         if not changes:
-            return [], unit, None
+            return [], None, None
 
         timestamps = sorted(changes)
         points: list[tuple[float, float]] = [(timestamps[0] - _ZERO_PADDING, 0.0)]
@@ -87,24 +79,7 @@ class Parser:
             level += changes[timestamp]
             points.append((timestamp, level))
         points.append((timestamps[-1] + _ZERO_PADDING, 0.0))
-        return points, unit, None
-
-
-def _base_unit_values(
-    events: Sequence[CalendarEventData],
-) -> tuple[list[tuple[CalendarEventData, float | None]], str | None]:
-    """Return each event's value in base units, and the base unit they share."""
-    values: list[tuple[CalendarEventData, float | None]] = []
-    shared_unit: str | None = None
-    for event in events:
-        quantity = event_quantity(event)
-        if quantity is None or quantity[1] is None:
-            continue
-        factor, base_unit, _ = base_unit_conversion(quantity[1], None)
-        shared_unit = shared_unit or str(base_unit)
-        if str(base_unit) == shared_unit:
-            values.append((event, quantity[0] * factor))
-    return values, shared_unit
+        return points, None, None
 
 
 __all__ = ["DOMAIN", "Format", "Parser"]

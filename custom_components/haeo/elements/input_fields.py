@@ -54,7 +54,7 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         boundaries: Whether time series values are at boundaries (n+1 values) vs intervals (n values)
         defaults: Default pre-selection behavior for config flow fields
         calendar: When set, the input resolves its values from the events of the
-            calendar entity it reads
+            calendars it reads
         outputs: When set, the config field feeds these inputs instead of being
             an input itself, keyed by their field names
         source_field: For an input fed by another config field, that field's name
@@ -95,6 +95,11 @@ def is_number_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldI
     runtime, so isinstance against the imported class does not reliably hold.
     """
     return type(field_info.entity_description).__name__ == "NumberEntityDescription"
+
+
+def reads_calendar(field_info: AnyInputFieldInfo) -> bool:
+    """Return True when a config field feeds inputs resolved from calendar events, so it picks only calendars."""
+    return bool(field_info.outputs) and any(output.calendar is not None for output in field_info.outputs.values())
 
 
 def accepts_calendar_forecast(field_info: AnyInputFieldInfo) -> bool:

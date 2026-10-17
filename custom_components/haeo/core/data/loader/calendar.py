@@ -4,14 +4,11 @@ Calendar entities in HA expose events with start/end times, summary, location,
 and description fields. An event's value is a number with its unit, such as
 "5 kW", typed in one of its text fields. Events become ``CalendarWindow``
 objects that downstream fusers align to the optimization horizon.
-
-Outside of any window, fused values are None — callers decide how to fill
-gaps (e.g. 0.0 for availability, hold-last for a schedule, etc.).
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
 import re
@@ -70,43 +67,6 @@ class CalendarEventData:
     description: str | None = None
 
 
-type EventValueFn = Callable[[CalendarEventData], float | None]
-"""Function that extracts a numeric value from a calendar event.
-
-Returns None if the event should be skipped (no value extractable).
-"""
-
-
-def extract_calendar_windows(
-    events: Sequence[CalendarEventData],
-    extract_value: EventValueFn,
-) -> list[CalendarWindow]:
-    """Extract time windows with values from calendar events.
-
-    Args:
-        events: Calendar events to process.
-        extract_value: Function that extracts a float from each event.
-            Return None to skip an event.
-
-    Returns:
-        Sorted list of windows. Events with end ≤ start or None value are skipped.
-
-    """
-    windows: list[CalendarWindow] = []
-
-    for event in events:
-        if event.end <= event.start:
-            continue
-
-        value = extract_value(event)
-        if value is None:
-            continue
-
-        windows.append(CalendarWindow(start=event.start, end=event.end, value=value))
-
-    return sorted(windows, key=lambda w: w.start)
-
-
 _TEXT_FIELDS: Final[tuple[str, ...]] = ("location", "summary", "description")
 
 
@@ -128,22 +88,35 @@ def event_value(event: CalendarEventData, output_type: OutputType) -> float | No
     return None if quantity is None else to_field_unit(*quantity, output_type)
 
 
-def rejected_events(events: Sequence[CalendarEventData], output_type: OutputType) -> list[CalendarEventData]:
-    """Return the events holding a number an input cannot use, such as one without a unit.
+def event_windows(events: Sequence[CalendarEventData], output_type: OutputType) -> list[CalendarWindow]:
+    """Return a window per event, sorted by start, holding its value in an input's unit.
+
+    Every event is a window: one without a number, or with one the input
+    cannot use, holds zero. Events that end before they start are skipped.
+    """
+    return sorted(
+        (
+            CalendarWindow(start=event.start, end=event.end, value=event_value(event, output_type) or 0.0)
+            for event in events
+            if event.end > event.start
+        ),
+        key=lambda window: window.start,
+    )
+
+
+def rejected_events(
+    events: Sequence[CalendarEventData], output_type: OutputType
+) -> list[tuple[CalendarEventData, str]]:
+    """Return the events holding a number an input cannot use, such as one without a unit, with the value as typed.
 
     Inputs ignore these events' values rather than failing, so one mistyped
     event does not stop the rest of the calendar from loading.
     """
-    return [event for event in events if event_quantity(event) is not None and event_value(event, output_type) is None]
-
-
-def format_event_quantity(event: CalendarEventData) -> str:
-    """Return an event's number and unit as typed, for messages about it."""
-    quantity = event_quantity(event)
-    if quantity is None:
-        return ""
-    value, unit = quantity
-    return f"{value:g}" if unit is None else f"{value:g} {unit}"
+    return [
+        (event, f"{quantity[0]:g}" if quantity[1] is None else f"{quantity[0]:g} {quantity[1]}")
+        for event in events
+        if (quantity := event_quantity(event)) is not None and to_field_unit(*quantity, output_type) is None
+    ]
 
 
 def _default_local_timezone() -> tzinfo:

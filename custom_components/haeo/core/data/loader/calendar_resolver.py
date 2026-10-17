@@ -8,17 +8,13 @@ asks for, aligned to the optimization horizon.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import numpy as np
 
-from custom_components.haeo.core.data.loader.calendar import (
-    CalendarWindow,
-    event_value,
-    extract_calendar_windows,
-    load_calendar_events,
-)
+from custom_components.haeo.core.data.loader.calendar import event_windows, load_calendar_events
 from custom_components.haeo.core.data.util.calendar_fuser import (
     fill_none,
     fuse_window_edges_to_boundaries,
@@ -69,9 +65,7 @@ def _windows(
 
     due = np.zeros(n_periods + 1, dtype=np.float64)
     first = 0
-    for t in range(n_periods):
-        if active[t] <= 0.0:
-            continue
+    for t in np.flatnonzero(active > 0.0):
         if t == 0 or starts[t] > 0.0 or active[t - 1] <= 0.0:
             first = t
         if t == n_periods - 1 or active[t + 1] <= 0.0 or starts[t + 1] > 0.0:
@@ -81,41 +75,34 @@ def _windows(
 
 
 def resolve_calendar(
-    entity_id: str,
+    entity_ids: Sequence[str],
     hint: CalendarFieldHint,
     output_type: OutputType,
     sm: StateMachine,
     forecast_times: Sequence[float],
 ) -> NDArray[np.float64] | None:
-    """Resolve the series a calendar input's projection asks for from its calendar's events.
+    """Resolve the series a calendar input's projection asks for from its calendars' events.
 
-    Returns None when the calendar's state is missing or carries no injected
-    events, so the input reads as not loaded. A calendar with no events in
-    the horizon resolves to all zeros. Only the due projection reads event
-    values, each converted from the unit typed with it to the input's unit.
-    An event whose value the input cannot use is still a window, due nothing.
+    The events of every calendar the input reads count together. Returns
+    None when a calendar's state is missing or carries no injected events,
+    so the input reads as not loaded. Calendars with no events in the horizon
+    resolve to all zeros. Only the due projection reads event values, each
+    converted from the unit typed with it to the input's unit; an event whose
+    value the input cannot use is still a window, due nothing.
     """
-    events = load_calendar_events(sm.get(entity_id))
-    if events is None:
+    calendars = [load_calendar_events(sm.get(entity_id)) for entity_id in entity_ids]
+    if any(events is None for events in calendars):
         return None
+    windows = event_windows([event for events in calendars if events for event in events], output_type)
+    counted = [replace(window, value=1.0) for window in windows]
     boundaries = [datetime.fromtimestamp(ts, tz=UTC) for ts in forecast_times]
 
-    counted = extract_calendar_windows(events, lambda _event: 1.0)
-    valued = (
-        extract_calendar_windows(events, lambda event: event_value(event, output_type) or 0.0)
-        if hint.projection == "window_due"
-        else [CalendarWindow(start=w.start, end=w.end, value=0.0) for w in counted]
-    )
     active, starts, due = _windows(
         _fused(fuse_windows_to_boundaries(counted, boundaries)),
         _fused(fuse_window_edges_to_boundaries(counted, boundaries, "end")),
-        _fused(fuse_window_edges_to_boundaries(valued, boundaries, "start")),
+        _fused(fuse_window_edges_to_boundaries(windows, boundaries, "start")),
     )
-    if hint.projection == "window_active":
-        return active
-    if hint.projection == "window_starts":
-        return starts
-    return due
+    return {"window_active": active, "window_starts": starts, "window_due": due}[hint.projection]
 
 
 __all__ = ["resolve_calendar"]

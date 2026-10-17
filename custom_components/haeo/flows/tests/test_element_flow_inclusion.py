@@ -5,6 +5,7 @@ import pytest
 
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import build_inclusion_map
 
@@ -118,3 +119,25 @@ def test_build_inclusion_map_includes_calendars_for_forecast_fields(*, time_seri
     )
 
     assert build_inclusion_map({"price": field}, entity_metadata)["price"] == expected
+
+
+def test_build_inclusion_map_offers_only_calendars_for_calendar_fields() -> None:
+    """A field feeding calendar inputs includes only calendars."""
+    entity_metadata = [
+        EntityMetadata(entity_id="sensor.energy", unit_of_measurement="kWh"),
+        EntityMetadata(entity_id="calendar.trips", unit_of_measurement=None),
+    ]
+    due = InputFieldInfo(
+        field_name="trip_due",
+        entity_description=NumberEntityDescription(key="trip_due", name="trip_due"),
+        output_type=OutputType.ENERGY,
+        calendar=CalendarFieldHint(projection="window_due"),
+    )
+    field = InputFieldInfo(
+        field_name="trip_calendar",
+        entity_description=NumberEntityDescription(key="trip_calendar", name="trip_calendar"),
+        output_type=OutputType.ENERGY,
+        outputs={"trip_due": due},
+    )
+
+    assert build_inclusion_map({"trip_calendar": field}, entity_metadata)["trip_calendar"] == ["calendar.trips"]

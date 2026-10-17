@@ -12,7 +12,7 @@ from custom_components.haeo.core.data.loader.calendar import (
     CalendarEventDict,
     capture_calendar_events,
     event_quantity,
-    extract_calendar_windows,
+    event_windows,
     load_calendar_events,
     parse_quantity,
 )
@@ -20,6 +20,7 @@ from custom_components.haeo.core.data.util.calendar_fuser import (
     fuse_window_edges_to_boundaries,
     fuse_windows_to_boundaries,
 )
+from custom_components.haeo.core.model.const import OutputType
 
 # --- parse_quantity ---
 
@@ -81,36 +82,28 @@ def test_event_quantity_uses_first_field_holding_a_number(
     assert event_quantity(event) == expected
 
 
-# --- extract_calendar_windows ---
+# --- event_windows ---
 
 
-def test_extract_values_each_event() -> None:
-    """Each event becomes a window holding the value the function gives it."""
-    events = [_event(9, 10), _event(14, 16)]
-    windows = extract_calendar_windows(events, lambda _event: 1.0)
-    assert [w.value for w in windows] == [1.0, 1.0]
+def test_every_event_is_a_window_holding_its_value() -> None:
+    """Each event becomes a window holding its value in the input's unit, or zero when it has none it can use."""
+    events = [_event(9, 10, location="Office"), _event(11, 12, location="3"), _event(14, 16, location="3000 W")]
+
+    windows = event_windows(events, OutputType.POWER)
+
+    assert [w.value for w in windows] == [0.0, 0.0, 3.0]
 
 
-def test_extract_skips_events_without_a_value() -> None:
-    """An event the function gives no value is skipped."""
-    events = [_event(9, 10, location="Office"), _event(14, 16, location="3 kW")]
-    windows = extract_calendar_windows(events, lambda event: q[0] if (q := event_quantity(event)) else None)
-    assert len(windows) == 1
-    assert windows[0].value == 3.0
-    assert windows[0].start == _dt(14)
+def test_event_windows_skip_events_ending_before_they_start() -> None:
+    """An event that ends before it starts is not a window."""
+    assert event_windows([_event(10, 9, location="1 kW")], OutputType.POWER) == []
 
 
-def test_extract_end_before_start_skipped() -> None:
-    """Extract end before start skipped."""
-    windows = extract_calendar_windows([_event(10, 9)], lambda _event: 1.0)
-    assert len(windows) == 0
+def test_event_windows_sorted_by_start() -> None:
+    """Windows are sorted by start."""
+    windows = event_windows([_event(14, 16), _event(9, 10)], OutputType.POWER)
 
-
-def test_extract_sorted_by_start() -> None:
-    """Extract sorted by start."""
-    windows = extract_calendar_windows([_event(14, 16), _event(9, 10)], lambda _event: 1.0)
-    assert windows[0].start == _dt(9)
-    assert windows[1].start == _dt(14)
+    assert [w.start for w in windows] == [_dt(9), _dt(14)]
 
 
 # --- load_calendar_events ---
@@ -270,14 +263,14 @@ def test_naive_and_aware_datetimes_fuse_without_error() -> None:
                 "start": "2025-01-01T09:00:00",
                 "end": "2025-01-01T10:00:00",
                 "summary": None,
-                "location": "50 km",
+                "location": "50 kWh",
                 "description": None,
             },
         ]
     )
     events = load_calendar_events(state, default_tz=sydney)
     assert events is not None
-    windows = extract_calendar_windows(events, lambda event: q[0] if (q := event_quantity(event)) else None)
+    windows = event_windows(events, OutputType.ENERGY)
     boundaries = [datetime(2025, 1, 1, h, tzinfo=sydney) for h in (8, 9, 10, 11)]
 
     active = fuse_windows_to_boundaries(windows, boundaries)

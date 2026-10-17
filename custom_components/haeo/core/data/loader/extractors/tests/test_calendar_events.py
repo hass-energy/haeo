@@ -31,8 +31,8 @@ def _state(events: list[dict[str, str | None]]) -> FakeEntityState:
 
 
 def test_events_step_between_their_values() -> None:
-    """Each event holds its value while it runs and zero outside it."""
-    data, unit, _ = Parser.extract(_state([_event(1, 2, "0.5 kW")]))
+    """Each event holds its value in the input's unit while it runs, and zero outside it."""
+    data, unit, _ = Parser.extract(_state([_event(1, 2, "500 W")]), OutputType.POWER)
 
     assert data == [
         (3600.0 - PADDING, 0.0),
@@ -42,12 +42,12 @@ def test_events_step_between_their_values() -> None:
         (7200.0, 0.0),
         (7200.0 + PADDING, 0.0),
     ]
-    assert unit == "kW"
+    assert unit is None
 
 
 def test_overlapping_events_sum() -> None:
     """Overlapping events add together while both run."""
-    data, _, _ = Parser.extract(_state([_event(0, 2, "1 kW"), _event(1, 3, "2000 W")]))
+    data, _, _ = Parser.extract(_state([_event(0, 2, "1 kW"), _event(1, 3, "2000 W")]), OutputType.POWER)
 
     assert isinstance(data, list)
     assert data[1:-1] == [
@@ -64,7 +64,7 @@ def test_overlapping_events_sum() -> None:
 
 def test_extract_reads_events_as_a_step_forecast() -> None:
     """The dispatcher reads injected events, separating each step so the fuser does not ramp across it."""
-    result = extractors.extract(_state([_event(1, 2, "0.5 kW")]))
+    result = extractors.extract(_state([_event(1, 2, "0.5 kW")]), output_type=OutputType.POWER)
 
     assert isinstance(result.data, list)
     times = [point[0] for point in result.data]
@@ -76,55 +76,46 @@ def test_extract_reads_events_as_a_step_forecast() -> None:
 
 
 @pytest.mark.parametrize(
-    "events",
+    ("events", "output_type"),
     [
-        pytest.param([], id="no_events"),
-        pytest.param([_event(0, 1, "Holiday")], id="events_without_values"),
+        pytest.param([], OutputType.POWER, id="no_events"),
+        pytest.param([_event(0, 1, "Holiday")], OutputType.POWER, id="events_without_values"),
+        pytest.param([_event(0, 1, "0.5")], OutputType.POWER, id="values_the_input_cannot_use"),
+        pytest.param([_event(0, 1, "1 kW")], None, id="no_input_to_read_values_for"),
     ],
 )
-def test_calendar_without_values_is_a_forecast_with_no_points(events: list[dict[str, str | None]]) -> None:
-    """A calendar whose events hold no number is a forecast with no points, not a present value of zero."""
-    assert extractors.extract(_state(events)).data == []
+def test_calendar_without_usable_values_is_a_forecast_with_no_points(
+    events: list[dict[str, str | None]], output_type: OutputType | None
+) -> None:
+    """A calendar without values the input can use is a forecast with no points, not a present value of zero."""
+    assert extractors.extract(_state(events), output_type=output_type).data == []
 
 
 @pytest.mark.parametrize(
-    ("summary", "expected"),
+    ("summary", "output_type", "expected"),
     [
-        pytest.param("500 W", (0.5, "kW"), id="power"),
-        pytest.param("0.30 AUD/kWh", (0.30, "AUD/kWh"), id="price_per_kwh"),
-        pytest.param("120 €/MWh", (0.12, "€/kWh"), id="price_per_mwh"),
-        pytest.param("30 min", (0.5, "h"), id="duration"),
+        pytest.param("500 W", OutputType.POWER, 0.5, id="power"),
+        pytest.param("0.30 AUD/kWh", OutputType.PRICE, 0.30, id="price_per_kwh"),
+        pytest.param("120 €/MWh", OutputType.PRICE, 0.12, id="price_per_mwh"),
+        pytest.param("30 min", OutputType.DURATION, 0.5, id="duration"),
     ],
 )
-def test_event_values_convert_to_base_units(summary: str, expected: tuple[float, str]) -> None:
-    """An event's value converts from the unit typed with it to base units, like a sensor reading."""
-    data, unit, _ = Parser.extract(_state([_event(1, 2, summary)]))
+def test_event_values_convert_to_the_input_unit(summary: str, output_type: OutputType, expected: float) -> None:
+    """An event's value converts from the unit typed with it to the input's unit, like a sensor reading."""
+    data, _, _ = Parser.extract(_state([_event(1, 2, summary)]), output_type)
 
     assert isinstance(data, list)
-    assert data[2][1] == pytest.approx(expected[0])
-    assert unit == expected[1]
+    assert data[2][1] == pytest.approx(expected)
 
 
 def test_events_the_input_cannot_use_are_ignored() -> None:
-    """Read against an input's unit, events whose values it cannot use are ignored rather than failing the input."""
+    """Events whose values the input cannot use are ignored rather than failing the input."""
     state = _state([_event(0, 1, "0.5"), _event(1, 2, "1 kWh"), _event(2, 3, "2000 W")])
 
-    data, unit, _ = Parser.extract(state, OutputType.POWER)
+    data, _, _ = Parser.extract(state, OutputType.POWER)
 
     assert isinstance(data, list)
     assert [value for _, value in data[1:-1]] == [0.0, 2.0, 2.0, 0.0]
-    assert unit is None
-
-
-def test_without_an_input_events_keep_the_first_events_base_unit() -> None:
-    """Read without an input, bare numbers and events in another kind of unit are left out."""
-    state = _state([_event(0, 1, "0.5"), _event(1, 2, "1 kW"), _event(2, 3, "1 kWh")])
-
-    data, unit, _ = Parser.extract(state)
-
-    assert isinstance(data, list)
-    assert [value for _, value in data[1:-1]] == [0.0, 1.0, 1.0, 0.0]
-    assert unit == "kW"
 
 
 def test_calendar_without_injected_events_is_not_detected() -> None:
