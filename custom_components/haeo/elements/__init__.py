@@ -71,6 +71,12 @@ from custom_components.haeo.core.adapters.elements.connection import (
     ConnectionDeviceName,
     ConnectionOutputName,
 )
+from custom_components.haeo.core.adapters.elements.deferrable_load import (
+    DEFERRABLE_LOAD_DEVICE_NAMES,
+    DEFERRABLE_LOAD_ELEMENT_OUTPUT_NAMES,
+    DeferrableLoadDeviceName,
+    DeferrableLoadElementOutputName,
+)
 from custom_components.haeo.core.adapters.elements.grid import (
     GRID_DEVICE_NAMES,
     GRID_OUTPUT_NAMES,
@@ -128,6 +134,10 @@ from custom_components.haeo.core.schema.elements.connection import (
     OPTIONAL_INPUT_FIELDS as CONNECTION_OPTIONAL_INPUT_FIELDS,
 )
 from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
+from custom_components.haeo.core.schema.elements.deferrable_load import (
+    OPTIONAL_INPUT_FIELDS as DEFERRABLE_LOAD_OPTIONAL_INPUT_FIELDS,
+)
+from custom_components.haeo.core.schema.elements.deferrable_load import DeferrableLoadConfigData
 from custom_components.haeo.core.schema.elements.grid import OPTIONAL_INPUT_FIELDS as GRID_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
@@ -156,6 +166,7 @@ type ElementOutputName = (
     | BatteryOutputName
     | BatterySectionOutputName
     | ConnectionOutputName
+    | DeferrableLoadElementOutputName
     | GridOutputName
     | LoadOutputName
     | NodeOutputName
@@ -170,6 +181,7 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
     | BATTERY_OUTPUT_NAMES
     | BATTERY_SECTION_OUTPUT_NAMES
     | CONNECTION_OUTPUT_NAMES
+    | DEFERRABLE_LOAD_ELEMENT_OUTPUT_NAMES
     | GRID_OUTPUT_NAMES
     | LOAD_OUTPUT_NAMES
     | NODE_OUTPUT_NAMES
@@ -184,6 +196,7 @@ type ElementDeviceName = (
     | BatteryDeviceName
     | BatterySectionDeviceName
     | ConnectionDeviceName
+    | DeferrableLoadDeviceName
     | GridDeviceName
     | LoadDeviceName
     | NodeDeviceName
@@ -201,6 +214,7 @@ ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     | BATTERY_DEVICE_NAMES
     | BATTERY_SECTION_DEVICE_NAMES
     | CONNECTION_DEVICE_NAMES
+    | DEFERRABLE_LOAD_DEVICE_NAMES
     | GRID_DEVICE_NAMES
     | LOAD_DEVICE_NAMES
     | NODE_DEVICE_NAMES
@@ -216,6 +230,7 @@ ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
     ElementType.BATTERY: frozenset(BATTERY_DEVICE_NAMES),
     ElementType.BATTERY_SECTION: frozenset(BATTERY_SECTION_DEVICE_NAMES),
     ElementType.CONNECTION: frozenset(CONNECTION_DEVICE_NAMES),
+    ElementType.DEFERRABLE_LOAD: frozenset(DEFERRABLE_LOAD_DEVICE_NAMES),
     ElementType.GRID: frozenset(GRID_DEVICE_NAMES),
     ElementType.LOAD: frozenset(LOAD_DEVICE_NAMES),
     ElementType.JUNCTION: frozenset(JUNCTION_DEVICE_NAMES),
@@ -240,6 +255,7 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     ElementType.BATTERY: BatteryConfigData,
     ElementType.BATTERY_SECTION: BatterySectionConfigData,
     ElementType.CONNECTION: ConnectionConfigData,
+    ElementType.DEFERRABLE_LOAD: DeferrableLoadConfigData,
     ElementType.GRID: GridConfigData,
     ElementType.INVERTER: InverterConfigData,
     ElementType.LOAD: LoadConfigData,
@@ -254,6 +270,7 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.BATTERY: BATTERY_OPTIONAL_INPUT_FIELDS,
     ElementType.BATTERY_SECTION: BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
     ElementType.CONNECTION: CONNECTION_OPTIONAL_INPUT_FIELDS,
+    ElementType.DEFERRABLE_LOAD: DEFERRABLE_LOAD_OPTIONAL_INPUT_FIELDS,
     ElementType.GRID: GRID_OPTIONAL_INPUT_FIELDS,
     ElementType.INVERTER: INVERTER_OPTIONAL_INPUT_FIELDS,
     ElementType.LOAD: LOAD_OPTIONAL_INPUT_FIELDS,

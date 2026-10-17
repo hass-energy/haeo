@@ -99,6 +99,16 @@ def test_fuse_window_outside_horizon() -> None:
     assert result == [None, None, None]
 
 
+def test_fuse_window_ending_at_horizon_start_is_outside() -> None:
+    """A window that ends exactly as the horizon starts is over and contributes nothing."""
+    windows = [_window(10, 12, value=5.0), _window(12, 14, value=3.0)]
+    boundaries = _boundaries(12, 13, 14)
+
+    assert fuse_windows_to_boundaries(windows, boundaries) == [3.0, 3.0, None]
+    assert fuse_window_edges_to_boundaries(windows, boundaries, edge="start") == [3.0, None, None]
+    assert fuse_window_edges_to_boundaries(windows, boundaries, edge="end") == [None, None, 3.0]
+
+
 def test_fuse_window_partially_overlaps_start() -> None:
     """Fuse window partially overlaps start."""
     result = fuse_windows_to_boundaries(

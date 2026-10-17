@@ -140,19 +140,23 @@ function colorForSeries(
   return `hsl(${hue} 72% ${lightness}%)`;
 }
 
-const ELEMENT_TYPES: ReadonlySet<string> = new Set<ElementType>([
-  "battery",
-  "battery_section",
-  "connection",
-  "grid",
-  "inverter",
-  "junction",
-  "load",
-  "node",
-  "solar",
-  "policy",
-  "buffer",
-]);
+// A record keyed by ElementType makes the compiler reject a missing member.
+const ELEMENT_TYPE_KEYS: Record<ElementType, true> = {
+  battery: true,
+  battery_section: true,
+  buffer: true,
+  connection: true,
+  deferrable_load: true,
+  grid: true,
+  inverter: true,
+  junction: true,
+  load: true,
+  node: true,
+  solar: true,
+  policy: true,
+};
+
+const ELEMENT_TYPES: ReadonlySet<string> = new Set(Object.keys(ELEMENT_TYPE_KEYS));
 
 function isElementType(value: string): value is ElementType {
   return ELEMENT_TYPES.has(value);
