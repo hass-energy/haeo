@@ -2,7 +2,7 @@
 
 export interface TopologyNode {
   name: string;
-  type: string; // "battery" | "deferrable_load" | "grid" | "solar" | "inverter" | "load" | "node"
+  type: string; // "battery" | "deferrable_load" | "ev" | "grid" | "solar" | "inverter" | "load" | "node"
   group: string;
   /** VLAN IDs this node produces on (omitted if untagged). */
   outbound_tags?: number[];

@@ -18,7 +18,7 @@ An EV in HAEO represents:
 - **Energy storage** with a battery capacity (kWh)
 - **Charge and discharge rates** for home charging (kW)
 - **Trip calendar** from a Home Assistant calendar entity with a distance in each event
-- **Connected sensor** indicating when the vehicle is plugged in at home
+- **Plugged in sensor** indicating when the vehicle is connected to your home charger
 - **Odometer sensors** for mid-trip energy tracking
 - **Optional public charging price** for modeling away-from-home charging costs
 
@@ -28,8 +28,8 @@ EV configuration uses a sectioned flow where you enter the name, connection, tri
 The choices offered depend on the field:
 
 - **Current state of charge** accepts only "Entity", since it must track the live battery level.
-- **Connected sensor** and **odometer** accept "Entity" or "None".
-    A constant connected state would pin the current interval permanently.
+- **Plugged in sensor** and **odometer** accept "Entity" or "None".
+    A constant plugged in state would pin the current interval permanently.
 - **Trip calendar** accepts a calendar entity or "None".
 - The remaining numeric fields accept "Entity" to link to a sensor or "Constant" to enter a fixed value, and optional ones also accept "None".
 
@@ -42,7 +42,7 @@ Fields configured with "Constant" create input entities that you can adjust at r
 | **[Name](#name)**                                        | String     | Yes      | -                     | Unique identifier (e.g., "Tesla Model 3")       |
 | **[Connection](#connection)**                            | Select     | Yes      | -                     | Junction or inverter the charger is attached to |
 | **[Trip calendar](#trip-calendar)**                      | Entity     | No       | -                     | Calendar entity with trip events                |
-| **[Connected sensor](#connected-sensor)**                | Entity     | No       | -                     | Binary sensor reporting when plugged in         |
+| **[Plugged in](#plugged-in)**                            | Entity     | No       | -                     | Binary sensor reporting when plugged in         |
 | **[Odometer](#odometer)**                                | Entity     | No       | -                     | Sensor reporting current odometer reading       |
 | **[Reserve state of charge](#reserve)**                  | Percentage | No       | -                     | Energy to keep in the pack while away           |
 | **[Reserve shortfall price](#reserve)**                  | Price      | No       | Public charging price | Cost per kWh of dipping below the reserve       |
@@ -89,7 +89,7 @@ An event whose text contains no distance, such as `School pickup`, still marks t
 
 The trip calendar creates three input entities showing what HAEO reads from it: **Away** (whether each period is inside a trip), **Trip start** (where each trip begins), and **Trip distance due** (each trip's distance at its end).
 
-### Connected sensor
+### Plugged in
 
 Select a binary sensor that reports `on` when the EV is plugged in at home and `off` when disconnected.
 The trip calendar is authoritative for future availability; this sensor pins the *current* state, so an early return or unplanned absence is reflected immediately.
@@ -103,12 +103,12 @@ Unplugging again before the event ends resumes the same trip, so ducking home fo
 Readings of `unavailable` or `unknown`, such as during a Home Assistant restart, neither start nor end an unplug.
 
 This history comes from the [recorder](https://www.home-assistant.io/integrations/recorder/), which Home Assistant enables by default, and covers the last seven days.
-If the recorder is disabled or excludes the connected sensor, HAEO only sees unplugs since Home Assistant started.
+If the recorder is disabled or excludes the plugged in sensor, HAEO only sees unplugs since Home Assistant started.
 
 This field takes a sensor or nothing; there is no constant option.
 If you select more than one entity, the car counts as plugged in when any of them reports `on`.
-Without a connected sensor the trip calendar governs the current interval too: the car counts as away whenever a trip event overlaps the current interval and as plugged in otherwise.
-Without either a trip calendar or a connected sensor, the EV is treated as always plugged in.
+Without a plugged in sensor the trip calendar governs the current interval too: the car counts as away whenever a trip event overlaps the current interval and as plugged in otherwise.
+Without either a trip calendar or a plugged in sensor, the EV is treated as always plugged in.
 
 ### Odometer
 
