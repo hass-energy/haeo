@@ -84,7 +84,7 @@ async def test_time_series_loader_loads_mixed_live_and_forecast() -> None:
     ts_values = [int((start + timedelta(hours=offset)).timestamp()) for offset in range(5)]
 
     # Mock extract to return different types of series
-    def mock_extract(state: FakeEntityState) -> ExtractedData:
+    def mock_extract(state: FakeEntityState, **_kwargs: object) -> ExtractedData:
         if state.entity_id == "sensor.live_price":
             # Simple value returns as float
             return ExtractedData(data=0.2, unit="$/kWh")
@@ -169,7 +169,7 @@ async def test_load_boundaries_returns_n_plus_1_values() -> None:
     # 3 boundary timestamps
     ts_values = [int((start + timedelta(hours=offset)).timestamp()) for offset in range(3)]
 
-    def mock_extract(state: FakeEntityState) -> ExtractedData:
+    def mock_extract(state: FakeEntityState, **_kwargs: object) -> ExtractedData:
         # Forecast sensor returns data at boundary times
         return ExtractedData(
             data=[

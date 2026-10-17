@@ -122,7 +122,7 @@ async def test_user_step_with_constant_values_creates_entry(hass: HomeAssistant,
     invalid_input = {**user_input, CONF_CAPACITY: []}
     result = await flow.async_step_user(user_input=_wrap_main_input(invalid_input))
     assert result.get("type") == FlowResultType.FORM
-    assert CONF_CAPACITY in result.get("errors", {})
+    assert result.get("errors") == {SECTION_STORAGE: "required"}
 
     result = await flow.async_step_user(user_input=_wrap_main_input(user_input))
     assert result.get("type") == FlowResultType.CREATE_ENTRY

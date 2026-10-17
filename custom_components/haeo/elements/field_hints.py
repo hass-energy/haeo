@@ -5,7 +5,7 @@ based on OutputType, and a builder to instantiate them using declarative hints.
 """
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Final
 
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription
@@ -94,6 +94,13 @@ OUTPUT_TYPE_DEFAULTS: dict[OutputType, OutputTypeMetadata] = {
         max_value=PRICE_NATIVE_MAX_VALUE,
         step=0.001,
     ),
+    OutputType.AVAILABILITY: OutputTypeMetadata(
+        unit=None,
+        device_class=None,
+        min_value=0.0,
+        max_value=1.0,
+        step=1.0,
+    ),
 }
 
 
@@ -107,8 +114,17 @@ def build_input_fields(
     for section_name, fields in field_hints.items():
         result[section_name] = {}
         for field_name, hint in fields.items():
-            translation_key = f"{element_type}_{field_name}"
-            result[section_name][field_name] = _build_field_info(field_name, hint, translation_key)
+            field_info = _build_field_info(field_name, hint, f"{element_type}_{field_name}")
+            if hint.outputs:
+                outputs = {
+                    output_name: replace(
+                        _build_field_info(output_name, output_hint, f"{element_type}_{output_name}"),
+                        source_field=field_name,
+                    )
+                    for output_name, output_hint in hint.outputs.items()
+                }
+                field_info = replace(field_info, outputs=outputs)
+            result[section_name][field_name] = field_info
 
     return result
 

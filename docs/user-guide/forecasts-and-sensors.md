@@ -115,8 +115,10 @@ HAEO combines them automatically.
 **How combining works**:
 
 - Present values **sum together**
-- Forecast series **merge on shared timestamps and sum**
-- Result: combined present value + combined forecast series
+- Forecast series **merge on shared timestamps and sum**, then repeat together if they end before the horizon does
+- A forecast that already covers the whole horizon, such as a [calendar](#calendars-as-forecasts), adds on its own, so it never stops the others from repeating
+- With only present values, the summed value repeats across the horizon
+- With a forecast, the summed present value is the value for now (the first period) and the summed forecast covers the rest
 
 **Example scenarios**:
 
@@ -138,11 +140,14 @@ sensor_2: sensor.solar_ground_forecast
 sensor_1: sensor.solar_array_forecast
 # Provides forecast series [...predictions...]
 
-sensor_2: sensor.constant_load
+sensor_2: sensor.current_load
 # Provides current value: 1.5 kW
 
-# Result: Forecast series (array predictions) + 1.5 kW at each timestamp
+# Result: 1.5 kW for the first period, then the forecast series
 ```
+
+A present value is a reading of now, not a constant to add to every period.
+To add a constant across the horizon, give it a forecast, for example a template sensor with a `forecast` attribute.
 
 This makes it easy to model multiple solar arrays, price components, or load sources without manual calculation.
 
@@ -329,6 +334,28 @@ template:
 - `forecast` attribute must contain timestamp/value pairs
 
 HAEO will detect this as a simple forecast format and extract the data.
+
+## Calendars as Forecasts
+
+Any forecast field with a unit can read a Home Assistant calendar alongside or instead of a sensor.
+HAEO reads the calendar's events over the horizon as a stepped forecast: each event's value while the event runs, and zero outside events.
+Events that overlap add together.
+A calendar combined with sensors adds to them like any other forecast.
+
+An event's value is a number followed by its unit, such as `5 kW`, `500 W`, `0.30 $/kWh`, or `120 €/MWh`.
+HAEO reads it from the event's location, summary, or description, whichever holds a number first, and converts it to the field's unit as it would a sensor reading.
+An event without a number counts as zero.
+
+A number without a unit, or in a unit that does not convert to the field's unit, is never guessed.
+HAEO ignores that event's value, so one mistyped event does not stop the rest of the calendar from loading, and raises a repair issue listing the events to fix.
+The issue clears once every event's value can be used.
+
+**Example**: A demand charge of 0.30 \$/kWh on weekday evenings.
+Create a recurring event from 4 pm to 9 pm with `0.30 $/kWh` in its description, then add the calendar to the grid's import price next to the price sensor.
+HAEO adds 0.30 \$/kWh to the import price during each event.
+
+Calendar events are fetched whenever the calendar or the horizon changes.
+If a calendar cannot be read, the field is unavailable and optimization pauses until it can, as it would for an unavailable sensor.
 
 ## Using Constants vs Sensors
 

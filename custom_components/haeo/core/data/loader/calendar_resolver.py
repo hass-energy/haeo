@@ -1,29 +1,20 @@
-"""Resolve calendar schema values into horizon-aligned boundary arrays.
+"""Resolve calendar events into horizon-aligned input series.
 
 Bridges the calendar event loader and window fuser to the field-resolution
-pipeline: a ``CalendarValue`` plus a ``CalendarFieldHint`` become a
-``CalendarBoundaryData`` bundle of numpy arrays aligned to the optimization
-horizon boundaries.
+pipeline: an input with a ``CalendarFieldHint`` reads the events injected
+into its calendar entity's state and resolves the one series its projection
+asks for, aligned to the optimization horizon.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Final, TypedDict
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from custom_components.haeo.core.data.loader.calendar import (
-    CalendarEventData,
-    CalendarWindow,
-    EventValueFn,
-    extract_calendar_windows,
-    load_calendar_events,
-    make_distance_extractor,
-    make_field_fallback_extractor,
-    make_presence_extractor,
-    parse_number,
-)
+from custom_components.haeo.core.data.loader.calendar import event_windows, load_calendar_events
 from custom_components.haeo.core.data.util.calendar_fuser import (
     fill_none,
     fuse_window_edges_to_boundaries,
@@ -35,116 +26,83 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray
 
-    from custom_components.haeo.core.schema.calendar_value import CalendarValue
+    from custom_components.haeo.core.model.const import OutputType
     from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
     from custom_components.haeo.core.state import StateMachine
 
-# Kilometres per supported distance unit, used to normalize parsed distances
-# without importing Home Assistant's unit converters into the core layer.
-_KM_PER_UNIT: Final[dict[str, float]] = {
-    "km": 1.0,
-    "mi": 1.609344,
-    "m": 0.001,
-    "ft": 0.0003048,
-    "yd": 0.0009144,
-}
+
+def _fused(values: list[float | None]) -> NDArray[np.float64]:
+    return np.array(fill_none(values, 0.0), dtype=np.float64)
 
 
-class CalendarBoundaryData(TypedDict):
-    """Horizon-aligned arrays resolved from a calendar field.
+def _windows(
+    count_span: NDArray[np.float64], count_end: NDArray[np.float64], value_start: NDArray[np.float64]
+) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+    """Return each period's window flag, each boundary's start flag, and each window's due value.
 
-    All arrays have n+1 entries, one per horizon boundary. Values are the
-    per-event numbers extracted by the field's calendar parser (distances are
-    normalized to kilometres); events without a parseable value contribute 0.0
-    while still marking their window present.
+    Every event is a window, including one whose text holds no value, which
+    is due nothing. Overlapping events merge into a single window due their
+    summed value; events that only touch (one ends at the boundary where the
+    next starts) stay separate windows. A window covering the first period is
+    open at the horizon start, so it never starts at boundary 0, and a window
+    running past the horizon is due at its end.
 
-    Attributes:
-        presence: 1.0 at boundaries covered by any event window, else 0.0.
-        value_span: Sum of active window values at each boundary, 0.0 outside.
-        value_edge_start: Each window's value placed at its start boundary
-            (floored to the containing period), summed on collision.
-        value_edge_end: Each window's value placed at its end boundary
-            (ceiled to the containing period), summed on collision.
+    Args:
+        count_span: Number of events covering each boundary.
+        count_end: Number of events ending at each boundary.
+        value_start: Summed event values starting at each boundary.
 
     """
+    n_periods = len(count_span) - 1
+    active = (count_span[:-1] > 0.0).astype(np.float64)
 
-    presence: NDArray[np.float64]
-    value_span: NDArray[np.float64]
-    value_edge_start: NDArray[np.float64]
-    value_edge_end: NDArray[np.float64]
+    # An interior boundary splits two in-window periods only when no event
+    # crosses it: every event covering the earlier period ends there.
+    crossing = count_span[:-2] - count_end[1:-1]
+    split = (active[:-1] > 0.0) & (active[1:] > 0.0) & (crossing <= 0.0)
+    opens = (active[1:] > 0.0) & (active[:-1] <= 0.0)
+    starts = np.concatenate(([0.0], (opens | split).astype(np.float64), [0.0]))
 
+    due = np.zeros(n_periods + 1, dtype=np.float64)
+    first = 0
+    for t in np.flatnonzero(active > 0.0):
+        if t == 0 or starts[t] > 0.0 or active[t - 1] <= 0.0:
+            first = t
+        if t == n_periods - 1 or active[t + 1] <= 0.0 or starts[t + 1] > 0.0:
+            due[t + 1] = float(value_start[first : t + 1].sum())
 
-def _convert_distance(value: float, from_unit: str, to_unit: str) -> float:
-    """Convert a distance between supported units via the kilometre table."""
-    return value * _KM_PER_UNIT[from_unit] / _KM_PER_UNIT[to_unit]
-
-
-def _parser_for(hint: CalendarFieldHint) -> EventValueFn:
-    """Return the event value extractor selected by a calendar hint."""
-    if hint.parser == "distance":
-        return make_distance_extractor(
-            energy_per_distance=1.0,
-            target_unit="km",
-            convert_distance=_convert_distance,
-        )
-    if hint.parser == "number":
-        return make_field_fallback_extractor(parse_number)
-    return make_presence_extractor()
+    return active, starts, due
 
 
-def _extractor_for(hint: CalendarFieldHint) -> EventValueFn:
-    """Return an extractor that keeps every event window.
-
-    An event's window is meaningful on its own (the vehicle is away, the load
-    may run), so an event whose text holds no parseable value still occupies
-    its window, contributing a value of 0.0.
-    """
-    parse = _parser_for(hint)
-
-    def _extract(event: CalendarEventData) -> float:
-        value = parse(event)
-        return 0.0 if value is None else value
-
-    return _extract
-
-
-def resolve_calendar_field(
-    value: CalendarValue,
-    calendar_hint: CalendarFieldHint,
+def resolve_calendar(
+    entity_ids: Sequence[str],
+    hint: CalendarFieldHint,
+    output_type: OutputType,
     sm: StateMachine,
     forecast_times: Sequence[float],
-) -> CalendarBoundaryData | None:
-    """Resolve a calendar schema value into horizon-aligned boundary arrays.
+) -> NDArray[np.float64] | None:
+    """Resolve the series a calendar input's projection asks for from its calendars' events.
 
-    Returns None when the calendar entity is unavailable and no captured
-    events exist, so the caller can mark the field as not loaded. An
-    available calendar with no events resolves to all-zero arrays.
+    The events of every calendar the input reads count together. Returns
+    None when a calendar's state is missing or carries no injected events,
+    so the input reads as not loaded. Calendars with no events in the horizon
+    resolve to all zeros. Only the due projection reads event values, each
+    converted from the unit typed with it to the input's unit; an event whose
+    value the input cannot use is still a window, due nothing.
     """
-    if value.get("events") is None and sm.get(value["value"]) is None:
+    calendars = [load_calendar_events(sm.get(entity_id)) for entity_id in entity_ids]
+    if any(events is None for events in calendars):
         return None
-
-    events = load_calendar_events(value, sm)
-    windows = extract_calendar_windows(events, _extractor_for(calendar_hint))
+    windows = event_windows([event for events in calendars if events for event in events], output_type)
+    counted = [replace(window, value=1.0) for window in windows]
     boundaries = [datetime.fromtimestamp(ts, tz=UTC) for ts in forecast_times]
 
-    presence_windows = [CalendarWindow(start=w.start, end=w.end, value=1.0) for w in windows]
-    presence = np.minimum(
-        np.array(fill_none(fuse_windows_to_boundaries(presence_windows, boundaries), 0.0), dtype=np.float64),
-        1.0,
+    active, starts, due = _windows(
+        _fused(fuse_windows_to_boundaries(counted, boundaries)),
+        _fused(fuse_window_edges_to_boundaries(counted, boundaries, "end")),
+        _fused(fuse_window_edges_to_boundaries(windows, boundaries, "start")),
     )
-
-    def _fused(values: list[float | None]) -> NDArray[np.float64]:
-        return np.array(fill_none(values, 0.0), dtype=np.float64)
-
-    return CalendarBoundaryData(
-        presence=presence,
-        value_span=_fused(fuse_windows_to_boundaries(windows, boundaries)),
-        value_edge_start=_fused(fuse_window_edges_to_boundaries(windows, boundaries, "start")),
-        value_edge_end=_fused(fuse_window_edges_to_boundaries(windows, boundaries, "end")),
-    )
+    return {"window_active": active, "window_starts": starts, "window_due": due}[hint.projection]
 
 
-__all__ = [
-    "CalendarBoundaryData",
-    "resolve_calendar_field",
-]
+__all__ = ["resolve_calendar"]

@@ -543,21 +543,30 @@ def get_surfaced_input_fields(element_type: str | ElementType) -> dict[str, AnyI
 
 
 def iter_input_field_paths(input_fields: InputFieldGroups) -> list[tuple[InputFieldPath, AnyInputFieldInfo]]:
-    """Return (field_path, InputFieldInfo) pairs from nested input fields.
+    """Return (input_path, InputFieldInfo) pairs for every input of the nested fields.
 
     For section-based fields, paths are 2-tuples: ``(section_key, field_name)``.
     For list-based fields (section keys containing ``"."``), paths are expanded
-    into 3-tuples: ``(list_key, index, field_name)``.
+    into 3-tuples: ``(list_key, index, field_name)``. A field with outputs
+    yields its outputs in its place; read their config value from
+    :func:`config_field_path`.
     """
     results: list[tuple[InputFieldPath, AnyInputFieldInfo]] = []
     for section_key, section_fields in input_fields.items():
+        prefix = tuple(section_key.split(".")) if "." in section_key else (section_key,)
         for field_name, field_info in section_fields.items():
-            if "." in section_key:
-                parts = tuple(section_key.split("."))
-                results.append(((*parts, field_name), field_info))
+            if field_info.outputs:
+                results.extend(((*prefix, name), output) for name, output in field_info.outputs.items())
             else:
-                results.append(((section_key, field_name), field_info))
+                results.append(((*prefix, field_name), field_info))
     return results
+
+
+def config_field_path(input_path: InputFieldPath, field_info: AnyInputFieldInfo) -> InputFieldPath:
+    """Return the config path an input reads: its own, or that of the field feeding it."""
+    if field_info.source_field is None:
+        return input_path
+    return (*input_path[:-1], field_info.source_field)
 
 
 def get_nested_config_value(config: Mapping[str, object], field_name: str) -> object | None:
@@ -665,6 +674,7 @@ __all__ = [
     "InputFieldSection",
     "ValidatedElementSubentry",
     "collect_element_subentries",
+    "config_field_path",
     "find_nested_config_path",
     "get_element_configs",
     "get_input_field_schema_info",
