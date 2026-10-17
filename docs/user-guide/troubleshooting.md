@@ -10,7 +10,7 @@ Optimization fails or warnings about insufficient forecast data.
 
 ### Symptoms
 
-- Optimization status shows `infeasible` or `undefined`
+- Optimization status shows `failed`
 - Logs mention forecast length issues
 - Sensors show `unknown` values
 
@@ -69,7 +69,7 @@ Optimization fails because the network graph is disconnected.
 
 ### Symptoms
 
-- Optimization status shows `infeasible`
+- Optimization status shows `failed`
 - Some elements never show power flow
 - Logs mention disconnected components
 
@@ -168,7 +168,7 @@ Element sensors display `unknown` values.
 ### Solutions
 
 1. **Wait for optimization**: First run takes time
-2. **Check optimization status**: Must be `optimal`
+2. **Check optimization status**: Must be `success`; when it is `failed`, its `error` attribute explains why
 3. **Verify configuration**: All required fields filled
 4. **Review logs**: Check for error messages
 

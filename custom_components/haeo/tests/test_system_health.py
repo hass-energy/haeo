@@ -13,11 +13,7 @@ from homeassistant.util import dt as dt_util
 import pytest
 
 from custom_components.haeo import HaeoRuntimeData
-from custom_components.haeo.const import (
-    OUTPUT_NAME_OPTIMIZATION_COST,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-    OUTPUT_NAME_OPTIMIZATION_STATUS,
-)
+from custom_components.haeo.const import OUTPUT_NAME_OPTIMIZATION_COST, OUTPUT_NAME_OPTIMIZATION_DURATION
 from custom_components.haeo.coordinator import (
     CoordinatorData,
     CoordinatorOutput,
@@ -95,13 +91,11 @@ async def test_system_health_reports_coordinator_state(hass: HomeAssistant) -> N
 
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.last_update_success = True
+    coordinator.optimization_status = "success"
     coordinator.last_update_success_time = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
     coordinator.data = _make_coordinator_data(
         {
             "HAEO Hub": {
-                OUTPUT_NAME_OPTIMIZATION_STATUS: CoordinatorOutput(
-                    type=OutputType.STATUS, unit=None, state="success", forecast=None
-                ),
                 OUTPUT_NAME_OPTIMIZATION_COST: CoordinatorOutput(
                     type=OutputType.COST, unit="$", state=42.75, forecast=None
                 ),
@@ -135,6 +129,7 @@ async def test_system_health_detects_failed_updates(hass: HomeAssistant) -> None
 
     coordinator = Mock(spec=HaeoDataUpdateCoordinator)
     coordinator.last_update_success = False
+    coordinator.optimization_status = "failed"
     coordinator.data = _make_coordinator_data({})
     coordinator.last_update_success_time = None
 
@@ -146,4 +141,5 @@ async def test_system_health_detects_failed_updates(hass: HomeAssistant) -> None
         info = await async_system_health_info(hass)
 
     assert info["HAEO Hub_status"] == "update_failed"
+    assert info["HAEO Hub_optimization_status"] == "failed"
     assert info["HAEO Hub_outputs"] == 0
