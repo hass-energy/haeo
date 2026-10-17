@@ -675,6 +675,7 @@ def _load_config_from_values(
             config,  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
             field_values,
             FORECAST_TIMES,
+            {},
         )
     )
 
@@ -772,6 +773,7 @@ def test_load_element_config_from_values_skips_invalid_list_container() -> None:
             config,  # type: ignore[arg-type]  # rules is not a list; is_element_config_schema rejects this fixture
             {},
             FORECAST_TIMES,
+            {},
         )
     )
 
@@ -786,6 +788,7 @@ def test_load_element_config_from_values_unknown_element_type_raises() -> None:
             {"element_type": "not_real", "name": "Bad"},  # type: ignore[typeddict-item]  # invalid element_type must reach runtime validation
             {},
             FORECAST_TIMES,
+            {},
         )
 
 
@@ -949,6 +952,7 @@ def test_field_with_outputs_loads_each_output_from_its_calendar(monkeypatch: pyt
             config,  # type: ignore[arg-type]  # fixtures use loose dicts
             {("storage", "away"): np.ones(3)},
             FORECAST_TIMES,
+            {},
         )
     )
     values_storage = _dict(from_values["storage"])
@@ -988,3 +992,116 @@ def test_sensor_in_a_unit_the_field_cannot_use_is_rejected() -> None:
         load_element_config("Grid", config, FakeStateMachine(states), FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts
 
     assert err.value.translation_key == "input_unit_incompatible"
+
+
+# -- tests for data loaded beside fields --
+
+_PLUG = "binary_sensor.ev_plug"
+_ODOMETER = "sensor.ev_odometer"
+
+
+def _ev_trip_config(**trip: object) -> dict[str, object]:
+    return {"element_type": "ev", "name": "EV", "trip": trip}
+
+
+@pytest.mark.parametrize(
+    ("connected", "attributes", "expected"),
+    [
+        pytest.param(
+            {"type": "entity", "value": [_PLUG]},
+            {"haeo_off_periods": [[1800.0, 3600.0]]},
+            [(1800.0, 3600.0)],
+            id="injected",
+        ),
+        pytest.param({"type": "entity", "value": [_PLUG]}, {}, None, id="no_history"),
+        pytest.param({"type": "constant", "value": 1.0}, {"haeo_off_periods": [[1800.0, None]]}, None, id="constant"),
+    ],
+)
+def test_availability_field_loads_off_periods_from_source_state(
+    connected: object, attributes: dict[str, object], expected: list[tuple[float, float | None]] | None
+) -> None:
+    """Both loaders read an availability source's injected off periods beside the field."""
+    states = {_PLUG: FakeEntityState(_PLUG, "on", attributes)}
+    config = _ev_trip_config(connected=connected)
+
+    from_states = load_element_config("EV", config, FakeStateMachine(states), FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts
+    from_values = load_element_config_from_values(
+        "EV",
+        config,  # type: ignore[arg-type]  # fixtures use loose dicts
+        {("trip", "connected"): np.ones(3)},
+        FORECAST_TIMES,
+        states,
+    )
+
+    for result in (from_states, from_values):
+        trip = _dict(_dict(result)["trip"])
+        assert trip.get("connected_off_periods") == expected
+        np.testing.assert_allclose(_ndarray(trip["connected"]), [1.0, 1.0, 1.0])
+
+
+def test_availability_field_with_several_sources_loads_when_all_were_off() -> None:
+    """With several plug sensors the car was unplugged only while every sensor read off."""
+    other_plug = "binary_sensor.ev_plug_garage"
+    states = {
+        _PLUG: FakeEntityState(_PLUG, "on", {"haeo_off_periods": [[1000.0, 3000.0]]}),
+        other_plug: FakeEntityState(other_plug, "on", {"haeo_off_periods": [[2000.0, None]]}),
+    }
+    config = _ev_trip_config(connected={"type": "entity", "value": [_PLUG, other_plug]})
+
+    result = load_element_config("EV", config, FakeStateMachine(states), FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts
+
+    assert _dict(_dict(result)["trip"]).get("connected_off_periods") == [(2000.0, 3000.0)]
+
+
+def test_distance_field_loads_readings_in_base_unit() -> None:
+    """A distance source's injected readings load beside the field, converted like its value."""
+    attributes = {"unit_of_measurement": "mi", "device_class": "distance", "haeo_readings": [[1000.0, 10.0]]}
+    states = {_ODOMETER: FakeEntityState(_ODOMETER, "20", attributes)}
+    config = _ev_trip_config(odometer={"type": "entity", "value": [_ODOMETER]})
+
+    result = load_element_config("EV", config, FakeStateMachine(states), FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts
+
+    trip = _dict(_dict(result)["trip"])
+    assert trip["odometer"] == pytest.approx(32.18688)
+    assert trip.get("odometer_readings") == [(1000.0, pytest.approx(16.09344))]
+
+
+@pytest.mark.parametrize(
+    ("events", "expected"),
+    [
+        pytest.param([("1970-01-01T00:30:00+00:00", "1970-01-01T02:00:00+00:00")], 1800.0, id="open_at_horizon_start"),
+        pytest.param(
+            [
+                ("1970-01-01T00:00:00+00:00", "1970-01-01T01:00:00+00:00"),
+                ("1970-01-01T00:30:00+00:00", "1970-01-01T03:00:00+00:00"),
+            ],
+            0.0,
+            id="overlapping_events_chain",
+        ),
+        pytest.param(
+            [
+                ("1970-01-01T00:00:00+00:00", "1970-01-01T01:00:00+00:00"),
+                ("1970-01-01T01:00:00+00:00", "1970-01-01T03:00:00+00:00"),
+            ],
+            3600.0,
+            id="touching_events_stay_separate",
+        ),
+        pytest.param([("1970-01-01T02:00:00+00:00", "1970-01-01T03:00:00+00:00")], None, id="none_open"),
+    ],
+)
+def test_calendar_field_loads_when_the_open_window_began(events: list[tuple[str, str]], expected: float | None) -> None:
+    """Both loaders read when the window open at the horizon start began, beside a field feeding calendar inputs."""
+    calendar = "calendar.ev_trips"
+    injected = [
+        {"start": start, "end": end, "summary": "Trip", "location": "10 km", "description": None}
+        for start, end in events
+    ]
+    states = {calendar: FakeEntityState(calendar, "on", {CALENDAR_EVENTS_ATTRIBUTE: injected})}
+    config = _ev_trip_config(trip_calendar={"type": "entity", "value": [calendar]})
+    times = (5400.0, 9000.0)
+
+    from_states = load_element_config("EV", config, FakeStateMachine(states), times)  # type: ignore[arg-type]  # fixtures use loose dicts
+    from_values = load_element_config_from_values("EV", config, {}, times, states)  # type: ignore[arg-type]  # fixtures use loose dicts
+
+    for result in (from_states, from_values):
+        assert _dict(_dict(result)["trip"]).get("trip_calendar_open_since") == expected

@@ -77,7 +77,7 @@ FORMATS: dict[ExtractorFormat, DataExtractor] = {
 _BINARY_STATES: Final[dict[str, float]] = {"on": 1.0, "true": 1.0, "off": 0.0, "false": 0.0}
 
 
-def _parse_scalar_state(raw: str) -> float:
+def parse_scalar_state(raw: str) -> float:
     """Parse a state string as a float, mapping binary on/off states to 1/0."""
     mapped = _BINARY_STATES.get(raw.strip().lower())
     if mapped is not None:
@@ -130,7 +130,7 @@ def extract(state: EntityState, *, output_type: OutputType | None = None) -> Ext
         data, unit, device_class = volcast.Parser.extract(state)
     else:
         # If no extractor matched read the state as a single float value
-        data = _parse_scalar_state(state.state)
+        data = parse_scalar_state(state.state)
         unit_attr = state.attributes.get("unit_of_measurement")
         unit = unit_attr if isinstance(unit_attr, str) else None
         device_class = DeviceClass.of(state.attributes.get("device_class"))
@@ -158,4 +158,5 @@ __all__ = [
     "EntityMetadata",
     "ExtractorFormat",
     "extract",
+    "parse_scalar_state",
 ]

@@ -30,6 +30,7 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
@@ -73,12 +74,24 @@ class SectionDefinition:
 _ENTITY_DOMAINS: Final = (DOMAIN, "sensor", "input_number", "number", "switch")
 
 
+# Domains an availability field also offers, as on/off states read as 1/0
+# (e.g. an EV charger's plugged-in binary sensor)
+_ON_OFF_DOMAINS: Final = ("binary_sensor", "input_boolean")
+
+
 def entity_domains(field_info: AnyInputFieldInfo) -> list[str]:
-    """Return the domains a field's entity choice offers: calendars only, or with calendars read as forecasts."""
+    """Return the domains a field's entity choice offers.
+
+    A field feeding calendar inputs offers only calendars, a forecast field
+    also offers calendars read as forecasts, and an availability field also
+    offers on/off entities.
+    """
     if reads_calendar(field_info):
         return [CALENDAR_DOMAIN]
     if accepts_calendar_forecast(field_info):
         return [*_ENTITY_DOMAINS, CALENDAR_DOMAIN]
+    if field_info.output_type is OutputType.AVAILABILITY:
+        return [*_ENTITY_DOMAINS, *_ON_OFF_DOMAINS]
     return list(_ENTITY_DOMAINS)
 
 

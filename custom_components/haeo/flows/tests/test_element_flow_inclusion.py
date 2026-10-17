@@ -1,11 +1,15 @@
 """Tests for config flow entity inclusion map unit filtering."""
 
 from homeassistant.components.number import NumberEntityDescription
+from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.const import UnitOfEnergyDistance, UnitOfLength
+from homeassistant.util.unit_conversion import DistanceConverter
 import pytest
 
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
+from custom_components.haeo.core.units import UnitOfMeasurement, convert_to_base_unit
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import build_inclusion_map
 
@@ -141,3 +145,38 @@ def test_build_inclusion_map_offers_only_calendars_for_calendar_fields() -> None
     )
 
     assert build_inclusion_map({"trip_calendar": field}, entity_metadata)["trip_calendar"] == ["calendar.trips"]
+
+
+@pytest.mark.parametrize("unit", list(UnitOfLength))
+def test_selectable_distance_units_convert_to_kilometers(unit: UnitOfLength) -> None:
+    """Every length unit a distance field accepts converts to kilometers like Home Assistant does."""
+    entity_metadata = [EntityMetadata(entity_id="sensor.odometer", unit_of_measurement=unit)]
+    inclusion_map = build_inclusion_map({"odometer": _field("odometer", OutputType.DISTANCE)}, entity_metadata)
+    assert inclusion_map["odometer"] == ["sensor.odometer"]
+
+    value, base_unit, _ = convert_to_base_unit(123.0, unit, SensorDeviceClass.DISTANCE)
+
+    assert base_unit == UnitOfMeasurement.KILOMETER
+    assert value == pytest.approx(DistanceConverter.convert(123.0, unit, UnitOfLength.KILOMETERS))
+
+
+@pytest.mark.parametrize(
+    ("unit", "included"),
+    [
+        ("kWh/km", True),
+        (UnitOfEnergyDistance.KILO_WATT_HOUR_PER_100_KM, True),
+        (UnitOfEnergyDistance.WATT_HOUR_PER_KM, True),
+        (UnitOfEnergyDistance.MILES_PER_KILO_WATT_HOUR, False),
+        (UnitOfEnergyDistance.KM_PER_KILO_WATT_HOUR, False),
+        ("kWh", False),
+    ],
+)
+def test_energy_per_distance_accepts_only_convertible_consumption_units(unit: str, *, included: bool) -> None:
+    """Energy per distance fields accept consumption units that convert to kWh/km."""
+    entity_metadata = [EntityMetadata(entity_id="sensor.consumption", unit_of_measurement=unit)]
+    inclusion_map = build_inclusion_map(
+        {"energy_per_distance": _field("energy_per_distance", OutputType.ENERGY_PER_DISTANCE)},
+        entity_metadata,
+    )
+
+    assert (inclusion_map["energy_per_distance"] == ["sensor.consumption"]) is included

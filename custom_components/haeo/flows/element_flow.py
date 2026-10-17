@@ -12,7 +12,7 @@ from collections.abc import Mapping
 
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry, UnknownSubEntry
-from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfPower
+from homeassistant.const import PERCENTAGE, UnitOfEnergy, UnitOfLength, UnitOfPower
 from homeassistant.helpers.selector import SelectOptionDict, SelectSelector, SelectSelectorConfig, SelectSelectorMode
 from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
@@ -22,7 +22,7 @@ from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_T
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.util import UnitSpec
-from custom_components.haeo.core.units import DURATION_UNITS, PRICE_UNIT_SPEC, currency_symbol
+from custom_components.haeo.core.units import DURATION_UNITS, ENERGY_DISTANCE_UNITS, PRICE_UNIT_SPEC, currency_symbol
 from custom_components.haeo.elements import get_input_fields
 from custom_components.haeo.elements.input_fields import (
     AnyInputFieldInfo,
@@ -58,6 +58,10 @@ def get_unit_spec_for_output_type(output_type: OutputType) -> UnitSpec | list[Un
             return [unit.value for unit in DURATION_UNITS]
         case OutputType.PRICE_RATE:
             return None
+        case OutputType.DISTANCE:
+            return UnitOfLength
+        case OutputType.ENERGY_PER_DISTANCE:
+            return [unit.value for unit in ENERGY_DISTANCE_UNITS]
         case _:
             # STATUS, AVAILABILITY, COST, SHADOW_PRICE - no unit filtering
             return None

@@ -5,7 +5,7 @@ from datetime import timedelta
 import logging
 from types import MappingProxyType
 from typing import Any  # noqa: TID251  # captures HA's Any-typed extra_state_attributes property for later assertions
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
@@ -23,6 +23,7 @@ from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.data.input_store import InputMode, create_input_store
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.source_history import OFF_PERIODS_ATTRIBUTE
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.core.schema import (
     SchemaValue,
@@ -1463,3 +1464,74 @@ async def test_calendar_input_shows_what_the_calendar_loader_puts_in_its_store(
 
     assert entity.store.available
     assert entity.native_value == 1.0
+
+
+def _last_changed(hass: HomeAssistant, entity_id: str) -> float:
+    state = hass.states.get(entity_id)
+    assert state is not None
+    return state.last_changed_timestamp
+
+
+def _plug_field_info() -> InputFieldInfo[NumberEntityDescription]:
+    return InputFieldInfo(
+        field_name="connected",
+        entity_description=NumberEntityDescription(
+            key="connected",
+            translation_key="connected",
+            native_min_value=0.0,
+            native_max_value=1.0,
+            native_step=1.0,
+        ),
+        output_type=OutputType.AVAILABILITY,
+        time_series=True,
+    )
+
+
+async def test_driven_availability_captures_off_periods(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """A driven availability input loads its source with the recorded off periods injected."""
+    hass.states.async_set("binary_sensor.plug", "on")
+    subentry = _create_subentry("Test EV", {"connected": ["binary_sensor.plug"]})
+    config_entry.runtime_data = None
+    entity = _make_entity(hass, config_entry, subentry, _plug_field_info(), device_entry, horizon_manager)
+    unplugged = _last_changed(hass, "binary_sensor.plug") - 600.0
+    with patch(
+        "custom_components.haeo.source_history.SourceHistory._async_recorded",
+        AsyncMock(return_value=[("off", unplugged)]),
+    ):
+        await _add_entity_to_hass(hass, entity)
+
+    assert entity.native_value == 1.0
+    captured = entity.store.captured_source_states["binary_sensor.plug"]
+    assert captured.attributes[OFF_PERIODS_ATTRIBUTE] == [(unplugged, _last_changed(hass, "binary_sensor.plug"))]
+
+
+async def test_driven_availability_queries_history_once(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    horizon_manager: Mock,
+) -> None:
+    """History is read from the recorder once; later source changes extend it without another query."""
+    hass.states.async_set("binary_sensor.plug", "on")
+    subentry = _create_subentry("Test EV", {"connected": ["binary_sensor.plug"]})
+    config_entry.runtime_data = None
+    entity = _make_entity(hass, config_entry, subentry, _plug_field_info(), device_entry, horizon_manager)
+
+    with patch(
+        "custom_components.haeo.source_history.SourceHistory._async_recorded",
+        AsyncMock(return_value=[]),
+    ) as query:
+        await _add_entity_to_hass(hass, entity)
+        entity._handle_horizon_change()
+        hass.states.async_set("binary_sensor.plug", "off")
+        await hass.async_block_till_done()
+
+    assert query.await_count == 1
+    unplugged = _last_changed(hass, "binary_sensor.plug")
+    captured = entity.store.captured_source_states["binary_sensor.plug"]
+    assert captured.attributes[OFF_PERIODS_ATTRIBUTE] == [(unplugged, None)]
