@@ -360,6 +360,58 @@ async def test_driven_async_load_records_input_error() -> None:
     assert store.error is None
 
 
+def _sensor(state: str, **attributes: object) -> FakeStateMachine:
+    """Return a state machine holding one sensor.x state."""
+    return FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", state, attributes)})
+
+
+@pytest.mark.parametrize(
+    ("loads", "expected_notifications"),
+    [
+        pytest.param([(_sensor("12.0"), FORECAST_TIMESTAMPS)] * 2, 1, id="identical_reload"),
+        pytest.param(
+            [(_sensor("12.0"), FORECAST_TIMESTAMPS), (_sensor("12.0", friendly_name="X"), FORECAST_TIMESTAMPS)],
+            1,
+            id="attribute_only_change",
+        ),
+        pytest.param([(_sensor("12.0"), FORECAST_TIMESTAMPS), (_sensor("13.0"), FORECAST_TIMESTAMPS)], 2, id="changed"),
+        pytest.param(
+            [(_sensor("12.0"), FORECAST_TIMESTAMPS), (_sensor("12.0"), (300.0, 600.0, 900.0))],
+            2,
+            id="new_horizon",
+        ),
+        pytest.param(
+            [
+                (_sensor("12.0"), FORECAST_TIMESTAMPS),
+                (FakeStateMachine({}), FORECAST_TIMESTAMPS),
+                (FakeStateMachine({}), FORECAST_TIMESTAMPS),
+                (_sensor("12.0"), FORECAST_TIMESTAMPS),
+            ],
+            3,
+            id="unavailable_and_back",
+        ),
+        pytest.param([(_sensor("-3.0"), FORECAST_TIMESTAMPS)] * 2, 2, id="repeated_rejection"),
+    ],
+)
+async def test_driven_async_load_notifies_only_on_change(
+    loads: list[tuple[FakeStateMachine, tuple[float, ...]]],
+    expected_notifications: int,
+) -> None:
+    """Reloading an identical value does not notify, so it does not trigger optimization."""
+    horizon = [FORECAST_TIMESTAMPS]
+    storage = _MemStorage(as_entity_value(["sensor.x"]))
+    hint = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=True, min_value=0.0)
+    store = create_input_store(storage=storage, hint=hint, get_forecast_timestamps=lambda: horizon[0])
+    notifications: list[None] = []
+    store.add_listener(lambda: notifications.append(None))
+
+    for sm, timestamps in loads:
+        horizon[0] = timestamps
+        await store.async_load(sm)
+
+    assert len(notifications) == expected_notifications
+
+
 # --- Construction errors ---
 
 

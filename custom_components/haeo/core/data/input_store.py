@@ -261,33 +261,35 @@ class InputStore:
             self._resolve_from_constant(mark_ready=True)
 
     async def async_load(self, sm: StateMachine) -> bool:
-        """Resolve data from source entities and notify listeners.
+        """Resolve data from source entities and notify listeners if it changed.
 
         Returns True if data was successfully loaded, False otherwise. Does not
         modify state on failure (keeps previous values).
         """
-        loaded = self.resolve_from_sources(sm)
-        if loaded or self._error is not None:
+        if self.resolve_from_sources(sm):
             self.notify_listeners()
-        return loaded
+        return self._available
 
     def resolve_from_sources(self, sm: StateMachine) -> bool:
         """Resolve data from source entities without notifying listeners.
 
         Lets a caller reload several stores before any listener runs, then
-        notify each with :meth:`notify_listeners`. Returns True if data was
-        successfully loaded, False otherwise. Does not modify state on failure
-        (keeps previous values). A rejected value is recorded in :attr:`error`
-        and should still be notified, so consumers report it rather than
-        silently keeping the previous value.
+        notify each with :meth:`notify_listeners`. Returns True when listeners
+        should be notified: the value, its timestamps, or its availability
+        changed, or the source's value was rejected. Reloading an identical
+        value returns False so consumers do not re-optimize for nothing. A
+        failed load keeps the previous value. A rejected value is recorded in
+        :attr:`error` and is always reported, so consumers report it rather
+        than silently keeping the previous value.
         """
         self._captured_source_states = {
             eid: state for eid in self._source_entity_ids if (state := sm.get(eid)) is not None
         }
+        was_available = self._available
 
         if not self._source_entity_ids:
             self._available = False
-            return False
+            return was_available
 
         forecast_timestamps = self._get_forecast_timestamps()
         self._error = None
@@ -303,7 +305,7 @@ class InputStore:
             self._error = err
             self._available = False
             self._settled.set()
-            return False
+            return True
         except Exception:
             _LOGGER.debug(
                 "Load failed from sources %s; keeping previous value",
@@ -311,7 +313,7 @@ class InputStore:
                 exc_info=True,
             )
             self._available = False
-            return False
+            return was_available
 
         if resolved is None or not isinstance(resolved, (bool, float, int, np.ndarray)):
             _LOGGER.debug(
@@ -319,18 +321,22 @@ class InputStore:
                 self._source_entity_ids,
             )
             self._available = False
-            return False
+            return was_available
 
         if isinstance(resolved, np.ndarray) and resolved.size == 0:
             self._available = False
-            return False
+            return was_available
 
+        loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
+        changed = (
+            not was_available or loaded_timestamps != self._loaded_timestamps or not _same_value(self._value, resolved)
+        )
         self._value = resolved
         self._available = True
-        self._loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
+        self._loaded_timestamps = loaded_timestamps
         self._data_ready.set()
         self._settled.set()
-        return True
+        return changed
 
     def _resolve_from_constant(self, *, mark_ready: bool) -> None:
         """Resolve the stored constant into the optimization value."""
@@ -348,6 +354,13 @@ class InputStore:
             self._data_ready.set()
             self._settled.set()
             self.notify_listeners()
+
+
+def _same_value(previous: InputValue | None, resolved: InputValue) -> bool:
+    """Return whether a newly resolved value equals the previous one, including its type."""
+    if isinstance(previous, np.ndarray) and isinstance(resolved, np.ndarray):
+        return np.array_equal(previous, resolved)
+    return type(previous) is type(resolved) and previous == resolved
 
 
 def create_input_store(
