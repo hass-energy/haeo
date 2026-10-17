@@ -176,6 +176,15 @@ The extractor system ([`extractors/`](https://github.com/hass-energy/haeo/tree/m
 | Open-Meteo Solar Forecast | Solar forecasting            | [`open_meteo_solar_forecast.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/open_meteo_solar_forecast.py) |
 | Calendar events           | Calendars as forecasts       | [`calendar_events.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/extractors/calendar_events.py)                     |
 
+### Block prices
+
+A tariff price holds for its whole block, but the fuser interpolates linearly between points.
+Price extractors therefore emit two points per block, `(start, price)` and `(end, price)`, so the series is a step function.
+Adjacent blocks share a boundary timestamp, and `extract()` separates it with `separate_duplicate_timestamps()` so the fuser does not ramp across it.
+A source that gives only start times ends each block where the next one starts.
+
+Power forecasts such as Solcast stay as single points, since the quantity they forecast changes smoothly.
+
 ### Calendar Events
 
 A calendar's state only shows its current or next event, so the calendar extractor cannot read a calendar directly.

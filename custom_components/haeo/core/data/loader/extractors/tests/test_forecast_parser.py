@@ -8,6 +8,7 @@ from custom_components.haeo.core.data.loader.extractors.tests.test_data.sensors 
     ALL_INVALID_SENSORS,
     ALL_VALID_SENSORS,
 )
+from custom_components.haeo.core.data.util.forecast_fuser import fuse_to_intervals
 
 
 def _create_sensor_state(hass: HomeAssistant, entity_id: str, state_value: str, attributes: dict[str, object]) -> State:
@@ -134,6 +135,29 @@ def test_extract_raises_for_non_numeric_state(hass: HomeAssistant) -> None:
 
     with pytest.raises(ValueError, match="could not convert string to float"):
         extractors.extract(state)
+
+
+def test_aemo_block_prices_fuse_to_steps(hass: HomeAssistant) -> None:
+    """AEMO block prices hold for their whole block instead of ramping into the next one."""
+    blocks = [
+        ("2025-10-05T21:00:00+10:00", "2025-10-05T21:30:00+10:00", 0.0),
+        ("2025-10-05T21:30:00+10:00", "2025-10-05T22:00:00+10:00", 0.0),
+        ("2025-10-05T22:00:00+10:00", "2025-10-05T22:30:00+10:00", 0.5),
+        ("2025-10-05T22:30:00+10:00", "2025-10-05T23:00:00+10:00", 0.5),
+    ]
+    state = _create_sensor_state(
+        hass,
+        "sensor.aemo_forecast",
+        "0.0",
+        {"forecast": [{"start_time": start, "end_time": end, "price": price} for start, end, price in blocks]},
+    )
+
+    result = extractors.extract(state)
+    assert isinstance(result.data, list)
+    start = 1759662000
+    horizon_times = [start + 1800 * period for period in range(5)]
+
+    assert fuse_to_intervals(None, result.data, horizon_times) == pytest.approx([0.0, 0.0, 0.5, 0.5], abs=1e-9)
 
 
 PARSER_MAP: dict[str, extractors.DataExtractor] = {

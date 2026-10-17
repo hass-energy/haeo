@@ -6,6 +6,8 @@ EMHASS uses a unique format where:
 - Values are stored as strings that parse to floats
 """
 
+import numpy as np
+
 
 # Timestamps for testing (2025-10-06 in AEST +11:00)
 # 2025-10-06T00:00:00+11:00 = 1759669200
@@ -113,8 +115,26 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "emhass",
         "expected_unit": "AUD/kWh",
-        "expected_data": [(1759669200.0, 0.25), (1759671000.0, 0.30)],
+        "expected_data": [
+            (1759669200.0, 0.25),
+            (np.nextafter(1759671000.0, -np.inf), 0.25),
+            (1759671000.0, 0.30),
+            (1759672800.0, 0.30),
+        ],
         "description": "EMHASS unit cost forecast with unit_load_cost_forecasts attribute",
+    },
+    {
+        "entity_id": "sensor.unit_prod_price",
+        "state": "0.05",
+        "attributes": {
+            "device_class": "monetary",
+            "unit_of_measurement": "AUD/kWh",
+            "unit_prod_price_forecasts": [{"date": "2025-10-06T00:00:00+11:00", "unit_prod_price": "0.0500"}],
+        },
+        "expected_format": "emhass",
+        "expected_unit": "AUD/kWh",
+        "expected_data": [(1759669200.0, 0.05)],
+        "description": "EMHASS single step price forecast",
     },
     {
         "entity_id": "sensor.mlforecaster_load",

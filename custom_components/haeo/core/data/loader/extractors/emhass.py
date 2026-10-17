@@ -48,6 +48,9 @@ FORECAST_ATTRIBUTE_KEYS = (
     "scheduled_forecast",
 )
 
+# Attributes holding a price for each optimization time step, dated at the step's start
+PRICE_ATTRIBUTE_KEYS = frozenset({"unit_load_cost_forecasts", "unit_prod_price_forecasts"})
+
 
 class EmhassState(Protocol):
     """Protocol for EMHASS State."""
@@ -101,13 +104,13 @@ class Parser:
         )
 
     @staticmethod
-    def _get_forecast(state: EmhassState) -> Sequence[ForecastEntry]:
-        """Get the forecast sequence from a validated EMHASS state.
+    def _get_forecast_key(state: EmhassState) -> str:
+        """Get the attribute key holding the forecast of a validated EMHASS state.
 
         This must only be called after detect() returns True.
         """
         # detect() guarantees at least one forecast attribute exists
-        return next(state.attributes[attr_key] for attr_key in FORECAST_ATTRIBUTE_KEYS if attr_key in state.attributes)
+        return next(attr_key for attr_key in FORECAST_ATTRIBUTE_KEYS if attr_key in state.attributes)
 
     @staticmethod
     def extract(
@@ -117,9 +120,14 @@ class Parser:
 
         Returns: (parsed_data, unit, device_class)
         - unit and device_class are read from state attributes (EMHASS sets these)
+
+        Prices hold for their whole time step, so they become a step function:
+        each step emits (start, price) and (end, price), ending where the next
+        step starts, and the last step lasts as long as the one before it.
         """
         entity_name = Parser._get_entity_name(state.entity_id)
-        forecast = Parser._get_forecast(state)
+        forecast_key = Parser._get_forecast_key(state)
+        forecast = state.attributes[forecast_key]
 
         # detect() validated all items have date and entity_name keys
         parsed: list[tuple[int, float]] = [
@@ -130,6 +138,8 @@ class Parser:
             for item in forecast
         ]
         parsed.sort(key=lambda x: x[0])
+        if forecast_key in PRICE_ATTRIBUTE_KEYS:
+            parsed = _to_steps(parsed)
 
         # Read unit and device_class from state attributes (EMHASS sets these)
         unit = state.attributes.get("unit_of_measurement")
@@ -140,6 +150,15 @@ class Parser:
         device_class = DeviceClass.of(device_class_attr)
 
         return parsed, parsed_unit or unit_str, device_class
+
+
+def _to_steps(points: list[tuple[int, float]]) -> list[tuple[int, float]]:
+    """Hold each value until the next point, repeating the last step length."""
+    if len(points) < 2:  # noqa: PLR2004 (a step length needs two points)
+        return points
+    ends = [end for end, _ in points[1:]]
+    ends.append(2 * points[-1][0] - points[-2][0])
+    return [point for (start, value), end in zip(points, ends, strict=True) for point in ((start, value), (end, value))]
 
 
 def _is_numeric_or_numeric_string(value: object) -> bool:
