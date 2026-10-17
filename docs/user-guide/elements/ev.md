@@ -71,20 +71,23 @@ This is typically your main switchboard junction, or an inverter for a DC charge
 
 ### Trip calendar
 
-Select a Home Assistant calendar entity that contains your trip schedule.
+Select one or more Home Assistant calendar entities that contain your trip schedule.
 Each calendar event represents a trip:
 
 - **Start/end time**: When the car leaves and returns home
 - **Distance**: Trip distance with unit in the location, summary, or description, e.g., `50 km` or `30 mi`
 
 Without a trip calendar, the EV behaves like a stationary battery that can only charge (or discharge) while plugged in — no trip requirements are modeled.
-An event whose text contains no parsable distance, such as `School pickup`, still marks the car away for its duration but asks for no trip energy.
+An event whose text contains no distance, such as `School pickup`, still marks the car away for its duration but asks for no trip energy.
 
 !!! tip "Distance format"
 
     The distance is read from the first of the location, summary, or description fields that holds only a number followed by a length unit, such as `50 km` or `30 mi`.
     A field with other text around the distance, such as `Commute 50 km`, is not read as a distance.
-    All distances are normalized to kilometres.
+    All distances are converted to kilometres.
+    A number HAEO cannot use as a distance, such as one without a unit, is ignored and listed in a repair issue so you can fix the event.
+
+The trip calendar creates three input entities showing what HAEO reads from it: **Away** (whether each period is inside a trip), **Trip start** (where each trip begins), and **Trip distance due** (each trip's distance at its end).
 
 ### Connected sensor
 

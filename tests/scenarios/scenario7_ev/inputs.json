@@ -85,5 +85,5 @@
   { "entity_id": "sensor.grid_export_price", "state": "0.03", "attributes": { "friendly_name": "Grid export price", "unit_of_measurement": "$/kWh" } },
   { "entity_id": "sensor.ev_soc", "state": "10", "attributes": { "device_class": "battery", "friendly_name": "EV state of charge", "unit_of_measurement": "%" } },
   { "entity_id": "binary_sensor.ev_plugged_in", "state": "on", "attributes": { "device_class": "plug", "friendly_name": "EV plugged in" } },
-  { "entity_id": "calendar.ev_trips", "state": "off", "attributes": { "friendly_name": "EV trips" } }
+  { "entity_id": "calendar.ev_trips", "state": "off", "attributes": { "friendly_name": "EV trips", "haeo_events": [{ "description": null, "end": "2026-08-01T17:00:00+00:00", "location": "100 km", "start": "2026-08-01T09:00:00+00:00", "summary": "Day trip" }] } }
 ]
