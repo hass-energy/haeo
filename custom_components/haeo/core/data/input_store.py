@@ -19,20 +19,17 @@ import asyncio
 from collections.abc import Callable
 from enum import Enum
 import logging
-from typing import Literal
 
 import numpy as np
 
-from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
 from custom_components.haeo.core.data.loader.config_loader import is_percent_field, resolve_constant, resolve_field
 from custom_components.haeo.core.data.storage import Storage
 from custom_components.haeo.core.data.util.input_values import InputError
-from custom_components.haeo.core.schema import as_calendar_value, as_entity_value, is_calendar_value
+from custom_components.haeo.core.schema import as_entity_value
 from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.state import EntityState, StateMachine
 
-type InputValue = bool | float | np.ndarray | CalendarBoundaryData
-type SourceKind = Literal["entity", "calendar"]
+type InputValue = bool | float | np.ndarray
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,8 +57,6 @@ class InputStore:
         storage: Persistence binding backing this store.
         initial_value: Initial constant value (display units) for editable mode.
         negate: When True, values resolved from source entities are negated.
-        source_kind: How driven sources resolve: 'entity' loads sensor states,
-            'calendar' resolves the entity's events into boundary arrays.
 
     """
 
@@ -75,7 +70,6 @@ class InputStore:
         storage: Storage,
         initial_value: float | bool | None = None,
         negate: bool = False,
-        source_kind: SourceKind = "entity",
     ) -> None:
         """Initialize the input store."""
         self._mode = mode
@@ -83,7 +77,6 @@ class InputStore:
         self._hint = hint
         self._get_forecast_timestamps = get_forecast_timestamps
         self._storage = storage
-        self._source_kind: SourceKind = source_kind
 
         # When True, values resolved from source entities are negated so the
         # optimization sees the running cost's negative. Constant (editable)
@@ -118,11 +111,6 @@ class InputStore:
         return self._source_entity_ids
 
     @property
-    def source_kind(self) -> SourceKind:
-        """Return how driven sources resolve ('entity' or 'calendar')."""
-        return self._source_kind
-
-    @property
     def hint(self) -> FieldHint:
         """Return the field hint describing this store's shape."""
         return self._hint
@@ -144,8 +132,7 @@ class InputStore:
         """Return the resolved value in optimization units.
 
         For time-series numeric fields this is a numpy array; for scalar fields
-        a float; for boolean fields a bool; for calendar fields a
-        ``CalendarBoundaryData`` mapping. ``None`` when not loaded.
+        a float; for boolean fields a bool. ``None`` when not loaded.
         """
         return self._value
 
@@ -172,7 +159,7 @@ class InputStore:
         first value for time-series fields.
         """
         value = self._value
-        if value is None or isinstance(value, dict):
+        if value is None:
             return None
         if isinstance(value, bool):
             return value
@@ -186,7 +173,7 @@ class InputStore:
         Percentage fields are scaled back to 0-100. Booleans pass through.
         """
         value = self._value
-        if value is None or isinstance(value, dict):
+        if value is None:
             return None
         if isinstance(value, bool):
             return (value,)
@@ -302,19 +289,11 @@ class InputStore:
             self._available = False
             return False
 
-        if self._source_kind == "calendar":
-            # Re-read the persisted value so captured events (diagnostics
-            # replay / scenarios) resolve instead of the live entity state.
-            persisted = self._storage.read()
-            schema_value = persisted if is_calendar_value(persisted) else as_calendar_value(self._source_entity_ids[0])
-        else:
-            schema_value = as_entity_value(self._source_entity_ids)
-
         forecast_timestamps = self._get_forecast_timestamps()
         self._error = None
         try:
             resolved = resolve_field(
-                schema_value,
+                as_entity_value(self._source_entity_ids),
                 self._hint,
                 sm,
                 list(forecast_timestamps),
@@ -334,7 +313,7 @@ class InputStore:
             self._available = False
             return False
 
-        if resolved is None or not isinstance(resolved, (bool, float, int, np.ndarray, dict)):
+        if resolved is None or not isinstance(resolved, (bool, float, int, np.ndarray)):
             _LOGGER.debug(
                 "Load returned no value from sources %s; keeping previous value",
                 self._source_entity_ids,
@@ -382,7 +361,6 @@ def create_input_store(
 
     Reads the persisted schema value to determine mode and initial state:
     - {"type": "entity", "value": [...]} → DRIVEN mode
-    - {"type": "calendar", "value": "..."} → DRIVEN mode resolving calendar events
     - {"type": "constant", "value": X} → EDITABLE mode with that value
     - bare bool/int/float → EDITABLE mode with that value
     - {"type": "none"} or None → EDITABLE mode with no value
@@ -401,16 +379,6 @@ def create_input_store(
                 get_forecast_timestamps=get_forecast_timestamps,
                 storage=storage,
                 negate=negate,
-            )
-        case {"type": "calendar", "value": str(entity_id)}:
-            return InputStore(
-                mode=InputMode.DRIVEN,
-                source_entity_ids=[entity_id],
-                hint=hint,
-                get_forecast_timestamps=get_forecast_timestamps,
-                storage=storage,
-                negate=negate,
-                source_kind="calendar",
             )
         case {"type": "constant", "value": constant}:
             return InputStore(
@@ -456,4 +424,4 @@ def create_input_store(
             raise RuntimeError(msg)
 
 
-__all__ = ["InputMode", "InputStore", "InputValue", "SourceKind", "create_input_store"]
+__all__ = ["InputMode", "InputStore", "InputValue", "create_input_store"]

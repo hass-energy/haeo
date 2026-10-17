@@ -7,6 +7,7 @@ import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader import config_loader as cl
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.data.loader.config_loader import (
     _resolve_list_items,
     load_element_config,
@@ -33,7 +34,12 @@ from custom_components.haeo.core.schema.elements.battery import (
 from custom_components.haeo.core.schema.elements.buffer import CONF_SHORTFALL_COST, BufferConfigSchema
 from custom_components.haeo.core.schema.elements.buffer import SECTION_PRICING as BUFFER_SECTION_PRICING
 from custom_components.haeo.core.schema.elements.policy import CONF_PRICE, CONF_RULES
-from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints, extract_field_hints
+from custom_components.haeo.core.schema.field_hints import (
+    FieldHint,
+    ListFieldHints,
+    calendar_input,
+    extract_field_hints,
+)
 from custom_components.haeo.core.schema.sections import CONF_EFFICIENCY_SOURCE_TARGET, SECTION_EFFICIENCY
 from custom_components.haeo.core.state import StateMachine
 
@@ -263,7 +269,7 @@ def test_efficiency_defaults_to_unity(
 def test_unavailable_efficiency_entity_defaults_to_unity(monkeypatch: pytest.MonkeyPatch) -> None:
     """Unavailable efficiency entity data falls back to 100% defaults."""
 
-    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, float]:
         return {}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
@@ -306,7 +312,7 @@ def test_entity_value_resolves_to_time_series(
 ) -> None:
     """Entity values resolve to time series arrays regardless of sensor data shape."""
 
-    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, object]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, object]:
         return sensor_data
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
@@ -333,7 +339,7 @@ def test_price_field_resolves_to_none(
 ) -> None:
     """Price field resolves to None for unavailable, empty, or unrecognized values."""
 
-    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, float]:
         return {}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
@@ -366,7 +372,7 @@ def test_unknown_element_type_raises() -> None:
 def test_entity_percent_scalar_converts(monkeypatch: pytest.MonkeyPatch) -> None:
     """Entity-backed SOC scalar values are divided by 100."""
 
-    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, float]:
         return {"sensor.soc": 80.0}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
@@ -381,11 +387,11 @@ def test_entity_percent_scalar_converts(monkeypatch: pytest.MonkeyPatch) -> None
 def test_entity_percent_time_series_converts(monkeypatch: pytest.MonkeyPatch) -> None:
     """Entity-backed SOC boundary values are divided by 100."""
 
-    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, float]:
         return {"sensor.cap": 10.0}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
-    monkeypatch.setattr(cl, "fuse_to_boundaries", lambda *_a, **_kw: [50.0, 60.0, 70.0, 80.0])
+    monkeypatch.setattr(cl, "fuse_sensor_payloads", lambda *_a, **_kw: [50.0, 60.0, 70.0, 80.0])
 
     config = _battery_config()
     _dict(config["storage"])["capacity"] = {"type": "constant", "value": 10.0}
@@ -426,7 +432,7 @@ def test_boolean_values_pass_through(role_input: dict[str, object]) -> None:
 def test_entity_non_percent_scalar_resolves(monkeypatch: pytest.MonkeyPatch) -> None:
     """Non-percent scalar entity values resolve without division."""
 
-    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, float]:
         return {"sensor.salvage": 0.05}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
@@ -515,7 +521,7 @@ def test_load_element_configs_negates_entity_surfaced_load_price(monkeypatch: py
     must be negated on resolution or the load sees a cost instead of a value.
     """
 
-    def fake_load_sensors(_sm: object, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: object, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, float]:
         return dict.fromkeys(entity_ids, 0.25)
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
@@ -593,7 +599,7 @@ def test_resolve_list_items_zero_price_loads(items: list[dict[str, object]]) -> 
 def test_resolve_list_items_unavailable_entity_sets_none(monkeypatch: pytest.MonkeyPatch) -> None:
     """When entity resolution returns None, the field is set to None."""
 
-    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, float]:
+    def fake_load_sensors(_sm: StateMachine, entity_ids: Sequence[str], **_kwargs: object) -> dict[str, float]:
         return {}
 
     monkeypatch.setattr(cl, "load_sensors", fake_load_sensors)
@@ -822,7 +828,7 @@ def test_entity_values_respect_non_negative_output_types(
     expected: list[float] | float,
 ) -> None:
     """Fields that cannot be negative, by quantity or by minimum, clamp slightly negative readings to zero."""
-    monkeypatch.setattr(cl, "load_sensors", lambda *_a: {"sensor.x": sensor_value})
+    monkeypatch.setattr(cl, "load_sensors", lambda *_a, **_kw: {"sensor.x": sensor_value})
 
     result = cl.resolve_field({"type": "entity", "value": ["sensor.x"]}, hint, FakeStateMachine({}), FORECAST_TIMES)
 
@@ -845,7 +851,7 @@ def test_entity_significantly_negative_value_raises(
     sensor_value: float,
 ) -> None:
     """A significantly negative value for a non-negative field is rejected with the value in sensor units."""
-    monkeypatch.setattr(cl, "load_sensors", lambda *_a: {"sensor.x": sensor_value})
+    monkeypatch.setattr(cl, "load_sensors", lambda *_a, **_kw: {"sensor.x": sensor_value})
 
     with pytest.raises(InputError) as exc_info:
         cl.resolve_field({"type": "entity", "value": ["sensor.x"]}, hint, FakeStateMachine({}), FORECAST_TIMES)
@@ -906,7 +912,89 @@ def test_entity_duration_rejects_negative() -> None:
         load_element_config("Backup", config, sm, FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
 
 
-# -- source history tests --
+# -- fields with outputs --
+
+
+def test_field_with_outputs_loads_each_output_from_its_calendar(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each output of a field resolves from the field's calendar, and the field itself is not loaded."""
+    hints = {
+        "storage": {
+            "capacity": FieldHint(
+                output_type=OutputType.AVAILABILITY,
+                outputs={
+                    "away": calendar_input(OutputType.AVAILABILITY, "window_active"),
+                    "due": calendar_input(OutputType.ENERGY, "window_due"),
+                },
+            )
+        }
+    }
+    monkeypatch.setattr(cl, "extract_field_hints", lambda _schema: hints)
+    event = {
+        "start": "1970-01-01T01:00:00+00:00",
+        "end": "1970-01-01T02:00:00+00:00",
+        "summary": "Trip",
+        "location": "40 kWh",
+        "description": None,
+    }
+    states = {"calendar.trips": FakeEntityState("calendar.trips", "on", {CALENDAR_EVENTS_ATTRIBUTE: [event]})}
+    config = _battery_config(capacity={"type": "entity", "value": ["calendar.trips"]})
+
+    loaded = _dict(load_element_config("Battery", config, FakeStateMachine(states), FORECAST_TIMES))  # type: ignore[arg-type]  # fixtures use loose dicts
+    storage = _dict(loaded["storage"])
+
+    assert "capacity" not in storage
+    np.testing.assert_allclose(_ndarray(storage["away"]), [0.0, 1.0, 0.0])
+    np.testing.assert_allclose(_ndarray(storage["due"]), [0.0, 0.0, 40.0, 0.0])
+
+    from_values = _dict(
+        load_element_config_from_values(
+            "Battery",
+            config,  # type: ignore[arg-type]  # fixtures use loose dicts
+            {("storage", "away"): np.ones(3)},
+            FORECAST_TIMES,
+            {},
+        )
+    )
+    values_storage = _dict(from_values["storage"])
+    assert "capacity" not in values_storage
+    np.testing.assert_allclose(_ndarray(values_storage["away"]), [1.0, 1.0, 1.0])
+    assert "due" not in values_storage
+
+
+def test_forecast_field_replays_a_captured_calendar_state() -> None:
+    """A forecast field reading a calendar loads from a captured state carrying its events, as replay does."""
+    # Real epoch times: stepped forecasts need them for their steps to survive forecast cycling
+    start = 1_767_225_600.0
+    forecast_times = (start, start + 3600.0, start + 7200.0, start + 10800.0)
+    event = {
+        "start": "2026-01-01T01:00:00+00:00",
+        "end": "2026-01-01T02:00:00+00:00",
+        "summary": "Demand charge",
+        "location": None,
+        "description": "0.5 $/kWh",
+    }
+    states = {"calendar.demand": FakeEntityState("calendar.demand", "off", {CALENDAR_EVENTS_ATTRIBUTE: [event]})}
+    config = _grid_config(import_price=as_entity_value(["calendar.demand"]))
+
+    loaded = _dict(load_element_config("Grid", config, FakeStateMachine(states), forecast_times))  # type: ignore[arg-type]  # fixtures use loose dicts
+
+    np.testing.assert_allclose(_ndarray(_dict(loaded["pricing"])["price_source_target"]), [0.0, 0.5, 0.0], atol=1e-9)
+
+
+def test_sensor_in_a_unit_the_field_cannot_use_is_rejected() -> None:
+    """A sensor whose unit does not convert to the field's unit is rejected rather than read as the field's unit."""
+    states = {
+        "sensor.energy": FakeEntityState("sensor.energy", "3", {"unit_of_measurement": "kWh", "device_class": "energy"})
+    }
+    config = _grid_config(import_price=as_entity_value(["sensor.energy"]))
+
+    with pytest.raises(InputError) as err:
+        load_element_config("Grid", config, FakeStateMachine(states), FORECAST_TIMES)  # type: ignore[arg-type]  # fixtures use loose dicts
+
+    assert err.value.translation_key == "input_unit_incompatible"
+
+
+# -- tests for data loaded beside fields --
 
 _PLUG = "binary_sensor.ev_plug"
 _ODOMETER = "sensor.ev_odometer"
@@ -976,3 +1064,44 @@ def test_distance_field_loads_readings_in_base_unit() -> None:
     trip = _dict(_dict(result)["trip"])
     assert trip["odometer"] == pytest.approx(32.18688)
     assert trip.get("odometer_readings") == [(1000.0, pytest.approx(16.09344))]
+
+
+@pytest.mark.parametrize(
+    ("events", "expected"),
+    [
+        pytest.param([("1970-01-01T00:30:00+00:00", "1970-01-01T02:00:00+00:00")], 1800.0, id="open_at_horizon_start"),
+        pytest.param(
+            [
+                ("1970-01-01T00:00:00+00:00", "1970-01-01T01:00:00+00:00"),
+                ("1970-01-01T00:30:00+00:00", "1970-01-01T03:00:00+00:00"),
+            ],
+            0.0,
+            id="overlapping_events_chain",
+        ),
+        pytest.param(
+            [
+                ("1970-01-01T00:00:00+00:00", "1970-01-01T01:00:00+00:00"),
+                ("1970-01-01T01:00:00+00:00", "1970-01-01T03:00:00+00:00"),
+            ],
+            3600.0,
+            id="touching_events_stay_separate",
+        ),
+        pytest.param([("1970-01-01T02:00:00+00:00", "1970-01-01T03:00:00+00:00")], None, id="none_open"),
+    ],
+)
+def test_calendar_field_loads_when_the_open_window_began(events: list[tuple[str, str]], expected: float | None) -> None:
+    """Both loaders read when the window open at the horizon start began, beside a field feeding calendar inputs."""
+    calendar = "calendar.ev_trips"
+    injected = [
+        {"start": start, "end": end, "summary": "Trip", "location": "10 km", "description": None}
+        for start, end in events
+    ]
+    states = {calendar: FakeEntityState(calendar, "on", {CALENDAR_EVENTS_ATTRIBUTE: injected})}
+    config = _ev_trip_config(trip_calendar={"type": "entity", "value": [calendar]})
+    times = (5400.0, 9000.0)
+
+    from_states = load_element_config("EV", config, FakeStateMachine(states), times)  # type: ignore[arg-type]  # fixtures use loose dicts
+    from_values = load_element_config_from_values("EV", config, {}, times, states)  # type: ignore[arg-type]  # fixtures use loose dicts
+
+    for result in (from_states, from_values):
+        assert _dict(_dict(result)["trip"]).get("trip_calendar_open_since") == expected

@@ -92,7 +92,7 @@ from custom_components.haeo.elements import get_element_configs
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.input_stores import build_input_stores
 
-_TIMES = tuple(datetime(2024, 6, 1, tzinfo=UTC) + timedelta(minutes=30 * i) for i in range(3))
+_TIMES = tuple(datetime(2024, 6, 1, tzinfo=UTC) + timedelta(minutes=30 * i) for i in range(4))
 
 
 @pytest.fixture
@@ -590,6 +590,33 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
         {"time": forecast_times[0], "value": 1.2},
         {"time": forecast_times[1], "value": 3.4},
     ]
+
+
+def test_build_coordinator_output_maps_interval_values_onto_period_starts() -> None:
+    """Interval values take the first n of the n+1 boundary times."""
+    output = _build_coordinator_output(
+        SOLAR_POWER,
+        OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0)),
+        forecast_times=_TIMES[:3],
+        currency_sym="$",
+    )
+
+    assert output.forecast == [
+        {"time": _TIMES[0], "value": 1.0},
+        {"time": _TIMES[1], "value": 2.0},
+    ]
+
+
+@pytest.mark.parametrize("value_count", [2, 5], ids=["too-few", "too-many"])
+def test_build_coordinator_output_rejects_values_that_do_not_fit_the_forecast_times(value_count: int) -> None:
+    """Values that are neither interval nor boundary values fail instead of being truncated."""
+    with pytest.raises(ValueError, match=f"has {value_count} values for 4 forecast times"):
+        _build_coordinator_output(
+            SOLAR_POWER,
+            OutputData(type=OutputType.POWER, unit="kW", values=tuple(float(v) for v in range(value_count))),
+            forecast_times=_TIMES[:4],
+            currency_sym="$",
+        )
 
 
 def test_forecast_datetimes_are_in_home_assistant_time_zone() -> None:
@@ -1115,6 +1142,27 @@ def test_are_inputs_aligned_ignores_store_that_rejected_its_value(
     mock_store = MagicMock()
     mock_store.time_series = True
     mock_store.error = InputError(translation_key="negative_input_value", translation_placeholders={"value": "-4.5"})
+    mock_store.horizon_start = 500.0
+    mock_runtime_data.input_stores[("Test Battery", (SECTION_STORAGE, CONF_CAPACITY))] = mock_store
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    assert coordinator._are_inputs_aligned() is True
+
+
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
+def test_are_inputs_aligned_ignores_store_that_could_not_load(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """A store whose source failed to load does not block the update that reports it unavailable."""
+    _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = (1000.0, 2000.0)
+
+    mock_store = MagicMock()
+    mock_store.time_series = True
+    mock_store.error = None
+    mock_store.available = False
     mock_store.horizon_start = 500.0
     mock_runtime_data.input_stores[("Test Battery", (SECTION_STORAGE, CONF_CAPACITY))] = mock_store
 

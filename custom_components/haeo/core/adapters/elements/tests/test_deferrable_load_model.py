@@ -1,8 +1,10 @@
 """Tests for deferrable load element model mapping and optimization behavior."""
 
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
+from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.adapters.elements.deferrable_load import (
     DEFERRABLE_ENERGY_DELIVERED,
     DEFERRABLE_ENERGY_OVERAGE,
@@ -11,7 +13,8 @@ from custom_components.haeo.core.adapters.elements.deferrable_load import (
     DEFERRABLE_POWER,
     adapter,
 )
-from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_CONNECTION,
@@ -25,28 +28,27 @@ from custom_components.haeo.core.model.elements.deferrable_load import (
     DEFERRABLE_LOAD_POWER,
     DeferrableLoadElementConfig,
 )
-from custom_components.haeo.core.schema import as_connection_target
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.deferrable_load import DeferrableLoadConfigData
+from custom_components.haeo.core.schema.elements.deferrable_load import (
+    DeferrableLoadConfigData,
+    DeferrableLoadConfigSchema,
+)
 
 
-def _boundary_data(n_periods: int, events: list[tuple[int, int, float]]) -> CalendarBoundaryData:
-    """Build calendar boundary data from period-aligned (start, end, value) events."""
-    span = np.zeros(n_periods + 1)
-    edge_start = np.zeros(n_periods + 1)
-    edge_end = np.zeros(n_periods + 1)
-    for start, end, value in events:
-        span[max(start, 0) : min(end, n_periods + 1)] += value
-        edge_start[max(start, 0)] += value
-        if end <= n_periods:
-            edge_end[end] += value
-    return CalendarBoundaryData(
-        presence=(span > 0).astype(np.float64),
-        value_span=span,
-        value_edge_start=edge_start,
-        value_edge_end=edge_end,
-        open_since=None,
-    )
+def _window(n_periods: int, start: int, end: int, energy: float) -> dict[str, NDArray[np.float64]]:
+    """Build the loaded window inputs for one window over periods ``start`` to ``end``, due ``energy``.
+
+    A window starting before the horizon is open at its start, so it does not start.
+    """
+    in_window = np.zeros(n_periods)
+    in_window[max(start, 0) : end] = 1.0
+    window_start = np.zeros(n_periods + 1)
+    if start > 0:
+        window_start[start] = 1.0
+    requirement = np.zeros(n_periods + 1)
+    requirement[end] = energy
+    return {"in_window": in_window, "window_start": window_start, "requirement": requirement}
 
 
 def _config(**overrides: object) -> DeferrableLoadConfigData:
@@ -56,7 +58,7 @@ def _config(**overrides: object) -> DeferrableLoadConfigData:
         "name": "pump",
         "connection": as_connection_target("home"),
         "schedule": {
-            "window_calendar": _boundary_data(4, [(2, 3, 6.0)]),
+            **_window(4, 2, 3, 6.0),
         },
         "pricing": {
             "deficit_price": 10.0,
@@ -103,14 +105,15 @@ def test_no_power_limit_when_unconfigured() -> None:
     assert _connection(_config()).get("segments") == {}
 
 
-def test_overage_price_extends_to_boundaries() -> None:
-    """A configured overage price reaches the model as a per-boundary series."""
-    config = _config(pricing={"deficit_price": 10.0, "overage_price": np.array([0.1, 0.2, 0.3, 0.4])})
+def test_overage_price_reaches_the_model() -> None:
+    """A configured overage price reaches the model as its per-boundary series."""
+    overage = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+    config = _config(pricing={"deficit_price": 10.0, "overage_price": overage})
 
     overage_price = _load(config).get("overage_price")
 
     assert overage_price is not None
-    np.testing.assert_allclose(overage_price, [0.1, 0.2, 0.3, 0.4, 0.4])
+    np.testing.assert_allclose(overage_price, overage)
 
 
 def _solve(config: DeferrableLoadConfigData, grid_price: list[float]) -> Network:
@@ -188,26 +191,6 @@ def test_outputs_mapping() -> None:
     np.testing.assert_allclose(outputs[DEFERRABLE_POWER].values, [0.0, 0.0, 6.0, 0.0])
 
 
-@pytest.mark.parametrize(
-    ("pricing", "grid_price", "expected_delivered"),
-    [
-        # A clamped zero shortfall price leaves nothing worth buying grid energy for.
-        pytest.param({"deficit_price": np.array([-5.0, -5.0, -5.0, -5.0])}, 0.1, 0.0, id="negative_deficit_price"),
-        # A clamped zero overage price lets rewarded energy flow beyond the requirement.
-        pytest.param({"deficit_price": 10.0, "overage_price": -1.0}, -0.1, 10.0, id="negative_overage_price"),
-    ],
-)
-def test_negative_prices_are_clamped_to_zero(
-    pricing: dict[str, object], grid_price: float, expected_delivered: float
-) -> None:
-    """Negative penalty prices from an entity are clamped instead of rejected."""
-    config = _config(power={"max_power": 10.0}, pricing=pricing)
-    network = _solve(config, grid_price=[grid_price] * 4)
-
-    delivered = network.elements["pump"].outputs()[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[3]
-    assert delivered == pytest.approx(expected_delivered)
-
-
 def test_without_overage_price_delivery_is_capped() -> None:
     """With no overage price the window takes no more than its requirement, even when paid to."""
     network = _solve(_config(power={"max_power": 10.0}), grid_price=[-0.1, -0.1, -0.1, -0.1])
@@ -219,7 +202,7 @@ def _open_window_config(**schedule: object) -> DeferrableLoadConfigData:
     """Build a config whose 6 kWh window is already open at the horizon start."""
     return _config(
         power={"max_power": 10.0},
-        schedule={"window_calendar": _boundary_data(4, [(-1, 3, 6.0)]), **schedule},
+        schedule={**_window(4, -1, 3, 6.0), **schedule},
     )
 
 
@@ -229,7 +212,6 @@ def _open_window_config(**schedule: object) -> DeferrableLoadConfigData:
         pytest.param(None, 0.0, 6.0, id="unconfigured"),
         pytest.param(4.0, 4.0, 2.0, id="under_target"),
         pytest.param(10.0, 10.0, 0.0, id="over_target"),
-        pytest.param(-1.0, 0.0, 6.0, id="negative_reading"),
     ],
 )
 def test_energy_delivered_seeds_the_open_window(
@@ -254,3 +236,31 @@ def test_energy_delivered_never_seeds_a_later_window() -> None:
 
     delivered = network.elements["pump"].outputs()[DEFERRABLE_LOAD_ENERGY_DELIVERED].values
     np.testing.assert_allclose(delivered, [0.0, 0.0, 0.0, 6.0, 0.0])
+
+
+def test_config_loads_from_a_captured_calendar_state() -> None:
+    """A deferrable load loaded from a calendar state carrying events reaches the model as its windows."""
+    event = {
+        "start": "1970-01-01T02:00:00+00:00",
+        "end": "1970-01-01T03:00:00+00:00",
+        "summary": "Pool pump",
+        "location": "6 kWh",
+        "description": None,
+    }
+    states = {"calendar.pool_pump": FakeEntityState("calendar.pool_pump", "off", {CALENDAR_EVENTS_ATTRIBUTE: [event]})}
+    config: DeferrableLoadConfigSchema = {
+        "element_type": ElementType.DEFERRABLE_LOAD,
+        "name": "pump",
+        "connection": as_connection_target("home"),
+        "schedule": {"window_calendar": as_entity_value(["calendar.pool_pump"])},
+        "pricing": {"deficit_price": as_constant_value(10.0)},
+    }
+
+    loaded = load_element_config("pump", config, FakeStateMachine(states), (0.0, 3600.0, 7200.0, 10800.0, 14400.0))
+    assert loaded["element_type"] == ElementType.DEFERRABLE_LOAD
+    load = _load(loaded)
+
+    np.testing.assert_allclose(load["in_window"], [0.0, 0.0, 1.0, 0.0])
+    np.testing.assert_allclose(load["window_start"], [0.0, 0.0, 1.0, 0.0, 0.0])
+    np.testing.assert_allclose(load["requirement"], [0.0, 0.0, 0.0, 6.0, 0.0])
+    np.testing.assert_allclose(load["deficit_price"], [10.0] * 5)

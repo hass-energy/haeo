@@ -3,6 +3,8 @@
 from collections.abc import Sequence
 from typing import TypeGuard
 
+from custom_components.haeo.core.data.util.field_units import check_source_unit
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.state import StateMachine
 
 from .extractors import extract
@@ -38,7 +40,7 @@ def normalize_entity_ids(value: object) -> list[str]:
     raise TypeError(msg)
 
 
-def load_sensor(sm: StateMachine, entity_id: str) -> SensorPayload | None:
+def load_sensor(sm: StateMachine, entity_id: str, *, output_type: OutputType | None = None) -> SensorPayload | None:
     """Load sensor data for a single entity ID.
 
     Checks if the sensor is a forecast sensor and loads it using forecast extraction,
@@ -47,10 +49,16 @@ def load_sensor(sm: StateMachine, entity_id: str) -> SensorPayload | None:
     Args:
         sm: State machine implementation
         entity_id: The entity ID to load
+        output_type: The input's output type, whose unit the sensor's unit must
+            convert to. Not checked when None.
 
     Returns:
         Either a float (for simple values) or a list of (timestamp, value) tuples
         (for forecast data), or None if no data is available
+
+    Raises:
+        InputError: If the sensor supplies a value the input cannot use, such as
+            one in a unit that does not convert to the input's unit.
 
     """
     state = sm.get(entity_id)
@@ -58,17 +66,24 @@ def load_sensor(sm: StateMachine, entity_id: str) -> SensorPayload | None:
         return None
 
     try:
-        return extract(state).data
+        extracted = extract(state, output_type=output_type)
     except ValueError:
         return None
+    if output_type is not None:
+        check_source_unit(None if extracted.unit is None else str(extracted.unit), output_type)
+    return extracted.data
 
 
-def load_sensors(sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, SensorPayload]:
+def load_sensors(
+    sm: StateMachine, entity_ids: Sequence[str], *, output_type: OutputType | None = None
+) -> dict[str, SensorPayload]:
     """Load sensor data for multiple entity IDs.
 
     Args:
         sm: State machine implementation
         entity_ids: List of entity IDs to load
+        output_type: The input's output type, whose unit each sensor's unit must
+            convert to. Not checked when None.
 
     Returns:
         Dictionary mapping entity IDs to their sensor payloads.
@@ -78,7 +93,7 @@ def load_sensors(sm: StateMachine, entity_ids: Sequence[str]) -> dict[str, Senso
     payloads: dict[str, SensorPayload] = {}
 
     for entity_id in entity_ids:
-        payload = load_sensor(sm, entity_id)
+        payload = load_sensor(sm, entity_id, output_type=output_type)
         if payload is not None:
             payloads[entity_id] = payload
 

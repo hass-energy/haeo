@@ -19,7 +19,6 @@ from custom_components.haeo.core.adapters.elements.ev import (
     EV_TRIP_ENERGY_SHORTFALL,
     adapter,
 )
-from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
@@ -40,25 +39,31 @@ from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.ev import EvConfigData
 
 
-def _boundary_data(
+def _trip_inputs(
     presence: list[float],
     value_edge_start: list[float],
     value_edge_end: list[float],
     open_since: float | None = None,
-) -> CalendarBoundaryData:
-    """Build calendar boundary data with a derived value_span.
+) -> dict[str, object]:
+    """Build the inputs the trip calendar feeds from per-boundary presence and trip distance edges.
 
-    A window's value spans the boundaries from its start edge up to, but not
-    including, its end edge, matching the calendar fuser.
+    Periods are away where the boundary starting them is present. A trip
+    starts where an away period follows home, or where one trip ends as the
+    next starts, and covers the distance at its end edge.
     """
-    span = np.cumsum(value_edge_start) - np.cumsum(value_edge_end)
-    return CalendarBoundaryData(
-        presence=np.array(presence, dtype=np.float64),
-        value_span=np.asarray(span, dtype=np.float64),
-        value_edge_start=np.array(value_edge_start, dtype=np.float64),
-        value_edge_end=np.array(value_edge_end, dtype=np.float64),
-        open_since=open_since,
-    )
+    away = np.array(presence[:-1], dtype=np.float64)
+    trip_start = np.zeros(len(presence), dtype=np.float64)
+    for t in range(1, len(away)):
+        touching = value_edge_end[t] > 0.0 and value_edge_start[t] > 0.0
+        trip_start[t] = float(away[t] > 0.0 and (away[t - 1] <= 0.0 or touching))
+    inputs: dict[str, object] = {
+        "away": away,
+        "trip_start": trip_start,
+        "trip_distance": np.array(value_edge_end, dtype=np.float64),
+    }
+    if open_since is not None:
+        inputs["trip_calendar_open_since"] = open_since
+    return inputs
 
 
 def _ev_config(**overrides: object) -> EvConfigData:
@@ -164,51 +169,11 @@ def test_configured_public_price_is_used() -> None:
     assert elements.trip["deficit_price"] == pytest.approx(0.6)
 
 
-def test_interval_public_price_extends_to_boundaries() -> None:
-    """A per-interval public price is extended to the trip load's boundaries."""
-    elements = _elements(_ev_config(public_charging={"public_charging_price": np.array([0.4, 0.5, 0.6, 0.7])}))
-
-    np.testing.assert_allclose(elements.trip["deficit_price"], [0.4, 0.5, 0.6, 0.7, 0.7])
-
-
-@pytest.mark.parametrize(
-    ("public_charging", "trip_extra", "expected_deficit_price", "expected_reserve_price"),
-    [
-        pytest.param({"public_charging_price": -2.0}, {}, 0.0, 0.0, id="negative_public_price"),
-        pytest.param(
-            {"public_charging_price": np.array([-1.0, 0.5, -0.5, 0.7])},
-            {},
-            [0.0, 0.5, 0.0, 0.7, 0.7],
-            [0.0, 0.5, 0.0, 0.7, 0.7],
-            id="partly_negative_public_series",
-        ),
-        pytest.param(
-            {"public_charging_price": 0.6},
-            {"reserve_price": -3.0},
-            0.6,
-            0.0,
-            id="negative_reserve_price",
-        ),
-    ],
-)
-def test_negative_penalty_prices_are_clamped_to_zero(
-    public_charging: dict[str, object],
-    trip_extra: dict[str, object],
-    expected_deficit_price: float | list[float],
-    expected_reserve_price: float | list[float],
-) -> None:
-    """Negative public or reserve prices from an entity cannot pay the optimizer to miss a trip."""
-    elements = _elements(_ev_config(trip=_reserve_trip(**trip_extra), public_charging=public_charging))
-
-    np.testing.assert_allclose(elements.trip["deficit_price"], expected_deficit_price)
-    np.testing.assert_allclose(_present(elements.pack.get("reserve_price")), expected_reserve_price)
-
-
 def test_calendar_drives_trip_arrays_and_masks() -> None:
     """Calendar presence and edges become trip windows, requirement, and masks."""
     config = _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[0.0, 0.0, 1.0, 0.0, 0.0],
                 value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
                 value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
@@ -234,7 +199,7 @@ def test_live_connected_sensor_pins_first_interval() -> None:
     """The live sensor overrides the calendar for the current interval only."""
     config = _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[0.0, 0.0, 1.0, 0.0, 0.0],
                 value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
                 value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
@@ -260,7 +225,7 @@ def test_live_connected_sensor_pins_first_interval() -> None:
         ),
         pytest.param(
             {
-                "trip_calendar": _boundary_data(
+                **_trip_inputs(
                     presence=[0.0, 0.0, 1.0, 0.0, 0.0],
                     value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
                     value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
@@ -293,7 +258,7 @@ def test_calendar_governs_current_interval_without_plugged_in_sensor() -> None:
     """With only a calendar, a trip window open now keeps the car away now."""
     config = _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[1.0, 1.0, 0.0, 0.0, 0.0],
                 value_edge_start=[30.0, 0.0, 0.0, 0.0, 0.0],
                 value_edge_end=[0.0, 0.0, 30.0, 0.0, 0.0],
@@ -310,7 +275,7 @@ def test_odometer_progress_reduces_trip_requirement() -> None:
     """While away, distance already driven becomes trip battery initial charge."""
     config = _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[1.0, 0.0, 0.0, 0.0, 0.0],
                 value_edge_start=[30.0, 0.0, 0.0, 0.0, 0.0],
                 value_edge_end=[0.0, 30.0, 0.0, 0.0, 0.0],
@@ -332,7 +297,7 @@ def test_odometer_progress_not_credited_outside_trip_window() -> None:
     """Distance from a finished trip does not cover a future trip while unplugged."""
     config = _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[0.0, 0.0, 1.0, 0.0, 0.0],
                 value_edge_start=[0.0, 0.0, 50.0, 0.0, 0.0],
                 value_edge_end=[0.0, 0.0, 0.0, 50.0, 0.0],
@@ -352,7 +317,7 @@ def test_odometer_progress_credits_only_the_open_trip_window() -> None:
     """Distance driven beyond the open trip completes it without reaching later trips."""
     config = _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[1.0, 0.0, 0.0, 1.0, 0.0],
                 value_edge_start=[30.0, 0.0, 0.0, 50.0, 0.0],
                 value_edge_end=[0.0, 30.0, 0.0, 0.0, 50.0],
@@ -375,7 +340,7 @@ def test_odometer_progress_ignored_while_connected() -> None:
     """Stale odometer readings do not credit the trip battery when home."""
     config = _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[0.0, 0.0, 1.0, 0.0, 0.0],
                 value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
                 value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
@@ -428,7 +393,7 @@ def test_optimizer_precharges_before_trip_in_cheap_period() -> None:
     """The EV charges ahead of the trip when energy is cheapest."""
     config = _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[0.0, 0.0, 1.0, 0.0, 0.0],
                 value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
                 value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
@@ -450,7 +415,7 @@ def test_shortfall_is_priced_at_the_public_price() -> None:
     config = _ev_config(
         charging={"max_charge_rate": 2.0},
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[0.0, 0.0, 1.0, 0.0, 0.0],
                 value_edge_start=[0.0, 0.0, 100.0, 0.0, 0.0],
                 value_edge_end=[0.0, 0.0, 0.0, 100.0, 0.0],
@@ -474,7 +439,7 @@ def test_home_charge_limit_binds_at_the_charger() -> None:
         charging={"max_charge_rate": 2.0},
         efficiency={"efficiency_target_source": 0.9},
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[0.0, 0.0, 1.0, 0.0, 0.0],
                 value_edge_start=[0.0, 0.0, 100.0, 0.0, 0.0],
                 value_edge_end=[0.0, 0.0, 0.0, 100.0, 0.0],
@@ -498,7 +463,7 @@ def test_outputs_mapping_from_solved_network() -> None:
     """Adapter outputs map solved model values to EV output names."""
     config = _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[0.0, 0.0, 1.0, 0.0, 0.0],
                 value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
                 value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
@@ -552,7 +517,7 @@ def test_odometer_overshoot_beyond_trip_stays_feasible() -> None:
     """A car that drove further than the scheduled trip must still solve."""
     config = _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[1.0, 0.0, 0.0, 0.0, 0.0],
                 value_edge_start=[30.0, 0.0, 0.0, 0.0, 0.0],
                 value_edge_end=[0.0, 30.0, 0.0, 0.0, 0.0],
@@ -586,7 +551,7 @@ def _open_trip_config(**trip: object) -> EvConfigData:
     """Build a config with a 30 km (6 kWh) trip open from before the horizon to boundary 2."""
     return _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[1.0, 1.0, 0.0, 0.0, 0.0],
                 value_edge_start=[30.0, 0.0, 0.0, 0.0, 0.0],
                 value_edge_end=[0.0, 0.0, 30.0, 0.0, 0.0],
@@ -743,7 +708,7 @@ def test_returning_early_keeps_later_trips() -> None:
     """Ending the open trip leaves a touching later trip in place."""
     config = _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[1.0, 1.0, 1.0, 0.0, 0.0],
                 value_edge_start=[30.0, 20.0, 0.0, 0.0, 0.0],
                 value_edge_end=[0.0, 30.0, 0.0, 20.0, 0.0],
@@ -778,7 +743,7 @@ def test_glitched_soc_sensor_is_clamped() -> None:
 def _reserve_trip(**extra: object) -> dict[str, object]:
     """Trip config with a calendar and a 20% reserve."""
     return {
-        "trip_calendar": _boundary_data(
+        **_trip_inputs(
             presence=[0.0, 0.0, 1.0, 0.0, 0.0],
             value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
             value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
@@ -803,7 +768,7 @@ def test_reserve_checked_at_end_of_away_event_without_distance() -> None:
     """An away event with no parseable distance still has its end reserve checked."""
     config = _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[0.0, 0.0, 1.0, 0.0, 0.0],
                 value_edge_start=[0.0] * 5,
                 value_edge_end=[0.0] * 5,
@@ -863,7 +828,7 @@ def test_no_reserve_means_no_reserve_output() -> None:
     """Without reserve configuration the EV exposes no reserve sensor."""
     config = _ev_config(
         trip={
-            "trip_calendar": _boundary_data(
+            **_trip_inputs(
                 presence=[0.0, 0.0, 1.0, 0.0, 0.0],
                 value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
                 value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],

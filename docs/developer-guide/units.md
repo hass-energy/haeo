@@ -76,23 +76,14 @@ Again, no conversions!
 
 ## Converting External Data
 
-When loading data from Home Assistant sensors:
+Sources are converted to base units as they load, in [`core/units.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/units.py).
+`base_unit_conversion()` returns the factor from a unit to its base unit: W, MW, and GW to kW, Wh and MWh to kWh, minutes and days to hours, and a price per energy unit, such as €/MWh, to the same currency per kWh.
 
-```python
-from homeassistant.const import UnitOfPower, UnitOfEnergy
+Each source's base unit must then fit the input field's unit, checked by [`core/data/util/field_units.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/util/field_units.py).
+A source in a unit that does not convert raises an `InputError`, which the input reports instead of reading the value as the field's unit.
+A sensor that states no unit passes.
 
-
-def convert_to_kw(value: float, unit: str) -> float:
-    """Convert power to kW."""
-    if unit == UnitOfPower.WATT:
-        return value / 1000.0
-    elif unit == UnitOfPower.KILOWATT:
-        return value
-    else:
-        raise ValueError(f"Unsupported unit: {unit}")
-```
-
-See `const.py` for actual implementation.
+A value a user types, such as in a calendar event, must state its unit: `to_field_unit()` converts it to the field's unit and rejects a bare number for a field with a unit, so no number is ever taken to be in HAEO's own units.
 
 ## Implementation Guidelines
 

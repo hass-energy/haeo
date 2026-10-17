@@ -14,7 +14,6 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import (
     VALUE_TYPE_ENTITY,
     VALUE_TYPE_NONE,
-    as_calendar_value,
     as_constant_value,
     as_entity_value,
     get_schema_value_kinds,
@@ -75,7 +74,7 @@ async def test_user_step_creates_entry_with_calendar(
 
     user_input = _user_input(
         trip={
-            CONF_TRIP_CALENDAR: "calendar.ev_trips",
+            CONF_TRIP_CALENDAR: ["calendar.ev_trips"],
             CONF_CONNECTED: ["binary_sensor.ev_plugged_in"],
             CONF_ODOMETER: ["sensor.ev_odometer"],
         }
@@ -85,7 +84,7 @@ async def test_user_step_creates_entry_with_calendar(
     assert result.get("type") == FlowResultType.CREATE_ENTRY
 
     data = flow.async_create_entry.call_args.kwargs["data"]
-    assert data[SECTION_TRIP][CONF_TRIP_CALENDAR] == as_calendar_value("calendar.ev_trips")
+    assert data[SECTION_TRIP][CONF_TRIP_CALENDAR] == as_entity_value(["calendar.ev_trips"])
     assert data[SECTION_TRIP][CONF_CONNECTED] == as_entity_value(["binary_sensor.ev_plugged_in"])
     assert data[SECTION_TRIP][CONF_ODOMETER] == as_entity_value(["sensor.ev_odometer"])
     assert data[SECTION_VEHICLE][CONF_CAPACITY] == as_constant_value(60.0)
@@ -129,7 +128,7 @@ async def test_reconfigure_defaults_surface_calendar_entity(
         },
         SECTION_CHARGING: {CONF_MAX_CHARGE_RATE: as_constant_value(7.4)},
         SECTION_TRIP: {
-            CONF_TRIP_CALENDAR: as_calendar_value("calendar.ev_trips"),
+            CONF_TRIP_CALENDAR: as_entity_value(["calendar.ev_trips"]),
         },
         SECTION_PUBLIC_CHARGING: {},
         SECTION_POWER_LIMITS: {},
@@ -153,7 +152,7 @@ async def test_reconfigure_defaults_surface_calendar_entity(
 
     input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
     defaults = flow._build_defaults("Test EV", input_fields, dict(existing_subentry.data))
-    assert defaults[SECTION_TRIP][CONF_TRIP_CALENDAR] == "calendar.ev_trips"
+    assert defaults[SECTION_TRIP][CONF_TRIP_CALENDAR] == ["calendar.ev_trips"]
 
 
 async def test_new_entry_leaves_plugged_in_sensor_unset(

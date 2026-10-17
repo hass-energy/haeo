@@ -2,12 +2,7 @@
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.core.schema import (
-    as_calendar_value,
-    as_connection_target,
-    as_constant_value,
-    as_entity_value,
-)
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType, ev
 from custom_components.haeo.elements.availability import schema_config_available
 
@@ -31,7 +26,7 @@ def _ev_schema(soc_entity: str, *, with_trip: bool = False) -> ev.EvConfigSchema
     }
     if with_trip:
         config[ev.SECTION_TRIP] = {
-            ev.CONF_TRIP_CALENDAR: as_calendar_value("calendar.ev_trips"),
+            ev.CONF_TRIP_CALENDAR: as_entity_value(["calendar.ev_trips"]),
         }
     return config  # type: ignore[return-value]  # constructed to match EvConfigSchema
 
@@ -48,8 +43,11 @@ async def test_available_returns_false_when_soc_sensor_missing(hass: HomeAssista
     assert schema_config_available(_ev_schema("sensor.missing"), sm=hass.states) is False
 
 
-async def test_calendar_field_does_not_block_availability(hass: HomeAssistant) -> None:
-    """Calendar values are loaded separately and do not gate availability."""
+async def test_trip_calendar_gates_availability_like_any_entity(hass: HomeAssistant) -> None:
+    """The trip calendar is an entity like any other: the EV is available once it exists."""
     hass.states.async_set("sensor.ev_soc", "80.0", {"unit_of_measurement": "%"})
+    assert schema_config_available(_ev_schema("sensor.ev_soc", with_trip=True), sm=hass.states) is False
+
+    hass.states.async_set("calendar.ev_trips", "off")
 
     assert schema_config_available(_ev_schema("sensor.ev_soc", with_trip=True), sm=hass.states) is True
