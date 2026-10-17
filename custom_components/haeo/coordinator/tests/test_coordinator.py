@@ -1277,6 +1277,53 @@ async def test_async_update_data_clears_flags_in_finally(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry")
+async def test_inputs_changed_during_optimization_request_another(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """An input change while an optimization runs requests another once the debounce window passes."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    def change_inputs_mid_solve() -> None:
+        coordinator.signal_optimization_stale()
+        msg = "test"
+        raise UpdateFailed(msg)
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", side_effect=change_inputs_mid_solve),
+        patch("custom_components.haeo.coordinator.coordinator.async_call_later") as call_later,
+        pytest.raises(UpdateFailed),
+    ):
+        await coordinator._async_update_data()
+
+    assert coordinator._pending_refresh is True
+    call_later.assert_called_once()
+    assert call_later.call_args.args[2] == coordinator._debounce_timer_callback
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
+async def test_requests_before_optimization_are_met_by_it(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """A request made before an optimization starts is met by it, so no further optimization follows."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator._pending_refresh = True
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", side_effect=UpdateFailed("test")),
+        patch("custom_components.haeo.coordinator.coordinator.async_call_later") as call_later,
+        pytest.raises(UpdateFailed),
+    ):
+        await coordinator._async_update_data()
+
+    assert coordinator._pending_refresh is False
+    call_later.assert_not_called()
+
+
+@pytest.mark.usefixtures("mock_battery_subentry")
 async def test_load_from_input_stores_raises_without_runtime_data(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
