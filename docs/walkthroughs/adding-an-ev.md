@@ -93,6 +93,7 @@ create_calendar_event(
 
     Enter only a number followed by a unit, such as `50 km` or `30 mi`.
     An event without a distance still marks the car away for its duration, but asks for no trip energy.
+    A number without a unit is ignored, and HAEO raises a repair issue so you can fix the event.
 
 ## Step 3: Add the EV element
 
@@ -117,7 +118,7 @@ add_ev(
     energy_per_distance=ConstantInput(0.15),
     current_soc=EntityInput("EV battery state of charge", "EV Battery State of Charge"),
     max_charge_rate=ConstantInput(7.4),
-    trip_calendar="EV Trips",
+    trip_calendar=EntityInput("EV Trips", "EV Trips"),
     connected=EntityInput("EV plugged in", "EV Plugged In"),
     public_charging_price=ConstantInput(0.60),
 )

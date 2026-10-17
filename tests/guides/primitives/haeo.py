@@ -636,15 +636,11 @@ def add_ev(
     current_soc: EntityInput,
     max_charge_rate: EntityInput | ConstantInput,
     max_discharge_rate: EntityInput | ConstantInput | None = None,
-    trip_calendar: str | None = None,
+    trip_calendar: EntityInput | None = None,
     connected: EntityInput | None = None,
     public_charging_price: EntityInput | ConstantInput | None = None,
 ) -> None:
-    """Add EV element to HAEO network.
-
-    The trip calendar is a plain calendar entity picker (not a choose
-    selector), so it is passed as the calendar's display name.
-    """
+    """Add EV element to HAEO network."""
     et = ElementType.EV
     _LOGGER.info("Adding EV: %s", name)
 
@@ -665,16 +661,13 @@ def add_ev(
         fields[CONF_MAX_DISCHARGE_RATE] = max_discharge_rate
     _fill_element_fields(page, et, fields)
 
-    # Trip section: calendar picker plus choose-selector fields
     trip_fields: dict[str, FieldInput] = {}
+    if trip_calendar is not None:
+        trip_fields[CONF_TRIP_CALENDAR] = trip_calendar
     if connected is not None:
         trip_fields[CONF_CONNECTED] = connected
-    if trip_calendar is not None or trip_fields:
-        page.expand_section(_section_name(et, SECTION_TRIP))
-    if trip_calendar is not None:
-        page.select_entity(_field_label(et, SECTION_TRIP, CONF_TRIP_CALENDAR), trip_calendar, trip_calendar)
     if trip_fields:
-        _fill_element_fields(page, et, trip_fields)
+        _fill_element_fields(page, et, trip_fields, collapsed_sections=frozenset({SECTION_TRIP}))
 
     if public_charging_price is not None:
         _fill_element_fields(
