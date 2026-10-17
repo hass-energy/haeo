@@ -202,9 +202,17 @@ def _build_coordinator_output(
     forecast: list[ForecastPoint] | None = None
 
     if forecast_times and len(values) > 1:
-        # Interval values use n_periods times and boundary values use all
-        # n_periods+1 times (strict=False handles both)
-        forecast = [ForecastPoint(time=time, value=value) for time, value in zip(forecast_times, values, strict=False)]
+        # Interval values use n_periods times and boundary values use all n_periods+1
+        if len(values) not in (len(forecast_times) - 1, len(forecast_times)):
+            msg = (
+                f"Output {output_name!r} has {len(values)} values for {len(forecast_times)} forecast times; "
+                f"expected {len(forecast_times) - 1} interval values or {len(forecast_times)} boundary values"
+            )
+            raise ValueError(msg)
+        forecast = [
+            ForecastPoint(time=time, value=value)
+            for time, value in zip(forecast_times[: len(values)], values, strict=True)
+        ]
 
     return CoordinatorOutput(
         type=output_data.type,

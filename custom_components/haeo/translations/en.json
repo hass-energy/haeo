@@ -153,7 +153,8 @@
       "error": {
         "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -172,7 +173,11 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "buffer": {
@@ -218,7 +223,8 @@
       "error": {
         "buffer_storage_required": "Choose at least one battery to hold the buffer",
         "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -251,7 +257,8 @@
         "cannot_connect_to_self": "Cannot connect a device to itself",
         "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -287,7 +294,8 @@
       "error": {
         "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -329,7 +337,8 @@
       "error": {
         "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -376,7 +385,8 @@
       "error": {
         "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
@@ -452,6 +462,7 @@
         "duplicate_rule": "A rule with this source and target already exists",
         "missing_name": "Policy name is required",
         "name_exists": "A policy with this name already exists",
+        "required": "Choose an entity or enter a value for the price",
         "source_target_same": "Source and target cannot be the same element"
       },
       "abort": { "no_rules": "No policy rules configured", "reconfigure_successful": "Policies updated successfully" }
@@ -482,7 +493,8 @@
       "error": {
         "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
         "missing_name": "Name is required",
-        "name_exists": "A device with this name already exists"
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     }
