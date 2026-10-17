@@ -6,7 +6,12 @@ from typing import TypedDict
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.adapters.elements.load import LOAD_DEVICE_LOAD, LOAD_FORECAST_LIMIT_PRICE, LOAD_POWER
+from custom_components.haeo.core.adapters.elements.load import (
+    LOAD_DEVICE_LOAD,
+    LOAD_FORECAST_LIMIT_PRICE,
+    LOAD_POWER,
+    LOAD_POWER_UNSERVED,
+)
 from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
@@ -113,7 +118,8 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,))
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
+                        "shortfall": OutputData(type=OutputType.POWER, unit="kW", values=(0.5,)),
                     }
                 },
             }
@@ -121,6 +127,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         "outputs": {
             LOAD_DEVICE_LOAD: {
                 LOAD_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="-", fixed=True),
+                LOAD_POWER_UNSERVED: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction="-"),
                 LOAD_FORECAST_LIMIT_PRICE: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.01,)),
             }
         },

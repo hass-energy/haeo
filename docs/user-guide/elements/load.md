@@ -231,6 +231,7 @@ A Load element creates 1 device in Home Assistant with the following sensors.
 | Sensor                                                        | Unit   | Description                                     |
 | ------------------------------------------------------------- | ------ | ----------------------------------------------- |
 | [`sensor.{name}_power`](#power)                               | kW     | Power consumed by load                          |
+| [`sensor.{name}_unserved_power`](#unserved-power)             | kW     | Forecast load the network cannot supply         |
 | [`sensor.{name}_forecast_limit_price`](#forecast-limit-price) | \$/kWh | Shadow price of the load power limit constraint |
 
 ### Power
@@ -254,6 +255,18 @@ When shedding is enabled, this may be lower than the forecast if the optimizer d
     - a load running at 50% for the whole period, and
     - a load running at 100% for half the period.
         Interpret the reduced power in whatever way makes sense for the device you are controlling.
+
+### Unserved power
+
+The part of the forecast the network cannot supply at each time period.
+This sensor is only created when [Shedding](#shedding) is disabled.
+
+It is zero whenever the grid, batteries, and generation can meet the load.
+When the forecast is more than they can deliver, for example a load spike above the grid import limit, the load falls short by this amount at a value of lost load of \$1000/kWh.
+The rest of the horizon is still optimized normally instead of the whole plan failing.
+
+A non-zero value means your network cannot supply this forecast.
+Check the forecast for spikes and the import, inverter, and battery power limits on the path to this load.
 
 ### Forecast Limit Price
 

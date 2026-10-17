@@ -53,6 +53,7 @@ The adapter transforms user configuration into connection segments:
 | --------------------------------- | ------ | --------- | ----------------------------------------------------------------------------------------------------------- |
 | `power`                           | kW     | Real-time | Power consumed by load                                                                                      |
 | `power_possible`                  | kW     | Real-time | Maximum possible load (forecast)                                                                            |
+| `unserved_power`                  | kW     | Real-time | Forecast load the network cannot supply, when shedding is disabled                                          |
 | `forecast_limit_price`            | \$/kWh | Real-time | Marginal cost of serving this load                                                                          |
 | `horizon_energy`                  | kWh    | Per solve | Energy served over the full optimisation horizon; forecast attribute is the per-interval contribution       |
 | `horizon_marginal_cost`           | \$     | Per solve | Marginal cost over the full horizon (`Σ energy[t] × node_dual[t]`); forecast attribute is per-interval cost |

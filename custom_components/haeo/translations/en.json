@@ -602,12 +602,14 @@
       "load_next_24h_marginal_cost": { "name": "Next 24h marginal cost" },
       "load_next_24h_runtime": { "name": "Next 24h runtime" },
       "load_power": { "name": "Power" },
+      "load_power_unserved": { "name": "Unserved power" },
       "network_optimization_cost": { "name": "Cost" },
       "network_optimization_duration": { "name": "Duration" },
       "network_optimization_status": { "name": "Status" },
       "node_power_balance": { "name": "Power balance shadow price" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
-      "solar_power": { "name": "Power" }
+      "solar_power": { "name": "Power" },
+      "solar_power_unabsorbed": { "name": "Unabsorbed power" }
     },
     "switch": {
       "load_curtailment": { "name": "Shedding" },

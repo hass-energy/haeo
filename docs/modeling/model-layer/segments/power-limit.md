@@ -11,7 +11,7 @@ It can also apply a time-slice constraint that prevents simultaneous full-capaci
 | ---------------------------- | ---------------------------------------- | --------- |
 | $P^{\max}_{s \rightarrow t}$ | Maximum power from source to target (kW) | Unlimited |
 | $P^{\max}_{t \rightarrow s}$ | Maximum power from target to source (kW) | Unlimited |
-| `fixed`                      | Enforce equality instead of inequality   | False     |
+| `fixed`                      | Hold the flow at the limit               | False     |
 
 Parameters can be scalars or per-period arrays.
 Scalar values are broadcast across all periods.
@@ -22,6 +22,7 @@ Scalar values are broadcast across all periods.
 | --------------------- | --------------------- | -------------------------------- |
 | $P_{s \rightarrow t}$ | $\mathbb{R}_{\geq 0}$ | Power flow from source to target |
 | $P_{t \rightarrow s}$ | $\mathbb{R}_{\geq 0}$ | Power flow from target to source |
+| $S(t)$                | $\mathbb{R}_{\geq 0}$ | Shortfall of a fixed flow        |
 
 ### Constraints
 
@@ -37,7 +38,23 @@ $$
 0 \leq P_{t \rightarrow s}(t) \leq P_{t \rightarrow s}^{\max}(t) \quad \forall t
 $$
 
-If `fixed=True`, these become equality constraints.
+#### Fixed limits
+
+If `fixed=True`, the flow is held at the limit, less a shortfall $S(t)$:
+
+$$
+P(t) + S(t) = P^{\max}(t) \quad \forall t
+$$
+
+The shortfall costs $c_{\text{short}} = 1000$ \$/kWh, a value of lost load:
+
+$$
+C_{\text{short}} = \sum_t c_{\text{short}} \cdot S(t) \cdot \Delta t
+$$
+
+The price is far above any real energy price, so the flow only falls short in periods where the network cannot carry it.
+A fixed load the grid and battery cannot supply, or fixed solar that cannot be exported or stored, then gives an expensive plan for those periods instead of making the whole horizon infeasible.
+The `segments.power_limit.shortfall` output reports $S(t)$.
 
 **Shadow prices**:
 The `segments.power_limit.source_target` and `segments.power_limit.target_source` outputs provide the marginal value of relaxing these constraints.
