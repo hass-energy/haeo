@@ -64,11 +64,11 @@ E_{\text{trip}} = d \cdot r
 $$
 
 where $d$ is the trip distance and $r$ is the energy-per-distance rate.
-The distance is read from the first of the event's location, summary, or description fields that holds only a distance, such as `50 km`.
+The distance is read from the first of the event's location, summary, or description fields that holds only a distance with its unit, such as `50 km`, and converted to kilometres.
 
-Trip windows become the windows of the [deferrable trip load](../model-layer/elements/deferrable_load.md), prepared the same way as for the [deferrable load device](deferrable_load.md#window-scheduling):
-overlapping trips merge into one window with their distances summed, touching trips stay separate, and a trip running past the horizon end is due at the final boundary.
-Only trips with a positive distance form windows; an event without a distance still marks the car away but asks for no energy.
+The trip calendar feeds three inputs, resolved the same way as for the [deferrable load device](deferrable_load.md#window-scheduling): the periods away, where trips start, and each trip's distance due at its end.
+Overlapping trips merge into one window with their distances summed, touching trips stay separate, and a trip running past the horizon end is due at the final boundary.
+Every away period is a trip window of the [deferrable trip load](../model-layer/elements/deferrable_load.md); an event without a distance marks the car away but asks for no energy.
 
 The trip load counts the energy each trip receives from zero at the trip's start.
 At each trip's end its requirement $E_{\text{trip}}$ is settled:
@@ -90,7 +90,7 @@ The pack's initial charge clamps to $[0, C]$ so a glitched state-of-charge senso
 
 An optional reserve keeps some energy in the pack while away.
 Because the home connections are masked off during trips, the pack can only drain while away — so the lowest level hit during a trip window equals the level at the window's end.
-The reserve is therefore priced with one check per end boundary $e$ of each trip and of each calendar away period, including away periods made only of events without a distance:
+The reserve is therefore priced with one check per end boundary $e$ of each trip, including trips made only of events without a distance:
 
 $$
 \text{cost} = \sum_{e} p_{\text{reserve}}(e) \cdot \max\left(0,\ E_{\text{reserve}} - E_{\text{pack}}(e)\right)
@@ -131,7 +131,7 @@ The periods the sensor read unplugged are injected into its state as the `haeo_o
 With several plugged-in sensors, the car was unplugged only while all of them read unplugged.
 
 The trip's departure is its first unplug: the start of the first unplugged period still running when the window opened or beginning after it.
-The window's start comes from the calendar event even when it began before the horizon.
+The window's start comes from the calendar event even when it began before the horizon; it is loaded beside the trip calendar from the events the calendar's state carries.
 Later unplugs within the window do not move the departure, so a trip that resumes after ducking home keeps counting distance from when it began.
 
 The car came back early when all of these hold:
@@ -178,10 +178,10 @@ The EV element creates a single Home Assistant device:
 | -------------------------- | ----------------------------- | --------------------------- | ------------------------------------------ |
 | `capacity`                 | Battery `{name}`              | `capacity`                  | kWh, time-series boundary array            |
 | `current_soc`              | Battery `{name}`              | `initial_charge`            | SOC ratio × capacity                       |
-| `trip_calendar`            | Deferrable load `{name}:trip` | Window masks, `requirement` | Trip energy due at each trip's end         |
+| `trip_calendar`            | Deferrable load `{name}:trip` | Window masks, `requirement` | Distance due × energy per distance         |
 | `max_charge_rate`          | Connection `{name}:charge`    | Power limit segment         | Masked by connected flag                   |
 | `max_discharge_rate`       | Connection `{name}:discharge` | Power limit segment         | Masked by connected flag                   |
-| `reserve_soc`              | Battery `{name}`              | `reserve_level`             | Fraction of capacity, checked at away ends |
+| `reserve_soc`              | Battery `{name}`              | `reserve_level`             | Fraction of capacity, checked at trip ends |
 | `reserve_price`            | Battery `{name}`              | `reserve_price`             | Defaults to the public charging price      |
 | `energy_per_distance`      | Trip energy calculation       | Multiplied by distance      | Wh/km and kWh/100km converted to kWh/km    |
 | `odometer` and history     | Deferrable load `{name}:trip` | `initial_energy`            | Mid-trip progress credit                   |

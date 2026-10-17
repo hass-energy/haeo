@@ -1,5 +1,7 @@
 """Tests for flows/field_schema.py utilities."""
 
+from dataclasses import replace
+
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
@@ -10,11 +12,9 @@ import voluptuous as vol
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import (
-    CalendarValue,
     ConstantValue,
     EntityValue,
     NoneValue,
-    as_calendar_value,
     as_constant_value,
     as_entity_value,
     as_none_value,
@@ -145,6 +145,30 @@ def test_build_choose_selector_creates_normalizing_choose_selector(
     """NormalizingChooseSelector is created with entity and constant choices."""
     selector = build_choose_selector(number_field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert isinstance(selector, NormalizingChooseSelector)
+
+
+@pytest.mark.parametrize(
+    ("time_series", "output_type", "expected"),
+    [
+        pytest.param(True, OutputType.POWER, True, id="forecast_field"),
+        pytest.param(False, OutputType.POWER, False, id="scalar_field"),
+        pytest.param(True, OutputType.AVAILABILITY, False, id="forecast_field_without_unit"),
+    ],
+)
+def test_build_choose_selector_offers_calendars_for_forecast_fields(
+    number_field: InputFieldInfo[NumberEntityDescription],
+    *,
+    time_series: bool,
+    output_type: OutputType,
+    expected: bool,
+) -> None:
+    """A number forecast field with a unit can pick a calendar, read as a forecast; other fields cannot."""
+    field = replace(number_field, time_series=time_series, output_type=output_type)
+
+    selector = build_choose_selector(field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
+
+    domains = selector.config["choices"][CHOICE_ENTITY]["selector"]["entity"]["domain"]
+    assert ("calendar" in domains) is expected
 
 
 def test_build_choose_selector_entity_first_by_default(
@@ -1359,79 +1383,37 @@ def test_convert_sectioned_choose_data_to_config_handles_non_mapping_section(
 
 
 def _calendar_field() -> InputFieldInfo[NumberEntityDescription]:
-    """Create a calendar-driven input field for testing."""
+    """Create a config field feeding a calendar input, for testing."""
+    output = InputFieldInfo(
+        field_name="window_due",
+        entity_description=NumberEntityDescription(key="window_due"),
+        output_type=OutputType.ENERGY,
+        time_series=True,
+        boundaries=True,
+        calendar=CalendarFieldHint(projection="window_due"),
+        source_field="window_calendar",
+    )
     return InputFieldInfo(
         field_name="window_calendar",
         entity_description=NumberEntityDescription(key="window_calendar"),
         output_type=OutputType.ENERGY,
-        time_series=True,
-        boundaries=True,
-        calendar=CalendarFieldHint(parser="number"),
+        outputs={"window_due": output},
     )
 
 
-def test_calendar_field_renders_a_calendar_entity_selector() -> None:
-    """Calendar fields get a plain entity picker, not a choose selector."""
+def test_calendar_field_offers_only_calendars() -> None:
+    """A field feeding calendar inputs is an ordinary entity choice offering only calendars."""
     field = _calendar_field()
 
     entries = build_choose_field_entries(
         _field_map(field),
-        field_schema={"window_calendar": FieldSchemaInfo(value_type=CalendarValue, is_optional=False)},
-        inclusion_map={},
+        field_schema={"window_calendar": FieldSchemaInfo(value_type=EntityValue, is_optional=False)},
+        inclusion_map={"window_calendar": ["calendar.pool_pump"]},
     )
 
-    marker, selector = entries["window_calendar"]
-    assert marker.schema == "window_calendar"
-    assert isinstance(marker, vol.Required)
-    assert selector.config["domain"] == ["calendar"]
-    assert selector.config["multiple"] is False
-
-
-def test_optional_calendar_field_uses_an_optional_marker() -> None:
-    """Optional calendar fields are not required in the schema."""
-    field = _calendar_field()
-
-    entries = build_choose_field_entries(
-        _field_map(field),
-        field_schema={"window_calendar": FieldSchemaInfo(value_type=CalendarValue | NoneValue, is_optional=True)},
-        inclusion_map={},
-    )
-
-    marker, _selector = entries["window_calendar"]
-    assert isinstance(marker, vol.Optional)
-
-
-def test_convert_stores_a_calendar_schema_value() -> None:
-    """A selected calendar entity is stored as a calendar schema value."""
-    field = _calendar_field()
-
-    config = convert_choose_data_to_config({"window_calendar": "calendar.pool_pump"}, _field_map(field))
-
-    assert config["window_calendar"] == as_calendar_value("calendar.pool_pump")
-
-
-def test_convert_accepts_a_single_element_list() -> None:
-    """Entity pickers may hand back a one-element list."""
-    field = _calendar_field()
-
-    config = convert_choose_data_to_config({"window_calendar": ["calendar.pool_pump"]}, _field_map(field))
-
-    assert config["window_calendar"] == as_calendar_value("calendar.pool_pump")
-
-
-def test_convert_empty_calendar_selection_becomes_none() -> None:
-    """Clearing the picker disables the field."""
-    field = _calendar_field()
-
-    config = convert_choose_data_to_config({"window_calendar": ""}, _field_map(field))
-
-    assert config["window_calendar"] == as_none_value()
-
-
-def test_get_choose_default_surfaces_the_calendar_entity() -> None:
-    """Reconfigure pre-fills the picker with the stored entity ID."""
-    field = _calendar_field()
-
-    default = get_choose_default(field, {"window_calendar": as_calendar_value("calendar.pool_pump")})
-
-    assert default == "calendar.pool_pump"
+    _marker, selector = entries["window_calendar"]
+    assert isinstance(selector, NormalizingChooseSelector)
+    entity = selector.config["choices"][CHOICE_ENTITY]["selector"]["entity"]
+    assert entity["domain"] == ["calendar"]
+    assert entity["include_entities"] == ["calendar.pool_pump"]
+    assert list(selector.config["choices"]) == [CHOICE_ENTITY]

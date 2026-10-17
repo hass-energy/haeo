@@ -45,15 +45,16 @@ Select the junction or inverter the load is attached to, typically your main swi
 
 ### Run windows
 
-Select a Home Assistant calendar entity that contains your run schedule.
+Select one or more Home Assistant calendar entities that contain your run schedule.
 Each calendar event is one window:
 
 - **Start/end time**: When the load is allowed to run
-- **Event text**: The energy the window must receive, in kWh (e.g., `8`)
+- **Event text**: The energy the window must receive, with its unit (e.g., `8 kWh` or `500 Wh`)
 
-The number is read from the first of the location, summary, or description fields that parses as a plain number.
-Events without a parsable number are ignored, as are zero, negative numbers, and values such as `nan` or `inf`.
-Power can only flow to the load while a window with energy to deliver is open.
+The value is read from the first of the location, summary, or description fields that holds a number, and converted to kWh.
+An event without a number is still a window, but needs no energy.
+A number HAEO cannot use, such as one without a unit or a negative energy, is ignored and listed in a repair issue so you can fix the event.
+Power can only flow to the load while a window is open.
 
 Overlapping events merge into one window that needs the sum of their energies.
 Events that only touch, with one ending exactly when the next starts, stay separate windows with their own requirements.
@@ -63,7 +64,7 @@ If its energy cannot fit before then, the plan shows a shortfall that shrinks as
 !!! tip "Recurring schedules"
 
     Use recurring calendar events for daily or weekly routines — a pool pump
-    that needs 8 kWh every day is one repeating event with `8` in the location.
+    that needs 8 kWh every day is one repeating event with `8 kWh` in the location.
 
 ### Energy delivered this window
 
@@ -124,6 +125,8 @@ The deferrable load element creates one device with the following sensors:
 | Energy overage   | kWh  | Energy planned beyond each window's requirement            |
 
 All sensors include a `forecast` attribute with optimized future values — drive your appliance's switch from the power sensor's forecast.
+
+The run window calendar also creates three input entities showing what HAEO reads from it: **Run window** (whether each period is inside a window), **Window start** (where each window opens), and **Window energy due** (the energy each window must receive by its end).
 
 ## Next steps
 

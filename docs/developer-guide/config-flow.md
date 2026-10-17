@@ -215,6 +215,10 @@ Element-specific sections live alongside the element flow and schema.
 When using sections, translation strings for labels must live under
 `step.<step_id>.sections.<section_key>.data.<field_name>` (and `data_description` if needed).
 
+The Home Assistant frontend only shows errors keyed by `base` or by a top-level form field, not by a field inside a section.
+`validate_sectioned_choose_fields()` therefore keys each error by its section, which shows it above that section.
+An error keyed by a field inside a section would re-show the form with no visible message.
+
 ### Implementation Pattern
 
 The ChooseSelector utilities are in `custom_components/haeo/flows/field_schema.py`:

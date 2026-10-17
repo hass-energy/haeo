@@ -17,17 +17,13 @@ A line your batteries' combined charge should stay above, such as a reserve, is 
 You must already have the HAEO integration installed and running.
 At least one HAEO output sensor must expose a `forecast` attribute.
 
-## Add the card resource
+## Card resources
 
-The integration serves the card bundle at:
+There is nothing to add by hand.
+The integration serves its cards and registers them with the Home Assistant frontend when Home Assistant starts.
 
-`/haeo-static/haeo-forecast-card.min.js`
-
-Add this as a Lovelace resource:
-
-1. Open **Settings -> Dashboards -> Resources**.
-2. Add a new resource URL: `/haeo-static/haeo-forecast-card.min.js`.
-3. Set resource type to **JavaScript module**.
+If you added a Lovelace resource for `/haeo-static/haeo-forecast-card.min.js` under an older release, remove it from **Settings -> Dashboards -> Resources**.
+That URL no longer serves the card, and a cached copy loaded beside the current card can stop the card from appearing.
 
 ## Basic card config
 
@@ -93,7 +89,7 @@ If the card shows an empty state:
 For forecast data issues, also confirm:
 
 - Each forecast entity has a populated `forecast` attribute.
-- The Lovelace resource URL is exactly `/haeo-static/haeo-forecast-card.min.js`.
+- No Lovelace resource for `/haeo-static/haeo-forecast-card.min.js` is left over from an older release.
 
 ## Next steps
 

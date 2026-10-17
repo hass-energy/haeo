@@ -2,19 +2,13 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from typing import Final, Literal
+from typing import Final, Literal, NamedTuple
 
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.adapters.calendar_windows import (
-    CalendarWindows,
-    calendar_windows,
-    extend_to_boundaries,
-)
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
-from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
 from custom_components.haeo.core.data.loader.source_history import value_at
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model import battery as model_battery
@@ -35,6 +29,7 @@ from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.ev import (
+    CONF_AWAY,
     CONF_CAPACITY,
     CONF_CONNECTED,
     CONF_CONNECTED_OFF_PERIODS,
@@ -47,7 +42,9 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_PUBLIC_CHARGING_PRICE,
     CONF_RESERVE_PRICE,
     CONF_RESERVE_SOC,
-    CONF_TRIP_CALENDAR,
+    CONF_TRIP_DISTANCE,
+    CONF_TRIP_OPEN_SINCE,
+    CONF_TRIP_START,
     ELEMENT_TYPE,
     SECTION_CHARGING,
     SECTION_PUBLIC_CHARGING,
@@ -114,6 +111,22 @@ EV_DEVICE_NAMES: Final[frozenset[EvDeviceName]] = frozenset(
 )
 
 
+class _TripWindows(NamedTuple):
+    """Trip windows as deferrable load parameters.
+
+    Attributes:
+        in_window: 1.0 for each period inside a trip (n entries).
+        window_start: 1.0 at boundaries where a trip starts after the horizon
+            start (n+1 entries).
+        requirement: Each trip's energy at its end boundary (n+1 entries).
+
+    """
+
+    in_window: NDArray[np.float64]
+    window_start: NDArray[np.float64]
+    requirement: NDArray[np.float64]
+
+
 class EvAdapter:
     """Adapter for EV elements."""
 
@@ -171,20 +184,24 @@ class EvAdapter:
         max_discharge = charging.get(CONF_MAX_DISCHARGE_RATE, 0.0)
 
         trip = config.get(SECTION_TRIP, {})
-        calendar = trip.get(CONF_TRIP_CALENDAR)
         connected_live = _plugged_in_flag(trip.get(CONF_CONNECTED))
 
-        # Trip windows from the calendar (distances in km), with a trip the
-        # car already came back from removed.
-        trip_windows = None if calendar is None else calendar_windows(calendar, scale=energy_per_distance)
-        ended_periods = _ended_trip_periods(trip_windows, calendar, trip)
-        if trip_windows is not None and ended_periods > 0:
-            trip_windows = _drop_open_trip(trip_windows, ended_periods)
+        # Trip windows from the calendar, every away period a trip due its
+        # distance's energy, and a trip the car already came back from removed.
+        calendar_windows = _trip_windows(trip, energy_per_distance)
+        ended_periods = _ended_trip_periods(calendar_windows, trip)
+        trip_windows = (
+            _drop_open_trip(calendar_windows, ended_periods)
+            if calendar_windows is not None and ended_periods > 0
+            else calendar_windows
+        )
 
-        connected_flag = _combine_connected(calendar, connected_live, ended_periods)
+        connected_flag = _combine_connected(
+            None if calendar_windows is None else calendar_windows.in_window, connected_live, ended_periods
+        )
         away_flag = _invert_flag(connected_flag)
 
-        trip_initial = _trip_progress_energy(trip, trip_windows, calendar, energy_per_distance, connected_flag)
+        trip_initial = _trip_progress_energy(trip, trip_windows, energy_per_distance, connected_flag)
 
         # Home charging limits zeroed while away via connected_flag
         home_max_charge = _apply_connected_mask(max_charge, connected_flag)
@@ -198,7 +215,7 @@ class EvAdapter:
             "initial_charge": initial_charge,
             "salvage_value": 0.0,
         }
-        reserve = _reserve_config(config, calendar, ended_periods)
+        reserve = _reserve_config(config, calendar_windows, ended_periods)
         if reserve is not None:
             pack["reserve_level"] = reserve.level
             pack["reserve_mask"] = reserve.mask
@@ -251,7 +268,7 @@ class EvAdapter:
             # settled at its end, any shortfall priced at the public charging
             # price — the energy that would have to be bought publicly
             # mid-trip — and no trip takes more than it needs.
-            _trip_load(f"{name}:trip", trip_windows, trip_initial, _public_price(config), len(capacity)),
+            _trip_load(f"{name}:trip", trip_windows, trip_initial, _public_price(config)),
             # 5. Trip connection: EV → trip load. Driving power is not
             # limited by the charger, only by being away.
             {
@@ -350,31 +367,24 @@ adapter = EvAdapter()
 
 def _public_price(config: EvConfigData) -> NDArray[np.float64] | float:
     """Return the configured public charging price or the high default."""
-    public_charging = config.get(SECTION_PUBLIC_CHARGING, {})
-    price = public_charging.get(CONF_PUBLIC_CHARGING_PRICE)
-    if price is None:
-        return DEFAULT_PUBLIC_CHARGING_PRICE
-    return _non_negative(price)
+    return config.get(SECTION_PUBLIC_CHARGING, {}).get(CONF_PUBLIC_CHARGING_PRICE, DEFAULT_PUBLIC_CHARGING_PRICE)
 
 
-def _non_negative(price: NDArray[np.float64] | float) -> NDArray[np.float64] | float:
-    """Clamp a penalty price at zero.
-
-    A negative price on a trip deficit or reserve shortfall would pay the
-    optimizer to miss the trip, and an entity can report one even though
-    the form cannot.
-    """
-    if isinstance(price, np.ndarray):
-        return np.maximum(price, 0.0)
-    return max(float(price), 0.0)
+def _trip_windows(trip: TripData, energy_per_distance: float) -> _TripWindows | None:
+    """Return the trip windows the trip calendar feeds, or None without a trip calendar."""
+    away = trip.get(CONF_AWAY)
+    trip_start = trip.get(CONF_TRIP_START)
+    trip_distance = trip.get(CONF_TRIP_DISTANCE)
+    if away is None or trip_start is None or trip_distance is None:
+        return None
+    return _TripWindows(in_window=away, window_start=trip_start, requirement=trip_distance * energy_per_distance)
 
 
 def _trip_load(
     name: str,
-    windows: CalendarWindows | None,
+    windows: _TripWindows | None,
     initial_energy: float,
     deficit_price: NDArray[np.float64] | float,
-    n_boundaries: int,
 ) -> DeferrableLoadElementConfig:
     """Build the trip deferrable load; without trip windows it requires nothing."""
     if windows is None:
@@ -392,7 +402,7 @@ def _trip_load(
         "window_start": window_start,
         "requirement": requirement,
         "initial_energy": initial_energy,
-        "deficit_price": extend_to_boundaries(deficit_price, n_boundaries),
+        "deficit_price": deficit_price,
     }
 
 
@@ -445,11 +455,7 @@ def _distance_since(trip: TripData, departure: float) -> float | None:
     return driven if np.isfinite(driven) and driven >= 0.0 else None
 
 
-def _returned_early(
-    windows: CalendarWindows | None,
-    calendar: CalendarBoundaryData | None,
-    trip: TripData,
-) -> bool:
+def _returned_early(windows: _TripWindows | None, trip: TripData) -> bool:
     """Return True when the car left on the open trip and is back already.
 
     A car plugged in while a trip is open has either not left yet or come
@@ -459,12 +465,12 @@ def _returned_early(
     driving does not end the trip. Unplugging again within the trip resumes
     it.
     """
-    if windows is None or calendar is None or windows.in_window[0] <= 0.0:
+    if windows is None or windows.in_window[0] <= 0.0:
         return False
     if not _is_plugged_in(trip.get(CONF_CONNECTED)):
         return False
 
-    open_since = calendar["open_since"]
+    open_since = trip.get(CONF_TRIP_OPEN_SINCE)
     if open_since is None:
         return False
     departure = _departure(trip, open_since)
@@ -477,17 +483,13 @@ def _returned_early(
     return driven is not None and driven > 0.0
 
 
-def _ended_trip_periods(
-    windows: CalendarWindows | None,
-    calendar: CalendarBoundaryData | None,
-    trip: TripData,
-) -> int:
+def _ended_trip_periods(windows: _TripWindows | None, trip: TripData) -> int:
     """Return the periods of an open trip the car already came back from.
 
     Returns the number of periods up to the open trip's scheduled end when
     the car returned early, or 0 otherwise.
     """
-    if windows is None or not _returned_early(windows, calendar, trip):
+    if windows is None or not _returned_early(windows, trip):
         return 0
     n_periods = len(windows.in_window)
     for t in range(1, n_periods):
@@ -496,17 +498,17 @@ def _ended_trip_periods(
     return n_periods
 
 
-def _drop_open_trip(windows: CalendarWindows, ended_periods: int) -> CalendarWindows:
+def _drop_open_trip(windows: _TripWindows, ended_periods: int) -> _TripWindows:
     """Remove the trip open at the horizon start from the trip windows."""
     in_window = windows.in_window.copy()
     in_window[:ended_periods] = 0.0
     requirement = windows.requirement.copy()
     requirement[ended_periods] = 0.0
-    return CalendarWindows(in_window=in_window, window_start=windows.window_start, requirement=requirement)
+    return _TripWindows(in_window=in_window, window_start=windows.window_start, requirement=requirement)
 
 
 def _combine_connected(
-    calendar: CalendarBoundaryData | None,
+    away: NDArray[np.float64] | None,
     connected_live: NDArray[np.float64] | float | None,
     ended_periods: int,
 ) -> NDArray[np.float64] | float | None:
@@ -518,12 +520,10 @@ def _combine_connected(
     sensor value applies across the whole horizon. Returns per-interval
     values, a scalar, or None when neither source is configured.
     """
-    if calendar is None:
+    if away is None:
         return connected_live
 
-    # presence marks periods overlapping a trip window; drop the trailing
-    # boundary entry to get the n per-interval mask.
-    connected = 1.0 - np.asarray(calendar["presence"][:-1], dtype=np.float64)
+    connected = 1.0 - away
 
     if connected_live is not None:
         connected = connected.copy()
@@ -535,8 +535,7 @@ def _combine_connected(
 
 def _trip_progress_energy(
     trip: TripData,
-    windows: CalendarWindows | None,
-    calendar: CalendarBoundaryData | None,
+    windows: _TripWindows | None,
     energy_per_distance: float,
     connected_flag: NDArray[np.float64] | float | None,
 ) -> float:
@@ -552,12 +551,12 @@ def _trip_progress_energy(
     leaves the trip complete without being priced, and the credit never
     reaches trips that have not started yet.
     """
-    if windows is None or calendar is None or connected_flag is None or windows.in_window[0] <= 0.0:
+    if windows is None or connected_flag is None or windows.in_window[0] <= 0.0:
         return 0.0
     if float(np.atleast_1d(connected_flag)[0]) >= _CONNECTED_THRESHOLD:
         return 0.0
 
-    open_since = calendar["open_since"]
+    open_since = trip.get(CONF_TRIP_OPEN_SINCE)
     departure = None if open_since is None else _departure(trip, open_since)
     driven = None if departure is None else _distance_since(trip, departure)
     if driven is None or driven <= 0.0:
@@ -576,52 +575,43 @@ class _ReserveConfig:
 
 def _reserve_config(
     config: EvConfigData,
-    calendar: CalendarBoundaryData | None,
+    windows: _TripWindows | None,
     ended_periods: int,
 ) -> _ReserveConfig | None:
     """Battery reserve parameters from the trip reserve configuration.
 
-    The reserve is checked at each trip's end and at the end of every away
-    period on the calendar, whether or not its events held a distance —
-    because the pack can only drain while away, the level at an away
-    period's end is the lowest level hit during it, so one priced check per
-    period prices its minimum (demand-level pricing). The price defaults to
-    the public charging price: the cost of restoring the buffer away from
-    home. Ends within a trip the car already came back from are not checked.
+    The reserve is checked at the end of every trip on the calendar, whether
+    or not its event held a distance — because the pack can only drain while
+    away, the level at a trip's end is the lowest level hit during it, so one
+    priced check per trip prices its minimum (demand-level pricing). The
+    price defaults to the public charging price: the cost of restoring the
+    buffer away from home. Ends within a trip the car already came back from
+    are not checked.
     """
     trip = config.get(SECTION_TRIP, {})
     reserve_soc = trip.get(CONF_RESERVE_SOC)
-    if reserve_soc is None or calendar is None:
+    if reserve_soc is None or windows is None:
         return None
 
     capacity = config[SECTION_VEHICLE][CONF_CAPACITY]
     reserve_ratio = min(max(float(reserve_soc), 0.0), 1.0)
-    reserve_price = trip.get(CONF_RESERVE_PRICE)
-    reserve_price = _public_price(config) if reserve_price is None else _non_negative(reserve_price)
 
-    mask = _away_ends(calendar)
+    mask = _trip_ends(windows)
     mask[1 : ended_periods + 1] = 0.0
 
     return _ReserveConfig(
         level=reserve_ratio * np.asarray(capacity, dtype=np.float64),
         mask=mask,
-        price=extend_to_boundaries(reserve_price, len(capacity)),
+        price=trip.get(CONF_RESERVE_PRICE, _public_price(config)),
     )
 
 
-def _away_ends(calendar: CalendarBoundaryData) -> NDArray[np.float64]:
-    """Mark the boundaries where a trip or a calendar away period ends.
-
-    Trip ends come from positive event values, so touching trips each get
-    their own end. Away period ends come from presence alone, so events
-    without a parseable distance still end an away period.
-    """
-    presence = np.asarray(calendar["presence"], dtype=np.float64) > 0.0
-    away = presence[:-1]
-    away_end = np.zeros(len(presence), dtype=bool)
-    away_end[1:] = away & ~np.append(away[1:], False)
-    trip_end = np.asarray(calendar["value_edge_end"], dtype=np.float64) > 0.0
-    return (away_end | trip_end).astype(np.float64)
+def _trip_ends(windows: _TripWindows) -> NDArray[np.float64]:
+    """Mark the boundaries where a trip ends: after its last period, or where the next trip starts."""
+    active = windows.in_window > 0.0
+    ends = np.zeros(len(active) + 1, dtype=np.float64)
+    ends[1:] = active & (np.append(~active[1:], True) | (windows.window_start[1:] > 0.0))
+    return ends
 
 
 def _apply_connected_mask(
