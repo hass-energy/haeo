@@ -37,24 +37,30 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.elements import (
-    MODEL_ELEMENT_TYPE_BATTERY,
+    FLOW_READER_ELEMENT_TYPES,
     MODEL_ELEMENT_TYPE_CONNECTION,
-    MODEL_ELEMENT_TYPE_NODE,
     ModelElementConfig,
 )
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
+from custom_components.haeo.core.model.elements.deferrable_load import DeferrableLoadElementConfig
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
 
-# Non-connection element configs (nodes and batteries) that can carry tags
-_TaggableConfig = NodeElementConfig | BatteryElementConfig
+# Non-connection element configs (nodes, batteries, deferrable loads) that can carry tags
+_TaggableConfig = NodeElementConfig | BatteryElementConfig | DeferrableLoadElementConfig
 
 
 def _is_taggable(elem: ModelElementConfig) -> TypeGuard[_TaggableConfig]:
-    """Return whether an element produces or consumes power itself, so it carries tags."""
-    return elem["element_type"] in (MODEL_ELEMENT_TYPE_NODE, MODEL_ELEMENT_TYPE_BATTERY)
+    """Return whether an element produces or consumes power itself, so it carries tags.
+
+    Connections carry power between elements, and flow readers only read the
+    planned flows; every other element is a network element.
+    """
+    return (
+        elem["element_type"] != MODEL_ELEMENT_TYPE_CONNECTION and elem["element_type"] not in FLOW_READER_ELEMENT_TYPES
+    )
 
 
 # A rule grouping identifies a rule by its source/destination sets,
@@ -128,9 +134,10 @@ def compile_policies(
 
     names: set[str] = set(by_name.keys())
 
-    # Capability sets for wildcard expansion: nodes that can only produce
-    # should not appear as destinations, and nodes that can only consume
-    # should not appear as sources. Batteries default to both.
+    # Capability sets for wildcard expansion: elements that can only produce
+    # should not appear as destinations, and elements that can only consume
+    # should not appear as sources. An element that leaves a flag out can do
+    # both, as a battery does.
     source_names = {name for name, elem in by_name.items() if elem.get("is_source", True)}
     sink_names = {name for name, elem in by_name.items() if elem.get("is_sink", True)}
 

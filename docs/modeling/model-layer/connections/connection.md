@@ -209,7 +209,7 @@ Select the segment chain that matches the physical behavior you need.
 
     ---
 
-    Battery and Node model elements.
+    Battery, deferrable load, and Node model elements.
 
     [:material-arrow-right: Element types](../elements/index.md)
 

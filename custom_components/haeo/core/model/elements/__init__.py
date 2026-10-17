@@ -27,6 +27,13 @@ from .connection import Connection as Connection
 from .connection import ConnectionElementConfig as ConnectionElementConfig
 from .connection import ConnectionElementTypeName as ConnectionElementTypeName
 from .connection import ConnectionOutputName as ConnectionOutputName
+from .deferrable_load import DEFERRABLE_LOAD_OUTPUT_NAMES as DEFERRABLE_LOAD_OUTPUT_NAMES
+from .deferrable_load import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD
+from .deferrable_load import DeferrableLoad as DeferrableLoad
+from .deferrable_load import DeferrableLoadConstraintName as DeferrableLoadConstraintName
+from .deferrable_load import DeferrableLoadElementConfig as DeferrableLoadElementConfig
+from .deferrable_load import DeferrableLoadElementTypeName as DeferrableLoadElementTypeName
+from .deferrable_load import DeferrableLoadOutputName as DeferrableLoadOutputName
 from .node import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_NODE
 from .node import NODE_OUTPUT_NAMES
 from .node import Node as Node
@@ -54,6 +61,7 @@ ModelElementType = (
     | ConnectionElementTypeName
     | PolicyPricingElementTypeName
     | BufferElementTypeName
+    | DeferrableLoadElementTypeName
 )
 
 # Typed configs for all model elements (discriminated by element_type)
@@ -63,6 +71,7 @@ ModelElementConfig = (
     | ConnectionElementConfig
     | PolicyPricingElementConfig
     | BufferElementConfig
+    | DeferrableLoadElementConfig
 )
 
 
@@ -87,6 +96,10 @@ ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
         factory=Battery,
         output_names=BATTERY_OUTPUT_NAMES,
     ),
+    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD: ElementSpec(
+        factory=DeferrableLoad,
+        output_names=DEFERRABLE_LOAD_OUTPUT_NAMES,
+    ),
     MODEL_ELEMENT_TYPE_NODE: ElementSpec(
         factory=Node,
         output_names=NODE_OUTPUT_NAMES,
@@ -103,11 +116,13 @@ __all__ = [
     "BUFFER_OUTPUT_NAMES",
     "CONNECTION_OUTPUT_NAMES",
     "CONNECTION_POWER",
+    "DEFERRABLE_LOAD_OUTPUT_NAMES",
     "ELEMENTS",
     "FLOW_READER_ELEMENT_TYPES",
     "MODEL_ELEMENT_TYPE_BATTERY",
     "MODEL_ELEMENT_TYPE_BUFFER",
     "MODEL_ELEMENT_TYPE_CONNECTION",
+    "MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD",
     "MODEL_ELEMENT_TYPE_NODE",
     "MODEL_ELEMENT_TYPE_POLICY_PRICING",
     "Battery",
@@ -121,6 +136,10 @@ __all__ = [
     "ConnectionElementConfig",
     "ConnectionElementTypeName",
     "ConnectionOutputName",
+    "DeferrableLoad",
+    "DeferrableLoadConstraintName",
+    "DeferrableLoadElementConfig",
+    "DeferrableLoadOutputName",
     "EfficiencySegment",
     "ElementSpec",
     "ModelElementConfig",
