@@ -103,6 +103,15 @@ You don't need to create template sensors for unit conversion.
 - Wh (watt-hours) → kWh (kilowatt-hours)
 - MWh (megawatt-hours) → kWh (kilowatt-hours)
 
+**Price conversions**:
+
+- Price per MWh or Wh → price per kWh in the same currency, such as €/MWh → €/kWh
+- Minor currency units (¢, c, ct, and p) → the major unit, so 26.5 c/kWh becomes 0.265 \$/kWh
+
+HAEO cannot convert between currencies.
+Every price input must report the same currency or one of its minor units, and the optimization stops with an error naming each currency and its sensors when they differ.
+A currency code and its symbol, such as EUR and €, count as the same currency.
+
 **Example**: If your battery sensor reports power in watts (`sensor.battery_power` = 5000 W), HAEO automatically converts this to 5 kW for optimization.
 
 All HAEO output sensors use kilowatts (kW) for power and kilowatt-hours (kWh) for energy, regardless of input sensor units.

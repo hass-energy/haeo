@@ -78,6 +78,8 @@ Again, no conversions!
 
 Sources are converted to base units as they load, in [`core/units.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/units.py).
 `base_unit_conversion()` returns the factor from a unit to its base unit: W, MW, and GW to kW, Wh and MWh to kWh, minutes and days to hours, and a price per energy unit, such as €/MWh, to the same currency per kWh.
+A price in a minor currency unit (¢, c, ct, or p) is 1/100 of its major unit, so `c/kWh` converts to `$/kWh`, HAEO's currency placeholder.
+Other currencies cannot be converted, so the coordinator's `check_price_currencies()` fails the optimization when price sources report more than one currency.
 
 Each source's base unit must then fit the input field's unit, checked by [`core/data/util/field_units.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/util/field_units.py).
 A source in a unit that does not convert raises an `InputError`, which the input reports instead of reading the value as the field's unit.

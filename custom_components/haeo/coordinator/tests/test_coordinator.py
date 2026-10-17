@@ -35,6 +35,7 @@ from custom_components.haeo.coordinator import (
     OptimizationContext,
     _build_coordinator_output,
     _build_optimization_context,
+    check_price_currencies,
     detect_currency_symbol,
     forecast_datetimes,
 )
@@ -754,6 +755,47 @@ def test_detect_currency_symbol_uses_first_price_entity() -> None:
     }
     # The first price entity is s2, so the detected symbol should be £
     assert detect_currency_symbol(states) == "£"
+
+
+def test_detect_currency_symbol_skips_minor_currency_units() -> None:
+    """A minor currency unit names no currency, so detection moves on to the next source."""
+    states = {
+        "s1": _make_source_state("c/kWh"),
+        "s2": _make_source_state("£/kWh"),
+    }
+    assert detect_currency_symbol(states) == "£"
+    assert detect_currency_symbol({"s1": _make_source_state("c/kWh")}, fallback_currency="$") == "$"
+
+
+@pytest.mark.parametrize(
+    "units",
+    [
+        pytest.param(("$/kWh", "$/MWh"), id="same_currency"),
+        pytest.param(("EUR/kWh", "€/kWh"), id="code_and_symbol"),
+        pytest.param(("$/kWh", "c/kWh"), id="major_and_minor_unit"),
+        pytest.param(("kW", "£/kWh"), id="non_price_unit"),
+    ],
+)
+def test_check_price_currencies_accepts_one_currency(units: tuple[str, ...]) -> None:
+    """Price inputs in one currency, or its minor unit, pass the check."""
+    check_price_currencies({f"sensor.s{i}": _make_source_state(unit) for i, unit in enumerate(units)})
+
+
+def test_check_price_currencies_rejects_mixed_currencies() -> None:
+    """Price inputs in two currencies fail with every currency and its sources named."""
+    states = {
+        "sensor.import": _make_source_state("£/kWh"),
+        "sensor.export": _make_source_state("€/kWh"),
+        "sensor.feed_in": _make_source_state("EUR/kWh"),
+    }
+
+    with pytest.raises(UpdateFailed) as err:
+        check_price_currencies(states)
+
+    assert err.value.translation_key == "price_currencies_mixed"
+    assert err.value.translation_placeholders == {
+        "currencies": "£ from sensor.import; € from sensor.export, sensor.feed_in",
+    }
 
 
 def test_build_coordinator_output_localizes_shadow_price_currency() -> None:

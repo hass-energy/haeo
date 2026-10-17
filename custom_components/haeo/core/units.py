@@ -137,6 +137,11 @@ CURRENCY_SYMBOLS: Final[Mapping[str, str]] = {
 }
 
 
+# Minor currency units, each 1/100 of its major unit. Prices in these units
+# convert to the major unit, which HAEO writes as its ``$`` placeholder.
+MINOR_CURRENCY_UNITS: Final[frozenset[str]] = frozenset({"¢", "c", "ct", "p"})
+
+
 def currency_symbol(currency: str) -> str:
     """Return the display symbol for an ISO 4217 currency code."""
     return CURRENCY_SYMBOLS.get(currency, currency)
@@ -196,15 +201,39 @@ def _scale_factor(
     return _TO_BASE_UNIT.get(effective_device_class, {}).get(from_unit, 1.0)
 
 
-def _price_conversion(unit: str | UnitOfMeasurement | None) -> tuple[float, str] | None:
-    """Return the factor and base unit for a price per energy unit, such as ``€/MWh`` to ``€/kWh``."""
+def _price_parts(unit: object) -> tuple[str, UnitOfMeasurement] | None:
+    """Split a price per energy unit, such as ``€/MWh``, into its currency and energy unit."""
     if not isinstance(unit, str):
         return None
-    currency, separator, energy = str(unit).rpartition("/")
+    currency, separator, energy = unit.rpartition("/")
     energy_unit = UnitOfMeasurement.of(energy)
     if not separator or not currency or energy_unit is None or energy_unit not in _ENERGY_TO_KWH:
         return None
-    return 1.0 / _ENERGY_TO_KWH[energy_unit], f"{currency}/{UnitOfMeasurement.KILO_WATT_HOUR}"
+    return currency, energy_unit
+
+
+def price_currency(unit: object) -> str | None:
+    """Return the currency a price per energy unit is stated in.
+
+    Returns None for a unit that is not a price per energy unit, and for a
+    minor currency unit, which names no currency of its own.
+    """
+    parts = _price_parts(unit)
+    if parts is None or parts[0] in MINOR_CURRENCY_UNITS:
+        return None
+    return parts[0]
+
+
+def _price_conversion(unit: object) -> tuple[float, str] | None:
+    """Return the factor and base unit for a price per energy unit, such as ``€/MWh`` to ``€/kWh``."""
+    parts = _price_parts(unit)
+    if parts is None:
+        return None
+    currency, energy_unit = parts
+    factor = 1.0 / _ENERGY_TO_KWH[energy_unit]
+    if currency in MINOR_CURRENCY_UNITS:
+        return factor / 100, UnitOfMeasurement.DOLLAR_PER_KWH.value
+    return factor, f"{currency}/{UnitOfMeasurement.KILO_WATT_HOUR}"
 
 
 def base_unit_conversion(
@@ -215,7 +244,8 @@ def base_unit_conversion(
 
     Conversion to base units is a pure scaling, so a series of values sharing a
     unit converts by multiplying every value by the one factor. A price per
-    energy unit converts to the same currency per kWh.
+    energy unit converts to the same currency per kWh, and a price in a minor
+    currency unit such as ``c/kWh`` converts to the major unit per kWh.
     """
     parsed_unit = UnitOfMeasurement.of(unit)
     parsed_device_class = DeviceClass.of(device_class)

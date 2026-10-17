@@ -10,6 +10,7 @@ from custom_components.haeo.core.units import (
     convert_to_base_unit,
     currency_symbol,
     localize_currency,
+    price_currency,
 )
 
 
@@ -162,6 +163,11 @@ def test_currency_symbol(currency: str, expected: str) -> None:
         pytest.param("€/MWh", 0.0003, "€/kWh", id="per_mwh"),
         pytest.param("£/Wh", 300.0, "£/kWh", id="per_wh"),
         pytest.param("$/kWh/h", 0.3, "$/kWh/h", id="price_rate_unchanged"),
+        pytest.param("c/kWh", 0.003, "$/kWh", id="cents_per_kwh"),
+        pytest.param("¢/kWh", 0.003, "$/kWh", id="cent_sign_per_kwh"),
+        pytest.param("ct/kWh", 0.003, "$/kWh", id="euro_cents_per_kwh"),
+        pytest.param("p/kWh", 0.003, "$/kWh", id="pence_per_kwh"),
+        pytest.param("c/MWh", 0.000003, "$/kWh", id="cents_per_mwh"),
     ],
 )
 def test_prices_convert_to_currency_per_kwh(unit: str, expected_value: float, expected_unit: str) -> None:
@@ -170,3 +176,21 @@ def test_prices_convert_to_currency_per_kwh(unit: str, expected_value: float, ex
 
     assert value == pytest.approx(expected_value)
     assert base_unit == expected_unit
+
+
+@pytest.mark.parametrize(
+    ("unit", "expected"),
+    [
+        pytest.param("£/kWh", "£", id="symbol"),
+        pytest.param("EUR/MWh", "EUR", id="code"),
+        pytest.param("A$/kWh", "A$", id="prefixed_symbol"),
+        pytest.param("c/kWh", None, id="minor_unit"),
+        pytest.param("p/kWh", None, id="pence"),
+        pytest.param("$/kWh/h", None, id="price_rate"),
+        pytest.param("kWh", None, id="energy"),
+        pytest.param(None, None, id="no_unit"),
+    ],
+)
+def test_price_currency(unit: str | None, expected: str | None) -> None:
+    """A price per energy unit names its currency, and a minor currency unit names none."""
+    assert price_currency(unit) == expected
