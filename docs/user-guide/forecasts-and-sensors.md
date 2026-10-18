@@ -416,7 +416,7 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 
 ### Sensor Not Found
 
-**Problem**: Error message "Sensors not found or unavailable"
+**Problem**: Error "Input entities not ready after … seconds", or an input entity shows as unavailable
 
 **Solutions**:
 
