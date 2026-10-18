@@ -334,16 +334,6 @@ class HaeoInputNumber(NumberEntity):
         """Wait for data to be ready."""
         await self._store.wait_ready()
 
-    @property
-    def entity_mode(self) -> InputMode:
-        """Return the entity's operating mode (EDITABLE or DRIVEN)."""
-        return self._store.mode
-
-    @property
-    def uses_forecast(self) -> bool:
-        """Return True if this entity produces time-series forecast data."""
-        return self._uses_forecast
-
     async def async_set_native_value(self, value: float) -> None:
         """Handle user setting a value.
 

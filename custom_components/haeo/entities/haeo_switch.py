@@ -239,16 +239,6 @@ class HaeoInputSwitch(SwitchEntity):
         """Wait for data to be ready."""
         await self._store.wait_ready()
 
-    @property
-    def entity_mode(self) -> InputMode:
-        """Return the entity's operating mode."""
-        return self._store.mode
-
-    @property
-    def uses_forecast(self) -> bool:
-        """Return True if this entity produces time-series forecast data."""
-        return self._uses_forecast
-
     async def async_turn_on(self, **_kwargs: Any) -> None:
         """Handle user turning switch on."""
         if self._store.mode == InputMode.DRIVEN:

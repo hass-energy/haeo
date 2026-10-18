@@ -304,7 +304,7 @@ async def test_editable_mode_with_static_value(
 
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
 
-    assert entity.entity_mode == InputMode.EDITABLE
+    assert entity.store.mode == InputMode.EDITABLE
     assert entity.store.source_entity_ids == []
     assert entity.native_value == 10.5
     assert entity.native_unit_of_measurement == "kW"
@@ -693,7 +693,7 @@ async def test_driven_mode_with_single_entity(
 
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
 
-    assert entity.entity_mode == InputMode.DRIVEN
+    assert entity.store.mode == InputMode.DRIVEN
     assert entity.store.source_entity_ids == ["sensor.power_limit"]
     assert entity.native_value is None  # Not loaded yet
 
@@ -719,7 +719,7 @@ async def test_driven_mode_with_multiple_entities(
 
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
 
-    assert entity.entity_mode == InputMode.DRIVEN
+    assert entity.store.mode == InputMode.DRIVEN
     assert entity.store.source_entity_ids == ["sensor.power1", "sensor.power2"]
 
 
@@ -955,7 +955,7 @@ async def test_editable_none_value_has_no_native_value(
 
     entity = _make_entity(hass, config_entry, subentry, scalar_field_info, device_entry, horizon_manager)
 
-    assert entity.entity_mode == InputMode.EDITABLE
+    assert entity.store.mode == InputMode.EDITABLE
     assert entity.native_value is None
 
 
@@ -1043,57 +1043,6 @@ async def test_horizon_change_updates_forecast_timestamps_editable(
 
 
 # --- Tests for mode and forecast metadata properties ---
-
-
-async def test_entity_mode_property(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """entity_mode property returns the entity's mode."""
-    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
-    config_entry.runtime_data = None
-
-    entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
-    assert entity.entity_mode == InputMode.EDITABLE
-
-    subentry_driven = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
-    entity_driven = _make_entity(hass, config_entry, subentry_driven, power_field_info, device_entry, horizon_manager)
-    assert entity_driven.entity_mode == InputMode.DRIVEN
-
-
-async def test_uses_forecast_reflects_field_info(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    power_field_info: InputFieldInfo[NumberEntityDescription],
-    scalar_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """uses_forecast is True for time-series fields, False for scalar fields."""
-    config_entry.runtime_data = None
-
-    forecast_entity = _make_entity(
-        hass,
-        config_entry,
-        _create_subentry("Test Battery", {"power_limit": 10.0}),
-        power_field_info,
-        device_entry,
-        horizon_manager,
-    )
-    assert forecast_entity.uses_forecast is True
-
-    scalar_entity = _make_entity(
-        hass,
-        config_entry,
-        _create_subentry("Test Battery", {"capacity": 13.5}),
-        scalar_field_info,
-        device_entry,
-        horizon_manager,
-    )
-    assert scalar_entity.uses_forecast is False
 
 
 # --- Tests for lifecycle methods ---
