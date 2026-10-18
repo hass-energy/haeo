@@ -3,6 +3,7 @@
 from homeassistant.components import system_health
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.util import dt as dt_util
 from homeassistant.util.json import JsonValueType
 
 from . import HaeoConfigEntry
@@ -75,7 +76,7 @@ async def async_system_health_info(hass: HomeAssistant) -> dict[str, JsonValueTy
             health_info[f"{prefix}last_optimization_duration"] = round(float(duration_output.state), 3)
 
         if coordinator.data:
-            health_info[f"{prefix}last_optimization_time"] = coordinator.data.completed_at.isoformat()
+            health_info[f"{prefix}last_optimization_time"] = dt_util.as_utc(coordinator.data.completed_at).isoformat()
 
         health_info[f"{prefix}outputs"] = sum(
             len(device_outputs)

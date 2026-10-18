@@ -1,6 +1,6 @@
 """Tests for HAEO system health reporting."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import MagicMock, Mock
 
 from homeassistant.components.system_health import SystemHealthRegistration
@@ -64,7 +64,7 @@ def _make_coordinator_data(outputs: dict[str, SubentryDevices]) -> CoordinatorDa
         context=context,
         outputs=outputs,
         started_at=datetime(2024, 1, 1, 11, 59, tzinfo=UTC),
-        completed_at=datetime(2024, 1, 1, 12, 0, tzinfo=UTC),
+        completed_at=datetime(2024, 1, 1, 23, 0, tzinfo=timezone(timedelta(hours=11))),
     )
 
 
