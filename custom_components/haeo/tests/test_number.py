@@ -545,7 +545,7 @@ async def test_mirror_entities_share_policy_store_for_battery_costs(
 
     # The mirror wraps the same store as the underlying policy rule price.
     charge_mirror = next(e for e in mirrors if e._field_info.field_name == CONF_CHARGE_COST)
-    assert charge_mirror.store is runtime_data.input_stores[("Policies", (CONF_RULES, "0", CONF_PRICE))]
+    assert charge_mirror._store is runtime_data.input_stores[("Policies", (CONF_RULES, "0", CONF_PRICE))]
     # Mirrors live on the battery device, not the policy device.
     assert charge_mirror.device_entry is device_entry
 

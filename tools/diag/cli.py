@@ -299,8 +299,13 @@ def find_output_entity(
     return None
 
 
-def _forecast_from_entity(entity: dict[str, JsonValueType] | None) -> dict[str, float]:
-    """Extract the time -> value forecast mapping from an output entity's attributes."""
+def get_forecast_by_field(
+    outputs: dict[str, JsonValueType],
+    element_name: str,
+    field_or_output_name: str,
+) -> dict[str, float]:
+    """Extract forecast values by element_name and field/output name, keyed by time string."""
+    entity = find_output_entity(outputs, element_name, field_or_output_name)
     if entity is None:
         return {}
     attributes = entity.get("attributes", {})
@@ -315,16 +320,6 @@ def _forecast_from_entity(entity: dict[str, JsonValueType] | None) -> dict[str, 
             if isinstance(time_value, str) and isinstance(value, int | float) and not isinstance(value, bool):
                 result[time_value] = value
     return result
-
-
-def get_forecast_by_field(
-    outputs: dict[str, JsonValueType],
-    element_name: str,
-    field_or_output_name: str,
-) -> dict[str, float]:
-    """Extract forecast values by element_name and field/output name, keyed by time string."""
-    entity = find_output_entity(outputs, element_name, field_or_output_name)
-    return _forecast_from_entity(entity)
 
 
 def get_forecast_by_fields(

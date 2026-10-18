@@ -104,8 +104,8 @@ See the [Coordinator guide](coordinator.md) for event-driven update patterns.
 ### Data loaders (`data/`)
 
 Data loaders translate Home Assistant sensor data into time series aligned with the optimization horizon.
-Input entities call loaders to extract, combine, and fuse forecast data from external sensors.
-Loaders also validate sensor availability during the config flow.
+Each input store resolves its field with `resolve_field`, which extracts, combines, and fuses forecast data from the field's sensors.
+A field is unavailable until every one of its sensors supplies data.
 Keep new loaders focused on a single responsibility and reuse the shared parser utilities where possible.
 
 See the [Data Loading guide](data-loading.md) for the extraction pipeline.

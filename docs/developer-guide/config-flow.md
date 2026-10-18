@@ -309,6 +309,7 @@ Field hints in [`core/schema/field_hints.py`](https://github.com/hass-energy/hae
     `time_series` and `boundaries` choose between a scalar, a value per period, and a value per boundary.
     `default_mode` and `default_value` choose what the config flow pre-selects.
     `min_value`, `max_value`, `step`, `force_required`, and `calendar` refine it further.
+    `outputs` makes the field feed several inputs instead of being one, each loaded under its own name with its own hint and entity, such as one calendar feeding both a window and a due amount.
 - **`SectionHints`**: The field hints for the fields inside a section
 - **`ListFieldHints`**: The field hints for each item of a list field, such as policy rules
 - **`SurfacedPriceHint`**: A pricing field shown on an element's form but stored as a policy rule

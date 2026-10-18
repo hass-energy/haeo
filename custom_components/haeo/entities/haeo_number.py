@@ -164,11 +164,6 @@ class HaeoInputNumber(NumberEntity):
 
         self._record_forecasts = config_entry.data.get(CONF_RECORD_FORECASTS, False)
 
-    @property
-    def store(self) -> InputStore:
-        """Return the underlying InputStore."""
-        return self._store
-
     def _display_value(self, value: float | None) -> float | None:
         """Transform a stored value into the value surfaced by this entity."""
         if value is None:
