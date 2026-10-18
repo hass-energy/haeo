@@ -63,7 +63,7 @@ graph LR
 ```
 
 Each stage has a single responsibility and clear interfaces, making the system testable and extensible.
-Scalar-only fields bypass this pipeline and use a dedicated loader to read current values without forecasting.
+Fields with `time_series` set to `False`, such as initial SOC, take the summed present value and skip fusion, because there is no horizon to align to.
 
 ### Design Decisions
 
@@ -102,18 +102,6 @@ Constant values broadcast to the same lengths.
 
 Values use HAEO base units: kilowatts (kW) for power, kilowatt-hours (kWh) for energy, \$/kWh for prices.
 See [Units documentation](units.md) for conversion details.
-
-## TimeSeriesLoader
-
-The [`TimeSeriesLoader`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/time_series_loader.py) checks whether every sensor behind an entity-backed field can supply data.
-Element adapters use it to decide whether an element is available.
-
-## ScalarLoader
-
-The [`ScalarLoader`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/scalar_loader.py) handles fields with `time_series` set to `False`.
-These inputs represent point-in-time values, such as initial SOC.
-The loader reads the current sensor state, converts to base units, and sums multiple sensors when provided.
-Scalar loading skips extraction, combination, and fusion because there is no horizon alignment step.
 
 ## Sensor Extraction
 
@@ -345,7 +333,7 @@ This ensures parsers handle real-world edge cases (missing fields, unexpected va
 uv run pytest custom_components/haeo/core/data/ -v
 
 # Specific component
-uv run pytest custom_components/haeo/core/data/loader/tests/test_time_series_loader.py -v
+uv run pytest custom_components/haeo/core/data/loader/tests/test_config_loader.py -v
 
 # With coverage report
 uv run pytest custom_components/haeo/core/data/ --cov=custom_components.haeo.core.data
