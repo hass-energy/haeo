@@ -8,6 +8,8 @@ import pytest
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader.extractors import ExtractedData
 from custom_components.haeo.core.data.loader.sensor_loader import load_sensor, load_sensors, normalize_entity_ids
+from custom_components.haeo.core.data.util.input_values import InputError
+from custom_components.haeo.core.model.const import OutputType
 
 
 def test_normalize_entity_ids_accepts_str_and_sequence() -> None:
@@ -117,3 +119,27 @@ async def test_load_sensors_is_unavailable_when_any_sensor_is(failing_id: str) -
     )
 
     assert load_sensors(sm, ["sensor.a", failing_id]) is None
+
+
+def test_load_sensors_reports_an_unusable_unit_after_an_unavailable_sensor() -> None:
+    """A sensor in an unusable unit is reported even when an earlier sensor is unavailable."""
+
+    sm = FakeStateMachine(
+        {
+            "sensor.unavailable": FakeEntityState(entity_id="sensor.unavailable", state="unavailable", attributes={}),
+            "sensor.temperature": FakeEntityState(
+                entity_id="sensor.temperature",
+                state="20",
+                attributes={"device_class": "temperature", "unit_of_measurement": "°C"},
+            ),
+        }
+    )
+
+    with pytest.raises(InputError):
+        load_sensors(sm, ["sensor.unavailable", "sensor.temperature"], output_type=OutputType.POWER)
+
+
+def test_load_sensors_is_unavailable_without_entity_ids() -> None:
+    """No entity IDs means no data, not an empty set of payloads."""
+
+    assert load_sensors(FakeStateMachine({}), []) is None

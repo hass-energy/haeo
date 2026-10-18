@@ -14,12 +14,7 @@ class TimeSeriesLoader:
 
     def available(self, *, sm: StateMachine, value: EntityValue, **_kwargs: object) -> bool:
         """Return True when every referenced sensor can supply data."""
-        entity_ids = value["value"]
-
-        if not entity_ids:
-            return False
-
-        return load_sensors(sm, entity_ids) is not None
+        return load_sensors(sm, value["value"]) is not None
 
     async def load_intervals(
         self,
