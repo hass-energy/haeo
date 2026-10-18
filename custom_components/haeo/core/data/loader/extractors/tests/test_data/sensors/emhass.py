@@ -29,7 +29,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "emhass",
         "expected_unit": "kW",  # Converted from W to base unit kW
-        "expected_data": [(1759669200.0, 1.5), (np.nextafter(1759671000.0, -np.inf), 1.5), (1759671000.0, 1.6), (1759672800.0, 1.6)],
+        "expected_data": [(1759670100.0, 1.5), (1759671900.0, 1.6)],
         "description": "EMHASS load forecast with forecasts attribute",
     },
     {
@@ -64,7 +64,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "emhass",
         "expected_unit": "kW",
-        "expected_data": [(1759669200.0, 0.0), (np.nextafter(1759671000.0, -np.inf), 0.0), (1759671000.0, 2.5), (1759672800.0, 2.5)],
+        "expected_data": [(1759670100.0, 0.0), (1759671900.0, 2.5)],
         "description": "EMHASS forecast with numeric values (not strings)",
     },
     {
@@ -150,7 +150,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "emhass",
         "expected_unit": "kW",
-        "expected_data": [(1759669200.0, 1.2), (np.nextafter(1759671000.0, -np.inf), 1.2), (1759671000.0, 1.1), (1759672800.0, 1.1)],
+        "expected_data": [(1759670100.0, 1.2), (1759671900.0, 1.1)],
         "description": "EMHASS ML forecaster with scheduled_forecast attribute",
     },
     {

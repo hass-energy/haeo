@@ -8,7 +8,7 @@ from typing import Literal, Protocol, TypedDict, TypeGuard
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp, step_points
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,10 +73,12 @@ class Parser:
         """Extract forecast data from Solcast solar forecast format.
 
         Each pv_estimate is the mean power over the 30 minutes from its
-        period_start, so the periods become a step function.
+        period_start. Solar power varies smoothly, so the mean is placed at the
+        middle of its period, where it best matches the instantaneous power,
+        and the fuser interpolates between periods.
         """
-        parsed = step_points(
-            (start := parse_datetime_to_timestamp(item["period_start"]), start + PERIOD_SECONDS, item["pv_estimate"])
+        parsed = sorted(
+            (parse_datetime_to_timestamp(item["period_start"]) + PERIOD_SECONDS // 2, item["pv_estimate"])
             for item in state.attributes["detailedForecast"]
         )
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

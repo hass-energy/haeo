@@ -1,7 +1,6 @@
 """Step function points for forecast values that hold over a period."""
 
 from collections.abc import Iterable, Sequence
-from itertools import pairwise
 
 
 def step_points(blocks: Iterable[tuple[int, int, float]]) -> list[tuple[int, float]]:
@@ -25,10 +24,3 @@ def hold_until_next(points: Sequence[tuple[int, float]]) -> list[tuple[int, int,
     ends = [end for end, _ in ordered[1:]]
     ends.append(2 * ordered[-1][0] - ordered[-2][0])
     return [(start, end, value) for (start, value), end in zip(ordered, ends, strict=True)]
-
-
-def zero_gaps(blocks: Iterable[tuple[int, int, float]]) -> list[tuple[int, int, float]]:
-    """Return the blocks plus zero blocks filling the gaps between them."""
-    ordered = sorted(blocks)
-    gaps = [(end, start, 0.0) for (_, end, _), (start, _, _) in pairwise(ordered) if start > end]
-    return [*ordered, *gaps]

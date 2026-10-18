@@ -2,8 +2,6 @@
 
 from datetime import UTC, datetime
 
-import numpy as np
-
 VALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.volcast_forecast",
@@ -11,7 +9,7 @@ VALID: list[dict[str, object]] = [
         "attributes": {"detailedForecast": [{"period_start": "2026-05-29T00:00:00+10:00", "power_w": 0}]},
         "expected_format": "volcast",
         "expected_unit": "kW",
-        "expected_data": [(1779976800.0, 0.0), (1779977100.0, 0.0)],
+        "expected_data": [(1779976950.0, 0.0)],
         "description": "Single Volcast forecast entry",
     },
     {
@@ -25,7 +23,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "volcast",
         "expected_unit": "kW",
-        "expected_data": [(1779976800.0, 0.0), (np.nextafter(1779977100.0, -np.inf), 0.0), (1779977100.0, 3.5), (1779977400.0, 3.5)],
+        "expected_data": [(1779976950.0, 0.0), (1779977250.0, 3.5)],
         "description": "Multiple Volcast forecast entries",
     },
     {
@@ -39,7 +37,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "volcast",
         "expected_unit": "kW",
-        "expected_data": [(1780012800.0, 2.0), (np.nextafter(1780013100.0, -np.inf), 2.0), (1780013100.0, 7.5), (1780013400.0, 7.5)],
+        "expected_data": [(1780012950.0, 2.0), (1780013250.0, 7.5)],
         "description": "Volcast forecast with datetime objects instead of strings",
     },
     {
@@ -53,7 +51,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "volcast",
         "expected_unit": "kW",
-        "expected_data": [(1779976800.0, 1.0), (np.nextafter(1779977100.0, -np.inf), 1.0), (1779977100.0, 0.0), (np.nextafter(1780016400.0, -np.inf), 0.0), (1780016400.0, 4.0), (1780016700.0, 4.0)],
+        "expected_data": [(1779976950.0, 1.0), (1779977250.0, 0.0), (1780016250.0, 0.0), (1780016550.0, 4.0)],
         "description": "Volcast forecast with mixed string and datetime object timestamps",
     },
     {
@@ -67,12 +65,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "volcast",
         "expected_unit": "kW",
-        "expected_data": [
-            (1779976800.0, 3.8),
-            (np.nextafter(1779977100.0, -np.inf), 3.8),
-            (1779977100.0, 3.6),
-            (1779977400.0, 3.6),
-        ],
+        "expected_data": [(1779976950.0, 3.8), (1779977250.0, 3.6)],
         "description": "Volcast integration entries that also carry a Solcast-style pv_estimate",
     },
 ]

@@ -163,6 +163,30 @@ def test_aemo_block_prices_fuse_to_steps(hass: HomeAssistant) -> None:
     assert fuse_to_intervals(None, result.data, horizon_times) == pytest.approx([0.0, 0.0, 0.5, 0.5], abs=1e-9)
 
 
+def test_solcast_period_means_of_a_ramp_fuse_back_to_the_same_means(hass: HomeAssistant) -> None:
+    """Solcast means sit at the middle of their periods, so a linear ramp fuses back to its period means."""
+    start = 1759662000
+    means = [1.0, 2.0, 3.0, 4.0]
+    state = _create_sensor_state(
+        hass,
+        "sensor.solcast_forecast",
+        "1.0",
+        {
+            "detailedForecast": [
+                {"period_start": datetime.fromtimestamp(start + 1800 * period, tz=UTC), "pv_estimate": mean}
+                for period, mean in enumerate(means)
+            ]
+        },
+    )
+
+    result = extractors.extract(state)
+    assert isinstance(result.data, list)
+    horizon_times = [start + 1800 * period for period in range(len(means) + 1)]
+
+    # The first and last periods are only half covered by the ramp, so only the inner periods are exact
+    assert fuse_to_intervals(None, result.data, horizon_times)[1:-1] == pytest.approx(means[1:-1])
+
+
 def test_haeo_interval_forecast_fuses_to_its_period_values(hass: HomeAssistant) -> None:
     """A HAEO interval forecast read back by another input keeps each period's value, including the last."""
     start = 1759662000

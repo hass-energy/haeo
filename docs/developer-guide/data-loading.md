@@ -178,24 +178,28 @@ The extractor system ([`extractors/`](https://github.com/hass-energy/haeo/tree/m
 
 ### Period values and point values
 
-The fuser interpolates linearly between points, so an extractor must place each value where it applies in time.
-A value that holds over a period, such as a tariff price or a solar forecast's mean power over 30 minutes, becomes a step function.
+The fuser interpolates linearly between points, so an extractor must place each value at the time it describes.
+
+A value that is constant over a period, such as a tariff price or an optimizer's schedule, becomes a step function.
 `step_points()` emits two points per period, `(start, value)` and `(end, value)`.
 Adjacent periods share a boundary timestamp, and `extract()` separates it with `separate_duplicate_timestamps()` so the fuser steps there instead of ramping.
-A source that gives only start times ends each period where the next one starts (`hold_until_next()`), or uses the source's fixed period length.
-A value that is a state at an instant, such as a battery's state of charge, stays a single point at that instant.
+A source that gives only start times ends each period where the next one starts (`hold_until_next()`).
 
-| Source                     | Reading                                                                                                         |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Amber Electric, Amber2MQTT | Prices held from `start_time` to `end_time`                                                                     |
-| AEMO NEM                   | Prices held from `start_time` to `end_time`, or the next start, or 30 minutes                                   |
-| Nordpool                   | Prices held from `start` to `end`                                                                               |
-| Flow Power                 | Prices held until the next period starts                                                                        |
-| Solcast                    | Mean power held for the 30 minutes from `period_start`                                                          |
-| Volcast                    | Mean power held for the 5 minutes from `period_start`, with zero in the periods Volcast leaves out              |
-| Open-Meteo Solar Forecast  | Mean power from `wh_period_15m` held for 15 minutes; integration versions without it read `watts` as points     |
-| EMHASS                     | Power and price schedules held over each step; state of charge at the end of its step; temperature at its start |
-| HAEO                       | Linear points unless `interpolation_mode` says otherwise                                                        |
+A quantity that varies continuously, such as solar or load power, stays as points and is interpolated.
+An instantaneous value sits at its instant.
+A mean over a period sits at the middle of the period, where a smoothly varying quantity equals its mean, so interpolating between midpoints recovers the period means.
+
+| Source                     | Reading                                                                                                                                                      |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Amber Electric, Amber2MQTT | Prices held from `start_time` to `end_time`                                                                                                                  |
+| AEMO NEM                   | Prices held from `start_time` to `end_time`, or the next start, or 30 minutes                                                                                |
+| Nordpool                   | Prices held from `start` to `end`                                                                                                                            |
+| Flow Power                 | Prices held until the next period starts                                                                                                                     |
+| Solcast                    | Mean power over the 30 minutes from `period_start`, at the period's middle                                                                                   |
+| Volcast                    | Mean power over the 5 minutes from `period_start`, at the period's middle, with zero across the periods Volcast leaves out                                   |
+| Open-Meteo Solar Forecast  | Instantaneous `watts` at 15 minutes after its timestamp, which is when the irradiance it is computed from applies                                            |
+| EMHASS                     | Power and load forecasts at the middle of their step; schedules and prices held over their step; state of charge at the step's end; temperature at its start |
+| HAEO                       | Linear points unless `interpolation_mode` says otherwise                                                                                                     |
 
 HAEO's own sensors and numbers publish interval forecasts (power, prices, and other per-period values) with one point at each period start and `interpolation_mode: previous`.
 In previous mode each value holds until the next point and the last for as long as the step before it, so an input reading a HAEO output gets each period's value back unchanged.

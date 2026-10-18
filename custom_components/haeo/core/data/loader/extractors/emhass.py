@@ -36,20 +36,26 @@ class ForecastEntry(Protocol):
         ...
 
 
-type StepTiming = Literal["held", "start", "end"]
-"""When in an optimization time step a value applies: held across it, at its start, or at its end."""
+type StepTiming = Literal["held", "mean", "start", "end"]
+"""When in an optimization time step a value applies.
+
+``held`` is constant across the step, as a schedule or price is. ``mean`` is
+the mean of a smoothly varying quantity over the step, which best matches its
+instantaneous value at the middle of the step. ``start`` and ``end`` are states
+at the start or end of the step.
+"""
 
 # EMHASS uses different attribute keys for different sensor types. Every entry
 # is dated at the start of its optimization time step.
 FORECAST_ATTRIBUTES: dict[str, StepTiming] = {
-    "forecasts": "held",
+    "forecasts": "mean",
     "deferrables_schedule": "held",
     "predicted_temperatures": "start",
     "battery_scheduled_power": "held",
     "battery_scheduled_soc": "end",
     "unit_load_cost_forecasts": "held",
     "unit_prod_price_forecasts": "held",
-    "scheduled_forecast": "held",
+    "scheduled_forecast": "mean",
 }
 
 
@@ -123,9 +129,11 @@ class Parser:
         - unit and device_class are read from state attributes (EMHASS sets these)
 
         Each step ends where the next starts, and the last lasts as long as the
-        one before it. Power and price schedules hold across their step, so
-        they become a step function. Battery state of charge is the state at
-        the end of its step, and predicted temperature the state at its start.
+        one before it. Schedules and prices hold across their step, so they
+        become a step function. Power and load forecasts are means over their
+        step, placed at its middle for the fuser to interpolate between. Battery
+        state of charge is the state at the end of its step, and predicted
+        temperature the state at its start.
         """
         entity_name = Parser._get_entity_name(state.entity_id)
         forecast_key = Parser._get_forecast_key(state)
@@ -159,6 +167,8 @@ def _apply_step_timing(points: list[tuple[int, float]], timing: StepTiming) -> l
     match timing:
         case "held":
             return step_points(hold_until_next(points))
+        case "mean":
+            return [((start + end) // 2, value) for start, end, value in hold_until_next(points)]
         case "start":
             return sorted(points)
         case "end":
