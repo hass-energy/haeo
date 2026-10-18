@@ -76,8 +76,13 @@ def load_sensor(sm: StateMachine, entity_id: str, *, output_type: OutputType | N
 
 def load_sensors(
     sm: StateMachine, entity_ids: Sequence[str], *, output_type: OutputType | None = None
-) -> dict[str, SensorPayload]:
+) -> dict[str, SensorPayload] | None:
     """Load sensor data for multiple entity IDs.
+
+    An input built from several sensors is only meaningful with all of them,
+    so one sensor without data makes the whole set unavailable, the same as
+    when a single sensor is unavailable. Every sensor is still loaded first,
+    so a sensor in an unusable unit is reported whatever its position.
 
     Args:
         sm: State machine implementation
@@ -86,15 +91,14 @@ def load_sensors(
             convert to. Not checked when None.
 
     Returns:
-        Dictionary mapping entity IDs to their sensor payloads.
-        Only includes sensors that successfully loaded data.
+        Dictionary mapping entity IDs to their sensor payloads, or None if there
+        are no entity IDs or any sensor is missing or has no data.
+
+    Raises:
+        InputError: If any sensor supplies a value the input cannot use.
 
     """
-    payloads: dict[str, SensorPayload] = {}
-
-    for entity_id in entity_ids:
-        payload = load_sensor(sm, entity_id, output_type=output_type)
-        if payload is not None:
-            payloads[entity_id] = payload
-
-    return payloads
+    payloads = {entity_id: load_sensor(sm, entity_id, output_type=output_type) for entity_id in entity_ids}
+    if not payloads or None in payloads.values():
+        return None
+    return {entity_id: payload for entity_id, payload in payloads.items() if payload is not None}

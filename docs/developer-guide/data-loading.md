@@ -25,7 +25,7 @@ See Home Assistant documentation for background on entities and sensors:
 
 The data loading pipeline consists of four stages:
 
-1. **Orchestration** ([`TimeSeriesLoader`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/time_series_loader.py)) - Coordinates the entire loading process
+1. **Orchestration** ([`resolve_field`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/config_loader.py)) - Coordinates the entire loading process
 2. **Extraction** ([`sensor_loader.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/sensor_loader.py)) - Reads Home Assistant entities and detects formats
 3. **Combination** ([`forecast_combiner.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/util/forecast_combiner.py)) - Merges multiple sensors into unified data
 4. **Fusion** ([`forecast_fuser.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/util/forecast_fuser.py)) - Aligns data to optimization horizon using interpolation
@@ -47,7 +47,6 @@ graph LR
 
     subgraph "Loading Pipeline"
         RF[resolve_field]
-        TSL[TimeSeriesLoader]
         Ext[Extraction]
         Comb[Combination]
         Fuse[Fusion]
@@ -55,8 +54,7 @@ graph LR
 
     SE --> IS
     IS --> RF
-    RF --> TSL
-    TSL --> Ext
+    RF --> Ext
     Ext --> Comb
     Comb --> Fuse
     Fuse --> IS
@@ -81,47 +79,34 @@ Trapezoidal integration accurately computes interval averages from point samples
 Physical intuition: multiple solar arrays sum their power output, multiple price components sum to total cost.
 This matches real-world energy network behavior.
 
-## TimeSeriesLoader
+## Field resolution
 
-The [`TimeSeriesLoader`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/time_series_loader.py) orchestrates the complete loading pipeline.
-[Input entities](inputs.md) instantiate and call this loader to refresh their forecast data.
+[`resolve_field`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/config_loader.py) resolves one configured field from its schema value and field hint.
+Input stores call it for their field, and the config loader calls it for every field of an element.
 
 ### Responsibilities
 
-- Validate that all referenced sensors exist and are available
+- Load every referenced sensor, and treat the field as unavailable if any sensor is missing or has no data
 - Coordinate extraction, combination, and fusion stages
 - Convert results to HAEO base units (see [Units](units.md) for details)
 - Handle single sensors and sensor lists uniformly
 
-### Interface Design
-
-The loader provides methods for two types of data loading:
-
-- `available()` - Checks if sensors exist without loading data (used during config validation)
-- `load_intervals()` - Returns n interval averages for n+1 fence post timestamps
-- `load_boundaries()` - Returns n+1 point-in-time values at each fence post timestamp
-
 **Intervals vs Fence Posts**:
 Optimization horizons are defined by n+1 timestamps (fence posts) creating n periods (intervals).
-Different physical quantities require different loading approaches:
+Different physical quantities require different loading approaches, chosen by the field hint's `boundaries` flag:
 
 - **Interval values** (n values): Power, efficiency, costs - values that represent averages over time periods
 - **Fence post values** (n+1 values): Capacity, SOC limits - values that represent states at specific points in time
 
-All methods accept flexible `value` parameters (single sensor string, list, or constant) to support different configuration field types.
-
-### Return Behavior
-
-The loading methods return lists of floats:
-
-- `load_intervals()` returns n values (one per optimization period)
-- `load_boundaries()` returns n+1 values (one per fence post timestamp)
-
-Both handle constant values by broadcasting to the appropriate length.
-Both support a `default` parameter for optional fields with fallback values.
+Constant values broadcast to the same lengths.
 
 Values use HAEO base units: kilowatts (kW) for power, kilowatt-hours (kWh) for energy, \$/kWh for prices.
 See [Units documentation](units.md) for conversion details.
+
+## TimeSeriesLoader
+
+The [`TimeSeriesLoader`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/time_series_loader.py) checks whether every sensor behind an entity-backed field can supply data.
+Element adapters use it to decide whether an element is available.
 
 ## ScalarLoader
 
@@ -221,6 +206,8 @@ Multiple sensors combine additively:
 - **Forecast series** interpolate to shared timestamps, then sum
 
 This matches physical reality: two solar arrays produce combined power, multiple price components sum to total cost.
+
+`load_sensors()` returns None when any sensor is missing or has no data, so the field is unavailable rather than summing the sensors that remain.
 
 ### Timestamp Alignment
 
