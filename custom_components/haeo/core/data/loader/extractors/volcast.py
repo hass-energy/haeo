@@ -8,12 +8,15 @@ from typing import Literal, Protocol, TypedDict, TypeGuard
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp, step_points, zero_gaps
 
 _LOGGER = logging.getLogger(__name__)
 
 Format = Literal["volcast"]
 DOMAIN: Format = "volcast"
+
+# Length of a detailedForecast period
+PERIOD_SECONDS = 5 * 60
 
 
 class VolcastForecastEntry(TypedDict):
@@ -69,11 +72,14 @@ class Parser:
     def extract(state: VolcastState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Volcast format.
 
-        State has been validated by detect(), so all entries are guaranteed to be valid.
+        Each power_w is the mean power over the 5 minutes from its period_start,
+        so the periods become a step function. Volcast leaves out periods with
+        no output, so the gaps between periods are zero.
         """
-        parsed: list[tuple[int, float]] = [
-            (parse_datetime_to_timestamp(item["period_start"]), item["power_w"])
-            for item in state.attributes["detailedForecast"]
-        ]
-        parsed.sort(key=lambda x: x[0])
+        parsed = step_points(
+            zero_gaps(
+                (start := parse_datetime_to_timestamp(item["period_start"]), start + PERIOD_SECONDS, item["power_w"])
+                for item in state.attributes["detailedForecast"]
+            )
+        )
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

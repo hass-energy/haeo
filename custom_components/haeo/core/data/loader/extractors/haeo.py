@@ -13,7 +13,7 @@ from typing import Literal, NotRequired, Protocol, TypedDict, TypeGuard
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+from .utils import hold_until_next, is_parsable_to_datetime, parse_datetime_to_timestamp, step_points
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -127,6 +127,9 @@ def _apply_interpolation_mode(
 
     Converts non-linear interpolation into a series that behaves correctly
     with linear interpolation by adding synthetic points at transitions.
+    In previous mode each value holds until the next point, and the last for
+    as long as the step before it, so a forecast of per-period values covers
+    its final period.
 
     Args:
         data: Sorted sequence of (timestamp, value) tuples
@@ -140,11 +143,12 @@ def _apply_interpolation_mode(
     if len(data) <= 1 or not mode or mode == "linear":
         return data
 
+    if mode == "previous":
+        return step_points(hold_until_next(data))
+
     result = [data[0]]
     for (t1, v1), (t2, v2) in pairwise(data):
         match mode:
-            case "previous":
-                result.append((t2, v1))
             case "next":
                 result.append((t1, v2))
             case "nearest":

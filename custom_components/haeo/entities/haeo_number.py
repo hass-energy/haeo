@@ -302,6 +302,9 @@ class HaeoInputNumber(NumberEntity):
         extra_attrs = dict(self._base_extra_attrs)
         if self._uses_forecast and self._store.native_value is not None:
             extra_attrs["forecast"] = self._build_forecast_attribute()
+            if not self._field_info.boundaries:
+                # Interval values hold from their time until the next, as the HAEO extractor reads "previous"
+                extra_attrs["interpolation_mode"] = "previous"
         self._attr_extra_state_attributes = extra_attrs
 
     def _build_forecast_attribute(self) -> list[dict[str, datetime | float | None]]:

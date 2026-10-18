@@ -121,12 +121,14 @@ def _make_output(
     state_class: SensorStateClass | None,
     options: tuple[str, ...] | None,
     direction: Literal["+", "-"] | None = None,
+    interpolation_mode: Literal["previous"] | None = None,
 ) -> CoordinatorOutput:
     return CoordinatorOutput(
         type=type_,
         unit=unit,
         state=state,
         forecast=forecast,
+        interpolation_mode=interpolation_mode,
         entity_category=entity_category,
         device_class=device_class,
         state_class=state_class,
@@ -353,6 +355,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         options=None,
+        interpolation_mode="previous",
     )
     coordinator.data = _make_coordinator_data({"battery": {"battery": {LOAD_POWER: updated_output}}})
 
@@ -370,6 +373,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
     assert attributes["field_type"] == OutputType.POWER
     assert attributes["forecast"] == updated_output.forecast
     assert attributes["forecast"] is not updated_output.forecast
+    assert attributes["interpolation_mode"] == "previous"
 
 
 def test_handle_coordinator_update_scales_percentage_outputs(device_entry: DeviceEntry) -> None:

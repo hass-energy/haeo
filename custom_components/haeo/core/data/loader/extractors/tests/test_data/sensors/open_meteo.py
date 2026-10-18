@@ -1,5 +1,7 @@
 """Test data for Open-Meteo Solar forecast sensors."""
 
+import numpy as np
+
 VALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.open_meteo_forecast",
@@ -28,6 +30,29 @@ VALID: list[dict[str, object]] = [
         "expected_unit": "kW",
         "expected_data": [(1759693500.0, 0.175), (1759694400.0, 0.2)],
         "description": "Multiple Open-Meteo forecast entries",
+    },
+    {
+        "entity_id": "sensor.open_meteo_quarter_hour_forecast",
+        "state": "175",
+        "attributes": {
+            "watts": {
+                "2025-10-06T06:45:00+11:00": 175,
+                "2025-10-06T07:00:00+11:00": 200,
+            },
+            "wh_period_15m": {
+                "2025-10-06T06:45:00+11:00": 40,
+                "2025-10-06T07:00:00+11:00": 50,
+            },
+        },
+        "expected_format": "open_meteo_solar_forecast",
+        "expected_unit": "kW",
+        "expected_data": [
+            (1759693500.0, 0.16),
+            (np.nextafter(1759694400.0, -np.inf), 0.16),
+            (1759694400.0, 0.2),
+            (1759695300.0, 0.2),
+        ],
+        "description": "Open-Meteo forecast with quarter hour energy holds each period's mean power",
     },
 ]
 
@@ -76,5 +101,15 @@ INVALID: list[dict[str, object]] = [
         },
         "expected_format": None,
         "description": "Open-Meteo forecast containing a non-string timestamp key",
+    },
+    {
+        "entity_id": "sensor.open_meteo_bad_quarter_hour_energy",
+        "state": "0",
+        "attributes": {
+            "watts": {"2025-10-06T06:45:00+11:00": 175},
+            "wh_period_15m": {"2025-10-06T06:45:00+11:00": "not a number"},
+        },
+        "expected_format": None,
+        "description": "Open-Meteo forecast with invalid quarter hour energy",
     },
 ]

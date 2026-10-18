@@ -1,6 +1,9 @@
 """Tests for data extractor functionality."""
 
+from datetime import UTC, datetime
+
 from homeassistant.core import HomeAssistant, State
+import numpy as np
 import pytest
 
 from custom_components.haeo.core.data.loader import extractors
@@ -160,6 +163,31 @@ def test_aemo_block_prices_fuse_to_steps(hass: HomeAssistant) -> None:
     assert fuse_to_intervals(None, result.data, horizon_times) == pytest.approx([0.0, 0.0, 0.5, 0.5], abs=1e-9)
 
 
+def test_haeo_interval_forecast_fuses_to_its_period_values(hass: HomeAssistant) -> None:
+    """A HAEO interval forecast read back by another input keeps each period's value, including the last."""
+    start = 1759662000
+    values = [1.0, 3.0, 2.0]
+    state = _create_sensor_state(
+        hass,
+        "sensor.haeo_battery_power",
+        "1.0",
+        {
+            "forecast": [
+                {"time": datetime.fromtimestamp(start + 1800 * period, tz=UTC), "value": value}
+                for period, value in enumerate(values)
+            ],
+            "unit_of_measurement": "kW",
+            "interpolation_mode": "previous",
+        },
+    )
+
+    result = extractors.extract(state)
+    assert isinstance(result.data, list)
+    horizon_times = [start + 1800 * period for period in range(len(values) + 1)]
+
+    assert fuse_to_intervals(None, result.data, horizon_times) == pytest.approx(values, abs=1e-9)
+
+
 PARSER_MAP: dict[str, extractors.DataExtractor] = {
     extractors.amber2mqtt.DOMAIN: extractors.amber2mqtt.Parser,
     extractors.amberelectric.DOMAIN: extractors.amberelectric.Parser,
@@ -206,8 +234,8 @@ class TestInterpolationModeExtraction:
         assert isinstance(result.data, list)
         assert len(result.data) == 2
 
-    def test_previous_mode_adds_synthetic_points(self, hass: HomeAssistant) -> None:
-        """Previous mode adds synthetic points for step function behavior."""
+    def test_previous_mode_holds_each_value_until_the_next(self, hass: HomeAssistant) -> None:
+        """Previous mode holds each value until the next point, and the last for one more step."""
         state = _create_sensor_state(
             hass,
             "sensor.haeo_forecast",
@@ -223,15 +251,12 @@ class TestInterpolationModeExtraction:
         )
 
         result = extractors.extract(state)
-        assert isinstance(result.data, list)
-        # Previous mode: 2 original + 1 synthetic = 3 points
-        assert len(result.data) == 3
-        # First point unchanged
-        assert result.data[0][1] == 100.0
-        # Synthetic point just before second with previous value
-        assert result.data[1][1] == 100.0
-        # Second point
-        assert result.data[2][1] == 200.0
+        assert result.data == [
+            (1704067200.0, 100.0),
+            (np.nextafter(1704070800.0, -np.inf), 100.0),
+            (1704070800.0, 200.0),
+            (1704074400.0, 200.0),
+        ]
 
     def test_next_mode_adds_synthetic_points(self, hass: HomeAssistant) -> None:
         """Next mode adds synthetic points for forward step behavior."""

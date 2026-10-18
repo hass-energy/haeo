@@ -124,10 +124,11 @@ def extract(state: EntityState, *, output_type: OutputType | None = None) -> Ext
         data, unit, device_class = nordpool.Parser.extract(state)
     elif open_meteo_solar_forecast.Parser.detect(state):
         data, unit, device_class = open_meteo_solar_forecast.Parser.extract(state)
+    elif volcast.Parser.detect(state):
+        # Volcast entries also carry a Solcast-style pv_estimate, so Volcast is checked first
+        data, unit, device_class = volcast.Parser.extract(state)
     elif solcast_solar.Parser.detect(state):
         data, unit, device_class = solcast_solar.Parser.extract(state)
-    elif volcast.Parser.detect(state):
-        data, unit, device_class = volcast.Parser.extract(state)
     else:
         # If no extractor matched read the state as a single float value
         data = _parse_scalar_state(state.state)

@@ -969,7 +969,7 @@ async def test_editable_time_series_builds_forecast_attribute(
     power_field_info: InputFieldInfo[NumberEntityDescription],
     horizon_manager: Mock,
 ) -> None:
-    """Editable interval fields build a forecast attribute aligned to interval starts."""
+    """Editable interval fields build a forecast attribute aligned to interval starts that holds each value."""
     subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
     config_entry.runtime_data = None
 
@@ -983,6 +983,7 @@ async def test_editable_time_series_builds_forecast_attribute(
     assert len(forecast) == 2
     assert [point["time"].timestamp() for point in forecast] == [0.0, 300.0]
     assert all(point["value"] == 10.0 for point in forecast)
+    assert attrs["interpolation_mode"] == "previous"
 
 
 async def test_editable_boundaries_builds_forecast_attribute(
@@ -1004,6 +1005,7 @@ async def test_editable_boundaries_builds_forecast_attribute(
     forecast = attrs["forecast"]
     assert len(forecast) == 3
     assert [point["time"].timestamp() for point in forecast] == [0.0, 300.0, 600.0]
+    assert "interpolation_mode" not in attrs
 
 
 async def test_horizon_change_updates_forecast_timestamps_editable(

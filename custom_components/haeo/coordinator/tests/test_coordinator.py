@@ -590,10 +590,11 @@ def test_build_coordinator_output_emits_forecast_entries() -> None:
         {"time": forecast_times[0], "value": 1.2},
         {"time": forecast_times[1], "value": 3.4},
     ]
+    assert output.interpolation_mode is None
 
 
 def test_build_coordinator_output_maps_interval_values_onto_period_starts() -> None:
-    """Interval values take the first n of the n+1 boundary times."""
+    """Interval values take the first n of the n+1 boundary times and hold until the next."""
     output = _build_coordinator_output(
         SOLAR_POWER,
         OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0)),
@@ -605,6 +606,7 @@ def test_build_coordinator_output_maps_interval_values_onto_period_starts() -> N
         {"time": _TIMES[0], "value": 1.0},
         {"time": _TIMES[1], "value": 2.0},
     ]
+    assert output.interpolation_mode == "previous"
 
 
 @pytest.mark.parametrize("value_count", [2, 5], ids=["too-few", "too-many"])

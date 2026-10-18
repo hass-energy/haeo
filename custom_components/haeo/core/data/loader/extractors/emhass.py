@@ -13,7 +13,7 @@ from typing import Literal, Protocol, TypeGuard
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+from .utils import hold_until_next, is_parsable_to_datetime, parse_datetime_to_timestamp, step_points
 
 Format = Literal["emhass"]
 DOMAIN: Format = "emhass"
@@ -36,20 +36,21 @@ class ForecastEntry(Protocol):
         ...
 
 
-# EMHASS uses different attribute keys for different sensor types
-FORECAST_ATTRIBUTE_KEYS = (
-    "forecasts",
-    "deferrables_schedule",
-    "predicted_temperatures",
-    "battery_scheduled_power",
-    "battery_scheduled_soc",
-    "unit_load_cost_forecasts",
-    "unit_prod_price_forecasts",
-    "scheduled_forecast",
-)
+type StepTiming = Literal["held", "start", "end"]
+"""When in an optimization time step a value applies: held across it, at its start, or at its end."""
 
-# Attributes holding a price for each optimization time step, dated at the step's start
-PRICE_ATTRIBUTE_KEYS = frozenset({"unit_load_cost_forecasts", "unit_prod_price_forecasts"})
+# EMHASS uses different attribute keys for different sensor types. Every entry
+# is dated at the start of its optimization time step.
+FORECAST_ATTRIBUTES: dict[str, StepTiming] = {
+    "forecasts": "held",
+    "deferrables_schedule": "held",
+    "predicted_temperatures": "start",
+    "battery_scheduled_power": "held",
+    "battery_scheduled_soc": "end",
+    "unit_load_cost_forecasts": "held",
+    "unit_prod_price_forecasts": "held",
+    "scheduled_forecast": "held",
+}
 
 
 class EmhassState(Protocol):
@@ -78,7 +79,7 @@ class Parser:
 
         Returns the first non-empty sequence attribute that matches an EMHASS forecast key.
         """
-        for attr_key in FORECAST_ATTRIBUTE_KEYS:
+        for attr_key in FORECAST_ATTRIBUTES:
             if attr_key not in state.attributes:
                 continue
             forecast = state.attributes[attr_key]
@@ -110,7 +111,7 @@ class Parser:
         This must only be called after detect() returns True.
         """
         # detect() guarantees at least one forecast attribute exists
-        return next(attr_key for attr_key in FORECAST_ATTRIBUTE_KEYS if attr_key in state.attributes)
+        return next(attr_key for attr_key in FORECAST_ATTRIBUTES if attr_key in state.attributes)
 
     @staticmethod
     def extract(
@@ -121,9 +122,10 @@ class Parser:
         Returns: (parsed_data, unit, device_class)
         - unit and device_class are read from state attributes (EMHASS sets these)
 
-        Prices hold for their whole time step, so they become a step function:
-        each step emits (start, price) and (end, price), ending where the next
-        step starts, and the last step lasts as long as the one before it.
+        Each step ends where the next starts, and the last lasts as long as the
+        one before it. Power and price schedules hold across their step, so
+        they become a step function. Battery state of charge is the state at
+        the end of its step, and predicted temperature the state at its start.
         """
         entity_name = Parser._get_entity_name(state.entity_id)
         forecast_key = Parser._get_forecast_key(state)
@@ -137,9 +139,7 @@ class Parser:
             )
             for item in forecast
         ]
-        parsed.sort(key=lambda x: x[0])
-        if forecast_key in PRICE_ATTRIBUTE_KEYS:
-            parsed = _to_steps(parsed)
+        parsed = _apply_step_timing(parsed, FORECAST_ATTRIBUTES[forecast_key])
 
         # Read unit and device_class from state attributes (EMHASS sets these)
         unit = state.attributes.get("unit_of_measurement")
@@ -152,13 +152,17 @@ class Parser:
         return parsed, parsed_unit or unit_str, device_class
 
 
-def _to_steps(points: list[tuple[int, float]]) -> list[tuple[int, float]]:
-    """Hold each value until the next point, repeating the last step length."""
-    if len(points) < 2:  # noqa: PLR2004 (a step length needs two points)
+def _apply_step_timing(points: list[tuple[int, float]], timing: StepTiming) -> list[tuple[int, float]]:
+    """Place values dated at the start of each step where they apply in time."""
+    if len(points) < 2:  # noqa: PLR2004 (a step length needs two points, and one point is constant anyway)
         return points
-    ends = [end for end, _ in points[1:]]
-    ends.append(2 * points[-1][0] - points[-2][0])
-    return [point for (start, value), end in zip(points, ends, strict=True) for point in ((start, value), (end, value))]
+    match timing:
+        case "held":
+            return step_points(hold_until_next(points))
+        case "start":
+            return sorted(points)
+        case "end":
+            return [(end, value) for _, end, value in hold_until_next(points)]
 
 
 def _is_numeric_or_numeric_string(value: object) -> bool:

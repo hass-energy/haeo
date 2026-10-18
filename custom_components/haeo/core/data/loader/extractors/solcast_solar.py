@@ -8,12 +8,15 @@ from typing import Literal, Protocol, TypedDict, TypeGuard
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp, step_points
 
 _LOGGER = logging.getLogger(__name__)
 
 Format = Literal["solcast_solar"]
 DOMAIN: Format = "solcast_solar"
+
+# Length of a detailedForecast period, which the integration fixes at the Solcast API default
+PERIOD_SECONDS = 30 * 60
 
 
 class SolcastForecastEntry(TypedDict):
@@ -69,11 +72,11 @@ class Parser:
     def extract(state: SolcastSolarState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Solcast solar forecast format.
 
-        State has been validated by detect(), so all entries are guaranteed to be valid.
+        Each pv_estimate is the mean power over the 30 minutes from its
+        period_start, so the periods become a step function.
         """
-        parsed: list[tuple[int, float]] = [
-            (parse_datetime_to_timestamp(item["period_start"]), item["pv_estimate"])
+        parsed = step_points(
+            (start := parse_datetime_to_timestamp(item["period_start"]), start + PERIOD_SECONDS, item["pv_estimate"])
             for item in state.attributes["detailedForecast"]
-        ]
-        parsed.sort(key=lambda x: x[0])
+        )
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

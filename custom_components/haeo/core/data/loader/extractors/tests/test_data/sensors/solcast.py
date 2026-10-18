@@ -2,6 +2,8 @@
 
 from datetime import UTC, datetime
 
+import numpy as np
+
 VALID: list[dict[str, object]] = [
     {
         "entity_id": "sensor.solcast_forecast",
@@ -9,7 +11,7 @@ VALID: list[dict[str, object]] = [
         "attributes": {"detailedForecast": [{"period_start": "2025-10-06T00:00:00+11:00", "pv_estimate": 0}]},
         "expected_format": "solcast_solar",
         "expected_unit": "kW",
-        "expected_data": [(1759669200.0, 0.0)],
+        "expected_data": [(1759669200.0, 0.0), (1759671000.0, 0.0)],
         "description": "Single Solcast forecast entry",
     },
     {
@@ -18,12 +20,12 @@ VALID: list[dict[str, object]] = [
         "attributes": {
             "detailedForecast": [
                 {"period_start": "2025-10-06T00:00:00+11:00", "pv_estimate": 0},
-                {"period_start": "2025-10-06T00:15:00+11:00", "pv_estimate": 10},
+                {"period_start": "2025-10-06T00:30:00+11:00", "pv_estimate": 10},
             ]
         },
         "expected_format": "solcast_solar",
         "expected_unit": "kW",
-        "expected_data": [(1759669200.0, 0.0), (1759670100.0, 10.0)],
+        "expected_data": [(1759669200.0, 0.0), (np.nextafter(1759671000.0, -np.inf), 0.0), (1759671000.0, 10.0), (1759672800.0, 10.0)],
         "description": "Multiple Solcast forecast entries",
     },
     {
@@ -37,7 +39,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "solcast_solar",
         "expected_unit": "kW",
-        "expected_data": [(1759708800.0, 5.0), (1759710600.0, 15.0)],
+        "expected_data": [(1759708800.0, 5.0), (np.nextafter(1759710600.0, -np.inf), 5.0), (1759710600.0, 15.0), (1759712400.0, 15.0)],
         "description": "Solcast forecast with datetime objects instead of strings",
     },
     {
@@ -46,12 +48,12 @@ VALID: list[dict[str, object]] = [
         "attributes": {
             "detailedForecast": [
                 {"period_start": "2025-10-06T00:00:00+11:00", "pv_estimate": 3},
-                {"period_start": datetime(2025, 10, 6, 1, 0, 0, tzinfo=UTC), "pv_estimate": 8},
+                {"period_start": datetime(2025, 10, 5, 13, 30, 0, tzinfo=UTC), "pv_estimate": 8},
             ]
         },
         "expected_format": "solcast_solar",
         "expected_unit": "kW",
-        "expected_data": [(1759669200.0, 3.0), (1759712400.0, 8.0)],
+        "expected_data": [(1759669200.0, 3.0), (np.nextafter(1759671000.0, -np.inf), 3.0), (1759671000.0, 8.0), (1759672800.0, 8.0)],
         "description": "Solcast forecast with mixed string and datetime object timestamps",
     },
 ]

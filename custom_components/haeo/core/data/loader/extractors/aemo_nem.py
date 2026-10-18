@@ -8,7 +8,7 @@ from typing import Literal, NotRequired, Protocol, TypedDict, TypeGuard
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp, step_points
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,12 +71,8 @@ class Parser:
     def extract(state: AemoNemState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from AEMO energy market format.
 
-        Each price holds for its whole block, so each block emits two points,
-        (start, price) and (end, price), making a step function rather than a
-        ramp between blocks. Adjacent blocks share a boundary timestamp, which
-        the caller separates so the fuser does not interpolate across it.
-
-        A block ends at its end time. Without one, it ends where the next block
+        Each price holds for its whole block, so the blocks become a step
+        function. A block ends at its end time. Without one, it ends where the next block
         starts, and the last block lasts one pre-dispatch interval.
         """
         blocks = sorted(
@@ -86,9 +82,8 @@ class Parser:
         starts = [start for start, _ in blocks]
         next_starts = [*starts[1:], starts[-1] + BLOCK_SECONDS]
 
-        parsed: list[tuple[int, float]] = []
-        for (start, item), next_start in zip(blocks, next_starts, strict=True):
-            end = parse_datetime_to_timestamp(item["end_time"]) if "end_time" in item else next_start
-            parsed.append((start, item["price"]))
-            parsed.append((end, item["price"]))
+        parsed = step_points(
+            (start, parse_datetime_to_timestamp(item["end_time"]) if "end_time" in item else next_start, item["price"])
+            for (start, item), next_start in zip(blocks, next_starts, strict=True)
+        )
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

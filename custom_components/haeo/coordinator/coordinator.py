@@ -83,6 +83,8 @@ class CoordinatorOutput:
     unit: str | None
     state: StateType | None
     forecast: list[ForecastPoint] | None
+    # "previous" when each forecast value holds from its time until the next, as interval values do
+    interpolation_mode: Literal["previous"] | None = None
     direction: Literal["+", "-"] | None = None
     entity_category: EntityCategory | None = None
     device_class: SensorDeviceClass | None = None
@@ -188,6 +190,9 @@ def _build_coordinator_output(
       - forecast_times: [12:00, 12:05, 12:10, 12:15] (n+1 = 4 boundaries)
       - Interval values (n=3): zip with [12:00, 12:05, 12:10]
       - Boundary values (n=4): zip with [12:00, 12:05, 12:10, 12:15]
+
+    Interval forecasts carry the "previous" interpolation mode, so a HAEO input
+    reading one holds each value across its period rather than ramping.
     """
 
     values = tuple(output_data.values)
@@ -200,6 +205,7 @@ def _build_coordinator_output(
     else:
         state = values[0]
     forecast: list[ForecastPoint] | None = None
+    interpolation_mode: Literal["previous"] | None = None
 
     if forecast_times and len(values) > 1:
         # Interval values use n_periods times and boundary values use all n_periods+1
@@ -213,12 +219,15 @@ def _build_coordinator_output(
             ForecastPoint(time=time, value=value)
             for time, value in zip(forecast_times[: len(values)], values, strict=True)
         ]
+        if len(values) < len(forecast_times):
+            interpolation_mode = "previous"
 
     return CoordinatorOutput(
         type=output_data.type,
         unit=localize_currency(output_data.unit, currency_sym),
         state=state,
         forecast=forecast,
+        interpolation_mode=interpolation_mode,
         direction=output_data.direction,
         entity_category=(
             EntityCategory.DIAGNOSTIC
