@@ -289,6 +289,26 @@ async def test_loader_failed_reload_makes_store_unavailable_and_notifies(
     loader.cleanup()
 
 
+async def test_loader_unchanged_fetch_does_not_notify(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """Fetching the same events again does not tell listeners, so it does not re-optimize."""
+    await _add_stub_calendar(hass, [_trip(0.0, 3600.0)])
+    store = _calendar_store()
+    listener = Mock()
+    store.add_listener(listener)
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_calendar")): store}, horizon_manager)
+    loader.start()
+    await hass.async_block_till_done()
+    listener.assert_called_once()
+    listener.reset_mock()
+
+    await loader.async_load_all()
+    await loader.async_resolve()
+
+    assert store.available
+    listener.assert_not_called()
+    loader.cleanup()
+
+
 async def test_loader_initial_fetch_failure_leaves_store_not_ready(hass: HomeAssistant, horizon_manager: Mock) -> None:
     """A failed first fetch does not load the store as an empty calendar."""
     calendar = await _add_stub_calendar(hass, [_trip(0.0, 3600.0)])

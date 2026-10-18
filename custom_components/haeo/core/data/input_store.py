@@ -245,8 +245,8 @@ class InputStore:
     def set_value(self, value: float | bool) -> None:  # noqa: FBT001 (bool is a valid input value)
         """Set a new constant value (display units) and re-resolve.
 
-        Updates the resolved value, marks ready, and notifies listeners.
-        Persistence is performed separately via :meth:`persist`.
+        Updates the resolved value, marks ready, and notifies listeners if the
+        value changed. Persistence is performed separately via :meth:`persist`.
         """
         self._constant = value
         self._resolve_from_constant(mark_ready=True)
@@ -275,24 +275,21 @@ class InputStore:
 
         Lets a caller reload several stores before any listener runs, then
         notify each with :meth:`notify_listeners`. Returns True when listeners
-        should be notified: the value, its timestamps, or its availability
-        changed, or the source's value was rejected. Reloading an identical
-        value returns False so consumers do not re-optimize for nothing. A
-        failed load keeps the previous value. A rejected value is recorded in
-        :attr:`error` and is always reported, so consumers report it rather
-        than silently keeping the previous value.
+        should be notified because the value, its timestamps, its availability,
+        or the reason its source's value was rejected changed. Reloading an
+        identical value returns False so consumers do not re-optimize for
+        nothing. A failed load keeps the previous value. A rejected value is
+        recorded in :attr:`error`, so consumers report it rather than silently
+        keeping the previous value.
         """
         self._captured_source_states = {
             eid: state for eid in self._source_entity_ids if (state := sm.get(eid)) is not None
         }
-        was_available = self._available
 
         if not self._source_entity_ids:
-            self._available = False
-            return was_available
+            return self._mark_unavailable()
 
         forecast_timestamps = self._get_forecast_timestamps()
-        self._error = None
         try:
             resolved = resolve_field(
                 as_entity_value(self._source_entity_ids),
@@ -302,38 +299,31 @@ class InputStore:
                 negate=self._negate,
             )
         except InputError as err:
+            changed = self._available or not _same_error(self._error, err)
             self._error = err
             self._available = False
             self._settled.set()
-            return True
+            return changed
         except Exception:
             _LOGGER.debug(
                 "Load failed from sources %s; keeping previous value",
                 self._source_entity_ids,
                 exc_info=True,
             )
-            self._available = False
-            return was_available
+            return self._mark_unavailable()
 
-        if resolved is None or not isinstance(resolved, (bool, float, int, np.ndarray)):
+        if (
+            resolved is None
+            or not isinstance(resolved, (bool, float, int, np.ndarray))
+            or (isinstance(resolved, np.ndarray) and resolved.size == 0)
+        ):
             _LOGGER.debug(
                 "Load returned no value from sources %s; keeping previous value",
                 self._source_entity_ids,
             )
-            self._available = False
-            return was_available
+            return self._mark_unavailable()
 
-        if isinstance(resolved, np.ndarray) and resolved.size == 0:
-            self._available = False
-            return was_available
-
-        loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
-        changed = (
-            not was_available or loaded_timestamps != self._loaded_timestamps or not _same_value(self._value, resolved)
-        )
-        self._value = resolved
-        self._available = True
-        self._loaded_timestamps = loaded_timestamps
+        changed = self._commit(resolved, forecast_timestamps)
         self._data_ready.set()
         self._settled.set()
         return changed
@@ -341,26 +331,60 @@ class InputStore:
     def _resolve_from_constant(self, *, mark_ready: bool) -> None:
         """Resolve the stored constant into the optimization value."""
         if self._constant is None:
+            changed = self._mark_unavailable()
             self._value = None
-            self._available = False
             self._loaded_timestamps = ()
         else:
             forecast_timestamps = self._get_forecast_timestamps()
-            self._value = resolve_constant(self._constant, self._hint, list(forecast_timestamps))
-            self._available = True
-            self._loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
+            changed = self._commit(
+                resolve_constant(self._constant, self._hint, list(forecast_timestamps)), forecast_timestamps
+            )
 
         if mark_ready:
             self._data_ready.set()
             self._settled.set()
-            self.notify_listeners()
+            if changed:
+                self.notify_listeners()
+
+    def _commit(self, value: InputValue, forecast_timestamps: tuple[float, ...]) -> bool:
+        """Store a resolved value and return whether consumers should be told."""
+        loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
+        changed = (
+            not self._available
+            or self._error is not None
+            or loaded_timestamps != self._loaded_timestamps
+            or not _same_value(self._value, value)
+        )
+        self._value = value
+        self._available = True
+        self._error = None
+        self._loaded_timestamps = loaded_timestamps
+        return changed
+
+    def _mark_unavailable(self) -> bool:
+        """Mark the store unavailable, keeping its value, and return whether consumers should be told."""
+        changed = self._available or self._error is not None
+        self._available = False
+        self._error = None
+        return changed
 
 
 def _same_value(previous: InputValue | None, resolved: InputValue) -> bool:
     """Return whether a newly resolved value equals the previous one, including its type."""
-    if isinstance(previous, np.ndarray) and isinstance(resolved, np.ndarray):
-        return np.array_equal(previous, resolved)
-    return type(previous) is type(resolved) and previous == resolved
+    return (
+        previous is not None
+        and type(previous) is type(resolved)
+        and bool(np.array_equal(previous, resolved, equal_nan=True))
+    )
+
+
+def _same_error(previous: InputError | None, error: InputError) -> bool:
+    """Return whether a rejection reports the same problem as the previous one."""
+    return (
+        previous is not None
+        and previous.translation_key == error.translation_key
+        and previous.translation_placeholders == error.translation_placeholders
+    )
 
 
 def create_input_store(
