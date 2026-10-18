@@ -16,8 +16,9 @@ Format = Literal["open_meteo_solar_forecast"]
 DOMAIN: Format = "open_meteo_solar_forecast"
 
 # How far each watts value's timestamp is ahead of the instant its power is for.
-# The library keys each 15 minute Open-Meteo step by its start, but the instant
-# irradiance it computes watts from is for the step's end.
+# The library computes watts from Open-Meteo's instantaneous irradiance, which
+# applies at its own timestamp, but keys it 15 minutes earlier, as it does the
+# preceding 15 minute means.
 WATTS_OFFSET_SECONDS = 15 * 60
 
 
