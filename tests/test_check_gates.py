@@ -14,7 +14,7 @@ from typing import TypedDict
 import pytest
 import yaml
 
-from tools.check import GATES, GATES_BY_NAME, bundle_is_stale, selected_gates
+from tools.check import GATES, bundle_is_stale, selected_gates
 
 WORKFLOW = Path(__file__).parent.parent / ".github" / "workflows" / "ci.yml"
 
@@ -61,7 +61,7 @@ def gate_invocations() -> dict[str, str]:
 
 def test_every_ci_invocation_names_a_real_gate() -> None:
     """CI cannot invoke a gate the runner does not define."""
-    unknown = {gate: job for gate, job in gate_invocations().items() if gate not in GATES_BY_NAME}
+    unknown = {gate: job for gate, job in gate_invocations().items() if gate not in {g.name for g in GATES}}
 
     assert not unknown, f"CI invokes gates that tools/check.py does not define: {unknown}"
 

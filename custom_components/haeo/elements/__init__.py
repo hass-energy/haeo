@@ -43,6 +43,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 
 from custom_components.haeo.const import (
     ELEMENT_TYPE_NETWORK,
+    NETWORK_DEVICE_NAMES,
     NETWORK_OUTPUT_NAMES,
     NetworkDeviceName,
     NetworkOutputName,
@@ -110,12 +111,7 @@ from custom_components.haeo.core.adapters.elements.solar import (
 )
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.core.schema.elements import (
-    ELEMENT_CONFIG_SCHEMAS,
-    ElementConfigData,
-    ElementConfigSchema,
-    ElementType,
-)
+from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
 from custom_components.haeo.core.schema.elements.battery_section import (
@@ -194,7 +190,6 @@ type ElementDeviceName = (
     | NetworkDeviceName
 )
 
-NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(("network",))
 
 ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     INVERTER_DEVICE_NAMES
@@ -398,22 +393,6 @@ def is_element_config_schema(value: object) -> TypeGuard[ElementConfigSchema]:
     schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
 
     return _conforms_to_typed_dict(value, schema_cls)
-
-
-def is_element_config_data(value: object) -> TypeGuard[ElementConfigData]:
-    """Return True when value matches any ElementConfigData TypedDict.
-
-    Checks required keys and types, plus optional key types when present.
-    """
-    if not isinstance(value, Mapping):
-        return False
-
-    element_type = value.get(CONF_ELEMENT_TYPE)
-    if not is_element_type(element_type):
-        return False
-
-    data_cls = ELEMENT_CONFIG_DATA[element_type]
-    return _conforms_to_typed_dict(value, data_cls, check_optional=True)
 
 
 def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
@@ -683,7 +662,6 @@ __all__ = [
     "get_nested_config_value",
     "get_nested_config_value_by_path",
     "get_surfaced_input_fields",
-    "is_element_config_data",
     "is_element_config_schema",
     "iter_input_field_paths",
     "set_nested_config_value",

@@ -1,17 +1,7 @@
 """Flow builders for pricing configuration sections."""
 
-from collections.abc import Mapping
-
-import voluptuous as vol
-
-from custom_components.haeo.core.schema.field_schema import FieldSchemaInfo
 from custom_components.haeo.core.schema.sections.pricing import SECTION_PRICING
-from custom_components.haeo.elements.input_fields import InputFieldSection
-from custom_components.haeo.flows.field_schema import (
-    NormalizingChooseSelector,
-    SectionDefinition,
-    build_choose_field_entries,
-)
+from custom_components.haeo.flows.field_schema import SectionDefinition
 
 
 def pricing_section(fields: tuple[str, ...], *, collapsed: bool = False) -> SectionDefinition:
@@ -19,25 +9,6 @@ def pricing_section(fields: tuple[str, ...], *, collapsed: bool = False) -> Sect
     return SectionDefinition(key=SECTION_PRICING, fields=fields, collapsed=collapsed)
 
 
-def build_pricing_fields(
-    input_fields: InputFieldSection,
-    *,
-    field_schema: Mapping[str, FieldSchemaInfo],
-    inclusion_map: dict[str, list[str]],
-    current_data: Mapping[str, object] | None = None,
-) -> dict[str, tuple[vol.Marker, NormalizingChooseSelector]]:
-    """Build pricing field entries for config flows."""
-    if not input_fields:
-        return {}
-    return build_choose_field_entries(
-        input_fields,
-        field_schema=field_schema,
-        inclusion_map=inclusion_map,
-        current_data=current_data,
-    )
-
-
 __all__ = [
-    "build_pricing_fields",
     "pricing_section",
 ]

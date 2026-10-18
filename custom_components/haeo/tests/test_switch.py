@@ -385,7 +385,7 @@ async def test_setup_handles_multiple_solar_elements(
         input_switches = [e for e in entities if hasattr(e, "_subentry")]
 
         # Should have entities from both solar panels
-        element_names = {e._subentry.title for e in input_switches}
+        element_names = {e.extra_state_attributes["element_name"] for e in input_switches}
         if len(input_switches) > 0:
             # At least one should be present
             assert "Solar North" in element_names or "Solar South" in element_names

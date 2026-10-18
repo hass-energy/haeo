@@ -587,6 +587,6 @@ async def test_setup_handles_multiple_elements(
     entities = list(async_add_entities.call_args.args[0])
 
     # Should have entities from both grids
-    element_names = {e._subentry.title for e in entities}
+    element_names = {e.extra_state_attributes["element_name"] for e in entities}
     assert "Grid 1" in element_names
     assert "Grid 2" in element_names

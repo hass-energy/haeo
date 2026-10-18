@@ -68,7 +68,6 @@ class HaeoInputSwitch(SwitchEntity):
     ) -> None:
         """Initialize the input switch entity."""
         self._config_entry: HaeoConfigEntry = config_entry
-        self._subentry = subentry
         self._field_info = field_info
         self._field_path = (
             field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
