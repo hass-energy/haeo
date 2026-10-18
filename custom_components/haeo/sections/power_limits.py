@@ -4,8 +4,8 @@ from collections.abc import Mapping
 
 import voluptuous as vol
 
+from custom_components.haeo.core.schema.field_schema import FieldSchemaInfo
 from custom_components.haeo.core.schema.sections.power_limits import SECTION_POWER_LIMITS
-from custom_components.haeo.elements.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import InputFieldSection
 from custom_components.haeo.flows.field_schema import (
     NormalizingChooseSelector,
