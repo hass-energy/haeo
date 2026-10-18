@@ -378,15 +378,6 @@ def infer_interval_starts_from_outputs(
     return []
 
 
-def get_forecast_values(outputs: dict[str, JsonValueType], entity_id: str) -> dict[str, float]:
-    """Extract forecast values from a diagnostics output entity by entity_id.
-
-    Falls back to exact entity_id match for backward compatibility.
-    """
-    entity = outputs.get(entity_id, {})
-    return _forecast_from_entity(entity if isinstance(entity, dict) else None)
-
-
 def format_output_table_from_diagnostics(
     outputs: dict[str, JsonValueType],
     timezone_str: str,
