@@ -72,7 +72,6 @@ class HaeoInputNumber(NumberEntity):
     ) -> None:
         """Initialize the input number entity."""
         self._config_entry: HaeoConfigEntry = config_entry
-        self._subentry = subentry
         self._field_info = field_info
         self._field_path = (
             field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
@@ -163,11 +162,6 @@ class HaeoInputNumber(NumberEntity):
         self._attr_extra_state_attributes = dict(self._base_extra_attrs)
 
         self._record_forecasts = config_entry.data.get(CONF_RECORD_FORECASTS, False)
-
-    @property
-    def store(self) -> InputStore:
-        """Return the underlying InputStore."""
-        return self._store
 
     def _display_value(self, value: float | None) -> float | None:
         """Transform a stored value into the value surfaced by this entity."""
@@ -333,16 +327,6 @@ class HaeoInputNumber(NumberEntity):
     async def wait_ready(self) -> None:
         """Wait for data to be ready."""
         await self._store.wait_ready()
-
-    @property
-    def entity_mode(self) -> InputMode:
-        """Return the entity's operating mode (EDITABLE or DRIVEN)."""
-        return self._store.mode
-
-    @property
-    def uses_forecast(self) -> bool:
-        """Return True if this entity produces time-series forecast data."""
-        return self._uses_forecast
 
     async def async_set_native_value(self, value: float) -> None:
         """Handle user setting a value.

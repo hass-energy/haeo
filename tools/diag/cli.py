@@ -299,8 +299,13 @@ def find_output_entity(
     return None
 
 
-def _forecast_from_entity(entity: dict[str, JsonValueType] | None) -> dict[str, float]:
-    """Extract the time -> value forecast mapping from an output entity's attributes."""
+def get_forecast_by_field(
+    outputs: dict[str, JsonValueType],
+    element_name: str,
+    field_or_output_name: str,
+) -> dict[str, float]:
+    """Extract forecast values by element_name and field/output name, keyed by time string."""
+    entity = find_output_entity(outputs, element_name, field_or_output_name)
     if entity is None:
         return {}
     attributes = entity.get("attributes", {})
@@ -315,16 +320,6 @@ def _forecast_from_entity(entity: dict[str, JsonValueType] | None) -> dict[str, 
             if isinstance(time_value, str) and isinstance(value, int | float) and not isinstance(value, bool):
                 result[time_value] = value
     return result
-
-
-def get_forecast_by_field(
-    outputs: dict[str, JsonValueType],
-    element_name: str,
-    field_or_output_name: str,
-) -> dict[str, float]:
-    """Extract forecast values by element_name and field/output name, keyed by time string."""
-    entity = find_output_entity(outputs, element_name, field_or_output_name)
-    return _forecast_from_entity(entity)
 
 
 def get_forecast_by_fields(
@@ -376,15 +371,6 @@ def infer_interval_starts_from_outputs(
         if len(timestamps) >= MIN_INTERVAL_POINTS:
             return [float(timestamp) for timestamp in timestamps]
     return []
-
-
-def get_forecast_values(outputs: dict[str, JsonValueType], entity_id: str) -> dict[str, float]:
-    """Extract forecast values from a diagnostics output entity by entity_id.
-
-    Falls back to exact entity_id match for backward compatibility.
-    """
-    entity = outputs.get(entity_id, {})
-    return _forecast_from_entity(entity if isinstance(entity, dict) else None)
 
 
 def format_output_table_from_diagnostics(

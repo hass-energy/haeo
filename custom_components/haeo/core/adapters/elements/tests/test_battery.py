@@ -2,7 +2,6 @@
 
 from collections.abc import Sequence
 
-from homeassistant.core import HomeAssistant
 import numpy as np
 import pytest
 
@@ -21,9 +20,8 @@ from custom_components.haeo.core.model.elements import (
 )
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.elements.segments import is_efficiency_spec
-from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import battery
-from custom_components.haeo.elements.availability import schema_config_available
 
 from .conftest import bus_node, grid_at, optimize_participants
 
@@ -38,84 +36,6 @@ def _get_connection(elements: Sequence[ModelElementConfig], name: str) -> Connec
         msg = f"Connection '{name}' not found in elements"
         raise ValueError(msg)
     return connection  # type: ignore[return-value]
-
-
-def _set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
-    """Set a sensor state in hass."""
-    hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
-
-
-def _wrap_config(flat: dict[str, object]) -> battery.BatteryConfigSchema:
-    """Wrap flat battery config values into sectioned config."""
-
-    def to_schema_value(value: object) -> object:
-        if value is None:
-            return as_none_value()
-        if isinstance(value, bool):
-            return as_constant_value(value)
-        if isinstance(value, (int, float)):
-            return as_constant_value(float(value))
-        if isinstance(value, str):
-            return as_entity_value([value])
-        if isinstance(value, list) and all(isinstance(item, str) for item in value):
-            if not value:
-                return as_none_value()
-            return as_entity_value(value)
-        return value
-
-    common: dict[str, object] = {}
-    storage: dict[str, object] = {}
-    limits: dict[str, object] = {}
-    power_limits: dict[str, object] = {}
-    pricing: dict[str, object] = {}
-    efficiency: dict[str, object] = {}
-    advanced: dict[str, object] = {}
-
-    for key, value in flat.items():
-        if key in (
-            "name",
-            "connection",
-        ):
-            if key == "connection" and isinstance(value, str):
-                common[key] = as_connection_target(value)
-            else:
-                common[key] = value
-        elif key in (
-            "capacity",
-            "initial_charge_percentage",
-        ):
-            storage[key] = to_schema_value(value)
-        elif key in (
-            "min_charge_percentage",
-            "max_charge_percentage",
-        ):
-            limits[key] = to_schema_value(value)
-        elif key in ("efficiency_source_target", "efficiency_target_source"):
-            efficiency[key] = to_schema_value(value)
-        elif key in (
-            "max_power_source_target",
-            "max_power_target_source",
-        ):
-            power_limits[key] = to_schema_value(value)
-        elif key in ("salvage_value",):
-            pricing[key] = to_schema_value(value)
-        elif key == battery.CONF_CHARGE_LIMIT_COST:
-            advanced[key] = to_schema_value(value)
-
-    pricing.setdefault("salvage_value", as_constant_value(0.0))
-    advanced.setdefault(battery.CONF_CHARGE_LIMIT_COST, as_constant_value(100.0))
-
-    config: dict[str, object] = {
-        "element_type": "battery",
-        **common,
-        battery.SECTION_STORAGE: storage,
-        battery.SECTION_LIMITS: limits,
-        battery.SECTION_POWER_LIMITS: power_limits,
-        battery.SECTION_PRICING: pricing,
-        battery.SECTION_EFFICIENCY: efficiency,
-        battery.SECTION_ADVANCED: advanced,
-    }
-    return config  # type: ignore[return-value]
 
 
 def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
@@ -173,171 +93,6 @@ def _wrap_data(flat: dict[str, object]) -> battery.BatteryConfigData:
         battery.SECTION_ADVANCED: advanced,
     }
     return config  # type: ignore[return-value]
-
-
-async def test_available_returns_true_when_sensors_exist(hass: HomeAssistant) -> None:
-    """Battery available() should return True when required sensors exist."""
-    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
-    _set_sensor(hass, "sensor.initial", "50.0", "%")
-    _set_sensor(hass, "sensor.max_charge", "5.0", "kW")
-    _set_sensor(hass, "sensor.max_discharge", "5.0", "kW")
-
-    config: battery.BatteryConfigSchema = _wrap_config(
-        {
-            "name": "test_battery",
-            "connection": "main_bus",
-            "capacity": "sensor.capacity",
-            "initial_charge_percentage": "sensor.initial",
-            "max_power_target_source": "sensor.max_charge",
-            "max_power_source_target": "sensor.max_discharge",
-        }
-    )
-
-    result = schema_config_available(config, sm=hass.states)
-    assert result is True
-
-
-async def test_available_returns_false_when_required_power_sensor_missing(hass: HomeAssistant) -> None:
-    """Battery available() should return False when a required power sensor is missing."""
-    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
-    _set_sensor(hass, "sensor.initial", "50.0", "%")
-    _set_sensor(hass, "sensor.max_charge", "5.0", "kW")
-    # max_power_source_target sensor is missing
-
-    config: battery.BatteryConfigSchema = _wrap_config(
-        {
-            "name": "test_battery",
-            "connection": "main_bus",
-            "capacity": "sensor.capacity",
-            "initial_charge_percentage": "sensor.initial",
-            "max_power_target_source": "sensor.max_charge",
-            "max_power_source_target": "sensor.missing",
-        }
-    )
-
-    result = schema_config_available(config, sm=hass.states)
-    assert result is False
-
-
-async def test_available_returns_false_when_capacity_sensor_missing(hass: HomeAssistant) -> None:
-    """Battery available() returns False when capacity sensor is missing."""
-    _set_sensor(hass, "sensor.initial", "50.0", "%")
-    # capacity sensor is missing
-
-    config: battery.BatteryConfigSchema = _wrap_config(
-        {
-            "name": "test_battery",
-            "connection": "main_bus",
-            "capacity": "sensor.missing_capacity",
-            "initial_charge_percentage": "sensor.initial",
-        }
-    )
-
-    result = schema_config_available(config, sm=hass.states)
-    assert result is False
-
-
-async def test_available_returns_false_when_required_sensor_missing(hass: HomeAssistant) -> None:
-    """Battery available() should return False when a required sensor is missing."""
-    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
-    _set_sensor(hass, "sensor.max_charge", "5.0", "kW")
-    _set_sensor(hass, "sensor.max_discharge", "5.0", "kW")
-    # initial_charge_percentage sensor is missing
-
-    config: battery.BatteryConfigSchema = _wrap_config(
-        {
-            "name": "test_battery",
-            "connection": "main_bus",
-            "capacity": "sensor.capacity",
-            "initial_charge_percentage": "sensor.missing",
-            "max_power_target_source": "sensor.max_charge",
-            "max_power_source_target": "sensor.max_discharge",
-        }
-    )
-
-    result = schema_config_available(config, sm=hass.states)
-    assert result is False
-
-
-async def test_available_with_list_entity_ids_all_exist(hass: HomeAssistant) -> None:
-    """Battery available() returns True when list[str] entity IDs all exist."""
-    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
-    _set_sensor(hass, "sensor.initial", "50.0", "%")
-    _set_sensor(hass, "sensor.max_discharge_1", "5.0", "kW")
-    _set_sensor(hass, "sensor.max_discharge_2", "4.0", "kW")
-
-    config: battery.BatteryConfigSchema = _wrap_config(
-        {
-            "name": "test_battery",
-            "connection": "main_bus",
-            "capacity": "sensor.capacity",
-            "initial_charge_percentage": "sensor.initial",
-            "max_power_source_target": ["sensor.max_discharge_1", "sensor.max_discharge_2"],
-        }
-    )
-
-    result = schema_config_available(config, sm=hass.states)
-    assert result is True
-
-
-async def test_available_with_list_entity_ids_one_missing(hass: HomeAssistant) -> None:
-    """Battery available() returns False when list[str] entity ID has one missing."""
-    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
-    _set_sensor(hass, "sensor.initial", "50.0", "%")
-    _set_sensor(hass, "sensor.max_discharge_1", "5.0", "kW")
-    # sensor.max_discharge_missing is missing
-
-    config: battery.BatteryConfigSchema = _wrap_config(
-        {
-            "name": "test_battery",
-            "connection": "main_bus",
-            "capacity": "sensor.capacity",
-            "initial_charge_percentage": "sensor.initial",
-            "max_power_source_target": ["sensor.max_discharge_1", "sensor.max_discharge_missing"],
-        }
-    )
-
-    result = schema_config_available(config, sm=hass.states)
-    assert result is False
-
-
-async def test_available_with_empty_list_returns_true(hass: HomeAssistant) -> None:
-    """Battery available() returns True when list[str] is empty."""
-    _set_sensor(hass, "sensor.capacity", "10.0", "kWh")
-    _set_sensor(hass, "sensor.initial", "50.0", "%")
-
-    config: battery.BatteryConfigSchema = _wrap_config(
-        {
-            "name": "test_battery",
-            "connection": "main_bus",
-            "capacity": "sensor.capacity",
-            "initial_charge_percentage": "sensor.initial",
-            "max_power_source_target": [],
-        }
-    )
-
-    result = schema_config_available(config, sm=hass.states)
-    assert result is True
-
-
-async def test_available_returns_true_with_constant_values(hass: HomeAssistant) -> None:
-    """Battery available() returns True when values are constants."""
-    config: battery.BatteryConfigSchema = _wrap_config(
-        {
-            "name": "test_battery",
-            "connection": "main_bus",
-            "capacity": 10.0,
-            "initial_charge_percentage": 0.5,
-            "max_power_target_source": 5.0,
-            "max_power_source_target": 4.0,
-            "salvage_value": 0.01,
-            "efficiency_source_target": 0.95,
-            "efficiency_target_source": 0.94,
-        }
-    )
-
-    result = schema_config_available(config, sm=hass.states)
-    assert result is True
 
 
 def test_model_elements_omits_efficiency_when_missing() -> None:

@@ -1,44 +1,9 @@
 """Tests for load element adapter availability and inputs."""
 
-from homeassistant.core import HomeAssistant
-
 from custom_components.haeo.core.schema import as_connection_target, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements import load as load_element
 from custom_components.haeo.elements import get_input_fields
-from custom_components.haeo.elements.availability import schema_config_available
-
-from .conftest import set_sensor
-
-
-async def test_available_returns_true_when_forecast_sensor_exists(hass: HomeAssistant) -> None:
-    """Load available() should return True when forecast sensor exists."""
-    set_sensor(hass, "sensor.power", "2.5", "kW")
-
-    config: load_element.LoadConfigSchema = {
-        "element_type": ElementType.LOAD,
-        "name": "test_load",
-        "connection": as_connection_target("main_bus"),
-        load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.power"])},
-        load_element.SECTION_CURTAILMENT: {},
-    }
-
-    result = schema_config_available(config, sm=hass.states)
-    assert result is True
-
-
-async def test_available_returns_false_when_forecast_sensor_missing(hass: HomeAssistant) -> None:
-    """Load available() should return False when forecast sensor is missing."""
-    config: load_element.LoadConfigSchema = {
-        "element_type": ElementType.LOAD,
-        "name": "test_load",
-        "connection": as_connection_target("main_bus"),
-        load_element.SECTION_FORECAST: {"forecast": as_entity_value(["sensor.missing"])},
-        load_element.SECTION_CURTAILMENT: {},
-    }
-
-    result = schema_config_available(config, sm=hass.states)
-    assert result is False
 
 
 def test_inputs_returns_input_fields() -> None:

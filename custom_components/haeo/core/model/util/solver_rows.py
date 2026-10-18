@@ -1,6 +1,6 @@
 """Add and update blocks of HiGHS constraint rows."""
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Final
 
 from highspy import Highs, HighsStatus
@@ -102,20 +102,6 @@ def add_rows(solver: Highs, rows: Rows) -> tuple[RowIndices, AppliedRows]:
     return np.arange(first_row, first_row + len(applied), dtype=np.int32), applied
 
 
-def change_bounds(
-    solver: Highs,
-    indices: RowIndices,
-    applied: AppliedRows,
-    lower: float,
-    upper: float,
-) -> AppliedRows:
-    """Give every row the bounds ``lower`` and ``upper``, leaving its coefficients alone."""
-    count = len(applied)
-    new_lower, new_upper = np.full(count, lower), np.full(count, upper)
-    solver.changeRowsBounds(count, indices, new_lower, new_upper)
-    return replace(applied, lower=new_lower, upper=new_upper)
-
-
 def update_rows(solver: Highs, indices: RowIndices, applied: AppliedRows, rows: Rows) -> AppliedRows:
     """Change rows from the applied form they hold to ``rows``, returning the new applied form.
 
@@ -163,6 +149,5 @@ __all__ = [
     "RowIndices",
     "add_rows",
     "applied_form",
-    "change_bounds",
     "update_rows",
 ]

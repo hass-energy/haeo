@@ -11,8 +11,7 @@ import pytest
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
-from custom_components.haeo.core.schema.elements import battery
-from custom_components.haeo.core.schema.elements.battery import is_battery_config_data
+from custom_components.haeo.core.schema.elements import ElementType, battery
 from custom_components.haeo.elements import is_element_config_schema
 from tools.diag import cli as diag
 
@@ -40,7 +39,7 @@ def _load_battery_config(
     """Load a battery fixture after schema and result discriminators are verified."""
     assert is_element_config_schema(config)
     loaded = load_element_config("Battery", config, provider, forecast_times)
-    assert is_battery_config_data(loaded)
+    assert loaded["element_type"] == ElementType.BATTERY
     return loaded
 
 

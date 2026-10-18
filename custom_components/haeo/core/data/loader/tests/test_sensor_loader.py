@@ -7,19 +7,9 @@ import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader.extractors import ExtractedData
-from custom_components.haeo.core.data.loader.sensor_loader import load_sensor, load_sensors, normalize_entity_ids
+from custom_components.haeo.core.data.loader.sensor_loader import load_sensor, load_sensors
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model.const import OutputType
-
-
-def test_normalize_entity_ids_accepts_str_and_sequence() -> None:
-    """Normalization converts both strings and sequences to lists of IDs."""
-
-    assert normalize_entity_ids("sensor.single") == ["sensor.single"]
-    assert normalize_entity_ids(["sensor.one", "sensor.two"]) == ["sensor.one", "sensor.two"]
-
-    with pytest.raises(TypeError, match="sensor entity ID"):
-        normalize_entity_ids(123)
 
 
 def test_load_sensor_forecast_returns_series() -> None:

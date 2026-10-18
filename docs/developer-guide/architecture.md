@@ -104,8 +104,8 @@ See the [Coordinator guide](coordinator.md) for event-driven update patterns.
 ### Data loaders (`data/`)
 
 Data loaders translate Home Assistant sensor data into time series aligned with the optimization horizon.
-Input entities call loaders to extract, combine, and fuse forecast data from external sensors.
-Loaders also validate sensor availability during the config flow.
+Each input store resolves its field with `resolve_field`, which extracts, combines, and fuses forecast data from the field's sensors.
+A field is unavailable until every one of its sensors supplies data.
 Keep new loaders focused on a single responsibility and reuse the shared parser utilities where possible.
 
 See the [Data Loading guide](data-loading.md) for the extraction pipeline.
@@ -226,11 +226,11 @@ Rather than documenting every file, focus on how the major areas collaborate:
 
 ### Custom Field Types
 
-Extend `core/schema/field_schema.py` and `core/schema/field_hints.py`:
+Fields are described by `FieldHint` in `core/schema/field_hints.py`, attached to the schema with `Annotated`:
 
-- Create a new Validator subclass with a `create_schema()` method
-- Add a LoaderMeta subclass if the field needs custom loading behavior
-- Define field type aliases composing Validator, LoaderMeta, and the field hint
+- Add an `OutputType` when the field holds a new kind of quantity, with its unit and limits in `elements/field_hints.py`
+- Add a `FieldHint` attribute when the field needs to load or present differently
+- See [Field hints](config-flow.md#field-hints) for the available hints
 
 ## Related Documentation
 
