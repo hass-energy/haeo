@@ -82,7 +82,18 @@ This matches real-world energy network behavior.
 ## Field resolution
 
 [`resolve_field`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/config_loader.py) resolves one configured field from its schema value and field hint.
-Input stores call it for their field, and the config loader calls it for every field of an element.
+
+### One path for every caller
+
+Loading in Home Assistant and offline (the diag CLI and scenario benchmarks) shares every step, so they cannot disagree:
+
+1. `element_inputs` lists an element's inputs from its schema's field hints: each input's path, the config path it reads, and its hint.
+    `build_input_stores` creates one input store per configured input from this list, and offline loading walks the same list.
+2. Each input resolves through `resolve_field`, with the same hint and the same negation in both cases.
+3. `load_element_config_from_values` assembles the element's loaded config from the resolved values, filling defaults such as 100% efficiency for inputs that are not configured.
+
+An input that has no data stops the optimization in Home Assistant.
+Offline, `load_element_config` raises `InputsUnavailableError` naming those inputs, rather than filling in a default.
 
 ### Responsibilities
 
