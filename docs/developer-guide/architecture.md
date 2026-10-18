@@ -226,11 +226,11 @@ Rather than documenting every file, focus on how the major areas collaborate:
 
 ### Custom Field Types
 
-Extend `core/schema/field_schema.py` and `core/schema/field_hints.py`:
+Fields are described by `FieldHint` in `core/schema/field_hints.py`, attached to the schema with `Annotated`:
 
-- Create a new Validator subclass with a `create_schema()` method
-- Add a LoaderMeta subclass if the field needs custom loading behavior
-- Define field type aliases composing Validator, LoaderMeta, and the field hint
+- Add an `OutputType` when the field holds a new kind of quantity, with its unit and limits in `elements/field_hints.py`
+- Add a `FieldHint` attribute when the field needs to load or present differently
+- See [Field hints](config-flow.md#field-hints) for the available hints
 
 ## Related Documentation
 
