@@ -1246,6 +1246,35 @@ async def test_source_changes_in_one_pass_share_one_reload(
     assert entity.native_value == pytest.approx(9.0)
 
 
+async def test_unchanged_source_reload_does_not_notify_store_listeners(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """A source update that leaves the value unchanged does not wake the optimizer; a new value does."""
+    hass.states.async_set("sensor.power", "10.0")
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
+    await _add_entity_to_hass(hass, entity)
+    listener = Mock()
+    entity.store.add_listener(listener)
+
+    hass.states.async_set("sensor.power", "10.0", {"friendly_name": "Power"})
+    await hass.async_block_till_done()
+
+    listener.assert_not_called()
+
+    hass.states.async_set("sensor.power", "12.0", {"friendly_name": "Power"})
+    await hass.async_block_till_done()
+
+    listener.assert_called_once()
+    assert entity.native_value == pytest.approx(12.0)
+
+
 async def test_horizon_change_reloads_before_returning(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
