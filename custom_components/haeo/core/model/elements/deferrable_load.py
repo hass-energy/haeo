@@ -5,10 +5,11 @@ windows (e.g. calendar events). A single energy accumulator counts the energy
 delivered in the current window: it resets to zero at each window start, and
 its value at a window's end boundary is the energy that window received.
 
-Each window's requirement is settled at its end boundary. A shortfall is
-priced rather than enforced, which keeps the optimization feasible when the
-requirement physically cannot be met. Delivery beyond the requirement is
-either forbidden (no overage price) or priced (overage price set).
+Each window's requirement is settled at its end boundary. Neither side is
+enforced: a shortfall is priced at the deficit price and delivery beyond the
+requirement at the overage price. The optimization therefore stays feasible
+when the requirement physically cannot be met, and when the device has
+already run past it, whether by its own cycle or by someone running it.
 
 The problem shape never depends on the number of windows: every variable and
 constraint is sized by the horizon, and windows only change parameter values.
@@ -34,7 +35,6 @@ type DeferrableLoadElementTypeName = Literal["deferrable_load"]
 type DeferrableLoadConstraintName = Literal[
     "element_power_balance",
     "deferrable_load_requirement",
-    "deferrable_load_cap",
 ]
 
 # Type for all deferrable load output names (union of base outputs and constraints)
@@ -59,7 +59,6 @@ DEFERRABLE_LOAD_OUTPUT_NAMES: Final[frozenset[DeferrableLoadOutputName]] = froze
         # Constraint shadow prices
         DEFERRABLE_LOAD_POWER_BALANCE := ELEMENT_POWER_BALANCE,
         DEFERRABLE_LOAD_REQUIREMENT := "deferrable_load_requirement",
-        DEFERRABLE_LOAD_CAP := "deferrable_load_cap",
     )
 )
 
@@ -73,8 +72,8 @@ class DeferrableLoadElementConfig(TypedDict):
     window_start: NDArray[np.float64]
     requirement: NDArray[np.float64]
     deficit_price: NDArray[np.float64]
+    overage_price: NDArray[np.float64]
     initial_energy: NotRequired[float]
-    overage_price: NotRequired[NDArray[np.float64] | None]
     is_source: Literal[False]
     is_sink: Literal[True]
     outbound_tags: NotRequired[set[int] | None]
@@ -98,10 +97,9 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     open at the horizon end therefore settles at the final boundary.
 
     ``initial_energy`` is the energy already delivered to the window open at
-    the horizon start. It seeds the accumulator for that window only. For
-    that window, the settled requirement is ``max(requirement,
-    initial_energy)``: an overshoot already reported by telemetry is a sunk
-    fact, so it is neither priced nor allowed to make the cap infeasible.
+    the horizon start. It seeds the accumulator for that window only. When it
+    is already past the requirement, the overshoot is overage like any other:
+    pricing it adds a fixed cost that changes no decision.
 
     ``in_window`` has one value per period; ``window_start``, ``requirement``,
     and both prices have one per boundary. The requirement, initial energy,
@@ -115,7 +113,7 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     requirement: TrackedParam[NDArray[np.float64]] = TrackedParam()
     initial_energy: TrackedParam[float] = TrackedParam()
     deficit_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    overage_price: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
+    overage_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
 
     def __init__(
         self,
@@ -127,8 +125,8 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         window_start: NDArray[np.float64],
         requirement: NDArray[np.float64],
         deficit_price: NDArray[np.float64],
+        overage_price: NDArray[np.float64],
         initial_energy: float = 0.0,
-        overage_price: NDArray[np.float64] | None = None,
         is_source: Literal[False] = False,  # noqa: ARG002 (declared in the config for policy compilation)
         is_sink: Literal[True] = True,  # noqa: ARG002 (declared in the config for policy compilation)
         outbound_tags: set[int] | None = None,
@@ -154,10 +152,6 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         self.requirement = requirement
         self.initial_energy = initial_energy
         self.deficit_price = deficit_price
-
-        # Whether delivery beyond the requirement is allowed (and priced) is a
-        # structural decision made here; the price values update reactively.
-        self._has_overage = overage_price is not None
         self.overage_price = overage_price
 
         # Energy delivered in the current window, at every boundary
@@ -167,7 +161,7 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         # Shortfall against the requirement at boundaries 1..T
         self.shortfall = solver.add_variables(n_periods, name=f"{name}.shortfall")
         # Delivery beyond the requirement at boundaries 1..T
-        self.overage = solver.add_variables(n_periods, name=f"{name}.overage") if self._has_overage else None
+        self.overage = solver.add_variables(n_periods, name=f"{name}.overage")
 
     @property
     def power_consumption(self) -> LinearArray:
@@ -195,19 +189,8 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         return in_window * (1.0 - next_continues)
 
     def _settled_requirement(self) -> NDArray[np.float64]:
-        """Return the requirement settled at boundaries 1..T.
-
-        The requirement only counts at window end boundaries. The window
-        open at the horizon start settles against at least its initial
-        energy, so a sunk telemetry overshoot is neither priced nor capped.
-        """
-        window_end = self._window_end()
-        settled = window_end * self.requirement[1:]
-        carry = self._carry()
-        if carry[0] > 0.0:
-            first_end = int(np.argmax(window_end > 0.0))
-            settled[first_end] = max(float(settled[first_end]), self.initial_energy)
-        return settled
+        """Return the requirement settled at boundaries 1..T, nonzero only at window ends."""
+        return self._window_end() * self.requirement[1:]
 
     @constraint
     def deferrable_load_initial_energy(self) -> Rows:
@@ -246,20 +229,10 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         """
         return self.shortfall <= self._settled_requirement()
 
-    @constraint(output=True, unit="$/kWh")
-    def deferrable_load_cap(self) -> Rows:
-        """Constraint: delivery beyond the requirement at window ends is overage.
-
-        Without an overage price there is no overage variable, so delivery
-        is capped at the requirement.
-
-        Output: shadow price indicating the marginal value of a higher cap.
-        """
-        window_end = self._window_end()
-        delivered_at_end = window_end * self.energy[1:]
-        if self.overage is not None:
-            delivered_at_end = delivered_at_end - self.overage
-        return delivered_at_end <= self._settled_requirement()
+    @constraint
+    def deferrable_load_overage(self) -> Rows:
+        """Constraint: overage covers delivery beyond the requirement at window ends."""
+        return self._window_end() * self.energy[1:] - self.overage <= self._settled_requirement()
 
     @constraint
     def deferrable_load_overage_limit(self) -> Rows:
@@ -268,8 +241,6 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         This pins the overage to zero away from window ends and keeps it
         bounded even where it is unpriced.
         """
-        if self.overage is None:
-            return Rows.concat([])
         return self.overage - self._window_end() * self.energy[1:] <= 0.0
 
     def element_power_produced(self) -> LinearArray | None:
@@ -286,10 +257,8 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         return (self.deficit_price[1:] * self.shortfall).total()
 
     @cost
-    def deferrable_load_overage_cost(self) -> LinearArray | None:
+    def deferrable_load_overage_cost(self) -> LinearArray:
         """Cost: each window's overage priced at its end boundary."""
-        if self.overage is None or self.overage_price is None:
-            return None
         return (self.overage_price[1:] * self.overage).total()
 
     # Output methods

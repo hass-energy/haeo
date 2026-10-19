@@ -11,10 +11,11 @@ Windows never overlap.
 Each window has its own requirement, and each window is settled separately at its end boundary:
 
 - **Shortfall**: The requirement the window missed, priced at the deficit price at the window's end
-- **Overage**: Delivery beyond the requirement, either forbidden or priced at the overage price at the window's end
+- **Overage**: Delivery beyond the requirement, priced at the overage price at the window's end
 
-The requirement is a soft constraint.
+The requirement is soft on both sides.
 Pricing the shortfall keeps the optimization feasible when the requirement physically cannot be met, while still making the optimizer work hard to meet it.
+Pricing the overage, never forbidding it, keeps the optimization feasible when the device has already run past the requirement, whether by its own cycle or by someone running it.
 
 A single energy accumulator tracks the energy delivered in the current window.
 It resets to zero at each window start, so its value at a window's end boundary is the energy that window received.
@@ -40,15 +41,12 @@ Boundaries are indexed $k \in \{0, 1, \ldots, T\}$.
 **Optional parameters**:
 
 - $E_0$: Energy already delivered to the window open at the horizon start (kWh) - `initial_energy`, defaults to 0
-- $p_O(k) \geq 0$: Price per kWh of overage settled at boundary $k$ (\$/kWh) - `overage_price`, defaults to none
+- $p_O(k) \geq 0$: Price per kWh of overage settled at boundary $k$ (\$/kWh) - `overage_price`
 - `outbound_tags`: Accepted like every network element, but unused because the load never produces power (see [Tagged Power](../../tagged-power.md))
 - `inbound_tags`: Tags this load can consume — None means all tags
 
 Window profiles and prices are arrays, one value per period for $w$ and one per boundary for the rest.
 The requirement, initial energy, and prices are never negative: the loaders enforce this before the model sees them, since a negative price would reward booking a shortfall or overage that never happens.
-
-Without an overage price, the requirement is a hard cap on each window's delivery.
-Whether the overage variables exist is decided when the element is created.
 
 ### Derived window structure
 
@@ -76,22 +74,16 @@ $$
 \hat{R}(k) = e(k) \cdot R(k)
 $$
 
-For the window open at the horizon start ($c(1) = 1$), the settled requirement at its end boundary $k^\ast$ is raised to at least the initial energy:
-
-$$
-\hat{R}(k^\ast) = \max\left(R(k^\ast),\ E_0\right)
-$$
-
-Telemetry can report more energy already delivered than the window requires.
-That overshoot is sunk: it is not priced as overage, and it cannot make the hard cap infeasible.
-When telemetry reports less than the requirement, the remainder $R(k^\ast) - E_0$ stays due at the window end.
+Telemetry can report more energy already delivered to the open window than it requires.
+That overshoot is overage like any other: it is priced, but as a fixed cost that changes no decision.
+When telemetry reports less than the requirement, the remainder stays due at the window end.
 
 ### Decision variables
 
 - $E(k) \geq 0$: Energy delivered in the current window by boundary $k$ (kWh)
 - $d(t) \geq 0$: Energy delivered during period $t$ (kWh)
 - $S(k) \geq 0$: Shortfall settled at boundary $k \geq 1$ (kWh)
-- $O(k) \geq 0$: Overage settled at boundary $k \geq 1$ (kWh), only when an overage price is set
+- $O(k) \geq 0$: Overage settled at boundary $k \geq 1$ (kWh)
 
 ### Constraints
 
@@ -137,7 +129,7 @@ $$
 
 **Shadow price**: `deferrable_load_requirement` is the marginal cost of requiring one more kWh at each window end.
 
-#### 5. Cap
+#### 5. Overage
 
 Delivery beyond the settled requirement at window ends is overage:
 
@@ -145,14 +137,11 @@ $$
 e(k) \cdot E(k) - O(k) \leq \hat{R}(k) \quad \forall k \in [1, T]
 $$
 
-Without an overage price there is no $O(k)$ term, so each window's delivery is capped at its requirement.
-With an overage price, the overage never exceeds the energy delivered at a window end, which pins it to zero elsewhere:
+The overage never exceeds the energy delivered at a window end, which pins it to zero elsewhere:
 
 $$
 O(k) \leq e(k) \cdot E(k)
 $$
-
-**Shadow price**: `deferrable_load_cap` is the marginal value of raising the cap at each window end.
 
 #### 6. Power balance
 

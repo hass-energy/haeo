@@ -21,7 +21,7 @@ def _build_network(
     requirement: list[float],
     deficit_price: np.ndarray | float = 10.0,
     initial_energy: float = 0.0,
-    overage_price: float | None = None,
+    overage_price: float = 0.0,
     supply_price: list[float] | None = None,
     max_supply_power: list[float] | None = None,
 ) -> tuple[Network, DeferrableLoad]:
@@ -40,7 +40,7 @@ def _build_network(
             "requirement": np.array(requirement),
             "deficit_price": np.broadcast_to(np.asarray(deficit_price, dtype=np.float64), n + 1).copy(),
             "initial_energy": initial_energy,
-            "overage_price": None if overage_price is None else np.full(n + 1, overage_price),
+            "overage_price": np.full(n + 1, overage_price),
             "is_source": False,
             "is_sink": True,
         }
@@ -189,8 +189,8 @@ def test_power_is_zero_outside_windows() -> None:
     np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_delivered"), [0.0, 0.0, 2.0, 0.0], atol=1e-9)
 
 
-def test_without_overage_price_delivery_is_capped() -> None:
-    """With no overage price the requirement is a hard cap, even when energy pays to be used."""
+def test_free_overage_takes_energy_that_pays_to_be_used() -> None:
+    """Delivery beyond the requirement is never forbidden; free overage takes energy that pays to be used."""
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[1.0, 0.0, 0.0],
@@ -201,8 +201,9 @@ def test_without_overage_price_delivery_is_capped() -> None:
 
     cost = network.optimize()
 
-    assert _outputs(load, "deferrable_load_energy_delivered")[-1] == pytest.approx(4.0)
-    assert cost == pytest.approx(-4.0 * 0.2)
+    assert _outputs(load, "deferrable_load_energy_delivered")[-1] == pytest.approx(20.0)
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_overage"), [0.0, 0.0, 16.0], atol=1e-9)
+    assert cost == pytest.approx(-20.0 * 0.2)
 
 
 def test_overage_price_allows_and_prices_extra_delivery() -> None:
@@ -287,9 +288,9 @@ def test_under_target_telemetry_leaves_the_remainder_due() -> None:
     assert cost == pytest.approx(2.0 * 0.1 + 2.0 * 5.0)
 
 
-@pytest.mark.parametrize("overage_price", [None, 1.0], ids=["capped", "priced"])
-def test_over_target_telemetry_is_sunk(overage_price: float | None) -> None:
-    """Telemetry beyond the requirement stays feasible, takes no new delivery, and is not priced."""
+@pytest.mark.parametrize("overage_price", [0.0, 1.0], ids=["free", "priced"])
+def test_over_target_telemetry_stays_feasible(overage_price: float) -> None:
+    """Telemetry beyond the requirement stays feasible and takes no new delivery; its overshoot is overage."""
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[0.0, 0.0, 0.0],
@@ -301,12 +302,12 @@ def test_over_target_telemetry_is_sunk(overage_price: float | None) -> None:
     cost = network.optimize()
 
     np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_delivered"), [6.0, 6.0, 6.0], atol=1e-9)
-    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_overage"), [0.0, 0.0, 0.0], atol=1e-9)
-    assert cost == pytest.approx(0.0)
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_overage"), [0.0, 0.0, 2.0], atol=1e-9)
+    assert cost == pytest.approx(2.0 * overage_price)
 
 
-def test_over_target_telemetry_prices_only_new_overage() -> None:
-    """With an overage price, only delivery beyond the telemetry overshoot is priced."""
+def test_over_target_telemetry_and_new_delivery_are_both_overage() -> None:
+    """The telemetry overshoot and any new delivery beyond the requirement are priced alike."""
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[0.0, 0.0, 0.0],
@@ -320,8 +321,8 @@ def test_over_target_telemetry_prices_only_new_overage() -> None:
     cost = network.optimize()
 
     assert _outputs(load, "deferrable_load_energy_delivered")[-1] == pytest.approx(8.0)
-    assert _outputs(load, "deferrable_load_energy_overage")[-1] == pytest.approx(2.0)
-    assert cost == pytest.approx(-2.0 * 0.2 + 2.0 * 0.05)
+    assert _outputs(load, "deferrable_load_energy_overage")[-1] == pytest.approx(4.0)
+    assert cost == pytest.approx(-2.0 * 0.2 + 4.0 * 0.05)
 
 
 def test_window_changes_update_reactively() -> None:
@@ -360,7 +361,6 @@ def test_outputs_present() -> None:
     ):
         assert len(outputs[name].values) == 3
     assert "deferrable_load_requirement" in outputs
-    assert "deferrable_load_cap" in outputs
 
 
 def _reserve_network() -> tuple[Network, DeferrableLoad]:
@@ -396,6 +396,7 @@ def _reserve_network() -> tuple[Network, DeferrableLoad]:
             "window_start": np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
             "requirement": np.array([0.0, 0.0, 0.0, 0.0, 3.0]),
             "deficit_price": np.full(5, 10.0),
+            "overage_price": np.zeros(5),
             "is_source": False,
             "is_sink": True,
         }

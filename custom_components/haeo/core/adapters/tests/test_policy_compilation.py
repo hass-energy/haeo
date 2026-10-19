@@ -346,6 +346,7 @@ def test_wildcard_excludes_a_sink_only_deferrable_load_from_sources() -> None:
             window_start=np.zeros(2),
             requirement=np.array([0.0, 5.0]),
             deficit_price=np.ones(2),
+            overage_price=np.zeros(2),
             is_source=False,
             is_sink=True,
         ),
