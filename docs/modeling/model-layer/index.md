@@ -89,7 +89,7 @@ This selective rebuilding (warm start optimization) is more efficient than recon
 
     ---
 
-    Battery, deferrable load, and Node model elements for storage, flexible consumption, and power balance.
+    The building blocks that produce, consume, store, or read power.
 
     [:material-arrow-right: Element types](elements/index.md)
 
