@@ -44,9 +44,8 @@ Boundaries are indexed $k \in \{0, 1, \ldots, T\}$.
 - `outbound_tags`: Accepted like every network element, but unused because the load never produces power (see [Tagged Power](../../tagged-power.md))
 - `inbound_tags`: Tags this load can consume — None means all tags
 
-Scalar profiles and prices are broadcast to every period or boundary.
-Both prices must be non-negative, and the model raises an error otherwise:
-a negative price would reward booking a shortfall or overage that never happens.
+Window profiles and prices are arrays, one value per period for $w$ and one per boundary for the rest.
+The requirement, initial energy, and prices are never negative: the loaders enforce this before the model sees them, since a negative price would reward booking a shortfall or overage that never happens.
 
 Without an overage price, the requirement is a hard cap on each window's delivery.
 Whether the overage variables exist is decided when the element is created.
@@ -67,7 +66,8 @@ $$
 e(k) = w(k) \cdot \left(1 - w(k+1) \cdot \left(1 - s(k)\right)\right), \qquad w(T+1) = 0
 $$
 
-A window still open at the horizon end therefore settles at the final boundary $T$.
+A window still open at the horizon end is clamped to the horizon: it settles against its full requirement at the final boundary $T$.
+The horizon normally reaches far enough that this rarely matters, and the window's remaining energy is planned again as the horizon moves forward.
 Windows that touch end to start stay separate: the second window's start resets the accumulator at the boundary the first window ends.
 
 The **settled requirement** $\hat{R}(k)$ is the requirement at window ends:
@@ -222,7 +222,7 @@ The optimization remains feasible, and the shortfall output reports exactly what
 
     ---
 
-    Energy storage with SOC tracking and reserve pricing.
+    Energy storage with SOC tracking.
 
     [:material-arrow-right: Battery formulation](battery.md)
 

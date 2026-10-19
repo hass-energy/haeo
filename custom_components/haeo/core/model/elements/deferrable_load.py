@@ -25,7 +25,6 @@ from custom_components.haeo.core.model.linear import LinearArray, Rows
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
 from custom_components.haeo.core.model.solver import Solver
-from custom_components.haeo.core.model.util import broadcast_to_sequence, require_non_negative
 
 # Model element type for deferrable loads
 ELEMENT_TYPE: Final = "deferrable_load"
@@ -70,12 +69,12 @@ class DeferrableLoadElementConfig(TypedDict):
 
     element_type: DeferrableLoadElementTypeName
     name: str
-    in_window: NDArray[np.float64] | float
-    window_start: NDArray[np.float64] | float
-    requirement: NDArray[np.float64] | float
-    deficit_price: NDArray[np.float64] | float
+    in_window: NDArray[np.float64]
+    window_start: NDArray[np.float64]
+    requirement: NDArray[np.float64]
+    deficit_price: NDArray[np.float64]
     initial_energy: NotRequired[float]
-    overage_price: NotRequired[NDArray[np.float64] | float | None]
+    overage_price: NotRequired[NDArray[np.float64] | None]
     is_source: Literal[False]
     is_sink: Literal[True]
     outbound_tags: NotRequired[set[int] | None]
@@ -104,17 +103,19 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     initial_energy)``: an overshoot already reported by telemetry is a sunk
     fact, so it is neither priced nor allowed to make the cap infeasible.
 
-    Both prices must be non-negative: a negative price would reward booking
-    a shortfall or overage that never happens.
+    ``in_window`` has one value per period; ``window_start``, ``requirement``,
+    and both prices have one per boundary. The requirement, initial energy,
+    and prices are never negative: a negative price would reward booking a
+    shortfall or overage that never happens.
     """
 
     # Parameters
-    in_window: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
-    window_start: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
-    requirement: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    in_window: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    window_start: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    requirement: TrackedParam[NDArray[np.float64]] = TrackedParam()
     initial_energy: TrackedParam[float] = TrackedParam()
-    deficit_price: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
-    overage_price: TrackedParam[NDArray[np.float64] | float] = TrackedParam()
+    deficit_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    overage_price: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
 
     def __init__(
         self,
@@ -122,40 +123,42 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         periods: NDArray[np.float64],
         *,
         solver: Solver,
-        in_window: NDArray[np.float64] | float,
-        window_start: NDArray[np.float64] | float,
-        requirement: NDArray[np.float64] | float,
-        deficit_price: NDArray[np.float64] | float,
+        in_window: NDArray[np.float64],
+        window_start: NDArray[np.float64],
+        requirement: NDArray[np.float64],
+        deficit_price: NDArray[np.float64],
         initial_energy: float = 0.0,
-        overage_price: NDArray[np.float64] | float | None = None,
-        is_source: Literal[False],
-        is_sink: Literal[True],
+        overage_price: NDArray[np.float64] | None = None,
+        is_source: Literal[False] = False,  # noqa: ARG002 (declared in the config for policy compilation)
+        is_sink: Literal[True] = True,  # noqa: ARG002 (declared in the config for policy compilation)
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
     ) -> None:
-        """Initialize a deferrable load entity."""
+        """Initialize a deferrable load entity.
+
+        A deferrable load only consumes; its config declares that for policy
+        compilation through ``is_source`` and ``is_sink``.
+        """
         super().__init__(
             name=name,
             periods=periods,
             solver=solver,
             output_names=DEFERRABLE_LOAD_OUTPUT_NAMES,
-            is_source=is_source,
-            is_sink=is_sink,
             outbound_tags=outbound_tags,
             inbound_tags=inbound_tags,
         )
         n_periods = self.n_periods
 
-        self.in_window = broadcast_to_sequence(in_window, n_periods)
-        self.window_start = broadcast_to_sequence(window_start, n_periods + 1)
-        self.requirement = broadcast_to_sequence(requirement, n_periods + 1)
+        self.in_window = in_window
+        self.window_start = window_start
+        self.requirement = requirement
         self.initial_energy = initial_energy
-        self.deficit_price = broadcast_to_sequence(deficit_price, n_periods + 1)
+        self.deficit_price = deficit_price
 
         # Whether delivery beyond the requirement is allowed (and priced) is a
         # structural decision made here; the price values update reactively.
         self._has_overage = overage_price is not None
-        self.overage_price = broadcast_to_sequence(overage_price if overage_price is not None else 0.0, n_periods + 1)
+        self.overage_price = overage_price
 
         # Energy delivered in the current window, at every boundary
         self.energy = solver.add_variables(n_periods + 1, name=f"{name}.energy")
@@ -175,20 +178,6 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         """
         return self.delivered * (1.0 / self.periods)
 
-    def _in_window(self) -> NDArray[np.float64]:
-        """Return the per-period window flag.
-
-        A parameter update can set a plain float, as the model config allows.
-        """
-        return broadcast_to_sequence(self.in_window, self.n_periods)
-
-    def _boundaries(self, value: NDArray[np.float64] | float) -> NDArray[np.float64]:
-        """Broadcast a per-boundary parameter to every boundary.
-
-        A parameter update can set a plain float, as the model config allows.
-        """
-        return broadcast_to_sequence(value, self.n_periods + 1)
-
     def _carry(self) -> NDArray[np.float64]:
         """Return 1 for each period that continues the window of the boundary before it.
 
@@ -196,13 +185,13 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         and no window starts at its opening boundary. Every other period
         starts the accumulator from zero.
         """
-        return self._in_window() * (1.0 - self._boundaries(self.window_start)[:-1])
+        return self.in_window * (1.0 - self.window_start[:-1])
 
     def _window_end(self) -> NDArray[np.float64]:
         """Return 1 at boundaries 1..T where a window ends."""
-        in_window = self._in_window()
+        in_window = self.in_window
         next_in_window = np.append(in_window[1:], 0.0)
-        next_continues = next_in_window * (1.0 - self._boundaries(self.window_start)[1:])
+        next_continues = next_in_window * (1.0 - self.window_start[1:])
         return in_window * (1.0 - next_continues)
 
     def _settled_requirement(self) -> NDArray[np.float64]:
@@ -213,7 +202,7 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         energy, so a sunk telemetry overshoot is neither priced nor capped.
         """
         window_end = self._window_end()
-        settled = window_end * self._boundaries(self.requirement)[1:]
+        settled = window_end * self.requirement[1:]
         carry = self._carry()
         if carry[0] > 0.0:
             first_end = int(np.argmax(window_end > 0.0))
@@ -237,7 +226,7 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     @constraint
     def deferrable_load_window(self) -> Rows:
         """Constraint: no energy is delivered outside windows."""
-        return (1.0 - self._in_window()) * self.delivered <= 0.0
+        return (1.0 - self.in_window) * self.delivered <= 0.0
 
     @constraint(output=True, unit="$/kWh")
     def deferrable_load_requirement(self) -> Rows:
@@ -294,16 +283,14 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     @cost
     def deferrable_load_shortfall_cost(self) -> LinearArray:
         """Cost: each window's shortfall priced at its end boundary."""
-        require_non_negative("deficit_price", self._boundaries(self.deficit_price))
-        return (self._boundaries(self.deficit_price)[1:] * self.shortfall).total()
+        return (self.deficit_price[1:] * self.shortfall).total()
 
     @cost
     def deferrable_load_overage_cost(self) -> LinearArray | None:
         """Cost: each window's overage priced at its end boundary."""
-        if self.overage is None:
+        if self.overage is None or self.overage_price is None:
             return None
-        require_non_negative("overage_price", self._boundaries(self.overage_price))
-        return (self._boundaries(self.overage_price)[1:] * self.overage).total()
+        return (self.overage_price[1:] * self.overage).total()
 
     # Output methods
 

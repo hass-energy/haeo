@@ -335,17 +335,17 @@ def test_wildcard_excludes_sink_only_from_sources() -> None:
     assert sw.get("outbound_tags") is None
 
 
-def test_wildcard_follows_capability_flags_of_any_element_type() -> None:
-    """Wildcard expansion reads each element's sink-only flags, whatever its type."""
+def test_wildcard_excludes_a_sink_only_deferrable_load_from_sources() -> None:
+    """Wildcard expansion reads a deferrable load's sink-only flags, as for nodes."""
     elements: list[ModelElementConfig] = [
         _node("grid", is_source=True),
         DeferrableLoadElementConfig(
             element_type=MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
             name="ev",
-            in_window=1.0,
-            window_start=0.0,
-            requirement=5.0,
-            deficit_price=1.0,
+            in_window=np.ones(1),
+            window_start=np.zeros(2),
+            requirement=np.array([0.0, 5.0]),
+            deficit_price=np.ones(2),
             is_source=False,
             is_sink=True,
         ),

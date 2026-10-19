@@ -21,7 +21,7 @@ def _build_network(
     requirement: list[float],
     deficit_price: np.ndarray | float = 10.0,
     initial_energy: float = 0.0,
-    overage_price: np.ndarray | float | None = None,
+    overage_price: float | None = None,
     supply_price: list[float] | None = None,
     max_supply_power: list[float] | None = None,
 ) -> tuple[Network, DeferrableLoad]:
@@ -38,9 +38,9 @@ def _build_network(
             "in_window": np.array(in_window),
             "window_start": np.array(window_start),
             "requirement": np.array(requirement),
-            "deficit_price": deficit_price,
+            "deficit_price": np.broadcast_to(np.asarray(deficit_price, dtype=np.float64), n + 1).copy(),
             "initial_energy": initial_energy,
-            "overage_price": overage_price,
+            "overage_price": None if overage_price is None else np.full(n + 1, overage_price),
             "is_source": False,
             "is_sink": True,
         }
@@ -363,68 +363,6 @@ def test_outputs_present() -> None:
     assert "deferrable_load_cap" in outputs
 
 
-@pytest.mark.parametrize(
-    ("deficit_price", "overage_price", "param"),
-    [
-        pytest.param(np.array([10.0, 10.0, -1.0]), None, "deficit_price", id="deficit"),
-        pytest.param(10.0, -1.0, "overage_price", id="overage"),
-    ],
-)
-def test_negative_price_is_rejected(deficit_price: np.ndarray | float, overage_price: float | None, param: str) -> None:
-    """A negative price would book slack that is never missed or absorbed, so it is rejected."""
-    network, _load = _build_network(
-        in_window=[1.0, 1.0],
-        window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 4.0],
-        deficit_price=deficit_price,
-        overage_price=overage_price,
-    )
-
-    with pytest.raises(ValueError, match=f"{param} must be non-negative"):
-        network.optimize()
-
-
-@pytest.mark.parametrize(
-    ("param", "value"),
-    [
-        pytest.param("deficit_price", np.array([10.0, -1.0, 10.0]), id="deficit"),
-        pytest.param("overage_price", np.array([1.0, 1.0, -1.0]), id="overage"),
-    ],
-)
-def test_negative_price_update_is_rejected(param: str, value: np.ndarray) -> None:
-    """Updating a price to a negative value is rejected on the next optimization."""
-    network, load = _build_network(
-        in_window=[1.0, 1.0],
-        window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 4.0],
-        overage_price=0.0,
-    )
-    network.optimize()
-
-    load[param] = value
-
-    with pytest.raises(ValueError, match=f"{param} must be non-negative"):
-        network.optimize()
-
-
-def test_scalar_parameter_updates_are_broadcast() -> None:
-    """A window flag and price updated to plain floats apply to every period or boundary."""
-    network, load = _build_network(
-        in_window=[1.0, 1.0],
-        window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 5.0],
-        max_supply_power=[1.0, 1.0],
-    )
-    network.optimize()
-
-    load["in_window"] = 1.0
-    load["deficit_price"] = 2.0
-    cost = network.optimize()
-
-    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_shortfall"), [0.0, 0.0, 3.0], atol=1e-9)
-    assert cost == pytest.approx(2.0 * 0.1 + 3.0 * 2.0)
-
-
 def _reserve_network() -> tuple[Network, DeferrableLoad]:
     """Build a grid-fed deferrable load due in periods 1-3 beside a 2 kWh battery that only backs a reserve."""
     network = Network(name="test_network", periods=np.array([1.0] * 4))
@@ -457,7 +395,7 @@ def _reserve_network() -> tuple[Network, DeferrableLoad]:
             "in_window": np.array([0.0, 1.0, 1.0, 1.0]),
             "window_start": np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
             "requirement": np.array([0.0, 0.0, 0.0, 0.0, 3.0]),
-            "deficit_price": 10.0,
+            "deficit_price": np.full(5, 10.0),
             "is_source": False,
             "is_sink": True,
         }

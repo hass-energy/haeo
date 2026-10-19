@@ -37,8 +37,10 @@ import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.elements import (
-    FLOW_READER_ELEMENT_TYPES,
+    MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+    MODEL_ELEMENT_TYPE_NODE,
     ModelElementConfig,
 )
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
@@ -53,13 +55,11 @@ _TaggableConfig = NodeElementConfig | BatteryElementConfig | DeferrableLoadEleme
 
 
 def _is_taggable(elem: ModelElementConfig) -> TypeGuard[_TaggableConfig]:
-    """Return whether an element produces or consumes power itself, so it carries tags.
-
-    Connections carry power between elements, and flow readers only read the
-    planned flows; every other element is a network element.
-    """
-    return (
-        elem["element_type"] != MODEL_ELEMENT_TYPE_CONNECTION and elem["element_type"] not in FLOW_READER_ELEMENT_TYPES
+    """Return whether an element produces or consumes power itself, so it carries tags."""
+    return elem["element_type"] in (
+        MODEL_ELEMENT_TYPE_NODE,
+        MODEL_ELEMENT_TYPE_BATTERY,
+        MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
     )
 
 
@@ -113,9 +113,9 @@ def compile_policies(
         policy rule index to pricing element names.
 
     """
-    # Partition by element type — connections have source/target fields, nodes and
-    # batteries carry tags, and the rest read other elements' flows so they are
-    # added after the connections
+    # Partition by element type — connections have source/target fields, nodes,
+    # batteries, and deferrable loads carry tags, and the rest read other
+    # elements' flows so they are added after the connections
     connections: list[ConnectionElementConfig] = []
     non_connections: list[ModelElementConfig] = []
     dependents: list[ModelElementConfig] = []

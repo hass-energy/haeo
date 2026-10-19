@@ -9,7 +9,7 @@ HAEO provides three element types that serve different roles in the network:
 
 **[Battery](battery.md)**:
 Energy storage with state of charge tracking.
-Models capacity, charge/discharge flows, SOC constraints, and an optional priced reserve.
+Models capacity, charge/discharge flows, and SOC constraints.
 
 **[Deferrable load](deferrable_load.md)**:
 Flexible consumption that absorbs a required amount of energy within scheduled, non-overlapping windows.
