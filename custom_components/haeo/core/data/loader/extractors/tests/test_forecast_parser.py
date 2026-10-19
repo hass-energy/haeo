@@ -212,18 +212,6 @@ def test_haeo_interval_forecast_fuses_to_its_period_values(hass: HomeAssistant) 
     assert fuse_to_intervals(None, result.data, horizon_times) == pytest.approx(values, abs=1e-9)
 
 
-PARSER_MAP: dict[str, extractors.DataExtractor] = {
-    extractors.amber2mqtt.DOMAIN: extractors.amber2mqtt.Parser,
-    extractors.amberelectric.DOMAIN: extractors.amberelectric.Parser,
-    extractors.aemo_nem.DOMAIN: extractors.aemo_nem.Parser,
-    extractors.flow_power.DOMAIN: extractors.flow_power.Parser,
-    extractors.haeo.DOMAIN: extractors.haeo.Parser,
-    extractors.nordpool.DOMAIN: extractors.nordpool.Parser,
-    extractors.solcast_solar.DOMAIN: extractors.solcast_solar.Parser,
-    extractors.open_meteo_solar_forecast.DOMAIN: extractors.open_meteo_solar_forecast.Parser,
-}
-
-
 # --- Interpolation Mode Tests ---
 
 

@@ -8,7 +8,7 @@ import pytest
 
 from custom_components.haeo.core.model.linear import INF, LinearArray, Rows
 from custom_components.haeo.core.model.solver import Solver
-from custom_components.haeo.core.model.util.solver_rows import add_rows, applied_form, change_bounds, update_rows
+from custom_components.haeo.core.model.util.solver_rows import add_rows, applied_form, update_rows
 
 
 @pytest.fixture
@@ -79,17 +79,6 @@ def test_update_rows_replaces_bounds_and_coefficients(solver: Solver) -> None:
     update_rows(solver, indices, applied, x[1] * 2.0 + x[1] * 3.0 + x[0] * 3e-10 + x[2] <= 4.0)
 
     assert _row(solver, 0) == (-INF, 4.0, {1: 5.0, 2: 1.0})
-
-
-def test_change_bounds_frees_rows(solver: Solver) -> None:
-    """Rows given unbounded bounds stay in the LP without binding."""
-    x = solver.add_variables(1, name="x")
-    indices, applied = add_rows(solver, x <= 1.0)
-
-    updated = change_bounds(solver, indices, applied, -INF, INF)
-
-    assert _row(solver, 0) == (-INF, INF, {0: 1.0})
-    assert updated.is_free
 
 
 @pytest.mark.parametrize(

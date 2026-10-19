@@ -4,7 +4,8 @@ from collections.abc import Mapping, Sequence
 
 from .core.const import CONF_ELEMENT_TYPE, CONF_NAME, ConnectivityLevel
 from .core.model.elements import MODEL_ELEMENT_TYPE_BATTERY, MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
-from .elements import ELEMENT_TYPES, ElementConfigData
+from .core.schema.elements import ElementConfigData
+from .elements import ELEMENT_TYPES
 from .util.graph import ConnectivityResult as NetworkConnectivityResult
 from .util.graph import find_connected_components
 

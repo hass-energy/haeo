@@ -250,7 +250,7 @@ async def test_setup_handles_switch_field_variants(
     else:
         matches = [e for e in input_switches if e._field_info.field_name == expect_field]
         assert matches
-        assert matches[0].entity_mode == expect_mode
+        assert matches[0]._store.mode == expect_mode
 
 
 async def test_setup_creates_switch_entities_for_solar_curtailment(
@@ -385,7 +385,7 @@ async def test_setup_handles_multiple_solar_elements(
         input_switches = [e for e in entities if hasattr(e, "_subentry")]
 
         # Should have entities from both solar panels
-        element_names = {e._subentry.title for e in input_switches}
+        element_names = {e.extra_state_attributes["element_name"] for e in input_switches}
         if len(input_switches) > 0:
             # At least one should be present
             assert "Solar North" in element_names or "Solar South" in element_names

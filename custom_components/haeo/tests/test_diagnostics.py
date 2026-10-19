@@ -1,7 +1,7 @@
 """Tests for HAEO diagnostics utilities."""
 
 from collections.abc import Mapping
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 import json
 from types import MappingProxyType
 from typing import (
@@ -55,12 +55,7 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_POWER_LIMITS,
     SECTION_PRICING,
 )
-from custom_components.haeo.diagnostics import (
-    CurrentStateProvider,
-    HistoricalStateProvider,
-    async_get_config_entry_diagnostics,
-    collect_diagnostics,
-)
+from custom_components.haeo.diagnostics import async_get_config_entry_diagnostics, collect_diagnostics
 from custom_components.haeo.diagnostics.collector import (
     DIAGNOSTICS_SCHEMA_VERSION,
     HISTORICAL_CALENDAR_LOOKAHEAD,
@@ -786,165 +781,6 @@ async def test_historical_diagnostics_invalid_element_config(hass: HomeAssistant
 
     assert "Unknown Element" in _participants(result.config)
     assert result.inputs == []
-
-
-# --- StateProvider tests ---
-
-
-async def test_current_state_provider_get_state(hass: HomeAssistant) -> None:
-    """Test CurrentStateProvider.get_state returns single entity state."""
-    hass.states.async_set(
-        "sensor.test_entity",
-        "42",
-        {"unit_of_measurement": "kW"},
-    )
-
-    provider = CurrentStateProvider(hass)
-
-    state = await provider.get_state("sensor.test_entity")
-    assert state is not None
-    assert state.state == "42"
-
-    state = await provider.get_state("sensor.nonexistent")
-    assert state is None
-
-
-async def test_current_state_provider_properties(hass: HomeAssistant) -> None:
-    """Test CurrentStateProvider properties."""
-    provider = CurrentStateProvider(hass)
-
-    assert provider.is_historical is False
-    assert provider.timestamp is None
-
-
-async def test_historical_state_provider_properties(hass: HomeAssistant) -> None:
-    """Test HistoricalStateProvider properties."""
-    target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
-
-    mock_recorder = Mock()
-    with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
-        return_value=mock_recorder,
-    ):
-        provider = HistoricalStateProvider(hass, target_time)
-
-    assert provider.is_historical is True
-    assert provider.timestamp == target_time
-
-
-async def test_historical_state_provider_get_state(hass: HomeAssistant) -> None:
-    """Test HistoricalStateProvider.get_state returns single entity state."""
-    target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
-
-    mock_state = State("sensor.test_entity", "42", {"unit_of_measurement": "kW"})
-
-    mock_recorder = Mock()
-    mock_recorder.async_add_executor_job = AsyncMock(return_value={"sensor.test_entity": [mock_state]})
-
-    with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
-        return_value=mock_recorder,
-    ):
-        provider = HistoricalStateProvider(hass, target_time)
-        state = await provider.get_state("sensor.test_entity")
-
-    assert state is not None
-    assert state.state == "42"
-
-
-async def test_historical_state_provider_get_state_not_found(hass: HomeAssistant) -> None:
-    """Test HistoricalStateProvider.get_state returns None when entity not found."""
-    target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
-
-    mock_recorder = Mock()
-    mock_recorder.async_add_executor_job = AsyncMock(return_value={})
-
-    with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
-        return_value=mock_recorder,
-    ):
-        provider = HistoricalStateProvider(hass, target_time)
-        state = await provider.get_state("sensor.nonexistent")
-
-    assert state is None
-
-
-async def test_historical_state_provider_get_states(hass: HomeAssistant) -> None:
-    """Test HistoricalStateProvider.get_states returns multiple entity states."""
-    target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
-
-    mock_state_1 = State("sensor.entity_1", "100", {"unit_of_measurement": "kW"})
-    mock_state_2 = State("sensor.entity_2", "200", {"unit_of_measurement": "kWh"})
-
-    mock_recorder = Mock()
-    mock_recorder.async_add_executor_job = AsyncMock(
-        return_value={
-            "sensor.entity_1": [mock_state_1],
-            "sensor.entity_2": [mock_state_2],
-        }
-    )
-
-    with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
-        return_value=mock_recorder,
-    ):
-        provider = HistoricalStateProvider(hass, target_time)
-        states = await provider.get_states(["sensor.entity_1", "sensor.entity_2"])
-
-    assert len(states) == 2
-    assert states["sensor.entity_1"].state == "100"
-    assert states["sensor.entity_2"].state == "200"
-
-
-async def test_historical_state_provider_get_states_empty(hass: HomeAssistant) -> None:
-    """Test HistoricalStateProvider.get_states with empty entity list."""
-    target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
-
-    mock_recorder = Mock()
-
-    with patch(
-        "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
-        return_value=mock_recorder,
-    ):
-        provider = HistoricalStateProvider(hass, target_time)
-        states = await provider.get_states([])
-
-    assert states == {}
-    mock_recorder.async_add_executor_job.assert_not_called()
-
-
-async def test_historical_state_provider_get_states_sync(hass: HomeAssistant) -> None:
-    """Test HistoricalStateProvider._get_states_sync calls recorder history."""
-    target_time = datetime(2026, 1, 20, 14, 32, 3, tzinfo=timezone(timedelta(hours=11)))
-
-    mock_state = State("sensor.test", "50", {"unit_of_measurement": "%"})
-
-    mock_recorder = Mock()
-
-    with (
-        patch(
-            "custom_components.haeo.diagnostics.historical_state_provider.get_recorder_instance",
-            return_value=mock_recorder,
-        ),
-        patch(
-            "custom_components.haeo.diagnostics.historical_state_provider.get_significant_states_full",
-            return_value={"sensor.test": [mock_state]},
-        ) as mock_get_states,
-    ):
-        provider = HistoricalStateProvider(hass, target_time)
-        result = provider._get_states_sync(["sensor.test"])
-
-    mock_get_states.assert_called_once_with(
-        hass,
-        start_time=target_time,
-        end_time=target_time,
-        entity_ids=["sensor.test"],
-        include_start_time_state=True,
-        significant_changes_only=False,
-        no_attributes=False,
-    )
-
-    assert result == {"sensor.test": [mock_state]}
 
 
 # --- Internal function tests ---

@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
-from custom_components.haeo.core.data.input_store import InputMode, InputStore, create_input_store
+from custom_components.haeo.core.data.input_store import InputMode, InputStore, _same_value, create_input_store
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
@@ -358,6 +358,136 @@ async def test_driven_async_load_records_input_error() -> None:
     assert await store.async_load(good) is True
 
     assert store.error is None
+
+
+def _sensor(state: str, **attributes: object) -> FakeStateMachine:
+    """Return a state machine holding one sensor.x state."""
+    return FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", state, attributes)})
+
+
+@pytest.mark.parametrize(
+    ("time_series", "loads", "expected_notifications"),
+    [
+        pytest.param(True, [(_sensor("12.0"), FORECAST_TIMESTAMPS)] * 2, 1, id="identical_reload"),
+        pytest.param(
+            True,
+            [(_sensor("12.0"), FORECAST_TIMESTAMPS), (_sensor("12.0", friendly_name="X"), FORECAST_TIMESTAMPS)],
+            1,
+            id="attribute_only_change",
+        ),
+        pytest.param(
+            True, [(_sensor("12.0"), FORECAST_TIMESTAMPS), (_sensor("13.0"), FORECAST_TIMESTAMPS)], 2, id="changed"
+        ),
+        pytest.param(
+            True,
+            [(_sensor("12.0"), FORECAST_TIMESTAMPS), (_sensor("12.0"), (300.0, 600.0, 900.0))],
+            2,
+            id="new_horizon",
+        ),
+        pytest.param(
+            True,
+            [
+                (_sensor("12.0"), FORECAST_TIMESTAMPS),
+                (FakeStateMachine({}), FORECAST_TIMESTAMPS),
+                (FakeStateMachine({}), FORECAST_TIMESTAMPS),
+                (_sensor("12.0"), FORECAST_TIMESTAMPS),
+            ],
+            3,
+            id="unavailable_and_back",
+        ),
+        pytest.param(False, [(_sensor("12.0"), FORECAST_TIMESTAMPS)] * 2, 1, id="identical_scalar_reload"),
+        pytest.param(
+            False,
+            [(_sensor("12.0"), FORECAST_TIMESTAMPS), (_sensor("13.0"), FORECAST_TIMESTAMPS)],
+            2,
+            id="changed_scalar",
+        ),
+        pytest.param(True, [(_sensor("-3.0"), FORECAST_TIMESTAMPS)] * 2, 1, id="repeated_rejection"),
+        pytest.param(
+            True,
+            [(_sensor("-3.0"), FORECAST_TIMESTAMPS), (_sensor("-4.0"), FORECAST_TIMESTAMPS)],
+            2,
+            id="different_rejection",
+        ),
+        pytest.param(
+            True,
+            [
+                (_sensor("12.0"), FORECAST_TIMESTAMPS),
+                (_sensor("-3.0"), FORECAST_TIMESTAMPS),
+                (FakeStateMachine({}), FORECAST_TIMESTAMPS),
+                (FakeStateMachine({}), FORECAST_TIMESTAMPS),
+            ],
+            3,
+            id="rejection_then_unavailable",
+        ),
+        pytest.param(
+            True,
+            [(_sensor("-3.0"), FORECAST_TIMESTAMPS), (_sensor("3.0"), FORECAST_TIMESTAMPS)],
+            2,
+            id="rejection_then_valid",
+        ),
+    ],
+)
+async def test_driven_async_load_notifies_only_on_change(
+    time_series: bool,
+    loads: list[tuple[FakeStateMachine, tuple[float, ...]]],
+    expected_notifications: int,
+) -> None:
+    """Reloading an identical value does not notify, so it does not trigger optimization."""
+    horizon = [FORECAST_TIMESTAMPS]
+    storage = _MemStorage(as_entity_value(["sensor.x"]))
+    hint = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=time_series, min_value=0.0)
+    store = create_input_store(storage=storage, hint=hint, get_forecast_timestamps=lambda: horizon[0])
+    notifications: list[None] = []
+    store.add_listener(lambda: notifications.append(None))
+
+    for sm, timestamps in loads:
+        horizon[0] = timestamps
+        await store.async_load(sm)
+
+    assert len(notifications) == expected_notifications
+
+
+@pytest.mark.parametrize(
+    ("time_series", "constant", "timestamps", "expected_notifications"),
+    [
+        pytest.param(False, 5.0, FORECAST_TIMESTAMPS, 0, id="same_constant"),
+        pytest.param(False, 6.0, FORECAST_TIMESTAMPS, 1, id="new_constant"),
+        pytest.param(False, 5.0, (300.0, 600.0, 900.0), 0, id="scalar_new_horizon"),
+        pytest.param(True, 5.0, FORECAST_TIMESTAMPS, 0, id="time_series_same_horizon"),
+        pytest.param(True, 5.0, (300.0, 600.0, 900.0), 1, id="time_series_new_horizon"),
+    ],
+)
+def test_editable_notifies_only_on_change(
+    time_series: bool,
+    constant: float,
+    timestamps: tuple[float, ...],
+    expected_notifications: int,
+) -> None:
+    """Editable stores follow the same rule as driven ones: only a changed value or horizon notifies."""
+    horizon = [FORECAST_TIMESTAMPS]
+    storage = _MemStorage(as_constant_value(5.0))
+    hint = FieldHint(output_type=OutputType.POWER, time_series=time_series)
+    store = create_input_store(storage=storage, hint=hint, get_forecast_timestamps=lambda: horizon[0])
+    store.refresh()
+    notifications: list[None] = []
+    store.add_listener(lambda: notifications.append(None))
+
+    horizon[0] = timestamps
+    store.set_value(constant)
+
+    assert store.is_ready()
+    assert len(notifications) == expected_notifications
+
+
+def test_same_value_treats_nan_as_equal() -> None:
+    """An unchanged forecast containing NaN does not count as a change."""
+    previous = np.array([1.0, np.nan])
+
+    assert _same_value(previous, previous.copy())
+    assert _same_value(float("nan"), float("nan"))
+    assert not _same_value(previous, np.array([1.0, 2.0]))
+    assert not _same_value(1.0, True)
 
 
 # --- Construction errors ---

@@ -44,7 +44,7 @@ from custom_components.haeo.core.schema import (
     is_none_value,
     is_schema_value,
 )
-from custom_components.haeo.elements.field_schema import FieldSchemaInfo
+from custom_components.haeo.core.schema.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import (
     AnyInputFieldInfo,
     InputFieldGroups,
