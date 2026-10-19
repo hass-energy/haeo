@@ -31,37 +31,20 @@ See docs/developer-guide/vlan-optimization.md for optimization proofs.
 from collections import defaultdict, deque
 from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
-from typing import NotRequired, TypedDict, TypeGuard
+from typing import NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.elements import (
-    MODEL_ELEMENT_TYPE_BATTERY,
     MODEL_ELEMENT_TYPE_CONNECTION,
-    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
-    MODEL_ELEMENT_TYPE_NODE,
     ModelElementConfig,
+    NetworkElementConfig,
+    is_network_element_config,
 )
-from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
-from custom_components.haeo.core.model.elements.deferrable_load import DeferrableLoadElementConfig
-from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
-
-# Non-connection element configs (nodes, batteries, deferrable loads) that can carry tags
-_TaggableConfig = NodeElementConfig | BatteryElementConfig | DeferrableLoadElementConfig
-
-
-def _is_taggable(elem: ModelElementConfig) -> TypeGuard[_TaggableConfig]:
-    """Return whether an element produces or consumes power itself, so it carries tags."""
-    return elem["element_type"] in (
-        MODEL_ELEMENT_TYPE_NODE,
-        MODEL_ELEMENT_TYPE_BATTERY,
-        MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
-    )
-
 
 # A rule grouping identifies a rule by its source/destination sets,
 # independent of price. Rules with the same grouping share VLAN structure.
@@ -113,17 +96,17 @@ def compile_policies(
         policy rule index to pricing element names.
 
     """
-    # Partition by element type — connections have source/target fields, nodes,
-    # batteries, and deferrable loads carry tags, and the rest read other
-    # elements' flows so they are added after the connections
+    # Partition by element type — connections have source/target fields, network
+    # elements carry tags, and the rest read other elements' flows so they are
+    # added after the connections
     connections: list[ConnectionElementConfig] = []
     non_connections: list[ModelElementConfig] = []
     dependents: list[ModelElementConfig] = []
-    by_name: dict[str, _TaggableConfig] = {}
+    by_name: dict[str, NetworkElementConfig] = {}
     for elem in elements:
         if elem["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION:
             connections.append(elem)
-        elif _is_taggable(elem):
+        elif is_network_element_config(elem):
             by_name[elem["name"]] = elem
             non_connections.append(elem)
         else:
