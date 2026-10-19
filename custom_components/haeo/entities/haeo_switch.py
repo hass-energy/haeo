@@ -20,6 +20,7 @@ from custom_components.haeo.elements import InputFieldPath, find_nested_config_p
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.unique_id import element_unique_id
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -96,7 +97,7 @@ class HaeoInputSwitch(SwitchEntity):
             )
         ):
             unique_key = field_path_key
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{unique_key}"
+        self._attr_unique_id = element_unique_id(config_entry.entry_id, subentry.subentry_id, unique_key)
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description

@@ -176,6 +176,5 @@ async def async_setup_entry(
             )
         )
 
-        # Linking entities to their subentry removes them along with it
         _LOGGER.debug("Creating %d number entities for %s", len(entities), subentry.title)
         async_add_entities(entities, config_subentry_id=subentry.subentry_id)

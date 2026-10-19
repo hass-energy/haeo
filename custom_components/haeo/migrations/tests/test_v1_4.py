@@ -384,6 +384,7 @@ async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAs
         config_subentry_id=entity_subentry_id,
         device_id=device.id,
     )
+    horizon = entity_registry.async_get_or_create("sensor", DOMAIN, f"{entry.entry_id}_horizon", config_entry=entry)
 
     assert await v1_4.async_migrate_entry(hass, entry)
 
@@ -398,6 +399,7 @@ async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAs
     assert adopted_sensor.config_subentry_id == switchboard.subentry_id
     assert adopted_sensor.device_id == device.id
     assert entity_registry.async_get(switch.entity_id) is None
+    assert entity_registry.async_get(horizon.entity_id) is not None
 
 
 @pytest.mark.parametrize(
@@ -587,7 +589,7 @@ async def test_async_migrate_entry_links_entities_and_removes_orphans(hass: Home
     hass.config_entries.async_add_subentry(entry, grid_subentry)
     switchboard = _create_subentry({CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: "Switchboard"})
     hass.config_entries.async_add_subentry(entry, switchboard)
-    deleted_subentry_id = "01KDELETEDELEMENT000000000"
+    deleted_subentry_id = "01KDQ4DD8R0RPHANED00000000"
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
     grid_device = device_registry.async_get_or_create(
@@ -617,6 +619,7 @@ async def test_async_migrate_entry_links_entities_and_removes_orphans(hass: Home
     orphan_sensor = register("sensor", f"{deleted_subentry_id}_connection_connection_power")
     auto_optimize = register("switch", "auto_optimize")
     horizon = register("sensor", "horizon")
+    unrecognized = register("sensor", "optimization_cost")
 
     assert await v1_4.async_migrate_entry(hass, entry)
 
@@ -630,9 +633,10 @@ async def test_async_migrate_entry_links_entities_and_removes_orphans(hass: Home
     assert linked_subentry(switchboard_balance) == switchboard.subentry_id
     assert entity_registry.async_get(orphan_number) is None
     assert entity_registry.async_get(orphan_sensor) is None
-    # Hub entities are linked to the network when setup adds them
+    # Hub entities are linked to the network when setup adds them, and unrecognized entities are kept
     assert linked_subentry(auto_optimize) is None
     assert linked_subentry(horizon) is None
+    assert linked_subentry(unrecognized) is None
     assert entry.minor_version == v1_4.MINOR_VERSION
 
     # Linked entities are now removed along with their element

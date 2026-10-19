@@ -93,7 +93,6 @@ async def async_setup_entry(
             entities.append(entity)
             _LOGGER.debug("Created input switch: %s.%s", subentry.title, ".".join(field_path))
 
-        # Linking entities to their subentry removes them along with it
         _LOGGER.debug("Creating %d switch entities for %s", len(entities), subentry.title)
         async_add_entities(entities, config_subentry_id=subentry.subentry_id)
 

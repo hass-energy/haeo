@@ -11,13 +11,10 @@ from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.entities import HaeoSensor
-from custom_components.haeo.entities.device import (
-    build_device_identifier,
-    get_or_create_element_device,
-    get_or_create_network_device,
-)
+from custom_components.haeo.entities.device import get_or_create_element_device, get_or_create_network_device
 from custom_components.haeo.entities.haeo_horizon import HaeoHorizonEntity
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
+from custom_components.haeo.unique_id import element_output_unique_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -105,9 +102,6 @@ def _add_output_entities(
             # Get or create the device using centralized device creation
             device_entry = get_or_create_element_device(hass, config_entry, subentry, device_name)
 
-            # Build unique ID using consistent identifier pattern
-            device_identifier = build_device_identifier(config_entry, subentry, device_name)
-
             entities.extend(
                 HaeoSensor(
                     coordinator,
@@ -118,13 +112,16 @@ def _add_output_entities(
                     element_type=subentry.subentry_type,
                     output_name=output_name,
                     output_data=output_data,
-                    unique_id=f"{device_identifier[1]}_{output_name}",
+                    unique_id=element_output_unique_id(
+                        config_entry.entry_id, subentry.subentry_id, device_name, output_name
+                    ),
                     translation_placeholders=translation_placeholders,
                 )
                 for output_name, output_data in device_outputs.items()
             )
 
-        async_add_entities(entities, config_subentry_id=subentry.subentry_id)
+        if entities:
+            async_add_entities(entities, config_subentry_id=subentry.subentry_id)
 
 
 __all__ = ["async_setup_entry"]
