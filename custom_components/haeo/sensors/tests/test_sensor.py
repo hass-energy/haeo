@@ -32,6 +32,7 @@ from custom_components.haeo.coordinator import CoordinatorData, CoordinatorOutpu
 from custom_components.haeo.core.adapters.elements.battery import BATTERY_STATE_OF_CHARGE
 from custom_components.haeo.core.adapters.elements.load import LOAD_POWER
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
+from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
 from custom_components.haeo.core.model import OutputData, OutputType
 from custom_components.haeo.core.model.elements.connection import CONNECTION_POWER
 from custom_components.haeo.core.schema import as_connection_target
@@ -121,7 +122,7 @@ def _make_output(
     state_class: SensorStateClass | None,
     options: tuple[str, ...] | None,
     direction: Literal["+", "-"] | None = None,
-    interpolation_mode: Literal["previous"] | None = None,
+    interpolation_mode: InterpolationMode | None = None,
 ) -> CoordinatorOutput:
     return CoordinatorOutput(
         type=type_,
@@ -355,7 +356,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         options=None,
-        interpolation_mode="previous",
+        interpolation_mode=InterpolationMode.PREVIOUS,
     )
     coordinator.data = _make_coordinator_data({"battery": {"battery": {LOAD_POWER: updated_output}}})
 
@@ -373,7 +374,7 @@ def test_handle_coordinator_update_reapplies_metadata(device_entry: DeviceEntry)
     assert attributes["field_type"] == OutputType.POWER
     assert attributes["forecast"] == updated_output.forecast
     assert attributes["forecast"] is not updated_output.forecast
-    assert attributes["interpolation_mode"] == "previous"
+    assert attributes["interpolation_mode"] == InterpolationMode.PREVIOUS
 
 
 def test_handle_coordinator_update_scales_percentage_outputs(device_entry: DeviceEntry) -> None:

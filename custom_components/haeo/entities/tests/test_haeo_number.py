@@ -23,6 +23,7 @@ from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.data.input_store import InputMode, create_input_store
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.core.schema import (
     SchemaValue,
@@ -983,7 +984,7 @@ async def test_editable_time_series_builds_forecast_attribute(
     assert len(forecast) == 2
     assert [point["time"].timestamp() for point in forecast] == [0.0, 300.0]
     assert all(point["value"] == 10.0 for point in forecast)
-    assert attrs["interpolation_mode"] == "previous"
+    assert attrs["interpolation_mode"] == InterpolationMode.PREVIOUS
 
 
 async def test_editable_boundaries_builds_forecast_attribute(

@@ -34,6 +34,7 @@ from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMENT_TYPE, DEFAULT_DEBOUNCE_SECONDS
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
+from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
 from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
@@ -83,8 +84,8 @@ class CoordinatorOutput:
     unit: str | None
     state: StateType | None
     forecast: list[ForecastPoint] | None
-    # "previous" when each forecast value holds from its time until the next, as interval values do
-    interpolation_mode: Literal["previous"] | None = None
+    # How the forecast varies between its points, when it is not linear
+    interpolation_mode: InterpolationMode | None = None
     direction: Literal["+", "-"] | None = None
     entity_category: EntityCategory | None = None
     device_class: SensorDeviceClass | None = None
@@ -191,7 +192,7 @@ def _build_coordinator_output(
       - Interval values (n=3): zip with [12:00, 12:05, 12:10]
       - Boundary values (n=4): zip with [12:00, 12:05, 12:10, 12:15]
 
-    Interval forecasts carry the "previous" interpolation mode, so a HAEO input
+    Interval forecasts carry the previous interpolation mode, so a HAEO input
     reading one holds each value across its period rather than ramping.
     """
 
@@ -205,7 +206,7 @@ def _build_coordinator_output(
     else:
         state = values[0]
     forecast: list[ForecastPoint] | None = None
-    interpolation_mode: Literal["previous"] | None = None
+    interpolation_mode: InterpolationMode | None = None
 
     if forecast_times and len(values) > 1:
         # Interval values use n_periods times and boundary values use all n_periods+1
@@ -220,7 +221,7 @@ def _build_coordinator_output(
             for time, value in zip(forecast_times[: len(values)], values, strict=True)
         ]
         if len(values) < len(forecast_times):
-            interpolation_mode = "previous"
+            interpolation_mode = InterpolationMode.PREVIOUS
 
     return CoordinatorOutput(
         type=output_data.type,

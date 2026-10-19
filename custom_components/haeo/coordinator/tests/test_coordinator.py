@@ -51,6 +51,7 @@ from custom_components.haeo.core.const import (
     DEFAULT_DEBOUNCE_SECONDS,
     HORIZON_PRESET_2_DAYS,
 )
+from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model import Network, OutputData, OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
@@ -606,7 +607,7 @@ def test_build_coordinator_output_maps_interval_values_onto_period_starts() -> N
         {"time": _TIMES[0], "value": 1.0},
         {"time": _TIMES[1], "value": 2.0},
     ]
-    assert output.interpolation_mode == "previous"
+    assert output.interpolation_mode == InterpolationMode.PREVIOUS
 
 
 @pytest.mark.parametrize("value_count", [2, 5], ids=["too-few", "too-many"])
