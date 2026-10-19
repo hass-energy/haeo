@@ -18,7 +18,8 @@ from custom_components.haeo.calendar_loader import is_calendar_driven
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.data.input_store import InputMode, InputStore
 from custom_components.haeo.core.schema import as_constant_value
-from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
+from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
+from custom_components.haeo.elements import InputFieldPath, find_nested_config_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders

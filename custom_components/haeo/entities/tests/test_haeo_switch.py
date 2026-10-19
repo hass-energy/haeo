@@ -34,7 +34,8 @@ from custom_components.haeo.core.schema.elements.solar import CONF_FORECAST, SEC
 from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
-from custom_components.haeo.elements import find_nested_config_path, get_nested_config_value_by_path
+from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
+from custom_components.haeo.elements import find_nested_config_path
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.entities.haeo_switch import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputSwitch
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON

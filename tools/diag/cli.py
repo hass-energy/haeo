@@ -38,7 +38,7 @@ from custom_components.haeo.core.const import (
     HUB_SECTION_COMMON,
 )
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
-from custom_components.haeo.core.data.loader.config_loader import load_element_config
+from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue, Network
 from custom_components.haeo.core.model.output_data import OutputData
@@ -49,7 +49,6 @@ from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_c
 from custom_components.haeo.core.schema.migrations.v1_4 import migrate_battery_config, migrate_hub_horizon
 from custom_components.haeo.core.schema.sections import SECTION_PRICING
 from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
-from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 
 from .analysis import describe_analyses, run_analysis
 
@@ -1109,23 +1108,19 @@ def run_diagnostics(
     state_provider = DiagnosticsStateProvider(diag.inputs)
     normalized_participants = migrate_batteries_for_diag(normalized_participants)
 
-    negated_paths = negated_price_paths(normalized_participants)
-    loaded_participants: dict[str, ElementConfigData] = {}
+    participants: dict[str, ElementConfigSchema] = {}
     for element_name, element_config in normalized_participants.items():
-        try:
-            if not _is_element_config_schema(element_config):
-                msg = f"{element_name} is not a valid element config"
-                raise TypeError(msg)
-            loaded_participants[element_name] = load_element_config(
-                element_name,
-                element_config,
-                state_provider,
-                forecast_times,
-                negated_paths=negated_paths.get(element_name, frozenset()),
-            )
-            print(f"  Loaded: {element_name} ({element_config.get(CONF_ELEMENT_TYPE)})")
-        except Exception as e:
-            print(f"  Warning: Failed to load {element_name}: {e}")
+        if not _is_element_config_schema(element_config):
+            print(f"Error: {element_name} is not a valid element config")
+            sys.exit(1)
+        participants[element_name] = element_config
+    try:
+        loaded_participants = load_element_configs(participants, state_provider, forecast_times)
+    except ValueError as e:
+        print(f"Error: Failed to load inputs: {e}")
+        sys.exit(1)
+    for element_name, element_config in participants.items():
+        print(f"  Loaded: {element_name} ({element_config.get(CONF_ELEMENT_TYPE)})")
 
     if not loaded_participants:
         print("Error: No elements loaded")

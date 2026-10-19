@@ -572,29 +572,6 @@ def find_nested_config_path(config: Mapping[str, object], field_name: str) -> In
     return None
 
 
-def get_nested_config_value_by_path(config: Mapping[str, object], field_path: InputFieldPath) -> object | None:
-    """Find a field value in a nested element config using a path.
-
-    Supports both mapping keys and integer indices for list traversal.
-    A path like ``("rules", "0", "price")`` navigates into
-    ``config["rules"][0]["price"]``.
-    """
-    current: object = config
-    for key in field_path:
-        if isinstance(current, Mapping):
-            if key not in current:
-                return None
-            current = current[key]
-        elif isinstance(current, Sequence) and not isinstance(current, str):
-            try:
-                current = current[int(key)]
-            except (ValueError, IndexError):
-                return None
-        else:
-            return None
-    return current
-
-
 def set_nested_config_value(config: dict[str, object], field_name: str, value: object) -> bool:
     """Set a field value in a nested element config."""
     for nested in config.values():
@@ -660,7 +637,6 @@ __all__ = [
     "get_input_fields",
     "get_list_input_fields",
     "get_nested_config_value",
-    "get_nested_config_value_by_path",
     "get_surfaced_input_fields",
     "is_element_config_schema",
     "iter_input_field_paths",
