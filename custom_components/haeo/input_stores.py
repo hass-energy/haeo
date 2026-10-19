@@ -16,24 +16,15 @@ from typing import TYPE_CHECKING
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
+from custom_components.haeo.core.data.loader.config_loader import configured_value, element_inputs
 from custom_components.haeo.core.data.util.input_values import InputError
-from custom_components.haeo.core.schema import is_none_value
-from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
-from custom_components.haeo.elements import (
-    InputFieldPath,
-    config_field_path,
-    get_input_fields,
-    get_list_input_fields,
-    get_nested_config_value_by_path,
-    is_element_config_schema,
-    iter_input_field_paths,
-)
+from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
+from custom_components.haeo.elements import InputFieldPath, is_element_config_schema
 from custom_components.haeo.util import async_update_subentry_value
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry
-    from custom_components.haeo.elements.input_fields import AnyInputFieldInfo
     from custom_components.haeo.horizon import HorizonManager
 
 type InputStoreKey = tuple[str, InputFieldPath]
@@ -80,17 +71,6 @@ class SubentryStorage:
         )
 
 
-def _hint_from_field_info(field_info: AnyInputFieldInfo) -> FieldHint:
-    """Build the resolver field hint from an input field's metadata."""
-    return FieldHint(
-        output_type=field_info.output_type,
-        direction=field_info.direction,
-        time_series=field_info.time_series,
-        boundaries=field_info.boundaries,
-        calendar=field_info.calendar,
-    )
-
-
 def input_error_placeholders(key: InputStoreKey, error: InputError, store: InputStore) -> dict[str, str]:
     """Return translation placeholders for a rejected input.
 
@@ -127,26 +107,20 @@ def build_input_stores(
         if not is_element_config_schema(subentry.data):
             continue
 
-        all_fields = {
-            **get_input_fields(subentry.data),
-            **get_list_input_fields(subentry.data),
-        }
         subentry_negated_paths = negated_paths.get(subentry.title, frozenset())
 
-        for field_path, field_info in iter_input_field_paths(all_fields):
-            source_path = config_field_path(field_path, field_info)
-            config_value = get_nested_config_value_by_path(subentry.data, source_path)
-            if config_value is None or is_none_value(config_value):
+        for element_input in element_inputs(subentry.data):
+            if configured_value(subentry.data, element_input.config_path) is None:
                 continue
 
-            storage = SubentryStorage(hass, config_entry, subentry.subentry_id, source_path)
+            storage = SubentryStorage(hass, config_entry, subentry.subentry_id, element_input.config_path)
             store = create_input_store(
                 storage=storage,
-                hint=_hint_from_field_info(field_info),
+                hint=element_input.hint,
                 get_forecast_timestamps=horizon_manager.get_forecast_timestamps,
-                negate=field_path in subentry_negated_paths,
+                negate=element_input.path in subentry_negated_paths,
             )
-            stores[(subentry.title, field_path)] = store
+            stores[(subentry.title, element_input.path)] = store
 
     return stores
 

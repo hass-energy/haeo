@@ -94,7 +94,7 @@ When the configuration specifies a constant value (not an external sensor):
 
 When the configuration specifies an entity ID or list of entity IDs:
 
-- The entity loads data from source sensors using TimeSeriesLoader
+- The entity loads data from source sensors through the shared field resolver
 - Values update automatically when source sensors change
 - The `source_entities` attribute lists the driving sensors
 - User modifications via UI are not supported (value comes from sources)
@@ -150,8 +150,8 @@ For time-series inputs, values vary based on loaded forecast data.
 When the horizon changes or source sensors update:
 
 1. HorizonManager notifies entity of new horizon
-2. Entity calls TimeSeriesLoader with source entity IDs (driven mode only)
-3. Loader extracts, combines, and fuses forecast data
+2. Entity's input store resolves its source entity IDs with `resolve_field` (driven mode only)
+3. The resolver extracts, combines, and fuses forecast data
 4. Entity stores aligned values and updates HA state
 5. Entity writes to `runtime_data.inputs` for coordinator access
 
@@ -181,7 +181,7 @@ Users can add specific inputs to dashboards if desired for monitoring.
 
     ---
 
-    How TimeSeriesLoader extracts and aligns data.
+    How the field resolver extracts and aligns data.
 
     [:material-arrow-right: Data loading guide](data-loading.md)
 

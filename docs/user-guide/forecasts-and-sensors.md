@@ -119,6 +119,7 @@ HAEO combines them automatically.
 - A forecast that already covers the whole horizon, such as a [calendar](#calendars-as-forecasts), adds on its own, so it never stops the others from repeating
 - With only present values, the summed value repeats across the horizon
 - With a forecast, the summed present value is the value for now (the first period) and the summed forecast covers the rest
+- If any of the sensors is unavailable, the whole field is unavailable, as it would be for a single unavailable sensor
 
 **Example scenarios**:
 
@@ -415,7 +416,7 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 
 ### Sensor Not Found
 
-**Problem**: Error message "Sensors not found or unavailable"
+**Problem**: Error "Input entities not ready after … seconds", or an input entity shows as unavailable
 
 **Solutions**:
 

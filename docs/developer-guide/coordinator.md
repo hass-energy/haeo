@@ -148,7 +148,8 @@ The coordinator uses event-driven triggers instead of a fixed polling interval.
 
 **Input entity state changes**
 
-When any input entity updates its state (due to external sensor changes or user modification), the coordinator receives a state change event and schedules optimization.
+When an input's value changes (due to external sensor changes or user modification), its input store notifies the coordinator, which schedules optimization.
+A source update that resolves to the same value, timestamps, and availability as before does not notify, so it does not re-optimize.
 
 **Horizon boundary crossings**
 
