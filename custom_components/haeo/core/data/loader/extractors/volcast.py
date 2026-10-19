@@ -9,7 +9,7 @@ from typing import Literal, Protocol, TypedDict, TypeGuard
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
-from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp
+from .utils import is_parsable_to_datetime, parse_datetime_to_timestamp, period_means
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,20 +74,19 @@ class Parser:
         """Extract forecast data from Volcast format.
 
         Each power_w is the mean power over the 5 minutes from its period_start.
-        Solar power varies smoothly, so the mean is placed at the middle of its
-        period and the fuser interpolates between periods. Volcast leaves out
-        periods with no output, so the first and last period of each gap get a
-        zero point and the power is zero across the gap.
+        Solar power varies smoothly, so the means become interpolated points at
+        the middle of each period. Volcast leaves out periods with no output, so
+        a zero period is added at each end of every gap and of the forecast,
+        making the power zero across the gaps and through the night.
         """
-        points = sorted(
-            (parse_datetime_to_timestamp(item["period_start"]) + PERIOD_SECONDS // 2, item["power_w"])
+        blocks = sorted(
+            (start := parse_datetime_to_timestamp(item["period_start"]), start + PERIOD_SECONDS, item["power_w"])
             for item in state.attributes["detailedForecast"]
         )
-        gaps = {
-            zero_time
-            for (time, _), (next_time, _) in pairwise(points)
-            if next_time - time > PERIOD_SECONDS
-            for zero_time in (time + PERIOD_SECONDS, next_time - PERIOD_SECONDS)
-        }
-        parsed = sorted([*points, *((time, 0.0) for time in gaps)])
+        # Zero periods just before the forecast, just after it, and at both ends of each gap
+        zero_starts = {blocks[0][0] - PERIOD_SECONDS, blocks[-1][1]}
+        for (_, end, _), (start, _, _) in pairwise(blocks):
+            if start > end:
+                zero_starts |= {end, start - PERIOD_SECONDS}
+        parsed = period_means([*blocks, *((start, start + PERIOD_SECONDS, 0.0) for start in zero_starts)])
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

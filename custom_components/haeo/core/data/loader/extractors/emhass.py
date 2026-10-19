@@ -13,7 +13,7 @@ from typing import Literal, Protocol, TypeGuard
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement
 
-from .utils import hold_until_next, is_parsable_to_datetime, parse_datetime_to_timestamp, step_points
+from .utils import hold_until_next, is_parsable_to_datetime, parse_datetime_to_timestamp, period_means, step_points
 
 Format = Literal["emhass"]
 DOMAIN: Format = "emhass"
@@ -46,9 +46,11 @@ at the start or end of the step.
 """
 
 # EMHASS uses different attribute keys for different sensor types. Every entry
-# is dated at the start of its optimization time step.
+# is dated at the start of its optimization time step. The forecasts attribute
+# carries the optimizer's schedules (grid power, curtailment) as well as its PV
+# and load forecasts, so it is held across each step as EMHASS models them all.
 FORECAST_ATTRIBUTES: dict[str, StepTiming] = {
-    "forecasts": "mean",
+    "forecasts": "held",
     "deferrables_schedule": "held",
     "predicted_temperatures": "start",
     "battery_scheduled_power": "held",
@@ -130,10 +132,10 @@ class Parser:
 
         Each step ends where the next starts, and the last lasts as long as the
         one before it. Schedules and prices hold across their step, so they
-        become a step function. Power and load forecasts are means over their
-        step, placed at its middle for the fuser to interpolate between. Battery
-        state of charge is the state at the end of its step, and predicted
-        temperature the state at its start.
+        become a step function. The ML forecaster's load forecast is a mean
+        over its step, placed at the step's middle for the fuser to interpolate
+        between. Battery state of charge is the state at the end of its step,
+        and predicted temperature the state at its start.
         """
         entity_name = Parser._get_entity_name(state.entity_id)
         forecast_key = Parser._get_forecast_key(state)
@@ -168,11 +170,13 @@ def _apply_step_timing(points: list[tuple[int, float]], timing: StepTiming) -> l
         case "held":
             return step_points(hold_until_next(points))
         case "mean":
-            return [((start + end) // 2, value) for start, end, value in hold_until_next(points)]
+            return period_means(hold_until_next(points))
         case "start":
             return sorted(points)
         case "end":
-            return [(end, value) for _, end, value in hold_until_next(points)]
+            # The state at the first step's start is not published, so the first state holds back to it
+            steps = hold_until_next(points)
+            return [(steps[0][0], steps[0][2]), *((end, value) for _, end, value in steps)]
 
 
 def _is_numeric_or_numeric_string(value: object) -> bool:

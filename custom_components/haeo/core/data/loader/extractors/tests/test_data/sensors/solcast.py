@@ -9,7 +9,7 @@ VALID: list[dict[str, object]] = [
         "attributes": {"detailedForecast": [{"period_start": "2025-10-06T00:00:00+11:00", "pv_estimate": 0}]},
         "expected_format": "solcast_solar",
         "expected_unit": "kW",
-        "expected_data": [(1759670100.0, 0.0)],
+        "expected_data": [(1759669200.0, 0.0), (1759670100.0, 0.0), (1759671000.0, 0.0)],
         "description": "Single Solcast forecast entry",
     },
     {
@@ -23,7 +23,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "solcast_solar",
         "expected_unit": "kW",
-        "expected_data": [(1759670100.0, 0.0), (1759671000.0, 10.0)],
+        "expected_data": [(1759669200.0, 0.0), (1759670100.0, 0.0), (1759671000.0, 10.0), (1759671900.0, 10.0)],
         "description": "Multiple Solcast forecast entries",
     },
     {
@@ -37,7 +37,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "solcast_solar",
         "expected_unit": "kW",
-        "expected_data": [(1759709700.0, 5.0), (1759711500.0, 15.0)],
+        "expected_data": [(1759708800.0, 5.0), (1759709700.0, 5.0), (1759711500.0, 15.0), (1759712400.0, 15.0)],
         "description": "Solcast forecast with datetime objects instead of strings",
     },
     {
@@ -51,7 +51,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "solcast_solar",
         "expected_unit": "kW",
-        "expected_data": [(1759670100.0, 3.0), (1759713300.0, 8.0)],
+        "expected_data": [(1759669200.0, 3.0), (1759670100.0, 3.0), (1759713300.0, 8.0), (1759714200.0, 8.0)],
         "description": "Solcast forecast with mixed string and datetime object timestamps",
     },
 ]

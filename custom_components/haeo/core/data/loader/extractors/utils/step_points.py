@@ -1,4 +1,4 @@
-"""Step function points for forecast values that hold over a period."""
+"""Points for forecast values that describe a period."""
 
 from collections.abc import Iterable, Sequence
 
@@ -24,3 +24,21 @@ def hold_until_next(points: Sequence[tuple[int, float]]) -> list[tuple[int, int,
     ends = [end for end, _ in ordered[1:]]
     ends.append(2 * ordered[-1][0] - ordered[-2][0])
     return [(start, end, value) for (start, value), end in zip(ordered, ends, strict=True)]
+
+
+def period_means(blocks: Iterable[tuple[int, int, float]]) -> list[tuple[int, float]]:
+    """Return points for the means of a smoothly varying quantity over periods.
+
+    Each mean sits at the middle of its period, where a smoothly varying
+    quantity equals its mean, so the fuser's interpolation between midpoints
+    recovers the period means. The first and last means also hold out to the
+    start of the first period and the end of the last, so the points cover
+    every period rather than leaving the edges to the fuser's cycling.
+    """
+    ordered = sorted(blocks)
+    (first_start, _, first_mean), (_, last_end, last_mean) = ordered[0], ordered[-1]
+    return [
+        (first_start, first_mean),
+        *(((start + end) // 2, mean) for start, end, mean in ordered),
+        (last_end, last_mean),
+    ]

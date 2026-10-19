@@ -9,7 +9,7 @@ VALID: list[dict[str, object]] = [
         "attributes": {"detailedForecast": [{"period_start": "2026-05-29T00:00:00+10:00", "power_w": 0}]},
         "expected_format": "volcast",
         "expected_unit": "kW",
-        "expected_data": [(1779976950.0, 0.0)],
+        "expected_data": [(1779976500.0, 0.0), (1779976650.0, 0.0), (1779976950.0, 0.0), (1779977250.0, 0.0), (1779977400.0, 0.0)],
         "description": "Single Volcast forecast entry",
     },
     {
@@ -23,7 +23,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "volcast",
         "expected_unit": "kW",
-        "expected_data": [(1779976950.0, 0.0), (1779977250.0, 3.5)],
+        "expected_data": [(1779976500.0, 0.0), (1779976650.0, 0.0), (1779976950.0, 0.0), (1779977250.0, 3.5), (1779977550.0, 0.0), (1779977700.0, 0.0)],
         "description": "Multiple Volcast forecast entries",
     },
     {
@@ -37,7 +37,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "volcast",
         "expected_unit": "kW",
-        "expected_data": [(1780012950.0, 2.0), (1780013250.0, 7.5)],
+        "expected_data": [(1780012500.0, 0.0), (1780012650.0, 0.0), (1780012950.0, 2.0), (1780013250.0, 7.5), (1780013550.0, 0.0), (1780013700.0, 0.0)],
         "description": "Volcast forecast with datetime objects instead of strings",
     },
     {
@@ -51,7 +51,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "volcast",
         "expected_unit": "kW",
-        "expected_data": [(1779976950.0, 1.0), (1779977250.0, 0.0), (1780016250.0, 0.0), (1780016550.0, 4.0)],
+        "expected_data": [(1779976500.0, 0.0), (1779976650.0, 0.0), (1779976950.0, 1.0), (1779977250.0, 0.0), (1780016250.0, 0.0), (1780016550.0, 4.0), (1780016850.0, 0.0), (1780017000.0, 0.0)],
         "description": "Volcast forecast with mixed string and datetime object timestamps",
     },
     {
@@ -65,7 +65,7 @@ VALID: list[dict[str, object]] = [
         },
         "expected_format": "volcast",
         "expected_unit": "kW",
-        "expected_data": [(1779976950.0, 3.8), (1779977250.0, 3.6)],
+        "expected_data": [(1779976500.0, 0.0), (1779976650.0, 0.0), (1779976950.0, 3.8), (1779977250.0, 3.6), (1779977550.0, 0.0), (1779977700.0, 0.0)],
         "description": "Volcast integration entries that also carry a Solcast-style pv_estimate",
     },
 ]
