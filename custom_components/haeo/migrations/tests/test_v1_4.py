@@ -12,7 +12,7 @@ from homeassistant.helpers import issue_registry as ir
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.core.const import (
     CONF_ADVANCED_MODE,
     CONF_ELEMENT_TYPE,
@@ -25,7 +25,7 @@ from custom_components.haeo.core.const import (
     HUB_SECTION_TIERS,
 )
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
-from custom_components.haeo.core.schema.elements import battery, buffer, connection, junction, node
+from custom_components.haeo.core.schema.elements import battery, buffer, connection, grid, junction, node
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
 from custom_components.haeo.core.schema.migrations.v1_4 import PARTITION_BUFFER_WINDOW
@@ -348,12 +348,17 @@ async def test_async_migrate_entry_replaces_junction_node(hass: HomeAssistant, a
     assert not ir.async_get(hass).issues
 
 
-async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAssistant) -> None:
-    """The junction adopts the node's device and power balance sensor, so their IDs and customizations carry over."""
+@pytest.mark.parametrize("entities_linked", [True, False], ids=["linked", "unlinked"])
+async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAssistant, entities_linked: bool) -> None:
+    """The junction adopts the node's device and power balance sensor, so their IDs and customizations carry over.
+
+    Entities added before HAEO linked them to their subentry are linked to the junction's.
+    """
     entry = _add_hub_in_mode(hass, advanced_mode=False)
     switchboard = _node("Switchboard")
     hass.config_entries.async_add_subentry(entry, switchboard)
     prefix = f"{entry.entry_id}_{switchboard.subentry_id}_"
+    entity_subentry_id = switchboard.subentry_id if entities_linked else None
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
     device = device_registry.async_get_or_create(
@@ -367,7 +372,7 @@ async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAs
         DOMAIN,
         f"{prefix}node_node_power_balance",
         config_entry=entry,
-        config_subentry_id=switchboard.subentry_id,
+        config_subentry_id=entity_subentry_id,
         device_id=device.id,
     )
     entity_registry.async_update_entity(sensor.entity_id, new_entity_id="sensor.my_switchboard_price")
@@ -376,9 +381,10 @@ async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAs
         DOMAIN,
         f"{prefix}{node.CONF_IS_SOURCE}",
         config_entry=entry,
-        config_subentry_id=switchboard.subentry_id,
+        config_subentry_id=entity_subentry_id,
         device_id=device.id,
     )
+    horizon = entity_registry.async_get_or_create("sensor", DOMAIN, f"{entry.entry_id}_horizon", config_entry=entry)
 
     assert await v1_4.async_migrate_entry(hass, entry)
 
@@ -393,6 +399,7 @@ async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAs
     assert adopted_sensor.config_subentry_id == switchboard.subentry_id
     assert adopted_sensor.device_id == device.id
     assert entity_registry.async_get(switch.entity_id) is None
+    assert entity_registry.async_get(horizon.entity_id) is not None
 
 
 @pytest.mark.parametrize(
@@ -569,3 +576,71 @@ async def test_async_migrate_entry_moves_partition_limit_without_old_limit(hass:
     }
     assert list(entry.subentries) == [battery_subentry.subentry_id]
     assert ir.async_get(hass).issues == {}
+
+
+async def test_async_migrate_entry_links_entities_and_removes_orphans(hass: HomeAssistant) -> None:
+    """Unlinked element entities are linked to their subentry, and those of deleted elements are removed."""
+    entry = MockConfigEntry(domain=DOMAIN, title="Hub", data={CONF_NAME: "Hub"}, version=1, minor_version=3)
+    entry.add_to_hass(hass)
+    hass.config_entries.async_add_subentry(
+        entry, _create_subentry({CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK, CONF_NAME: "System"})
+    )
+    grid_subentry = _create_subentry({CONF_ELEMENT_TYPE: grid.ELEMENT_TYPE, CONF_NAME: "Grid"})
+    hass.config_entries.async_add_subentry(entry, grid_subentry)
+    switchboard = _create_subentry({CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: "Switchboard"})
+    hass.config_entries.async_add_subentry(entry, switchboard)
+    deleted_subentry_id = "01KDQ4DD8R0RPHANED00000000"
+    device_registry = dr.async_get(hass)
+    entity_registry = er.async_get(hass)
+    grid_device = device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        config_subentry_id=grid_subentry.subentry_id,
+        identifiers={(DOMAIN, f"{entry.entry_id}_{grid_subentry.subentry_id}_grid")},
+    )
+
+    def register(domain: str, key: str, *, config_subentry_id: str | None = None) -> str:
+        return entity_registry.async_get_or_create(
+            domain,
+            DOMAIN,
+            f"{entry.entry_id}_{key}",
+            config_entry=entry,
+            config_subentry_id=config_subentry_id,
+        ).entity_id
+
+    grid_price = register("number", f"{grid_subentry.subentry_id}_price_source_target")
+    entity_registry.async_update_entity(grid_price, device_id=grid_device.id)
+    grid_power = register("sensor", f"{grid_subentry.subentry_id}_grid_grid_power_import")
+    switchboard_balance = register(
+        "sensor",
+        f"{switchboard.subentry_id}_junction_junction_power_balance",
+        config_subentry_id=switchboard.subentry_id,
+    )
+    orphan_number = register("number", f"{deleted_subentry_id}_max_power_source_target")
+    orphan_sensor = register("sensor", f"{deleted_subentry_id}_connection_connection_power")
+    auto_optimize = register("switch", "auto_optimize")
+    horizon = register("sensor", "horizon")
+    unrecognized = register("sensor", "optimization_cost")
+
+    assert await v1_4.async_migrate_entry(hass, entry)
+
+    def linked_subentry(entity_id: str) -> str | None:
+        entity_entry = entity_registry.async_get(entity_id)
+        assert entity_entry is not None
+        return entity_entry.config_subentry_id
+
+    assert linked_subentry(grid_price) == grid_subentry.subentry_id
+    assert linked_subentry(grid_power) == grid_subentry.subentry_id
+    assert linked_subentry(switchboard_balance) == switchboard.subentry_id
+    assert entity_registry.async_get(orphan_number) is None
+    assert entity_registry.async_get(orphan_sensor) is None
+    # Hub entities are linked to the network when setup adds them, and unrecognized entities are kept
+    assert linked_subentry(auto_optimize) is None
+    assert linked_subentry(horizon) is None
+    assert linked_subentry(unrecognized) is None
+    assert entry.minor_version == v1_4.MINOR_VERSION
+
+    # Linked entities are now removed along with their element
+    hass.config_entries.async_remove_subentry(entry, grid_subentry.subentry_id)
+    await hass.async_block_till_done()
+    assert entity_registry.async_get(grid_price) is None
+    assert entity_registry.async_get(grid_power) is None

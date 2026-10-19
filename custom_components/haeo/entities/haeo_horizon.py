@@ -15,6 +15,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.haeo.const import OUTPUT_NAME_HORIZON
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.unique_id import hub_unique_id
 
 
 class HaeoHorizonEntity(SensorEntity):
@@ -48,7 +49,7 @@ class HaeoHorizonEntity(SensorEntity):
         self.device_entry = device_entry
 
         # Unique ID for multi-hub safety
-        self._attr_unique_id = f"{config_entry.entry_id}_{OUTPUT_NAME_HORIZON}"
+        self._attr_unique_id = hub_unique_id(config_entry.entry_id, OUTPUT_NAME_HORIZON)
 
         # Initialize state from manager
         self._update_state()
