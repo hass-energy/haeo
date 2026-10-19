@@ -5,7 +5,7 @@ import logging
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
@@ -28,7 +28,7 @@ PARALLEL_UPDATES = 0
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up HAEO sensor entities."""
     # Runtime data must be set by __init__.py before platforms are set up
@@ -62,14 +62,17 @@ async def async_setup_entry(
         device_entry=network_device_entry,
         horizon_manager=horizon_manager,
     )
+    # Every entity is linked to its element's subentry so that removing the
+    # element removes its entities. Hub-level entities belong to the network.
+    async_add_entities([horizon_entity], config_subentry_id=network_subentry.subentry_id)
+
     # Output sensors are built from the coordinator's outputs. If the first optimization
     # after a load or reload failed there are none yet, so they are added on the first
     # successful update instead.
     if coordinator.data:
-        async_add_entities([horizon_entity, *_build_output_entities(hass, config_entry, coordinator)])
+        _add_output_entities(hass, config_entry, coordinator, async_add_entities)
         return
 
-    async_add_entities([horizon_entity])
     added = False
 
     @callback
@@ -79,24 +82,25 @@ async def async_setup_entry(
         if added or not coordinator.data or config_entry.state is not ConfigEntryState.LOADED:
             return
         added = True
-        async_add_entities(_build_output_entities(hass, config_entry, coordinator))
+        _add_output_entities(hass, config_entry, coordinator, async_add_entities)
 
     config_entry.async_on_unload(coordinator.async_add_listener(_add_when_ready))
 
 
-def _build_output_entities(
+def _add_output_entities(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
     coordinator: HaeoDataUpdateCoordinator,
-) -> list[SensorEntity]:
-    """Build one sensor per output of the coordinator's latest data, grouped by element."""
-    entities: list[SensorEntity] = []
+    async_add_entities: AddConfigEntryEntitiesCallback,
+) -> None:
+    """Add one sensor per output of the coordinator's latest data, linked to its element's subentry."""
     for subentry in config_entry.subentries.values():
         # Get all devices under this subentry (may be multiple, e.g., battery regions)
         subentry_devices = coordinator.data.outputs.get(subentry.title, {})
 
         translation_placeholders = build_translation_placeholders(subentry)
 
+        entities: list[SensorEntity] = []
         for device_name, device_outputs in subentry_devices.items():
             # Get or create the device using centralized device creation
             device_entry = get_or_create_element_device(hass, config_entry, subentry, device_name)
@@ -120,7 +124,7 @@ def _build_output_entities(
                 for output_name, output_data in device_outputs.items()
             )
 
-    return entities
+        async_add_entities(entities, config_subentry_id=subentry.subentry_id)
 
 
 __all__ = ["async_setup_entry"]

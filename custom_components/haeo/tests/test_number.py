@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from conftest import added_entities
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
@@ -148,8 +149,7 @@ async def test_setup_creates_number_entities_for_grid(
     async_add_entities = Mock()
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    async_add_entities.assert_called_once()
-    entities = list(async_add_entities.call_args.args[0])
+    entities = added_entities(async_add_entities)
 
     # Grid should have number entities for price and limit fields
     assert len(entities) >= 2  # At least directional pricing fields
@@ -194,7 +194,7 @@ async def test_setup_skips_missing_fields_in_config(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
+        entities = added_entities(async_add_entities)
         # Should only have entities for configured fields
         field_names = {e._field_info.field_name for e in entities}
         assert "price_source_target" in field_names
@@ -226,7 +226,7 @@ async def test_setup_creates_correct_device_identifiers(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
+        entities = added_entities(async_add_entities)
         for entity in entities:
             # Each entity should have a device_entry attached
             assert entity.device_entry is not None
@@ -583,8 +583,7 @@ async def test_setup_handles_multiple_elements(
     async_add_entities = Mock()
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    async_add_entities.assert_called_once()
-    entities = list(async_add_entities.call_args.args[0])
+    entities = added_entities(async_add_entities)
 
     # Should have entities from both grids
     element_names = {e.extra_state_attributes["element_name"] for e in entities}

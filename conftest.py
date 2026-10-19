@@ -11,6 +11,7 @@ from importlib import import_module
 from logging import config as logging_config_module
 from types import MappingProxyType
 from typing import Any  # noqa: TID251  # legacy Any usage; migrate to precise types
+from unittest.mock import Mock
 
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
@@ -129,6 +130,18 @@ def add_participant(
     )
     hass.config_entries.async_add_subentry(hub_entry, subentry)
     return subentry
+
+
+def added_entities(async_add_entities: Mock) -> list[Any]:
+    """Return every entity passed to a mocked add entities callback.
+
+    Every call must link its entities to a subentry, so they are removed along with it.
+    """
+    entities: list[Any] = []
+    for call in async_add_entities.call_args_list:
+        assert call.kwargs["config_subentry_id"] is not None
+        entities.extend(call.args[0])
+    return entities
 
 
 @pytest.fixture(scope="session")

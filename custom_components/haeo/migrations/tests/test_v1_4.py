@@ -348,12 +348,17 @@ async def test_async_migrate_entry_replaces_junction_node(hass: HomeAssistant, a
     assert not ir.async_get(hass).issues
 
 
-async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAssistant) -> None:
-    """The junction adopts the node's device and power balance sensor, so their IDs and customizations carry over."""
+@pytest.mark.parametrize("entities_linked", [True, False], ids=["linked", "unlinked"])
+async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAssistant, entities_linked: bool) -> None:
+    """The junction adopts the node's device and power balance sensor, so their IDs and customizations carry over.
+
+    Entities added before HAEO linked them to their subentry are linked to the junction's.
+    """
     entry = _add_hub_in_mode(hass, advanced_mode=False)
     switchboard = _node("Switchboard")
     hass.config_entries.async_add_subentry(entry, switchboard)
     prefix = f"{entry.entry_id}_{switchboard.subentry_id}_"
+    entity_subentry_id = switchboard.subentry_id if entities_linked else None
     device_registry = dr.async_get(hass)
     entity_registry = er.async_get(hass)
     device = device_registry.async_get_or_create(
@@ -367,7 +372,7 @@ async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAs
         DOMAIN,
         f"{prefix}node_node_power_balance",
         config_entry=entry,
-        config_subentry_id=switchboard.subentry_id,
+        config_subentry_id=entity_subentry_id,
         device_id=device.id,
     )
     entity_registry.async_update_entity(sensor.entity_id, new_entity_id="sensor.my_switchboard_price")
@@ -376,7 +381,7 @@ async def test_async_migrate_entry_junction_keeps_device_and_sensor(hass: HomeAs
         DOMAIN,
         f"{prefix}{node.CONF_IS_SOURCE}",
         config_entry=entry,
-        config_subentry_id=switchboard.subentry_id,
+        config_subentry_id=entity_subentry_id,
         device_id=device.id,
     )
 
