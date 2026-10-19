@@ -8,7 +8,7 @@ import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
-from custom_components.haeo.core.schema.elements.solar import CONF_CURTAILMENT, ELEMENT_TYPE, SECTION_CURTAILMENT
+from custom_components.haeo.core.schema.elements.solar import CONF_CURTAILMENT, ELEMENT_TYPE
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, CONF_FORECAST
 from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
@@ -24,7 +24,7 @@ from custom_components.haeo.flows.field_schema import (
     sectioned_view,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.sections import build_common_fields, forecast_section
+from custom_components.haeo.sections import build_common_fields, curtailment_section, forecast_section
 
 
 class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -34,7 +34,7 @@ class SolarSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Return sections for the configuration step."""
         return (
             forecast_section((CONF_FORECAST,), collapsed=False),
-            SectionDefinition(key=SECTION_CURTAILMENT, fields=(CONF_CURTAILMENT,), collapsed=True),
+            curtailment_section((CONF_CURTAILMENT,), collapsed=True),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:

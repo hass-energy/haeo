@@ -1,7 +1,5 @@
 """Tests for the junction element adapter."""
 
-from homeassistant.core import HomeAssistant
-
 from custom_components.haeo.core.adapters.elements.junction import JUNCTION_DEVICE_JUNCTION, JUNCTION_POWER_BALANCE
 from custom_components.haeo.core.adapters.elements.junction import adapter as junction_adapter
 from custom_components.haeo.core.model.const import OutputType
@@ -9,16 +7,7 @@ from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.junction import JunctionConfigData, JunctionConfigSchema
-from custom_components.haeo.elements.availability import schema_config_available
-from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
-
-
-async def test_available_returns_true(hass: HomeAssistant) -> None:
-    """A junction has no sensor dependencies, so it is always available."""
-    config: JunctionConfigSchema = {"element_type": ElementType.JUNCTION, "name": "Switchboard"}
-
-    assert schema_config_available(config, sm=HomeAssistantStateMachine(hass)) is True
+from custom_components.haeo.core.schema.elements.junction import JunctionConfigData
 
 
 def test_model_elements_is_pure_junction() -> None:

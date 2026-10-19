@@ -11,7 +11,7 @@ See [config flow documentation](../../../docs/developer-guide/config-flow.md) fo
 ## Subentry flow pattern
 
 Element flows are created dynamically from the `ELEMENT_TYPES` registry using `create_subentry_flow_class()`.
-Each element type's schema class defines the form fields via TypedDict + Annotated + composable metadata (Validator, LoaderMeta, Default).
+Each element type's schema class defines the form fields via TypedDict + Annotated + field hints (`FieldHint`, `SectionHints`, `ListFieldHints`) that drive the form, its defaults, and how each value loads.
 
 When modifying config flows, changes to the flow or schema may require corresponding updates to `docs/developer-guide/config-flow.md`.
 

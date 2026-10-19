@@ -3,7 +3,6 @@
 from collections.abc import Mapping, Sequence
 from typing import Final
 
-from homeassistant.core import HomeAssistant
 import numpy as np
 
 from custom_components.haeo.core.adapters.policy_compilation import compile_policies
@@ -15,22 +14,6 @@ from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.node import NodeConfigData
 
 FORECAST_TIMES: Final[Sequence[float]] = (0.0, 1800.0)
-
-
-def set_sensor(hass: HomeAssistant, entity_id: str, value: str, unit: str = "kW") -> None:
-    """Set a sensor state in hass."""
-    hass.states.async_set(entity_id, value, {"unit_of_measurement": unit})
-
-
-def set_forecast_sensor(
-    hass: HomeAssistant,
-    entity_id: str,
-    value: str,
-    forecast: list[dict[str, object]],
-    unit: str = "kW",
-) -> None:
-    """Set a sensor state with forecast attribute in hass."""
-    hass.states.async_set(entity_id, value, {"unit_of_measurement": unit, "forecast": forecast})
 
 
 def optimize_participants(

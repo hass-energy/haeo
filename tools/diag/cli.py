@@ -38,7 +38,7 @@ from custom_components.haeo.core.const import (
     HUB_SECTION_COMMON,
 )
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
-from custom_components.haeo.core.data.loader.config_loader import load_element_config
+from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime import parse_datetime_to_timestamp
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue, Network
 from custom_components.haeo.core.model.output_data import OutputData
@@ -49,7 +49,6 @@ from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_c
 from custom_components.haeo.core.schema.migrations.v1_4 import migrate_battery_config, migrate_hub_horizon
 from custom_components.haeo.core.schema.sections import SECTION_PRICING
 from custom_components.haeo.core.schema.sections.common import CONF_CONNECTION
-from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 
 from .analysis import describe_analyses, run_analysis
 
@@ -300,8 +299,13 @@ def find_output_entity(
     return None
 
 
-def _forecast_from_entity(entity: dict[str, JsonValueType] | None) -> dict[str, float]:
-    """Extract the time -> value forecast mapping from an output entity's attributes."""
+def get_forecast_by_field(
+    outputs: dict[str, JsonValueType],
+    element_name: str,
+    field_or_output_name: str,
+) -> dict[str, float]:
+    """Extract forecast values by element_name and field/output name, keyed by time string."""
+    entity = find_output_entity(outputs, element_name, field_or_output_name)
     if entity is None:
         return {}
     attributes = entity.get("attributes", {})
@@ -316,16 +320,6 @@ def _forecast_from_entity(entity: dict[str, JsonValueType] | None) -> dict[str, 
             if isinstance(time_value, str) and isinstance(value, int | float) and not isinstance(value, bool):
                 result[time_value] = value
     return result
-
-
-def get_forecast_by_field(
-    outputs: dict[str, JsonValueType],
-    element_name: str,
-    field_or_output_name: str,
-) -> dict[str, float]:
-    """Extract forecast values by element_name and field/output name, keyed by time string."""
-    entity = find_output_entity(outputs, element_name, field_or_output_name)
-    return _forecast_from_entity(entity)
 
 
 def get_forecast_by_fields(
@@ -378,15 +372,6 @@ def infer_interval_starts_from_outputs(
         if len(timestamps) >= MIN_INTERVAL_POINTS:
             return [float(timestamp) for timestamp in timestamps]
     return []
-
-
-def get_forecast_values(outputs: dict[str, JsonValueType], entity_id: str) -> dict[str, float]:
-    """Extract forecast values from a diagnostics output entity by entity_id.
-
-    Falls back to exact entity_id match for backward compatibility.
-    """
-    entity = outputs.get(entity_id, {})
-    return _forecast_from_entity(entity if isinstance(entity, dict) else None)
 
 
 def format_output_table_from_diagnostics(
@@ -1126,23 +1111,19 @@ def run_diagnostics(
     state_provider = DiagnosticsStateProvider(diag.inputs, time_zone)
     normalized_participants = migrate_batteries_for_diag(normalized_participants)
 
-    negated_paths = negated_price_paths(normalized_participants)
-    loaded_participants: dict[str, ElementConfigData] = {}
+    participants: dict[str, ElementConfigSchema] = {}
     for element_name, element_config in normalized_participants.items():
-        try:
-            if not _is_element_config_schema(element_config):
-                msg = f"{element_name} is not a valid element config"
-                raise TypeError(msg)
-            loaded_participants[element_name] = load_element_config(
-                element_name,
-                element_config,
-                state_provider,
-                forecast_times,
-                negated_paths=negated_paths.get(element_name, frozenset()),
-            )
-            print(f"  Loaded: {element_name} ({element_config.get(CONF_ELEMENT_TYPE)})")
-        except Exception as e:
-            print(f"  Warning: Failed to load {element_name}: {e}")
+        if not _is_element_config_schema(element_config):
+            print(f"Error: {element_name} is not a valid element config")
+            sys.exit(1)
+        participants[element_name] = element_config
+    try:
+        loaded_participants = load_element_configs(participants, state_provider, forecast_times)
+    except ValueError as e:
+        print(f"Error: Failed to load inputs: {e}")
+        sys.exit(1)
+    for element_name, element_config in participants.items():
+        print(f"  Loaded: {element_name} ({element_config.get(CONF_ELEMENT_TYPE)})")
 
     if not loaded_participants:
         print("Error: No elements loaded")

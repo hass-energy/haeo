@@ -8,17 +8,9 @@ import pytest
 
 from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.data.loader.extractors import ExtractedData
-from custom_components.haeo.core.data.loader.sensor_loader import load_sensor, load_sensors, normalize_entity_ids
-
-
-def test_normalize_entity_ids_accepts_str_and_sequence() -> None:
-    """Normalization converts both strings and sequences to lists of IDs."""
-
-    assert normalize_entity_ids("sensor.single") == ["sensor.single"]
-    assert normalize_entity_ids(["sensor.one", "sensor.two"]) == ["sensor.one", "sensor.two"]
-
-    with pytest.raises(TypeError, match="sensor entity ID"):
-        normalize_entity_ids(123)
+from custom_components.haeo.core.data.loader.sensor_loader import load_sensor, load_sensors
+from custom_components.haeo.core.data.util.input_values import InputError
+from custom_components.haeo.core.model.const import OutputType
 
 
 def test_load_sensor_forecast_returns_series() -> None:
@@ -125,17 +117,12 @@ async def test_load_sensors_returns_mapping() -> None:
 
     payloads = load_sensors(sm, ["sensor.a", "sensor.b"])
 
-    assert "sensor.a" in payloads
-    assert "sensor.b" in payloads
-    # Simple values are returned as floats
-    assert isinstance(payloads["sensor.a"], float)
-    assert isinstance(payloads["sensor.b"], float)
-    assert payloads["sensor.a"] == 1.0
-    assert payloads["sensor.b"] == 0.5
+    assert payloads == {"sensor.a": 1.0, "sensor.b": 0.5}
 
 
-async def test_load_sensors_excludes_unavailable() -> None:
-    """Load sensors excludes sensors that are unavailable or missing."""
+@pytest.mark.parametrize("failing_id", ["sensor.unavailable", "sensor.missing"])
+async def test_load_sensors_is_unavailable_when_any_sensor_is(failing_id: str) -> None:
+    """One unavailable or missing sensor makes the whole set unavailable instead of being left out."""
 
     sm = FakeStateMachine(
         {
@@ -152,9 +139,28 @@ async def test_load_sensors_excludes_unavailable() -> None:
         }
     )
 
-    payloads = load_sensors(sm, ["sensor.a", "sensor.unavailable", "sensor.missing"])
+    assert load_sensors(sm, ["sensor.a", failing_id]) is None
 
-    assert "sensor.a" in payloads
-    assert "sensor.unavailable" not in payloads
-    assert "sensor.missing" not in payloads
-    assert len(payloads) == 1
+
+def test_load_sensors_reports_an_unusable_unit_after_an_unavailable_sensor() -> None:
+    """A sensor in an unusable unit is reported even when an earlier sensor is unavailable."""
+
+    sm = FakeStateMachine(
+        {
+            "sensor.unavailable": FakeEntityState(entity_id="sensor.unavailable", state="unavailable", attributes={}),
+            "sensor.temperature": FakeEntityState(
+                entity_id="sensor.temperature",
+                state="20",
+                attributes={"device_class": "temperature", "unit_of_measurement": "°C"},
+            ),
+        }
+    )
+
+    with pytest.raises(InputError):
+        load_sensors(sm, ["sensor.unavailable", "sensor.temperature"], output_type=OutputType.POWER)
+
+
+def test_load_sensors_is_unavailable_without_entity_ids() -> None:
+    """No entity IDs means no data, not an empty set of payloads."""
+
+    assert load_sensors(FakeStateMachine({}), []) is None

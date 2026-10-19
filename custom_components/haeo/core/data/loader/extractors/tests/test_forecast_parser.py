@@ -138,18 +138,6 @@ def test_extract_raises_for_non_numeric_state(hass: HomeAssistant) -> None:
         extractors.extract(state, time_zone=UTC)
 
 
-PARSER_MAP: dict[str, extractors.DataExtractor] = {
-    extractors.amber2mqtt.DOMAIN: extractors.amber2mqtt.Parser,
-    extractors.amberelectric.DOMAIN: extractors.amberelectric.Parser,
-    extractors.aemo_nem.DOMAIN: extractors.aemo_nem.Parser,
-    extractors.flow_power.DOMAIN: extractors.flow_power.Parser,
-    extractors.haeo.DOMAIN: extractors.haeo.Parser,
-    extractors.nordpool.DOMAIN: extractors.nordpool.Parser,
-    extractors.solcast_solar.DOMAIN: extractors.solcast_solar.Parser,
-    extractors.open_meteo_solar_forecast.DOMAIN: extractors.open_meteo_solar_forecast.Parser,
-}
-
-
 # --- Interpolation Mode Tests ---
 
 

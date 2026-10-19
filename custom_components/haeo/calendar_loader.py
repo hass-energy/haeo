@@ -222,17 +222,13 @@ class CalendarInputLoader:
 
         Every store resolves before any store notifies its listeners, so a
         listener never runs while another store still holds stale events.
-        Stores that loaded, rejected their value, or stopped being available
-        notify, so a failed fetch stops optimization rather than leaving the
-        last plan in place.
+        Stores whose value changed, that rejected their value, or that stopped
+        being available notify, so a failed fetch stops optimization rather
+        than leaving the last plan in place, and an unchanged fetch does not
+        re-optimize.
         """
         sm = CalendarStateMachine(HomeAssistantStateMachine(self._hass), self._events)
-        was_available = {key: store.available for key, store in self._stores.items()}
-        changed = [
-            store
-            for key, store in self._stores.items()
-            if store.resolve_from_sources(sm) or store.error is not None or store.available != was_available[key]
-        ]
+        changed = [store for store in self._stores.values() if store.resolve_from_sources(sm)]
         for store in changed:
             store.notify_listeners()
         self._report_ignored_event_values(sm)

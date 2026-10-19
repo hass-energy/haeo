@@ -27,9 +27,6 @@ from custom_components.haeo.core.schema.elements.policy import (
 
 type PolicyOutputName = Literal["policy_power"]
 
-POLICY_OUTPUT_NAMES: Final[frozenset[PolicyOutputName]] = frozenset(("policy_power",))
-
-POLICY_POWER: Final[PolicyOutputName] = "policy_power"
 
 type PolicyDeviceName = Literal[ElementType.POLICY]
 

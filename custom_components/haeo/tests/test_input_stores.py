@@ -14,6 +14,15 @@ from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.data.input_store import InputMode
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value, as_none_value
+from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.battery import (
+    CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
+    CONF_INITIAL_CHARGE_PERCENTAGE,
+    SECTION_ADVANCED,
+    SECTION_LIMITS,
+    SECTION_STORAGE,
+)
 from custom_components.haeo.core.schema.elements.grid import (
     CONF_MAX_POWER_SOURCE_TARGET,
     CONF_MAX_POWER_TARGET_SOURCE,
@@ -24,7 +33,7 @@ from custom_components.haeo.core.schema.elements.grid import (
 )
 from custom_components.haeo.core.schema.elements.grid import ELEMENT_TYPE as GRID_TYPE
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
-from custom_components.haeo.core.schema.sections import CONF_CONNECTION
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import SubentryStorage, build_input_stores, input_error_placeholders
@@ -262,3 +271,42 @@ async def test_subentry_storage_write_updates_subentry(
     # Read back through a fresh lookup to confirm the live subentry changed
     assert storage.read() == as_constant_value(0.45)
     assert config_entry.runtime_data.value_update_in_progress is True
+
+
+async def test_build_input_stores_uses_the_full_field_hint(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    horizon_manager: Mock,
+) -> None:
+    """A store resolves with its schema hint, so a cost whose minimum is zero rejects a negative sensor value."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.BATTERY,
+                CONF_NAME: "Battery",
+                CONF_CONNECTION: as_connection_target("main_bus"),
+                SECTION_STORAGE: {
+                    CONF_CAPACITY: as_constant_value(10.0),
+                    CONF_INITIAL_CHARGE_PERCENTAGE: as_constant_value(50.0),
+                },
+                SECTION_LIMITS: {},
+                SECTION_POWER_LIMITS: {},
+                SECTION_PRICING: {},
+                SECTION_EFFICIENCY: {},
+                SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: as_entity_value(["sensor.charge_limit_cost"])},
+            }
+        ),
+        subentry_type=ElementType.BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(config_entry, subentry)
+    store = build_input_stores(hass, config_entry, horizon_manager)[
+        ("Battery", (SECTION_ADVANCED, CONF_CHARGE_LIMIT_COST))
+    ]
+
+    sm = FakeStateMachine({"sensor.charge_limit_cost": FakeEntityState("sensor.charge_limit_cost", "-5", {})})
+    await store.async_load(sm)
+
+    assert store.error is not None
+    assert store.error.translation_key == "negative_input_value"

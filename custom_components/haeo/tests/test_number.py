@@ -545,7 +545,7 @@ async def test_mirror_entities_share_policy_store_for_battery_costs(
 
     # The mirror wraps the same store as the underlying policy rule price.
     charge_mirror = next(e for e in mirrors if e._field_info.field_name == CONF_CHARGE_COST)
-    assert charge_mirror.store is runtime_data.input_stores[("Policies", (CONF_RULES, "0", CONF_PRICE))]
+    assert charge_mirror._store is runtime_data.input_stores[("Policies", (CONF_RULES, "0", CONF_PRICE))]
     # Mirrors live on the battery device, not the policy device.
     assert charge_mirror.device_entry is device_entry
 
@@ -587,6 +587,6 @@ async def test_setup_handles_multiple_elements(
     entities = list(async_add_entities.call_args.args[0])
 
     # Should have entities from both grids
-    element_names = {e._subentry.title for e in entities}
+    element_names = {e.extra_state_attributes["element_name"] for e in entities}
     assert "Grid 1" in element_names
     assert "Grid 2" in element_names
