@@ -37,6 +37,7 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_PUBLIC_CHARGING_PRICE,
     CONF_TRIP_DUE,
     CONF_TRIP_OPENED,
+    CONF_TRIP_SPREAD,
     CONF_TRIP_START,
     ELEMENT_TYPE,
     SECTION_CHARGING,
@@ -116,6 +117,8 @@ class _TripWindows(NamedTuple):
         window_start: 1.0 at boundaries where a trip starts (n+1 entries).
         opened: The energy of the trips starting at each boundary (n+1 entries).
         due: The energy of the trips ending at each boundary (n+1 entries).
+        pace: The energy the trips use in each period, each trip's energy
+            spread evenly over it (n entries).
 
     """
 
@@ -123,6 +126,7 @@ class _TripWindows(NamedTuple):
     window_start: NDArray[np.float64]
     opened: NDArray[np.float64]
     due: NDArray[np.float64]
+    pace: NDArray[np.float64]
 
 
 class EvAdapter:
@@ -243,7 +247,8 @@ class EvAdapter:
             },
             # 4. Trip requirement as a deferrable load, a shortfall priced at
             # the public charging price and planned overage priced so high it
-            # never happens.
+            # never happens. Each trip uses its energy at a steady pace over
+            # its duration, as driving does.
             {
                 "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
                 "name": f"{name}:trip",
@@ -254,6 +259,7 @@ class EvAdapter:
                 "opened": windows.opened,
                 "due": windows.due,
                 "initial_energy": 0.0 if plugged_in else min(driven_energy, float(windows.opened[0])),
+                "max_energy": windows.pace,
                 "deficit_price": _public_price(config, n_periods),
                 "overage_price": np.full(n_periods + 1, TRIP_OVERAGE_PRICE),
             },
@@ -360,18 +366,21 @@ def _trip_windows(trip: TripData, energy_per_distance: float, n_periods: int) ->
     trip_start = trip.get(CONF_TRIP_START)
     opened = trip.get(CONF_TRIP_OPENED)
     due = trip.get(CONF_TRIP_DUE)
-    if away is None or trip_start is None or opened is None or due is None:
+    spread = trip.get(CONF_TRIP_SPREAD)
+    if away is None or trip_start is None or opened is None or due is None or spread is None:
         return _TripWindows(
             in_window=np.zeros(n_periods),
             window_start=np.zeros(n_periods + 1),
             opened=np.zeros(n_periods + 1),
             due=np.zeros(n_periods + 1),
+            pace=np.zeros(n_periods),
         )
     return _TripWindows(
         in_window=away.copy(),
         window_start=trip_start,
         opened=opened * energy_per_distance,
         due=due * energy_per_distance,
+        pace=spread * energy_per_distance,
     )
 
 
@@ -394,7 +403,9 @@ def _drop_open_trip(windows: _TripWindows) -> _TripWindows:
     opened[:end] = 0.0
     due = windows.due.copy()
     due[1 : end + 1] = 0.0
-    return _TripWindows(in_window=in_window, window_start=windows.window_start, opened=opened, due=due)
+    pace = windows.pace.copy()
+    pace[:end] = 0.0
+    return _TripWindows(in_window=in_window, window_start=windows.window_start, opened=opened, due=due, pace=pace)
 
 
 def _combine_limits(
