@@ -3,6 +3,7 @@
     "entity_id": "number.atto_2_away",
     "state": "1.0",
     "attributes": {
+      "calendar_projection": "window_active",
       "config_mode": "driven",
       "element_name": "Atto 2",
       "element_type": "ev",
@@ -1728,6 +1729,7 @@
     "entity_id": "number.atto_2_trip_distance_due",
     "state": "0.0",
     "attributes": {
+      "calendar_projection": "event_due",
       "config_mode": "driven",
       "device_class": "distance",
       "element_name": "Atto 2",
@@ -1896,6 +1898,7 @@
     "entity_id": "number.atto_2_trip_distance_opening",
     "state": "25.0",
     "attributes": {
+      "calendar_projection": "event_opens",
       "config_mode": "driven",
       "device_class": "distance",
       "element_name": "Atto 2",
@@ -2064,6 +2067,7 @@
     "entity_id": "number.atto_2_trip_start",
     "state": "0.0",
     "attributes": {
+      "calendar_projection": "window_starts",
       "config_mode": "driven",
       "element_name": "Atto 2",
       "element_type": "ev",

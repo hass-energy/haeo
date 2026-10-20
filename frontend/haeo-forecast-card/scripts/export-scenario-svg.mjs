@@ -80,7 +80,11 @@ function pickEntities(states) {
           state.entity_id.startsWith("sensor.") && hasForecast(state) && !covered.has(state.attributes?.element_name)
       )
       .map((state) => state.entity_id);
-    return [...selected, ...uncovered];
+    // Calendar windows shade the chart wherever they are open
+    const windows = Object.values(states)
+      .filter((state) => state.attributes?.calendar_projection === "window_active" && hasForecast(state))
+      .map((state) => state.entity_id);
+    return [...selected, ...uncovered, ...windows];
   }
 
   return Object.values(states)
