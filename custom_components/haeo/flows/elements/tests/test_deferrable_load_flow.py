@@ -33,7 +33,7 @@ def _user_input(**overrides: object) -> dict[str, object]:
         CONF_NAME: "Pool Pump",
         CONF_CONNECTION: "TestNode",
         SECTION_SCHEDULE: {CONF_WINDOW_CALENDAR: ["calendar.pool_pump"]},
-        SECTION_PRICING: {CONF_DEFICIT_PRICE: 10.0},
+        SECTION_PRICING: {CONF_DEFICIT_PRICE: 10.0, CONF_OVERAGE_PRICE: 0.0},
         SECTION_POWER: {CONF_MAX_POWER: 1.5},
     }
     data.update(overrides)

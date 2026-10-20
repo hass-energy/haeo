@@ -4,7 +4,9 @@ This module re-exports all element classes for convenient imports.
 """
 
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, TypeGuard
+
+from custom_components.haeo.core.model.element import NetworkElement
 
 from .battery import BATTERY_OUTPUT_NAMES as BATTERY_OUTPUT_NAMES
 from .battery import BATTERY_POWER_CONSTRAINTS as BATTERY_POWER_CONSTRAINTS
@@ -74,6 +76,13 @@ ModelElementConfig = (
     | DeferrableLoadElementConfig
 )
 
+# Configs of the elements that produce or consume power themselves, which
+# connections join and power balance applies to
+type NetworkElementConfig = BatteryElementConfig | NodeElementConfig | DeferrableLoadElementConfig
+
+# Configs of the network elements that may produce power, which take outbound tags
+type SourceElementConfig = BatteryElementConfig | NodeElementConfig
+
 
 @dataclass(frozen=True, slots=True)
 class ElementSpec:
@@ -110,6 +119,18 @@ ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
     ),
 }
 
+
+def is_network_element_config(config: ModelElementConfig) -> TypeGuard[NetworkElementConfig]:
+    """Return whether a config builds a network element, one that produces or consumes power itself."""
+    spec = ELEMENTS.get(config["element_type"])
+    return spec is not None and issubclass(spec.factory, NetworkElement)
+
+
+def is_source_element_config(config: NetworkElementConfig) -> TypeGuard[SourceElementConfig]:
+    """Return whether a network element may produce power, so it takes outbound tags; it may unless declared not to."""
+    return config.get("is_source", True)
+
+
 __all__ = [
     "BATTERY_OUTPUT_NAMES",
     "BATTERY_POWER_CONSTRAINTS",
@@ -144,6 +165,7 @@ __all__ = [
     "ElementSpec",
     "ModelElementConfig",
     "ModelElementType",
+    "NetworkElementConfig",
     "Node",
     "NodeElementConfig",
     "NodeOutputName",
@@ -156,4 +178,7 @@ __all__ = [
     "Segment",
     "SegmentSpec",
     "SegmentType",
+    "SourceElementConfig",
+    "is_network_element_config",
+    "is_source_element_config",
 ]

@@ -8,7 +8,7 @@ import pytest
 
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
+from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, MeterFieldHint
 from custom_components.haeo.core.units import UnitOfMeasurement, convert_to_base_unit
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import build_inclusion_map
@@ -135,7 +135,7 @@ def test_build_inclusion_map_offers_only_calendars_for_calendar_fields() -> None
         field_name="trip_due",
         entity_description=NumberEntityDescription(key="trip_due", name="trip_due"),
         output_type=OutputType.ENERGY,
-        calendar=CalendarFieldHint(projection="window_due"),
+        calendar=CalendarFieldHint(projection="event_due"),
     )
     field = InputFieldInfo(
         field_name="trip_calendar",
@@ -180,3 +180,24 @@ def test_energy_per_distance_accepts_only_convertible_consumption_units(unit: st
     )
 
     assert (inclusion_map["energy_per_distance"] == ["sensor.consumption"]) is included
+
+
+def test_build_inclusion_map_offers_only_running_totals_for_meter_fields() -> None:
+    """A meter field only includes unit-compatible entities the recorder keeps a running total for."""
+    entity_metadata = [
+        EntityMetadata(entity_id="sensor.pump_energy", unit_of_measurement="kWh", state_class="total_increasing"),
+        EntityMetadata(entity_id="sensor.pump_energy_today", unit_of_measurement="kWh", state_class="total"),
+        EntityMetadata(entity_id="sensor.battery_stored", unit_of_measurement="kWh", state_class="measurement"),
+        EntityMetadata(entity_id="sensor.pump_estimate", unit_of_measurement="kWh"),
+    ]
+    field = InputFieldInfo(
+        field_name="energy_meter",
+        entity_description=NumberEntityDescription(key="energy_meter", name="energy_meter"),
+        output_type=OutputType.ENERGY,
+        meter=MeterFieldHint(since="window_calendar"),
+    )
+
+    assert build_inclusion_map({"energy_meter": field}, entity_metadata)["energy_meter"] == [
+        "sensor.pump_energy",
+        "sensor.pump_energy_today",
+    ]

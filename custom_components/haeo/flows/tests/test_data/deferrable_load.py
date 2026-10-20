@@ -4,7 +4,7 @@ from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements.deferrable_load import (
     CONF_DEFICIT_PRICE,
-    CONF_ENERGY_DELIVERED,
+    CONF_ENERGY_METER,
     CONF_MAX_POWER,
     CONF_OVERAGE_PRICE,
     CONF_WINDOW_CALENDAR,
@@ -22,7 +22,7 @@ VALID_DATA = [
             CONF_CONNECTION: as_connection_target("switchboard"),
             SECTION_SCHEDULE: {
                 CONF_WINDOW_CALENDAR: as_entity_value(["calendar.pool_pump"]),
-                CONF_ENERGY_DELIVERED: as_entity_value(["sensor.pool_pump_window_energy"]),
+                CONF_ENERGY_METER: as_entity_value(["sensor.pool_pump_energy"]),
             },
             SECTION_PRICING: {
                 CONF_DEFICIT_PRICE: as_constant_value(10.0),
@@ -34,7 +34,7 @@ VALID_DATA = [
         },
     },
     {
-        "description": "Minimal deferrable load - calendar and shortfall price only",
+        "description": "Minimal deferrable load - calendar and default prices only",
         "config": {
             CONF_NAME: "Hot Water",
             CONF_CONNECTION: as_connection_target("switchboard"),
@@ -43,6 +43,7 @@ VALID_DATA = [
             },
             SECTION_PRICING: {
                 CONF_DEFICIT_PRICE: as_constant_value(10.0),
+                CONF_OVERAGE_PRICE: as_constant_value(0.0),
             },
             SECTION_POWER: {},
         },

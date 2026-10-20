@@ -114,7 +114,8 @@ def open_window_start(events: Sequence[CalendarEventData], at: datetime) -> floa
 
     Windows are formed as for every calendar input: every event is a window,
     overlapping events chain into one, and events that only touch stay
-    separate, so a window that began before the horizon keeps its true start.
+    separate. Calendars are read from the horizon start, so the window begins
+    at the earliest start among the events open then.
     """
     windows: list[tuple[datetime, datetime]] = []
     for event in sorted((e for e in events if e.end > e.start), key=lambda e: e.start):

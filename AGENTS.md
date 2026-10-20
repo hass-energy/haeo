@@ -79,6 +79,13 @@ Each component should do one thing well without needing to know about the intern
 - When adding a feature, prefer creating new simple components over adding branches to existing ones
 - Runtime code uses the result of schema validation, not the schema itself - the schema's job is done at configuration time
 
+**Attributes, not enumeration**: Tell kinds of things apart by an attribute or structure of the thing itself, not by listing the kinds where the distinction is used.
+Adding or deleting an element should not mean searching for every place that names it.
+
+- Branch on a class, an adapter or spec attribute, or a registry lookup, such as checking that a registered model element subclasses `NetworkElement`, rather than `element_type in (NODE, BATTERY, ...)`
+- When the type checker needs a union of kinds, define it once in the package `__init__.py` beside the other registries, not at the use site
+- The same applies to documentation and translations: describe the pattern, and leave each kind to its own page or placeholder
+
 ### Clean changes
 
 When making changes, don't leave behind comments describing what was once there.

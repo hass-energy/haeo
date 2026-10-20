@@ -14,6 +14,7 @@ from homeassistant.const import EVENT_COMPONENT_LOADED, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.loader import async_get_integration
 from homeassistant.setup import ATTR_COMPONENT
@@ -23,6 +24,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from conftest import add_participant
 from custom_components.haeo import (
     CARD_STATIC_DIR,
+    MIGRATION_MINOR_VERSION,
     HaeoRuntimeData,
     _async_register_static_frontend_resources,
     _cleanup_buffer_participants,
@@ -39,6 +41,7 @@ from custom_components.haeo import (
 from custom_components.haeo.const import (
     CONF_INTEGRATION_TYPE,
     DOMAIN,
+    ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
     STATIC_CARD_BUNDLES,
     STATIC_CARD_STATIC_DIR,
@@ -1141,3 +1144,45 @@ def test_cleanup_buffer_participants_removes_buffer_without_batteries(
     _cleanup_buffer_participants(hass, mock_hub_entry)
 
     assert subentry.subentry_id not in mock_hub_entry.subentries
+
+
+async def test_removing_an_element_removes_its_entities(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
+    """Every entity is linked to its element's subentry, so deleting the element removes its entities."""
+    hass.config_entries.async_update_entry(mock_hub_entry, minor_version=MIGRATION_MINOR_VERSION)
+    grid = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.GRID,
+                CONF_NAME: "Test Grid",
+                CONF_CONNECTION: as_connection_target("Switchboard"),
+                SECTION_PRICING: {
+                    CONF_PRICE_SOURCE_TARGET: as_constant_value(0.3),
+                    CONF_PRICE_TARGET_SOURCE: as_constant_value(0.1),
+                },
+                SECTION_POWER_LIMITS: {},
+            }
+        ),
+        subentry_type=ElementType.GRID,
+        title="Test Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(mock_hub_entry, grid)
+    assert await hass.config_entries.async_setup(mock_hub_entry.entry_id)
+    await hass.async_block_till_done()
+
+    entity_registry = er.async_get(hass)
+    entities = er.async_entries_for_config_entry(entity_registry, mock_hub_entry.entry_id)
+    network = next(s for s in mock_hub_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK)
+    linked = {entity.unique_id: entity.config_subentry_id for entity in entities}
+    assert linked[f"{mock_hub_entry.entry_id}_auto_optimize"] == network.subentry_id
+    assert linked[f"{mock_hub_entry.entry_id}_horizon"] == network.subentry_id
+    grid_prefix = f"{mock_hub_entry.entry_id}_{grid.subentry_id}_"
+    grid_entities = [entity for entity in entities if entity.unique_id.startswith(grid_prefix)]
+    assert {entity.domain for entity in grid_entities} == {"number", "sensor"}
+    assert {entity.config_subentry_id for entity in grid_entities} == {grid.subentry_id}
+
+    hass.config_entries.async_remove_subentry(mock_hub_entry, grid.subentry_id)
+    await hass.async_block_till_done()
+
+    remaining = er.async_entries_for_config_entry(entity_registry, mock_hub_entry.entry_id)
+    assert not [entity.unique_id for entity in remaining if entity.unique_id.startswith(grid_prefix)]

@@ -14,14 +14,27 @@ from custom_components.haeo.core.model.elements.buffer import BUFFER_ENERGY_REQU
 from custom_components.haeo.core.model.elements.deferrable_load import DeferrableLoad, DeferrableLoadOutputName
 
 
+def _opened_at_window_starts(in_window: list[float], window_start: list[float], due: list[float]) -> list[float]:
+    """Open each due amount at the start of its window, as for one event per window."""
+    opened = [0.0] * len(due)
+    for end, amount in enumerate(due):
+        if amount:
+            start = end - 1
+            while start > 0 and in_window[start - 1] and not window_start[start]:
+                start -= 1
+            opened[start] += amount
+    return opened
+
+
 def _build_network(
     *,
     in_window: list[float],
     window_start: list[float],
-    requirement: list[float],
+    due: list[float],
+    opened: list[float] | None = None,
     deficit_price: np.ndarray | float = 10.0,
     initial_energy: float = 0.0,
-    overage_price: np.ndarray | float | None = None,
+    overage_price: np.ndarray | float = 0.0,
     supply_price: list[float] | None = None,
     max_supply_power: list[float] | None = None,
 ) -> tuple[Network, DeferrableLoad]:
@@ -37,10 +50,13 @@ def _build_network(
             "name": "load",
             "in_window": np.array(in_window),
             "window_start": np.array(window_start),
-            "requirement": np.array(requirement),
-            "deficit_price": deficit_price,
+            "opened": np.array(
+                opened if opened is not None else _opened_at_window_starts(in_window, window_start, due)
+            ),
+            "due": np.array(due),
+            "deficit_price": np.broadcast_to(np.asarray(deficit_price, dtype=np.float64), n + 1).copy(),
             "initial_energy": initial_energy,
-            "overage_price": overage_price,
+            "overage_price": np.broadcast_to(np.asarray(overage_price, dtype=np.float64), n + 1).copy(),
             "is_source": False,
             "is_sink": True,
         }
@@ -72,7 +88,7 @@ def test_requirement_met_in_cheapest_period() -> None:
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 5.0],
+        due=[0.0, 0.0, 5.0],
         supply_price=[0.2, 0.1],
     )
 
@@ -91,7 +107,7 @@ def test_sequential_windows_settle_separately() -> None:
     network, load = _build_network(
         in_window=[1.0, 0.0, 1.0, 1.0],
         window_start=[1.0, 0.0, 1.0, 0.0, 0.0],
-        requirement=[0.0, 3.0, 0.0, 0.0, 4.0],
+        due=[0.0, 3.0, 0.0, 0.0, 4.0],
         deficit_price=np.array([0.0, 5.0, 7.0, 7.0, 9.0]),
         max_supply_power=[0.0, 100.0, 100.0, 100.0],
     )
@@ -111,7 +127,7 @@ def test_adjacent_windows_stay_separate() -> None:
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[1.0, 1.0, 0.0],
-        requirement=[0.0, 2.0, 3.0],
+        due=[0.0, 2.0, 3.0],
         supply_price=[0.1, 0.1],
     )
 
@@ -126,7 +142,7 @@ def test_window_open_at_horizon_end_settles_at_final_boundary() -> None:
     network, load = _build_network(
         in_window=[0.0, 1.0, 1.0],
         window_start=[0.0, 1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 0.0, 4.0],
+        due=[0.0, 0.0, 0.0, 4.0],
         supply_price=[0.1, 0.1, 0.5],
     )
 
@@ -141,7 +157,7 @@ def test_unmeetable_requirement_prices_the_shortfall() -> None:
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 8.0],
+        due=[0.0, 0.0, 8.0],
         deficit_price=5.0,
         supply_price=[0.1, 0.2],
         max_supply_power=[2.0, 2.0],
@@ -159,7 +175,7 @@ def test_cheap_deficit_price_beats_expensive_energy() -> None:
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 4.0],
+        due=[0.0, 0.0, 4.0],
         deficit_price=0.05,
         supply_price=[0.5, 0.5],
     )
@@ -175,7 +191,7 @@ def test_power_is_zero_outside_windows() -> None:
     network, load = _build_network(
         in_window=[0.0, 1.0, 0.0],
         window_start=[0.0, 1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 2.0, 0.0],
+        due=[0.0, 0.0, 2.0, 0.0],
         overage_price=0.0,
         supply_price=[-1.0, 0.1, -1.0],
         max_supply_power=[10.0, 10.0, 10.0],
@@ -189,20 +205,22 @@ def test_power_is_zero_outside_windows() -> None:
     np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_delivered"), [0.0, 0.0, 2.0, 0.0], atol=1e-9)
 
 
-def test_without_overage_price_delivery_is_capped() -> None:
-    """With no overage price the requirement is a hard cap, even when energy pays to be used."""
+def test_free_overage_takes_energy_that_pays_to_be_used() -> None:
+    """Delivery beyond the requirement is never forbidden; free overage takes energy that pays to be used."""
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 4.0],
+        due=[0.0, 0.0, 4.0],
         supply_price=[-0.2, -0.2],
         max_supply_power=[10.0, 10.0],
     )
 
     cost = network.optimize()
 
-    assert _outputs(load, "deferrable_load_energy_delivered")[-1] == pytest.approx(4.0)
-    assert cost == pytest.approx(-4.0 * 0.2)
+    assert _outputs(load, "deferrable_load_energy_delivered")[-1] == pytest.approx(20.0)
+    # Overage is booked where delivery first runs beyond what has started
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_overage"), [0.0, 6.0, 10.0], atol=1e-9)
+    assert cost == pytest.approx(-20.0 * 0.2)
 
 
 def test_overage_price_allows_and_prices_extra_delivery() -> None:
@@ -210,7 +228,7 @@ def test_overage_price_allows_and_prices_extra_delivery() -> None:
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 4.0],
+        due=[0.0, 0.0, 4.0],
         overage_price=0.05,
         supply_price=[-0.2, -0.2],
         max_supply_power=[10.0, 10.0],
@@ -219,7 +237,8 @@ def test_overage_price_allows_and_prices_extra_delivery() -> None:
     cost = network.optimize()
 
     assert _outputs(load, "deferrable_load_energy_delivered")[-1] == pytest.approx(20.0)
-    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_overage"), [0.0, 0.0, 16.0], atol=1e-9)
+    # Overage is booked where delivery first runs beyond what has started
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_overage"), [0.0, 6.0, 10.0], atol=1e-9)
     assert cost == pytest.approx(-20.0 * 0.2 + 16.0 * 0.05)
 
 
@@ -228,7 +247,7 @@ def test_expensive_overage_is_avoided() -> None:
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 4.0],
+        due=[0.0, 0.0, 4.0],
         overage_price=1.0,
         supply_price=[-0.2, -0.2],
         max_supply_power=[10.0, 10.0],
@@ -244,7 +263,7 @@ def test_initial_energy_seeds_only_the_open_window() -> None:
     network, load = _build_network(
         in_window=[1.0, 0.0, 1.0],
         window_start=[0.0, 0.0, 1.0, 0.0],
-        requirement=[0.0, 5.0, 0.0, 5.0],
+        due=[0.0, 5.0, 0.0, 5.0],
         initial_energy=2.0,
     )
 
@@ -260,7 +279,7 @@ def test_initial_energy_ignored_without_an_open_window() -> None:
     network, load = _build_network(
         in_window=[0.0, 1.0],
         window_start=[0.0, 1.0, 0.0],
-        requirement=[0.0, 0.0, 3.0],
+        due=[0.0, 0.0, 3.0],
         initial_energy=2.0,
     )
 
@@ -275,7 +294,7 @@ def test_under_target_telemetry_leaves_the_remainder_due() -> None:
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[0.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 5.0],
+        due=[0.0, 0.0, 5.0],
         initial_energy=1.0,
         deficit_price=5.0,
         max_supply_power=[1.0, 1.0],
@@ -287,13 +306,13 @@ def test_under_target_telemetry_leaves_the_remainder_due() -> None:
     assert cost == pytest.approx(2.0 * 0.1 + 2.0 * 5.0)
 
 
-@pytest.mark.parametrize("overage_price", [None, 1.0], ids=["capped", "priced"])
-def test_over_target_telemetry_is_sunk(overage_price: float | None) -> None:
-    """Telemetry beyond the requirement stays feasible, takes no new delivery, and is not priced."""
+@pytest.mark.parametrize("overage_price", [0.0, 1.0], ids=["free", "priced"])
+def test_over_target_telemetry_stays_feasible(overage_price: float) -> None:
+    """Telemetry beyond the requirement stays feasible and takes no new delivery; its overshoot is overage."""
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[0.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 4.0],
+        due=[0.0, 0.0, 4.0],
         initial_energy=6.0,
         overage_price=overage_price,
     )
@@ -301,16 +320,16 @@ def test_over_target_telemetry_is_sunk(overage_price: float | None) -> None:
     cost = network.optimize()
 
     np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_delivered"), [6.0, 6.0, 6.0], atol=1e-9)
-    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_overage"), [0.0, 0.0, 0.0], atol=1e-9)
-    assert cost == pytest.approx(0.0)
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_overage"), [0.0, 2.0, 0.0], atol=1e-9)
+    assert cost == pytest.approx(2.0 * overage_price)
 
 
-def test_over_target_telemetry_prices_only_new_overage() -> None:
-    """With an overage price, only delivery beyond the telemetry overshoot is priced."""
+def test_over_target_telemetry_and_new_delivery_are_both_overage() -> None:
+    """The telemetry overshoot and any new delivery beyond the requirement are priced alike."""
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[0.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 4.0],
+        due=[0.0, 0.0, 4.0],
         initial_energy=6.0,
         overage_price=0.05,
         supply_price=[-0.2, -0.2],
@@ -320,8 +339,98 @@ def test_over_target_telemetry_prices_only_new_overage() -> None:
     cost = network.optimize()
 
     assert _outputs(load, "deferrable_load_energy_delivered")[-1] == pytest.approx(8.0)
-    assert _outputs(load, "deferrable_load_energy_overage")[-1] == pytest.approx(2.0)
-    assert cost == pytest.approx(-2.0 * 0.2 + 2.0 * 0.05)
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_overage"), [0.0, 3.0, 1.0], atol=1e-9)
+    assert cost == pytest.approx(-2.0 * 0.2 + 4.0 * 0.05)
+
+
+# Two 2-hour events overlapping by an hour: A covers periods 0-1 and B periods 1-2, 2 kWh each.
+_OVERLAPPING_IN_WINDOW = [1.0, 1.0, 1.0]
+_OVERLAPPING_WINDOW_START = [1.0, 0.0, 0.0, 0.0]
+_OVERLAPPING_OPENED = [2.0, 2.0, 0.0, 0.0]
+_OVERLAPPING_DUE = [0.0, 0.0, 2.0, 2.0]
+
+
+def _overlapping(
+    *, supply_price: list[float], max_supply_power: list[float], overage_price: float = 0.0
+) -> tuple[Network, DeferrableLoad]:
+    """Build the two overlapping events with the given supply."""
+    return _build_network(
+        in_window=_OVERLAPPING_IN_WINDOW,
+        window_start=_OVERLAPPING_WINDOW_START,
+        opened=_OVERLAPPING_OPENED,
+        due=_OVERLAPPING_DUE,
+        overage_price=overage_price,
+        supply_price=supply_price,
+        max_supply_power=max_supply_power,
+    )
+
+
+def test_overlapping_events_each_take_energy_in_their_own_window() -> None:
+    """The cheap first hour serves only the event open then; the later event's energy lands in its own window."""
+    network, load = _overlapping(supply_price=[0.01, 0.1, 0.2], max_supply_power=[10.0] * 3)
+
+    cost = network.optimize()
+
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_power"), [2.0, 2.0, 0.0], atol=1e-9)
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_overage"), [0.0] * 4, atol=1e-9)
+    assert cost == pytest.approx(2.0 * 0.01 + 2.0 * 0.1)
+
+
+def test_energy_before_an_event_starts_never_counts_toward_it() -> None:
+    """Energy delivered before the later event starts is overage, even when it pays to take it."""
+    network, load = _overlapping(overage_price=0.05, supply_price=[-0.1, 0.1, 0.2], max_supply_power=[10.0] * 3)
+
+    network.optimize()
+
+    power = _outputs(load, "deferrable_load_power")
+    np.testing.assert_allclose(power, [10.0, 2.0, 0.0], atol=1e-9)
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_overage"), [0.0, 8.0, 0.0, 0.0], atol=1e-9)
+
+
+def test_a_missed_deadline_stays_missed() -> None:
+    """Energy arriving after an event ends cannot make up its shortfall; it only serves the later event."""
+    network, load = _overlapping(supply_price=[0.1, 0.1, 0.2], max_supply_power=[0.0, 0.0, 10.0])
+
+    cost = network.optimize()
+
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_shortfall"), [0.0, 0.0, 2.0, 0.0], atol=1e-9)
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_power"), [0.0, 0.0, 2.0], atol=1e-9)
+    assert cost == pytest.approx(2.0 * 0.2 + 2.0 * 10.0)
+
+
+def test_shortfall_cannot_be_booked_where_nothing_is_due() -> None:
+    """A free boundary between two deadlines cannot hold shortfall that a later, priced miss would hide behind."""
+    network, load = _build_network(
+        in_window=[1.0, 1.0, 1.0, 1.0],
+        window_start=[1.0, 0.0, 0.0, 0.0, 0.0],
+        opened=[6.0, 0.0, 0.0, 0.0, 0.0],
+        due=[0.0, 0.0, 2.0, 0.0, 4.0],
+        deficit_price=np.array([0.0, 0.0, 10.0, 0.0, 10.0]),
+        supply_price=[0.1, 0.1, 5.0, 5.0],
+    )
+
+    cost = network.optimize()
+
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_shortfall"), [0.0] * 5, atol=1e-9)
+    assert cost == pytest.approx(6.0 * 0.1)
+
+
+def test_overage_cannot_be_booked_early_at_a_free_boundary() -> None:
+    """Overage is priced at its window's end, so booking it at an earlier free boundary avoids nothing."""
+    network, load = _build_network(
+        in_window=[1.0, 1.0, 1.0, 1.0],
+        window_start=[1.0, 0.0, 0.0, 0.0, 0.0],
+        opened=[5.0, 0.0, 0.0, 0.0, 0.0],
+        due=[0.0, 0.0, 0.0, 0.0, 5.0],
+        overage_price=np.array([0.0, 0.0, 0.0, 0.0, 0.6]),
+        supply_price=[-0.1, 0.01, 0.01, -0.5],
+        max_supply_power=[10.0] * 4,
+    )
+
+    cost = network.optimize()
+
+    assert _outputs(load, "deferrable_load_energy_delivered")[-1] == pytest.approx(5.0)
+    assert cost == pytest.approx(-5.0 * 0.5)
 
 
 def test_window_changes_update_reactively() -> None:
@@ -329,14 +438,15 @@ def test_window_changes_update_reactively() -> None:
     network, load = _build_network(
         in_window=[1.0, 0.0],
         window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 2.0, 0.0],
+        due=[0.0, 2.0, 0.0],
         supply_price=[0.1, 0.3],
     )
     assert network.optimize() == pytest.approx(2.0 * 0.1)
 
     load["in_window"] = np.array([0.0, 1.0])
     load["window_start"] = np.array([0.0, 1.0, 0.0])
-    load["requirement"] = np.array([0.0, 0.0, 2.0])
+    load["opened"] = np.array([0.0, 2.0, 0.0])
+    load["due"] = np.array([0.0, 0.0, 2.0])
 
     assert network.optimize() == pytest.approx(2.0 * 0.3)
     np.testing.assert_allclose(_outputs(load, "deferrable_load_power"), [0.0, 2.0], atol=1e-9)
@@ -347,7 +457,7 @@ def test_outputs_present() -> None:
     network, load = _build_network(
         in_window=[1.0, 1.0],
         window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 5.0],
+        due=[0.0, 0.0, 5.0],
     )
     network.optimize()
 
@@ -360,69 +470,6 @@ def test_outputs_present() -> None:
     ):
         assert len(outputs[name].values) == 3
     assert "deferrable_load_requirement" in outputs
-    assert "deferrable_load_cap" in outputs
-
-
-@pytest.mark.parametrize(
-    ("deficit_price", "overage_price", "param"),
-    [
-        pytest.param(np.array([10.0, 10.0, -1.0]), None, "deficit_price", id="deficit"),
-        pytest.param(10.0, -1.0, "overage_price", id="overage"),
-    ],
-)
-def test_negative_price_is_rejected(deficit_price: np.ndarray | float, overage_price: float | None, param: str) -> None:
-    """A negative price would book slack that is never missed or absorbed, so it is rejected."""
-    network, _load = _build_network(
-        in_window=[1.0, 1.0],
-        window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 4.0],
-        deficit_price=deficit_price,
-        overage_price=overage_price,
-    )
-
-    with pytest.raises(ValueError, match=f"{param} must be non-negative"):
-        network.optimize()
-
-
-@pytest.mark.parametrize(
-    ("param", "value"),
-    [
-        pytest.param("deficit_price", np.array([10.0, -1.0, 10.0]), id="deficit"),
-        pytest.param("overage_price", np.array([1.0, 1.0, -1.0]), id="overage"),
-    ],
-)
-def test_negative_price_update_is_rejected(param: str, value: np.ndarray) -> None:
-    """Updating a price to a negative value is rejected on the next optimization."""
-    network, load = _build_network(
-        in_window=[1.0, 1.0],
-        window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 4.0],
-        overage_price=0.0,
-    )
-    network.optimize()
-
-    load[param] = value
-
-    with pytest.raises(ValueError, match=f"{param} must be non-negative"):
-        network.optimize()
-
-
-def test_scalar_parameter_updates_are_broadcast() -> None:
-    """A window flag and price updated to plain floats apply to every period or boundary."""
-    network, load = _build_network(
-        in_window=[1.0, 1.0],
-        window_start=[1.0, 0.0, 0.0],
-        requirement=[0.0, 0.0, 5.0],
-        max_supply_power=[1.0, 1.0],
-    )
-    network.optimize()
-
-    load["in_window"] = 1.0
-    load["deficit_price"] = 2.0
-    cost = network.optimize()
-
-    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_shortfall"), [0.0, 0.0, 3.0], atol=1e-9)
-    assert cost == pytest.approx(2.0 * 0.1 + 3.0 * 2.0)
 
 
 def _reserve_network() -> tuple[Network, DeferrableLoad]:
@@ -456,8 +503,10 @@ def _reserve_network() -> tuple[Network, DeferrableLoad]:
             "name": "load",
             "in_window": np.array([0.0, 1.0, 1.0, 1.0]),
             "window_start": np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
-            "requirement": np.array([0.0, 0.0, 0.0, 0.0, 3.0]),
-            "deficit_price": 10.0,
+            "opened": np.array([0.0, 3.0, 0.0, 0.0, 0.0]),
+            "due": np.array([0.0, 0.0, 0.0, 0.0, 3.0]),
+            "deficit_price": np.full(5, 10.0),
+            "overage_price": np.zeros(5),
             "is_source": False,
             "is_sink": True,
         }

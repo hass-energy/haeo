@@ -49,6 +49,17 @@ def test_partial_forecasts_join_before_repeating() -> None:
     assert result[1] == pytest.approx(3.0, abs=0.1)
 
 
+def test_forecasts_with_different_coverage_repeat_after_joining() -> None:
+    """A shorter forecast joins a longer one and their sum repeats, so the shorter one never fills a whole day."""
+    times = [0.0, 12 * HOUR, DAY, DAY + 12 * HOUR, 2 * DAY]
+    full_day = [(hour * HOUR, 1.0) for hour in range(24)]
+    half_day = [(hour * HOUR, 2.0) for hour in range(12)]
+
+    result = fuse_sensor_payloads(None, [full_day, half_day], times, boundaries=False)
+
+    assert result == pytest.approx([3.0, 1.0, 3.0, 1.0], abs=0.1)
+
+
 def test_forecasts_sum_after_fusing() -> None:
     """Forecasts on different timestamps sum period by period."""
     times = [0.0, HOUR, 2 * HOUR]

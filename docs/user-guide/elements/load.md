@@ -282,7 +282,7 @@ For variable loads, the forecast reflects the configured sensor forecast values.
 
 ### Sensor Not Found
 
-**Problem**: Error "Sensors not found or unavailable"
+**Problem**: Error "Input entities not ready after … seconds", or an input entity shows as unavailable
 
 **Solutions**:
 

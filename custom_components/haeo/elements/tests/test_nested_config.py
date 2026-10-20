@@ -2,10 +2,10 @@
 
 from typing import Any
 
+from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
 from custom_components.haeo.elements import (
     find_nested_config_path,
     get_nested_config_value,
-    get_nested_config_value_by_path,
     iter_input_field_paths,
     set_nested_config_value,
     set_nested_config_value_by_path,

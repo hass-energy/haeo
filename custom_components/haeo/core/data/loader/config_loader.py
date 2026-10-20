@@ -6,8 +6,8 @@ It handles schema value dispatch (none/constant/entity), sensor loading,
 forecast fusion, and unit conversion -- all without HA dependencies.
 """
 
-from collections.abc import Callable, Collection, Mapping, Sequence
-from datetime import UTC, datetime
+from collections.abc import Collection, Mapping, Sequence
+from typing import NamedTuple
 
 import numpy as np
 
@@ -17,28 +17,113 @@ from custom_components.haeo.core.data.util.field_units import NON_NEGATIVE_OUTPU
 from custom_components.haeo.core.data.util.forecast_combiner import fuse_sensor_payloads, split_sensor_payloads
 from custom_components.haeo.core.data.util.input_values import enforce_non_negative
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import SchemaValue
+from custom_components.haeo.core.schema import SchemaValue, as_constant_value, as_entity_value, is_schema_value
 from custom_components.haeo.core.schema.constant_value import is_constant_value
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
 from custom_components.haeo.core.schema.field_hints import (
     FieldHint,
-    ListFieldHints,
     extract_field_hints,
     extract_list_field_hints,
     field_inputs,
 )
 from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
-from custom_components.haeo.core.state import EntityState, StateMachine
-from custom_components.haeo.core.units import DeviceClass, base_unit_conversion
+from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
+from custom_components.haeo.core.state import StateMachine
 
-from .calendar import load_calendar_events, open_since_field, open_window_start
 from .calendar_resolver import resolve_calendar
+from .meter import resolve_meter
 from .sensor_loader import load_sensors
-from .source_history import Reading, all_off, off_periods_field, read_off_periods, read_readings, readings_field
 
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
+
+type InputPath = tuple[str, ...]
+
+
+class ElementInput(NamedTuple):
+    """One input of an element: where its value is loaded, where it is configured, and how it resolves."""
+
+    path: InputPath
+    config_path: InputPath
+    hint: FieldHint
+
+
+class InputsUnavailableError(ValueError):
+    """Some configured inputs of an element have no data."""
+
+    def __init__(self, element_name: str, paths: Sequence[InputPath]) -> None:
+        """Record which inputs have no data."""
+        self.paths = list(paths)
+        super().__init__(f"Element '{element_name}' has unavailable inputs: {', '.join('.'.join(p) for p in paths)}")
+
+
+def element_inputs(element_config: Mapping[str, object]) -> list[ElementInput]:
+    """Return every input an element's config can feed, from its schema's field hints.
+
+    Section fields give ``(section, field)`` paths. A field with ``outputs``
+    gives one input per output, each reading the field's own config value.
+    List fields give ``(list_key, index, field)`` paths for each mapping item.
+    This is the one definition of an element's inputs, shared by the input
+    stores at runtime and by offline loading.
+    """
+    element_type = element_config.get(CONF_ELEMENT_TYPE)
+    if not is_element_type(element_type):
+        return []
+    schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
+
+    inputs: list[ElementInput] = []
+    for section_name, section_fields in extract_field_hints(schema_cls).items():
+        for field_name, field_hint in section_fields.items():
+            config_path = (section_name, field_name)
+            inputs.extend(
+                ElementInput((section_name, input_name), config_path, hint)
+                for input_name, hint in field_inputs(field_name, field_hint)
+            )
+
+    for list_key, list_hints in extract_list_field_hints(schema_cls).items():
+        items = element_config.get(list_key)
+        if not isinstance(items, (list, tuple)):
+            continue
+        for index, item in enumerate(items):
+            if not isinstance(item, Mapping):
+                continue
+            for field_name, hint in list_hints.fields.items():
+                path = (list_key, str(index), field_name)
+                inputs.append(ElementInput(path, path, hint))
+
+    return inputs
+
+
+def configured_value(element_config: Mapping[str, object], config_path: InputPath) -> SchemaValue | bool | None:
+    """Return the value configured for an input, or None when the input is absent or disabled.
+
+    A bare number is a constant, as the input stores read it.
+    """
+    value = get_nested_config_value_by_path(element_config, config_path)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return as_constant_value(float(value))
+    if is_schema_value(value) and not is_none_value(value):
+        return value
+    return None
+
+
+def input_value(element_config: Mapping[str, object], element_input: ElementInput) -> SchemaValue | bool | None:
+    """Return the value an input resolves from, or None when the input is absent or disabled.
+
+    This is the input's configured value, except that a meter input also
+    reads the entities of its window calendar field, so its source states
+    carry the calendar events it measures from.
+    """
+    value = configured_value(element_config, element_input.config_path)
+    meter = element_input.hint.meter
+    if meter is None or not is_entity_value(value):
+        return value
+    window = configured_value(element_config, (*element_input.config_path[:-1], meter.since))
+    calendars = list(window["value"]) if is_entity_value(window) else []
+    return as_entity_value([*value["value"], *calendars])
 
 
 def load_element_config(
@@ -47,22 +132,20 @@ def load_element_config(
     sm: StateMachine,
     forecast_times: Sequence[float],
     *,
-    negated_paths: Collection[tuple[str, ...]] = frozenset(),
+    negated_paths: Collection[InputPath] = frozenset(),
 ) -> ElementConfigData:
-    """Load a single element's config by resolving values against a state machine.
+    """Load a single element's config by resolving its inputs against a state machine.
 
-    Walks each field declared in the element's schema hints and resolves its
-    value based on type:
-    - none values: field is removed (disabled input)
-    - constant values: scalar or expanded to time series array
-    - entity values: loaded from state machine, combined, and fused to horizon
+    Each configured input resolves through :func:`resolve_field`, as an input
+    store does at runtime, and the values assemble through
+    :func:`load_element_config_from_values`, as the coordinator does.
 
     Args:
         element_name: Display name for the element
         element_config: Raw element config dict (sectioned format)
         sm: State machine providing entity states
         forecast_times: Boundary timestamps (n+1 values defining n intervals)
-        negated_paths: Field paths whose entity-driven values are negated, as
+        negated_paths: Input paths whose entity-driven values are negated, as
             returned by ``negated_price_paths`` for this element
 
     Returns:
@@ -70,62 +153,29 @@ def load_element_config(
 
     Raises:
         ValueError: If element_type is unknown.
+        InputsUnavailableError: If any configured input has no data, which
+            stops an optimization at runtime too.
+        InputError: If a source supplies a value an input cannot use.
 
     """
-    element_type = element_config.get(CONF_ELEMENT_TYPE)
-    if not is_element_type(element_type):
-        msg = f"Unknown element type: {element_type}"
-        raise ValueError(msg)
-
-    field_hints = extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
-
-    loaded: dict[str, object] = {
-        key: dict(value) if isinstance(value, Mapping) else value for key, value in element_config.items()
-    }
-    loaded[CONF_NAME] = element_name
-
-    for section_name, section_fields in field_hints.items():
-        section_config = element_config.get(section_name)
-        if not isinstance(section_config, Mapping):
+    field_values: dict[InputPath, bool | float | np.ndarray] = {}
+    unavailable: list[InputPath] = []
+    for element_input in element_inputs(element_config):
+        value = input_value(element_config, element_input)
+        if value is None:
             continue
+        resolved = resolve_field(
+            value, element_input.hint, sm, forecast_times, negate=element_input.path in negated_paths
+        )
+        if isinstance(resolved, (bool, float, int, np.ndarray)):
+            field_values[element_input.path] = resolved
+        else:
+            unavailable.append(element_input.path)
 
-        for field_name, field_hint in section_fields.items():
-            value = section_config.get(field_name)
-            if field_hint.outputs:
-                _section_dict(loaded, section_name).pop(field_name, None)
-            for input_name, hint in field_inputs(field_name, field_hint):
-                if value is None:
-                    if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                        _section_dict(loaded, section_name)[input_name] = default
-                    continue
+    if unavailable:
+        raise InputsUnavailableError(element_name, unavailable)
 
-                resolved = resolve_field(
-                    value, hint, sm, forecast_times, negate=(section_name, input_name) in negated_paths
-                )
-                if resolved is _REMOVE:
-                    if (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                        _section_dict(loaded, section_name)[input_name] = default
-                    else:
-                        loaded_section = loaded.get(section_name)
-                        if isinstance(loaded_section, dict):
-                            loaded_section.pop(input_name, None)
-                elif resolved is None and (default := _default_for_hint(hint, forecast_times)) is not _REMOVE:
-                    _section_dict(loaded, section_name)[input_name] = default
-                else:
-                    _section_dict(loaded, section_name)[input_name] = resolved
-
-            _load_beside_field(loaded, section_name, field_name, value, field_hint, sm.get, forecast_times)
-
-    # Resolve list-based input fields (e.g. policy rules with entity prices)
-    list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
-    for list_key, hints in list_hints.items():
-        items = element_config.get(list_key)
-        if not isinstance(items, (list, tuple)):
-            continue
-        loaded_items = _resolve_list_items(list_key, items, hints, sm, forecast_times, negated_paths)
-        loaded[list_key] = loaded_items
-
-    return loaded  # type: ignore[return-value]
+    return load_element_config_from_values(element_name, element_config, field_values, forecast_times)
 
 
 def load_element_configs(
@@ -159,7 +209,6 @@ def load_element_config_from_values(
     element_config: ElementConfigSchema,
     field_values: Mapping[tuple[str, ...], bool | float | np.ndarray | None],
     forecast_times: Sequence[float],
-    source_states: Mapping[str, EntityState],
 ) -> ElementConfigData:
     """Assemble an element's loaded config from pre-resolved input field values.
 
@@ -174,10 +223,7 @@ def load_element_config_from_values(
         element_name: Display name for the element.
         element_config: Raw element config dict (sectioned format).
         field_values: Map of field path to its resolved value.
-        forecast_times: Boundary timestamps (used for type-driven defaults and
-            the horizon start).
-        source_states: Source entity states captured when the values resolved,
-            read for the data loaded beside their fields.
+        forecast_times: Boundary timestamps (used only for type-driven defaults).
 
     Returns:
         Loaded configuration with resolved time series and scalar values.
@@ -222,18 +268,6 @@ def load_element_config_from_values(
                     if isinstance(loaded_section, dict):
                         loaded_section.pop(input_name, None)
 
-            section_config = element_config.get(section_name)
-            if isinstance(section_config, Mapping):
-                _load_beside_field(
-                    loaded,
-                    section_name,
-                    field_name,
-                    section_config.get(field_name),
-                    field_hint,
-                    source_states.get,
-                    forecast_times,
-                )
-
     list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
     for list_key, hints in list_hints.items():
         items = element_config.get(list_key)
@@ -255,54 +289,6 @@ def load_element_config_from_values(
         loaded[list_key] = loaded_items
 
     return loaded  # type: ignore[return-value]
-
-
-def _load_beside_field(
-    loaded: dict[str, object],
-    section_name: str,
-    field_name: str,
-    value: object,
-    hint: FieldHint,
-    get_state: Callable[[str], EntityState | None],
-    forecast_times: Sequence[float],
-) -> None:
-    """Load what an entity-driven field's source states carry beyond their value, beside the field.
-
-    An availability field gets the periods its sources were all off, under
-    :func:`off_periods_field`, as the field reads on while any source does.
-    A distance field gets its source's readings in base units, under
-    :func:`readings_field`. A field feeding calendar inputs gets when the
-    window open at the horizon start began, under :func:`open_since_field`.
-    Each key is left out when the sources carry nothing for it.
-    """
-    if not is_entity_value(value) or not value["value"]:
-        return
-    entity_ids = value["value"]
-    if hint.outputs and any(output.calendar is not None for output in hint.outputs.values()):
-        calendars = [load_calendar_events(get_state(entity_id)) for entity_id in entity_ids]
-        events = [event for found in calendars if found for event in found]
-        opened = (
-            open_window_start(events, datetime.fromtimestamp(forecast_times[0], tz=UTC)) if forecast_times else None
-        )
-        if opened is not None:
-            _section_dict(loaded, section_name)[open_since_field(field_name)] = opened
-    elif hint.output_type is OutputType.AVAILABILITY:
-        found = [periods for entity_id in entity_ids if (periods := read_off_periods(get_state(entity_id))) is not None]
-        if found:
-            _section_dict(loaded, section_name)[off_periods_field(field_name)] = all_off(found)
-    elif hint.output_type is OutputType.DISTANCE:
-        state = get_state(entity_ids[0])
-        history = read_readings(state)
-        if state is not None and history is not None:
-            _section_dict(loaded, section_name)[readings_field(field_name)] = _readings_in_base_unit(history, state)
-
-
-def _readings_in_base_unit(history: list[Reading], state: EntityState) -> list[Reading]:
-    """Convert recorded readings to the base unit of the state's unit and device class."""
-    unit_attr = state.attributes.get("unit_of_measurement")
-    unit = unit_attr if isinstance(unit_attr, str) else None
-    factor, _, _ = base_unit_conversion(unit, DeviceClass.of(state.attributes.get("device_class")))
-    return [(changed_at, reading * factor) for changed_at, reading in history]
 
 
 class _Sentinel:
@@ -376,6 +362,9 @@ def resolve_field(
     if hint.calendar is not None:
         return resolve_calendar(unwrapped, hint.calendar, hint.output_type, sm, forecast_times)
 
+    if hint.meter is not None:
+        return resolve_meter(unwrapped, hint.output_type, sm, forecast_times)
+
     resolved = _resolve_entities(unwrapped, hint, sm, forecast_times, is_percent=is_percent)
     if negate and resolved is not None:
         return -resolved
@@ -439,7 +428,7 @@ def _resolve_entities(
 ) -> float | np.ndarray | None:
     """Load entity data from state machine and fuse to horizon."""
     payloads = load_sensors(sm, entity_ids, output_type=hint.output_type)
-    if not payloads:
+    if payloads is None:
         return None
 
     present_value, forecast_series = split_sensor_payloads(payloads)
@@ -459,42 +448,12 @@ def _resolve_entities(
     return values if hint.time_series else float(values[0])
 
 
-def _resolve_list_items(
-    list_key: str,
-    items: Sequence[object],
-    hints: ListFieldHints,
-    sm: StateMachine,
-    forecast_times: Sequence[float],
-    negated_paths: Collection[tuple[str, ...]],
-) -> list[object]:
-    """Resolve hinted fields within each item of a list config field.
-
-    Non-mapping items are passed through unchanged, so the return type is
-    ``list[object]`` rather than ``list[dict[str, object]]``.
-    """
-    loaded_items: list[object] = []
-    for index, item in enumerate(items):
-        if not isinstance(item, Mapping):
-            loaded_items.append(item)
-            continue
-        loaded_item = dict(item)
-        for field_name, hint in hints.fields.items():
-            value = item.get(field_name)
-            if value is None:
-                continue
-            negate = (list_key, str(index), field_name) in negated_paths
-            resolved = resolve_field(value, hint, sm, forecast_times, negate=negate)
-            if isinstance(resolved, _Sentinel):
-                loaded_item.pop(field_name, None)
-            elif resolved is not None:
-                loaded_item[field_name] = resolved
-            else:
-                loaded_item[field_name] = None
-        loaded_items.append(loaded_item)
-    return loaded_items
-
-
 __all__ = [
+    "ElementInput",
+    "InputsUnavailableError",
+    "configured_value",
+    "element_inputs",
+    "input_value",
     "is_percent_field",
     "load_element_config",
     "load_element_config_from_values",

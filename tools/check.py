@@ -269,8 +269,6 @@ GATES: Final[tuple[Gate, ...]] = (
     ),
 )
 
-GATES_BY_NAME: Final[dict[str, Gate]] = {gate.name: gate for gate in GATES}
-
 
 def selected_gates(names: Sequence[str], *, fast: bool) -> list[Gate]:
     """Resolve the gates to run from the command line selection."""

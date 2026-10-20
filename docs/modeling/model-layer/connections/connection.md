@@ -209,7 +209,7 @@ Select the segment chain that matches the physical behavior you need.
 
     ---
 
-    Battery, deferrable load, and Node model elements.
+    The building blocks that produce, consume, store, or read power.
 
     [:material-arrow-right: Element types](../elements/index.md)
 

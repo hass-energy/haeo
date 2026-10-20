@@ -4,22 +4,27 @@ This page explains how HAEO models deferrable loads using linear programming.
 
 ## Overview
 
-A deferrable load absorbs energy within scheduled windows, such as running an appliance or charging an EV before a trip.
-The optimizer chooses when to deliver the energy, so the load moves to the cheapest periods inside each window.
+A deferrable load receives energy within scheduled events, such as running an appliance or charging an EV before a trip.
+The optimizer chooses when to deliver the energy, so the load moves to the cheapest periods inside each event.
 
-Windows never overlap.
-Each window has its own requirement, and each window is settled separately at its end boundary:
+Each event has its own requirement, start, and end.
+Overlapping events share one window, and a single energy accumulator tracks the energy delivered since the window started.
+Inside the window the accumulator must stay within a band:
 
-- **Shortfall**: The requirement the window missed, priced at the deficit price at the window's end
-- **Overage**: Delivery beyond the requirement, either forbidden or priced at the overage price at the window's end
+- **Lower edge**: the energy due, the requirements of the events that have ended
+- **Upper edge**: the energy started, the requirements of the events that have begun
 
-The requirement is a soft constraint.
-Pricing the shortfall keeps the optimization feasible when the requirement physically cannot be met, while still making the optimizer work hard to meet it.
+Falling below the band is **shortfall**, priced at the deficit price where the event is missed.
+Rising above it is **overage**, priced at the overage price where its window ends.
+Neither is ever forbidden.
+Pricing the shortfall keeps the optimization feasible when a requirement physically cannot be met, while still making the optimizer work hard to meet it.
+Pricing the overage keeps it feasible when the device has already run past its requirement, whether by its own cycle or by someone running it.
 
-A single energy accumulator tracks the energy delivered in the current window.
-It resets to zero at each window start, so its value at a window's end boundary is the energy that window received.
-Every variable and constraint is sized by the horizon rather than by the number of windows.
-Windows appearing, moving, or disappearing only change parameter values, so the problem keeps its shape across re-optimizations.
+The band keeps each event's energy inside its own time.
+Energy delivered before an event starts lies above the band, so it never counts toward that event, and each event is due by its own end, not by the end of the window.
+
+Every variable and constraint is sized by the horizon rather than by the number of events.
+Events appearing, moving, or disappearing only change parameter values, so the problem keeps its shape across re-optimizations.
 
 ## Model formulation
 
@@ -33,23 +38,21 @@ Boundaries are indexed $k \in \{0, 1, \ldots, T\}$.
 
 - $w(t) \in \{0, 1\}$: 1 where period $t$ lies inside a window - `in_window`
 - $s(k) \in \{0, 1\}$: 1 where a window starts at boundary $k$ - `window_start`
-- $R(k)$: Requirement of the window ending at boundary $k$ (kWh) - `requirement`
-- $p_D(k) \geq 0$: Price per kWh of shortfall settled at boundary $k$ (\$/kWh) - `deficit_price`
+- $o(k)$: Requirements of the events starting at boundary $k$ (kWh) - `opened`
+- $u(k)$: Requirements of the events ending at boundary $k$ (kWh) - `due`
+- $p_D(k) \geq 0$: Price per kWh of shortfall for events due at boundary $k$ (\$/kWh) - `deficit_price`
+- $p_O(k) \geq 0$: Price per kWh of overage in a window ending at boundary $k$ (\$/kWh) - `overage_price`
 - $\Delta t$: Period duration (hours) - `period`
 
 **Optional parameters**:
 
 - $E_0$: Energy already delivered to the window open at the horizon start (kWh) - `initial_energy`, defaults to 0
-- $p_O(k) \geq 0$: Price per kWh of overage settled at boundary $k$ (\$/kWh) - `overage_price`, defaults to none
-- `outbound_tags`: Accepted like every network element, but unused because the load never produces power (see [Tagged Power](../../tagged-power.md))
-- `inbound_tags`: Tags this load can consume — None means all tags
+- `inbound_tags`: Tags this load can consume — None means all tags (see [Tagged Power](../../tagged-power.md))
 
-Scalar profiles and prices are broadcast to every period or boundary.
-Both prices must be non-negative, and the model raises an error otherwise:
-a negative price would reward booking a shortfall or overage that never happens.
-
-Without an overage price, the requirement is a hard cap on each window's delivery.
-Whether the overage variables exist is decided when the element is created.
+Window profiles and prices are arrays, one value per period for $w$ and one per boundary for the rest.
+An event already open at the horizon start opens at boundary 0.
+An event running past the horizon end is clamped to the horizon and due at the final boundary $T$; the horizon normally reaches far enough that this rarely matters, and its remaining energy is planned again as the horizon moves forward.
+The requirements, initial energy, and prices are never negative: the loaders enforce this before the model sees them, since a negative price would reward booking a shortfall or overage that never happens.
 
 ### Derived window structure
 
@@ -59,39 +62,31 @@ $$
 c(t) = w(t) \cdot \left(1 - s(t-1)\right)
 $$
 
-A period with $c(t) = 0$ starts the accumulator from zero.
+A period with $c(t) = 0$ starts the window's totals from zero.
+Windows that touch end to start stay separate: the second window's start resets them at the boundary the first window ends.
 
-The **window end** mask $e(k)$ marks the last boundary of each window, where the window is settled:
-
-$$
-e(k) = w(k) \cdot \left(1 - w(k+1) \cdot \left(1 - s(k)\right)\right), \qquad w(T+1) = 0
-$$
-
-A window still open at the horizon end therefore settles at the final boundary $T$.
-Windows that touch end to start stay separate: the second window's start resets the accumulator at the boundary the first window ends.
-
-The **settled requirement** $\hat{R}(k)$ is the requirement at window ends:
+The band's edges are running totals within each window, reset wherever $c(t) = 0$:
 
 $$
-\hat{R}(k) = e(k) \cdot R(k)
+\begin{aligned}
+C(k) &= c(k) \cdot C(k-1) + w(k) \cdot o(k-1) && \text{energy started by boundary } k \\
+D(k) &= c(k) \cdot D(k-1) + w(k) \cdot u(k) && \text{energy due by boundary } k
+\end{aligned}
 $$
 
-For the window open at the horizon start ($c(1) = 1$), the settled requirement at its end boundary $k^\ast$ is raised to at least the initial energy:
+with $C(0) = D(0) = 0$.
+
+The **window end** mask $e(k)$ marks the last boundary of each window:
 
 $$
-\hat{R}(k^\ast) = \max\left(R(k^\ast),\ E_0\right)
+e(k) = w(k) \cdot \left(1 - c(k+1)\right), \qquad c(T+1) = 0
 $$
-
-Telemetry can report more energy already delivered than the window requires.
-That overshoot is sunk: it is not priced as overage, and it cannot make the hard cap infeasible.
-When telemetry reports less than the requirement, the remainder $R(k^\ast) - E_0$ stays due at the window end.
 
 ### Decision variables
 
 - $E(k) \geq 0$: Energy delivered in the current window by boundary $k$ (kWh)
-- $d(t) \geq 0$: Energy delivered during period $t$ (kWh)
-- $S(k) \geq 0$: Shortfall settled at boundary $k \geq 1$ (kWh)
-- $O(k) \geq 0$: Overage settled at boundary $k \geq 1$ (kWh), only when an overage price is set
+- $S(k) \geq 0$: Energy due but not delivered by boundary $k \geq 1$ (kWh)
+- $O(k) \geq 0$: Energy delivered beyond what has started by boundary $k \geq 1$ (kWh)
 
 ### Constraints
 
@@ -104,13 +99,20 @@ E(0) = c(1) \cdot E_0
 $$
 
 The initial energy never seeds a later window.
+An overshoot it reports is overage like any other: a fixed cost that changes no decision.
 
-#### 2. Accumulation
+#### 2. Delivery
 
-The accumulator adds each period's delivery and resets at window starts:
+The energy delivered during period $t$ is the accumulator's step, which restarts at window starts:
 
 $$
-E(t) = c(t) \cdot E(t-1) + d(t) \quad \forall t \in [1, T]
+d(t) = E(t) - c(t) \cdot E(t-1)
+$$
+
+It is never negative, so energy is never taken back out:
+
+$$
+d(t) \geq 0 \quad \forall t \in [1, T]
 $$
 
 #### 3. Window gating
@@ -121,38 +123,39 @@ $$
 \left(1 - w(t)\right) \cdot d(t) \leq 0 \quad \forall t \in [1, T]
 $$
 
-#### 4. Requirement
+#### 4. Band
 
-Delivered energy plus shortfall covers the settled requirement at window ends:
-
-$$
-e(k) \cdot E(k) + S(k) \geq \hat{R}(k) \quad \forall k \in [1, T]
-$$
-
-The shortfall never exceeds the settled requirement, which pins it to zero away from window ends:
+Delivered energy, less overage, plus shortfall reaches the energy due, and delivered energy, less overage, stays within the energy started:
 
 $$
-S(k) \leq \hat{R}(k)
+D(k) \leq E(k) - O(k) + S(k), \qquad E(k) - O(k) \leq C(k) \quad \forall k \in [1, T]
 $$
 
-**Shadow price**: `deferrable_load_requirement` is the marginal cost of requiring one more kWh at each window end.
-
-#### 5. Cap
-
-Delivery beyond the settled requirement at window ends is overage:
+The overage never exceeds the energy delivered, which keeps it bounded where it is unpriced:
 
 $$
-e(k) \cdot E(k) - O(k) \leq \hat{R}(k) \quad \forall k \in [1, T]
+O(k) \leq E(k)
 $$
 
-Without an overage price there is no $O(k)$ term, so each window's delivery is capped at its requirement.
-With an overage price, the overage never exceeds the energy delivered at a window end, which pins it to zero elsewhere:
+**Shadow price**: `deferrable_load_requirement` is the marginal cost of requiring one more kWh by each boundary.
+
+#### 5. Kept slack
+
+Within a window, shortfall and overage never shrink:
 
 $$
-O(k) \leq e(k) \cdot E(k)
+S(k) \geq c(k) \cdot S(k-1), \qquad O(k) \geq c(k) \cdot O(k-1) \quad \forall k \in [2, T]
 $$
 
-**Shadow price**: `deferrable_load_cap` is the marginal value of raising the cap at each window end.
+A missed deadline therefore stays missed, so energy arriving after an event ends cannot make it up, and overage, once booked, never counts toward a later event.
+
+Shortfall only grows where an event is due, by at most its requirement:
+
+$$
+S(k) - c(k) \cdot S(k-1) \leq w(k) \cdot u(k) \quad \forall k \in [1, T]
+$$
+
+A boundary where nothing is due can then hold no shortfall for a later event's miss to hide behind at a cheaper price.
 
 #### 6. Power balance
 
@@ -175,57 +178,55 @@ See the [tagged power formulation](../../tagged-power.md#per-tag-balance) for de
 
 ### Cost contribution
 
-Each window's shortfall and overage are priced at its end boundary:
+Shortfall is priced as it grows, at the boundary where its event is due, and each window's overage is priced once, at its end:
 
 $$
-\sum_{k=1}^{T} p_D(k) \cdot S(k) + \sum_{k=1}^{T} p_O(k) \cdot O(k)
+\sum_{k=1}^{T} p_D(k) \cdot \left(S(k) - c(k) \cdot S(k-1)\right) + \sum_{k=1}^{T} e(k) \cdot p_O(k) \cdot O(k)
 $$
 
-A deficit price above the cost of the energy makes the optimizer meet the requirement whenever it physically can.
+with $S(0) = 0$.
+Overage never shrinks within a window, so its value at the window's end is the window's total overage; pricing it there means booking it at an earlier, cheaper boundary gains nothing.
+
+A deficit price above the cost of the energy makes the optimizer meet each event whenever it physically can.
 A deficit price below the cost of the energy lets the optimizer skip delivery that is too expensive to be worth it.
-Delivering early inside a window is never penalized, because a window is only settled at its end.
+Delivering early within an event is never penalized, because an event is only due at its end.
 
 ### Outputs
 
 - `deferrable_load_power`: Power $P(t)$ consumed by the load (kW)
 - `deferrable_load_energy_delivered`: Energy $E(k)$ delivered in the current window (kWh)
-- `deferrable_load_energy_shortfall`: $e(k) \cdot \max(\hat{R}(k) - E(k), 0)$, the requirement each window missed (kWh)
-- `deferrable_load_energy_overage`: $e(k) \cdot \max(E(k) - \hat{R}(k), 0)$, the delivery beyond each window's requirement (kWh)
+- `deferrable_load_energy_shortfall`: $S(k) - c(k) \cdot S(k-1)$, the energy missed at each boundary (kWh)
+- `deferrable_load_energy_overage`: $O(k) - c(k) \cdot O(k-1)$, the energy delivered beyond what has started, at the boundary where it arises (kWh)
 
-Shortfall and overage outputs are computed from the delivered energy, so they are exact even where a price is zero.
 The shadow prices named in the constraints above are also exposed as outputs.
+
+### Nested events
+
+The band is exact when events do not nest, that is when an event that starts later also ends later, as staggered and back-to-back events do.
+An event nested inside a longer one is still due its energy by its own end, but the band only counts energy from the window's start, so energy delivered for the longer event before the nested one starts can satisfy it.
+Keeping a nested event's energy inside its own time needs a check over its own start and end.
 
 ## Physical interpretation
 
-### Two windows
+### Overlapping events
 
-Consider two one-hour windows separated by an hour, each needing 3 kWh, with no supply available during the first:
+Consider two 2-hour events overlapping by an hour, A over periods 1-2 and B over periods 2-3, each needing 2 kWh, with the first hour cheapest:
 
-- The first window ends with $E(1) = 0$, so $S(1) = 3$ kWh is priced at $p_D(1)$
-- The second window starts from zero at boundary 2 and receives its 3 kWh by boundary 3
-- The first window's miss never carries over into the second window
+- $C(1) = 2$, so the first hour can deliver at most A's 2 kWh; anything more is overage and never counts toward B
+- $D(2) = 2$, so A must be complete by its own end at boundary 2
+- $D(3) = 4$, so B's 2 kWh lands in periods 2-3, inside its own time
 
-### Shortfall example
+### Missed deadline
 
-Consider a load that needs 8 kWh by the end of a two-hour window, supplied through a connection limited to 3 kW:
+With no supply until period 3 in the same example:
 
-- At most 6 kWh can be delivered, so $E(2) = 6$ kWh
-- The requirement constraint forces $S(2) \geq 2$ kWh
-- The cost includes $2 \cdot p_D(2)$ for the missed energy
-
-The optimization remains feasible, and the shortfall output reports exactly what was missed and when.
+- A ends with nothing delivered, so $S(2) = 2$ kWh is priced at $p_D(2)$
+- Period 3 delivers B's 2 kWh; $S(3) \geq S(2)$, so energy arriving after A ended cannot make up A's shortfall
+- A's miss is priced once, at the boundary where A ended
 
 ## Next steps
 
 <div class="grid cards" markdown>
-
-- :material-battery-charging:{ .lg .middle } **Battery model**
-
-    ---
-
-    Energy storage with SOC tracking and reserve pricing.
-
-    [:material-arrow-right: Battery formulation](battery.md)
 
 - :material-scale-balance:{ .lg .middle } **Shadow prices**
 
