@@ -11,6 +11,12 @@ class EntityMetadata:
 
     entity_id: str
     unit_of_measurement: str | None
+    state_class: str | None = None
+
+    @property
+    def keeps_running_total(self) -> bool:
+        """Return True when the recorder keeps a running total for the entity, as for a meter."""
+        return self.state_class in ("total", "total_increasing")
 
     def is_compatible_with(self, accepted_units: UnitSpec | list[UnitSpec]) -> bool:
         """Check if this entity's unit is compatible with the accepted units."""

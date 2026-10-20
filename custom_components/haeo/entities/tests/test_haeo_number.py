@@ -1,6 +1,7 @@
 """Tests for the HAEO number input entity."""
 
 import asyncio
+from dataclasses import replace
 from datetime import timedelta
 import logging
 from types import MappingProxyType
@@ -23,6 +24,7 @@ from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.data.input_store import InputMode, create_input_store
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.core.schema import (
     SchemaValue,
@@ -33,7 +35,7 @@ from custom_components.haeo.core.schema import (
 )
 from custom_components.haeo.core.schema.elements.policy import CONF_RULES
 from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as POLICY_ELEMENT_TYPE
-from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, FieldHint
+from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, FieldHint, MeterFieldHint
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY
 from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
@@ -256,6 +258,7 @@ def _make_entity(
         time_series=field_info.time_series,
         boundaries=field_info.boundaries,
         calendar=field_info.calendar,
+        meter=field_info.meter,
     )
     store = create_input_store(
         storage=storage,
@@ -1101,6 +1104,29 @@ async def test_driven_scalar_loads_current_value(
     assert entity.native_value == 12.0
     attributes = entity.extra_state_attributes or {}
     assert "forecast" not in attributes
+
+
+async def test_driven_meter_injects_its_running_totals(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    scalar_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """A meter input loads with its meter's running totals injected, growing as the meter changes."""
+    hass.states.async_set("sensor.capacity", "12.0")
+    subentry = _create_subentry("Test Battery", {"capacity": ["sensor.capacity"]})
+    config_entry.runtime_data = None
+    field_info = replace(scalar_field_info, meter=MeterFieldHint(since="window_calendar"))
+
+    entity = _make_entity(hass, config_entry, subentry, field_info, device_entry, horizon_manager)
+    await _add_entity_to_hass(hass, entity)
+    hass.states.async_set("sensor.capacity", "13.5")
+    await hass.async_block_till_done()
+
+    totals = entity._store.captured_source_states["sensor.capacity"].attributes[METER_TOTALS_ATTRIBUTE]
+    assert isinstance(totals, list)
+    assert [total for _at, total in totals] == [0.0, 1.5]
 
 
 async def test_driven_missing_source_keeps_value_none(

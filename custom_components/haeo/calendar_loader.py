@@ -32,7 +32,7 @@ from custom_components.haeo.core.data.loader.calendar import (
 )
 from custom_components.haeo.core.data.util.field_units import field_unit_label
 from custom_components.haeo.core.state import EntityState, StateMachine
-from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
+from custom_components.haeo.ha_state_machine import AnnotatedState, HomeAssistantStateMachine
 from custom_components.haeo.repairs import create_calendar_event_values_issue, dismiss_calendar_event_values_issue
 
 if TYPE_CHECKING:
@@ -45,33 +45,6 @@ if TYPE_CHECKING:
     from custom_components.haeo.input_stores import InputStoreKey, InputStoreMap
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class _CalendarEventState:
-    """EntityState wrapper that injects fetched events into attributes."""
-
-    def __init__(self, base: EntityState, events: list[CalendarEventDict]) -> None:
-        self._base = base
-        self._events = events
-
-    @property
-    def entity_id(self) -> str:
-        """Entity identifier."""
-        return self._base.entity_id
-
-    @property
-    def state(self) -> str:
-        """Raw state string."""
-        return self._base.state
-
-    @property
-    def attributes(self) -> Mapping[str, object]:
-        """Entity attributes with fetched events merged in."""
-        return {**self._base.attributes, CALENDAR_EVENTS_ATTRIBUTE: self._events}
-
-    def as_dict(self) -> Mapping[str, object]:
-        """Return serialized state representation including the events."""
-        return {**self._base.as_dict(), "attributes": self.attributes}
 
 
 def is_calendar_entity(entity_id: str) -> bool:
@@ -106,7 +79,7 @@ class CalendarStateMachine(StateMachine):
         events = self._events_by_entity.get(entity_id)
         if events is None:
             return state if CALENDAR_EVENTS_ATTRIBUTE in state.attributes else None
-        return _CalendarEventState(state, events)
+        return AnnotatedState(state, {CALENDAR_EVENTS_ATTRIBUTE: events})
 
 
 def _as_datetime(value: datetime | date) -> datetime:
