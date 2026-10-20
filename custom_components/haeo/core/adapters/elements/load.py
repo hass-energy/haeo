@@ -28,7 +28,6 @@ from custom_components.haeo.core.schema.sections import (
 # Load output names
 type LoadOutputName = Literal[
     "load_power",
-    "load_power_unserved",
     "load_forecast_limit_price",
     "load_horizon_energy",
     "load_horizon_marginal_cost",
@@ -43,7 +42,6 @@ type LoadOutputName = Literal[
 LOAD_OUTPUT_NAMES: Final[frozenset[LoadOutputName]] = frozenset(
     (
         LOAD_POWER := "load_power",
-        LOAD_POWER_UNSERVED := "load_power_unserved",
         # Shadow price
         LOAD_FORECAST_LIMIT_PRICE := "load_forecast_limit_price",
         # Full-horizon statistics (over the entire optimization horizon)
@@ -130,16 +128,14 @@ class LoadAdapter:
             LOAD_POWER: replace(power, type=OutputType.POWER, direction="-", fixed=fixed),
         }
 
-        # Shadow price and shortfall from power_limit segment (if present)
+        # Shadow price from power_limit segment (if present)
         if (
             connection is not None
             and isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
             and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
+            and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
         ):
-            if (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None:
-                load_outputs[LOAD_FORECAST_LIMIT_PRICE] = shadow
-            if (shortfall := expect_output_data(power_limit_outputs.get("shortfall"))) is not None:
-                load_outputs[LOAD_POWER_UNSERVED] = replace(shortfall, direction="-")
+            load_outputs[LOAD_FORECAST_LIMIT_PRICE] = shadow
 
         # Cumulative + rolling-24h statistics. Marginal cost uses the source-node
         # power-balance shadow price ($/kWh) so that cost = energy * price is in $.

@@ -6,12 +6,7 @@ from typing import TypedDict
 import numpy as np
 import pytest
 
-from custom_components.haeo.core.adapters.elements.solar import (
-    SOLAR_DEVICE_SOLAR,
-    SOLAR_FORECAST_LIMIT,
-    SOLAR_POWER,
-    SOLAR_POWER_UNABSORBED,
-)
+from custom_components.haeo.core.adapters.elements.solar import SOLAR_DEVICE_SOLAR, SOLAR_FORECAST_LIMIT, SOLAR_POWER
 from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
@@ -113,32 +108,30 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         },
     },
     {
-        "description": "Fixed solar with unabsorbed power",
+        "description": "Solar with shadow price output",
         "name": "pv_with_price",
         "config": SolarConfigData(
             element_type=ElementType.SOLAR,
             name="pv_with_price",
             connection=as_connection_target("network"),
             forecast={"forecast": np.array([1.5])},
-            curtailment={"curtailment": False},
+            curtailment={"curtailment": True},
         ),
         "model_outputs": {
             "pv_with_price:connection": {
                 connection.CONNECTION_POWER: OutputData(
-                    type=OutputType.POWER_FLOW, unit="kW", values=(1.0,), direction="+"
+                    type=OutputType.POWER_FLOW, unit="kW", values=(1.5,), direction="+"
                 ),
                 connection.CONNECTION_SEGMENTS: {
                     "power_limit": {
-                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
-                        "shortfall": OutputData(type=OutputType.POWER, unit="kW", values=(0.5,)),
+                        "power_limit": OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,))
                     }
                 },
             }
         },
         "outputs": {
             SOLAR_DEVICE_SOLAR: {
-                SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.0,), direction="+", fixed=True),
-                SOLAR_POWER_UNABSORBED: OutputData(type=OutputType.POWER, unit="kW", values=(0.5,), direction="+"),
+                SOLAR_POWER: OutputData(type=OutputType.POWER, unit="kW", values=(1.5,), direction="+"),
                 SOLAR_FORECAST_LIMIT: OutputData(type=OutputType.SHADOW_PRICE, unit="$/kWh", values=(0.0,)),
             }
         },

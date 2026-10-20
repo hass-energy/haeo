@@ -27,14 +27,12 @@ from custom_components.haeo.core.schema.sections import CONF_CONNECTION, CONF_FO
 # Solar output names
 type SolarOutputName = Literal[
     "solar_power",
-    "solar_power_unabsorbed",
     "solar_forecast_limit",
 ]
 
 SOLAR_OUTPUT_NAMES: Final[frozenset[SolarOutputName]] = frozenset(
     (
         SOLAR_POWER := "solar_power",
-        SOLAR_POWER_UNABSORBED := "solar_power_unabsorbed",
         # Shadow price
         SOLAR_FORECAST_LIMIT := "solar_forecast_limit",
     )
@@ -103,16 +101,14 @@ class SolarAdapter:
             SOLAR_POWER: replace(power, type=OutputType.POWER, fixed=fixed),
         }
 
-        # Shadow price and shortfall from power_limit segment (if present)
+        # Shadow price from power_limit segment (if present)
         if (
             connection is not None
             and isinstance(segments_output := connection.get(CONNECTION_SEGMENTS), Mapping)
             and isinstance(power_limit_outputs := segments_output.get("power_limit"), Mapping)
+            and (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None
         ):
-            if (shadow := expect_output_data(power_limit_outputs.get("power_limit"))) is not None:
-                solar_outputs[SOLAR_FORECAST_LIMIT] = shadow
-            if (shortfall := expect_output_data(power_limit_outputs.get("shortfall"))) is not None:
-                solar_outputs[SOLAR_POWER_UNABSORBED] = replace(shortfall, direction="+")
+            solar_outputs[SOLAR_FORECAST_LIMIT] = shadow
 
         return {SOLAR_DEVICE_SOLAR: solar_outputs}
 

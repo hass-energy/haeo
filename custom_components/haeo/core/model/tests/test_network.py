@@ -18,7 +18,6 @@ from custom_components.haeo.core.model.elements import ModelElementConfig
 from custom_components.haeo.core.model.elements.connection import Connection, tie_break_offset
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
-from custom_components.haeo.core.model.elements.segments import PowerLimitSegment, PowerLimitSegmentSpec
 from custom_components.haeo.core.model.linear import LinearArray
 from custom_components.haeo.core.model.network import BlendWeightSearch, SolveOptions, _bisect_boundary
 from custom_components.haeo.core.model.solver import Solver
@@ -391,65 +390,6 @@ def test_network_cost_with_multiple_elements() -> None:
 
     # Should return a combined objective tuple
     assert cost is not None
-
-
-@pytest.mark.parametrize(
-    ("load", "export_limit", "expected_shortfall"),
-    [
-        pytest.param([3.0, 17.5, 3.0], 10.0, {"load": [0.0, 0.5, 0.0], "solar": [0.0, 0.0, 0.0]}, id="unserved_load"),
-        pytest.param([0.0, 0.0, 0.0], 1.0, {"load": [0.0, 0.0, 0.0], "solar": [1.0, 1.0, 1.0]}, id="unabsorbed_solar"),
-    ],
-)
-def test_fixed_flows_the_network_cannot_meet_fall_short_at_a_cost(
-    load: list[float], export_limit: float, expected_shortfall: dict[str, list[float]]
-) -> None:
-    """A fixed flow the network cannot carry falls short in that period only, instead of making the plan infeasible."""
-    network = Network(name="test", periods=np.array([1.0, 1.0, 1.0]))
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": True})
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "switchboard", "is_source": False, "is_sink": False})
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "load", "is_source": False, "is_sink": True})
-    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "solar", "is_source": True, "is_sink": False})
-    network.add(
-        {
-            "element_type": ELEMENT_TYPE_BATTERY,
-            "name": "battery",
-            "capacity": 10.0,
-            "initial_charge": 5.0,
-        }
-    )
-    connections: list[tuple[str, str, str, PowerLimitSegmentSpec]] = [
-        ("grid:import", "grid", "switchboard", {"segment_type": "power_limit", "max_power": 10.0}),
-        ("grid:export", "switchboard", "grid", {"segment_type": "power_limit", "max_power": export_limit}),
-        ("battery:charge", "switchboard", "battery", {"segment_type": "power_limit", "max_power": 0.0}),
-        ("battery:discharge", "battery", "switchboard", {"segment_type": "power_limit", "max_power": 5.0}),
-        (
-            "load:connection",
-            "switchboard",
-            "load",
-            {"segment_type": "power_limit", "max_power": np.array(load), "fixed": True},
-        ),
-        ("solar:connection", "solar", "switchboard", {"segment_type": "power_limit", "max_power": 2.0, "fixed": True}),
-    ]
-    for name, source, target, limit in connections:
-        network.add(
-            {
-                "element_type": ELEMENT_TYPE_CONNECTION,
-                "name": name,
-                "source": source,
-                "target": target,
-                "tags": {1},
-                "segments": {"power_limit": limit},
-            }
-        )
-
-    network.optimize()
-
-    for element, expected in expected_shortfall.items():
-        connection = network.elements[f"{element}:connection"]
-        assert isinstance(connection, Connection)
-        segment = connection["power_limit"]
-        assert isinstance(segment, PowerLimitSegment)
-        np.testing.assert_allclose(segment.outputs()["shortfall"].values, expected, atol=1e-9)
 
 
 def test_network_cost_returns_none_when_no_costs() -> None:

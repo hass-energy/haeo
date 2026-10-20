@@ -99,11 +99,10 @@ See the [Input Entities developer guide](../../developer-guide/inputs.md) for de
 
 A Solar element creates 1 device in Home Assistant with the following sensors.
 
-| Sensor                                                | Unit   | Description                                 |
-| ----------------------------------------------------- | ------ | ------------------------------------------- |
-| [`sensor.{name}_power`](#power)                       | kW     | Actual power generated                      |
-| [`sensor.{name}_unabsorbed_power`](#unabsorbed-power) | kW     | Forecast generation the network cannot take |
-| [`sensor.{name}_forecast_limit`](#forecast-limit)     | \$/kWh | Value of additional generation capacity     |
+| Sensor                                            | Unit   | Description                             |
+| ------------------------------------------------- | ------ | --------------------------------------- |
+| [`sensor.{name}_power`](#power)                   | kW     | Actual power generated                  |
+| [`sensor.{name}_forecast_limit`](#forecast-limit) | \$/kWh | Value of additional generation capacity |
 
 All sensors include a `forecast` attribute containing future optimized values for upcoming periods.
 
@@ -116,18 +115,6 @@ When curtailment is disabled, this equals the forecasted power.
 When curtailment is enabled, this may be less than the forecast if the optimizer determines curtailing generation reduces total system cost.
 
 **Example**: A value of 4.2 kW means the solar array is producing 4.2 kW at this time period.
-
-### Unabsorbed power
-
-The part of the forecast the network cannot take at each time period.
-This sensor is only created when [Curtailment](#curtailment) is disabled.
-
-It is zero whenever loads, batteries, and export can absorb the generation.
-When the forecast is more than they can take, for example when export is limited and the battery is full, generation falls short by this amount at a value of lost load of \$1000/kWh.
-The rest of the horizon is still optimized normally instead of the whole plan failing.
-
-A non-zero value means your network cannot take this forecast.
-Enable curtailment if your inverter can limit its output, or check the export and battery power limits.
 
 ### Forecast Limit
 
