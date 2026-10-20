@@ -19,18 +19,22 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Coroutine, Generator
-from contextlib import closing, contextmanager
+from contextlib import ExitStack, closing, contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 import json
 import logging
 from pathlib import Path
 import socket
+import sqlite3
 import tempfile
 import threading
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 import warnings
 from weakref import WeakKeyDictionary
 
+import freezegun
 from freezegun import freeze_time
 from homeassistant import loader
 from homeassistant.auth import auth_manager_from_config
@@ -51,6 +55,8 @@ from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 from homeassistant.util.json import JsonValueType
 from playwright.sync_api import BrowserContext, Page, Request
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+from pytest_homeassistant_custom_component import patch_time
 
 from tools.time_shift import parse_anchor_timestamp
 
@@ -63,19 +69,31 @@ PROJECT_ROOT = Path(__file__).parent.parent
 _IN_FLIGHT: WeakKeyDictionary[BrowserContext, set[Request]] = WeakKeyDictionary()
 
 
-def wait_for_requests(page: Page) -> bool:
+def wait_for_requests(page: Page, timeout_ms: float) -> bool:
     """Block until every HTTP request of the page's browser context has been answered.
 
     Returns whether there were any to wait for. Scripts, translations and
     images all arrive this way, while the DOM stays as it was until they do.
+
+    Raises:
+        TimeoutError: If a request is still unanswered after ``timeout_ms``.
+
     """
     in_flight = _IN_FLIGHT[page.context]
     waited = bool(in_flight)
     while in_flight:
         request = next(iter(in_flight))
-        response = request.response()
-        if response is not None:
-            response.finished()
+        try:
+            page.context.wait_for_event(
+                "requestfinished",
+                predicate=lambda finished, request=request: finished is request,
+                timeout=timeout_ms,
+            )
+        except PlaywrightTimeoutError:
+            # A request that failed instead is no longer in flight
+            if request in in_flight:
+                msg = f"No answer within {timeout_ms:.0f} ms to {request.method} {request.url}"
+                raise TimeoutError(msg) from None
         in_flight.discard(request)
     return waited
 
@@ -586,6 +604,28 @@ async def _async_set_up_config_entries(hass: HomeAssistant) -> None:
 
 
 @contextmanager
+def _frozen_clock(now: datetime) -> Generator[None]:
+    """Freeze the wall clock at ``now`` for Home Assistant, leaving its event loop on real time.
+
+    freezegun's fake datetimes are swapped for the ones pytest's Home Assistant
+    plugin uses, which Home Assistant can serialize and store, so the clock
+    freezes the same way whether or not pytest started the runner. Importing
+    the plugin's patch_time also replaces Home Assistant's utcnow, a partial
+    freezegun cannot reach, with a function it can.
+    """
+    sqlite3.register_adapter(patch_time.HAFakeDatetime, lambda value: value.isoformat(" "))
+    with ExitStack() as stack:
+        for name, replacement in (
+            ("FakeDate", patch_time.HAFakeDate),
+            ("FakeDatetime", patch_time.HAFakeDatetime),
+            ("datetime_to_fakedatetime", patch_time.ha_datetime_to_fakedatetime),
+        ):
+            stack.enter_context(patch.object(freezegun.api, name, replacement))
+        stack.enter_context(freeze_time(now, real_asyncio=True))
+        yield
+
+
+@contextmanager
 def live_home_assistant(
     timeout: float = 60.0,
     *,
@@ -605,7 +645,7 @@ def live_home_assistant(
     timezone = str(environment.get("timezone", "UTC"))
     now = parse_anchor_timestamp(str(environment["optimization_start_time"]))
 
-    with freeze_time(now, real_asyncio=True), tempfile.TemporaryDirectory(prefix="ha_live_") as tmp_dir:
+    with _frozen_clock(now), tempfile.TemporaryDirectory(prefix="ha_live_") as tmp_dir:
         config_dir = Path(tmp_dir)
 
         custom_components = config_dir / "custom_components"
@@ -615,36 +655,39 @@ def live_home_assistant(
 
         port = _find_free_port()
 
-        def start() -> _Running:
-            running = _launch(port, config_dir, timezone, timeout)
-            instance.hass = running.hass
-            instance.loop = running.loop
-            instance._stop_event = running.stop_event  # noqa: SLF001 (the instance's own lifecycle)
+        def ready() -> None:
             instance.load_states_from_file(states)
-            instance.run_coro(_async_set_up_config_entries(running.hass), timeout=timeout)
-            return running
+            instance.run_coro(_async_set_up_config_entries(instance.hass), timeout=timeout)
 
         def restart(prepare: Callable[[Path], None]) -> None:
             nonlocal running
             instance.stop()
             running.thread.join(timeout=15)
+            if running.thread.is_alive():
+                msg = "Home Assistant did not stop within 15s, so its config directory is still in use"
+                raise RuntimeError(msg)
             prepare(config_dir)
-            running = start()
+            running = _launch(port, config_dir, timezone, timeout)
+            instance.hass = running.hass
+            instance.loop = running.loop
+            instance._stop_event = running.stop_event  # noqa: SLF001 (the instance's own lifecycle)
+            ready()
 
-        first = _launch(port, config_dir, timezone, timeout)
+        running = _launch(port, config_dir, timezone, timeout)
         instance = LiveHomeAssistant(
-            hass=first.hass,
+            hass=running.hass,
             url=f"http://127.0.0.1:{port}",
             port=port,
-            loop=first.loop,
-            _stop_event=first.stop_event,
+            loop=running.loop,
+            _stop_event=running.stop_event,
             _restart=restart,
         )
-        instance.load_states_from_file(states)
-        running = first
 
         try:
+            ready()
             yield instance
         finally:
-            instance.stop()
-            running.thread.join(timeout=15)
+            # A restart that failed to start again leaves nothing running to stop
+            if running.thread.is_alive():
+                instance.stop()
+                running.thread.join(timeout=15)

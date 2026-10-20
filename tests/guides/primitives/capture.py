@@ -61,7 +61,7 @@ def wait_until_settled(page: Page) -> None:
     """
     page.mouse.move(-1, -1)
     page.evaluate(_WAIT_SETTLED_JS, SETTLE_DEADLINE_MS)
-    while wait_for_requests(page):
+    while wait_for_requests(page, SETTLE_DEADLINE_MS):
         page.evaluate(_WAIT_SETTLED_JS, SETTLE_DEADLINE_MS)
 
 

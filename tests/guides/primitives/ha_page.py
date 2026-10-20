@@ -536,6 +536,7 @@ class HAPage:
             with ctx.scope("perform_action"):
                 self._scroll_and_capture(button)
                 self._capture_with_indicator("button", button)
+                self._keep_action_result()
                 button.click()
                 self._wait_for_action_result()
                 self._capture("result")
@@ -543,12 +544,18 @@ class HAPage:
             button.click()
             self._wait_for_action_result()
 
-    def _wait_for_action_result(self) -> None:
-        """Wait for the Perform action button to report how the action went.
+    def _keep_action_result(self) -> None:
+        """Keep the Perform action button's result showing once it appears.
 
-        The button shows a check mark or a cross for two seconds once the
-        action returns, so the result is captured while it shows.
+        The button clears its check mark or cross two seconds after the action
+        returns, which a capture in both themes can outlast.
         """
+        self.page.locator("ha-progress-button").evaluate(
+            "(button) => { button._setResult = (result) => { button._result = result; }; }"
+        )
+
+    def _wait_for_action_result(self) -> None:
+        """Wait for the Perform action button to report how the action went."""
         result = self.page.locator("ha-progress-button ha-button.result")
         result.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
         if "success" not in (result.get_attribute("class") or "").split():
