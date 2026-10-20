@@ -8,8 +8,9 @@ counts the energy delivered since the window started.
 Inside a window the accumulator must stay within a band. Its lower edge is
 the energy due: the requirements of the events that have ended. Its upper
 edge is the energy started: the requirements of the events that have begun.
-Falling below the band is shortfall, priced at the deficit price, and rising
-above it is overage, priced at the overage price. Neither is ever forbidden,
+Falling below the band is shortfall, priced at the deficit price where an
+event is missed, and rising above it is overage, priced at the overage price
+where its window ends. Neither is ever forbidden,
 so the optimization stays feasible when a requirement physically cannot be
 met and when the device has already run past it.
 
@@ -26,7 +27,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE, NetworkElement
 from custom_components.haeo.core.model.linear import LinearArray, Rows
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
+from custom_components.haeo.core.model.reactive import TrackedParam, computed, constraint, cost, output
 from custom_components.haeo.core.model.solver import Solver
 
 # Model element type for deferrable loads
@@ -103,10 +104,11 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     events opened before ``k``, and the energy due by ``k`` is the sum of the
     events due by ``k``. The accumulator, less any overage, must reach the
     energy due, and anything above the energy started is overage. Shortfall
-    and overage never shrink within a window and are priced as they grow, so
-    a missed deadline stays missed, energy delivered before an event starts
-    never counts toward it, and each kWh is priced once at the boundary
-    where it is missed or delivered beyond what has started.
+    and overage never shrink within a window, so a missed deadline stays
+    missed and energy delivered before an event starts never counts toward
+    it. Shortfall only grows where an event is due, by at most its
+    requirement, and is priced there. Overage is priced once, at its
+    window's end, so booking it at a cheaper boundary gains nothing.
 
     The band is exact when events do not nest, that is when an event that
     starts later also ends later. An event nested inside another still gets
@@ -189,6 +191,7 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         """
         return self.delivered * (1.0 / self.periods)
 
+    @computed
     def _carry(self) -> NDArray[np.float64]:
         """Return 1 for each period that continues the window of the boundary before it.
 
@@ -197,6 +200,12 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         starts the accumulator from zero.
         """
         return self.in_window * (1.0 - self.window_start[:-1])
+
+    @computed
+    def _window_end(self) -> NDArray[np.float64]:
+        """Return 1 at boundaries 1..T where a window ends."""
+        next_continues = np.append(self._carry()[1:], 0.0)
+        return self.in_window * (1.0 - next_continues)
 
     def _window_total(self, values: NDArray[np.float64]) -> NDArray[np.float64]:
         """Return the running total of per-period values since each period's window started."""
@@ -207,13 +216,20 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         last_start = np.maximum.accumulate(last_start)
         return totals - (totals - values)[last_start]
 
+    @computed
+    def _due_at(self) -> NDArray[np.float64]:
+        """Return the requirements of the events due at boundaries 1..T, inside windows."""
+        return self.in_window * self.due[1:]
+
+    @computed
     def _started(self) -> NDArray[np.float64]:
         """Return the energy started by boundaries 1..T: the events opened in the window so far."""
         return self._window_total(self.in_window * self.opened[:-1])
 
+    @computed
     def _due_by(self) -> NDArray[np.float64]:
         """Return the energy due by boundaries 1..T: the events ended in the window so far."""
-        return self._window_total(self.in_window * self.due[1:])
+        return self._window_total(self._due_at())
 
     @constraint
     def deferrable_load_initial_energy(self) -> Rows:
@@ -248,9 +264,19 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         return self.energy[1:] - self.overage <= self._started()
 
     @constraint
-    def deferrable_load_shortfall_limit(self) -> Rows:
-        """Constraint: shortfall never exceeds the energy due, keeping it bounded where unpriced."""
-        return self.shortfall <= self._due_by()
+    def deferrable_load_shortfall_growth(self) -> Rows:
+        """Constraint: shortfall only grows where an event is due, by at most its requirement.
+
+        A boundary where nothing is due can then carry no shortfall that a
+        later event's miss would otherwise go unpriced against.
+        """
+        due_at = self._due_at()
+        return Rows.concat(
+            [
+                self.shortfall[:1] <= due_at[:1],
+                self.shortfall[1:] - self._carry()[1:] * self.shortfall[:-1] <= due_at[1:],
+            ]
+        )
 
     @constraint
     def deferrable_load_overage_limit(self) -> Rows:
@@ -275,19 +301,16 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         """Return power consumed by the load."""
         return self.power_consumption
 
-    def _growth(self, slack: LinearArray, price: NDArray[np.float64]) -> LinearArray:
-        """Return the cost of a slack's growth at each boundary, at that boundary's price."""
-        return (price[1:] * slack).total() - (price[2:] * self._carry()[1:] * slack[:-1]).total()
-
     @cost
     def deferrable_load_shortfall_cost(self) -> LinearArray:
-        """Cost: each kWh of shortfall priced at the boundary where it is missed."""
-        return self._growth(self.shortfall, self.deficit_price)
+        """Cost: each kWh of shortfall priced at the boundary where its event is due."""
+        price = self.deficit_price
+        return (price[1:] * self.shortfall).total() - (price[2:] * self._carry()[1:] * self.shortfall[:-1]).total()
 
     @cost
     def deferrable_load_overage_cost(self) -> LinearArray:
-        """Cost: each kWh of overage priced at the boundary where it is delivered beyond what has started."""
-        return self._growth(self.overage, self.overage_price)
+        """Cost: each window's overage priced once, at the boundary where the window ends."""
+        return (self._window_end() * self.overage_price[1:] * self.overage).total()
 
     # Output methods
 

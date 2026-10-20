@@ -34,7 +34,7 @@ def _build_network(
     opened: list[float] | None = None,
     deficit_price: np.ndarray | float = 10.0,
     initial_energy: float = 0.0,
-    overage_price: float = 0.0,
+    overage_price: np.ndarray | float = 0.0,
     supply_price: list[float] | None = None,
     max_supply_power: list[float] | None = None,
 ) -> tuple[Network, DeferrableLoad]:
@@ -56,7 +56,7 @@ def _build_network(
             "due": np.array(due),
             "deficit_price": np.broadcast_to(np.asarray(deficit_price, dtype=np.float64), n + 1).copy(),
             "initial_energy": initial_energy,
-            "overage_price": np.full(n + 1, overage_price),
+            "overage_price": np.broadcast_to(np.asarray(overage_price, dtype=np.float64), n + 1).copy(),
             "is_source": False,
             "is_sink": True,
         }
@@ -396,6 +396,41 @@ def test_a_missed_deadline_stays_missed() -> None:
     np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_shortfall"), [0.0, 0.0, 2.0, 0.0], atol=1e-9)
     np.testing.assert_allclose(_outputs(load, "deferrable_load_power"), [0.0, 0.0, 2.0], atol=1e-9)
     assert cost == pytest.approx(2.0 * 0.2 + 2.0 * 10.0)
+
+
+def test_shortfall_cannot_be_booked_where_nothing_is_due() -> None:
+    """A free boundary between two deadlines cannot hold shortfall that a later, priced miss would hide behind."""
+    network, load = _build_network(
+        in_window=[1.0, 1.0, 1.0, 1.0],
+        window_start=[1.0, 0.0, 0.0, 0.0, 0.0],
+        opened=[6.0, 0.0, 0.0, 0.0, 0.0],
+        due=[0.0, 0.0, 2.0, 0.0, 4.0],
+        deficit_price=np.array([0.0, 0.0, 10.0, 0.0, 10.0]),
+        supply_price=[0.1, 0.1, 5.0, 5.0],
+    )
+
+    cost = network.optimize()
+
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_shortfall"), [0.0] * 5, atol=1e-9)
+    assert cost == pytest.approx(6.0 * 0.1)
+
+
+def test_overage_cannot_be_booked_early_at_a_free_boundary() -> None:
+    """Overage is priced at its window's end, so booking it at an earlier free boundary avoids nothing."""
+    network, load = _build_network(
+        in_window=[1.0, 1.0, 1.0, 1.0],
+        window_start=[1.0, 0.0, 0.0, 0.0, 0.0],
+        opened=[5.0, 0.0, 0.0, 0.0, 0.0],
+        due=[0.0, 0.0, 0.0, 0.0, 5.0],
+        overage_price=np.array([0.0, 0.0, 0.0, 0.0, 0.6]),
+        supply_price=[-0.1, 0.01, 0.01, -0.5],
+        max_supply_power=[10.0] * 4,
+    )
+
+    cost = network.optimize()
+
+    assert _outputs(load, "deferrable_load_energy_delivered")[-1] == pytest.approx(5.0)
+    assert cost == pytest.approx(-5.0 * 0.5)
 
 
 def test_window_changes_update_reactively() -> None:
