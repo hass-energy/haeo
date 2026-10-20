@@ -1,17 +1,18 @@
 """Buffer element configuration flow."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
 
 from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
 from homeassistant.helpers.selector import Selector, SelectSelector, SelectSelectorConfig, SelectSelectorMode
 import voluptuous as vol
 
-from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, ElementAdapter, is_element_type
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.buffer import (
     BUFFER_KINDS,
+    BUFFER_ROLES,
     CONF_GENERATION,
     CONF_KIND,
     CONF_LEVEL,
@@ -23,6 +24,7 @@ from custom_components.haeo.core.schema.elements.buffer import (
     SECTION_PARTICIPANTS,
     SECTION_PRICING,
     SECTION_REQUIREMENT,
+    BufferRole,
 )
 from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
@@ -39,13 +41,6 @@ from custom_components.haeo.flows.field_schema import (
     sectioned_view,
     validate_sectioned_choose_fields,
 )
-
-# Which elements each participant list offers, by what the element's adapter can do
-PARTICIPANT_FILTERS: dict[str, Callable[[ElementAdapter], bool]] = {
-    CONF_LOADS: lambda adapter: adapter.can_consume,
-    CONF_GENERATION: lambda adapter: adapter.can_source and not adapter.can_sink,
-    CONF_STORAGE: lambda adapter: adapter.can_store,
-}
 
 
 class BufferSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -105,7 +100,7 @@ class BufferSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             },
             extra_field_entries={
                 SECTION_PARTICIPANTS: {
-                    field: (vol.Optional(field), self._participant_selector(field)) for field in PARTICIPANT_FILTERS
+                    field: (vol.Optional(field), self._participant_selector(field)) for field in BUFFER_ROLES
                 }
             },
         )
@@ -113,16 +108,15 @@ class BufferSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         schema = self.add_suggested_values_to_schema(schema, defaults)
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
-    def _participant_selector(self, field: str) -> Selector[SelectSelectorConfig]:
-        """Build a multi-select of the elements a participant list offers."""
-        offered = PARTICIPANT_FILTERS[field]
+    def _participant_selector(self, field: BufferRole) -> Selector[SelectSelectorConfig]:
+        """Build a multi-select of the elements that can take a participant list's role."""
         current_id = self._get_current_subentry_id()
         options = [
             subentry.title
             for subentry in self._get_entry().subentries.values()
             if subentry.subentry_id != current_id
             and is_element_type(subentry.subentry_type)
-            and offered(ELEMENT_TYPES[subentry.subentry_type])
+            and field in ELEMENT_TYPES[subentry.subentry_type].buffer_roles
         ]
         return SelectSelector(SelectSelectorConfig(options=options, multiple=True, mode=SelectSelectorMode.DROPDOWN))
 
@@ -133,7 +127,7 @@ class BufferSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
     ) -> dict[str, object]:
         """Build default values for the form."""
         participants = as_mapping(subentry_data.get(SECTION_PARTICIPANTS)) if subentry_data else {}
-        participant_defaults = {field: participants.get(field, []) for field in PARTICIPANT_FILTERS}
+        participant_defaults = {field: participants.get(field, []) for field in BUFFER_ROLES}
         return {
             CONF_NAME: (
                 subentry_data.get(CONF_NAME) if subentry_data else await self._async_get_default_name(self.element_type)
@@ -178,7 +172,7 @@ class BufferSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         )
         config[SECTION_PARTICIPANTS] = {
             field: list(values)
-            for field in PARTICIPANT_FILTERS
+            for field in BUFFER_ROLES
             if isinstance(values := as_mapping(user_input.get(SECTION_PARTICIPANTS)).get(field), list) and values
         }
         return {

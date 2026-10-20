@@ -261,7 +261,7 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
 
 Each adapter implements the `ElementAdapter` protocol:
 
-- **Attributes**: `element_type`, `advanced`, `connectivity`, `can_source`, `can_sink`, and `can_store`
+- **Attributes**: `element_type`, `advanced`, `connectivity`, `can_source`, `can_sink`, and `buffer_roles`
 - **`model_elements(config)`**: Turns a loaded config into model element parameters
 - **`outputs(name, model_outputs, ...)`**: Maps model outputs to the element's device outputs
 

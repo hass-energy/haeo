@@ -11,6 +11,7 @@ from custom_components.haeo.core.model.elements.connection import CONNECTION_POW
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.buffer import BufferRole
 from custom_components.haeo.core.schema.elements.connection import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -40,8 +41,7 @@ class ConnectionAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = False
     can_sink: bool = False
-    can_store: bool = False
-    can_consume: bool = False
+    buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: ConnectionConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Connection configuration."""

@@ -81,6 +81,7 @@ def _ev_config(*, plugged_in: bool = True, **overrides: object) -> EvConfigData:
             "connected": np.full(N_PERIODS, 1.0 if plugged_in else 0.0),
         },
         "efficiency": {},
+        "advanced": {"charge_limit_cost": 100.0},
     }
     config.update(overrides)
     return config  # type: ignore[return-value]  # constructed to match EvConfigData
@@ -276,6 +277,7 @@ def test_loads_an_open_trip_from_captured_states() -> None:
             "odometer": as_entity_value(["sensor.odometer"]),
         },
         "efficiency": {},
+        "advanced": {"charge_limit_cost": as_constant_value(100.0)},
     }
     times = tuple(start + 3600.0 * k for k in range(1, N_PERIODS + 2))
 

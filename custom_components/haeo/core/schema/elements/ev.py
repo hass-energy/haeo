@@ -25,6 +25,7 @@ SECTION_VEHICLE: Final = "vehicle"
 SECTION_CHARGING: Final = "charging"
 SECTION_TRIP: Final = "trip"
 SECTION_PUBLIC_CHARGING: Final = "public_charging"
+SECTION_ADVANCED: Final = "advanced"
 
 # Vehicle section field names
 CONF_CAPACITY: Final = "capacity"
@@ -49,6 +50,9 @@ CONF_ODOMETER: Final = "odometer"
 
 # Public charging section field names
 CONF_PUBLIC_CHARGING_PRICE: Final = "public_charging_price"
+
+# Advanced section field names
+CONF_CHARGE_LIMIT_COST: Final = "charge_limit_cost"
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
@@ -144,6 +148,21 @@ class PublicChargingData(TypedDict, total=False):
     """Loaded public charging pricing values."""
 
     public_charging_price: NDArray[np.float64] | float
+
+
+# --- Advanced section ---
+
+
+class AdvancedConfig(TypedDict):
+    """Advanced EV configuration values."""
+
+    charge_limit_cost: EntityValue | ConstantValue
+
+
+class AdvancedData(TypedDict):
+    """Loaded advanced EV values."""
+
+    charge_limit_cost: NDArray[np.float64] | float
 
 
 # --- Main element schemas ---
@@ -260,6 +279,22 @@ class EvConfigSchema(ConnectedCommonConfig):
         ),
     ]
 
+    advanced: Annotated[
+        AdvancedConfig,
+        SectionHints(
+            {
+                CONF_CHARGE_LIMIT_COST: FieldHint(
+                    output_type=OutputType.PRICE_RATE,
+                    direction="-",
+                    time_series=True,
+                    min_value=0.0,
+                    default_mode="value",
+                    default_value=100.0,
+                ),
+            }
+        ),
+    ]
+
 
 class EvConfigData(ConnectedCommonData):
     """EV element configuration with loaded values."""
@@ -270,11 +305,13 @@ class EvConfigData(ConnectedCommonData):
     trip: NotRequired[TripData]
     public_charging: NotRequired[PublicChargingData]
     efficiency: EfficiencyData
+    advanced: AdvancedData
 
 
 __all__ = [
     "CONF_AWAY",
     "CONF_CAPACITY",
+    "CONF_CHARGE_LIMIT_COST",
     "CONF_CONNECTED",
     "CONF_CURRENT_SOC",
     "CONF_ENERGY_PER_DISTANCE",
@@ -289,10 +326,13 @@ __all__ = [
     "CONF_TRIP_START",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
+    "SECTION_ADVANCED",
     "SECTION_CHARGING",
     "SECTION_PUBLIC_CHARGING",
     "SECTION_TRIP",
     "SECTION_VEHICLE",
+    "AdvancedConfig",
+    "AdvancedData",
     "ChargingConfig",
     "ChargingData",
     "EvConfigData",
