@@ -222,37 +222,6 @@ async def test_build_input_stores_negates_entity_surfaced_price(
     assert np.all(price_store.value < 0)
 
 
-def test_subentry_storage_read_returns_none_for_missing_subentry(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-) -> None:
-    """SubentryStorage.read returns None when the subentry no longer exists."""
-    storage = SubentryStorage(
-        hass,
-        config_entry,
-        "missing-subentry-id",
-        (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET),
-    )
-
-    assert storage.read() is None
-
-
-def test_subentry_storage_read_returns_persisted_value(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-) -> None:
-    """SubentryStorage.read returns the live persisted schema value."""
-    subentry = _add_grid(hass, config_entry)
-    storage = SubentryStorage(
-        hass,
-        config_entry,
-        subentry.subentry_id,
-        (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET),
-    )
-
-    assert storage.read() == as_constant_value(0.30)
-
-
 async def test_subentry_storage_write_updates_subentry(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
@@ -269,7 +238,8 @@ async def test_subentry_storage_write_updates_subentry(
     await storage.write(as_constant_value(0.45))
 
     # Read back through a fresh lookup to confirm the live subentry changed
-    assert storage.read() == as_constant_value(0.45)
+    stored = config_entry.subentries[subentry.subentry_id].data[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET]
+    assert stored == as_constant_value(0.45)
     assert config_entry.runtime_data.value_update_in_progress is True
 
 

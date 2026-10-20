@@ -43,17 +43,36 @@ class CalendarWindow:
     value: float
 
 
-# A number, optionally signed and with decimals, then an optional unit
-# Examples: "50 km", "5kW", "0.30 $/kWh", "-2.5 kW", "3"
-_QUANTITY_PATTERN: Final = re.compile(r"^\s*([-+]?\d+(?:\.\d+)?)\s*(\S(?:.*\S)?)?\s*$")
+_NUMBER: Final = r"[-+]?(?:\d+(?:\.\d+)?|\.\d+)"
+
+# A number standing as its own word, optionally signed and with decimals,
+# then the word typed after it as its unit, if any. A digit inside a word,
+# such as in "EV2" or "v1.2", is not a number, nor is the part of a number
+# after a comma, slash, colon, or dash, as in "1,500", "1/2", or "10:30".
+# A range, such as "8-10 kWh" or "8 to 10 kWh", is one number whose unit is
+# the rest of the range, so no input reads it as a value.
+# Examples: "50 km", "5kW", "0.30 $/kWh", "-2.5 kW", "3", "EV 8 kWh tonight"
+_QUANTITY_PATTERN: Final = re.compile(
+    rf"""
+    (?<![\w.,/:])(?<!\d[-\u2013])
+    (?P<number>{_NUMBER})
+    (?P<range>\s*(?:[-\u2013]|\bto\b)\s*{_NUMBER})?
+    (?:\s*(?P<unit>[^\s\d.,;:!?()\[\]{{}}"'/+\u2013-][^\s,;:!?()\[\]{{}}"']*))?
+    """,
+    re.VERBOSE,
+)
 
 
-def parse_quantity(text: str) -> tuple[float, str | None] | None:
-    """Parse a number with an optional unit from text, or None when the text is not one."""
-    match = _QUANTITY_PATTERN.match(text)
-    if match is None:
-        return None
-    return float(match.group(1)), match.group(2)
+def find_quantities(text: str) -> list[tuple[float, str | None]]:
+    """Return every number in text with the unit typed after it, if any.
+
+    A unit ending a sentence, as in "Charge 8 kWh.", leaves its full stop.
+    """
+    quantities: list[tuple[float, str | None]] = []
+    for match in _QUANTITY_PATTERN.finditer(text):
+        unit = text[match.end("number") : match.end()].strip() if match["range"] else match["unit"]
+        quantities.append((float(match["number"]), unit.rstrip(".") if unit else None))
+    return quantities
 
 
 @dataclass(frozen=True)
@@ -70,22 +89,38 @@ class CalendarEventData:
 _TEXT_FIELDS: Final[tuple[str, ...]] = ("location", "summary", "description")
 
 
-def event_quantity(event: CalendarEventData) -> tuple[float, str | None] | None:
-    """Return the number and unit of the first text field holding one, or None when no field does.
+@dataclass(frozen=True)
+class EventValueText:
+    """The text field an event's value is read from, with the value in an input's unit."""
 
-    Fields are tried in order: location, summary, description.
+    field: str
+    text: str
+    # None when the field holds no number the input can use, or several, so which one is meant is not guessed
+    value: float | None
+
+
+def event_value_text(event: CalendarEventData, output_type: OutputType) -> EventValueText | None:
+    """Return the text field an event's value is read from, or None when no field holds a number.
+
+    Fields are tried in order: location, summary, description. The first
+    holding any number is the value's field, even when none of its numbers
+    can be used, so a later field never silently stands in for a mistyped
+    one. The value is the field's one number typed with a unit the input can
+    use, so other numbers around it, as in "Tariff 2 at 0.30 $/kWh", are
+    passed over. A field holding several such numbers gives no value.
     """
     for field in _TEXT_FIELDS:
         text = getattr(event, field)
-        if text and (quantity := parse_quantity(text)) is not None:
-            return quantity
+        if text and (quantities := find_quantities(text)):
+            values = [value for quantity in quantities if (value := to_field_unit(*quantity, output_type)) is not None]
+            return EventValueText(field, text, values[0] if len(values) == 1 else None)
     return None
 
 
 def event_value(event: CalendarEventData, output_type: OutputType) -> float | None:
-    """Return an event's value in an input's unit, or None when it has no number or one the input cannot use."""
-    quantity = event_quantity(event)
-    return None if quantity is None else to_field_unit(*quantity, output_type)
+    """Return an event's value in an input's unit, or None when it has no number or none the input can use."""
+    value_text = event_value_text(event, output_type)
+    return None if value_text is None else value_text.value
 
 
 def event_windows(events: Sequence[CalendarEventData], output_type: OutputType) -> list[CalendarWindow]:
@@ -104,18 +139,38 @@ def event_windows(events: Sequence[CalendarEventData], output_type: OutputType) 
     )
 
 
+def open_window_start(events: Sequence[CalendarEventData], at: datetime) -> float | None:
+    """Return the POSIX time the window open at *at* began, or None when no window is open then.
+
+    Windows are formed as for every calendar input: every event is a window,
+    overlapping events chain into one, and events that only touch stay
+    separate. Calendars are read from the horizon start, so the window begins
+    at the earliest start among the events open then.
+    """
+    windows: list[tuple[datetime, datetime]] = []
+    for event in sorted((e for e in events if e.end > e.start), key=lambda e: e.start):
+        if windows and event.start < windows[-1][1]:
+            windows[-1] = (windows[-1][0], max(windows[-1][1], event.end))
+        else:
+            windows.append((event.start, event.end))
+    return next((start.timestamp() for start, end in windows if start <= at < end), None)
+
+
 def rejected_events(
     events: Sequence[CalendarEventData], output_type: OutputType
-) -> list[tuple[CalendarEventData, str]]:
-    """Return the events holding a number an input cannot use, such as one without a unit, with the value as typed.
+) -> list[tuple[CalendarEventData, EventValueText]]:
+    """Return the events holding numbers an input cannot read a value from, with the field it read.
 
+    An event is rejected when its value's field holds no number the input
+    can use, or several. A number can be used when its unit converts to the
+    input's unit and it is not negative for a quantity that cannot be.
     Inputs ignore these events' values rather than failing, so one mistyped
     event does not stop the rest of the calendar from loading.
     """
     return [
-        (event, f"{quantity[0]:g}" if quantity[1] is None else f"{quantity[0]:g} {quantity[1]}")
+        (event, value_text)
         for event in events
-        if (quantity := event_quantity(event)) is not None and to_field_unit(*quantity, output_type) is None
+        if (value_text := event_value_text(event, output_type)) is not None and value_text.value is None
     ]
 
 

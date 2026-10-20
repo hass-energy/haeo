@@ -10,6 +10,7 @@ from homeassistant.helpers.device_registry import DeviceEntry
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from conftest import added_entities
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
@@ -180,8 +181,7 @@ async def test_setup_creates_auto_optimize_switch_for_network(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     # Auto-optimize switch is created for network
-    async_add_entities.assert_called_once()
-    entities = list(async_add_entities.call_args.args[0])
+    entities = added_entities(async_add_entities)
     assert len(entities) == 1
     assert isinstance(entities[0], AutoOptimizeSwitch)
 
@@ -242,7 +242,7 @@ async def test_setup_handles_switch_field_variants(
     async_add_entities = Mock()
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    entities = list(async_add_entities.call_args.args[0]) if async_add_entities.called else []
+    entities = added_entities(async_add_entities)
     input_switches = [e for e in entities if hasattr(e, "_field_info")]
 
     if expect_field is None:
@@ -277,7 +277,7 @@ async def test_setup_creates_switch_entities_for_solar_curtailment(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
+        entities = added_entities(async_add_entities)
         # Filter out AutoOptimizeSwitch to get only input switches
         input_switches = [e for e in entities if hasattr(e, "_field_info")]
         # Check if any switch entity was created for curtailment
@@ -311,7 +311,7 @@ async def test_setup_creates_switch_entities_for_policy_rule_enabled(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     assert async_add_entities.called
-    entities = list(async_add_entities.call_args.args[0])
+    entities = added_entities(async_add_entities)
     input_switches = [e for e in entities if hasattr(e, "_field_info")]
     enabled_switches = [e for e in input_switches if e._field_info.field_name == CONF_POLICY_ENABLED]
     assert enabled_switches
@@ -340,7 +340,7 @@ async def test_setup_creates_correct_device_identifiers(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
+        entities = added_entities(async_add_entities)
         for entity in entities:
             # Each entity should have a device_entry attached
             assert entity.device_entry is not None
@@ -380,7 +380,7 @@ async def test_setup_handles_multiple_solar_elements(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
+        entities = added_entities(async_add_entities)
         # Filter out AutoOptimizeSwitch to get only input switches
         input_switches = [e for e in entities if hasattr(e, "_subentry")]
 

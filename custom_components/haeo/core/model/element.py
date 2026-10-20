@@ -240,6 +240,8 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         *,
         solver: Solver,
         output_names: frozenset[OutputNameT],
+        is_source: bool = True,
+        is_sink: bool = True,
         outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
     ) -> None:
@@ -250,6 +252,8 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
             periods: Array of time period durations in hours (one per optimization interval)
             solver: The HiGHS solver instance for creating variables and constraints
             output_names: Frozenset of valid output names for this element type (used for type narrowing)
+            is_source: Whether the element can produce power, so policies may draw from it
+            is_sink: Whether the element can consume power, so policies may deliver to it
             outbound_tags: Tags that produced power can be placed on (None = all tags)
             inbound_tags: Tags that consumed power can draw from (None = all tags)
 
@@ -260,6 +264,8 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
             solver=solver,
             output_names=output_names,
         )
+        self.is_source = is_source
+        self.is_sink = is_sink
         self.outbound_tags: set[int] | None = outbound_tags
         self.inbound_tags: set[int] | None = inbound_tags
 

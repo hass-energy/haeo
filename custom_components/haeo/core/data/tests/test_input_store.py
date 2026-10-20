@@ -34,9 +34,6 @@ class _MemStorage:
         self.value = value
         self.written: list[object] = []
 
-    def read(self) -> object:
-        return self.value
-
     async def write(self, value: object) -> None:
         self.written.append(value)
         self.value = value
@@ -53,7 +50,9 @@ def _make_store(
     """Build an InputStore from an in-memory storage value and field hint."""
     storage = _MemStorage(storage_value)
     hint = FieldHint(output_type=output_type, time_series=time_series, boundaries=boundaries)
-    return create_input_store(storage=storage, hint=hint, get_forecast_timestamps=_timestamps, negate=negate)
+    return create_input_store(
+        value=storage.value, storage=storage, hint=hint, get_forecast_timestamps=_timestamps, negate=negate
+    )
 
 
 # --- Editable constant resolution ---
@@ -191,7 +190,7 @@ async def test_persist_writes_through_storage() -> None:
     """Persist forwards the schema value to the bound storage."""
     storage = _MemStorage()
     hint = FieldHint(output_type=OutputType.ENERGY)
-    store = create_input_store(storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
+    store = create_input_store(value=storage.value, storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
 
     await store.persist(as_constant_value(5.0))
 
@@ -312,7 +311,7 @@ async def test_driven_async_load_without_source_entities() -> None:
     """A driven store with no source entity IDs cannot load."""
     storage = _MemStorage({"type": "entity", "value": []})
     hint = FieldHint(output_type=OutputType.PRICE, time_series=False)
-    store = create_input_store(storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
+    store = create_input_store(value=storage.value, storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
 
     sm = FakeStateMachine({})
     assert await store.async_load(sm) is False
@@ -339,7 +338,7 @@ async def test_driven_async_load_records_input_error() -> None:
     """A rejected source value is recorded, notified, and cleared by the next good load."""
     storage = _MemStorage(as_entity_value(["sensor.x"]))
     hint = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=True, min_value=0.0)
-    store = create_input_store(storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
+    store = create_input_store(value=storage.value, storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
     notifications: list[None] = []
     store.add_listener(lambda: notifications.append(None))
 
@@ -437,7 +436,9 @@ async def test_driven_async_load_notifies_only_on_change(
     horizon = [FORECAST_TIMESTAMPS]
     storage = _MemStorage(as_entity_value(["sensor.x"]))
     hint = FieldHint(output_type=OutputType.POWER_LIMIT, time_series=time_series, min_value=0.0)
-    store = create_input_store(storage=storage, hint=hint, get_forecast_timestamps=lambda: horizon[0])
+    store = create_input_store(
+        value=storage.value, storage=storage, hint=hint, get_forecast_timestamps=lambda: horizon[0]
+    )
     notifications: list[None] = []
     store.add_listener(lambda: notifications.append(None))
 
@@ -468,7 +469,9 @@ def test_editable_notifies_only_on_change(
     horizon = [FORECAST_TIMESTAMPS]
     storage = _MemStorage(as_constant_value(5.0))
     hint = FieldHint(output_type=OutputType.POWER, time_series=time_series)
-    store = create_input_store(storage=storage, hint=hint, get_forecast_timestamps=lambda: horizon[0])
+    store = create_input_store(
+        value=storage.value, storage=storage, hint=hint, get_forecast_timestamps=lambda: horizon[0]
+    )
     store.refresh()
     notifications: list[None] = []
     store.add_listener(lambda: notifications.append(None))
@@ -499,7 +502,7 @@ def test_create_input_store_invalid_config_raises() -> None:
     hint = FieldHint(output_type=OutputType.ENERGY)
 
     with pytest.raises(RuntimeError, match="Invalid config value"):
-        create_input_store(storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
+        create_input_store(value=storage.value, storage=storage, hint=hint, get_forecast_timestamps=_timestamps)
 
 
 # --- horizon_start ---
@@ -530,6 +533,7 @@ def _make_calendar_store() -> InputStore:
     """Build a store for a calendar input, reading an ordinary entity value."""
     storage = _MemStorage({"type": "entity", "value": ["calendar.trips"]})
     return create_input_store(
+        value=storage.value,
         storage=storage,
         hint=calendar_input(OutputType.AVAILABILITY, "window_active"),
         get_forecast_timestamps=_timestamps,
@@ -570,3 +574,19 @@ async def test_calendar_store_without_injected_events_is_unavailable(states: dic
 
     assert not await store.async_load(FakeStateMachine(states))
     assert not store.available
+
+
+async def test_driven_store_reads_listed_states_as_on_and_off() -> None:
+    """A store whose entity value lists the states meaning off reads its entity's words as on or off."""
+    store = _make_store(
+        storage_value=as_entity_value(["sensor.charger"], off_states=["Idle"]),
+        output_type=OutputType.AVAILABILITY,
+        time_series=True,
+    )
+
+    await store.async_load(FakeStateMachine({"sensor.charger": FakeEntityState("sensor.charger", "Charging", {})}))
+    np.testing.assert_allclose(np.asarray(store.value), [1.0, 1.0])
+
+    await store.async_load(FakeStateMachine({"sensor.charger": FakeEntityState("sensor.charger", "Idle", {})}))
+    np.testing.assert_allclose(np.asarray(store.value), [0.0, 0.0])
+    assert store.captured_source_states["sensor.charger"].state == "Idle"

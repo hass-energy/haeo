@@ -12,6 +12,8 @@ from custom_components.haeo.core.adapters.elements.battery import adapter as bat
 from custom_components.haeo.core.adapters.elements.battery_section import adapter as battery_section_adapter
 from custom_components.haeo.core.adapters.elements.buffer import adapter as buffer_adapter
 from custom_components.haeo.core.adapters.elements.connection import adapter as connection_adapter
+from custom_components.haeo.core.adapters.elements.deferrable_load import adapter as deferrable_load_adapter
+from custom_components.haeo.core.adapters.elements.ev import adapter as ev_adapter
 from custom_components.haeo.core.adapters.elements.grid import adapter as grid_adapter
 from custom_components.haeo.core.adapters.elements.inverter import adapter as inverter_adapter
 from custom_components.haeo.core.adapters.elements.junction import adapter as junction_adapter
@@ -24,6 +26,7 @@ from custom_components.haeo.core.model import ModelElementConfig, ModelOutputNam
 from custom_components.haeo.core.model.elements import FLOW_READER_ELEMENT_TYPES, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
+from custom_components.haeo.core.schema.elements.buffer import BufferRole
 
 
 @runtime_checkable
@@ -44,7 +47,10 @@ class ElementAdapter(Protocol):
     can_source: bool
 
     can_sink: bool
-    can_store: bool
+
+    # What a buffer can count the element as: a load it covers, generation
+    # it covers, or storage that holds it
+    buffer_roles: frozenset[BufferRole]
 
     def model_elements(self, config: Any) -> list[ModelElementConfig]:
         """Return model element parameters for the loaded config.
@@ -85,6 +91,8 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
     ElementType.INVERTER: inverter_adapter,
     ElementType.SOLAR: solar_adapter,
     ElementType.BATTERY: battery_adapter,
+    ElementType.DEFERRABLE_LOAD: deferrable_load_adapter,
+    ElementType.EV: ev_adapter,
     ElementType.CONNECTION: connection_adapter,
     ElementType.JUNCTION: junction_adapter,
     ElementType.NODE: node_adapter,

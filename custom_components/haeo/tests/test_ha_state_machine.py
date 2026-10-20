@@ -4,7 +4,8 @@ from zoneinfo import ZoneInfo
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
+from conftest import FakeStateMachine
+from custom_components.haeo.ha_state_machine import AnnotatedStateMachine, HomeAssistantStateMachine
 
 
 async def test_time_zone_is_home_assistant_time_zone(hass: HomeAssistant) -> None:
@@ -22,3 +23,10 @@ async def test_get_returns_home_assistant_state(hass: HomeAssistant) -> None:
 
     assert state is not None
     assert state.state == "1.0"
+
+
+def test_annotated_state_machine_reads_in_the_base_time_zone() -> None:
+    """Merging extra attributes keeps the base state machine's time zone."""
+    adelaide = ZoneInfo("Australia/Adelaide")
+
+    assert AnnotatedStateMachine(FakeStateMachine({}, time_zone=adelaide), {}).time_zone is adelaide

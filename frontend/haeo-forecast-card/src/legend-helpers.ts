@@ -16,6 +16,9 @@ export function seriesIconPath(series: ForecastSeries): string {
     }
     return icons["mdiCurrencyUsd"] ?? fallback;
   }
+  if (series.lane === "window") {
+    return icons["mdiCalendarClock"] ?? fallback;
+  }
   if (series.lane === "soc") {
     if (series.direction === "+") return icons["mdiShieldHalfFull"] ?? fallback;
     if (series.direction === "-") return icons["mdiFormatVerticalAlignTop"] ?? fallback;
@@ -28,6 +31,11 @@ export function seriesIconPath(series: ForecastSeries): string {
     return category.subgroup === "potential"
       ? (icons["mdiWeatherSunnyAlert"] ?? fallback)
       : (icons["mdiSolarPowerVariant"] ?? icons["mdiWeatherSunny"] ?? fallback);
+  }
+  if (series.elementType === "ev") {
+    return category.subgroup === "potential"
+      ? (icons["mdiCarElectricOutline"] ?? fallback)
+      : (icons["mdiCarElectric"] ?? fallback);
   }
   if (element.includes("battery")) {
     return category.group === "production"
@@ -59,5 +67,6 @@ export function legendSeriesOrder(series: ForecastSeries): number {
   }
   if (series.lane === "price") return 5;
   if (series.lane === "soc") return 6;
-  return 7;
+  if (series.lane === "window") return 7;
+  return 8;
 }

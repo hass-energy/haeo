@@ -11,6 +11,10 @@ Power and price series are drawn with step-post semantics.
 State-of-charge series are drawn as continuous lines.
 A [buffer](elements/buffer.md) is drawn as a dotted line in the state-of-charge lane.
 A line your batteries' combined charge should stay above, such as a reserve, is red, and one it should stay below, such as headroom, is purple.
+A buffer held by a single battery is listed under that battery in the legend.
+
+An input that reads its windows from a calendar is drawn as a tinted band across the chart wherever a window is open, with a strip in the element's color along the top.
+The tooltip lists the windows open at the hovered time.
 
 ## Prerequisites
 
@@ -71,6 +75,7 @@ Use the visual card editor to select a HAEO hub. The card resolves the hub's opt
 
 Batteries that hold a reserve [buffer](elements/buffer.md) show a 🛡 marker, and those that keep a headroom buffer show ⤒.
 Hover over an element to see which buffers it holds or is counted in.
+A connection between two parts of one element is drawn inside that element's box.
 
 ### Topology card options
 
