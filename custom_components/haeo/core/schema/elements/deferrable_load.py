@@ -22,9 +22,6 @@ SECTION_PRICING: Final = "pricing"
 CONF_WINDOW_CALENDAR: Final = "window_calendar"
 CONF_ENERGY_METER: Final = "energy_meter"
 
-# How much the energy meter rose since the open window started, loaded beside it
-CONF_ENERGY_SINCE_WINDOW: Final = "energy_meter_since_window"
-
 # Inputs the window calendar feeds
 CONF_IN_WINDOW: Final = "in_window"
 CONF_WINDOW_START: Final = "window_start"
@@ -74,14 +71,16 @@ class ScheduleConfig(TypedDict):
 
 
 class ScheduleData(TypedDict):
-    """Loaded run window schedule, with the inputs the window calendar feeds."""
+    """Loaded run window schedule, with the inputs the window calendar feeds.
+
+    The energy meter loads as the energy it counted since the open window began.
+    """
 
     in_window: NDArray[np.float64]
     window_start: NDArray[np.float64]
     opened: NDArray[np.float64]
     due: NDArray[np.float64]
     energy_meter: NotRequired[float]
-    energy_meter_since_window: NotRequired[float]
 
 
 # --- Power section ---
@@ -196,7 +195,6 @@ __all__ = [
     "CONF_DEFICIT_PRICE",
     "CONF_DUE",
     "CONF_ENERGY_METER",
-    "CONF_ENERGY_SINCE_WINDOW",
     "CONF_IN_WINDOW",
     "CONF_MAX_POWER",
     "CONF_OPENED",

@@ -77,9 +77,11 @@ HAEO reads how much it rose since the open window started from the sensor's long
 Sensors that reset on their own, such as an "energy today" sensor, also work, and a window that runs past midnight still counts all its energy.
 
 Only sensors with statistics are offered: an energy sensor whose state class is `total` or `total_increasing`.
-Statistics reach back a week, so a window that started earlier than that is credited nothing.
+Statistics reach back a week, so a window that started earlier than that is credited only what the sensor counted within the week.
 
 HAEO credits the rise only to the window that is open when the plan starts.
+When events overlap, the window starts at the earliest of them, so the rise counts from there.
+The **Energy since window started** input entity shows the rise HAEO is using, and reads zero while no window is open.
 
 - **Below the window's energy**: only the remainder is planned.
 - **Above the window's energy**: the window is treated as complete.

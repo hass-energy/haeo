@@ -576,7 +576,7 @@
       "connection_price_source_target": { "name": "Price" },
       "deferrable_load_deficit_price": { "name": "Shortfall price" },
       "deferrable_load_due": { "name": "Energy due" },
-      "deferrable_load_energy_delivered": { "name": "Energy delivered this window" },
+      "deferrable_load_energy_meter": { "name": "Energy since window started" },
       "deferrable_load_in_window": { "name": "Run window" },
       "deferrable_load_max_power": { "name": "Max power" },
       "deferrable_load_opened": { "name": "Energy opening" },

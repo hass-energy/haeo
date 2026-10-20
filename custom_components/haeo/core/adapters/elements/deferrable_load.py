@@ -25,7 +25,7 @@ from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.deferrable_load import (
     CONF_DEFICIT_PRICE,
     CONF_DUE,
-    CONF_ENERGY_SINCE_WINDOW,
+    CONF_ENERGY_METER,
     CONF_IN_WINDOW,
     CONF_MAX_POWER,
     CONF_OPENED,
@@ -105,7 +105,7 @@ class DeferrableLoadAdapter:
             "window_start": schedule[CONF_WINDOW_START],
             "opened": schedule[CONF_OPENED],
             "due": schedule[CONF_DUE],
-            "initial_energy": schedule.get(CONF_ENERGY_SINCE_WINDOW, 0.0),
+            "initial_energy": schedule.get(CONF_ENERGY_METER, 0.0),
             "deficit_price": pricing[CONF_DEFICIT_PRICE],
             "overage_price": pricing[CONF_OVERAGE_PRICE],
         }

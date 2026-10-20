@@ -226,7 +226,7 @@ def test_energy_since_the_window_opened_seeds_it(
     since_window: float | None, expected_initial: float, expected_new: float
 ) -> None:
     """Energy the meter counted since the open window started seeds it; only the remainder is planned."""
-    schedule = {} if since_window is None else {"energy_meter_since_window": since_window}
+    schedule = {} if since_window is None else {"energy_meter": since_window}
     config = _open_window_config(**schedule)
     network = _solve(config, grid_price=[0.1, 0.1, 0.1, 0.1])
 
@@ -239,7 +239,7 @@ def test_energy_since_the_window_opened_seeds_it(
 
 def test_energy_since_window_never_seeds_a_later_window() -> None:
     """With no window open at the horizon start the metered energy is ignored."""
-    config = _config(power={"max_power": 10.0}, schedule={**_config()["schedule"], "energy_meter_since_window": 4.0})
+    config = _config(power={"max_power": 10.0}, schedule={**_config()["schedule"], "energy_meter": 4.0})
     network = _solve(config, grid_price=[0.1, 0.1, 0.1, 0.1])
 
     delivered = network.elements["pump"].outputs()[DEFERRABLE_LOAD_ENERGY_DELIVERED].values
