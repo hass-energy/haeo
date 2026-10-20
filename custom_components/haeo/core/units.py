@@ -15,6 +15,8 @@ class DeviceClass(StrEnum):
     ENERGY_STORAGE = "energy_storage"
     DURATION = "duration"
     MONETARY = "monetary"
+    DISTANCE = "distance"
+    ENERGY_DISTANCE = "energy_distance"
 
     @classmethod
     def of(cls, value: object) -> "DeviceClass | None":
@@ -43,6 +45,18 @@ class UnitOfMeasurement(StrEnum):
     MINUTE = "min"
     HOUR = "h"
     DAY = "d"
+    MILLIMETER = "mm"
+    CENTIMETER = "cm"
+    METER = "m"
+    KILOMETER = "km"
+    INCH = "in"
+    FOOT = "ft"
+    YARD = "yd"
+    MILE = "mi"
+    NAUTICAL_MILE = "nmi"
+    WATT_HOUR_PER_KILOMETER = "Wh/km"
+    KILO_WATT_HOUR_PER_KILOMETER = "kWh/km"
+    KILO_WATT_HOUR_PER_100_KILOMETER = "kWh/100km"
 
     @classmethod
     def of(cls, value: object) -> "UnitOfMeasurement | None":
@@ -58,6 +72,8 @@ BASE_UNITS: Final[dict[DeviceClass, UnitOfMeasurement]] = {
     DeviceClass.ENERGY: UnitOfMeasurement.KILO_WATT_HOUR,
     DeviceClass.ENERGY_STORAGE: UnitOfMeasurement.KILO_WATT_HOUR,
     DeviceClass.DURATION: UnitOfMeasurement.HOUR,
+    DeviceClass.DISTANCE: UnitOfMeasurement.KILOMETER,
+    DeviceClass.ENERGY_DISTANCE: UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER,
 }
 
 _POWER_TO_KW: Final[dict[UnitOfMeasurement, float]] = {
@@ -81,12 +97,36 @@ _DURATION_TO_HOURS: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.DAY: 24.0,
 }
 
+_LENGTH_TO_KM: Final[dict[UnitOfMeasurement, float]] = {
+    UnitOfMeasurement.MILLIMETER: 0.000001,
+    UnitOfMeasurement.CENTIMETER: 0.00001,
+    UnitOfMeasurement.METER: 0.001,
+    UnitOfMeasurement.KILOMETER: 1.0,
+    UnitOfMeasurement.INCH: 0.0000254,
+    UnitOfMeasurement.FOOT: 0.0003048,
+    UnitOfMeasurement.YARD: 0.0009144,
+    UnitOfMeasurement.MILE: 1.609344,
+    UnitOfMeasurement.NAUTICAL_MILE: 1.852,
+}
+
+# Consumption units only: distance-per-energy units (km/kWh, mi/kWh) are
+# reciprocal and have no finite conversion for a zero reading.
+_ENERGY_DISTANCE_TO_KWH_PER_KM: Final[dict[UnitOfMeasurement, float]] = {
+    UnitOfMeasurement.WATT_HOUR_PER_KILOMETER: 0.001,
+    UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER: 1.0,
+    UnitOfMeasurement.KILO_WATT_HOUR_PER_100_KILOMETER: 0.01,
+}
+
+ENERGY_DISTANCE_UNITS: Final[tuple[UnitOfMeasurement, ...]] = tuple(_ENERGY_DISTANCE_TO_KWH_PER_KM)
+
 # Factors to each device class's base unit, for every device class that has one
 _TO_BASE_UNIT: Final[dict[DeviceClass, dict[UnitOfMeasurement, float]]] = {
     DeviceClass.POWER: _POWER_TO_KW,
     DeviceClass.ENERGY: _ENERGY_TO_KWH,
     DeviceClass.ENERGY_STORAGE: _ENERGY_TO_KWH,
     DeviceClass.DURATION: _DURATION_TO_HOURS,
+    DeviceClass.DISTANCE: _LENGTH_TO_KM,
+    DeviceClass.ENERGY_DISTANCE: _ENERGY_DISTANCE_TO_KWH_PER_KM,
 }
 
 # Durations HAEO reads from sensors, in units it converts to hours
@@ -174,6 +214,12 @@ def _infer_device_class_from_unit(unit: UnitOfMeasurement | None) -> DeviceClass
     if unit in _DURATION_TO_HOURS:
         return DeviceClass.DURATION
 
+    if unit in _LENGTH_TO_KM:
+        return DeviceClass.DISTANCE
+
+    if unit in _ENERGY_DISTANCE_TO_KWH_PER_KM:
+        return DeviceClass.ENERGY_DISTANCE
+
     return None
 
 
@@ -182,18 +228,14 @@ def base_unit_for_device_class(device_class: DeviceClass | None) -> UnitOfMeasur
     return BASE_UNITS.get(device_class) if device_class is not None else None
 
 
-def _scale_factor(
-    from_unit: UnitOfMeasurement | None,
-    device_class: DeviceClass | None,
-) -> float:
-    """Return the factor that converts a value in *from_unit* to the canonical base unit."""
-    if from_unit is None:
+def _base_factor(unit: UnitOfMeasurement | None, device_class: DeviceClass | None) -> float | None:
+    """Return the factor converting *unit* to the device class's base unit, or None if it cannot."""
+    base_unit = base_unit_for_device_class(device_class)
+    if unit is None or base_unit is None or device_class is None:
+        return None
+    if unit == base_unit:
         return 1.0
-
-    effective_device_class = device_class or _infer_device_class_from_unit(from_unit)
-    if effective_device_class is None:
-        return 1.0
-    return _TO_BASE_UNIT.get(effective_device_class, {}).get(from_unit, 1.0)
+    return _TO_BASE_UNIT[device_class].get(unit)
 
 
 def _price_conversion(unit: str | UnitOfMeasurement | None) -> tuple[float, str] | None:
@@ -215,7 +257,10 @@ def base_unit_conversion(
 
     Conversion to base units is a pure scaling, so a series of values sharing a
     unit converts by multiplying every value by the one factor. A price per
-    energy unit converts to the same currency per kWh.
+    energy unit converts to the same currency per kWh. A unit with no
+    conversion to the base unit, such as the reciprocal km/kWh for energy per
+    distance, keeps its own unit and a factor of 1, so it never matches the
+    unit an input expects.
     """
     parsed_unit = UnitOfMeasurement.of(unit)
     parsed_device_class = DeviceClass.of(device_class)
@@ -223,10 +268,14 @@ def base_unit_conversion(
         return price[0], price[1], parsed_device_class
     effective_device_class = parsed_device_class or _infer_device_class_from_unit(parsed_unit)
 
-    factor = _scale_factor(parsed_unit, parsed_device_class)
-    base_unit = base_unit_for_device_class(effective_device_class) or parsed_unit or unit
+    if unit is None:
+        return 1.0, base_unit_for_device_class(effective_device_class), parsed_device_class
 
-    return factor, base_unit, parsed_device_class
+    factor = _base_factor(parsed_unit, effective_device_class)
+    if factor is None:
+        return 1.0, parsed_unit or unit, parsed_device_class
+
+    return factor, base_unit_for_device_class(effective_device_class), parsed_device_class
 
 
 def convert_to_base_unit(

@@ -131,6 +131,14 @@ The run window calendar also creates four input entities showing what HAEO reads
 
     [:material-arrow-right: Deferrable load modeling](../../modeling/device-layer/deferrable_load.md)
 
+- :material-car-electric:{ .lg .middle } **EV configuration**
+
+    ---
+
+    Trip-aware EV charging built on the same mechanism.
+
+    [:material-arrow-right: EV guide](ev.md)
+
 - :material-home-lightning-bolt:{ .lg .middle } **Automation examples**
 
     ---
