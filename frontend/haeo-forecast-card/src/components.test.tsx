@@ -65,6 +65,34 @@ const testCardConfig = {
   entities: ["sensor.grid_import_power", "sensor.grid_import_price", "sensor.battery_soc"],
 };
 
+const windowFixture: HassLike = withSingleHubRegistry({
+  states: {
+    ...testFixture.states,
+    "number.pump_run_window": {
+      entity_id: "number.pump_run_window",
+      attributes: {
+        element_name: "Pump",
+        element_type: "deferrable_load",
+        field_name: "in_window",
+        field_type: "availability",
+        calendar_projection: "window_active",
+        config_mode: "driven",
+        friendly_name: "Pump Run window",
+        forecast: [
+          { time: "2025-10-06T10:50:00.000000+0000", value: 1 },
+          { time: "2025-10-06T10:51:00.000000+0000", value: 1 },
+          { time: "2025-10-06T10:55:00.000000+0000", value: 0 },
+        ],
+      },
+    },
+  },
+});
+
+const windowCardConfig = {
+  ...testCardConfig,
+  entities: [...testCardConfig.entities, "number.pump_run_window"],
+};
+
 describe("ForecastCardView components", () => {
   const root = document.createElement("div");
   document.body.appendChild(root);
@@ -188,6 +216,42 @@ describe("ForecastCardView components", () => {
     expect(elementToggles.length).toBeGreaterThanOrEqual(0);
   });
 
+  it("keeps a buffer's level out of its battery's charge toggle", () => {
+    const toggles: string[] = [];
+    const series = normalizeSeries(testFixture, testCardConfig);
+    const batterySoc = series.find((item) => item.entityId === "sensor.battery_soc")!;
+    const reserve = {
+      ...batterySoc,
+      key: "sensor.reserve_soc:level",
+      label: "Reserve level",
+      elementType: "buffer" as const,
+      direction: "+" as const,
+    };
+    render(
+      <Legend
+        series={[...series, reserve]}
+        locale="en"
+        highlightedSeries={null}
+        hoveredElement={null}
+        hiddenSeriesKeys={new Set()}
+        visibilityRevision={0}
+        onHighlight={() => undefined}
+        onHighlightGroup={() => undefined}
+        onElementHover={() => undefined}
+        onToggleSeries={(key) => {
+          toggles.push(key);
+        }}
+        onToggleElement={() => undefined}
+      />,
+      root
+    );
+
+    root.querySelector<HTMLButtonElement>('[title="Toggle Battery Min / max / charge %"]')?.click();
+    root.querySelector<HTMLButtonElement>('[title="Reserve level"]')?.click();
+
+    expect(toggles).toEqual([batterySoc.key, reserve.key]);
+  });
+
   it("updates store state from forecast view interactions", () => {
     const store = new ForecastCardStore();
     store.setConfig({ ...testCardConfig });
@@ -235,5 +299,40 @@ describe("ForecastCardView components", () => {
 
     expect(store.horizonDurationMs).toBe(4 * 3_600_000);
     expect(root.querySelector(".horizonValue")?.textContent).toBe("4h");
+  });
+
+  it("draws open windows as a tint and a strip, stronger when their series is highlighted", () => {
+    const store = new ForecastCardStore();
+    store.setConfig(windowCardConfig);
+    store.setHass(windowFixture);
+    store.setSize(900, 380);
+
+    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+
+    expect(root.querySelectorAll("svg .windowTint")).toHaveLength(1);
+    expect(root.querySelectorAll("svg .windowStrip")).toHaveLength(1);
+    expect(root.querySelector("svg .windowBand.active")).toBeNull();
+
+    const windowKey = store.windowSeries[0]?.key ?? null;
+    store.setHighlightedSeries(windowKey);
+    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+
+    expect(root.querySelector("svg .windowBand.active")).toBeTruthy();
+  });
+
+  it("lists open windows in the tooltip without a value", () => {
+    const store = new ForecastCardStore();
+    store.setConfig(windowCardConfig);
+    store.setHass(windowFixture);
+    store.setSize(900, 380);
+    store.setPointer(store.xScale(Date.parse("2025-10-06T10:50:30Z")), 110);
+
+    render(<ForecastCardView store={store} onPointerMove={() => undefined} onPointerLeave={() => undefined} />, root);
+
+    const row = Array.from(root.querySelectorAll(".tooltipRow")).find((item) =>
+      item.textContent.includes("Pump Run window")
+    );
+    expect(row).toBeTruthy();
+    expect(row?.querySelectorAll("span")[2]?.textContent).toBe("");
   });
 });

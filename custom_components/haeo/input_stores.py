@@ -16,10 +16,9 @@ from typing import TYPE_CHECKING
 from homeassistant.core import HomeAssistant
 
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
-from custom_components.haeo.core.data.loader.config_loader import configured_value, element_inputs
+from custom_components.haeo.core.data.loader.config_loader import element_inputs, input_value
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
-from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
 from custom_components.haeo.elements import InputFieldPath, is_element_config_schema
 from custom_components.haeo.util import async_update_subentry_value
 
@@ -34,7 +33,7 @@ type InputStoreMap = dict[InputStoreKey, InputStore]
 class SubentryStorage:
     """Persistence binding backing an input store to a config subentry field.
 
-    Reads always resolve against the live subentry data because
+    Writes always resolve against the live subentry because
     ``async_update_subentry_value`` replaces the underlying mapping, making any
     cached reference stale.
     """
@@ -51,13 +50,6 @@ class SubentryStorage:
         self._config_entry = config_entry
         self._subentry_id = subentry_id
         self._field_path = field_path
-
-    def read(self) -> object:
-        """Return the currently persisted schema value, or None."""
-        subentry = self._config_entry.subentries.get(self._subentry_id)
-        if subentry is None:
-            return None
-        return get_nested_config_value_by_path(subentry.data, self._field_path)
 
     async def write(self, value: object) -> None:
         """Persist a new schema value to the subentry."""
@@ -110,11 +102,13 @@ def build_input_stores(
         subentry_negated_paths = negated_paths.get(subentry.title, frozenset())
 
         for element_input in element_inputs(subentry.data):
-            if configured_value(subentry.data, element_input.config_path) is None:
+            value = input_value(subentry.data, element_input)
+            if value is None:
                 continue
 
             storage = SubentryStorage(hass, config_entry, subentry.subentry_id, element_input.config_path)
             store = create_input_store(
+                value=value,
                 storage=storage,
                 hint=element_input.hint,
                 get_forecast_timestamps=horizon_manager.get_forecast_timestamps,

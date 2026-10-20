@@ -21,8 +21,9 @@ from custom_components.haeo.calendar_loader import CalendarInputLoader, Calendar
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE, CalendarEventDict
+from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema.field_hints import FieldHint, calendar_input
+from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint, calendar_input
 from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -38,9 +39,6 @@ class _MemStorage:
     def __init__(self, value: object) -> None:
         self.value = value
 
-    def read(self) -> object:
-        return self.value
-
     async def write(self, value: object) -> None:
         self.value = value
 
@@ -51,6 +49,7 @@ def _calendar_store(
 ) -> InputStore:
     """Build a store for a calendar input reading a calendar entity's presence."""
     return create_input_store(
+        value={"type": "entity", "value": [entity_id]},
         storage=_MemStorage({"type": "entity", "value": [entity_id]}),
         hint=calendar_input(OutputType.AVAILABILITY, "window_active"),
         get_forecast_timestamps=get_forecast_timestamps,
@@ -501,6 +500,7 @@ async def test_loader_sums_a_calendar_with_a_sensor_in_a_forecast_field(
 
     _set_base(1.0)
     store = create_input_store(
+        value={"type": "entity", "value": ["sensor.base", ENTITY_ID]},
         storage=_MemStorage({"type": "entity", "value": ["sensor.base", ENTITY_ID]}),
         hint=FieldHint(output_type=OutputType.POWER, time_series=True),
         get_forecast_timestamps=lambda: timestamps,
@@ -521,6 +521,7 @@ async def test_loader_sums_a_calendar_with_a_sensor_in_a_forecast_field(
 def _forecast_store() -> InputStore:
     """Build a store for a power forecast field reading the calendar."""
     return create_input_store(
+        value={"type": "entity", "value": [ENTITY_ID]},
         storage=_MemStorage({"type": "entity", "value": [ENTITY_ID]}),
         hint=FieldHint(output_type=OutputType.POWER, time_series=True),
         get_forecast_timestamps=lambda: FORECAST_TIMESTAMPS,
@@ -534,7 +535,13 @@ async def test_loader_raises_a_repair_for_event_values_an_input_ignores(
     hass: HomeAssistant, horizon_manager: Mock
 ) -> None:
     """An event whose value the input cannot use is ignored, raising a repair issue that clears once it is fixed."""
-    calendar = await _add_stub_calendar(hass, [_demand(0.0, 3600.0, "2"), _demand(3600.0, 7200.0, "3 kW")])
+    pump = CalendarEvent(
+        start=datetime.fromtimestamp(3600.0, tz=UTC),
+        end=datetime.fromtimestamp(7200.0, tz=UTC),
+        summary="Pool pump",
+        description="Run 2 kW or 3 kW\nJoin the call at https://example.com/meeting/123456 to watch the pump run",
+    )
+    calendar = await _add_stub_calendar(hass, [_demand(0.0, 3600.0, "2"), _demand(3600.0, 7200.0, "3 kW"), pump])
     store = _forecast_store()
     loader = CalendarInputLoader(hass, "entry_id", {("Load", ("forecast", "forecast")): store}, horizon_manager)
     loader.start()
@@ -544,7 +551,10 @@ async def test_loader_raises_a_repair_for_event_values_an_input_ignores(
     issue = ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_ID)
     assert issue is not None
     assert issue.translation_placeholders is not None
-    assert "2" in issue.translation_placeholders["events"]
+    assert issue.translation_placeholders["events"] == (
+        '- 1970-01-01T00:00:00+00:00 — "2"\n'
+        '- 1970-01-01T01:00:00+00:00 Pool pump — "Run 2 kW or 3 kW Join the call at https://example.com/meeti…"'
+    )
     assert issue.translation_placeholders["unit"] == "kW"
 
     calendar._events = [_demand(0.0, 3600.0, "2 kW")]
@@ -593,4 +603,41 @@ async def test_loader_leaves_a_store_unavailable_when_its_calendar_is_missing(
     await hass.async_block_till_done()
 
     assert not store.available
+    loader.cleanup()
+
+
+METER_ID = "sensor.pump_energy"
+
+
+async def test_loader_resolves_a_meter_input_with_its_totals_beside_the_events(
+    hass: HomeAssistant, horizon_manager: Mock
+) -> None:
+    """A meter input resolves to its meter's rise since the open window began, capturing the totals and the events."""
+    start = dt_util.utcnow().timestamp()
+    timestamps = (start, start + 3600.0)
+    horizon_manager.get_forecast_timestamps.return_value = timestamps
+    await _add_stub_calendar(hass, [_demand(start - 3600.0, start + 3600.0, "6 kWh")])
+    hass.states.async_set(METER_ID, "10", {"unit_of_measurement": "kWh", "device_class": "energy"})
+    sources = {"type": "entity", "value": [METER_ID, ENTITY_ID]}
+    store = create_input_store(
+        value=sources,
+        storage=_MemStorage(sources),
+        hint=FieldHint(output_type=OutputType.ENERGY, meter=MeterFieldHint(since="window_calendar")),
+        get_forecast_timestamps=lambda: timestamps,
+    )
+    loader = CalendarInputLoader(hass, "entry_id", {("Pump", ("schedule", "energy_meter")): store}, horizon_manager)
+    loader.start()
+    await hass.async_block_till_done()
+    assert store.value == pytest.approx(0.0)
+
+    hass.states.async_set(METER_ID, "12.5", {"unit_of_measurement": "kWh", "device_class": "energy"})
+    await hass.async_block_till_done()
+
+    assert store.value == pytest.approx(2.5)
+    captured = store.captured_source_states
+    assert CALENDAR_EVENTS_ATTRIBUTE in captured[ENTITY_ID].attributes
+    assert METER_TOTALS_ATTRIBUTE in captured[METER_ID].attributes
+    assert (
+        ir.async_get(hass).async_get_issue(DOMAIN, "calendar_event_values_entry_id_Pump_schedule.energy_meter") is None
+    )
     loader.cleanup()

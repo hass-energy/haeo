@@ -1390,7 +1390,7 @@ def _calendar_field() -> InputFieldInfo[NumberEntityDescription]:
         output_type=OutputType.ENERGY,
         time_series=True,
         boundaries=True,
-        calendar=CalendarFieldHint(projection="window_due"),
+        calendar=CalendarFieldHint(projection="event_due"),
         source_field="window_calendar",
     )
     return InputFieldInfo(

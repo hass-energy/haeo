@@ -224,9 +224,6 @@ class _SubentryStorage:
         self._subentry = subentry
         self._field_path = field_path
 
-    def read(self) -> object:
-        return get_nested_config_value_by_path(self._subentry.data, self._field_path)
-
     async def write(self, value: object) -> None:
         await async_update_subentry_value(
             self._hass,
@@ -259,6 +256,7 @@ def _make_entity(
         calendar=field_info.calendar,
     )
     store = create_input_store(
+        value=get_nested_config_value_by_path(subentry.data, fp),
         storage=storage,
         hint=hint,
         get_forecast_timestamps=horizon_manager.get_forecast_timestamps,
@@ -1442,3 +1440,4 @@ async def test_calendar_input_shows_what_the_calendar_loader_puts_in_its_store(
 
     assert entity._store.available
     assert entity.native_value == 1.0
+    assert entity._attr_extra_state_attributes["calendar_projection"] == "window_active"

@@ -146,9 +146,6 @@ class _SubentryStorage:
         self._subentry = subentry
         self._field_path = field_path
 
-    def read(self) -> object:
-        return get_nested_config_value_by_path(self._subentry.data, self._field_path)
-
     async def write(self, value: object) -> None:
         await async_update_subentry_value(
             self._hass,
@@ -178,6 +175,7 @@ def _make_switch_entity(
         boundaries=field_info.boundaries,
     )
     store = create_input_store(
+        value=get_nested_config_value_by_path(subentry.data, fp),
         storage=storage,
         hint=hint,
         get_forecast_timestamps=horizon_manager.get_forecast_timestamps,

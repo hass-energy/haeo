@@ -8,6 +8,7 @@ import type {
 } from "./types";
 import type { ConfigMode } from "./types";
 import { discoverForecastEntityIds, resolveConfiguredHub } from "./hub-selection";
+import { resolveTopology } from "./topology-card-utils";
 
 interface HassEntityState {
   entity_id: string;
@@ -66,6 +67,9 @@ function inferLane(outputType: CardOutputType): LaneType {
   }
   if (outputType === "price") {
     return "price";
+  }
+  if (outputType === "window") {
+    return "window";
   }
   return "soc";
 }
@@ -130,6 +134,10 @@ function colorForSeries(
     const solar = ["#f59e0b", "#fbbf24", "#f97316", "#facc15", "#ea580c"];
     return solar[variant % solar.length] ?? "#f59e0b";
   }
+  if (elementType === "ev") {
+    const ev = ["#00BCD4", "#0891b2", "#22d3ee", "#0e7490"];
+    return ev[variant % ev.length] ?? "#00BCD4";
+  }
   if (elementType === "load") {
     const load = ["var(--haeo-load-0)", "var(--haeo-load-1)", "var(--haeo-load-2)", "var(--haeo-load-3)"];
     return load[variant % load.length] ?? "var(--haeo-load-0)";
@@ -140,19 +148,24 @@ function colorForSeries(
   return `hsl(${hue} 72% ${lightness}%)`;
 }
 
-const ELEMENT_TYPES: ReadonlySet<string> = new Set<ElementType>([
-  "battery",
-  "battery_section",
-  "connection",
-  "grid",
-  "inverter",
-  "junction",
-  "load",
-  "node",
-  "solar",
-  "policy",
-  "buffer",
-]);
+// A record keyed by ElementType makes the compiler reject a missing member.
+const ELEMENT_TYPE_KEYS: Record<ElementType, true> = {
+  battery: true,
+  battery_section: true,
+  buffer: true,
+  connection: true,
+  deferrable_load: true,
+  ev: true,
+  grid: true,
+  inverter: true,
+  junction: true,
+  load: true,
+  node: true,
+  solar: true,
+  policy: true,
+};
+
+const ELEMENT_TYPES: ReadonlySet<string> = new Set(Object.keys(ELEMENT_TYPE_KEYS));
 
 function isElementType(value: string): value is ElementType {
   return ELEMENT_TYPES.has(value);
@@ -165,7 +178,9 @@ function includeOutputType(outputType: string, direction: "+" | "-" | null): out
       return false;
     }
   }
-  return outputType === "power" || outputType === "price" || outputType === "state_of_charge";
+  return (
+    outputType === "power" || outputType === "price" || outputType === "state_of_charge" || outputType === "window"
+  );
 }
 
 function sourceRoleForSeries(configMode: string | null, fieldName: string | null): SeriesSourceRole {
@@ -173,6 +188,34 @@ function sourceRoleForSeries(configMode: string | null, fieldName: string | null
     return "output";
   }
   return fieldName === "forecast" ? "forecast" : "limit";
+}
+
+/**
+ * Return the battery each buffer held by a single battery belongs to, by buffer name.
+ *
+ * A buffer held by one battery is that battery's, so its series sit with the
+ * battery's in the legend rather than as an element of their own.
+ */
+function bufferOwners(hass: HassLike, config: ForecastCardConfig): Map<string, string> {
+  const owners = new Map<string, string>();
+  const resolution = resolveTopology(
+    {
+      type: "custom:haeo-topology-card",
+      ...(config.hub_entry_id === undefined ? {} : { hub_entry_id: config.hub_entry_id }),
+    },
+    hass
+  );
+  if (resolution.status !== "ok") {
+    return owners;
+  }
+  for (const buffer of resolution.topology.buffers ?? []) {
+    const batteries = new Set(buffer.storage.map((name) => name.split(":")[0] ?? name));
+    const [battery] = batteries;
+    if (batteries.size === 1 && battery !== undefined) {
+      owners.set(buffer.name, battery);
+    }
+  }
+  return owners;
 }
 
 export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfig): ForecastSeries[] {
@@ -188,6 +231,7 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
 
   const result: ForecastSeries[] = [];
   const elementVariantCount = new Map<string, number>();
+  const owners = bufferOwners(hass, config);
 
   for (const entityId of entityIds) {
     const state = hass.states[entityId];
@@ -250,8 +294,11 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
     const priorityRaw = attrs["priority"];
     const priority = asNumber(priorityRaw);
     const fieldType = asString(attrs["field_type"], "other");
-    const outputType = fieldType === "power_limit" ? "power" : fieldType;
-    const elementName = asString(attrs["element_name"], entityId);
+    // An input showing where a calendar's windows are open draws as windows
+    const outputType =
+      attrs["calendar_projection"] === "window_active" ? "window" : fieldType === "power_limit" ? "power" : fieldType;
+    const ownName = asString(attrs["element_name"], entityId);
+    const elementName = owners.get(ownName) ?? ownName;
     const outputName = asString(attrs["output_name"], fieldType);
     const directionRaw = attrs["direction"];
     const direction = directionRaw === "+" || directionRaw === "-" ? directionRaw : null;
@@ -260,13 +307,14 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
     }
     const unit = asString(attrs["unit_of_measurement"]);
     const friendlyName = asString(attrs["friendly_name"]);
-    const variant = elementVariantCount.get(elementName) ?? 0;
-    elementVariantCount.set(elementName, variant + 1);
+    // Variants count per element as configured, so moving a buffer under its battery keeps the battery's colors
+    const variant = elementVariantCount.get(ownName) ?? 0;
+    elementVariantCount.set(ownName, variant + 1);
 
     result.push({
       key: `${entityId}:${outputName}`,
       entityId,
-      label: friendlyName !== "" ? friendlyName : fallbackLabel(elementName, outputName, outputType),
+      label: friendlyName !== "" ? friendlyName : fallbackLabel(ownName, outputName, outputType),
       elementName,
       elementType,
       outputName,
@@ -279,7 +327,8 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       lane: inferLane(outputType),
       drawType: inferDrawType(outputType),
       unit,
-      color: colorForSeries(elementType, outputType, direction, elementName, variant),
+      // Windows take their element's main color, so they read as that element's
+      color: colorForSeries(elementType, outputType, direction, elementName, outputType === "window" ? 0 : variant),
       times,
       values,
     });

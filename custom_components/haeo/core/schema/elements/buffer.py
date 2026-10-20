@@ -27,6 +27,11 @@ CONF_KIND: Final = "kind"
 CONF_LOADS: Final = "loads"
 CONF_GENERATION: Final = "generation"
 CONF_STORAGE: Final = "storage"
+
+# The roles an element can take in a buffer, named by the participant list
+# that holds it
+type BufferRole = Literal["loads", "generation", "storage"]
+BUFFER_ROLES: Final[tuple[BufferRole, ...]] = (CONF_LOADS, CONF_GENERATION, CONF_STORAGE)
 CONF_WINDOW: Final = "window"
 CONF_LEVEL: Final = "level"
 CONF_SHORTFALL_COST: Final = "shortfall_cost"
@@ -128,6 +133,7 @@ class BufferConfigData(TypedDict):
 
 __all__ = [
     "BUFFER_KINDS",
+    "BUFFER_ROLES",
     "CONF_GENERATION",
     "CONF_KIND",
     "CONF_LEVEL",
@@ -147,6 +153,7 @@ __all__ = [
     "BufferKind",
     "BufferPricingConfig",
     "BufferPricingData",
+    "BufferRole",
     "ParticipantsConfig",
     "RequirementConfig",
     "RequirementData",
