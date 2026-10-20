@@ -89,7 +89,9 @@ def build_inclusion_map(
     This dynamically generates the inclusion map by looking up each field's
     output_type and computing which entities are compatible. A field feeding
     calendar inputs includes only calendars, and a field that can read a
-    calendar as a forecast also includes every calendar.
+    calendar as a forecast also includes every calendar. A meter field only
+    includes entities the recorder keeps a running total for, as it reads
+    that total.
 
     Args:
         input_fields: Mapping of InputFieldInfo from element's schema.
@@ -107,7 +109,9 @@ def build_inclusion_map(
         if reads_calendar(field_info):
             result[field_info.field_name] = calendars
         elif unit_spec is not None:
-            included = filter_compatible_entities(entity_metadata, unit_spec)
+            compatible = filter_compatible_entities(entity_metadata, unit_spec)
+            totals = {v.entity_id for v in entity_metadata if v.keeps_running_total}
+            included = [eid for eid in compatible if eid in totals] if field_info.meter is not None else compatible
             result[field_info.field_name] = (
                 [*included, *calendars] if accepts_calendar_forecast(field_info) else included
             )

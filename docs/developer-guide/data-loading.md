@@ -95,6 +95,26 @@ Loading in Home Assistant and offline (the diag CLI and scenario benchmarks) sha
 An input that has no data stops the optimization in Home Assistant.
 Offline, `load_element_config` raises `InputsUnavailableError` naming those inputs, rather than filling in a default.
 
+`load_element_config_from_values` also takes the source states the values resolved from.
+In Home Assistant these are the states each input store captured when it last loaded; offline, `load_element_config` reads them from the same state machine.
+They carry what loads beside a field rather than as its value, such as how much a meter rose since its window started.
+
+### Meters
+
+A field whose hint sets `meter` reads meters: running totals, such as an energy sensor that only counts up.
+Many meters reset (an "energy today" sensor returns to zero at midnight), so a reading alone cannot say how much a meter rose since a window started.
+
+The [meter history](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/meter_history.py) reads each meter's sum from the recorder's 5-minute statistics, which carries on through resets as the Energy dashboard reads it, over the past week.
+It extends the sum with the meter's state changes as they arrive, treating a fall in the reading as a reset that rose from zero, and injects the totals into the meter's state as the `haeo_meter_totals` attribute.
+Statistics only exist for sensors with a `total` or `total_increasing` state class, so meter fields only offer those sensors.
+
+The meter hint names the calendar field, in the same section, whose window open at the horizon start sets the zero point.
+[`meter.py`](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/core/data/loader/meter.py) reads the totals, and the loader loads the meters' rise since that window began, in base units, under `{field}_since_window`.
+With no window open the rise is zero, and when the totals do not reach back to the window's start nothing is credited.
+
+Input stores capture the meters' states with their totals, so diagnostics replay the same rise.
+Historical diagnostics read each meter's totals as of the run from the recorder and inject them the same way.
+
 ### Responsibilities
 
 - Load every referenced sensor, and treat the field as unavailable if any sensor is missing or has no data

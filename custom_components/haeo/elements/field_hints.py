@@ -196,6 +196,7 @@ def _build_field_info(
             defaults=input_defaults,
             force_required=hint.force_required,
             calendar=hint.calendar,
+            meter=hint.meter,
         )
 
     defaults = OUTPUT_TYPE_DEFAULTS[hint.output_type]
@@ -217,4 +218,5 @@ def _build_field_info(
         defaults=input_defaults,
         force_required=hint.force_required,
         calendar=hint.calendar,
+        meter=hint.meter,
     )

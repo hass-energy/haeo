@@ -14,6 +14,7 @@ from custom_components.haeo.core.data.loader.calendar import (
     event_quantity,
     event_windows,
     load_calendar_events,
+    open_window_start,
     parse_quantity,
 )
 from custom_components.haeo.core.data.util.calendar_fuser import (
@@ -315,3 +316,25 @@ def test_load_skips_invalid_event_dicts() -> None:
     assert events is not None
     assert len(events) == 1
     assert events[0].summary == "Valid"
+
+
+# --- open_window_start ---
+
+
+@pytest.mark.parametrize(
+    ("spans", "expected_hour"),
+    [
+        pytest.param([(8, 11)], 8, id="open_event"),
+        pytest.param([(7, 9), (8, 11)], 7, id="overlapping_events_chain"),
+        pytest.param([(7, 9), (9, 11)], 9, id="touching_events_stay_separate"),
+        pytest.param([(11, 12)], None, id="none_open"),
+        pytest.param([(10, 9)], None, id="ends_before_it_starts"),
+    ],
+)
+def test_open_window_start(spans: list[tuple[int, int]], expected_hour: int | None) -> None:
+    """The window open at a time began at its first event, chaining overlaps but not touching events."""
+    events = [_event(start, end) for start, end in spans]
+
+    opened = open_window_start(events, _dt(9, 30))
+
+    assert opened == (None if expected_hour is None else _dt(expected_hour).timestamp())

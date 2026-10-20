@@ -45,6 +45,20 @@ class CalendarFieldHint:
 
 
 @dataclass(frozen=True, slots=True)
+class MeterFieldHint:
+    """How an input reads a meter: a running total, such as an energy sensor that only counts up.
+
+    Attributes:
+        since: The calendar field, in the same section, whose window open at
+            the horizon start sets the meter's zero point. The amount the
+            meter rose since that window started loads beside the field.
+
+    """
+
+    since: str
+
+
+@dataclass(frozen=True, slots=True)
 class FieldHint:
     """Metadata for a config field that becomes an input entity.
 
@@ -65,6 +79,8 @@ class FieldHint:
         outputs: When set, the field feeds these inputs, keyed by their loaded
             field names, instead of being an input itself. The calendars it
             reads can so feed several inputs, each with its own entity.
+        meter: When set, the input reads meters, and the amount they rose
+            since a calendar window started loads beside it.
 
     """
 
@@ -80,6 +96,7 @@ class FieldHint:
     force_required: bool | None = None
     calendar: CalendarFieldHint | None = None
     outputs: Mapping[str, "FieldHint"] | None = None
+    meter: MeterFieldHint | None = None
 
 
 def calendar_input(output_type: OutputType, projection: CalendarProjection) -> FieldHint:

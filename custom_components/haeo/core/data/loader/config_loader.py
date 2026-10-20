@@ -7,6 +7,7 @@ forecast fusion, and unit conversion -- all without HA dependencies.
 """
 
 from collections.abc import Collection, Mapping, Sequence
+from datetime import UTC, datetime
 from typing import NamedTuple
 
 import numpy as np
@@ -30,9 +31,12 @@ from custom_components.haeo.core.schema.field_hints import (
 from custom_components.haeo.core.schema.none_value import is_none_value
 from custom_components.haeo.core.schema.surfaced_policy import negated_price_paths
 from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
-from custom_components.haeo.core.state import StateMachine
+from custom_components.haeo.core.state import EntityState, StateMachine
+from custom_components.haeo.core.units import DeviceClass, base_unit_conversion
 
+from .calendar import load_calendar_events, open_window_start
 from .calendar_resolver import resolve_calendar
+from .meter import read_meter_totals, rise_since, since_window_field
 from .sensor_loader import load_sensors
 
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
@@ -142,11 +146,16 @@ def load_element_config(
 
     """
     field_values: dict[InputPath, bool | float | np.ndarray] = {}
+    source_states: dict[str, EntityState] = {}
     unavailable: list[InputPath] = []
     for element_input in element_inputs(element_config):
         value = configured_value(element_config, element_input.config_path)
         if value is None:
             continue
+        if is_entity_value(value):
+            source_states.update(
+                {entity_id: state for entity_id in value["value"] if (state := sm.get(entity_id)) is not None}
+            )
         resolved = resolve_field(
             value, element_input.hint, sm, forecast_times, negate=element_input.path in negated_paths
         )
@@ -158,7 +167,7 @@ def load_element_config(
     if unavailable:
         raise InputsUnavailableError(element_name, unavailable)
 
-    return load_element_config_from_values(element_name, element_config, field_values, forecast_times)
+    return load_element_config_from_values(element_name, element_config, field_values, forecast_times, source_states)
 
 
 def load_element_configs(
@@ -192,6 +201,7 @@ def load_element_config_from_values(
     element_config: ElementConfigSchema,
     field_values: Mapping[tuple[str, ...], bool | float | np.ndarray | None],
     forecast_times: Sequence[float],
+    source_states: Mapping[str, EntityState],
 ) -> ElementConfigData:
     """Assemble an element's loaded config from pre-resolved input field values.
 
@@ -206,7 +216,11 @@ def load_element_config_from_values(
         element_name: Display name for the element.
         element_config: Raw element config dict (sectioned format).
         field_values: Map of field path to its resolved value.
-        forecast_times: Boundary timestamps (used only for type-driven defaults).
+        forecast_times: Boundary timestamps (for type-driven defaults and the
+            horizon start).
+        source_states: The source entity states the values resolved from,
+            read for what loads beside a field, such as how much a meter rose
+            since its window started.
 
     Returns:
         Loaded configuration with resolved time series and scalar values.
@@ -251,6 +265,17 @@ def load_element_config_from_values(
                     if isinstance(loaded_section, dict):
                         loaded_section.pop(input_name, None)
 
+            if (
+                field_hint.meter is not None
+                and (
+                    risen := _meter_rise(
+                        element_config, section_name, field_name, field_hint.meter.since, source_states, forecast_times
+                    )
+                )
+                is not None
+            ):
+                _section_dict(loaded, section_name)[since_window_field(field_name)] = risen
+
     list_hints = extract_list_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type])
     for list_key, hints in list_hints.items():
         items = element_config.get(list_key)
@@ -272,6 +297,53 @@ def load_element_config_from_values(
         loaded[list_key] = loaded_items
 
     return loaded  # type: ignore[return-value]
+
+
+def _entity_ids(element_config: Mapping[str, object], path: InputPath) -> list[str]:
+    """Return the entities configured for a field, or none when it is not entity-driven."""
+    value = configured_value(element_config, path)
+    return list(value["value"]) if is_entity_value(value) else []
+
+
+def _meter_rise(
+    element_config: Mapping[str, object],
+    section_name: str,
+    field_name: str,
+    since: str,
+    source_states: Mapping[str, EntityState],
+    forecast_times: Sequence[float],
+) -> float | None:
+    """Return how much a meter field's meters rose since the window open at the horizon start began.
+
+    The window comes from the events of the calendar field named by
+    ``since``. Returns zero when no window is open, as nothing has been
+    delivered toward one, and None when a meter carries no totals reaching
+    back to the window's start, so nothing is credited.
+    """
+    meters = _entity_ids(element_config, (section_name, field_name))
+    calendars = [
+        load_calendar_events(source_states.get(entity_id))
+        for entity_id in _entity_ids(element_config, (section_name, since))
+    ]
+    if not meters or not calendars or not forecast_times:
+        return None
+    events = [event for found in calendars if found for event in found]
+    opened = open_window_start(events, datetime.fromtimestamp(forecast_times[0], tz=UTC))
+    if opened is None:
+        return 0.0
+    rises = [_rise_in_base_unit(source_states.get(meter), opened) for meter in meters]
+    return None if any(rise is None for rise in rises) else sum(rise for rise in rises if rise is not None)
+
+
+def _rise_in_base_unit(state: EntityState | None, since: float) -> float | None:
+    """Return how much a meter rose since a time, converted from its unit like its reading."""
+    rise = rise_since(read_meter_totals(state) or [], since)
+    if state is None or rise is None:
+        return None
+    unit = state.attributes.get("unit_of_measurement")
+    device_class = DeviceClass.of(state.attributes.get("device_class"))
+    factor, _, _ = base_unit_conversion(unit if isinstance(unit, str) else None, device_class)
+    return rise * factor
 
 
 class _Sentinel:
