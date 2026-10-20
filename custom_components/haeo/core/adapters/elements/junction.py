@@ -10,6 +10,7 @@ from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.buffer import BufferRole
 from custom_components.haeo.core.schema.elements.junction import ELEMENT_TYPE, JunctionConfigData
 
 type JunctionOutputName = Literal["junction_power_balance"]
@@ -32,8 +33,7 @@ class JunctionAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
     can_source: bool = False
     can_sink: bool = False
-    can_store: bool = False
-    can_consume: bool = False
+    buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: JunctionConfigData) -> list[ModelElementConfig]:
         """Return a model node that neither produces nor consumes power."""

@@ -4,6 +4,7 @@ from custom_components.haeo.core.const import CONF_NAME
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements.ev import (
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_CONNECTED,
     CONF_CURRENT_SOC,
     CONF_ENERGY_PER_DISTANCE,
@@ -13,6 +14,7 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_ODOMETER,
     CONF_PUBLIC_CHARGING_PRICE,
     CONF_TRIP_CALENDAR,
+    SECTION_ADVANCED,
     SECTION_CHARGING,
     SECTION_PUBLIC_CHARGING,
     SECTION_TRIP,
@@ -53,6 +55,7 @@ VALID_DATA = [
                 CONF_EFFICIENCY_SOURCE_TARGET: as_constant_value(95.0),
                 CONF_EFFICIENCY_TARGET_SOURCE: as_constant_value(95.0),
             },
+            SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: as_constant_value(100.0)},
         },
     },
     {
@@ -71,6 +74,7 @@ VALID_DATA = [
             },
             SECTION_PUBLIC_CHARGING: {},
             SECTION_EFFICIENCY: {},
+            SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: as_constant_value(100.0)},
         },
     },
 ]

@@ -26,9 +26,11 @@ from custom_components.haeo.core.model.elements.deferrable_load import (
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.buffer import BufferRole
 from custom_components.haeo.core.schema.elements.ev import (
     CONF_AWAY,
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_CONNECTED,
     CONF_CURRENT_SOC,
     CONF_ENERGY_PER_DISTANCE,
@@ -41,6 +43,7 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_TRIP_OPENED,
     CONF_TRIP_START,
     ELEMENT_TYPE,
+    SECTION_ADVANCED,
     SECTION_CHARGING,
     SECTION_PUBLIC_CHARGING,
     SECTION_TRIP,
@@ -72,10 +75,6 @@ DEFAULT_PUBLIC_CHARGING_PRICE: Final = 10.0
 # the trip, even when energy is paid to be used; finite so the optimization
 # stays feasible.
 TRIP_OVERAGE_PRICE: Final = 10.0
-
-# Cost ($/kWh per hour) of energy below the min charge: a battery's default
-# charge limit cost, far above the public charging price.
-MIN_CHARGE_COST: Final = 100.0
 
 # EV-specific output names for translation/sensor mapping
 type EvOutputName = Literal[
@@ -136,9 +135,7 @@ class EvAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = True
     can_sink: bool = True
-    # A buffer can hold energy in the pack and count the trips as a load
-    can_store: bool = True
-    can_consume: bool = True
+    buffer_roles: frozenset[BufferRole] = frozenset({"storage", "loads"})
 
     def model_elements(self, config: EvConfigData) -> list[ModelElementConfig]:
         """Create model elements for EV configuration.
@@ -185,17 +182,17 @@ class EvAdapter:
 
         # EV pack, held above its min charge like a battery: falling below
         # it is allowed, so a car that comes home under it stays feasible, but
-        # costs far more than public charging, so a trip never plans to.
+        # costs the limit cost per hour, so a trip never plans to.
         pack: BatteryElementConfig = {
             "element_type": MODEL_ELEMENT_TYPE_BATTERY,
             "name": name,
             "capacity": capacity,
             "initial_charge": initial_charge,
             "salvage_value": 0.0,
+            "charge_limit_cost": config[SECTION_ADVANCED][CONF_CHARGE_LIMIT_COST],
         }
         if (min_ratio := vehicle.get(CONF_MIN_CHARGE_PERCENTAGE)) is not None:
             pack["min_charge"] = min_ratio * capacity
-            pack["charge_limit_cost"] = MIN_CHARGE_COST
 
         trip = config.get(SECTION_TRIP, {})
         plugged_in = bool(charging[CONF_CONNECTED][0] >= _CONNECTED_THRESHOLD)

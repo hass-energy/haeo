@@ -10,6 +10,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
 from custom_components.haeo.core.schema.elements.ev import (
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_CONNECTED,
     CONF_CURRENT_SOC,
     CONF_ENERGY_PER_DISTANCE,
@@ -20,6 +21,7 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_PUBLIC_CHARGING_PRICE,
     CONF_TRIP_CALENDAR,
     ELEMENT_TYPE,
+    SECTION_ADVANCED,
     SECTION_CHARGING,
     SECTION_PUBLIC_CHARGING,
     SECTION_TRIP,
@@ -81,6 +83,7 @@ class EvSubentryFlowHandler(ElementFlowMixin, ElementSubentryFlow):
                 (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE),
                 collapsed=True,
             ),
+            SectionDefinition(key=SECTION_ADVANCED, fields=(CONF_CHARGE_LIMIT_COST,), collapsed=True),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:

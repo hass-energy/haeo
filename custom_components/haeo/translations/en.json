@@ -309,6 +309,7 @@
           "description": "Configure your electric vehicle with battery details, charging rates, and trip planning",
           "data": {
             "capacity": "Battery capacity",
+            "charge_limit_cost": "Limit cost",
             "connected": "Plugged in",
             "connection": "Connection",
             "current_soc": "Current state of charge",
@@ -324,6 +325,13 @@
             "trip_calendar": "Trip calendar"
           },
           "sections": {
+            "advanced": {
+              "data": { "charge_limit_cost": "Limit cost" },
+              "data_description": {
+                "charge_limit_cost": "Holding cost per kWh below the min charge, for every hour it lasts. Keep it far above the public charging price and any price the battery could earn from, so the min charge acts as a hard limit."
+              },
+              "name": "Advanced"
+            },
             "charging": {
               "data": {
                 "connected": "Plugged in",
@@ -655,6 +663,7 @@
       "deferrable_load_window_start": { "name": "Window start" },
       "ev_away": { "name": "Away" },
       "ev_capacity": { "name": "Battery capacity" },
+      "ev_charge_limit_cost": { "name": "Limit cost" },
       "ev_connected": { "name": "Plugged in" },
       "ev_current_soc": { "name": "Current state of charge" },
       "ev_efficiency_source_target": { "name": "Discharge efficiency" },

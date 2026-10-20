@@ -31,6 +31,7 @@ from custom_components.haeo.core.schema.elements.battery import (
     SECTION_STORAGE,
     BatteryConfigData,
 )
+from custom_components.haeo.core.schema.elements.buffer import BufferRole
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -81,8 +82,7 @@ class BatteryAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = True
     can_sink: bool = True
-    can_store: bool = True
-    can_consume: bool = False
+    buffer_roles: frozenset[BufferRole] = frozenset({"storage"})
 
     def model_elements(self, config: BatteryConfigData) -> list[ModelElementConfig]:
         """Create model elements for Battery configuration.
