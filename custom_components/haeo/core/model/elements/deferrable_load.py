@@ -78,7 +78,6 @@ class DeferrableLoadElementConfig(TypedDict):
     deficit_price: NDArray[np.float64]
     overage_price: NDArray[np.float64]
     initial_energy: NotRequired[float]
-    max_energy: NotRequired[NDArray[np.float64] | None]
     is_source: Literal[False]
     is_sink: Literal[True]
     inbound_tags: NotRequired[set[int] | None]
@@ -120,11 +119,6 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     overshoot is overage like any other: a fixed cost that changes no
     decision.
 
-    ``max_energy`` (per period), when given, caps the energy delivered in
-    each period, such as a trip that consumes its energy at a steady pace.
-    It only limits delivery, so a requirement the cap cannot meet is a
-    priced shortfall rather than infeasible.
-
     The requirements, initial energy, and prices are never negative.
     """
 
@@ -136,7 +130,6 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     initial_energy: TrackedParam[float] = TrackedParam()
     deficit_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
     overage_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    max_energy: TrackedParam[NDArray[np.float64] | None] = TrackedParam()
 
     def __init__(
         self,
@@ -151,7 +144,6 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         deficit_price: NDArray[np.float64],
         overage_price: NDArray[np.float64],
         initial_energy: float = 0.0,
-        max_energy: NDArray[np.float64] | None = None,
         is_source: Literal[False] = False,
         is_sink: Literal[True] = True,
         inbound_tags: set[int] | None = None,
@@ -179,7 +171,6 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         self.initial_energy = initial_energy
         self.deficit_price = deficit_price
         self.overage_price = overage_price
-        self.max_energy = max_energy
 
         # Energy delivered in the current window, at every boundary
         self.energy = solver.add_variables(n_periods + 1, name=f"{name}.energy")
@@ -255,17 +246,6 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     def deferrable_load_delivery(self) -> Rows:
         """Constraint: energy is never taken back out, so the accumulator only grows within a window."""
         return self.delivered >= 0.0
-
-    @constraint
-    def deferrable_load_max_energy(self) -> Rows:
-        """Constraint: no period delivers more than its maximum energy.
-
-        Without a maximum the rows are free, so they stay in the LP and can
-        bind later without changing its shape.
-        """
-        if self.max_energy is None:
-            return self.delivered.free()
-        return self.delivered <= self.max_energy
 
     @constraint
     def deferrable_load_window(self) -> Rows:

@@ -65,15 +65,13 @@ $$
 where $d$ is the trip distance and $r$ is the energy-per-distance rate.
 The distance is read from the first of the event's location, summary, or description fields that holds only a distance with its unit, such as `50 km`, and converted to kilometres.
 
-The trip calendar feeds five inputs, resolved the same way as for the [deferrable load device](deferrable_load.md#window-scheduling): the periods away, where trips start, the distances of the events starting and ending at each boundary, and each period's share of every event's distance, spread evenly over the part of the event in the horizon.
+The trip calendar feeds four inputs, resolved the same way as for the [deferrable load device](deferrable_load.md#window-scheduling): the periods away, where trips start, and the distances of the events starting and ending at each boundary.
 Overlapping events share one window, touching trips stay separate, and an event running past the horizon end is due at the final boundary.
 Every away period is a trip window of the [deferrable trip load](../model-layer/elements/deferrable_load.md); an event without a distance marks the car away but asks for no energy.
 
 The trip load counts the energy each window receives from zero at its start, and each event's energy $E_{\text{trip}}$ is due by its own end:
 
 - **Shortfall** below the requirement is priced at the public charging price $p_{\text{public}}$ at that boundary.
-- **Pace**: each period's share of the trips' distances, times the energy per distance, is the trip load's `max_energy` for that period.
-    A trip's energy adds up to exactly its requirement over its duration, so the plan draws it at a steady pace instead of all at once, and a pack that cannot keep up leaves a priced shortfall.
 - **Overage**, energy beyond what the trips that have started need, is priced at \$10/kWh.
     A trip's energy is not the plan's to choose, so this keeps the plan from ever sending more energy into a trip than it needs, even when energy is paid to be used, without making the optimization infeasible.
 
