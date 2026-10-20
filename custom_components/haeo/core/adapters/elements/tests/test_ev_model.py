@@ -17,6 +17,7 @@ from custom_components.haeo.core.adapters.elements.ev import (
     EV_STATE_OF_CHARGE,
     EV_TRIP_ENERGY_DELIVERED,
     EV_TRIP_ENERGY_SHORTFALL,
+    TRIP_OVERAGE_PRICE,
     adapter,
 )
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
@@ -35,6 +36,7 @@ from custom_components.haeo.core.model.elements import (
 from custom_components.haeo.core.model.elements.battery import BATTERY_ENERGY_STORED
 from custom_components.haeo.core.model.elements.deferrable_load import (
     DEFERRABLE_LOAD_ENERGY_DELIVERED,
+    DEFERRABLE_LOAD_ENERGY_OVERAGE,
     DEFERRABLE_LOAD_ENERGY_SHORTFALL,
     DeferrableLoadElementConfig,
 )
@@ -157,11 +159,11 @@ def test_no_trip_config_yields_an_inert_trip_load() -> None:
 def test_trip_shortfall_is_priced_at_the_public_charging_price(
     public_charging: dict[str, float], expected: float
 ) -> None:
-    """The trip's shortfall price is the public charging price, high by default, and overage is free."""
+    """The trip's shortfall price is the public charging price, high by default, and overage is priced high."""
     trip = _elements(_ev_config(public_charging=public_charging)).trip
 
     np.testing.assert_allclose(trip["deficit_price"], [expected] * (N_PERIODS + 1))
-    np.testing.assert_allclose(trip["overage_price"], [0.0] * (N_PERIODS + 1))
+    np.testing.assert_allclose(trip["overage_price"], [TRIP_OVERAGE_PRICE] * (N_PERIODS + 1))
 
 
 def test_calendar_drives_trip_energy_and_home_masks() -> None:
@@ -220,11 +222,11 @@ def test_plugged_in_after_driving_ends_the_trip_and_keeps_later_ones() -> None:
     [
         pytest.param(None, 0.0, id="without_an_odometer"),
         pytest.param(10.0, 2.0, id="under_the_trip"),
-        pytest.param(100.0, 20.0, id="beyond_the_trip"),
+        pytest.param(100.0, 6.0, id="beyond_the_trip_completes_it"),
     ],
 )
 def test_unplugged_on_a_trip_credits_the_distance_driven(odometer: float | None, expected: float) -> None:
-    """Unplugged during an open trip, the energy for the distance driven counts toward it."""
+    """Unplugged during an open trip, the energy for the distance driven counts toward it, up to the trip's own."""
     trip = _trips((0, 2, 30.0)) if odometer is None else {**_trips((0, 2, 30.0)), "odometer": odometer}
     config = _ev_config(plugged_in=False, trip=trip)
 
@@ -366,15 +368,27 @@ def test_home_charge_limit_binds_at_the_charger() -> None:
     np.testing.assert_allclose(outputs[EV_ENERGY_STORED].values[:3], [5.0, 6.8, 8.6], atol=1e-6)
 
 
-def test_driving_beyond_the_trip_stays_feasible() -> None:
-    """A car that drove further than its trip solves, with no shortfall and no more trip energy drawn."""
+def test_driving_beyond_the_trip_completes_it_at_no_cost() -> None:
+    """A car that drove further than its trip has completed it: no shortfall, no overage, no more energy drawn."""
     config = _ev_config(plugged_in=False, trip={**_trips((0, 1, 30.0)), "odometer": 100.0})
     network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
 
     trip_outputs = network.elements["ev:trip"].outputs()
     np.testing.assert_allclose(trip_outputs[DEFERRABLE_LOAD_ENERGY_SHORTFALL].values, [0.0] * (N_PERIODS + 1))
-    assert trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[1] == pytest.approx(20.0)
+    np.testing.assert_allclose(trip_outputs[DEFERRABLE_LOAD_ENERGY_OVERAGE].values, [0.0] * (N_PERIODS + 1))
+    assert trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[1] == pytest.approx(6.0)
     assert network.elements["ev:trip_connection"].outputs()["connection_power"].values[0] == pytest.approx(0.0)
+
+
+def test_negative_prices_never_plan_driving_further_than_the_trip() -> None:
+    """Being paid to use energy never empties a full pack into a trip to make room to charge again after it."""
+    config = _ev_config(trip=_trips((1, 2, 30.0)))
+    config["vehicle"]["capacity"] = np.full(N_PERIODS + 1, 10.0)
+    network = _solve_ev_network(config, grid_price=[-1.0, -1.0, -1.0, -1.0])
+
+    trip_outputs = network.elements["ev:trip"].outputs()
+    assert trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[2] == pytest.approx(6.0)
+    np.testing.assert_allclose(trip_outputs[DEFERRABLE_LOAD_ENERGY_OVERAGE].values, [0.0] * (N_PERIODS + 1), atol=1e-9)
 
 
 # --- Outputs mapping ---

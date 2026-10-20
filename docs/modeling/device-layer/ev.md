@@ -72,7 +72,8 @@ Every away period is a trip window of the [deferrable trip load](../model-layer/
 The trip load counts the energy each window receives from zero at its start, and each event's energy $E_{\text{trip}}$ is due by its own end:
 
 - **Shortfall** below the requirement is priced at the public charging price $p_{\text{public}}$ at that boundary.
-- **Overage** is free: driving further than planned costs nothing more, as that energy is already gone.
+- **Overage**, energy beyond what the trips that have started need, is priced at \$10/kWh.
+    A trip's energy is not the plan's to choose, so this keeps the plan from ever sending more energy into a trip than it needs, even when energy is paid to be used, without making the optimization infeasible.
 
 $$
 \text{cost} = \sum_{\text{trips}} p_{\text{public}}(e) \cdot \max\left(0,\ E_{\text{trip}} - E_{\text{delivered}}(e)\right)
@@ -99,7 +100,8 @@ Together with the plugged-in sensor it places the car on the open trip:
 | No         | any        | is on the trip   | The trip load's initial energy is $E_{\text{initial}} = \Delta o \cdot r$    |
 
 The credited energy already left the pack, which the live state of charge reflects, so the model never draws it again.
-Below the requirement, the remainder stays due at the trip's end; above it, the trip is complete and the overshoot is overage, which is free.
+The credit is capped at the open trip's own energy.
+Below it, the remainder stays due at the trip's end; at or above it, the trip is complete, and distance driven beyond it is neither credited nor priced.
 Unplugging again after coming back resumes the trip, with the distance still counted from the trip's start.
 Without an odometer $\Delta o$ is zero, so a car plugged in during a trip has not left yet.
 Later trips are unaffected.
