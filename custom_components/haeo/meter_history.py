@@ -54,6 +54,11 @@ def _unit(state: State | None) -> str | None:
     return unit if isinstance(unit, str) else None
 
 
+def _carries_totals(state: State | None) -> bool:
+    """Return True when a meter's state already carries its running totals."""
+    return state is not None and METER_TOTALS_ATTRIBUTE in state.attributes
+
+
 def _reading(state: State | None) -> float | None:
     """Return a meter state's numeric reading, or None when it reads no number."""
     if state is None:
@@ -146,8 +151,16 @@ class MeterHistory:
             meter.record(state, reading, state.last_updated_timestamp)
 
     def attributes(self) -> dict[str, dict[str, object]]:
-        """Return the totals to inject into each meter's state."""
-        return {entity_id: {METER_TOTALS_ATTRIBUTE: list(meter.totals)} for entity_id, meter in self._meters.items()}
+        """Return the totals to inject into each meter's state.
+
+        A meter whose state already carries totals, as a replayed diagnostics
+        or scenario state does, keeps them, as a calendar keeps its events.
+        """
+        return {
+            entity_id: {METER_TOTALS_ATTRIBUTE: list(meter.totals)}
+            for entity_id, meter in self._meters.items()
+            if not _carries_totals(self._hass.states.get(entity_id))
+        }
 
     async def _async_recorded(self, entity_id: str, state: State | None) -> tuple[list[MeterTotal], float | None]:
         """Return a meter's recorded totals over the lookback and its last recorded reading."""
