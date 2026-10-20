@@ -4,6 +4,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
 
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata, extract
 
@@ -26,7 +27,7 @@ def extract_entity_metadata(hass: HomeAssistant, hub_entry: ConfigEntry) -> list
         if state.entity_id in own_entity_ids:
             continue
         try:
-            unit = extract(state).unit
+            unit = extract(state, time_zone=dt_util.get_default_time_zone()).unit
         except (ValueError, KeyError, HomeAssistantError):
             unit = state.attributes.get("unit_of_measurement")
 

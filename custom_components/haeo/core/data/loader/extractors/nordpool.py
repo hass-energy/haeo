@@ -9,6 +9,7 @@ See: https://github.com/custom-components/nordpool
 """
 
 from collections.abc import Mapping, Sequence
+from datetime import tzinfo
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
@@ -97,7 +98,7 @@ class Parser:
         return f"{state.attributes['currency']}/kWh"
 
     @staticmethod
-    def _parse_entries(entries: Sequence[NordpoolForecastEntry]) -> list[tuple[int, float]]:
+    def _parse_entries(entries: Sequence[NordpoolForecastEntry], time_zone: tzinfo) -> list[tuple[int, float]]:
         """Parse a list of Nordpool forecast entries into step-function boundary points.
 
         Each entry produces two points (start, value) and (end, value) to create
@@ -105,25 +106,25 @@ class Parser:
         """
         parsed: list[tuple[int, float]] = []
         for item in entries:
-            start = parse_datetime_to_timestamp(item["start"])
-            end = parse_datetime_to_timestamp(item["end"])
+            start = parse_datetime_to_timestamp(item["start"], time_zone)
+            end = parse_datetime_to_timestamp(item["end"], time_zone)
             value = item["value"]
             parsed.append((start, value))
             parsed.append((end, value))
         return parsed
 
     @staticmethod
-    def extract(state: NordpoolState) -> tuple[Sequence[tuple[int, float]], str, DeviceClass]:
+    def extract(state: NordpoolState, time_zone: tzinfo) -> tuple[Sequence[tuple[int, float]], str, DeviceClass]:
         """Extract forecast data from Nordpool format.
 
         Combines ``raw_today`` and ``raw_tomorrow`` (when available) into a
         single time series with step-function boundaries.
         """
-        parsed = Parser._parse_entries(state.attributes["raw_today"])
+        parsed = Parser._parse_entries(state.attributes["raw_today"], time_zone)
 
         raw_tomorrow = state.attributes["raw_tomorrow"]
         if raw_tomorrow:
-            parsed.extend(Parser._parse_entries(raw_tomorrow))
+            parsed.extend(Parser._parse_entries(raw_tomorrow, time_zone))
 
         parsed.sort(key=lambda x: x[0])
 

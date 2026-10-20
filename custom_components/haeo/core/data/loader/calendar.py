@@ -174,19 +174,10 @@ def rejected_events(
     ]
 
 
-def _default_local_timezone() -> tzinfo:
-    """Return the system local timezone for naive datetime normalization."""
-    local_tz = datetime.now().astimezone().tzinfo
-    if local_tz is None:
-        msg = "System local timezone is unavailable"
-        raise RuntimeError(msg)
-    return local_tz
-
-
-def _normalize_datetime(dt: datetime, default_tz: tzinfo) -> datetime:
-    """Attach default_tz to naive datetimes; preserve aware datetimes."""
+def _normalize_datetime(dt: datetime, time_zone: tzinfo) -> datetime:
+    """Attach time_zone to naive datetimes; preserve aware datetimes."""
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=default_tz)
+        return dt.replace(tzinfo=time_zone)
     return dt
 
 
@@ -197,8 +188,7 @@ def _optional_str(value: object) -> str | None:
 
 def load_calendar_events(
     state: EntityState | None,
-    *,
-    default_tz: tzinfo | None = None,
+    time_zone: tzinfo,
 ) -> list[CalendarEventData] | None:
     """Load the events injected into a calendar entity's state.
 
@@ -209,8 +199,8 @@ def load_calendar_events(
 
     Args:
         state: The calendar entity's state.
-        default_tz: Timezone assumed for naive event timestamps. Defaults to
-            the system local timezone.
+        time_zone: Time zone of naive event timestamps, which calendars
+            write in local time.
 
     Returns:
         The events, or None when the state is missing or carries no injected
@@ -222,8 +212,7 @@ def load_calendar_events(
     raw_events = state.attributes.get(CALENDAR_EVENTS_ATTRIBUTE)
     if not isinstance(raw_events, list):
         return None
-    tz = default_tz if default_tz is not None else _default_local_timezone()
-    return _parse_event_dicts(raw_events, default_tz=tz)
+    return _parse_event_dicts(raw_events, time_zone)
 
 
 def capture_calendar_events(
@@ -247,8 +236,7 @@ def capture_calendar_events(
 
 def _parse_event_dicts(
     raw_events: Sequence[object],
-    *,
-    default_tz: tzinfo,
+    time_zone: tzinfo,
 ) -> list[CalendarEventData]:
     """Parse a list of event dicts into CalendarEventData objects."""
     events: list[CalendarEventData] = []
@@ -260,8 +248,8 @@ def _parse_event_dicts(
         if not isinstance(start_str, str) or not isinstance(end_str, str):
             continue
         try:
-            start = _normalize_datetime(datetime.fromisoformat(start_str), default_tz)
-            end = _normalize_datetime(datetime.fromisoformat(end_str), default_tz)
+            start = _normalize_datetime(datetime.fromisoformat(start_str), time_zone)
+            end = _normalize_datetime(datetime.fromisoformat(end_str), time_zone)
         except (ValueError, TypeError):
             continue
         events.append(

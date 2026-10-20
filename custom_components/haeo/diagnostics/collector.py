@@ -310,7 +310,10 @@ def _meters_read_since(
                     event
                     for eid in calendars
                     if (state := entity_states.get(eid)) is not None and (found := events.get(eid)) is not None
-                    for event in load_calendar_events(AnnotatedState(state, {CALENDAR_EVENTS_ATTRIBUTE: found})) or []
+                    for event in load_calendar_events(
+                        AnnotatedState(state, {CALENDAR_EVENTS_ATTRIBUTE: found}), dt_util.get_default_time_zone()
+                    )
+                    or []
                 ],
                 target_time,
             )

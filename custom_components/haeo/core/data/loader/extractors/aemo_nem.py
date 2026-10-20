@@ -1,7 +1,7 @@
 """AEMO energy market forecast parser."""
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
@@ -63,10 +63,13 @@ class Parser:
         )
 
     @staticmethod
-    def extract(state: AemoNemState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
+    def extract(
+        state: AemoNemState, time_zone: tzinfo
+    ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from AEMO energy market format."""
         parsed: list[tuple[int, float]] = [
-            (parse_datetime_to_timestamp(item["start_time"]), item["price"]) for item in state.attributes["forecast"]
+            (parse_datetime_to_timestamp(item["start_time"], time_zone), item["price"])
+            for item in state.attributes["forecast"]
         ]
         parsed.sort(key=lambda x: x[0])
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

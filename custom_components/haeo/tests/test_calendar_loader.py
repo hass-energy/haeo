@@ -5,6 +5,7 @@ from collections.abc import Callable, Mapping
 from datetime import UTC, date, datetime
 import logging
 from unittest.mock import Mock
+from zoneinfo import ZoneInfo
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
@@ -186,6 +187,13 @@ def test_state_machine_reads_a_calendar_without_events_as_missing() -> None:
     sm = CalendarStateMachine(base, {ENTITY_ID: None})
 
     assert sm.get(ENTITY_ID) is None
+
+
+def test_state_machine_reads_in_the_base_time_zone() -> None:
+    """The decorated state machine reads naive times in its base's time zone."""
+    adelaide = ZoneInfo("Australia/Adelaide")
+
+    assert CalendarStateMachine(FakeStateMachine({}, time_zone=adelaide), {}).time_zone is adelaide
 
 
 # --- CalendarInputLoader ---

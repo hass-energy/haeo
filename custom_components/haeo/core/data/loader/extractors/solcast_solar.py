@@ -1,7 +1,7 @@
 """Solcast solar forecast parser."""
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
@@ -66,13 +66,15 @@ class Parser:
         )
 
     @staticmethod
-    def extract(state: SolcastSolarState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
+    def extract(
+        state: SolcastSolarState, time_zone: tzinfo
+    ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Solcast solar forecast format.
 
         State has been validated by detect(), so all entries are guaranteed to be valid.
         """
         parsed: list[tuple[int, float]] = [
-            (parse_datetime_to_timestamp(item["period_start"]), item["pv_estimate"])
+            (parse_datetime_to_timestamp(item["period_start"], time_zone), item["pv_estimate"])
             for item in state.attributes["detailedForecast"]
         ]
         parsed.sort(key=lambda x: x[0])

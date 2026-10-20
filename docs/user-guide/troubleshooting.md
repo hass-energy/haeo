@@ -181,7 +181,7 @@ HAEO doesn't respond to price changes.
 ### Solutions
 
 1. **Check forecast format**: Must include `datetime` and `value`
-2. **Verify timestamps**: Must be ISO format with timezone
+2. **Verify timestamps**: Must be ISO format; times without a timezone are read in Home Assistant's time zone
 3. **Ensure forecast length**: Must cover horizon
 4. **Check sensor updates**: Must update regularly
 
