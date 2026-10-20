@@ -204,13 +204,13 @@ class EvConfigSchema(ConnectedCommonConfig):
             {
                 CONF_MAX_CHARGE_RATE: FieldHint(
                     output_type=OutputType.POWER,
-                    direction="+",
+                    direction="-",
                     time_series=True,
                     step=0.1,
                 ),
                 CONF_MAX_DISCHARGE_RATE: FieldHint(
                     output_type=OutputType.POWER,
-                    direction="-",
+                    direction="+",
                     time_series=True,
                     step=0.1,
                 ),
