@@ -494,3 +494,18 @@ ha-card {
     margin: 0 8px 8px;
   }
 }
+
+.windowTint {
+  fill: currentColor;
+  opacity: 0.07;
+  transition: opacity 120ms ease;
+}
+
+.windowBand.active .windowTint {
+  opacity: 0.18;
+}
+
+.windowStrip {
+  fill: currentColor;
+  opacity: 0.85;
+}

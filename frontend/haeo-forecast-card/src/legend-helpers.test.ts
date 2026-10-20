@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { legendSeriesOrder, seriesIconPath, seriesTooltip } from "./legend-helpers";
-import { mdiCarElectric, mdiCarElectricOutline } from "@mdi/js";
+import { mdiCalendarClock, mdiCarElectric, mdiCarElectricOutline } from "@mdi/js";
 import { mdiIcons } from "./mdi-icons";
 import type { ForecastSeries } from "./types";
 
@@ -199,5 +199,18 @@ describe("legendSeriesOrder", () => {
     const soc = makeSeries({ lane: "soc" });
     const unknown = makeSeries({ lane: "other" as never });
     expect(legendSeriesOrder(soc)).toBeLessThan(legendSeriesOrder(unknown));
+  });
+});
+
+describe("window series", () => {
+  const window = makeSeries({ lane: "window", outputType: "window", direction: null });
+
+  it("shows a calendar icon", () => {
+    expect(seriesIconPath(window)).toBe(mdiCalendarClock);
+  });
+
+  it("orders after state of charge and before anything else", () => {
+    expect(legendSeriesOrder(window)).toBe(7);
+    expect(legendSeriesOrder(makeSeries({ lane: "shadow" }))).toBe(8);
   });
 });
