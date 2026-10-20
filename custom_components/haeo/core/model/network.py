@@ -26,6 +26,7 @@ from .elements.connection import Connection, ConnectionElementConfig, Connection
 from .elements.deferrable_load import DeferrableLoad, DeferrableLoadElementConfig
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
+from .infeasibility import InfeasibleError, Relaxation, conflicting_rows, relaxed_rows, row_labels
 from .linear import LinearArray, total
 from .solver import Solver
 from .util.solver_rows import RowIndices
@@ -113,12 +114,20 @@ class Network:
         periods: NDArray[np.float64],
         *,
         options: SolveOptions | None = None,
+        relax_infeasible: bool = False,
     ) -> None:
-        """Create a network with the given period durations and solver options."""
+        """Create a network with the given period durations and solver options.
+
+        With ``relax_infeasible``, a model whose constraints cannot all hold is
+        solved with the fewest of them relaxed, instead of raising.
+        """
         self.name = name
         self.periods = np.asarray(periods, dtype=float)
         self.elements: dict[str, Element[Any]] = {}
         self.options = options or SolveOptions()
+        self.relax_infeasible = relax_infeasible
+        # Rows the last plan moved past their bounds, empty unless it was relaxed
+        self.relaxations: tuple[Relaxation, ...] = ()
         self._solver = Solver()
         # Weight the last blended solve settled on, where the next one starts
         self._blend_weight: float | None = None
@@ -406,9 +415,43 @@ class Network:
         all_col_indices = np.arange(n_vars, dtype=np.int32)
         cost_vectors = _build_cost_vectors((primary, secondary), n_vars)
 
+        self.relaxations = ()
+        try:
+            return self._solve(all_col_indices, cost_vectors)
+        except InfeasibleError:
+            labels = row_labels(self.constraints(), self.n_periods)
+            if not self.relax_infeasible:
+                raise InfeasibleError(conflicting_rows(h, labels)) from None
+            if (relaxed := relaxed_rows(h, labels)) is None:
+                raise InfeasibleError(conflicting_rows(h, labels)) from None
+
+        rows, values = relaxed
+        lp = h.getLp()
+        lower = np.asarray(lp.row_lower_)[rows]
+        upper = np.asarray(lp.row_upper_)[rows]
+        h.changeRowsBounds(len(rows), rows, np.minimum(lower, values), np.maximum(upper, values))
+        try:
+            cost = self._solve(all_col_indices, cost_vectors)
+            # Read the plan before the bounds return, since changing them discards the solution
+            h.column_values()
+            h.row_duals()
+        finally:
+            h.changeRowsBounds(len(rows), rows, lower, upper)
+        self.relaxations = tuple(
+            Relaxation(labels[row], value - min(max(value, low), high))
+            for row, value, low, high in zip(
+                rows.tolist(), values.tolist(), lower.tolist(), upper.tolist(), strict=True
+            )
+        )
+        _LOGGER.warning(
+            "Relaxed constraints to find a plan: %s", ", ".join(map(_describe_relaxation, self.relaxations))
+        )
+        return cost
+
+    def _solve(self, all_col_indices: NDArray[np.int32], cost_vectors: list[NDArray[np.float64]]) -> float:
+        """Solve the blended objective, calibrating its weight on the first solve."""
         if self._blend_weight is None:
             self._blend_weight = self._calibrate_blend_weight(all_col_indices, cost_vectors)
-
         return self._solve_blended(all_col_indices, cost_vectors, self._blend_weight)
 
     def _solve_blended(
@@ -458,13 +501,18 @@ class Network:
         a fixed basis are linear in the objective, so the secondary's are the blended
         ones minus the cost's, over the weight. The plan is in order when no move that
         leaves the cost unchanged lowers the secondary. Rows count as variables too,
-        with their activity as the value. A solve that fails counts as not
-        cost-optimal, so the weight is lowered.
+        with their activity as the value. A solve that finds the model infeasible
+        raises, and any other failure counts as not cost-optimal, so the weight is
+        lowered.
         """
         h = self._solver
         _set_cost_vector(h, all_col_indices, cost_vectors[0] + weight * cost_vectors[1])
         h.run()
-        if h.getModelStatus() != HighsModelStatus.kOptimal:
+        status = h.getModelStatus()
+        if status == HighsModelStatus.kInfeasible:
+            # Infeasibility does not depend on the objective, so no other weight can help
+            raise InfeasibleError
+        if status != HighsModelStatus.kOptimal:
             return math.nan, False, True
         plan_cost = float(cost_vectors[0] @ h.column_values())
         solution = h.getSolution()
@@ -636,6 +684,11 @@ class BlendWeightSearch:
         if self.too_large > self.too_small * _WEIGHT_RESOLUTION:
             return math.sqrt(self.too_small * self.too_large)
         return None
+
+
+def _describe_relaxation(relaxation: Relaxation) -> str:
+    """Describe a relaxed row and how far past its bound it went."""
+    return f"{relaxation.row} by {relaxation.amount:+.3g}"
 
 
 def _ensure_optimal(solver: Highs) -> float:

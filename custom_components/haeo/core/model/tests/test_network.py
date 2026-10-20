@@ -4,7 +4,7 @@ import itertools
 import logging
 from unittest.mock import Mock
 
-from highspy import HighsBasisStatus, HighsModelStatus
+from highspy import HighsBasisStatus, HighsIis, HighsModelStatus, HighsStatus
 import numpy as np
 import pytest
 
@@ -15,11 +15,14 @@ from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTER
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION as ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE as ELEMENT_TYPE_NODE
 from custom_components.haeo.core.model.elements import ModelElementConfig
-from custom_components.haeo.core.model.elements.connection import Connection, tie_break_offset
+from custom_components.haeo.core.model.elements.connection import Connection, ConnectionElementConfig, tie_break_offset
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
+from custom_components.haeo.core.model.elements.segments import PowerLimitSegment
+from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel, row_labels
 from custom_components.haeo.core.model.linear import LinearArray
 from custom_components.haeo.core.model.network import BlendWeightSearch, SolveOptions, _bisect_boundary
+from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util.solver_rows import add_rows
 
@@ -307,10 +310,10 @@ def test_network_optimize_raises_on_solver_failure(
         mock_optimize()
 
 
-def test_network_optimize_raises_on_infeasible_network(
+def test_network_optimize_raises_when_the_solver_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Test optimize() raises ValueError when network optimization fails."""
+    """A solve that fails for any reason but infeasibility raises once every blend weight has failed too."""
     # Create a network with objectives (needs connections for secondary)
     network = Network(name="test_network", periods=np.array([1.0]))
     network.add({"element_type": ELEMENT_TYPE_NODE, "name": "src", "is_source": True, "is_sink": False})
@@ -340,7 +343,7 @@ def test_network_optimize_raises_on_infeasible_network(
     def mock_get_model_status() -> HighsModelStatus:
         # After run() is called, return a non-optimal status
         if run_called:
-            return HighsModelStatus.kInfeasible
+            return HighsModelStatus.kSolveError
         return original_get_model_status()
 
     monkeypatch.setattr(network._solver, "run", mock_run)
@@ -349,6 +352,143 @@ def test_network_optimize_raises_on_infeasible_network(
     # This should raise ValueError with the error message from optimize()
     with pytest.raises(ValueError, match="Optimization failed with status:"):
         network.optimize()
+
+
+def _over_demanded_network(*, relax_infeasible: bool = False) -> Network:
+    """Return a network whose fixed load needs more than the grid and battery can give in its middle period."""
+    network = Network(name="test", periods=np.array([1.0, 1.0, 1.0]), relax_infeasible=relax_infeasible)
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "switchboard", "is_source": False, "is_sink": False})
+    network.add({"element_type": ELEMENT_TYPE_NODE, "name": "load", "is_source": False, "is_sink": True})
+    network.add({"element_type": ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 10.0, "initial_charge": 10.0})
+    connections: list[ConnectionElementConfig] = [
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "grid:import",
+            "source": "grid",
+            "target": "switchboard",
+            "tags": {1},
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": 10.0},
+                "pricing": {"segment_type": "pricing", "price": 0.30},
+            },
+        },
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "battery:discharge",
+            "source": "battery",
+            "target": "switchboard",
+            "tags": {1},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 5.0}},
+        },
+        {
+            "element_type": ELEMENT_TYPE_CONNECTION,
+            "name": "load:connection",
+            "source": "switchboard",
+            "target": "load",
+            "tags": {1},
+            "segments": {
+                "power_limit": {"segment_type": "power_limit", "max_power": np.array([3.0, 15.5, 3.0]), "fixed": True}
+            },
+        },
+    ]
+    for connection in connections:
+        network.add(connection)
+    return network
+
+
+def test_infeasible_network_names_the_conflicting_constraints(caplog: pytest.LogCaptureFixture) -> None:
+    """An infeasible network raises at once, naming the smallest set of constraints that conflict."""
+    network = _over_demanded_network()
+
+    with caplog.at_level(logging.WARNING), pytest.raises(InfeasibleError) as error:
+        network.optimize()
+
+    assert set(error.value.conflicts) == {
+        RowLabel("switchboard", "element_power_balance", 1),
+        RowLabel("grid:import", "power_limit_power_limit", 1),
+        RowLabel("battery:discharge", "power_limit_power_limit", 1),
+        RowLabel("load:connection", "power_limit_power_limit", 1),
+    }
+    assert "switchboard element_power_balance[1]" in str(error.value)
+    # No blend weight is tried once the model is known to be infeasible
+    assert not caplog.records
+
+
+def test_relaxed_network_leaves_the_shortfall_at_a_power_balance() -> None:
+    """A relaxed plan meets the load and leaves the energy no source could supply at the switchboard."""
+    network = _over_demanded_network(relax_infeasible=True)
+
+    network.optimize()
+
+    shortfall = RowLabel("switchboard", "element_power_balance", 1)
+    [relaxation] = network.relaxations
+    assert relaxation.row == shortfall
+    assert relaxation.amount == pytest.approx(-0.5)
+    load_power = network.elements["load:connection"].outputs()["connection_power"]
+    assert isinstance(load_power, OutputData)
+    np.testing.assert_allclose(load_power.values, [3.0, 15.5, 3.0], atol=1e-9)
+    # The relaxed balance is back to holding exactly once the plan is found
+    balance_row = int(network.constraints()["switchboard"]["element_power_balance"][1])
+    lp = network._solver.getLp()
+    assert (lp.row_lower_[balance_row], lp.row_upper_[balance_row]) == (0.0, 0.0)
+
+
+def test_relaxations_clear_once_the_network_is_feasible_again() -> None:
+    """A later solve the network can meet in full reports no relaxations."""
+    network = _over_demanded_network(relax_infeasible=True)
+    network.optimize()
+
+    load_limit = network.elements["load:connection"]["power_limit"]
+    assert isinstance(load_limit, PowerLimitSegment)
+    load_limit.max_power = np.array([3.0, 12.0, 3.0])
+    network.optimize()
+
+    assert network.relaxations == ()
+
+
+def test_infeasible_network_reports_no_conflicts_when_the_solver_finds_none(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When HiGHS cannot name a conflicting subsystem the error still reports the infeasibility."""
+    network = _over_demanded_network()
+    monkeypatch.setattr(network._solver, "getIis", lambda: (HighsStatus.kError, HighsIis()))
+
+    with pytest.raises(InfeasibleError) as error:
+        network.optimize()
+
+    assert error.value.conflicts == ()
+    assert str(error.value) == "Optimization failed with status: Infeasible"
+
+
+def test_relaxation_the_solver_cannot_find_raises_with_the_conflicts(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When HiGHS cannot relax the rows, the relaxed network raises like any other infeasible one."""
+    network = _over_demanded_network(relax_infeasible=True)
+    monkeypatch.setattr(network._solver, "feasibilityRelaxation", lambda *_args: HighsStatus.kError)
+
+    with pytest.raises(InfeasibleError) as error:
+        network.optimize()
+
+    assert error.value.conflicts
+
+
+def test_row_labels_leave_the_period_unknown_when_rows_do_not_cover_the_horizon_in_blocks() -> None:
+    """Rows in whole-horizon blocks get a period, and a constraint of any other length does not."""
+    labels = row_labels(
+        {
+            "battery:charge": {"battery:charge_power_limit_power_limit": np.array([0, 1, 2, 3], dtype=np.int32)},
+            "battery": {"energy": np.array([4, 5, 6], dtype=np.int32)},
+        },
+        n_periods=2,
+    )
+
+    assert labels == {
+        0: RowLabel("battery:charge", "power_limit_power_limit", 0),
+        1: RowLabel("battery:charge", "power_limit_power_limit", 1),
+        2: RowLabel("battery:charge", "power_limit_power_limit", 0),
+        3: RowLabel("battery:charge", "power_limit_power_limit", 1),
+        4: RowLabel("battery", "energy", None),
+        5: RowLabel("battery", "energy", None),
+        6: RowLabel("battery", "energy", None),
+    }
 
 
 def test_network_cost_with_multiple_elements() -> None:
