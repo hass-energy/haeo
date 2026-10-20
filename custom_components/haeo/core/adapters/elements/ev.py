@@ -17,6 +17,7 @@ from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
 )
+from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import CONNECTION_SEGMENTS
 from custom_components.haeo.core.model.elements.deferrable_load import (
     DEFERRABLE_LOAD_ENERGY_DELIVERED,
@@ -33,6 +34,7 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_ENERGY_PER_DISTANCE,
     CONF_MAX_CHARGE_RATE,
     CONF_MAX_DISCHARGE_RATE,
+    CONF_MIN_CHARGE_PERCENTAGE,
     CONF_ODOMETER,
     CONF_PUBLIC_CHARGING_PRICE,
     CONF_TRIP_DUE,
@@ -50,10 +52,7 @@ from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
     SECTION_EFFICIENCY,
-    SECTION_POWER_LIMITS,
 )
 
 # Effectively unlimited power (kW) for trip/public flows that are only
@@ -73,6 +72,10 @@ DEFAULT_PUBLIC_CHARGING_PRICE: Final = 10.0
 # the trip, even when energy is paid to be used; finite so the optimization
 # stays feasible.
 TRIP_OVERAGE_PRICE: Final = 10.0
+
+# Cost ($/kWh per hour) of energy below the min charge: a battery's default
+# charge limit cost, far above the public charging price.
+MIN_CHARGE_COST: Final = 100.0
 
 # EV-specific output names for translation/sensor mapping
 type EvOutputName = Literal[
@@ -171,7 +174,6 @@ class EvAdapter:
         name = config["name"]
         vehicle = config[SECTION_VEHICLE]
         charging = config[SECTION_CHARGING]
-        power_limits = config[SECTION_POWER_LIMITS]
         efficiency = config[SECTION_EFFICIENCY]
         target_name = extract_connection_target(config[CONF_CONNECTION])
 
@@ -180,6 +182,20 @@ class EvAdapter:
         # fields); clamp so a glitched sensor cannot make the model infeasible
         initial_charge = min(max(vehicle[CONF_CURRENT_SOC], 0.0), 1.0) * float(capacity[0])
         energy_per_distance = float(vehicle[CONF_ENERGY_PER_DISTANCE])
+
+        # EV pack, held above its min charge like a battery: falling below
+        # it is allowed, so a car that comes home under it stays feasible, but
+        # costs far more than public charging, so a trip never plans to.
+        pack: BatteryElementConfig = {
+            "element_type": MODEL_ELEMENT_TYPE_BATTERY,
+            "name": name,
+            "capacity": capacity,
+            "initial_charge": initial_charge,
+            "salvage_value": 0.0,
+        }
+        if (min_ratio := vehicle.get(CONF_MIN_CHARGE_PERCENTAGE)) is not None:
+            pack["min_charge"] = min_ratio * capacity
+            pack["charge_limit_cost"] = MIN_CHARGE_COST
 
         trip = config.get(SECTION_TRIP, {})
         plugged_in = bool(charging[CONF_CONNECTED][0] >= _CONNECTED_THRESHOLD)
@@ -194,13 +210,7 @@ class EvAdapter:
 
         return [
             # 1. EV Battery
-            {
-                "element_type": MODEL_ELEMENT_TYPE_BATTERY,
-                "name": name,
-                "capacity": capacity,
-                "initial_charge": initial_charge,
-                "salvage_value": 0.0,
-            },
+            pack,
             # 2. Home charging: network → EV
             {
                 "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
@@ -210,10 +220,7 @@ class EvAdapter:
                 "segments": {
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power": _combine_limits(
-                            charging[CONF_MAX_CHARGE_RATE] * home,
-                            power_limits.get(CONF_MAX_POWER_TARGET_SOURCE),
-                        ),
+                        "max_power": charging[CONF_MAX_CHARGE_RATE] * home,
                     },
                     "efficiency": {
                         "segment_type": "efficiency",
@@ -234,10 +241,7 @@ class EvAdapter:
                     },
                     "power_limit": {
                         "segment_type": "power_limit",
-                        "max_power": _combine_limits(
-                            charging.get(CONF_MAX_DISCHARGE_RATE, 0.0) * home,
-                            power_limits.get(CONF_MAX_POWER_SOURCE_TARGET),
-                        ),
+                        "max_power": charging.get(CONF_MAX_DISCHARGE_RATE, 0.0) * home,
                     },
                 },
             },
@@ -395,18 +399,3 @@ def _drop_open_trip(windows: _TripWindows) -> _TripWindows:
     due = windows.due.copy()
     due[1 : end + 1] = 0.0
     return _TripWindows(in_window=in_window, window_start=windows.window_start, opened=opened, due=due)
-
-
-def _combine_limits(
-    *limits: NDArray[np.float64] | float | None,
-) -> NDArray[np.float64] | float | None:
-    """Combine multiple power limit values by taking the element-wise minimum.
-
-    None values are ignored. If all values are None, returns None.
-    """
-    result: NDArray[np.float64] | float | None = None
-    for limit in limits:
-        if limit is None:
-            continue
-        result = limit if result is None else np.minimum(result, limit)
-    return result

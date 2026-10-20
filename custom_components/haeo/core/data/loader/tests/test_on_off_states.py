@@ -75,7 +75,6 @@ def test_an_ev_reads_a_charger_reporting_words(charger_state: str, expected: flo
             "max_charge_rate": as_constant_value(7.0),
             "connected": as_entity_value([CHARGER], off_states=["Idle"]),
         },
-        "power_limits": {},
         "efficiency": {},
     }
 

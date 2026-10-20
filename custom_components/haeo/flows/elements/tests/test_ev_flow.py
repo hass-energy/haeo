@@ -33,7 +33,7 @@ from custom_components.haeo.core.schema.elements.ev import (
     SECTION_TRIP,
     SECTION_VEHICLE,
 )
-from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY, SECTION_POWER_LIMITS
+from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.elements.input_fields import is_number_field_info
 from custom_components.haeo.flows.conftest import create_flow
@@ -62,7 +62,6 @@ def _user_input(trip: dict[str, object] | None = None) -> dict[str, object]:
         },
         SECTION_TRIP: trip or {},
         SECTION_PUBLIC_CHARGING: {},
-        SECTION_POWER_LIMITS: {},
         SECTION_EFFICIENCY: {},
     }
 
@@ -138,7 +137,6 @@ async def test_reconfigure_defaults_surface_calendar_entity(
             CONF_TRIP_CALENDAR: as_entity_value(["calendar.ev_trips"]),
         },
         SECTION_PUBLIC_CHARGING: {},
-        SECTION_POWER_LIMITS: {},
         SECTION_EFFICIENCY: {},
     }
     existing_subentry = ConfigSubentry(
@@ -314,7 +312,6 @@ async def test_reconfigure_suggests_the_stored_states(
                 },
                 SECTION_TRIP: {},
                 SECTION_PUBLIC_CHARGING: {},
-                SECTION_POWER_LIMITS: {},
                 SECTION_EFFICIENCY: {},
             }
         ),
