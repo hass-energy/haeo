@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray
 
+    from custom_components.haeo.core.data.loader.calendar import CalendarWindow
     from custom_components.haeo.core.model.const import OutputType
     from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
     from custom_components.haeo.core.state import StateMachine
@@ -58,6 +59,24 @@ def _windows(count_span: NDArray[np.float64], count_end: NDArray[np.float64]) ->
     opens = (active[1:] > 0.0) & (active[:-1] <= 0.0)
     starts = np.concatenate(([0.0], (opens | split).astype(np.float64), [0.0]))
     return active, starts
+
+
+def _spread(windows: Sequence[CalendarWindow], forecast_times: Sequence[float]) -> NDArray[np.float64]:
+    """Return how much of each event's value falls in each period, spread evenly over the event.
+
+    Only the part of an event within the horizon counts, so an event already
+    under way at the horizon start, or running past its end, spreads its
+    whole value over the periods it covers in the horizon.
+    """
+    times = np.asarray(forecast_times, dtype=np.float64)
+    spread = np.zeros(len(times) - 1, dtype=np.float64)
+    for window in windows:
+        start = max(window.start.timestamp(), float(times[0]))
+        end = min(window.end.timestamp(), float(times[-1]))
+        if end > start:
+            covered = np.clip(np.minimum(times[1:], end) - np.maximum(times[:-1], start), 0.0, None)
+            spread += window.value * covered / (end - start)
+    return spread
 
 
 def resolve_calendar(
@@ -94,6 +113,7 @@ def resolve_calendar(
         "window_starts": starts,
         "event_opens": _fused(fuse_window_edges_to_boundaries(windows, boundaries, "start")),
         "event_due": _fused(fuse_window_edges_to_boundaries(clamped, boundaries, "end")),
+        "event_spread": _spread(windows, forecast_times),
     }[hint.projection]
 
 
