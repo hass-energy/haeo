@@ -90,6 +90,9 @@ _ENERGY_TO_KWH: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.GIGA_WATT_HOUR: 1_000_000.0,
 }
 
+# Currency symbols worth a hundredth of a main unit, with the main unit's symbol
+_MINOR_CURRENCIES: Final[dict[str, str]] = {"c": "$", "¢": "$", "p": "£"}
+
 _DURATION_TO_HOURS: Final[dict[UnitOfMeasurement, float]] = {
     UnitOfMeasurement.SECOND: 1 / 3600,
     UnitOfMeasurement.MINUTE: 1 / 60,
@@ -239,14 +242,19 @@ def _base_factor(unit: UnitOfMeasurement | None, device_class: DeviceClass | Non
 
 
 def _price_conversion(unit: str | UnitOfMeasurement | None) -> tuple[float, str] | None:
-    """Return the factor and base unit for a price per energy unit, such as ``€/MWh`` to ``€/kWh``."""
+    """Return the factor and base unit for a price per energy unit, such as ``€/MWh`` to ``€/kWh``.
+
+    A price in cents or pence, such as ``c/kWh``, converts to the main unit.
+    """
     if not isinstance(unit, str):
         return None
     currency, separator, energy = str(unit).rpartition("/")
     energy_unit = UnitOfMeasurement.of(energy)
     if not separator or not currency or energy_unit is None or energy_unit not in _ENERGY_TO_KWH:
         return None
-    return 1.0 / _ENERGY_TO_KWH[energy_unit], f"{currency}/{UnitOfMeasurement.KILO_WATT_HOUR}"
+    main_currency = _MINOR_CURRENCIES.get(currency)
+    factor = 1.0 / _ENERGY_TO_KWH[energy_unit] * (0.01 if main_currency else 1.0)
+    return factor, f"{main_currency or currency}/{UnitOfMeasurement.KILO_WATT_HOUR}"
 
 
 def base_unit_conversion(
