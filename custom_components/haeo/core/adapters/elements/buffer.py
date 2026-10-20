@@ -23,6 +23,7 @@ from custom_components.haeo.core.schema.elements.buffer import (
     SECTION_PRICING,
     SECTION_REQUIREMENT,
     BufferConfigData,
+    BufferRole,
 )
 
 type BufferOutputName = Literal[
@@ -54,8 +55,7 @@ class BufferAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = False
     can_sink: bool = False
-    can_store: bool = False
-    can_consume: bool = False
+    buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: BufferConfigData) -> list[ModelElementConfig]:
         """Create the buffer model element over its loads, generation, and storage by name."""

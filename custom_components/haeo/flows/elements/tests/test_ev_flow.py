@@ -19,6 +19,7 @@ from custom_components.haeo.core.schema import (
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.ev import (
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_CONNECTED,
     CONF_CURRENT_SOC,
     CONF_ENERGY_PER_DISTANCE,
@@ -27,6 +28,7 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_PUBLIC_CHARGING_PRICE,
     CONF_TRIP_CALENDAR,
     ELEMENT_TYPE,
+    SECTION_ADVANCED,
     SECTION_CHARGING,
     SECTION_PUBLIC_CHARGING,
     SECTION_TRIP,
@@ -56,6 +58,7 @@ def _user_input(trip: dict[str, object] | None = None) -> dict[str, object]:
         SECTION_TRIP: trip or {},
         SECTION_PUBLIC_CHARGING: {},
         SECTION_EFFICIENCY: {},
+        SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: 100.0},
     }
 
 
@@ -131,6 +134,7 @@ async def test_reconfigure_defaults_surface_calendar_entity(
         },
         SECTION_PUBLIC_CHARGING: {},
         SECTION_EFFICIENCY: {},
+        SECTION_ADVANCED: {CONF_CHARGE_LIMIT_COST: as_constant_value(100.0)},
     }
     existing_subentry = ConfigSubentry(
         data=MappingProxyType(existing_config),

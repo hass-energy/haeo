@@ -36,22 +36,23 @@ Fields configured with "Constant" create input entities that you can adjust at r
 
 ## Configuration fields
 
-| Field                                                    | Type       | Required | Default  | Description                                     |
-| -------------------------------------------------------- | ---------- | -------- | -------- | ----------------------------------------------- |
-| **[Name](#name)**                                        | String     | Yes      | -        | Unique identifier (e.g., "Tesla Model 3")       |
-| **[Connection](#connection)**                            | Select     | Yes      | -        | Junction or inverter the charger is attached to |
-| **[Trip calendar](#trip-calendar)**                      | Entity     | No       | -        | Calendar entity with trip events                |
-| **[Plugged in](#plugged-in)**                            | Entity     | Yes      | -        | Binary sensor reporting when plugged in         |
-| **[Odometer](#odometer)**                                | Entity     | No       | -        | Sensor reporting the car's odometer             |
-| **[Battery capacity](#battery-capacity)**                | Energy     | Yes      | -        | Total usable battery capacity                   |
-| **[Energy per distance](#energy-per-distance)**          | Ratio      | Yes      | -        | Energy consumption rate (e.g. kWh/km)           |
-| **[Current state of charge](#current-state-of-charge)**  | Percentage | Yes      | -        | Sensor reporting current SOC (0–100%)           |
-| **[Min charge level](#min-charge-level)**                | Percentage | No       | -        | Charge the battery is kept above                |
-| **[Max charge rate](#max-charge-and-discharge-rate)**    | Power      | Yes      | -        | Maximum home charging power                     |
-| **[Max discharge rate](#max-charge-and-discharge-rate)** | Power      | No       | -        | Maximum V2G discharge power                     |
-| **[Public charging price](#public-charging-price)**      | Price      | No       | \$10/kWh | Cost per kWh for public charging                |
-| **[Charge efficiency](#efficiency)**                     | Percentage | No       | 95%      | Efficiency when charging                        |
-| **[Discharge efficiency](#efficiency)**                  | Percentage | No       | 95%      | Efficiency when discharging                     |
+| Field                                                    | Type       | Required | Default      | Description                                     |
+| -------------------------------------------------------- | ---------- | -------- | ------------ | ----------------------------------------------- |
+| **[Name](#name)**                                        | String     | Yes      | -            | Unique identifier (e.g., "Tesla Model 3")       |
+| **[Connection](#connection)**                            | Select     | Yes      | -            | Junction or inverter the charger is attached to |
+| **[Trip calendar](#trip-calendar)**                      | Entity     | No       | -            | Calendar entity with trip events                |
+| **[Plugged in](#plugged-in)**                            | Entity     | Yes      | -            | Binary sensor reporting when plugged in         |
+| **[Odometer](#odometer)**                                | Entity     | No       | -            | Sensor reporting the car's odometer             |
+| **[Battery capacity](#battery-capacity)**                | Energy     | Yes      | -            | Total usable battery capacity                   |
+| **[Energy per distance](#energy-per-distance)**          | Ratio      | Yes      | -            | Energy consumption rate (e.g. kWh/km)           |
+| **[Current state of charge](#current-state-of-charge)**  | Percentage | Yes      | -            | Sensor reporting current SOC (0–100%)           |
+| **[Min charge level](#min-charge-level)**                | Percentage | No       | -            | Charge the battery is kept above                |
+| **[Max charge rate](#max-charge-and-discharge-rate)**    | Power      | Yes      | -            | Maximum home charging power                     |
+| **[Max discharge rate](#max-charge-and-discharge-rate)** | Power      | No       | -            | Maximum V2G discharge power                     |
+| **[Public charging price](#public-charging-price)**      | Price      | No       | \$10/kWh     | Cost per kWh for public charging                |
+| **[Charge efficiency](#efficiency)**                     | Percentage | No       | 95%          | Efficiency when charging                        |
+| **[Discharge efficiency](#efficiency)**                  | Percentage | No       | 95%          | Efficiency when discharging                     |
+| **[Limit cost](#limit-cost)**                            | Price      | No       | 100 \$/kWh/h | Holding cost per kWh below the min charge       |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -152,6 +153,7 @@ HAEO uses this as the starting point for optimization.
 
 The charge HAEO keeps the battery above, as a percentage of its capacity, the same as a battery's [min charge level](battery.md#min-and-max-charge-percentage).
 HAEO never plans to drain the battery below it, neither through V2G nor on a trip: a trip that would need more leaves the rest to public charging.
+Energy below it costs the [limit cost](#limit-cost) for every hour it stays there.
 If the car comes home below it, the plan stays valid and charges back up.
 This is separate from any [buffer](#keeping-a-margin), which only prices falling short.
 
@@ -170,6 +172,12 @@ Trip requirements are not hard constraints: any shortfall against a trip's energ
 When this field is not set, a deliberately high default of \$10/kWh is used, which strongly discourages a shortfall.
 The optimizer still compares it against the effective cost of home charging, so if import prices or policy costs push that above \$10/kWh it can deliberately leave a shortfall rather than pre-charge.
 Set a realistic price to let the optimizer genuinely trade off pre-charging at home against topping up publicly; the expected top-up appears in the trip energy shortfall sensor.
+
+### Limit cost
+
+Holding cost in \$/kWh/h for each kWh below the [min charge level](#min-charge-level), for every hour it stays there.
+It is in the collapsed **Advanced** section and defaults to 100 \$/kWh/h, as for a [battery](battery.md#limit-cost).
+Keep it far above the public charging price and any price the battery could earn from, so the min charge acts as a hard limit.
 
 ### Efficiency
 
