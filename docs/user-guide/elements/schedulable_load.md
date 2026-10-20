@@ -18,7 +18,6 @@ A schedulable load in HAEO represents:
 - **Run window calendar** from a Home Assistant calendar entity, one run per event
 - **Run profile**: the power the appliance draws and how long one run takes
 - **Optional running sensor** reporting whether the appliance is running now
-- **Optional energy meter** counting the energy the appliance has used, which tells how far through its run it is
 - **Missed run price** for a window that receives no run
 - **Start decision** in the advanced section, choosing how strictly each start is all or nothing
 
@@ -30,7 +29,6 @@ A schedulable load in HAEO represents:
 | **[Connection](#connection)**           | Select   | Yes      | -         | Junction or inverter the load is attached to |
 | **[Run window calendar](#run-windows)** | Entity   | Yes      | -         | Calendar entity with run window events       |
 | **[Running](#running)**                 | Entity   | No       | -         | Sensor that is on while the appliance runs   |
-| **[Energy meter](#energy-meter)**       | Energy   | No       | -         | Energy the appliance has used                |
 | **[Power](#run-profile)**               | Power    | Yes      | -         | Power drawn while running                    |
 | **[Run duration](#run-profile)**        | Duration | Yes      | -         | How long one run takes                       |
 | **[Missed run price](#pricing)**        | Price    | Yes      | 10        | Cost per kWh of a run a window misses        |
@@ -68,22 +66,17 @@ If the run cannot fit before then, the plan shows a missed run until the horizon
 HAEO re-plans regularly, and each plan starts from the present.
 Without this sensor, a plan made while the appliance is running does not know a run is in progress and may plan another one.
 
-Select a binary sensor or input boolean that is on while the appliance runs.
+Select a switch, binary sensor, or input boolean that is on while the appliance runs.
 Many appliance integrations provide one; otherwise a [threshold sensor](https://www.home-assistant.io/integrations/threshold/) on the appliance's power works.
 
-While it reads on, the rest of the run is planned from the present, no new run starts until it finishes, and the open window takes no further run.
-How much of the run is left comes from the [energy meter](#energy-meter); without one, HAEO plans the whole run from the present.
+HAEO reads the sensor's history from Home Assistant's recorder and looks for the first time it switched on in the open window: that is when the window's run started.
+A sensor already on when the window opened counts from when it switched on.
 
-### Energy meter
+- **Switched on in the window**: the run continues to completion, so HAEO plans the rest of it from the present, starts no new run until it finishes, and the window takes no further run.
+    Once the run's duration has passed since the switch-on, the run is done.
+- **Not switched on yet**: the window still needs its run.
 
-Select the appliance's energy sensor: one that counts the energy it has used, such as a smart plug's total energy.
-HAEO reads how much it rose since the open window started from the sensor's long-term statistics, the same way as a [deferrable load's energy meter](deferrable_load.md#energy-meter), so it never needs resetting.
-Only energy sensors whose state class is `total` or `total_increasing` are offered.
-
-The rise is how far through its run the appliance is, so a run in progress is planned only for what is left.
-Once the appliance stops, a rise of at least half a run's energy means the window's run is done, and the window takes no further run.
-A smaller rise, such as standby use, leaves the window needing its run.
-The **Energy since window started** input entity shows the rise HAEO is using, and reads zero while no window is open.
+The **Running for** input entity shows how long ago the sensor first switched on in the open window, and reads zero until it does or while no window is open.
 
 ### Run profile
 

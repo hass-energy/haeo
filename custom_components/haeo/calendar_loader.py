@@ -36,6 +36,7 @@ from custom_components.haeo.core.state import EntityState, StateMachine
 from custom_components.haeo.ha_state_machine import AnnotatedState, AnnotatedStateMachine, HomeAssistantStateMachine
 from custom_components.haeo.meter_history import MeterHistory
 from custom_components.haeo.repairs import create_calendar_event_values_issue, dismiss_calendar_event_values_issue
+from custom_components.haeo.switch_history import SwitchHistory
 
 if TYPE_CHECKING:
     from homeassistant.core import Event
@@ -120,9 +121,10 @@ class CalendarInputLoader:
     calendar changes or the horizon moves, and loads again from the kept
     events when another source of such an input changes.
 
-    A meter input reads its window calendar, so it loads here too. The loader
-    keeps its meters' running totals and injects them beside the events, so
-    the input's captured source states hold everything it resolved from.
+    A meter or switch input reads its window calendar, so it loads here too.
+    The loader keeps its meters' running totals and its switches' on periods
+    and injects them beside the events, so the input's captured source states
+    hold everything it resolved from.
     """
 
     def __init__(
@@ -145,6 +147,18 @@ class CalendarInputLoader:
                     eid
                     for store in self._stores.values()
                     if store.hint.meter is not None
+                    for eid in store.source_entity_ids
+                    if not is_calendar_entity(eid)
+                }
+            ),
+        )
+        self._switches = SwitchHistory(
+            hass,
+            sorted(
+                {
+                    eid
+                    for store in self._stores.values()
+                    if store.hint.switch is not None
                     for eid in store.source_entity_ids
                     if not is_calendar_entity(eid)
                 }
@@ -177,6 +191,7 @@ class CalendarInputLoader:
         @callback
         def _on_source_change(event: Event[EventStateChangedData]) -> None:
             self._meters.record(event.data["entity_id"], event.data["new_state"])
+            self._switches.record(event.data["entity_id"], event.data["new_state"])
             self._schedule(self.async_resolve())
 
         self._unsubs.append(async_track_state_change_event(self._hass, self._calendars, _on_calendar_change))
@@ -187,13 +202,14 @@ class CalendarInputLoader:
         self._schedule(self._async_start())
 
     async def _async_start(self) -> None:
-        """Read the meters' recorded totals, then load every store.
+        """Read the meters' recorded totals and the switches' recorded states, then load every store.
 
-        The totals are read under the load lock, so no store resolves
-        before its meters carry them.
+        The history is read under the load lock, so no store resolves
+        before its meters and switches carry it.
         """
         async with self._load_lock:
             await self._meters.async_load()
+            await self._switches.async_load()
         await self.async_load_all()
 
     @callback
@@ -244,7 +260,8 @@ class CalendarInputLoader:
         re-optimize.
         """
         sm = AnnotatedStateMachine(
-            CalendarStateMachine(HomeAssistantStateMachine(self._hass), self._events), self._meters.attributes()
+            CalendarStateMachine(HomeAssistantStateMachine(self._hass), self._events),
+            {**self._meters.attributes(), **self._switches.attributes()},
         )
         changed = [store for store in self._stores.values() if store.resolve_from_sources(sm)]
         for store in changed:
@@ -264,6 +281,7 @@ class CalendarInputLoader:
             for key, store in self._stores.items()
             if (unit := field_unit_label(store.hint.output_type)) is not None
             and store.hint.meter is None
+            and store.hint.switch is None
             and (store.hint.calendar is None or store.hint.calendar.projection == "event_due")
         }
         for (element_name, field_path), (store, unit) in reading_values.items():

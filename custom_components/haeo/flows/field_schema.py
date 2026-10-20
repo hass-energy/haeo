@@ -83,13 +83,15 @@ def entity_domains(field_info: AnyInputFieldInfo) -> list[str]:
     """Return the domains a field's entity choice offers.
 
     A field feeding calendar inputs offers only calendars, a forecast field
-    also offers calendars read as forecasts, and an availability field also
-    offers on/off entities.
+    also offers calendars read as forecasts, an availability field also
+    offers on/off entities, and a switch field offers only on/off entities.
     """
     if reads_calendar(field_info):
         return [CALENDAR_DOMAIN]
     if accepts_calendar_forecast(field_info):
         return [*_ENTITY_DOMAINS, CALENDAR_DOMAIN]
+    if field_info.switch is not None:
+        return ["switch", *_ON_OFF_DOMAINS]
     if field_info.output_type is OutputType.AVAILABILITY:
         return [*_ENTITY_DOMAINS, *_ON_OFF_DOMAINS]
     return list(_ENTITY_DOMAINS)

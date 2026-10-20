@@ -8,10 +8,11 @@ import pytest
 
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, MeterFieldHint
+from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, MeterFieldHint, SwitchFieldHint
 from custom_components.haeo.core.units import UnitOfMeasurement, convert_to_base_unit
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.flows.element_flow import build_inclusion_map
+from custom_components.haeo.flows.field_schema import entity_domains
 
 
 def _field(field_name: str, output_type: OutputType) -> InputFieldInfo[NumberEntityDescription]:
@@ -201,3 +202,17 @@ def test_build_inclusion_map_offers_only_running_totals_for_meter_fields() -> No
         "sensor.pump_energy",
         "sensor.pump_energy_today",
     ]
+
+
+def test_switch_fields_offer_on_off_entities_without_unit_filtering() -> None:
+    """A switch field offers on/off entities by domain, not entities whose unit matches its duration."""
+    field = InputFieldInfo(
+        field_name="running",
+        entity_description=NumberEntityDescription(key="running", name="running"),
+        output_type=OutputType.DURATION,
+        switch=SwitchFieldHint(since="window_calendar"),
+    )
+    entity_metadata = [EntityMetadata(entity_id="sensor.cycle_time", unit_of_measurement="min")]
+
+    assert "running" not in build_inclusion_map({"running": field}, entity_metadata)
+    assert entity_domains(field) == ["switch", "binary_sensor", "input_boolean"]

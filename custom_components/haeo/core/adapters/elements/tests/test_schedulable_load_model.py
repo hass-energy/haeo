@@ -14,7 +14,7 @@ from custom_components.haeo.core.adapters.elements.schedulable_load import (
 )
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
-from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.switch import ON_PERIODS_ATTRIBUTE
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_CONNECTION,
@@ -90,45 +90,33 @@ def test_integer_mode_comes_from_advanced_section() -> None:
 @pytest.mark.parametrize(
     ("schedule", "elapsed", "window_started"),
     [
-        pytest.param({}, None, False, id="no_running_sensor_or_meter"),
-        pytest.param({"running": 0.0}, None, False, id="idle_without_meter"),
-        pytest.param({"running": 1.0}, 0.0, True, id="running_without_meter_just_started"),
-        pytest.param({"running": 1.0, "energy_meter": 0.25}, 0.25, True, id="running_quarter_through"),
-        pytest.param({"running": 1.0, "energy_meter": 2.0}, 1.0, True, id="running_past_the_profile"),
-        pytest.param({"running": 0.0, "energy_meter": 0.9}, None, True, id="idle_after_its_run"),
-        pytest.param({"running": 0.0, "energy_meter": 0.1}, None, False, id="idle_with_standby_use"),
-        pytest.param({"energy_meter": 0.9}, None, True, id="meter_alone_marks_the_run_done"),
+        pytest.param({}, None, False, id="no_running_sensor"),
+        pytest.param({"running": 0.0}, None, False, id="not_switched_on_in_the_window"),
+        pytest.param({"running": 0.25}, 0.25, True, id="switched_on_a_quarter_hour_ago"),
+        pytest.param({"running": 2.0}, 2.0, True, id="switched_on_longer_ago_than_a_run"),
     ],
 )
-def test_running_sensor_and_meter_set_committed_run_and_window_state(
+def test_running_sensor_sets_committed_run_and_window_state(
     schedule: dict[str, float],
     elapsed: float | None,
     window_started: bool,
 ) -> None:
-    """The meter's rise since the window opened is how far through its run the load is."""
+    """How long ago the load first switched on in the open window is how far through its run it is."""
     load = _load(_config(**schedule))
 
     assert load.get("elapsed") == (None if elapsed is None else pytest.approx(elapsed))
     assert load.get("window_started") is window_started
 
 
-def test_progress_follows_a_multi_step_profile() -> None:
-    """Energy used maps to time through each profile step at that step's power."""
-    config = _config(running=1.0, energy_meter=2.5)
-    config["profile"] = {"power": 2.0, "duration": 2.0}
-
-    assert _load(config).get("elapsed") == pytest.approx(1.25)
-
-
 def test_no_window_open_means_no_started_window() -> None:
-    """A run never satisfies a window that is not open at the horizon start."""
-    config = _config(running=1.0, energy_meter=0.5)
+    """A switch-on never counts when no window is open at the horizon start."""
+    config = _config(running=0.5)
     config["schedule"].update(_window(4, 2, 4))  # type: ignore[typeddict-item]  # the window inputs are ScheduleData keys
 
     load = _load(config)
 
     assert load.get("window_started") is False
-    assert load.get("elapsed") == pytest.approx(0.5)
+    assert load.get("elapsed") is None
 
 
 def _solve(config: SchedulableLoadConfigData, grid_price: list[float]) -> Network:
@@ -170,7 +158,7 @@ def test_outputs_report_power_start_and_missed_energy() -> None:
 
 def test_run_in_progress_finishes_before_anything_else() -> None:
     """A run in progress finishes its remaining profile from the horizon start."""
-    config = _config(running=1.0, energy_meter=0.5)
+    config = _config(running=0.5)
     network = _solve(config, grid_price=[0.3, 0.1, 0.2, 0.1])
     model_outputs = {name: element.outputs() for name, element in network.elements.items()}
 
@@ -212,29 +200,21 @@ def test_calendar_events_load_as_windows() -> None:
     np.testing.assert_allclose(load["profile_duration"], [2.0])
 
 
-def test_energy_meter_rise_sets_progress_through_the_run() -> None:
-    """A running load's meter rise since the window opened, converted to kWh, sets how far through its run it is."""
+def test_running_sensor_loads_how_long_ago_it_first_switched_on() -> None:
+    """The running sensor's on periods and the window's events resolve to the hours since its first switch-on."""
     event = _event("1970-01-01T00:00:00+00:00", "1970-01-01T04:00:00+00:00")
-    meter_attributes = {
-        "unit_of_measurement": "Wh",
-        "device_class": "energy",
-        "state_class": "total_increasing",
-        METER_TOTALS_ATTRIBUTE: [(-300.0, 9000.0), (0.0, 10000.0), (1800.0, 10900.0)],
-    }
     states = {
         "calendar.dishwasher": FakeEntityState("calendar.dishwasher", "on", {CALENDAR_EVENTS_ATTRIBUTE: [event]}),
-        "sensor.dishwasher_energy": FakeEntityState("sensor.dishwasher_energy", "900", meter_attributes),
-        "binary_sensor.dishwasher_running": FakeEntityState("binary_sensor.dishwasher_running", "on", {}),
+        "binary_sensor.dishwasher_running": FakeEntityState(
+            "binary_sensor.dishwasher_running", "on", {ON_PERIODS_ATTRIBUTE: [(-600.0, 300.0), (900.0, None)]}
+        ),
     }
-    config = _schema(
-        running=as_entity_value(["binary_sensor.dishwasher_running"]),
-        energy_meter=as_entity_value(["sensor.dishwasher_energy"]),
-    )
+    config = _schema(running=as_entity_value(["binary_sensor.dishwasher_running"]))
 
-    loaded = load_element_config("dishwasher", config, FakeStateMachine(states), (1800.0, 3600.0, 7200.0, 10800.0))
+    loaded = load_element_config("dishwasher", config, FakeStateMachine(states), (2700.0, 3600.0, 7200.0, 10800.0))
     assert loaded["element_type"] == ElementType.SCHEDULABLE_LOAD
     load = _load(loaded)
 
-    # 0.9 kWh of a 1.8 kW run is half an hour in.
-    assert load.get("elapsed") == pytest.approx(0.5)
+    # On before the window opened, so the run counts from its switch-on at -600 s, 55 minutes before the horizon.
+    assert load.get("elapsed") == pytest.approx(55.0 / 60.0)
     assert load.get("window_started") is True

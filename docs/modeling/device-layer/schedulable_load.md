@@ -44,21 +44,19 @@ The adapter builds windows the same way as for the [deferrable load](deferrable_
 ### Runs already started
 
 Each optimization starts a fresh horizon, so the device must tell the model what the load is already doing.
-Two optional inputs do that: a running sensor, read for its current state, and an energy meter, read for how much it rose since the window open at the horizon start began.
-The meter is read the same way as the [deferrable load's](deferrable_load.md#energy-already-delivered), from the window's calendar event even when it began before the horizon.
+The optional running sensor does that.
+It is a [switch input](../../developer-guide/data-loading.md#switches) read in the window calendar's open window: it loads as $a$, how many hours ago the sensor first switched on in that window, or 0 when it has not.
+A sensor already on when the window opened counts from when it switched on.
 
-The meter's rise $E$ is how far through the profile the load is: the time $a$ at which the profile's cumulative energy reaches $E$.
+When the first switch-on is when the window's run started, and a run continues to completion:
 
-- **Running now**: the run is committed from $a$.
-    The model consumes the rest of the profile from the horizon start and allows no new start until it finishes.
-    The open window takes no further run.
-    Without a meter, $a = 0$ and the whole profile is planned.
-- **Idle, with the meter up by at least half a run's energy**: the open window's run is done, and it takes no further run.
-    Standby use stays well below half a run, and a run stopped partway through counts once it is mostly done.
-- **Idle otherwise**: the open window still needs its run.
+- **$a > 0$**: the window's run has started, and the open window takes no further run.
+    The model commits the rest of the profile from $a$, consuming it from the horizon start and allowing no new start until it finishes.
+    Once $a$ passes the run duration, nothing of the run remains, so the run is done whether the sensor still reads on or not.
+- **$a = 0$**: the window's run has not started.
+    A switch-on at the very horizon start also reads 0, and planning a start now is the same plan.
 
-A meter only counts from the open window's start, so a run that began before the window opened is credited only the energy it used since.
-That plans more of the run than remains, never less.
+The sensor's current state does not matter beyond its switch-ons, so the plan does not change when an appliance pauses mid-run.
 HAEO keeps no state of its own, so the decision replays the same way from diagnostics.
 
 ### Start decision
@@ -80,8 +78,7 @@ The schedulable load element creates a single Home Assistant device:
 | User configuration | Model element(s)          | Model parameter             | Notes                                       |
 | ------------------ | ------------------------- | --------------------------- | ------------------------------------------- |
 | `window_calendar`  | Schedulable load `{name}` | `in_window`, `window_start` | Overlaps merged, clamped to the horizon end |
-| `running`          | Schedulable load `{name}` | `elapsed`, `window_started` | Current state only                          |
-| `energy_meter`     | Schedulable load `{name}` | `elapsed`, `window_started` | Rise since the open window began            |
+| `running`          | Schedulable load `{name}` | `elapsed`, `window_started` | Hours since first switch-on in the window   |
 | `power`            | Schedulable load `{name}` | `profile_power`             | One step                                    |
 | `duration`         | Schedulable load `{name}` | `profile_duration`          | One step in hours                           |
 | `deficit_price`    | Schedulable load `{name}` | `deficit_price`             | Defaults to \$10/kWh                        |

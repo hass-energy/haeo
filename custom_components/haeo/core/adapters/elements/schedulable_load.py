@@ -5,7 +5,6 @@ from dataclasses import replace
 from typing import Final, Literal
 
 import numpy as np
-from numpy.typing import NDArray
 
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
@@ -27,7 +26,6 @@ from custom_components.haeo.core.schema.elements.buffer import CONF_LOADS, Buffe
 from custom_components.haeo.core.schema.elements.schedulable_load import (
     CONF_DEFICIT_PRICE,
     CONF_DURATION,
-    CONF_ENERGY_METER,
     CONF_IN_WINDOW,
     CONF_INTEGER_MODE,
     CONF_POWER,
@@ -42,14 +40,6 @@ from custom_components.haeo.core.schema.elements.schedulable_load import (
     SchedulableLoadConfigData,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
-
-# Readings at or above this count as running, matching availability inputs.
-_RUNNING_THRESHOLD: Final = 0.5
-
-# Fraction of a run's energy an idle load must have used since the open
-# window began for that window's run to count as done. Standby use stays far
-# below it, and a run that stopped partway through counts once mostly done.
-_DONE_FRACTION: Final = 0.5
 
 # Schedulable-load-specific output names for translation/sensor mapping
 type SchedulableLoadElementOutputName = Literal[
@@ -94,13 +84,12 @@ class SchedulableLoadAdapter:
         overlapping events merge into one window. The profile is a single
         step at the configured power for the configured duration.
 
-        The running sensor and energy meter tie the plan to what the load is
-        doing. The meter's rise since the open window began is how far through
-        the profile the load is. A load running now finishes the rest of its
-        run from the horizon start, and the open window takes no further run.
-        Without a meter, a running load is taken to have just started. An idle
-        load whose meter rose by at least half a run's energy since the open
-        window began has done that window's run.
+        The running sensor ties the plan to what the load is doing. It loads
+        as how long ago it first switched on in the open window, which is when
+        that window's run started. The run continues to completion, so the
+        rest of its profile is committed from the horizon start, and the open
+        window takes no further run. Once the run's duration has passed,
+        nothing of it remains to commit.
         """
         name = config["name"]
         schedule = config[SECTION_SCHEDULE]
@@ -109,22 +98,19 @@ class SchedulableLoadAdapter:
         advanced = config.get(SECTION_ADVANCED, {})
 
         in_window = schedule[CONF_IN_WINDOW]
-        profile_power = np.array([float(profile[CONF_POWER])])
-        profile_duration = np.array([float(profile[CONF_DURATION])])
-        used = schedule.get(CONF_ENERGY_METER, 0.0)
-        running = float(schedule.get(CONF_RUNNING, 0.0)) >= _RUNNING_THRESHOLD
-        run_energy = float(np.sum(profile_power * profile_duration))
+        running_for = float(schedule.get(CONF_RUNNING, 0.0))
+        started = bool(in_window[0] > 0.0 and running_for > 0.0)
 
         load: SchedulableLoadElementConfig = {
             "element_type": MODEL_ELEMENT_TYPE_SCHEDULABLE_LOAD,
             "name": name,
-            "profile_power": profile_power,
-            "profile_duration": profile_duration,
+            "profile_power": np.array([float(profile[CONF_POWER])]),
+            "profile_duration": np.array([float(profile[CONF_DURATION])]),
             "in_window": in_window,
             "window_start": schedule[CONF_WINDOW_START],
             "deficit_price": pricing[CONF_DEFICIT_PRICE],
-            "elapsed": _profile_time(profile_power, profile_duration, used) if running else None,
-            "window_started": bool(in_window[0] > 0.0 and (running or used >= _DONE_FRACTION * run_energy > 0.0)),
+            "elapsed": running_for if started else None,
+            "window_started": started,
             "integer_mode": advanced.get(CONF_INTEGER_MODE, DEFAULT_INTEGER_MODE),
             "is_source": False,
             "is_sink": True,
@@ -169,10 +155,3 @@ class SchedulableLoadAdapter:
 
 
 adapter = SchedulableLoadAdapter()
-
-
-def _profile_time(profile_power: NDArray[np.float64], profile_duration: NDArray[np.float64], energy: float) -> float:
-    """Return how long, in hours, the profile runs to use *energy*."""
-    cumulative_time = np.concatenate(([0.0], np.cumsum(profile_duration)))
-    cumulative_energy = np.concatenate(([0.0], np.cumsum(profile_power * profile_duration)))
-    return float(np.interp(energy, cumulative_energy, cumulative_time))

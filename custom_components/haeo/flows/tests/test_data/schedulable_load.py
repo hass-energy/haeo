@@ -5,7 +5,6 @@ from custom_components.haeo.core.schema import as_connection_target, as_constant
 from custom_components.haeo.core.schema.elements.schedulable_load import (
     CONF_DEFICIT_PRICE,
     CONF_DURATION,
-    CONF_ENERGY_METER,
     CONF_INTEGER_MODE,
     CONF_POWER,
     CONF_RUNNING,
@@ -19,14 +18,13 @@ from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 
 VALID_DATA = [
     {
-        "description": "Dishwasher with a running sensor, energy meter, and every start integer",
+        "description": "Dishwasher with a running sensor and every start integer",
         "config": {
             CONF_NAME: "Dishwasher",
             CONF_CONNECTION: as_connection_target("switchboard"),
             SECTION_SCHEDULE: {
                 CONF_WINDOW_CALENDAR: as_entity_value(["calendar.dishwasher"]),
                 CONF_RUNNING: as_entity_value(["binary_sensor.dishwasher_running"]),
-                CONF_ENERGY_METER: as_entity_value(["sensor.dishwasher_energy"]),
             },
             SECTION_PROFILE: {
                 CONF_POWER: as_constant_value(1.8),

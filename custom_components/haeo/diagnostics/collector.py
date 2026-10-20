@@ -1,7 +1,7 @@
 """Core diagnostics collection logic."""
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Final
@@ -22,9 +22,11 @@ from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.data.loader.config_loader import configured_value, element_inputs
 from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.switch import ON_PERIODS_ATTRIBUTE
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
+from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
 from custom_components.haeo.elements import is_element_config_schema
 from custom_components.haeo.meter_history import async_meter_totals_at
@@ -34,6 +36,7 @@ from custom_components.haeo.sensor_utils import (
     get_horizon_sensor_entity_id,
     get_output_sensors,
 )
+from custom_components.haeo.switch_history import async_on_periods_at
 
 """Schema version of the serialized diagnostics output. Bump on breaking shape changes."""
 # Keys to redact from diagnostics output. Following HA convention, ``async_redact_data``
@@ -245,10 +248,14 @@ async def _fetch_inputs_at(
     events = dict(zip(calendars, fetched, strict=True))
     unqueryable = {eid for eid, calendar_events in events.items() if calendar_events is None}
 
-    meters = sorted(_collect_meter_entity_ids(config_entry) & set(entity_states))
+    meters = sorted(_collect_input_entity_ids(config_entry, lambda hint: hint.meter is not None) & set(entity_states))
     totals = await asyncio.gather(
         *(async_meter_totals_at(hass, eid, target_time, entity_states[eid]) for eid in meters)
     )
+    switches = sorted(
+        _collect_input_entity_ids(config_entry, lambda hint: hint.switch is not None) & set(entity_states)
+    )
+    on_periods = await asyncio.gather(*(async_on_periods_at(hass, eid, target_time) for eid in switches))
 
     extra_attributes: dict[str, Mapping[str, object]] = {
         **{
@@ -261,6 +268,11 @@ async def _fetch_inputs_at(
             for eid, meter_totals in zip(meters, totals, strict=True)
             if meter_totals is not None
         },
+        **{
+            eid: {ON_PERIODS_ATTRIBUTE: periods}
+            for eid, periods in zip(switches, on_periods, strict=True)
+            if periods is not None
+        },
     }
     inputs = [
         _captured_state(state, extra_attributes.get(state.entity_id))
@@ -271,18 +283,18 @@ async def _fetch_inputs_at(
     return inputs, sorted(missing)
 
 
-def _collect_meter_entity_ids(config_entry: HaeoConfigEntry) -> set[str]:
-    """Collect the entities read by meter inputs in config entry subentries."""
-    meters: set[str] = set()
+def _collect_input_entity_ids(config_entry: HaeoConfigEntry, reads: Callable[[FieldHint], bool]) -> set[str]:
+    """Collect the entities read by the inputs whose hint *reads* selects, in config entry subentries."""
+    entity_ids: set[str] = set()
     for subentry in config_entry.subentries.values():
         participant_config = {**subentry.data, CONF_ELEMENT_TYPE: subentry.subentry_type}
         if subentry.subentry_type == ELEMENT_TYPE_NETWORK or not is_element_config_schema(participant_config):
             continue
         for element_input in element_inputs(participant_config):
             value = configured_value(participant_config, element_input.config_path)
-            if element_input.hint.meter is not None and is_entity_value(value):
-                meters.update(value["value"])
-    return meters
+            if reads(element_input.hint) and is_entity_value(value):
+                entity_ids.update(value["value"])
+    return entity_ids
 
 
 def _captured_state(state: State, extra_attributes: Mapping[str, object] | None) -> Mapping[str, object]:

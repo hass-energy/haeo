@@ -9,7 +9,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import IntegerMode
 from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint, SectionHints, calendar_input
+from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints, SwitchFieldHint, calendar_input
 from custom_components.haeo.core.schema.sections import ConnectedCommonConfig, ConnectedCommonData
 
 ELEMENT_TYPE = ElementType.SCHEDULABLE_LOAD
@@ -23,7 +23,6 @@ SECTION_ADVANCED: Final = "advanced"
 # Schedule section field names
 CONF_WINDOW_CALENDAR: Final = "window_calendar"
 CONF_RUNNING: Final = "running"
-CONF_ENERGY_METER: Final = "energy_meter"
 
 # Inputs the window calendar feeds
 CONF_IN_WINDOW: Final = "in_window"
@@ -40,7 +39,7 @@ CONF_DEFICIT_PRICE: Final = "deficit_price"
 CONF_INTEGER_MODE: Final = "integer_mode"
 DEFAULT_INTEGER_MODE: Final[IntegerMode] = "first"
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_RUNNING, CONF_ENERGY_METER})
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_RUNNING})
 
 
 # --- Schedule section ---
@@ -50,28 +49,26 @@ class ScheduleConfig(TypedDict):
     """Run window schedule configuration.
 
     The calendar drives the windows the load must run inside. The optional
-    running sensor reports whether the load is running now, and the optional
-    energy meter is a running total of the energy the load has used. How much
-    the meter rose since the open window started tells how far through its
-    run the load is, so a run already in progress is finished rather than
-    planned again, and a window whose run is done takes no further run.
+    running sensor is on while the load runs. When it first switched on in
+    the open window is when that window's run started, so a run already in
+    progress is finished rather than planned again, and a window whose run
+    is done takes no further run.
     """
 
     window_calendar: EntityValue
     running: NotRequired[EntityValue | NoneValue]
-    energy_meter: NotRequired[EntityValue | NoneValue]
 
 
 class ScheduleData(TypedDict):
     """Loaded run window schedule, with the inputs the window calendar feeds.
 
-    The energy meter loads as the energy it counted since the open window began.
+    The running sensor loads as how many hours ago it first switched on in
+    the open window, or 0 when it has not.
     """
 
     in_window: NDArray[np.float64]
     window_start: NDArray[np.float64]
     running: NotRequired[float]
-    energy_meter: NotRequired[float]
 
 
 # --- Profile section ---
@@ -134,13 +131,10 @@ class SchedulableLoadConfigSchema(ConnectedCommonConfig):
                     },
                 ),
                 CONF_RUNNING: FieldHint(
-                    output_type=OutputType.AVAILABILITY,
+                    output_type=OutputType.DURATION,
                     time_series=False,
-                ),
-                CONF_ENERGY_METER: FieldHint(
-                    output_type=OutputType.ENERGY,
-                    time_series=False,
-                    meter=MeterFieldHint(since=CONF_WINDOW_CALENDAR),
+                    min_value=0.0,
+                    switch=SwitchFieldHint(since=CONF_WINDOW_CALENDAR),
                 ),
             }
         ),
@@ -194,7 +188,6 @@ class SchedulableLoadConfigData(ConnectedCommonData):
 __all__ = [
     "CONF_DEFICIT_PRICE",
     "CONF_DURATION",
-    "CONF_ENERGY_METER",
     "CONF_INTEGER_MODE",
     "CONF_IN_WINDOW",
     "CONF_POWER",
