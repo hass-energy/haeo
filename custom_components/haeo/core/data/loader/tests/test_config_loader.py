@@ -665,7 +665,6 @@ def _load_config_from_values(
             config,  # type: ignore[arg-type]  # fixtures use loose dicts; loader validates at runtime
             field_values,
             FORECAST_TIMES,
-            {},
         )
     )
 
@@ -763,7 +762,6 @@ def test_load_element_config_from_values_skips_invalid_list_container() -> None:
             config,  # type: ignore[arg-type]  # rules is not a list; is_element_config_schema rejects this fixture
             {},
             FORECAST_TIMES,
-            {},
         )
     )
 
@@ -778,7 +776,6 @@ def test_load_element_config_from_values_unknown_element_type_raises() -> None:
             {"element_type": "not_real", "name": "Bad"},  # type: ignore[typeddict-item]  # invalid element_type must reach runtime validation
             {},
             FORECAST_TIMES,
-            {},
         )
 
 
@@ -942,7 +939,6 @@ def test_field_with_outputs_loads_each_output_from_its_calendar(monkeypatch: pyt
             config,  # type: ignore[arg-type]  # fixtures use loose dicts
             {("storage", "away"): np.ones(3)},
             FORECAST_TIMES,
-            {},
         )
     )
     values_storage = _dict(from_values["storage"])
@@ -1005,50 +1001,93 @@ def _meter_hints() -> dict[str, dict[str, FieldHint]]:
     }
 
 
-@pytest.mark.parametrize(
-    ("event_hours", "totals", "expected"),
-    [
-        pytest.param(
-            (1, 3), [[0.0, 1000.0], [3600.0, 2000.0], [5400.0, 3500.0]], 1.5, id="rise_since_the_window_began"
-        ),
-        pytest.param((3, 4), [[0.0, 1000.0], [5400.0, 3500.0]], 0.0, id="no_window_open"),
-        pytest.param((1, 3), [[4000.0, 2000.0], [5400.0, 3500.0]], None, id="totals_start_after_the_window"),
-    ],
-)
-def test_meter_field_loads_its_rise_since_the_open_window_began(
-    monkeypatch: pytest.MonkeyPatch,
-    event_hours: tuple[int, int],
-    totals: list[list[float]],
-    expected: float | None,
-) -> None:
-    """A meter field loads how much its meter rose since the window open at the horizon start began, in kWh."""
-    monkeypatch.setattr(cl, "extract_field_hints", lambda _schema: _meter_hints())
-    start, end = event_hours
-    event = {
+def _run(start: int, end: int) -> dict[str, object]:
+    """Return a captured calendar event running between two hours of the first day."""
+    return {
         "start": f"1970-01-01T0{start}:00:00+00:00",
         "end": f"1970-01-01T0{end}:00:00+00:00",
         "summary": "Run",
         "location": None,
         "description": None,
     }
+
+
+@pytest.mark.parametrize(
+    ("events", "totals", "expected"),
+    [
+        pytest.param(
+            [_run(1, 3)], [[0.0, 1000.0], [3600.0, 2000.0], [5400.0, 3500.0]], 1.5, id="rise_since_the_window_began"
+        ),
+        pytest.param(
+            [_run(1, 2), _run(0, 3)],
+            [[0.0, 1000.0], [3600.0, 2000.0], [5400.0, 3500.0]],
+            2.5,
+            id="overlapping_events_count_from_the_earliest_start",
+        ),
+        pytest.param([_run(3, 4)], [[0.0, 1000.0], [5400.0, 3500.0]], 0.0, id="no_window_open"),
+        pytest.param(
+            [_run(1, 3)], [[4000.0, 2000.0], [5400.0, 3500.0]], 1.5, id="totals_starting_late_count_from_the_earliest"
+        ),
+    ],
+)
+def test_meter_field_resolves_to_its_rise_since_the_open_window_began(
+    monkeypatch: pytest.MonkeyPatch,
+    events: list[dict[str, object]],
+    totals: list[list[float]],
+    expected: float,
+) -> None:
+    """A meter field resolves to how much its meter rose since the window open at the horizon start began, in kWh."""
+    monkeypatch.setattr(cl, "extract_field_hints", lambda _schema: _meter_hints())
     states = {
         _METER: FakeEntityState(
             _METER,
             "3500",
             {"unit_of_measurement": "Wh", "device_class": "energy", METER_TOTALS_ATTRIBUTE: totals},
         ),
-        _RUNS: FakeEntityState(_RUNS, "on", {CALENDAR_EVENTS_ATTRIBUTE: [event]}),
+        _RUNS: FakeEntityState(_RUNS, "on", {CALENDAR_EVENTS_ATTRIBUTE: events}),
     }
     config = _battery_config(
         capacity={"type": "entity", "value": [_METER]},
         initial_soc={"type": "entity", "value": [_RUNS]},
     )
-    times = (5400.0, 9000.0, 12600.0)
 
-    from_states = load_element_config("Battery", config, FakeStateMachine(states), times)  # type: ignore[arg-type]  # fixtures use loose dicts
-    from_values = load_element_config_from_values("Battery", config, {}, times, states)  # type: ignore[arg-type]  # fixtures use loose dicts
+    loaded = load_element_config("Battery", config, FakeStateMachine(states), (5400.0, 9000.0, 12600.0))  # type: ignore[arg-type]  # fixtures use loose dicts
 
-    for loaded in (from_states, from_values):
-        assert _dict(_dict(loaded)["storage"]).get("capacity_since_window") == (
-            None if expected is None else pytest.approx(expected)
-        )
+    assert _dict(_dict(loaded)["storage"])["capacity"] == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [pytest.param(_METER, id="meter"), pytest.param(_RUNS, id="calendar")],
+)
+def test_meter_field_without_a_source_state_is_unavailable(monkeypatch: pytest.MonkeyPatch, missing: str) -> None:
+    """A meter field reads its window calendar as well as its meter, so either missing leaves it without data."""
+    monkeypatch.setattr(cl, "extract_field_hints", lambda _schema: _meter_hints())
+    states = {
+        _METER: FakeEntityState(_METER, "3500", {"unit_of_measurement": "kWh", METER_TOTALS_ATTRIBUTE: [[0.0, 1.0]]}),
+        _RUNS: FakeEntityState(_RUNS, "on", {CALENDAR_EVENTS_ATTRIBUTE: [_run(0, 3)]}),
+    }
+    del states[missing]
+    config = _battery_config(
+        capacity={"type": "entity", "value": [_METER]},
+        initial_soc={"type": "entity", "value": [_RUNS]},
+    )
+
+    with pytest.raises(InputsUnavailableError):
+        load_element_config("Battery", config, FakeStateMachine(states), (5400.0, 9000.0))  # type: ignore[arg-type]  # fixtures use loose dicts
+
+
+def test_meter_field_rejects_a_meter_in_the_wrong_unit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A meter whose unit cannot convert to the field's unit is rejected like any source."""
+    monkeypatch.setattr(cl, "extract_field_hints", lambda _schema: _meter_hints())
+    states = {
+        _METER: FakeEntityState(_METER, "3", {"unit_of_measurement": "km", METER_TOTALS_ATTRIBUTE: [[0.0, 1.0]]}),
+        _RUNS: FakeEntityState(_RUNS, "on", {CALENDAR_EVENTS_ATTRIBUTE: [_run(0, 3)]}),
+    }
+    config = _battery_config(
+        capacity={"type": "entity", "value": [_METER]},
+        initial_soc={"type": "entity", "value": [_RUNS]},
+    )
+
+    with pytest.raises(InputError):
+        load_element_config("Battery", config, FakeStateMachine(states), (5400.0, 9000.0))  # type: ignore[arg-type]  # fixtures use loose dicts

@@ -3,7 +3,7 @@
 A meter, such as an energy sensor that only counts up, can reset: an
 "energy today" sensor returns to zero at midnight. The recorder's statistics
 keep a sum for such sensors that carries on through resets, as the Energy
-dashboard reads it. Each meter input reads that sum from the 5-minute
+dashboard reads it. The calendar loader reads that sum from the 5-minute
 statistics once when it starts, then extends it with the meter's state
 changes as they arrive, treating a fall in the reading as a reset. The totals
 are injected into the meter's state for the core loader, which reads how
@@ -12,7 +12,7 @@ much the meter rose since a window started.
 Statistics only exist for sensors with a total or total_increasing state
 class, which is why meter fields only offer those sensors. A meter without
 statistics, or a lookup that fails, keeps only the changes seen since the
-input started, so a window that began earlier is credited nothing.
+loader started, so a window that began earlier is credited only those.
 """
 
 import asyncio
@@ -34,7 +34,7 @@ RECORDER_DOMAIN: Final = "recorder"
 
 # How far back the totals reach. Short-term statistics are kept for ten days
 # by default, which a week stays inside; a window that began earlier is
-# credited nothing.
+# credited from the earliest total.
 LOOKBACK: Final = timedelta(days=7)
 
 
