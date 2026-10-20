@@ -16,7 +16,7 @@ from custom_components.haeo.core.model.elements.segments import SegmentSpec
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.buffer import BufferRole
+from custom_components.haeo.core.schema.elements.buffer import CONF_GENERATION, BufferRole
 from custom_components.haeo.core.schema.elements.solar import (
     CONF_CURTAILMENT,
     ELEMENT_TYPE,
@@ -52,7 +52,7 @@ class SolarAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = True
     can_sink: bool = False
-    buffer_roles: frozenset[BufferRole] = frozenset({"generation"})
+    buffer_roles: frozenset[BufferRole] = frozenset({CONF_GENERATION})
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""
