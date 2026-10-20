@@ -84,9 +84,7 @@ An event whose text contains no distance, such as `School pickup`, still marks t
     All distances are converted to kilometres.
     A number HAEO cannot use as a distance, such as one without a unit, is ignored and listed in a repair issue so you can fix the event.
 
-The trip calendar creates five input entities showing what HAEO reads from it: **Away** (whether each period is inside a trip), **Trip start** (where each trip of overlapping events begins), **Trip distance opening** (the distance of the events starting at each time), **Trip distance due** (the distance of the events ending at each time), and **Trip distance per period** (each trip's distance spread evenly over its duration).
-
-HAEO plans each trip to use its energy at that steady pace, as driving does, so the forecast shows the battery running down across the trip rather than all at once.
+The trip calendar creates four input entities showing what HAEO reads from it: **Away** (whether each period is inside a trip), **Trip start** (where each trip of overlapping events begins), **Trip distance opening** (the distance of the events starting at each time), and **Trip distance due** (the distance of the events ending at each time).
 
 ### Plugged in
 

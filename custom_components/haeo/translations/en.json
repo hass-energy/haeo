@@ -675,7 +675,6 @@
       "ev_public_charging_price": { "name": "Public charging price" },
       "ev_trip_due": { "name": "Trip distance due" },
       "ev_trip_opened": { "name": "Trip distance opening" },
-      "ev_trip_spread": { "name": "Trip distance per period" },
       "ev_trip_start": { "name": "Trip start" },
       "grid_max_power_source_target": { "name": "Import limit" },
       "grid_max_power_target_source": { "name": "Export limit" },
