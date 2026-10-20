@@ -104,13 +104,13 @@ def build_inclusion_map(
     result: dict[str, list[str]] = {}
 
     calendars = [v.entity_id for v in entity_metadata if v.entity_id.startswith(f"{CALENDAR_DOMAIN}.")]
+    totals = {v.entity_id for v in entity_metadata if v.keeps_running_total}
     for field_info in input_fields.values():
         unit_spec = get_unit_spec_for_output_type(field_info.output_type)
         if reads_calendar(field_info):
             result[field_info.field_name] = calendars
         elif unit_spec is not None:
             compatible = filter_compatible_entities(entity_metadata, unit_spec)
-            totals = {v.entity_id for v in entity_metadata if v.keeps_running_total}
             included = [eid for eid in compatible if eid in totals] if field_info.meter is not None else compatible
             result[field_info.field_name] = (
                 [*included, *calendars] if accepts_calendar_forecast(field_info) else included

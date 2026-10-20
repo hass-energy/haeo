@@ -167,8 +167,13 @@ class CalendarInputLoader:
         self._schedule(self._async_start())
 
     async def _async_start(self) -> None:
-        """Read the meters' recorded totals, then load every store."""
-        await self._meters.async_load()
+        """Read the meters' recorded totals, then load every store.
+
+        The totals are read under the load lock, so no store resolves
+        before its meters carry them.
+        """
+        async with self._load_lock:
+            await self._meters.async_load()
         await self.async_load_all()
 
     @callback
