@@ -149,6 +149,8 @@ class HaeoInputNumber(NumberEntity):
         }
         if self._store.source_entity_ids:
             self._base_extra_attrs["source_entities"] = self._store.source_entity_ids
+        if field_info.calendar is not None:
+            self._base_extra_attrs["calendar_projection"] = field_info.calendar.projection
         if field_info.direction:
             self._base_extra_attrs["direction"] = field_info.direction
 
