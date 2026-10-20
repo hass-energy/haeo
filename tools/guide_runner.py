@@ -220,7 +220,12 @@ class PrerequisiteCache:
     directory: Path
 
     def run(self, page: HAPage, hass: LiveHomeAssistant, guide_name: str) -> None:
-        """Bring Home Assistant and the page to where the named walkthrough ends."""
+        """Bring Home Assistant and the page to where the named walkthrough ends.
+
+        Home Assistant restarts from the saved config directory, so only what
+        it stores carries over: anything set beforehand, or set by the
+        walkthrough without being stored, is gone. Call it first in a guide.
+        """
         guide_path = DOCS_DIR / "walkthroughs" / f"{guide_name}.md"
         if not guide_path.exists():
             msg = f"Prerequisite guide not found: {guide_path}"
@@ -260,6 +265,8 @@ _PAGE_FILE = "page"
 def _save_config(config_dir: Path, snapshot: Path, path: str) -> None:
     """Copy a stopped Home Assistant's config directory into a snapshot."""
     partial = snapshot.with_name(f"{snapshot.name}.partial")
+    # A save that failed part way leaves its copy behind
+    shutil.rmtree(partial, ignore_errors=True)
     shutil.copytree(config_dir, partial / "config", symlinks=True)
     (partial / _PAGE_FILE).write_text(path, encoding="utf-8")
     partial.rename(snapshot)
@@ -387,6 +394,7 @@ def run_blocks(
 
 def run_guide_from_markdown(
     markdown_path: Path,
+    prerequisites: PrerequisiteCache,
     *,
     headless: bool = True,
     force: bool = False,
@@ -398,6 +406,7 @@ def run_guide_from_markdown(
 
     Args:
         markdown_path: Path to the markdown file containing ```guide blocks.
+        prerequisites: Prerequisite snapshots shared by the guides of one run.
         headless: Run browser in headless mode.
         force: Force re-execution even if cache is valid.
 
@@ -429,11 +438,8 @@ def run_guide_from_markdown(
 
     scenario_environment = load_scenario_environment()
 
-    with tempfile.TemporaryDirectory(prefix="guide_prerequisites_") as prerequisite_dir:
-        prerequisites = PrerequisiteCache(Path(prerequisite_dir))
-
-        with live_home_assistant(timeout=120, environment=scenario_environment, states=INPUTS_FILE) as hass:
-            results = run_blocks(hass, blocks, output_dir, prerequisites, headless=headless)
+    with live_home_assistant(timeout=120, environment=scenario_environment, states=INPUTS_FILE) as hass:
+        results = run_blocks(hass, blocks, output_dir, prerequisites, headless=headless)
 
     # Build manifest from capturing blocks only (setup blocks are excluded)
     capturing_blocks = [b for b in blocks if b.captures]
@@ -467,13 +473,16 @@ def main() -> None:
     headed = "--headed" in sys.argv
     md_files = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
 
-    for md_file in md_files:
-        md_path = Path(md_file)
-        if not md_path.exists():
-            _LOGGER.error("File not found: %s", md_path)
-            continue
+    # Guides run together share the prerequisites they replay
+    with tempfile.TemporaryDirectory(prefix="guide_prerequisites_") as prerequisite_dir:
+        prerequisites = PrerequisiteCache(Path(prerequisite_dir))
+        for md_file in md_files:
+            md_path = Path(md_file)
+            if not md_path.exists():
+                _LOGGER.error("File not found: %s", md_path)
+                continue
 
-        run_guide_from_markdown(md_path, headless=not headed, force=force)
+            run_guide_from_markdown(md_path, prerequisites, headless=not headed, force=force)
 
 
 if __name__ == "__main__":

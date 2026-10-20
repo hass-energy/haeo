@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Coroutine, Generator
-from contextlib import ExitStack, closing, contextmanager
+from contextlib import ExitStack, closing, contextmanager, suppress
 from dataclasses import dataclass
 from datetime import datetime
 import json
@@ -69,32 +69,34 @@ PROJECT_ROOT = Path(__file__).parent.parent
 _IN_FLIGHT: WeakKeyDictionary[BrowserContext, set[Request]] = WeakKeyDictionary()
 
 
-def wait_for_requests(page: Page, timeout_ms: float) -> bool:
-    """Block until every HTTP request of the page's browser context has been answered.
+# How long a wait for requests sleeps before checking again for requests that
+# failed, which answer no event it can wait on
+_REQUEST_CHECK_MS = 100
 
-    Returns whether there were any to wait for. Scripts, translations and
-    images all arrive this way, while the DOM stays as it was until they do.
+
+def wait_for_requests(page: Page, deadline: float) -> bool:
+    """Block until every HTTP request of the page's browser context has been answered or has failed.
+
+    ``deadline`` is on freezegun's real monotonic clock, which keeps running
+    while the wall clock is frozen. Returns whether there were any to wait
+    for. Scripts, translations and images all arrive this way, while the DOM
+    stays as it was until they do.
 
     Raises:
-        TimeoutError: If a request is still unanswered after ``timeout_ms``.
+        TimeoutError: If requests are still unanswered at the deadline.
 
     """
     in_flight = _IN_FLIGHT[page.context]
     waited = bool(in_flight)
     while in_flight:
-        request = next(iter(in_flight))
-        try:
-            page.context.wait_for_event(
-                "requestfinished",
-                predicate=lambda finished, request=request: finished is request,
-                timeout=timeout_ms,
-            )
-        except PlaywrightTimeoutError:
-            # A request that failed instead is no longer in flight
-            if request in in_flight:
-                msg = f"No answer within {timeout_ms:.0f} ms to {request.method} {request.url}"
-                raise TimeoutError(msg) from None
-        in_flight.discard(request)
+        remaining_ms = (deadline - freezegun.api.real_monotonic()) * 1000
+        if remaining_ms <= 0:
+            pending = ", ".join(f"{request.method} {request.url}" for request in in_flight)
+            msg = f"No answer by the deadline to {pending}"
+            raise TimeoutError(msg)
+        # Wakes as soon as any request finishes; a failed one leaves in_flight while waiting
+        with suppress(PlaywrightTimeoutError):
+            page.context.wait_for_event("requestfinished", timeout=min(remaining_ms, _REQUEST_CHECK_MS))
     return waited
 
 

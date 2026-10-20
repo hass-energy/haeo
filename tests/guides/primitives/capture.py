@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from functools import wraps
 from pathlib import Path
 
+import freezegun.api
 from playwright.sync_api import Page
 
 from tools.live_hass import wait_for_requests
@@ -58,11 +59,18 @@ def wait_until_settled(page: Page) -> None:
     over the page would show hover highlights in some captures and not others.
     Settling repeats until no HTTP request is left in flight, since a request,
     such as for the script of a panel, changes nothing until it is answered.
+    The whole settle shares one deadline, kept on the real clock since the
+    wall clock is frozen.
     """
+    deadline = freezegun.api.real_monotonic() + SETTLE_DEADLINE_MS / 1000
+
+    def settle_dom() -> None:
+        page.evaluate(_WAIT_SETTLED_JS, max((deadline - freezegun.api.real_monotonic()) * 1000, 0))
+
     page.mouse.move(-1, -1)
-    page.evaluate(_WAIT_SETTLED_JS, SETTLE_DEADLINE_MS)
-    while wait_for_requests(page, SETTLE_DEADLINE_MS):
-        page.evaluate(_WAIT_SETTLED_JS, SETTLE_DEADLINE_MS)
+    settle_dom()
+    while wait_for_requests(page, deadline):
+        settle_dom()
 
 
 @dataclass

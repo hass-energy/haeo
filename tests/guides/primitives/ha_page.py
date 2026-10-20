@@ -543,17 +543,21 @@ class HAPage:
                 self._wait_for_action_result()
                 self._capture("result")
         else:
+            self._keep_action_result()
             button.click()
             self._wait_for_action_result()
 
     def _keep_action_result(self) -> None:
-        """Keep the Perform action button's result showing once it appears.
+        """Clear the Perform action button's last result, and keep the next one showing once it appears.
 
         The button clears its check mark or cross two seconds after the action
         returns, which a capture in both themes can outlast.
         """
         self.page.locator("ha-progress-button").evaluate(
-            "(button) => { button._setResult = (result) => { button._result = result; }; }"
+            """(button) => {
+                button._result = undefined;
+                button._setResult = (result) => { button._result = result; };
+            }"""
         )
 
     def _wait_for_action_result(self) -> None:
@@ -708,7 +712,7 @@ class HAPage:
         # Match the header's exact text, so a description mentioning the name elsewhere does not match
         panel = self.page.locator("ha-expansion-panel").filter(has=self.page.get_by_text(section_name, exact=True))
         panel.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
-        expanded = self.page.locator("ha-expansion-panel[expanded]").filter(has_text=section_name)
+        expanded = panel.and_(self.page.locator("ha-expansion-panel[expanded]"))
 
         # Check if already expanded by looking for the attribute
         if panel.get_attribute("expanded") is not None:

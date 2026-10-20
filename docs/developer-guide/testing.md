@@ -266,7 +266,7 @@ Walkthrough pages in `docs/walkthroughs/` contain `guide` fenced code blocks tha
 The guide runner (`tools/guide_runner.py`) extracts these blocks, executes them sequentially against a live HA instance, and captures screenshots into per-block directories.
 Consecutive blocks share the same browser and HA context so state accumulates across steps.
 
-The instance loads `scenario1`'s input states, and the clock stands still at that scenario's `optimization_start_time` for the whole run.
+The instance loads the input states of the scenario `SCENARIO_DIR` in `tools/guide_runner.py` names, and the clock stands still at that scenario's `optimization_start_time` for the whole run.
 Home Assistant's wall clock is frozen while its event loop keeps real time, so timers still fire, and each browser context is pinned to the same instant.
 Every capture therefore shows the same horizon however slowly the run goes.
 
@@ -285,6 +285,7 @@ A `guide-setup` block can start from where another walkthrough ends with `run_gu
 The first guide in a run to need that walkthrough replays it without screenshots, then saves Home Assistant's config directory.
 Every later one restores the saved directory instead of replaying, which takes a fraction of the time.
 Either way Home Assistant restarts from the saved state, and the page loads the app and moves within it to where the walkthrough ended.
+Only what Home Assistant stores carries over, so `run_guide` comes first in a guide, and a walkthrough used this way leaves its state in Home Assistant's storage rather than in states set directly.
 Guides running in parallel share the saved directories for the length of one run.
 
 ### Showing the plan
