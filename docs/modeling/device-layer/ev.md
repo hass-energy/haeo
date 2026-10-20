@@ -44,9 +44,8 @@ The EV alternates between two states:
 
 The trip calendar is authoritative for the future: the away mask is derived from calendar event windows aligned to the horizon.
 The live plugged-in binary sensor overrides the current interval, so early returns and unplanned absences are reflected immediately.
-A car plugged in during an open trip has not left yet: only the current interval is home, and the trip still happens in the rest of its window unless the car already came back (see [early return](#early-return)).
-The plugged-in field accepts only a sensor; without one the calendar governs the current interval as well.
-Without a calendar the sensor value applies across the whole horizon, and with neither source the EV is always connected.
+A car plugged in during an open trip has not left yet: only the current interval is home, and the trip still happens in the rest of its window unless the car already came back (see [trip progress](#trip-progress)).
+The plugged-in field is required and accepts only a sensor.
 The masks multiply the connection power limits.
 
 ### Metered charger convention
@@ -66,15 +65,14 @@ $$
 where $d$ is the trip distance and $r$ is the energy-per-distance rate.
 The distance is read from the first of the event's location, summary, or description fields that holds only a distance with its unit, such as `50 km`, and converted to kilometres.
 
-The trip calendar feeds three inputs, resolved the same way as for the [deferrable load device](deferrable_load.md#window-scheduling): the periods away, where trips start, and each trip's distance due at its end.
-Overlapping trips merge into one window with their distances summed, touching trips stay separate, and a trip running past the horizon end is due at the final boundary.
+The trip calendar feeds four inputs, resolved the same way as for the [deferrable load device](deferrable_load.md#window-scheduling): the periods away, where trips start, and the distances of the events starting and ending at each boundary.
+Overlapping events share one window, touching trips stay separate, and an event running past the horizon end is due at the final boundary.
 Every away period is a trip window of the [deferrable trip load](../model-layer/elements/deferrable_load.md); an event without a distance marks the car away but asks for no energy.
 
-The trip load counts the energy each trip receives from zero at the trip's start.
-At each trip's end its requirement $E_{\text{trip}}$ is settled:
+The trip load counts the energy each window receives from zero at its start, and each event's energy $E_{\text{trip}}$ is due by its own end:
 
 - **Shortfall** below the requirement is priced at the public charging price $p_{\text{public}}$ at that boundary.
-- **Overage** is not allowed: the trip load has no overage price, so a trip never takes more energy than it needs.
+- **Overage** is free: driving further than planned costs nothing more, as that energy is already gone.
 
 $$
 \text{cost} = \sum_{\text{trips}} p_{\text{public}}(e) \cdot \max\left(0,\ E_{\text{trip}} - E_{\text{delivered}}(e)\right)
@@ -86,70 +84,30 @@ A missed trip stays priced at its own end, and the next trip starts from zero.
 
 The pack's initial charge clamps to $[0, C]$ so a glitched state-of-charge sensor cannot overfill the model.
 
-### Reserve demand pricing
+### Trip progress
 
-An optional reserve keeps some energy in the pack while away.
-Because the home connections are masked off during trips, the pack can only drain while away — so the lowest level hit during a trip window equals the level at the window's end.
-The reserve is therefore priced with one check per end boundary $e$ of each trip, including trips made only of events without a distance:
+The odometer is a [meter input](../../developer-guide/data-loading.md#meters) measured from the trip calendar.
+It loads as $\Delta o$, the distance driven since the trip window open at the horizon start began, read from the odometer's recorded statistics, and zero when no trip window is open.
+The car does not drive while waiting at home, so this is the distance driven on the trip.
 
-$$
-\text{cost} = \sum_{e} p_{\text{reserve}}(e) \cdot \max\left(0,\ E_{\text{reserve}} - E_{\text{pack}}(e)\right)
-$$
+Together with the plugged-in sensor it places the car on the open trip:
 
-This is demand-level pricing: the charge is on the depth of each trip's dip below the reserve, not integrated over time spent below it.
-The price defaults to the public charging price.
+| Plugged in | $\Delta o$ | The car          | Model                                                                        |
+| ---------- | ---------- | ---------------- | ---------------------------------------------------------------------------- |
+| Yes        | 0          | has not left yet | The current interval is home; the trip keeps its requirement, due at its end |
+| Yes        | > 0        | is back          | The open trip is dropped; the car is home until the trip's scheduled end     |
+| No         | any        | is on the trip   | The trip load's initial energy is $E_{\text{initial}} = \Delta o \cdot r$    |
 
-### Mid-trip energy tracking
-
-When the car is away during a trip window that covers the current interval and the odometer updates, HAEO credits the distance already driven to that trip as the trip load's initial energy:
-
-$$
-E_{\text{initial}} = \max(0,\ o_{\text{current}} - o_{\text{departure}}) \cdot r
-$$
-
-where $o_{\text{current}}$ is the current odometer reading and $o_{\text{departure}}$ is the odometer at the trip's first unplug, the latest reading at or before it in the odometer's history.
-The odometer's recorded readings are injected into its state as the `haeo_readings` attribute.
-Odometer readings in any length unit are converted to kilometres first.
-A negative or non-finite difference, or a missing reading, credits nothing.
-
-The credited energy already left the pack, which the live state of charge reflects, so the model never draws it again:
-
-- **Under target**: the remaining $E_{\text{trip}} - E_{\text{initial}}$ stays due at the trip's end.
-- **Over target**: the trip's settled requirement becomes $\max(E_{\text{trip}}, E_{\text{initial}})$, so the trip is complete, takes no new energy, and the overshoot is neither priced nor infeasible.
-
-The credit seeds only the trip window open now and never reaches later trips.
-No credit applies when no trip window is open.
-If the odometer does not update while driving, HAEO conservatively assumes no progress and reserves the full trip energy.
-
-### Early return
-
-A car plugged in while the calendar says a trip is open has either not left yet or come back early.
-HAEO keeps no state of its own to tell these apart.
-Instead, the integration reads the plugged-in sensor's history over the past seven days from the recorder when the input starts, then extends it as the sensor changes.
-`off`, `false`, and `0` count as unplugged and `on`, `true`, and `1` as plugged in; `unavailable` and `unknown` neither start nor end an unplug, so a restart leaves no unplug behind.
-The periods the sensor read unplugged are injected into its state as the `haeo_off_periods` attribute, so diagnostics capture them and replay the same decision.
-With several plugged-in sensors, the car was unplugged only while all of them read unplugged.
-
-The trip's departure is its first unplug: the start of the first unplugged period still running when the window opened or beginning after it.
-The window's start comes from the calendar event even when it began before the horizon; it is loaded beside the trip calendar from the events the calendar's state carries.
-Later unplugs within the window do not move the departure, so a trip that resumes after ducking home keeps counting distance from when it began.
-
-The car came back early when all of these hold:
-
-- the plugged-in sensor reports the car plugged in now,
-- a trip window is open at the horizon start,
-- the car has a departure in that window,
-- and, when the odometer is configured, $o_{\text{current}} - o_{\text{departure}} > 0$.
-
-Otherwise the car has not left yet.
-The plugged-in sensor pins only the current interval as home, and the open window keeps its requirement, still due at the window's end, so the trip is squeezed into the rest of the window.
-Without the recorder, without history for the sensor, or when the lookup fails, only unplugs since Home Assistant started are seen.
-
-When the car came back early, the open trip is over.
-Its requirement and reserve checks are dropped, and the car counts as home until the trip's scheduled end.
-Unplugging again before the window ends resumes the trip with its requirement, less the distance driven since the departure.
-This keeps a trip that ended early from demanding driving energy or pricing a phantom public top-up.
+The credited energy already left the pack, which the live state of charge reflects, so the model never draws it again.
+Below the requirement, the remainder stays due at the trip's end; above it, the trip is complete and the overshoot is overage, which is free.
+Unplugging again after coming back resumes the trip, with the distance still counted from the trip's start.
+Without an odometer $\Delta o$ is zero, so a car plugged in during a trip has not left yet.
 Later trips are unaffected.
+
+### Keeping a margin
+
+The EV keeps no reserve of its own.
+A [buffer](buffer.md) holds one: an EV taking part in a buffer counts its trip load as a load and its pack as storage, so a buffer over the EV alone with a level keeps a margin in the pack above its trips, and a buffer over the house, the EV, and the home battery keeps a whole-system reserve.
 
 ### Public charging
 
@@ -174,39 +132,37 @@ The EV element creates a single Home Assistant device:
 
 ## Parameter mapping
 
-| User configuration         | Model element(s)              | Model parameter             | Notes                                      |
-| -------------------------- | ----------------------------- | --------------------------- | ------------------------------------------ |
-| `capacity`                 | Battery `{name}`              | `capacity`                  | kWh, time-series boundary array            |
-| `current_soc`              | Battery `{name}`              | `initial_charge`            | SOC ratio × capacity                       |
-| `trip_calendar`            | Deferrable load `{name}:trip` | Window masks, `requirement` | Distance due × energy per distance         |
-| `max_charge_rate`          | Connection `{name}:charge`    | Power limit segment         | Masked by connected flag                   |
-| `max_discharge_rate`       | Connection `{name}:discharge` | Power limit segment         | Masked by connected flag                   |
-| `reserve_soc`              | Battery `{name}`              | `reserve_level`             | Fraction of capacity, checked at trip ends |
-| `reserve_price`            | Battery `{name}`              | `reserve_price`             | Defaults to the public charging price      |
-| `energy_per_distance`      | Trip energy calculation       | Multiplied by distance      | Wh/km and kWh/100km converted to kWh/km    |
-| `odometer` and history     | Deferrable load `{name}:trip` | `initial_energy`            | Mid-trip progress credit                   |
-| `public_charging_price`    | Deferrable load `{name}:trip` | `deficit_price`             | Defaults to \$10/kWh                       |
-| `efficiency_source_target` | Connection `{name}:discharge` | Efficiency segment          | Discharge direction                        |
-| `efficiency_target_source` | Connection `{name}:charge`    | Efficiency segment          | Charge direction                           |
-| `max_power_source_target`  | Connection `{name}:discharge` | Power limit segment         | Combined with discharge rate               |
-| `max_power_target_source`  | Connection `{name}:charge`    | Power limit segment         | Combined with charge rate                  |
+| User configuration         | Model element(s)              | Model parameter               | Notes                                   |
+| -------------------------- | ----------------------------- | ----------------------------- | --------------------------------------- |
+| `capacity`                 | Battery `{name}`              | `capacity`                    | kWh, time-series boundary array         |
+| `current_soc`              | Battery `{name}`              | `initial_charge`              | SOC ratio × capacity                    |
+| `trip_calendar`            | Deferrable load `{name}:trip` | Window masks, `opened`, `due` | Distances × energy per distance         |
+| `max_charge_rate`          | Connection `{name}:charge`    | Power limit segment           | Masked by connected flag                |
+| `max_discharge_rate`       | Connection `{name}:discharge` | Power limit segment           | Masked by connected flag                |
+| `connected`                | Connections                   | Home and away masks           | Pins the current interval               |
+| `energy_per_distance`      | Trip energy calculation       | Multiplied by distance        | Wh/km and kWh/100km converted to kWh/km |
+| `odometer`                 | Deferrable load `{name}:trip` | `initial_energy`              | Distance since the trip began × rate    |
+| `public_charging_price`    | Deferrable load `{name}:trip` | `deficit_price`               | Defaults to \$10/kWh                    |
+| `efficiency_source_target` | Connection `{name}:discharge` | Efficiency segment            | Discharge direction                     |
+| `efficiency_target_source` | Connection `{name}:charge`    | Efficiency segment            | Charge direction                        |
+| `max_power_source_target`  | Connection `{name}:discharge` | Power limit segment           | Combined with discharge rate            |
+| `max_power_target_source`  | Connection `{name}:charge`    | Power limit segment           | Combined with charge rate               |
 
 ## Output mapping
 
 The adapter maps model outputs to EV-specific sensor names:
 
-| Model output               | Sensor name                    | Description                                                            |
-| -------------------------- | ------------------------------ | ---------------------------------------------------------------------- |
-| `{name}:charge` power      | `ev_power_charge`              | Home charge power                                                      |
-| `{name}:discharge` power   | `ev_power_discharge`           | V2G discharge power                                                    |
-| Calculated                 | `ev_power_active`              | Net power (discharge − charge)                                         |
-| `BATTERY_ENERGY_STORED`    | `ev_energy_stored`             | Energy in EV battery                                                   |
-| Calculated                 | `ev_state_of_charge`           | SOC ratio                                                              |
-| Trip load energy delivered | `ev_trip_energy_delivered`     | Energy used by the current trip                                        |
-| Trip load energy shortfall | `ev_trip_energy_shortfall`     | Expected public top-up energy for each trip, at its end                |
-| Battery reserve shortfall  | `ev_reserve_shortfall`         | Dip below the reserve per trip (only when `reserve_soc` is configured) |
-| Power limit shadow         | `ev_power_max_charge_price`    | Charge limit shadow price                                              |
-| Power limit shadow         | `ev_power_max_discharge_price` | Discharge limit shadow price                                           |
+| Model output               | Sensor name                    | Description                                             |
+| -------------------------- | ------------------------------ | ------------------------------------------------------- |
+| `{name}:charge` power      | `ev_power_charge`              | Home charge power                                       |
+| `{name}:discharge` power   | `ev_power_discharge`           | V2G discharge power                                     |
+| Calculated                 | `ev_power_active`              | Net power (discharge − charge)                          |
+| `BATTERY_ENERGY_STORED`    | `ev_energy_stored`             | Energy in EV battery                                    |
+| Calculated                 | `ev_state_of_charge`           | SOC ratio                                               |
+| Trip load energy delivered | `ev_trip_energy_delivered`     | Energy used by the current trip                         |
+| Trip load energy shortfall | `ev_trip_energy_shortfall`     | Expected public top-up energy for each trip, at its end |
+| Power limit shadow         | `ev_power_max_charge_price`    | Charge limit shadow price                               |
+| Power limit shadow         | `ev_power_max_discharge_price` | Discharge limit shadow price                            |
 
 See [EV Configuration](../../user-guide/elements/ev.md#sensors-created) for complete sensor documentation.
 

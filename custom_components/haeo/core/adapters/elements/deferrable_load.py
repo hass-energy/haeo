@@ -24,11 +24,12 @@ from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.deferrable_load import (
     CONF_DEFICIT_PRICE,
-    CONF_ENERGY_DELIVERED,
+    CONF_DUE,
+    CONF_ENERGY_METER,
     CONF_IN_WINDOW,
     CONF_MAX_POWER,
+    CONF_OPENED,
     CONF_OVERAGE_PRICE,
-    CONF_REQUIREMENT,
     CONF_WINDOW_START,
     ELEMENT_TYPE,
     SECTION_POWER,
@@ -71,6 +72,7 @@ class DeferrableLoadAdapter:
     can_source: bool = False
     can_sink: bool = True
     can_store: bool = False
+    can_consume: bool = True
 
     def model_elements(self, config: DeferrableLoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for deferrable load configuration.
@@ -80,15 +82,15 @@ class DeferrableLoadAdapter:
         2. {name}:connection - Connection (network → load)
 
         Calendar events define the run windows; each event's text carries the
-        energy that window must receive, such as "3 kWh". Overlapping events
-        merge into one window with their energy summed. Each window is settled
-        at its end: a shortfall is priced at the deficit price, and delivery
-        beyond the requirement is priced at the overage price, or forbidden
-        when no overage price is configured.
+        energy it must receive, such as "3 kWh". Overlapping events share one
+        window, but each event's energy must arrive between its own start and
+        end: a shortfall is priced at the deficit price where the event ends,
+        and delivery beyond what has started at the overage price, never
+        forbidden.
 
-        Energy the delivered sensor reports becomes the initial energy of the
-        window open at the horizon start, so each re-optimization only plans
-        the remainder of that window. It never counts toward a later window.
+        The energy meter's rise since the open window began becomes that
+        window's initial energy, so each re-optimization only plans the
+        remainder of it.
         """
         name = config["name"]
         schedule = config[SECTION_SCHEDULE]
@@ -102,10 +104,11 @@ class DeferrableLoadAdapter:
             "is_sink": True,
             "in_window": schedule[CONF_IN_WINDOW],
             "window_start": schedule[CONF_WINDOW_START],
-            "requirement": schedule[CONF_REQUIREMENT],
-            "initial_energy": schedule.get(CONF_ENERGY_DELIVERED, 0.0),
+            "opened": schedule[CONF_OPENED],
+            "due": schedule[CONF_DUE],
+            "initial_energy": schedule.get(CONF_ENERGY_METER, 0.0),
             "deficit_price": pricing[CONF_DEFICIT_PRICE],
-            "overage_price": pricing.get(CONF_OVERAGE_PRICE),
+            "overage_price": pricing[CONF_OVERAGE_PRICE],
         }
 
         max_power = power.get(CONF_MAX_POWER)

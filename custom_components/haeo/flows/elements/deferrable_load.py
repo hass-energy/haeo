@@ -10,7 +10,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
 from custom_components.haeo.core.schema.elements.deferrable_load import (
     CONF_DEFICIT_PRICE,
-    CONF_ENERGY_DELIVERED,
+    CONF_ENERGY_METER,
     CONF_MAX_POWER,
     CONF_OVERAGE_PRICE,
     CONF_WINDOW_CALENDAR,
@@ -45,7 +45,7 @@ class DeferrableLoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return (
             SectionDefinition(
                 key=SECTION_SCHEDULE,
-                fields=(CONF_WINDOW_CALENDAR, CONF_ENERGY_DELIVERED),
+                fields=(CONF_WINDOW_CALENDAR, CONF_ENERGY_METER),
                 collapsed=False,
             ),
             SectionDefinition(

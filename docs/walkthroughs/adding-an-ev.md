@@ -53,10 +53,9 @@ hass.set_state(
 In addition to the base system, you will need:
 
 - **EV battery SOC sensor**: A sensor reporting the EV's current state of charge
-- **Plugged-in sensor** (optional): A binary sensor reporting when the EV is connected to your charger.
-    Without one, the trip calendar alone decides when the car is home.
-    With one, a car still plugged in after a trip's start has not left yet, so HAEO fits the trip into the rest of the event;
-    the trip only counts as done early once the sensor has shown the car unplugged since the event started (see [Plugged in](../user-guide/elements/ev.md#plugged-in)).
+- **Plugged-in sensor**: A binary sensor reporting when the EV is connected to your charger.
+    A car still plugged in after a trip's start has not left yet, so HAEO fits the trip into the rest of the event.
+- **Odometer** (optional): With one, HAEO also knows how far the car has driven on a trip, so it can tell a car that is back early from one that has not left (see [Plugged in](../user-guide/elements/ev.md#plugged-in)).
 
 !!! tip "Where do these sensors come from?"
 
@@ -105,7 +104,7 @@ page.navigate_to_integrations()
 page.navigate_to_integration("HAEO")
 ```
 
-Configure the EV with battery details, charging rate, and the trip calendar.
+Configure the EV with battery details, charging rate, plugged-in sensor, and the trip calendar.
 The EV connects to the **Switchboard** — the junction HAEO automatically created
 with your hub — where the home charger is wired.
 
@@ -118,8 +117,8 @@ add_ev(
     energy_per_distance=ConstantInput(0.15),
     current_soc=EntityInput("EV battery state of charge", "EV Battery State of Charge"),
     max_charge_rate=ConstantInput(7.4),
-    trip_calendar=EntityInput("EV Trips", "EV Trips"),
     connected=EntityInput("EV plugged in", "EV Plugged In"),
+    trip_calendar=EntityInput("EV Trips", "EV Trips"),
     public_charging_price=ConstantInput(0.60),
 )
 ```

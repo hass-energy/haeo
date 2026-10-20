@@ -273,7 +273,7 @@
           "data": {
             "connection": "Connection",
             "deficit_price": "Shortfall price",
-            "energy_delivered": "Energy delivered this window",
+            "energy_meter": "Energy meter",
             "max_power": "Max power",
             "name": "Deferrable Load Name",
             "overage_price": "Overage price",
@@ -290,7 +290,7 @@
               "name": "Pricing"
             },
             "schedule": {
-              "data": { "energy_delivered": "Energy delivered this window", "window_calendar": "Run window calendar" },
+              "data": { "energy_meter": "Energy meter", "window_calendar": "Run window calendar" },
               "name": "Schedule"
             }
           }
@@ -322,13 +322,15 @@
             "name": "EV Name",
             "odometer": "Odometer",
             "public_charging_price": "Public charging price",
-            "reserve_price": "Reserve shortfall price",
-            "reserve_soc": "Reserve state of charge",
             "trip_calendar": "Trip calendar"
           },
           "sections": {
             "charging": {
-              "data": { "max_charge_rate": "Max charge rate", "max_discharge_rate": "Max discharge rate" },
+              "data": {
+                "connected": "Plugged in",
+                "max_charge_rate": "Max charge rate",
+                "max_discharge_rate": "Max discharge rate"
+              },
               "name": "Charging"
             },
             "common": { "data": { "connection": "Connection", "name": "EV Name" }, "name": "Common settings" },
@@ -350,16 +352,7 @@
               "data": { "public_charging_price": "Public charging price" },
               "name": "Public charging"
             },
-            "trip": {
-              "data": {
-                "connected": "Plugged in",
-                "odometer": "Odometer",
-                "reserve_price": "Reserve shortfall price",
-                "reserve_soc": "Reserve state of charge",
-                "trip_calendar": "Trip calendar"
-              },
-              "name": "Trips"
-            },
+            "trip": { "data": { "odometer": "Odometer", "trip_calendar": "Trip calendar" }, "name": "Trips" },
             "vehicle": {
               "data": {
                 "capacity": "Battery capacity",
@@ -651,11 +644,12 @@
       "connection_max_power_source_target": { "name": "Max power" },
       "connection_price_source_target": { "name": "Price" },
       "deferrable_load_deficit_price": { "name": "Shortfall price" },
-      "deferrable_load_energy_delivered": { "name": "Energy delivered this window" },
+      "deferrable_load_due": { "name": "Energy due" },
+      "deferrable_load_energy_meter": { "name": "Energy since window started" },
       "deferrable_load_in_window": { "name": "Run window" },
       "deferrable_load_max_power": { "name": "Max power" },
+      "deferrable_load_opened": { "name": "Energy opening" },
       "deferrable_load_overage_price": { "name": "Overage price" },
-      "deferrable_load_requirement": { "name": "Window energy due" },
       "deferrable_load_window_start": { "name": "Window start" },
       "ev_away": { "name": "Away" },
       "ev_capacity": { "name": "Battery capacity" },
@@ -668,11 +662,10 @@
       "ev_max_discharge_rate": { "name": "Max discharge rate" },
       "ev_max_power_source_target": { "name": "Max discharge power" },
       "ev_max_power_target_source": { "name": "Max charge power" },
-      "ev_odometer": { "name": "Odometer" },
+      "ev_odometer": { "name": "Distance since trip started" },
       "ev_public_charging_price": { "name": "Public charging price" },
-      "ev_reserve_price": { "name": "Reserve shortfall price" },
-      "ev_reserve_soc": { "name": "Reserve state of charge" },
-      "ev_trip_distance": { "name": "Trip distance due" },
+      "ev_trip_due": { "name": "Trip distance due" },
+      "ev_trip_opened": { "name": "Trip distance opening" },
       "ev_trip_start": { "name": "Trip start" },
       "grid_max_power_source_target": { "name": "Import limit" },
       "grid_max_power_target_source": { "name": "Export limit" },
@@ -724,7 +717,6 @@
       "ev_power_discharge": { "name": "Discharge power" },
       "ev_power_max_charge_price": { "name": "Max charge power shadow price" },
       "ev_power_max_discharge_price": { "name": "Max discharge power shadow price" },
-      "ev_reserve_shortfall": { "name": "Reserve shortfall" },
       "ev_state_of_charge": { "name": "State of charge" },
       "ev_trip_energy_delivered": { "name": "Trip energy delivered" },
       "ev_trip_energy_shortfall": { "name": "Trip energy shortfall" },
@@ -783,23 +775,11 @@
     "input_unit_incompatible": {
       "message": "Input {field} of {element} needs a value in {expected}, but {entities} supplied one in {unit}, which does not convert."
     },
-    "missing_sensors": {
-      "message": "HAEO cannot load data for {unavailable_sensors}. Verify each referenced sensor exists and is reporting data."
-    },
     "negative_input_value": {
       "message": "Input {field} of {element} cannot be negative, but {entities} supplied {value}. Check that the sensor or forecast reports this value with the expected sign."
     },
     "no_history_at_time": {
       "message": "No history available at time {time} for: {missing}. The recorder may not have data this far back."
-    },
-    "self_referential_field_missing": {
-      "message": "Configuration error for field {field}: The entity created by this field was selected, but the field is missing from the stored configuration. This may indicate corrupted configuration data. Please recreate the element."
-    },
-    "self_referential_invalid_value": {
-      "message": "Configuration error for field {field}: The entity created by this field was selected, but the stored value is not a valid scalar (found {value_type}). This may indicate corrupted configuration data. Please recreate the element."
-    },
-    "self_referential_no_current_data": {
-      "message": "Configuration error for field {field}: The entity created by this field was selected, but no previous configuration exists. This may indicate corrupted configuration data. Please recreate the element."
     },
     "setup_failed_permanent": {
       "message": "Setup failed due to configuration error: {error}. Please check your configuration."
@@ -815,17 +795,9 @@
       "title": "System has disconnected components",
       "description": "The system has {num_components} disconnected groups of elements that cannot exchange power.\n\nTo fix this issue:\n1. Review the following groups: {component_summary}\n2. Open the HAEO integration configuration options\n3. Add or adjust connections so every element belongs to the same group\n4. Save your changes; this issue will clear automatically once the system is fully connected"
     },
-    "invalid_config": {
-      "title": "Invalid configuration for {element_name}",
-      "description": "Element {element_name} has an invalid configuration: {config_problem}\n\nTo fix this issue:\n1. Open the HAEO integration settings\n2. Navigate to the {element_name} element configuration\n3. Correct the configuration problem described above\n4. Save your changes and reload the integration"
-    },
     "invalid_connection_endpoints": {
       "title": "Connections bypass an element's own limits and prices",
       "description": "Some elements connect directly to an element that applies its own prices, forecasts, power limits, and efficiencies on its own connection. A connection made directly to it bypasses all of those, so the optimizer treats it as free, unlimited power.\n\nAffected connections (element → endpoint):\n{connection_summary}\n\nTo fix this issue:\n1. Open the HAEO integration configuration\n2. Reconfigure each affected element to connect to the junction or inverter that its endpoint is connected to\n3. Save your changes; this issue will clear automatically once no element connects directly to one of these endpoints"
-    },
-    "missing_sensor": {
-      "title": "Missing sensor data for {element_name}",
-      "description": "The HAEO integration cannot find sensor data for element {element_name}. The sensor entity {sensor_entity_id} may not exist or may be unavailable.\n\nTo fix this issue:\n1. Check that the sensor entity exists in Home Assistant\n2. Verify the sensor is available and reporting data\n3. If the sensor was removed, reconfigure the element to use a different sensor\n4. If the sensor is temporarily unavailable, this issue will automatically dismiss when the sensor becomes available again"
     },
     "node_replaced_by_junction": {
       "title": "{element_name} is now a junction",

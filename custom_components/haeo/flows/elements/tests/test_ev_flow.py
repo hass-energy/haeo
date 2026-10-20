@@ -6,14 +6,12 @@ from unittest.mock import Mock
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import (
     VALUE_TYPE_ENTITY,
-    VALUE_TYPE_NONE,
     as_constant_value,
     as_entity_value,
     get_schema_value_kinds,
@@ -27,7 +25,6 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_MAX_CHARGE_RATE,
     CONF_ODOMETER,
     CONF_PUBLIC_CHARGING_PRICE,
-    CONF_RESERVE_PRICE,
     CONF_TRIP_CALENDAR,
     ELEMENT_TYPE,
     SECTION_CHARGING,
@@ -54,6 +51,7 @@ def _user_input(trip: dict[str, object] | None = None) -> dict[str, object]:
         },
         SECTION_CHARGING: {
             CONF_MAX_CHARGE_RATE: 7.4,
+            CONF_CONNECTED: ["binary_sensor.ev_plugged_in"],
         },
         SECTION_TRIP: trip or {},
         SECTION_PUBLIC_CHARGING: {},
@@ -75,7 +73,6 @@ async def test_user_step_creates_entry_with_calendar(
     user_input = _user_input(
         trip={
             CONF_TRIP_CALENDAR: ["calendar.ev_trips"],
-            CONF_CONNECTED: ["binary_sensor.ev_plugged_in"],
             CONF_ODOMETER: ["sensor.ev_odometer"],
         }
     )
@@ -85,7 +82,7 @@ async def test_user_step_creates_entry_with_calendar(
 
     data = flow.async_create_entry.call_args.kwargs["data"]
     assert data[SECTION_TRIP][CONF_TRIP_CALENDAR] == as_entity_value(["calendar.ev_trips"])
-    assert data[SECTION_TRIP][CONF_CONNECTED] == as_entity_value(["binary_sensor.ev_plugged_in"])
+    assert data[SECTION_CHARGING][CONF_CONNECTED] == as_entity_value(["binary_sensor.ev_plugged_in"])
     assert data[SECTION_TRIP][CONF_ODOMETER] == as_entity_value(["sensor.ev_odometer"])
     assert data[SECTION_VEHICLE][CONF_CAPACITY] == as_constant_value(60.0)
     assert data[SECTION_VEHICLE][CONF_CURRENT_SOC] == as_entity_value(["sensor.ev_soc"])
@@ -126,7 +123,10 @@ async def test_reconfigure_defaults_surface_calendar_entity(
             CONF_ENERGY_PER_DISTANCE: as_constant_value(0.15),
             CONF_CURRENT_SOC: as_entity_value(["sensor.ev_soc"]),
         },
-        SECTION_CHARGING: {CONF_MAX_CHARGE_RATE: as_constant_value(7.4)},
+        SECTION_CHARGING: {
+            CONF_MAX_CHARGE_RATE: as_constant_value(7.4),
+            CONF_CONNECTED: as_entity_value(["binary_sensor.ev_plugged_in"]),
+        },
         SECTION_TRIP: {
             CONF_TRIP_CALENDAR: as_entity_value(["calendar.ev_trips"]),
         },
@@ -155,37 +155,19 @@ async def test_reconfigure_defaults_surface_calendar_entity(
     assert defaults[SECTION_TRIP][CONF_TRIP_CALENDAR] == ["calendar.ev_trips"]
 
 
-async def test_new_entry_leaves_plugged_in_sensor_unset(
-    hass: HomeAssistant,
-    hub_entry: MockConfigEntry,
-) -> None:
-    """A new EV does not pre-fill a plugged-in state that would override the trip calendar."""
-    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
-    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
-
-    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
-    defaults = flow._build_defaults("Test EV", input_fields)
-
-    assert CONF_CONNECTED not in defaults[SECTION_TRIP]
-
-
-def test_plugged_in_field_accepts_only_a_live_sensor() -> None:
-    """A constant plugged-in state would pin the current interval forever, so it is not offered."""
+def test_plugged_in_field_requires_a_live_sensor() -> None:
+    """The plugged-in sensor is required and takes only an entity: a constant would pin the current interval."""
     input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
     schema_info = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
 
-    kinds = get_schema_value_kinds(schema_info[SECTION_TRIP][CONF_CONNECTED].value_type)
+    kinds = get_schema_value_kinds(schema_info[SECTION_CHARGING][CONF_CONNECTED].value_type)
 
-    assert kinds == frozenset({VALUE_TYPE_ENTITY, VALUE_TYPE_NONE})
+    assert kinds == frozenset({VALUE_TYPE_ENTITY})
 
 
-@pytest.mark.parametrize(
-    ("section", "field"),
-    [(SECTION_PUBLIC_CHARGING, CONF_PUBLIC_CHARGING_PRICE), (SECTION_TRIP, CONF_RESERVE_PRICE)],
-)
-def test_penalty_prices_cannot_be_negative(section: str, field: str) -> None:
-    """Penalty price inputs are bounded below by zero so the optimization stays bounded."""
-    field_info = get_input_fields(ELEMENT_TYPE)[section][field]
+def test_public_charging_price_cannot_be_negative() -> None:
+    """The public charging price prices trip shortfalls, so it is bounded below by zero to keep the plan bounded."""
+    field_info = get_input_fields(ELEMENT_TYPE)[SECTION_PUBLIC_CHARGING][CONF_PUBLIC_CHARGING_PRICE]
 
     assert is_number_field_info(field_info)
     assert field_info.entity_description.native_min_value == 0.0
@@ -202,8 +184,8 @@ async def test_plugged_in_entity_picker_offers_binary_sensors(
     result = await flow.async_step_user(user_input=None)
 
     sections = {marker.schema: section for marker, section in result["data_schema"].schema.items()}
-    trip_fields = {marker.schema: selector for marker, selector in sections[SECTION_TRIP].schema.schema.items()}
-    entity_choice = trip_fields[CONF_CONNECTED].config["choices"][CHOICE_ENTITY]
+    charging_fields = {marker.schema: selector for marker, selector in sections[SECTION_CHARGING].schema.schema.items()}
+    entity_choice = charging_fields[CONF_CONNECTED].config["choices"][CHOICE_ENTITY]
     domains = entity_choice["selector"]["entity"]["domain"]
 
     assert {"binary_sensor", "input_boolean"} <= set(domains)

@@ -1,11 +1,12 @@
 """Tests for EV element model mapping and trip optimization behavior."""
 
-from typing import NamedTuple
+from typing import NamedTuple, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
 import pytest
 
+from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.adapters.elements.ev import (
     DEFAULT_PUBLIC_CHARGING_PRICE,
     EV_DEVICE_EV,
@@ -13,15 +14,18 @@ from custom_components.haeo.core.adapters.elements.ev import (
     EV_POWER_ACTIVE,
     EV_POWER_CHARGE,
     EV_POWER_DISCHARGE,
-    EV_RESERVE_SHORTFALL,
     EV_STATE_OF_CHARGE,
     EV_TRIP_ENERGY_DELIVERED,
     EV_TRIP_ENERGY_SHORTFALL,
     adapter,
 )
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.config_loader import load_element_config
+from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_BATTERY,
+    MODEL_ELEMENT_TYPE_BUFFER,
     MODEL_ELEMENT_TYPE_CONNECTION,
     MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
     MODEL_ELEMENT_TYPE_NODE,
@@ -34,51 +38,45 @@ from custom_components.haeo.core.model.elements.deferrable_load import (
     DEFERRABLE_LOAD_ENERGY_SHORTFALL,
     DeferrableLoadElementConfig,
 )
-from custom_components.haeo.core.schema import as_connection_target
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.ev import EvConfigData
+from custom_components.haeo.core.schema.elements.ev import EvConfigData, EvConfigSchema
+
+N_PERIODS = 4
 
 
-def _trip_inputs(
-    presence: list[float],
-    value_edge_start: list[float],
-    value_edge_end: list[float],
-    open_since: float | None = None,
-) -> dict[str, object]:
-    """Build the inputs the trip calendar feeds from per-boundary presence and trip distance edges.
+def _trips(*trips: tuple[int, int, float], n: int = N_PERIODS) -> dict[str, object]:
+    """Build the inputs the trip calendar feeds from trips given as (start, end, distance) boundaries.
 
-    Periods are away where the boundary starting them is present. A trip
-    starts where an away period follows home, or where one trip ends as the
-    next starts, and covers the distance at its end edge.
+    A trip starting at boundary 0 is the trip open at the horizon start: it
+    opens there, but its window began before the horizon.
     """
-    away = np.array(presence[:-1], dtype=np.float64)
-    trip_start = np.zeros(len(presence), dtype=np.float64)
-    for t in range(1, len(away)):
-        touching = value_edge_end[t] > 0.0 and value_edge_start[t] > 0.0
-        trip_start[t] = float(away[t] > 0.0 and (away[t - 1] <= 0.0 or touching))
-    inputs: dict[str, object] = {
-        "away": away,
-        "trip_start": trip_start,
-        "trip_distance": np.array(value_edge_end, dtype=np.float64),
-    }
-    if open_since is not None:
-        inputs["trip_calendar_open_since"] = open_since
-    return inputs
+    away = np.zeros(n)
+    trip_start = np.zeros(n + 1)
+    opened = np.zeros(n + 1)
+    due = np.zeros(n + 1)
+    for start, end, distance in trips:
+        away[start:end] = 1.0
+        trip_start[start] = float(start > 0)
+        opened[start] += distance
+        due[end] += distance
+    return {"away": away, "trip_start": trip_start, "trip_opened": opened, "trip_due": due}
 
 
-def _ev_config(**overrides: object) -> EvConfigData:
+def _ev_config(*, plugged_in: bool = True, **overrides: object) -> EvConfigData:
     """Build an EV config with sensible defaults, applying overrides."""
     config: dict[str, object] = {
         "element_type": ElementType.EV,
         "name": "ev",
         "connection": as_connection_target("home"),
         "vehicle": {
-            "capacity": np.array([50.0] * 5),
+            "capacity": np.array([50.0] * (N_PERIODS + 1)),
             "energy_per_distance": 0.2,
             "current_soc": 0.10,
         },
         "charging": {
             "max_charge_rate": 10.0,
+            "connected": np.full(N_PERIODS, 1.0 if plugged_in else 0.0),
         },
         "power_limits": {},
         "efficiency": {},
@@ -111,13 +109,14 @@ def _max_power(connection: ConnectionElementConfig) -> NDArray[np.float64] | flo
     """Return a connection's power limit."""
     segment = connection.get("segments", {})["power_limit"]
     assert segment["segment_type"] == "power_limit"
-    return _present(segment.get("max_power"))
+    max_power = segment.get("max_power")
+    assert max_power is not None
+    return max_power
 
 
-def _present[T](value: T | None) -> T:
-    """Narrow an optional model element value that the test expects to be set."""
-    assert value is not None
-    return value
+def _home(config: EvConfigData) -> NDArray[np.float64]:
+    """Return where the car is home: where its trip connection carries no power."""
+    return np.asarray(_max_power(_elements(config).trip_connection)) == 0.0
 
 
 # --- model_elements structure ---
@@ -137,223 +136,157 @@ def test_model_elements_structure() -> None:
     assert elements.pack.get("initial_charge") == pytest.approx(5.0)  # SOC ratio 0.10 of 50 kWh
     assert elements.charge["source"] == "home"
     assert elements.charge["target"] == "ev"
-    assert elements.discharge["source"] == "ev"
-    assert elements.discharge["target"] == "home"
-    assert elements.trip_connection["source"] == "ev"
     assert elements.trip_connection["target"] == "ev:trip"
 
 
-def test_no_trip_config_yields_inert_trip_load() -> None:
-    """Without trip data the trip load requires nothing and nothing can flow."""
-    elements = _elements(_ev_config())
+def test_no_trip_config_yields_an_inert_trip_load() -> None:
+    """Without a trip calendar the trip load has no windows and needs nothing."""
+    trip = _elements(_ev_config()).trip
 
-    trip = elements.trip
-    assert trip["in_window"] == 0.0
-    assert trip["requirement"] == 0.0
-    assert trip.get("initial_energy") == 0.0
-    assert "overage_price" not in trip
-    assert _max_power(elements.trip_connection) == 0.0
-
-
-def test_default_public_price_applies_when_unconfigured() -> None:
-    """The trip deficit is always priced, defaulting to the high price."""
-    elements = _elements(_ev_config())
-
-    assert elements.trip["deficit_price"] == DEFAULT_PUBLIC_CHARGING_PRICE
-
-
-def test_configured_public_price_is_used() -> None:
-    """A configured public charging price becomes the deficit price."""
-    elements = _elements(_ev_config(public_charging={"public_charging_price": 0.6}))
-
-    assert elements.trip["deficit_price"] == pytest.approx(0.6)
-
-
-def test_calendar_drives_trip_arrays_and_masks() -> None:
-    """Calendar presence and edges become trip windows, requirement, and masks."""
-    config = _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[0.0, 0.0, 1.0, 0.0, 0.0],
-                value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
-                value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
-            ),
-        },
-    )
-    elements = _elements(config)
-
-    trip = elements.trip
-    np.testing.assert_allclose(trip["in_window"], [0.0, 0.0, 1.0, 0.0])
-    np.testing.assert_allclose(trip["window_start"], [0.0, 0.0, 1.0, 0.0, 0.0])
-    np.testing.assert_allclose(trip["requirement"], [0.0, 0.0, 0.0, 6.0, 0.0])  # 30 km * 0.2 kWh/km
-    assert "overage_price" not in trip
-
-    # Home charging masked off while away (period 2), trip flow open only then.
-    home_charge_limit = _max_power(elements.charge)
-    np.testing.assert_allclose(home_charge_limit, [10.0, 10.0, 0.0, 10.0])
-    trip_limit = _max_power(elements.trip_connection)
-    np.testing.assert_allclose(np.asarray(trip_limit) > 0, [False, False, True, False])
-
-
-def test_live_connected_sensor_pins_first_interval() -> None:
-    """The live sensor overrides the calendar for the current interval only."""
-    config = _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[0.0, 0.0, 1.0, 0.0, 0.0],
-                value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
-                value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
-            ),
-            "connected": 0.0,
-        },
-    )
-    elements = _elements(config)
-
-    home_charge_limit = _max_power(elements.charge)
-    np.testing.assert_allclose(home_charge_limit, [0.0, 10.0, 0.0, 10.0])
+    np.testing.assert_array_equal(trip["in_window"], np.zeros(N_PERIODS))
+    np.testing.assert_array_equal(trip["due"], np.zeros(N_PERIODS + 1))
 
 
 @pytest.mark.parametrize(
-    ("trip", "expected_charge_limit", "expected_trip_limit"),
+    ("public_charging", "expected"),
     [
-        pytest.param({"connected": 2.0}, 10.0, 0.0, id="no_calendar_scalar"),
-        pytest.param(
-            {"connected": np.array([2.0, 0.3, 1.0, 0.0])},
-            [10.0, 0.0, 10.0, 0.0],
-            [0.0, 1.0e6, 0.0, 1.0e6],
-            id="no_calendar_series",
-        ),
-        pytest.param(
-            {
-                **_trip_inputs(
-                    presence=[0.0, 0.0, 1.0, 0.0, 0.0],
-                    value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
-                    value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
-                ),
-                "connected": 2.0,
-            },
-            [10.0, 10.0, 0.0, 10.0],
-            [0.0, 0.0, 1.0e6, 0.0],
-            id="with_calendar",
-        ),
+        pytest.param({}, DEFAULT_PUBLIC_CHARGING_PRICE, id="default"),
+        pytest.param({"public_charging_price": 0.6}, 0.6, id="configured"),
     ],
 )
-def test_summed_plugged_in_readings_count_as_plugged_in_once(
-    trip: dict[str, object],
-    expected_charge_limit: float | list[float],
-    expected_trip_limit: float | list[float],
+def test_trip_shortfall_is_priced_at_the_public_charging_price(
+    public_charging: dict[str, float], expected: float
 ) -> None:
-    """Several plugged-in entities summing above one still read as a single plugged-in car."""
-    config = _ev_config(trip=trip)
+    """The trip's shortfall price is the public charging price, high by default, and overage is free."""
+    trip = _elements(_ev_config(public_charging=public_charging)).trip
+
+    np.testing.assert_allclose(trip["deficit_price"], [expected] * (N_PERIODS + 1))
+    np.testing.assert_allclose(trip["overage_price"], [0.0] * (N_PERIODS + 1))
+
+
+def test_calendar_drives_trip_energy_and_home_masks() -> None:
+    """Trip distances become energy due at each trip's end, and home charging stops while away."""
+    config = _ev_config(trip=_trips((2, 3, 30.0)))
     elements = _elements(config)
 
-    np.testing.assert_allclose(_max_power(elements.charge), expected_charge_limit)
-    np.testing.assert_allclose(_max_power(elements.trip_connection), expected_trip_limit)
+    np.testing.assert_allclose(elements.trip["opened"], [0.0, 0.0, 6.0, 0.0, 0.0])
+    np.testing.assert_allclose(elements.trip["due"], [0.0, 0.0, 0.0, 6.0, 0.0])
+    np.testing.assert_allclose(_max_power(elements.charge), [10.0, 10.0, 0.0, 10.0])
+    np.testing.assert_array_equal(_home(config), [True, True, False, True])
 
-    # A negative trip limit would make the model infeasible.
-    _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
+
+@pytest.mark.parametrize("plugged_in", [True, False])
+def test_plugged_in_sensor_pins_the_current_interval(*, plugged_in: bool) -> None:
+    """The plugged-in sensor decides whether the car is home now; the calendar decides later periods."""
+    config = _ev_config(plugged_in=plugged_in, trip=_trips((2, 3, 30.0)))
+
+    np.testing.assert_array_equal(_home(config), [plugged_in, True, False, True])
 
 
-def test_calendar_governs_current_interval_without_plugged_in_sensor() -> None:
-    """With only a calendar, a trip window open now keeps the car away now."""
-    config = _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[1.0, 1.0, 0.0, 0.0, 0.0],
-                value_edge_start=[30.0, 0.0, 0.0, 0.0, 0.0],
-                value_edge_end=[0.0, 0.0, 30.0, 0.0, 0.0],
-            ),
-        },
-    )
+def test_glitched_soc_sensor_is_clamped() -> None:
+    """A state of charge outside 0-100% is clamped to the pack."""
+    config = _ev_config()
+    config["vehicle"]["current_soc"] = 1.7
+
+    assert _elements(config).pack.get("initial_charge") == pytest.approx(50.0)
+
+
+# --- The trip open at the horizon start ---
+
+
+def test_plugged_in_without_driving_has_not_left_yet() -> None:
+    """Plugged in during an open trip without having driven, the car is home now and the trip is still due."""
+    config = _ev_config(trip={**_trips((0, 2, 30.0)), "odometer": 0.0})
     elements = _elements(config)
 
-    home_charge_limit = _max_power(elements.charge)
-    np.testing.assert_allclose(home_charge_limit, [0.0, 0.0, 10.0, 10.0])
-
-
-def test_odometer_progress_reduces_trip_requirement() -> None:
-    """While away, distance already driven becomes trip battery initial charge."""
-    config = _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[1.0, 0.0, 0.0, 0.0, 0.0],
-                value_edge_start=[30.0, 0.0, 0.0, 0.0, 0.0],
-                value_edge_end=[0.0, 30.0, 0.0, 0.0, 0.0],
-                open_since=_OPEN_TRIP_START,
-            ),
-            "connected": 0.0,
-            "odometer": 10_050.0,
-            "connected_off_periods": [(_DEPARTURE, None)],
-            "odometer_readings": [(_DEPARTURE, 10_040.0)],
-        },
-    )
-    elements = _elements(config)
-
-    # 10 km driven * 0.2 kWh/km = 2 kWh already consumed
-    assert elements.trip.get("initial_energy") == pytest.approx(2.0)
-
-
-def test_odometer_progress_not_credited_outside_trip_window() -> None:
-    """Distance from a finished trip does not cover a future trip while unplugged."""
-    config = _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[0.0, 0.0, 1.0, 0.0, 0.0],
-                value_edge_start=[0.0, 0.0, 50.0, 0.0, 0.0],
-                value_edge_end=[0.0, 0.0, 0.0, 50.0, 0.0],
-            ),
-            "connected": 0.0,
-            "odometer": 10_300.0,
-            "connected_off_periods": [(_DEPARTURE, None)],
-            "odometer_readings": [(_DEPARTURE, 10_000.0)],
-        },
-    )
-    elements = _elements(config)
-
+    np.testing.assert_array_equal(_home(config), [True, False, True, True])
+    np.testing.assert_allclose(elements.trip["due"], [0.0, 0.0, 6.0, 0.0, 0.0])
     assert elements.trip.get("initial_energy") == 0.0
 
 
-def test_odometer_progress_credits_only_the_open_trip_window() -> None:
-    """Distance driven beyond the open trip completes it without reaching later trips."""
-    config = _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[1.0, 0.0, 0.0, 1.0, 0.0],
-                value_edge_start=[30.0, 0.0, 0.0, 50.0, 0.0],
-                value_edge_end=[0.0, 30.0, 0.0, 0.0, 50.0],
-                open_since=_OPEN_TRIP_START,
-            ),
-            "connected": 0.0,
-            "odometer": 10_100.0,
-            "connected_off_periods": [(_DEPARTURE, None)],
-            "odometer_readings": [(_DEPARTURE, 10_000.0)],
-        },
-    )
+def test_plugged_in_after_driving_ends_the_trip_and_keeps_later_ones() -> None:
+    """Plugged in after driving, the car is back: its trip is dropped, and later trips still happen."""
+    config = _ev_config(trip={**_trips((0, 2, 30.0), (3, 4, 20.0)), "odometer": 12.0})
     elements = _elements(config)
 
-    # The full 100 km seeds only the open window; the model treats the
-    # overshoot as sunk, so the later 50 km trip is still fully due.
-    assert elements.trip.get("initial_energy") == pytest.approx(20.0)
+    np.testing.assert_array_equal(_home(config), [True, True, True, False])
+    np.testing.assert_allclose(elements.trip["opened"], [0.0, 0.0, 0.0, 4.0, 0.0])
+    np.testing.assert_allclose(elements.trip["due"], [0.0, 0.0, 0.0, 0.0, 4.0])
+    np.testing.assert_allclose(_max_power(elements.charge), [10.0, 10.0, 10.0, 0.0])
 
 
-def test_odometer_progress_ignored_while_connected() -> None:
-    """Stale odometer readings do not credit the trip battery when home."""
-    config = _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[0.0, 0.0, 1.0, 0.0, 0.0],
-                value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
-                value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
-            ),
-            "connected": 1.0,
-            "odometer": 10_050.0,
-            "connected_off_periods": [(_DEPARTURE, None)],
-            "odometer_readings": [(_DEPARTURE, 10_000.0)],
+@pytest.mark.parametrize(
+    ("odometer", "expected"),
+    [
+        pytest.param(None, 0.0, id="without_an_odometer"),
+        pytest.param(10.0, 2.0, id="under_the_trip"),
+        pytest.param(100.0, 20.0, id="beyond_the_trip"),
+    ],
+)
+def test_unplugged_on_a_trip_credits_the_distance_driven(odometer: float | None, expected: float) -> None:
+    """Unplugged during an open trip, the energy for the distance driven counts toward it."""
+    trip = _trips((0, 2, 30.0)) if odometer is None else {**_trips((0, 2, 30.0)), "odometer": odometer}
+    config = _ev_config(plugged_in=False, trip=trip)
+
+    assert _elements(config).trip.get("initial_energy") == pytest.approx(expected)
+    np.testing.assert_array_equal(_home(config), [False, False, True, True])
+
+
+def test_loads_an_open_trip_from_captured_states() -> None:
+    """An EV loaded from captured states credits the distance driven since its open trip began."""
+    start = 1_767_225_600.0
+    trip = {
+        "start": "2026-01-01T00:00:00+00:00",
+        "end": "2026-01-01T03:00:00+00:00",
+        "summary": "Beach",
+        "location": "50 km",
+        "description": None,
+    }
+    states = {
+        "calendar.trips": FakeEntityState("calendar.trips", "on", {CALENDAR_EVENTS_ATTRIBUTE: [trip]}),
+        "sensor.odometer": FakeEntityState(
+            "sensor.odometer",
+            "10030",
+            {
+                "unit_of_measurement": "km",
+                "device_class": "distance",
+                "state_class": "total_increasing",
+                METER_TOTALS_ATTRIBUTE: [(start - 600.0, 400.0), (start, 400.0), (start + 3000.0, 430.0)],
+            },
+        ),
+        "binary_sensor.plugged_in": FakeEntityState("binary_sensor.plugged_in", "off", {}),
+        "sensor.soc": FakeEntityState("sensor.soc", "60", {"unit_of_measurement": "%"}),
+    }
+    config: EvConfigSchema = {
+        "element_type": ElementType.EV,
+        "name": "ev",
+        "connection": as_connection_target("home"),
+        "vehicle": {
+            "capacity": as_constant_value(50.0),
+            "energy_per_distance": as_constant_value(0.2),
+            "current_soc": as_entity_value(["sensor.soc"]),
         },
-    )
-    elements = _elements(config)
+        "charging": {
+            "max_charge_rate": as_constant_value(7.0),
+            "connected": as_entity_value(["binary_sensor.plugged_in"]),
+        },
+        "trip": {
+            "trip_calendar": as_entity_value(["calendar.trips"]),
+            "odometer": as_entity_value(["sensor.odometer"]),
+        },
+        "power_limits": {},
+        "efficiency": {},
+    }
+    times = tuple(start + 3600.0 * k for k in range(1, N_PERIODS + 2))
 
-    assert elements.trip.get("initial_energy") == 0.0
+    loaded = load_element_config("ev", config, FakeStateMachine(states), times)
+    assert loaded["element_type"] == ElementType.EV
+    trip_load = _elements(loaded).trip
+
+    np.testing.assert_allclose(trip_load["window_start"], [0.0] * (N_PERIODS + 1))
+    np.testing.assert_allclose(trip_load["opened"], [10.0, 0.0, 0.0, 0.0, 0.0])
+    np.testing.assert_allclose(trip_load["due"], [0.0, 0.0, 10.0, 0.0, 0.0])
+    assert trip_load.get("initial_energy") == pytest.approx(6.0)
 
 
 # --- End-to-end optimization behavior ---
@@ -391,16 +324,7 @@ def _solve_ev_network(config: EvConfigData, grid_price: list[float]) -> Network:
 
 def test_optimizer_precharges_before_trip_in_cheap_period() -> None:
     """The EV charges ahead of the trip when energy is cheapest."""
-    config = _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[0.0, 0.0, 1.0, 0.0, 0.0],
-                value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
-                value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
-            ),
-        },
-    )
-    network = _solve_ev_network(config, grid_price=[0.1, 0.5, 0.5, 0.5])
+    network = _solve_ev_network(_ev_config(trip=_trips((2, 3, 30.0))), grid_price=[0.1, 0.5, 0.5, 0.5])
 
     trip_delivered = network.elements["ev:trip"].outputs()[DEFERRABLE_LOAD_ENERGY_DELIVERED].values
     assert trip_delivered[3] == pytest.approx(6.0, abs=1e-6)
@@ -410,41 +334,27 @@ def test_optimizer_precharges_before_trip_in_cheap_period() -> None:
     assert ev_stored[1] == pytest.approx(6.0, abs=1e-6)
 
 
-def test_shortfall_is_priced_at_the_public_price() -> None:
-    """When home charging cannot cover the trip, the shortfall is priced."""
+def test_trip_shortfall_is_left_to_public_charging() -> None:
+    """When home charging cannot cover the trip, the rest is a shortfall rather than infeasible."""
     config = _ev_config(
-        charging={"max_charge_rate": 2.0},
-        trip={
-            **_trip_inputs(
-                presence=[0.0, 0.0, 1.0, 0.0, 0.0],
-                value_edge_start=[0.0, 0.0, 100.0, 0.0, 0.0],
-                value_edge_end=[0.0, 0.0, 0.0, 100.0, 0.0],
-            ),
-        },
+        charging={"max_charge_rate": 2.0, "connected": np.ones(N_PERIODS)},
+        trip=_trips((2, 3, 100.0)),
         public_charging={"public_charging_price": 0.8},
     )
     # Trip needs 20 kWh; pack holds 5 + at most 4 charged before departure.
     network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
 
     trip_outputs = network.elements["ev:trip"].outputs()
-    delivered = trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values
-    shortfall = trip_outputs[DEFERRABLE_LOAD_ENERGY_SHORTFALL].values
-    assert delivered[3] == pytest.approx(9.0, abs=1e-6)
-    assert shortfall[3] == pytest.approx(11.0, abs=1e-6)
+    assert trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[3] == pytest.approx(9.0, abs=1e-6)
+    assert trip_outputs[DEFERRABLE_LOAD_ENERGY_SHORTFALL].values[3] == pytest.approx(11.0, abs=1e-6)
 
 
 def test_home_charge_limit_binds_at_the_charger() -> None:
     """The charge limit and charge power are measured at the charger, before charging losses."""
     config = _ev_config(
-        charging={"max_charge_rate": 2.0},
+        charging={"max_charge_rate": 2.0, "connected": np.ones(N_PERIODS)},
         efficiency={"efficiency_target_source": 0.9},
-        trip={
-            **_trip_inputs(
-                presence=[0.0, 0.0, 1.0, 0.0, 0.0],
-                value_edge_start=[0.0, 0.0, 100.0, 0.0, 0.0],
-                value_edge_end=[0.0, 0.0, 0.0, 100.0, 0.0],
-            ),
-        },
+        trip=_trips((2, 3, 100.0)),
     )
     network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
     model_outputs = {name: element.outputs() for name, element in network.elements.items()}
@@ -456,34 +366,27 @@ def test_home_charge_limit_binds_at_the_charger() -> None:
     np.testing.assert_allclose(outputs[EV_ENERGY_STORED].values[:3], [5.0, 6.8, 8.6], atol=1e-6)
 
 
+def test_driving_beyond_the_trip_stays_feasible() -> None:
+    """A car that drove further than its trip solves, with no shortfall and no more trip energy drawn."""
+    config = _ev_config(plugged_in=False, trip={**_trips((0, 1, 30.0)), "odometer": 100.0})
+    network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
+
+    trip_outputs = network.elements["ev:trip"].outputs()
+    np.testing.assert_allclose(trip_outputs[DEFERRABLE_LOAD_ENERGY_SHORTFALL].values, [0.0] * (N_PERIODS + 1))
+    assert trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[1] == pytest.approx(20.0)
+    assert network.elements["ev:trip_connection"].outputs()["connection_power"].values[0] == pytest.approx(0.0)
+
+
 # --- Outputs mapping ---
 
 
 def test_outputs_mapping_from_solved_network() -> None:
     """Adapter outputs map solved model values to EV output names."""
-    config = _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[0.0, 0.0, 1.0, 0.0, 0.0],
-                value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
-                value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
-            ),
-        },
-    )
+    config = _ev_config(trip=_trips((2, 3, 30.0)))
     network = _solve_ev_network(config, grid_price=[0.1, 0.5, 0.5, 0.5])
     model_outputs = {name: element.outputs() for name, element in network.elements.items()}
 
     outputs = adapter.outputs("ev", model_outputs, config=config)[EV_DEVICE_EV]
-
-    assert set(outputs) >= {
-        EV_POWER_CHARGE,
-        EV_POWER_DISCHARGE,
-        EV_POWER_ACTIVE,
-        EV_STATE_OF_CHARGE,
-        EV_ENERGY_STORED,
-        EV_TRIP_ENERGY_DELIVERED,
-        EV_TRIP_ENERGY_SHORTFALL,
-    }
 
     assert outputs[EV_TRIP_ENERGY_DELIVERED].values[3] == pytest.approx(6.0, abs=1e-6)
     assert outputs[EV_TRIP_ENERGY_SHORTFALL].values[3] == pytest.approx(0.0, abs=1e-6)
@@ -510,332 +413,128 @@ def test_state_of_charge_uses_capacity_at_each_boundary() -> None:
     np.testing.assert_allclose(outputs[EV_STATE_OF_CHARGE].values, stored / config["vehicle"]["capacity"])
 
 
-# --- Telemetry robustness ---
+# --- Buffers ---
 
 
-def test_odometer_overshoot_beyond_trip_stays_feasible() -> None:
-    """A car that drove further than the scheduled trip must still solve."""
-    config = _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[1.0, 0.0, 0.0, 0.0, 0.0],
-                value_edge_start=[30.0, 0.0, 0.0, 0.0, 0.0],
-                value_edge_end=[0.0, 30.0, 0.0, 0.0, 0.0],
-                open_since=_OPEN_TRIP_START,
-            ),
-            "connected": 0.0,
-            "odometer": 10_100.0,
-            "connected_off_periods": [(_DEPARTURE, None)],
-            "odometer_readings": [(_DEPARTURE, 10_000.0)],  # 100 km driven on a 30 km trip
-        },
+class _BufferSpec(TypedDict):
+    loads: list[str]
+    storage: list[str]
+    window: float
+    level: float | None
+
+
+def _reserve(loads: list[str], storage: list[str], *, window: float = 2.0, level: float | None = None) -> _BufferSpec:
+    return {"loads": loads, "storage": storage, "window": window, "level": level}
+
+
+def _buffered_home_network(buffers: dict[str, _BufferSpec], *, trip_periods: tuple[int, int] = (3, 4)) -> Network:
+    """Solve a house, a home battery, and a V2G EV with a 10 kWh trip under reserve buffers.
+
+    Grid energy is cheapest in period 0. The trip covers periods ``trip_periods[0]`` up to ``trip_periods[1]``.
+    """
+    n = 4
+    network = Network(name="test", periods=np.ones(n))
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "home", "is_source": False, "is_sink": False})
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "grid", "is_source": True, "is_sink": False})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "grid:import",
+            "source": "grid",
+            "target": "home",
+            "tags": {1},
+            "segments": {"pricing": {"segment_type": "pricing", "price": np.array([0.1, 0.3, 0.3, 0.3])}},
+        }
     )
-    elements = _elements(config)
-    assert elements.trip.get("initial_energy") == pytest.approx(20.0)
-
-    network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
-
-    trip_outputs = network.elements["ev:trip"].outputs()
-    # The overshoot is sunk: no shortfall, and no new trip energy drawn.
-    np.testing.assert_allclose(trip_outputs[DEFERRABLE_LOAD_ENERGY_SHORTFALL].values, [0.0] * 5)
-    assert trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[1] == pytest.approx(20.0)
-    assert network.elements["ev:trip_connection"].outputs()["connection_power"].values[0] == pytest.approx(0.0)
-
-
-# The open trip in _open_trip_config began an hour before the horizon start.
-_OPEN_TRIP_START = -3600.0
-# The car first unplugged on that trip half an hour before the horizon start.
-_DEPARTURE = -1800.0
-
-
-def _open_trip_config(**trip: object) -> EvConfigData:
-    """Build a config with a 30 km (6 kWh) trip open from before the horizon to boundary 2."""
-    return _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[1.0, 1.0, 0.0, 0.0, 0.0],
-                value_edge_start=[30.0, 0.0, 0.0, 0.0, 0.0],
-                value_edge_end=[0.0, 0.0, 30.0, 0.0, 0.0],
-                open_since=_OPEN_TRIP_START,
-            ),
-            **trip,
-        },
+    network.add({"element_type": MODEL_ELEMENT_TYPE_NODE, "name": "house", "is_source": False, "is_sink": True})
+    network.add(
+        {
+            "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+            "name": "house:connection",
+            "source": "home",
+            "target": "house",
+            "tags": {1},
+            "segments": {"power_limit": {"segment_type": "power_limit", "max_power": np.ones(n), "fixed": True}},
+        }
     )
-
-
-def test_odometer_under_target_leaves_the_remainder_due() -> None:
-    """Driving less than planned so far leaves the rest of the trip due at its end."""
-    config = _open_trip_config(
-        connected=0.0,
-        connected_off_periods=[(_DEPARTURE, None)],
-        odometer=10_010.0,
-        odometer_readings=[(_DEPARTURE, 10_000.0)],
+    network.add(
+        {"element_type": MODEL_ELEMENT_TYPE_BATTERY, "name": "battery", "capacity": 20.0, "initial_charge": 2.0}
     )
-
-    network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
-
-    trip_outputs = network.elements["ev:trip"].outputs()
-    delivered = trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values
-    assert delivered[0] == pytest.approx(2.0)
-    assert delivered[2] == pytest.approx(6.0)
-    # Pack held 5 kWh; the remaining 4 kWh of the trip comes from it.
-    assert network.elements["ev"].outputs()[BATTERY_ENERGY_STORED].values[2] == pytest.approx(1.0)
-
-
-@pytest.mark.parametrize(
-    ("odometer", "odometer_at_departure"),
-    [
-        pytest.param(9_000.0, 10_000.0, id="negative_delta"),
-        pytest.param(float("nan"), 10_000.0, id="nan_reading"),
-        pytest.param(float("inf"), 10_000.0, id="infinite_reading"),
-        pytest.param(None, 10_000.0, id="missing_odometer"),
-        pytest.param(10_050.0, None, id="missing_disconnect_reading"),
-    ],
-)
-def test_odometer_garbage_credits_nothing(odometer: float | None, odometer_at_departure: float | None) -> None:
-    """Reset, stale, or missing odometer readings credit no trip energy."""
-    config = _open_trip_config(
-        connected=0.0,
-        connected_off_periods=[(_DEPARTURE, None)],
-        odometer=odometer,
-        odometer_readings=[] if odometer_at_departure is None else [(_DEPARTURE, odometer_at_departure)],
-    )
-
-    assert _elements(config).trip.get("initial_energy") == 0.0
-
-
-@pytest.mark.parametrize(
-    "trip",
-    [
-        pytest.param({}, id="no_unplug_history"),
-        pytest.param(
-            {"connected_off_periods": [(_OPEN_TRIP_START - 1200.0, _OPEN_TRIP_START - 600.0)]},
-            id="unplugged_before_trip_start",
-        ),
-        pytest.param(
+    for name, source, target in (("battery:charge", "home", "battery"), ("battery:discharge", "battery", "home")):
+        network.add(
             {
-                "connected_off_periods": [(_DEPARTURE, -60.0)],
-                "odometer": 10_000.0,
-                "odometer_readings": [(_DEPARTURE, 10_000.0)],
-            },
-            id="brief_unplug_without_driving",
-        ),
-    ],
-)
-def test_plugged_in_during_open_trip_has_not_left_yet(trip: dict[str, object]) -> None:
-    """A car plugged in during an open trip without having left still makes the trip."""
-    config = _open_trip_config(connected=1.0, reserve_soc=0.1, **trip)
-    elements = _elements(config)
-
-    # Home now; the trip squeezes into the rest of its window, still due at its end.
-    trip_load = elements.trip
-    np.testing.assert_allclose(trip_load["in_window"], [1.0, 1.0, 0.0, 0.0])
-    np.testing.assert_allclose(trip_load["requirement"], [0.0, 0.0, 6.0, 0.0, 0.0])
-    assert trip_load.get("initial_energy") == 0.0
-    np.testing.assert_allclose(_max_power(elements.charge), [10.0, 0.0, 10.0, 10.0])
-    np.testing.assert_allclose(_present(elements.pack.get("reserve_mask")), [0.0, 0.0, 1.0, 0.0, 0.0])
-
-    network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
-
-    trip_outputs = network.elements["ev:trip"].outputs()
-    assert trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[2] == pytest.approx(6.0)
-    np.testing.assert_allclose(trip_outputs[DEFERRABLE_LOAD_ENERGY_SHORTFALL].values, [0.0] * 5, atol=1e-9)
-    assert network.elements["ev:trip_connection"].outputs()["connection_power"].values[0] == pytest.approx(0.0)
-
-
-@pytest.mark.parametrize(
-    "trip",
-    [
-        pytest.param({"connected_off_periods": [(_DEPARTURE, -60.0)]}, id="unplugged_during_trip"),
-        pytest.param(
-            {"connected_off_periods": [(_OPEN_TRIP_START - 600.0, -60.0)]}, id="unplugged_just_before_trip_start"
-        ),
-        pytest.param(
-            {
-                "connected_off_periods": [(_DEPARTURE, -60.0)],
-                "odometer": 10_010.0,
-                "odometer_readings": [(_DEPARTURE, 10_000.0)],
-            },
-            id="unplugged_and_drove",
-        ),
-    ],
-)
-def test_plugged_in_after_leaving_during_open_trip_ends_the_trip(trip: dict[str, object]) -> None:
-    """A car back home after leaving during an open trip is done with it: no trip energy or public charging."""
-    config = _open_trip_config(connected=1.0, reserve_soc=0.2, **trip)
-    elements = _elements(config)
-
-    trip_load = elements.trip
-    np.testing.assert_allclose(trip_load["in_window"], [0.0, 0.0, 0.0, 0.0])
-    np.testing.assert_allclose(trip_load["requirement"], [0.0] * 5)
-    assert trip_load.get("initial_energy") == 0.0
-    # Home for the rest of the scheduled trip, and its end is not reserve checked.
-    np.testing.assert_allclose(_max_power(elements.charge), [10.0] * 4)
-    np.testing.assert_allclose(_present(elements.pack.get("reserve_mask")), [0.0] * 5)
-
-    network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
-
-    trip_outputs = network.elements["ev:trip"].outputs()
-    np.testing.assert_allclose(trip_outputs[DEFERRABLE_LOAD_ENERGY_SHORTFALL].values, [0.0] * 5)
-    np.testing.assert_allclose(trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values, [0.0] * 5)
-
-
-def test_unplug_history_ignored_while_unplugged() -> None:
-    """An unplugged car during an open trip is away whatever its unplug history says."""
-    config = _open_trip_config(connected=0.0, connected_off_periods=[(_DEPARTURE, -600.0), (-60.0, None)])
-    elements = _elements(config)
-
-    np.testing.assert_allclose(elements.trip["requirement"], [0.0, 0.0, 6.0, 0.0, 0.0])
-    np.testing.assert_allclose(_max_power(elements.charge), [0.0, 0.0, 10.0, 10.0])
-
-
-def test_resumed_trip_credits_distance_since_the_first_unplug() -> None:
-    """Leaving again after ducking home resumes the trip, counting distance from its first unplug."""
-    config = _open_trip_config(
-        connected=0.0,
-        # Left, came home and plugged in for a few minutes, then left again.
-        connected_off_periods=[(_DEPARTURE, -900.0), (-600.0, None)],
-        odometer=10_020.0,
-        odometer_readings=[(_DEPARTURE - 60.0, 10_000.0), (-900.0, 10_015.0)],
-    )
-    elements = _elements(config)
-
-    # 20 km since the first unplug at 0.2 kWh/km, not the 5 km since the latest one.
-    assert elements.trip.get("initial_energy") == pytest.approx(4.0)
-    np.testing.assert_allclose(elements.trip["requirement"], [0.0, 0.0, 6.0, 0.0, 0.0])
-
-
-def test_returning_early_keeps_later_trips() -> None:
-    """Ending the open trip leaves a touching later trip in place."""
+                "element_type": MODEL_ELEMENT_TYPE_CONNECTION,
+                "name": name,
+                "source": source,
+                "target": target,
+                "tags": {1},
+                "segments": {"power_limit": {"segment_type": "power_limit", "max_power": 5.0}},
+            }
+        )
     config = _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[1.0, 1.0, 1.0, 0.0, 0.0],
-                value_edge_start=[30.0, 20.0, 0.0, 0.0, 0.0],
-                value_edge_end=[0.0, 30.0, 0.0, 20.0, 0.0],
-                open_since=_OPEN_TRIP_START,
-            ),
-            "connected": 1.0,
-            "connected_off_periods": [(_DEPARTURE, -60.0)],
-        },
+        charging={"max_charge_rate": 10.0, "max_discharge_rate": 10.0, "connected": np.ones(n)},
+        trip=_trips((trip_periods[0], trip_periods[1], 50.0)),
     )
-    elements = _elements(config)
-
-    trip = elements.trip
-    np.testing.assert_allclose(trip["in_window"], [0.0, 1.0, 1.0, 0.0])
-    np.testing.assert_allclose(trip["window_start"], [0.0, 1.0, 0.0, 0.0, 0.0])
-    np.testing.assert_allclose(trip["requirement"], [0.0, 0.0, 0.0, 4.0, 0.0])
-    np.testing.assert_allclose(_max_power(elements.charge), [10.0, 0.0, 0.0, 10.0])
-
-
-def test_glitched_soc_sensor_is_clamped() -> None:
-    """A SOC reading above 100% cannot make the pack overfull."""
-    config = _ev_config()
-    config["vehicle"]["current_soc"] = 2.5  # 250% from a glitched sensor
-
-    elements = _elements(config)
-
-    assert elements.pack.get("initial_charge") == pytest.approx(50.0)  # clamped to capacity
-
-
-# --- Reserve demand pricing ---
+    for element in sorted(adapter.model_elements(config), key=lambda e: e["element_type"] != "node"):
+        if element["element_type"] == "connection":
+            element.setdefault("tags", {1})  # type: ignore[typeddict-unknown-key]  # spec allows tags
+        network.add(element)
+    for name, spec in buffers.items():
+        network.add(
+            {
+                "element_type": MODEL_ELEMENT_TYPE_BUFFER,
+                "name": name,
+                "kind": "reserve",
+                "generation": [],
+                "price": 1.0,
+                **spec,
+            }
+        )
+    network.optimize()
+    return network
 
 
-def _reserve_trip(**extra: object) -> dict[str, object]:
-    """Trip config with a calendar and a 20% reserve."""
-    return {
-        **_trip_inputs(
-            presence=[0.0, 0.0, 1.0, 0.0, 0.0],
-            value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
-            value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
-        ),
-        "reserve_soc": 0.2,
-        **extra,
+def test_buffer_counts_the_ev_trips_as_its_load() -> None:
+    """An EV picked as a buffer load counts its trip energy, not its charging, toward the requirement."""
+    network = _buffered_home_network({"reserve": _reserve(["house", "ev"], ["battery"])})
+
+    required = network.elements["reserve"].outputs()["buffer_energy_required"].values
+    # 1 kWh of house and the 10 kWh trip fall in the window from boundary 2.
+    assert required[2] == pytest.approx(12.0)
+
+
+def test_buffer_holds_the_trip_energy_in_the_ev_pack() -> None:
+    """With the EV also holding the buffer, trip energy already in the pack counts, so nothing extra is held."""
+    holding = _buffered_home_network({"reserve": _reserve(["house", "ev"], ["battery", "ev"])})
+    home_only = _buffered_home_network({"reserve": _reserve(["house", "ev"], ["battery"])})
+
+    available = holding.elements["reserve"].outputs()["buffer_energy_available"].values
+    assert available[2] == pytest.approx(12.0)
+    # The pack's 10 kWh covers the trip, so the home battery is not filled for it.
+    assert holding.elements["battery"].outputs()[BATTERY_ENERGY_STORED].values[2] == pytest.approx(2.0)
+    assert home_only.elements["battery"].outputs()[BATTERY_ENERGY_STORED].values[2] == pytest.approx(12.0)
+
+
+def test_buffers_over_the_same_batteries_each_hold_their_own_requirement() -> None:
+    """A home reserve, a whole-system emergency reserve, and an EV margin hold together over shared batteries."""
+    buffers = {
+        "home_reserve": _reserve(["house"], ["battery"]),
+        "emergency": _reserve(["house", "ev"], ["battery", "ev"], window=4.0),
+        "ev_margin": _reserve(["ev"], ["ev"], window=4.0, level=0.2),
     }
+    together = _buffered_home_network(buffers, trip_periods=(1, 3))
+    margin_only = _buffered_home_network({"ev_margin": buffers["ev_margin"]}, trip_periods=(1, 3))
 
+    def shortfall(network: Network, name: str) -> list[float]:
+        return list(network.elements[name].outputs()["buffer_energy_shortfall"].values)
 
-def test_reserve_config_masks_trip_window_ends() -> None:
-    """The reserve applies at trip end boundaries with the pack-scaled level."""
-    config = _ev_config(trip=_reserve_trip(reserve_price=0.5))
-    elements = _elements(config)
-
-    battery = elements.pack
-    np.testing.assert_allclose(_present(battery.get("reserve_level")), [10.0] * 5)  # 20% of 50 kWh
-    np.testing.assert_allclose(_present(battery.get("reserve_mask")), [0.0, 0.0, 0.0, 1.0, 0.0])
-    assert battery.get("reserve_price") == pytest.approx(0.5)
-
-
-def test_reserve_checked_at_end_of_away_event_without_distance() -> None:
-    """An away event with no parseable distance still has its end reserve checked."""
-    config = _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[0.0, 0.0, 1.0, 0.0, 0.0],
-                value_edge_start=[0.0] * 5,
-                value_edge_end=[0.0] * 5,
-            ),
-            "reserve_soc": 0.2,
-            "reserve_price": 1.0,
-        },
-        charging={"max_charge_rate": 0.5},  # can only add 1 kWh before leaving
+    # The home and emergency reserves are met wherever the plan can still act: the batteries start
+    # with 7 kWh against the 14 kWh the emergency reserve asks for now.
+    assert shortfall(together, "home_reserve") == pytest.approx([0.0] * 5)
+    assert shortfall(together, "emergency") == pytest.approx([7.0, 0.0, 0.0, 0.0, 0.0])
+    # The EV margin is the binding one, so it sets the plan the others share.
+    np.testing.assert_allclose(
+        together.elements["ev:charge"].outputs()["connection_power"].values,
+        margin_only.elements["ev:charge"].outputs()["connection_power"].values,
+        atol=1e-9,
     )
-    elements = _elements(config)
-
-    np.testing.assert_allclose(_present(elements.pack.get("reserve_mask")), [0.0, 0.0, 0.0, 1.0, 0.0])
-
-    network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
-    outputs = adapter.outputs("ev", {n: e.outputs() for n, e in network.elements.items()}, config=config)[EV_DEVICE_EV]
-    # The pack holds at most 6 kWh when the car leaves, short of the 10 kWh reserve.
-    assert outputs[EV_RESERVE_SHORTFALL].values[3] == pytest.approx(4.0, abs=1e-6)
-
-
-def test_reserve_price_defaults_to_public_price() -> None:
-    """Without an explicit price the public charging price applies."""
-    config = _ev_config(trip=_reserve_trip(), public_charging={"public_charging_price": 0.7})
-    elements = _elements(config)
-
-    assert elements.pack.get("reserve_price") == pytest.approx(0.7)
-
-
-def test_reserve_drives_extra_precharge() -> None:
-    """With a reserve, the optimizer charges for the trip plus the buffer."""
-    config = _ev_config(trip=_reserve_trip(reserve_price=2.0))
-    network = _solve_ev_network(config, grid_price=[0.1, 0.5, 0.5, 0.5])
-
-    # Pack ends the trip at the 10 kWh reserve instead of 0.
-    ev_stored = network.elements["ev"].outputs()[BATTERY_ENERGY_STORED].values
-    assert ev_stored[3] == pytest.approx(10.0, abs=1e-6)
-
-    outputs = adapter.outputs("ev", {n: e.outputs() for n, e in network.elements.items()}, config=config)[EV_DEVICE_EV]
-    assert outputs[EV_RESERVE_SHORTFALL].values[3] == pytest.approx(0.0, abs=1e-6)
-
-
-def test_reserve_shortfall_reported_when_unavoidable() -> None:
-    """When the buffer cannot be met, the shortfall sensor reports the dip."""
-    config = _ev_config(
-        charging={"max_charge_rate": 0.5},  # can only add 1 kWh before departure
-        trip=_reserve_trip(reserve_price=0.01),
-        public_charging={"public_charging_price": 10.0},
-    )
-    network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
-
-    outputs = adapter.outputs("ev", {n: e.outputs() for n, e in network.elements.items()}, config=config)[EV_DEVICE_EV]
-    # Pack holds at most 6 kWh at departure; the trip drains it toward zero,
-    # so the 10 kWh reserve is missed at the trip end boundary.
-    assert outputs[EV_RESERVE_SHORTFALL].values[3] > 0.0
-
-
-def test_no_reserve_means_no_reserve_output() -> None:
-    """Without reserve configuration the EV exposes no reserve sensor."""
-    config = _ev_config(
-        trip={
-            **_trip_inputs(
-                presence=[0.0, 0.0, 1.0, 0.0, 0.0],
-                value_edge_start=[0.0, 0.0, 30.0, 0.0, 0.0],
-                value_edge_end=[0.0, 0.0, 0.0, 30.0, 0.0],
-            ),
-        },
-    )
-    network = _solve_ev_network(config, grid_price=[0.1, 0.5, 0.5, 0.5])
-
-    outputs = adapter.outputs("ev", {n: e.outputs() for n, e in network.elements.items()}, config=config)[EV_DEVICE_EV]
-    assert EV_RESERVE_SHORTFALL not in outputs

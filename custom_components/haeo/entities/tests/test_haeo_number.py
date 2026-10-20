@@ -5,7 +5,7 @@ from datetime import timedelta
 import logging
 from types import MappingProxyType
 from typing import Any  # noqa: TID251  # captures HA's Any-typed extra_state_attributes property for later assertions
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.config_entries import ConfigSubentry
@@ -23,7 +23,6 @@ from custom_components.haeo.const import CONF_RECORD_FORECASTS, DOMAIN
 from custom_components.haeo.core.const import CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
 from custom_components.haeo.core.data.input_store import InputMode, create_input_store
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
-from custom_components.haeo.core.data.loader.source_history import OFF_PERIODS_ATTRIBUTE
 from custom_components.haeo.core.model import OutputType
 from custom_components.haeo.core.schema import (
     SchemaValue,
@@ -37,7 +36,8 @@ from custom_components.haeo.core.schema.elements.policy import ELEMENT_TYPE as P
 from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, FieldHint
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION, SECTION_EFFICIENCY
-from custom_components.haeo.elements import find_nested_config_path, get_nested_config_value_by_path
+from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
+from custom_components.haeo.elements import find_nested_config_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.haeo_number import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputNumber
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
@@ -223,9 +223,6 @@ class _SubentryStorage:
         self._subentry = subentry
         self._field_path = field_path
 
-    def read(self) -> object:
-        return get_nested_config_value_by_path(self._subentry.data, self._field_path)
-
     async def write(self, value: object) -> None:
         await async_update_subentry_value(
             self._hass,
@@ -258,6 +255,7 @@ def _make_entity(
         calendar=field_info.calendar,
     )
     store = create_input_store(
+        value=get_nested_config_value_by_path(subentry.data, fp),
         storage=storage,
         hint=hint,
         get_forecast_timestamps=horizon_manager.get_forecast_timestamps,
@@ -305,8 +303,8 @@ async def test_editable_mode_with_static_value(
 
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
 
-    assert entity.entity_mode == InputMode.EDITABLE
-    assert entity.store.source_entity_ids == []
+    assert entity._store.mode == InputMode.EDITABLE
+    assert entity._store.source_entity_ids == []
     assert entity.native_value == 10.5
     assert entity.native_unit_of_measurement == "kW"
     assert entity.native_min_value == 0.0
@@ -573,7 +571,7 @@ async def test_store_listener_syncs_when_store_mutates_externally(
     entity.async_write_ha_state = Mock()
     await _add_entity_to_hass(hass, entity)
 
-    entity.store.set_value(12.0)
+    entity._store.set_value(12.0)
 
     assert entity.native_value == 12.0
     entity.async_write_ha_state.assert_called()
@@ -593,7 +591,7 @@ async def test_negate_surfaces_running_value(
     entity = _make_entity(hass, config_entry, subentry, scalar_field_info, device_entry, horizon_manager, negate=True)
 
     # Store holds -0.15; the entity surfaces +0.15.
-    assert entity.store.native_value == -0.15
+    assert entity._store.native_value == -0.15
     assert entity.native_value == 0.15
 
     entity.async_write_ha_state = Mock()
@@ -604,7 +602,7 @@ async def test_negate_surfaces_running_value(
 
     # Setting +0.2 persists -0.2 to the store.
     assert entity.native_value == 0.2
-    assert entity.store.native_value == -0.2
+    assert entity._store.native_value == -0.2
 
 
 async def test_editable_set_value_updates_config_before_state_change(
@@ -694,8 +692,8 @@ async def test_driven_mode_with_single_entity(
 
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
 
-    assert entity.entity_mode == InputMode.DRIVEN
-    assert entity.store.source_entity_ids == ["sensor.power_limit"]
+    assert entity._store.mode == InputMode.DRIVEN
+    assert entity._store.source_entity_ids == ["sensor.power_limit"]
     assert entity.native_value is None  # Not loaded yet
 
     attrs = entity.extra_state_attributes
@@ -720,8 +718,8 @@ async def test_driven_mode_with_multiple_entities(
 
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
 
-    assert entity.entity_mode == InputMode.DRIVEN
-    assert entity.store.source_entity_ids == ["sensor.power1", "sensor.power2"]
+    assert entity._store.mode == InputMode.DRIVEN
+    assert entity._store.source_entity_ids == ["sensor.power1", "sensor.power2"]
 
 
 async def test_driven_mode_ignores_user_set_value(
@@ -956,7 +954,7 @@ async def test_editable_none_value_has_no_native_value(
 
     entity = _make_entity(hass, config_entry, subentry, scalar_field_info, device_entry, horizon_manager)
 
-    assert entity.entity_mode == InputMode.EDITABLE
+    assert entity._store.mode == InputMode.EDITABLE
     assert entity.native_value is None
 
 
@@ -1041,60 +1039,6 @@ async def test_horizon_change_updates_forecast_timestamps_editable(
     assert written_forecast is not None
     assert len(written_forecast) == 2
     assert [point["time"].timestamp() for point in written_forecast] == [100.0, 400.0]
-
-
-# --- Tests for mode and forecast metadata properties ---
-
-
-async def test_entity_mode_property(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    power_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """entity_mode property returns the entity's mode."""
-    subentry = _create_subentry("Test Battery", {"power_limit": 10.0})
-    config_entry.runtime_data = None
-
-    entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
-    assert entity.entity_mode == InputMode.EDITABLE
-
-    subentry_driven = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
-    entity_driven = _make_entity(hass, config_entry, subentry_driven, power_field_info, device_entry, horizon_manager)
-    assert entity_driven.entity_mode == InputMode.DRIVEN
-
-
-async def test_uses_forecast_reflects_field_info(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    power_field_info: InputFieldInfo[NumberEntityDescription],
-    scalar_field_info: InputFieldInfo[NumberEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """uses_forecast is True for time-series fields, False for scalar fields."""
-    config_entry.runtime_data = None
-
-    forecast_entity = _make_entity(
-        hass,
-        config_entry,
-        _create_subentry("Test Battery", {"power_limit": 10.0}),
-        power_field_info,
-        device_entry,
-        horizon_manager,
-    )
-    assert forecast_entity.uses_forecast is True
-
-    scalar_entity = _make_entity(
-        hass,
-        config_entry,
-        _create_subentry("Test Battery", {"capacity": 13.5}),
-        scalar_field_info,
-        device_entry,
-        horizon_manager,
-    )
-    assert scalar_entity.uses_forecast is False
 
 
 # --- Tests for lifecycle methods ---
@@ -1230,8 +1174,8 @@ async def test_source_changes_in_one_pass_share_one_reload(
 
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
     await _add_entity_to_hass(hass, entity)
-    load = AsyncMock(wraps=entity.store.async_load)
-    entity.store.async_load = load
+    load = AsyncMock(wraps=entity._store.async_load)
+    entity._store.async_load = load
 
     hass.states.async_set("sensor.power_a", "3.0")
     hass.states.async_set("sensor.power_b", "4.0")
@@ -1245,6 +1189,35 @@ async def test_source_changes_in_one_pass_share_one_reload(
 
     assert load.await_count == 2
     assert entity.native_value == pytest.approx(9.0)
+
+
+async def test_unchanged_source_reload_does_not_notify_store_listeners(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    device_entry: Mock,
+    power_field_info: InputFieldInfo[NumberEntityDescription],
+    horizon_manager: Mock,
+) -> None:
+    """A source update that leaves the value unchanged does not wake the optimizer; a new value does."""
+    hass.states.async_set("sensor.power", "10.0")
+    subentry = _create_subentry("Test Battery", {"power_limit": ["sensor.power"]})
+    config_entry.runtime_data = None
+
+    entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
+    await _add_entity_to_hass(hass, entity)
+    listener = Mock()
+    entity._store.add_listener(listener)
+
+    hass.states.async_set("sensor.power", "10.0", {"friendly_name": "Power"})
+    await hass.async_block_till_done()
+
+    listener.assert_not_called()
+
+    hass.states.async_set("sensor.power", "12.0", {"friendly_name": "Power"})
+    await hass.async_block_till_done()
+
+    listener.assert_called_once()
+    assert entity.native_value == pytest.approx(12.0)
 
 
 async def test_horizon_change_reloads_before_returning(
@@ -1261,8 +1234,8 @@ async def test_horizon_change_reloads_before_returning(
 
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
     await _add_entity_to_hass(hass, entity)
-    load = AsyncMock(wraps=entity.store.async_load)
-    entity.store.async_load = load
+    load = AsyncMock(wraps=entity._store.async_load)
+    entity._store.async_load = load
 
     entity._handle_horizon_change()
 
@@ -1283,8 +1256,8 @@ async def test_removal_cancels_queued_reload(
 
     entity = _make_entity(hass, config_entry, subentry, power_field_info, device_entry, horizon_manager)
     await _add_entity_to_hass(hass, entity)
-    load = AsyncMock(wraps=entity.store.async_load)
-    entity.store.async_load = load
+    load = AsyncMock(wraps=entity._store.async_load)
+    entity._store.async_load = load
 
     entity._handle_source_state_change(Mock())
     await entity.async_remove()
@@ -1364,7 +1337,7 @@ async def test_wait_ready_blocks_until_data_loaded(
     assert not wait_task.done()
 
     # Mark the store ready
-    entity.store.mark_ready()
+    entity._store.mark_ready()
 
     # Now wait_ready should complete
     await asyncio.wait_for(wait_task, timeout=1.0)
@@ -1453,8 +1426,8 @@ async def test_calendar_input_shows_what_the_calendar_loader_puts_in_its_store(
         "description": None,
     }
     loaded_state = FakeEntityState("calendar.trips", "on", {CALENDAR_EVENTS_ATTRIBUTE: [event]})
-    assert entity.store.resolve_from_sources(FakeStateMachine({"calendar.trips": loaded_state}))
-    entity.store.notify_listeners()
+    assert entity._store.resolve_from_sources(FakeStateMachine({"calendar.trips": loaded_state}))
+    entity._store.notify_listeners()
     assert entity.native_value == 1.0
 
     # The calendar's own state carries no events; it must not reload the store
@@ -1462,76 +1435,5 @@ async def test_calendar_input_shows_what_the_calendar_loader_puts_in_its_store(
     entity._handle_horizon_change()
     await hass.async_block_till_done()
 
-    assert entity.store.available
+    assert entity._store.available
     assert entity.native_value == 1.0
-
-
-def _last_changed(hass: HomeAssistant, entity_id: str) -> float:
-    state = hass.states.get(entity_id)
-    assert state is not None
-    return state.last_changed_timestamp
-
-
-def _plug_field_info() -> InputFieldInfo[NumberEntityDescription]:
-    return InputFieldInfo(
-        field_name="connected",
-        entity_description=NumberEntityDescription(
-            key="connected",
-            translation_key="connected",
-            native_min_value=0.0,
-            native_max_value=1.0,
-            native_step=1.0,
-        ),
-        output_type=OutputType.AVAILABILITY,
-        time_series=True,
-    )
-
-
-async def test_driven_availability_captures_off_periods(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    horizon_manager: Mock,
-) -> None:
-    """A driven availability input loads its source with the recorded off periods injected."""
-    hass.states.async_set("binary_sensor.plug", "on")
-    subentry = _create_subentry("Test EV", {"connected": ["binary_sensor.plug"]})
-    config_entry.runtime_data = None
-    entity = _make_entity(hass, config_entry, subentry, _plug_field_info(), device_entry, horizon_manager)
-    unplugged = _last_changed(hass, "binary_sensor.plug") - 600.0
-    with patch(
-        "custom_components.haeo.source_history.SourceHistory._async_recorded",
-        AsyncMock(return_value=[("off", unplugged)]),
-    ):
-        await _add_entity_to_hass(hass, entity)
-
-    assert entity.native_value == 1.0
-    captured = entity.store.captured_source_states["binary_sensor.plug"]
-    assert captured.attributes[OFF_PERIODS_ATTRIBUTE] == [(unplugged, _last_changed(hass, "binary_sensor.plug"))]
-
-
-async def test_driven_availability_queries_history_once(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    horizon_manager: Mock,
-) -> None:
-    """History is read from the recorder once; later source changes extend it without another query."""
-    hass.states.async_set("binary_sensor.plug", "on")
-    subentry = _create_subentry("Test EV", {"connected": ["binary_sensor.plug"]})
-    config_entry.runtime_data = None
-    entity = _make_entity(hass, config_entry, subentry, _plug_field_info(), device_entry, horizon_manager)
-
-    with patch(
-        "custom_components.haeo.source_history.SourceHistory._async_recorded",
-        AsyncMock(return_value=[]),
-    ) as query:
-        await _add_entity_to_hass(hass, entity)
-        entity._handle_horizon_change()
-        hass.states.async_set("binary_sensor.plug", "off")
-        await hass.async_block_till_done()
-
-    assert query.await_count == 1
-    unplugged = _last_changed(hass, "binary_sensor.plug")
-    captured = entity.store.captured_source_states["binary_sensor.plug"]
-    assert captured.attributes[OFF_PERIODS_ATTRIBUTE] == [(unplugged, None)]

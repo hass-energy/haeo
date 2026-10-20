@@ -11,8 +11,6 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_MAX_DISCHARGE_RATE,
     CONF_ODOMETER,
     CONF_PUBLIC_CHARGING_PRICE,
-    CONF_RESERVE_PRICE,
-    CONF_RESERVE_SOC,
     CONF_TRIP_CALENDAR,
     SECTION_CHARGING,
     SECTION_PUBLIC_CHARGING,
@@ -43,13 +41,11 @@ VALID_DATA = [
             SECTION_CHARGING: {
                 CONF_MAX_CHARGE_RATE: as_constant_value(7.4),
                 CONF_MAX_DISCHARGE_RATE: as_constant_value(5.0),
+                CONF_CONNECTED: as_entity_value(["binary_sensor.ev_plugged_in"]),
             },
             SECTION_TRIP: {
                 CONF_TRIP_CALENDAR: as_entity_value(["calendar.ev_trips"]),
-                CONF_CONNECTED: as_entity_value(["binary_sensor.ev_plugged_in"]),
                 CONF_ODOMETER: as_entity_value(["sensor.ev_odometer"]),
-                CONF_RESERVE_SOC: as_constant_value(20.0),
-                CONF_RESERVE_PRICE: as_constant_value(0.6),
             },
             SECTION_PUBLIC_CHARGING: {
                 CONF_PUBLIC_CHARGING_PRICE: as_constant_value(0.35),
@@ -76,6 +72,7 @@ VALID_DATA = [
             },
             SECTION_CHARGING: {
                 CONF_MAX_CHARGE_RATE: as_constant_value(3.6),
+                CONF_CONNECTED: as_entity_value(["binary_sensor.car_plugged_in"]),
             },
             SECTION_PUBLIC_CHARGING: {},
             SECTION_POWER_LIMITS: {},

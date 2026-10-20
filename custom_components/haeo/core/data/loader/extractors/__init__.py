@@ -25,59 +25,12 @@ from . import (
 )
 from .utils import EntityMetadata, separate_duplicate_timestamps
 
-# Union of all domain literal types from the extractor modules
-ExtractorFormat = (
-    aemo_nem.Format
-    | amber2mqtt.Format
-    | amberelectric.Format
-    | calendar_events.Format
-    | emhass.Format
-    | flow_power.Format
-    | haeo.Format
-    | nordpool.Format
-    | open_meteo_solar_forecast.Format
-    | solcast_solar.Format
-    | volcast.Format
-)
-
-# Union of all Extractor class types
-DataExtractor = (
-    type[aemo_nem.Parser]
-    | type[amber2mqtt.Parser]
-    | type[amberelectric.Parser]
-    | type[calendar_events.Parser]
-    | type[emhass.Parser]
-    | type[flow_power.Parser]
-    | type[haeo.Parser]
-    | type[nordpool.Parser]
-    | type[open_meteo_solar_forecast.Parser]
-    | type[solcast_solar.Parser]
-    | type[volcast.Parser]
-)
-
-
-# Dictionary mapping domain strings to their extractor classes
-FORMATS: dict[ExtractorFormat, DataExtractor] = {
-    aemo_nem.DOMAIN: aemo_nem.Parser,
-    amber2mqtt.DOMAIN: amber2mqtt.Parser,
-    amberelectric.DOMAIN: amberelectric.Parser,
-    calendar_events.DOMAIN: calendar_events.Parser,
-    emhass.DOMAIN: emhass.Parser,
-    flow_power.DOMAIN: flow_power.Parser,
-    haeo.DOMAIN: haeo.Parser,
-    nordpool.DOMAIN: nordpool.Parser,
-    open_meteo_solar_forecast.DOMAIN: open_meteo_solar_forecast.Parser,
-    solcast_solar.DOMAIN: solcast_solar.Parser,
-    volcast.DOMAIN: volcast.Parser,
-}
-
-
 # Binary sensor states mapped to numeric values so availability-style
 # sources (e.g. an EV charger's "connected" binary sensor) load as 1/0.
 _BINARY_STATES: Final[dict[str, float]] = {"on": 1.0, "true": 1.0, "off": 0.0, "false": 0.0}
 
 
-def parse_scalar_state(raw: str) -> float:
+def _parse_scalar_state(raw: str) -> float:
     """Parse a state string as a float, mapping binary on/off states to 1/0."""
     mapped = _BINARY_STATES.get(raw.strip().lower())
     if mapped is not None:
@@ -130,7 +83,7 @@ def extract(state: EntityState, *, output_type: OutputType | None = None) -> Ext
         data, unit, device_class = volcast.Parser.extract(state)
     else:
         # If no extractor matched read the state as a single float value
-        data = parse_scalar_state(state.state)
+        data = _parse_scalar_state(state.state)
         unit_attr = state.attributes.get("unit_of_measurement")
         unit = unit_attr if isinstance(unit_attr, str) else None
         device_class = DeviceClass.of(state.attributes.get("device_class"))
@@ -153,10 +106,6 @@ def extract(state: EntityState, *, output_type: OutputType | None = None) -> Ext
 
 
 __all__ = [
-    "FORMATS",
-    "DataExtractor",
     "EntityMetadata",
-    "ExtractorFormat",
     "extract",
-    "parse_scalar_state",
 ]

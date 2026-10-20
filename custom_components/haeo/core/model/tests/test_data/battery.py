@@ -22,7 +22,6 @@ VALID_CASES: list[ElementTestCase] = [
             "output_cost": 0.0,
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (2.0, 7.0, 9.0, 9.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (5.0, 2.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
@@ -49,7 +48,6 @@ VALID_CASES: list[ElementTestCase] = [
             "output_cost": 0.0,
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (2.0, 7.0, 9.0, 9.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (5.0, 2.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
@@ -75,7 +73,6 @@ VALID_CASES: list[ElementTestCase] = [
             "output_cost": 0.0,
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (8.0, 5.0, 2.0, 2.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (0.0, 0.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (3.0, 3.0, 0.0)},
@@ -101,7 +98,6 @@ VALID_CASES: list[ElementTestCase] = [
             "output_cost": 0.0,
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 7.0, 6.0, 7.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (2.0, 0.0, 1.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (0.0, 1.0, 0.0)},
@@ -127,7 +123,6 @@ VALID_CASES: list[ElementTestCase] = [
             "power": [-5.0, 0.0],
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 0.0, 0.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (5.0, 0.0)},
@@ -153,7 +148,6 @@ VALID_CASES: list[ElementTestCase] = [
             "power": [5.0, 0.0],
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 10.0, 10.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (5.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
@@ -180,7 +174,6 @@ VALID_CASES: list[ElementTestCase] = [
             "output_cost": np.array([-1.0, -0.5]),
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (6.0, 2.0, 2.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (4.0, 0.0)},
@@ -207,7 +200,6 @@ VALID_CASES: list[ElementTestCase] = [
             "output_cost": np.array([-150.0, -120.0]),
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (6.0, 2.0, 0.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (4.0, 2.0)},
@@ -233,7 +225,6 @@ VALID_CASES: list[ElementTestCase] = [
             "input_cost": 1.0,
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (1.0, 2.0, 2.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (1.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
@@ -259,7 +250,6 @@ VALID_CASES: list[ElementTestCase] = [
             "output_cost": 1.0,
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (9.0, 8.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (0.0,)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (1.0,)},
@@ -283,7 +273,6 @@ VALID_CASES: list[ElementTestCase] = [
             "power": [10.0, -10.0],
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (0.0, 10.0, 0.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (10.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (0.0, 10.0)},
@@ -308,7 +297,6 @@ VALID_CASES: list[ElementTestCase] = [
             "output_cost": np.array([-1000.0, -500.0]),
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 0.0, 0.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (5.0, 0.0)},
@@ -333,7 +321,6 @@ VALID_CASES: list[ElementTestCase] = [
             "output_cost": 2000.0,
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 10.0, 10.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (5.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
@@ -359,7 +346,6 @@ VALID_CASES: list[ElementTestCase] = [
             "power": [-8.0, 0.0],
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 1.0, 1.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (8.0, 0.0)},
@@ -385,7 +371,6 @@ VALID_CASES: list[ElementTestCase] = [
             "power": [-5.0, 0.0],
         },
         "expected_outputs": {
-            "battery_reserve_shortfall": {"type": "energy", "unit": "kWh", "values": (0.0, 0.0, 0.0)},
             "battery_energy_stored": {"type": "energy", "unit": "kWh", "values": (5.0, 0.0, 0.0)},
             "battery_power_charge": {"type": "power", "unit": "kW", "values": (0.0, 0.0)},
             "battery_power_discharge": {"type": "power", "unit": "kW", "values": (5.0, 0.0)},

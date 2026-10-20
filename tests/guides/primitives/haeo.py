@@ -47,6 +47,7 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_ENERGY_PER_DISTANCE,
     CONF_MAX_CHARGE_RATE,
     CONF_MAX_DISCHARGE_RATE,
+    CONF_ODOMETER,
     CONF_PUBLIC_CHARGING_PRICE,
     CONF_TRIP_CALENDAR,
     SECTION_PUBLIC_CHARGING,
@@ -635,9 +636,10 @@ def add_ev(
     energy_per_distance: EntityInput | ConstantInput,
     current_soc: EntityInput,
     max_charge_rate: EntityInput | ConstantInput,
+    connected: EntityInput,
     max_discharge_rate: EntityInput | ConstantInput | None = None,
     trip_calendar: EntityInput | None = None,
-    connected: EntityInput | None = None,
+    odometer: EntityInput | None = None,
     public_charging_price: EntityInput | ConstantInput | None = None,
 ) -> None:
     """Add EV element to HAEO network."""
@@ -659,13 +661,14 @@ def add_ev(
     }
     if max_discharge_rate is not None:
         fields[CONF_MAX_DISCHARGE_RATE] = max_discharge_rate
+    fields[CONF_CONNECTED] = connected
     _fill_element_fields(page, et, fields)
 
     trip_fields: dict[str, FieldInput] = {}
     if trip_calendar is not None:
         trip_fields[CONF_TRIP_CALENDAR] = trip_calendar
-    if connected is not None:
-        trip_fields[CONF_CONNECTED] = connected
+    if odometer is not None:
+        trip_fields[CONF_ODOMETER] = odometer
     if trip_fields:
         _fill_element_fields(page, et, trip_fields, collapsed_sections=frozenset({SECTION_TRIP}))
 

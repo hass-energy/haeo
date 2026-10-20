@@ -47,6 +47,8 @@ class ElementAdapter(Protocol):
 
     can_sink: bool
     can_store: bool
+    # Has an element that only consumes energy, which a buffer counts as a load
+    can_consume: bool
 
     def model_elements(self, config: Any) -> list[ModelElementConfig]:
         """Return model element parameters for the loaded config.

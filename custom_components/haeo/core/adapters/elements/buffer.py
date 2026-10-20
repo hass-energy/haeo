@@ -55,6 +55,7 @@ class BufferAdapter:
     can_source: bool = False
     can_sink: bool = False
     can_store: bool = False
+    can_consume: bool = False
 
     def model_elements(self, config: BufferConfigData) -> list[ModelElementConfig]:
         """Create the buffer model element over its loads, generation, and storage by name."""

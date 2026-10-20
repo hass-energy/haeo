@@ -263,11 +263,21 @@ def test_model_elements_pass_participants_by_name(
     np.testing.assert_equal(element["level"], expected_level)
 
 
-def test_can_store_is_true_exactly_for_batteries_and_battery_sections() -> None:
+def test_can_store_is_true_exactly_for_elements_with_a_battery() -> None:
     """Only adapters for elements that store energy can hold a buffer."""
     assert {element_type for element_type, adapter in ELEMENT_TYPES.items() if adapter.can_store} == {
         ElementType.BATTERY,
         ElementType.BATTERY_SECTION,
+        ElementType.EV,
+    }
+
+
+def test_can_consume_is_true_exactly_for_elements_with_a_load() -> None:
+    """Only adapters for elements with something that only consumes energy count as buffer loads."""
+    assert {element_type for element_type, adapter in ELEMENT_TYPES.items() if adapter.can_consume} == {
+        ElementType.LOAD,
+        ElementType.DEFERRABLE_LOAD,
+        ElementType.EV,
     }
 
 

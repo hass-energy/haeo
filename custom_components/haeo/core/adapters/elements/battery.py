@@ -82,6 +82,7 @@ class BatteryAdapter:
     can_source: bool = True
     can_sink: bool = True
     can_store: bool = True
+    can_consume: bool = False
 
     def model_elements(self, config: BatteryConfigData) -> list[ModelElementConfig]:
         """Create model elements for Battery configuration.

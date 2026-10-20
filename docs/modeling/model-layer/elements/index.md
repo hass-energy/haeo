@@ -3,21 +3,16 @@
 Elements are the core building blocks of HAEO's energy network model.
 They represent physical devices that produce, consume, store, or route power.
 
-## Element types
+## Kinds of element
 
-HAEO provides three element types that serve different roles in the network:
+Elements come in two kinds:
 
-**[Battery](battery.md)**:
-Energy storage with state of charge tracking.
-Models capacity, charge/discharge flows, SOC constraints, and an optional priced reserve.
+- **Network elements** produce, consume, or store power themselves.
+    Connections join them, and each balances its own power and carries tags for [tagged power](../../tagged-power.md).
+- **Flow readers** produce and consume nothing.
+    They read the planned flows of other elements to price or constrain them, so they are added once those flows exist.
 
-**[Deferrable load](deferrable_load.md)**:
-Flexible consumption that absorbs a required amount of energy within scheduled, non-overlapping windows.
-Settles each window at its end, pricing any shortfall so unmeetable requirements stay feasible.
-
-**[Node](node.md)**:
-Power sources, sinks, and junction points.
-Enforces power balance (Kirchhoff's law) at connection points.
+Each element type has its own page describing its variables, constraints, and costs.
 
 ## Common characteristics
 
@@ -62,30 +57,6 @@ This separation keeps the Model Layer focused on optimization mathematics while 
 
 <div class="grid cards" markdown>
 
-- :material-battery-charging:{ .lg .middle } **Battery model**
-
-    ---
-
-    Energy storage with SOC tracking and capacity constraints.
-
-    [:material-arrow-right: Battery formulation](battery.md)
-
-- :material-clock-outline:{ .lg .middle } **Deferrable load model**
-
-    ---
-
-    Flexible consumption with scheduled requirements and priced shortfall.
-
-    [:material-arrow-right: Deferrable load formulation](deferrable_load.md)
-
-- :material-power-plug:{ .lg .middle } **Node model**
-
-    ---
-
-    Power balance points for sources, sinks, and junctions.
-
-    [:material-arrow-right: Node formulation](node.md)
-
 - :material-connection:{ .lg .middle } **Connections**
 
     ---
@@ -93,5 +64,13 @@ This separation keeps the Model Layer focused on optimization mathematics while 
     Power flow paths between elements.
 
     [:material-arrow-right: Connection types](../connections/index.md)
+
+- :material-layers-outline:{ .lg .middle } **Device layer**
+
+    ---
+
+    How user-configured devices compose elements.
+
+    [:material-arrow-right: Device layer](../../device-layer/index.md)
 
 </div>

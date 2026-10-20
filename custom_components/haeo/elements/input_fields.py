@@ -13,7 +13,7 @@ from homeassistant.components.switch import SwitchEntityDescription
 
 from custom_components.haeo.core.data.util.field_units import has_field_unit
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
+from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, MeterFieldHint
 from custom_components.haeo.core.units import localize_currency
 
 
@@ -58,6 +58,8 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         outputs: When set, the config field feeds these inputs instead of being
             an input itself, keyed by their field names
         source_field: For an input fed by another config field, that field's name
+        meter: When set, the field reads meters, so it only offers sensors whose
+            recorded statistics keep a running total
 
     Note:
         Whether a field is optional (can be disabled in config flow) is determined
@@ -78,6 +80,7 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     calendar: CalendarFieldHint | None = None
     outputs: "Mapping[str, AnyInputFieldInfo] | None" = None
     source_field: str | None = None
+    meter: MeterFieldHint | None = None
 
 
 # Union of the two concrete field-info instantiations; use when handling

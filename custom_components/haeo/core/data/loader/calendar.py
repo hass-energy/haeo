@@ -104,17 +104,13 @@ def event_windows(events: Sequence[CalendarEventData], output_type: OutputType) 
     )
 
 
-def open_since_field(field_name: str) -> str:
-    """Return the loaded config key holding when the window open at the horizon start began, for a calendar field."""
-    return f"{field_name}_open_since"
-
-
 def open_window_start(events: Sequence[CalendarEventData], at: datetime) -> float | None:
     """Return the POSIX time the window open at *at* began, or None when no window is open then.
 
     Windows are formed as for every calendar input: every event is a window,
     overlapping events chain into one, and events that only touch stay
-    separate, so a window that began before the horizon keeps its true start.
+    separate. Calendars are read from the horizon start, so the window begins
+    at the earliest start among the events open then.
     """
     windows: list[tuple[datetime, datetime]] = []
     for event in sorted((e for e in events if e.end > e.start), key=lambda e: e.start):
