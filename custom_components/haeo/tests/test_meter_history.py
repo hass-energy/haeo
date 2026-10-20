@@ -228,3 +228,12 @@ async def test_totals_at_a_past_time_end_with_the_state_then(hass: HomeAssistant
 
     assert totals is not None
     assert totals[-1] == (at.timestamp(), 43.0)
+
+
+async def test_a_meter_state_carrying_totals_keeps_them(hass: HomeAssistant) -> None:
+    """A replayed meter state already carries its totals, so none are injected over them."""
+    hass.states.async_set(METER, "12", {METER_TOTALS_ATTRIBUTE: [[0.0, 1.0], [600.0, 3.0]]})
+    history = MeterHistory(hass, [METER])
+    await history.async_load()
+
+    assert history.attributes() == {}
