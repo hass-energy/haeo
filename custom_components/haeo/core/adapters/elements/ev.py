@@ -68,6 +68,12 @@ _CONNECTED_THRESHOLD: Final = 0.5
 # trip energy requirement can never make the optimization infeasible.
 DEFAULT_PUBLIC_CHARGING_PRICE: Final = 10.0
 
+# Price ($/kWh) of planning more trip energy than a trip needs. A trip's
+# energy is not the plan's to choose, so the plan never drives further than
+# the trip, even when energy is paid to be used; finite so the optimization
+# stays feasible.
+TRIP_OVERAGE_PRICE: Final = 10.0
+
 # EV-specific output names for translation/sensor mapping
 type EvOutputName = Literal[
     "ev_power_charge",
@@ -158,7 +164,8 @@ class EvAdapter:
         - Plugged in after driving, the car is back. That trip is over, and
           the car is home until the trip's scheduled end.
         - Unplugged, the car is on the trip, and the energy for the distance
-          driven counts toward it. Unplugging again after coming back
+          driven counts toward it, up to the trip's own energy: driving
+          further completes the trip. Unplugging again after coming back
           resumes the trip, as the distance counts from the trip's start.
         """
         name = config["name"]
@@ -235,8 +242,8 @@ class EvAdapter:
                 },
             },
             # 4. Trip requirement as a deferrable load, a shortfall priced at
-            # the public charging price. Driving further than planned is not
-            # priced: that energy is already gone.
+            # the public charging price and planned overage priced so high it
+            # never happens.
             {
                 "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
                 "name": f"{name}:trip",
@@ -246,9 +253,9 @@ class EvAdapter:
                 "window_start": windows.window_start,
                 "opened": windows.opened,
                 "due": windows.due,
-                "initial_energy": 0.0 if plugged_in else driven_energy,
+                "initial_energy": 0.0 if plugged_in else min(driven_energy, float(windows.opened[0])),
                 "deficit_price": _public_price(config, n_periods),
-                "overage_price": np.zeros(n_periods + 1),
+                "overage_price": np.full(n_periods + 1, TRIP_OVERAGE_PRICE),
             },
             # 5. Trip connection: EV → trip load. Driving power is not
             # limited by the charger, only by being away.
