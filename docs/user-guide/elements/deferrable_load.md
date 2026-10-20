@@ -51,11 +51,11 @@ Each calendar event is one window:
 - **Start/end time**: When the load is allowed to run
 - **Event text**: The energy the window must receive, with its unit (e.g., `8 kWh` or `500 Wh`)
 
-The energy can sit among other words, such as a summary of `EV 8 kWh`, and is converted to kWh.
-It is read from the first of the location, summary, or description fields that holds a number, which must hold only that one number.
+The energy can sit among other words and numbers, such as a summary of `EV 8kWh` or `Charger 7 kW, needs 8 kWh`, and is converted to kWh.
+It is read from the first of the location, summary, or description fields holding a number in an energy unit, which must hold only one.
 [Calendars as forecasts](../forecasts-and-sensors.md#calendars-as-forecasts) gives the exact rules.
 An event without a number is still a window, but needs no energy.
-A number HAEO cannot use, such as one without a unit, a negative energy, or one of several numbers in a field, is ignored and listed in a repair issue so you can fix the event.
+An event whose numbers HAEO cannot use, such as one without a unit, a negative energy, or two energies in one field, is ignored and listed in a repair issue so you can fix the event.
 Power can only flow to the load while a window is open.
 
 Events may overlap.

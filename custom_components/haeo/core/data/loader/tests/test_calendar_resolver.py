@@ -110,6 +110,7 @@ def test_window_past_the_horizon_is_due_at_its_end() -> None:
         pytest.param("2 MWh", OutputType.ENERGY, 2000.0, id="converts_from_mwh"),
         pytest.param("EV 8 kWh", OutputType.ENERGY, 8.0, id="word_before_number"),
         pytest.param("EV 8kWh", OutputType.ENERGY, 8.0, id="no_space_before_unit"),
+        pytest.param("Charger 7 kW, needs 8 kWh", OutputType.ENERGY, 8.0, id="other_numbers_passed_over"),
         pytest.param("3", OutputType.AVAILABILITY, 3.0, id="bare_number_for_unitless_input"),
     ],
 )

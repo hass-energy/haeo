@@ -45,11 +45,13 @@ class CalendarWindow:
 
 # A number standing as its own word, optionally signed and with decimals,
 # then the word typed after it as its unit, if any. A digit inside a word,
-# such as in "EV2" or "v1.2", is not a number.
+# such as in "EV2" or "v1.2", is not a number, nor is the part of a number
+# after a comma, slash, colon, or range dash, as in "1,500", "1/2", "10:30",
+# "8-10", or "8 - 10", so no piece of a larger number is read on its own.
 # Examples: "50 km", "5kW", "0.30 $/kWh", "-2.5 kW", "3", "EV 8 kWh tonight"
 _QUANTITY_PATTERN: Final = re.compile(
-    r"(?<![\w.])([-+]?(?:\d+(?:\.\d+)?|\.\d+))"
-    r"(?:\s*([^\s\d.,;:!?()\[\]{}\"'+-][^\s,;:!?()\[\]{}\"']*))?"
+    r"(?<![\w.,/:])(?<!\d[-\u2013])(?<!\d [-\u2013] )([-+]?(?:\d+(?:\.\d+)?|\.\d+))"
+    r"(?:\s*([^\s\d.,;:!?()\[\]{}\"'/+\u2013-][^\s,;:!?()\[\]{}\"']*))?"
 )
 
 
@@ -77,34 +79,40 @@ _TEXT_FIELDS: Final[tuple[str, ...]] = ("location", "summary", "description")
 
 @dataclass(frozen=True)
 class EventValueText:
-    """The text field an event's value is read from, with the number and unit typed in it."""
+    """The text field an event's value is read from, with the value in an input's unit."""
 
     field: str
     text: str
-    # None when the field holds several numbers, so which one is the value is not guessed
-    quantity: tuple[float, str | None] | None
+    # None when the field holds no number the input can use, or several, so which one is meant is not guessed
+    value: float | None
 
 
-def event_value_text(event: CalendarEventData) -> EventValueText | None:
-    """Return the first text field holding a number, or None when no field does.
+def event_value_text(event: CalendarEventData, output_type: OutputType) -> EventValueText | None:
+    """Return the text field an event's value is read from, or None when no field holds a number.
 
+    The value is a number typed with a unit the input can use, so other
+    numbers around it, as in "Tariff 2 at 0.30 $/kWh", are passed over.
     Fields are tried in order: location, summary, description. The first
-    holding any number is the value's field, even when that number cannot be
-    used, so a later field never silently stands in for a mistyped one.
+    holding such a number gives the value, or no value when it holds several.
+    When no field holds one, the first holding any number is returned without
+    a value, so the number the input cannot use can be reported.
     """
+    unusable: EventValueText | None = None
     for field in _TEXT_FIELDS:
         text = getattr(event, field)
-        if text and (quantities := find_quantities(text)):
-            return EventValueText(field, text, quantities[0] if len(quantities) == 1 else None)
-    return None
+        if not text or not (quantities := find_quantities(text)):
+            continue
+        values = [value for quantity in quantities if (value := to_field_unit(*quantity, output_type)) is not None]
+        if values:
+            return EventValueText(field, text, values[0] if len(values) == 1 else None)
+        unusable = unusable or EventValueText(field, text, None)
+    return unusable
 
 
 def event_value(event: CalendarEventData, output_type: OutputType) -> float | None:
-    """Return an event's value in an input's unit, or None when it has no number or one the input cannot use."""
-    value_text = event_value_text(event)
-    if value_text is None or value_text.quantity is None:
-        return None
-    return to_field_unit(*value_text.quantity, output_type)
+    """Return an event's value in an input's unit, or None when it has no number or none the input can use."""
+    value_text = event_value_text(event, output_type)
+    return None if value_text is None else value_text.value
 
 
 def event_windows(events: Sequence[CalendarEventData], output_type: OutputType) -> list[CalendarWindow]:
@@ -143,18 +151,18 @@ def open_window_start(events: Sequence[CalendarEventData], at: datetime) -> floa
 def rejected_events(
     events: Sequence[CalendarEventData], output_type: OutputType
 ) -> list[tuple[CalendarEventData, EventValueText]]:
-    """Return the events holding a number an input cannot use, with the text field it was read from.
+    """Return the events holding numbers an input cannot read a value from, with the field it read.
 
-    A number cannot be used when it has no unit or one that does not convert
-    to the input's unit, is negative for a quantity that cannot be, or shares
-    its field with another number. Inputs ignore these events' values rather
-    than failing, so one mistyped event does not stop the rest of the calendar
-    from loading.
+    An event is rejected when none of its numbers has a unit that converts
+    to the input's unit, or is not negative for a quantity that cannot be,
+    or when one field holds several that do. Inputs ignore these events'
+    values rather than failing, so one mistyped event does not stop the rest
+    of the calendar from loading.
     """
     return [
         (event, value_text)
         for event in events
-        if (value_text := event_value_text(event)) is not None and event_value(event, output_type) is None
+        if (value_text := event_value_text(event, output_type)) is not None and value_text.value is None
     ]
 
 

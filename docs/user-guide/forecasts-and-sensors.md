@@ -344,20 +344,22 @@ Events that overlap add together.
 A calendar combined with sensors adds to them like any other forecast.
 
 An event's value is a number followed by its unit, such as `5 kW`, `500 W`, `0.30 $/kWh`, or `120 €/MWh`.
-It can sit among other words, so a summary of `EV 8 kWh` or `Charge 8kWh tonight` holds 8 kWh.
+It can sit among other words and numbers, so a summary of `EV 8kWh`, `Charge 8 kWh tonight`, or `Tariff 2 at 0.30 $/kWh` holds its value.
 HAEO converts it to the field's unit as it would a sensor reading.
 
 HAEO reads the value by these rules:
 
-- The location, summary, and description are checked in that order, and the first holding a number is the value's field.
-    Fields after it are not read, even when its number cannot be used.
 - A number must stand as its own word: the `2` in `EV2` or the `1.2` in `v1.2` is not a number.
+    Pieces of a larger number are not read on their own either, such as the `500` in `1,500`, the `30` in `10:30`, or the `10` in `8-10`, so write `1500 Wh` rather than `1,500 Wh`.
 - The unit is the word typed right after the number, with or without a space between them.
-- The value's field must hold exactly one number.
-    Write `1500 Wh` rather than `1,500 Wh`, and keep times, dates, and other numbers in a different field.
+- Only a number whose unit converts to the field's unit is a value.
+    Other numbers, such as a tariff number or a charger's `7 kW` in an energy field, are passed over.
+- The location, summary, and description are checked in that order, and the first holding a value is read.
+- That field must hold exactly one value.
+    `8 kWh or 10 kWh` is never guessed between.
 - An event with no number in any field counts as zero.
 
-A number HAEO cannot use is never guessed: one without a unit, in a unit that does not convert to the field's unit, negative for a quantity that cannot be, or sharing its field with another number.
+An event that holds numbers but no value HAEO can use is never guessed: its numbers have no unit, a unit that does not convert to the field's unit, or are negative for a quantity that cannot be, or one field holds several values.
 HAEO ignores that event's value, so one mistyped event does not stop the rest of the calendar from loading, and raises a repair issue listing each such event with the field it read and that field's text.
 The issue clears once every event's value can be used.
 
