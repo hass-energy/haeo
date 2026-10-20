@@ -8,6 +8,7 @@ import type {
 } from "./types";
 import type { ConfigMode } from "./types";
 import { discoverForecastEntityIds, resolveConfiguredHub } from "./hub-selection";
+import { resolveTopology } from "./topology-card-utils";
 
 interface HassEntityState {
   entity_id: string;
@@ -189,6 +190,34 @@ function sourceRoleForSeries(configMode: string | null, fieldName: string | null
   return fieldName === "forecast" ? "forecast" : "limit";
 }
 
+/**
+ * Return the battery each buffer held by a single battery belongs to, by buffer name.
+ *
+ * A buffer held by one battery is that battery's, so its series sit with the
+ * battery's in the legend rather than as an element of their own.
+ */
+function bufferOwners(hass: HassLike, config: ForecastCardConfig): Map<string, string> {
+  const owners = new Map<string, string>();
+  const resolution = resolveTopology(
+    {
+      type: "custom:haeo-topology-card",
+      ...(config.hub_entry_id === undefined ? {} : { hub_entry_id: config.hub_entry_id }),
+    },
+    hass
+  );
+  if (resolution.status !== "ok") {
+    return owners;
+  }
+  for (const buffer of resolution.topology.buffers ?? []) {
+    const batteries = new Set(buffer.storage.map((name) => name.split(":")[0] ?? name));
+    const [battery] = batteries;
+    if (batteries.size === 1 && battery !== undefined) {
+      owners.set(buffer.name, battery);
+    }
+  }
+  return owners;
+}
+
 export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfig): ForecastSeries[] {
   if (!hass) {
     return [];
@@ -202,6 +231,7 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
 
   const result: ForecastSeries[] = [];
   const elementVariantCount = new Map<string, number>();
+  const owners = bufferOwners(hass, config);
 
   for (const entityId of entityIds) {
     const state = hass.states[entityId];
@@ -267,7 +297,8 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
     // An input showing where a calendar's windows are open draws as windows
     const outputType =
       attrs["calendar_projection"] === "window_active" ? "window" : fieldType === "power_limit" ? "power" : fieldType;
-    const elementName = asString(attrs["element_name"], entityId);
+    const ownName = asString(attrs["element_name"], entityId);
+    const elementName = owners.get(ownName) ?? ownName;
     const outputName = asString(attrs["output_name"], fieldType);
     const directionRaw = attrs["direction"];
     const direction = directionRaw === "+" || directionRaw === "-" ? directionRaw : null;
@@ -276,13 +307,14 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
     }
     const unit = asString(attrs["unit_of_measurement"]);
     const friendlyName = asString(attrs["friendly_name"]);
-    const variant = elementVariantCount.get(elementName) ?? 0;
-    elementVariantCount.set(elementName, variant + 1);
+    // Variants count per element as configured, so moving a buffer under its battery keeps the battery's colors
+    const variant = elementVariantCount.get(ownName) ?? 0;
+    elementVariantCount.set(ownName, variant + 1);
 
     result.push({
       key: `${entityId}:${outputName}`,
       entityId,
-      label: friendlyName !== "" ? friendlyName : fallbackLabel(elementName, outputName, outputType),
+      label: friendlyName !== "" ? friendlyName : fallbackLabel(ownName, outputName, outputType),
       elementName,
       elementType,
       outputName,

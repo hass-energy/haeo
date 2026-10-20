@@ -9,7 +9,7 @@
 
 import ELK, { type ElkExtendedEdge, type ElkNode, type ElkPort } from "elkjs/lib/elk.bundled.js";
 import { STRIPE_GAP } from "./shared";
-import type { TopologyData, TopologySegment } from "./types";
+import type { TopologyData, TopologyEdge, TopologySegment } from "./types";
 
 export interface LayoutNode {
   id: string;
@@ -198,6 +198,19 @@ function orientEdgesFromHub(topology: TopologyData, hub: string, groupLookup: Ma
   return reversed;
 }
 
+/** Draw a connection between two nodes of the same group, through its segment pill when it has segments. */
+function addInnerConnection(edge: TopologyEdge, children: ElkNode[], internalEdges: ElkExtendedEdge[]): void {
+  const visible = edge.segments.filter((s) => s.type !== "PassthroughSegment");
+  if (visible.length === 0) {
+    internalEdges.push({ id: `int:${edge.name}:direct`, sources: [edge.source], targets: [edge.target] });
+    return;
+  }
+  const pillId = `pill:${edge.name}`;
+  children.push({ id: pillId, width: visible.length * PILL_CELL_W + 8, height: PILL_H });
+  internalEdges.push({ id: `int:${edge.name}:a`, sources: [edge.source], targets: [pillId] });
+  internalEdges.push({ id: `int:${edge.name}:b`, sources: [pillId], targets: [edge.target] });
+}
+
 export async function computeLayout(topology: TopologyData): Promise<LayoutResult> {
   const elk = new ELK();
   const groupLookup = buildGroupLookup(topology);
@@ -239,7 +252,13 @@ export async function computeLayout(topology: TopologyData): Promise<LayoutResul
     for (const edge of topology.edges) {
       const sg = findGroup(groupLookup, edge.source);
       const tg = findGroup(groupLookup, edge.target);
-      if (sg === tg) continue;
+      if (sg === tg) {
+        // A connection within one device, such as an EV's pack to its trips, draws inside its group
+        if (sg === groupName) {
+          addInnerConnection(edge, children, internalEdges);
+        }
+        continue;
+      }
 
       const isReversed = reversed.has(edge.name);
       const layoutSource = isReversed ? tg : sg;
