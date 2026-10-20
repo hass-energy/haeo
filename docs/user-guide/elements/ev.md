@@ -79,10 +79,9 @@ An event whose text contains no distance, such as `School pickup`, still marks t
 
 !!! tip "Distance format"
 
-    The distance is read from the first of the location, summary, or description fields that holds only a number followed by a length unit, such as `50 km` or `30 mi`.
-    A field with other text around the distance, such as `Commute 50 km`, is not read as a distance.
-    All distances are converted to kilometres.
-    A number HAEO cannot use as a distance, such as one without a unit, is ignored and listed in a repair issue so you can fix the event.
+    The distance can sit among other words and numbers, such as a summary of `Office 105 km` or `Pick up 2 kids, 12 km`, and is converted to kilometres.
+    It is read from the first of the location, summary, or description fields holding any number, which must hold exactly one number in a length unit, such as `50 km` or `30 mi`.
+    An event whose numbers HAEO cannot use, such as one without a unit or two distances in one field, is ignored and listed in a repair issue so you can fix the event.
 
 The trip calendar creates four input entities showing what HAEO reads from it: **Away** (whether each period is inside a trip), **Trip start** (where each trip of overlapping events begins), **Trip distance opening** (the distance of the events starting at each time), and **Trip distance due** (the distance of the events ending at each time).
 
@@ -92,6 +91,11 @@ Select a binary sensor that reports `on` when the EV is plugged in at home and `
 You need one to automate charging anyway, so it is required.
 The trip calendar is authoritative for future availability; this sensor pins the *current* state, so an early return or unplanned absence is reflected immediately.
 If you select more than one entity, the car counts as plugged in when any of them reports `on`.
+
+A sensor that reports words instead, such as a charger reporting `Charging`, `Occupied`, or `Idle`, works too.
+After you submit, HAEO asks which of its states mean plugged in and which mean unplugged, offering the states the sensor lists or has reported recently.
+Fill in only one list to count every other state as the opposite: for a charger that reports `Idle` when nothing is connected, choose `Idle` as unplugged.
+With both lists filled in, a state in neither reads as unknown, which pauses optimization until it changes.
 
 While a trip event is open, the sensor and the [odometer](#odometer) together tell where the trip is:
 
@@ -177,7 +181,7 @@ Set a realistic price to let the optimizer genuinely trade off pre-charging at h
 
 Holding cost in \$/kWh/h for each kWh below the [min charge level](#min-charge-level), for every hour it stays there.
 It is in the collapsed **Advanced** section and defaults to 100 \$/kWh/h, as for a [battery](battery.md#limit-cost).
-Keep it far above the public charging price and any price the battery could earn from, so the min charge acts as a hard limit.
+Keep it far above anything you could pay to charge away from home or earn from the battery, so the min charge acts as a hard limit.
 
 ### Efficiency
 

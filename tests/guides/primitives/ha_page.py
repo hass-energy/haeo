@@ -642,7 +642,8 @@ class HAPage:
         Sections are rendered as ``ha-expansion-panel`` within ``ha-form-expandable``.
         If the panel is already expanded, this is a no-op.
         """
-        panel = self.page.locator("ha-expansion-panel").filter(has_text=section_name)
+        # Match the header's exact text, so a description mentioning the name elsewhere does not match
+        panel = self.page.locator("ha-expansion-panel").filter(has=self.page.get_by_text(section_name, exact=True))
         panel.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
 
         # Check if already expanded by looking for the attribute

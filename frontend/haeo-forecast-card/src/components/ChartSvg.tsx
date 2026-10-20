@@ -36,6 +36,34 @@ const AxesLayer = observer(function AxesLayer(props: { store: ForecastCardStore 
   );
 });
 
+// Height and gap of each window's strip along the top of the plot
+const WINDOW_STRIP_HEIGHT = 4;
+const WINDOW_STRIP_GAP = 1;
+
+const WindowLayer = observer(function WindowLayer(props: { store: ForecastCardStore }): JSX.Element {
+  const { store } = props;
+  const height = store.plotBottom - store.plotTop;
+  return (
+    <g className="windowLayer">
+      {store.windowBands.map((band) => {
+        const active = store.highlightedSeries === band.seriesKey || store.focusedLegendSeriesKeys.has(band.seriesKey);
+        return (
+          <g key={band.key} className={`windowBand ${active ? "active" : ""}`} style={{ color: band.color }}>
+            <rect className="windowTint" x={band.x} y={store.plotTop} width={band.width} height={height} />
+            <rect
+              className="windowStrip"
+              x={band.x}
+              y={store.plotTop + band.row * (WINDOW_STRIP_HEIGHT + WINDOW_STRIP_GAP)}
+              width={band.width}
+              height={WINDOW_STRIP_HEIGHT}
+            />
+          </g>
+        );
+      })}
+    </g>
+  );
+});
+
 const PowerLayer = observer(function PowerLayer(props: { store: ForecastCardStore }): JSX.Element {
   const { store } = props;
   return (
@@ -93,6 +121,7 @@ const PlotViewport = observer(function PlotViewport(props: { store: ForecastCard
       overflow="hidden"
     >
       <g transform={`translate(${-store.margins.left} ${-store.plotTop})`}>
+        <WindowLayer store={store} />
         <PowerLayer store={store} />
         <OverlayLayers store={store} />
         <HoverOverlay store={store} />

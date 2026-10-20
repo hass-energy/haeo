@@ -29,6 +29,7 @@ from custom_components.haeo.core.data.loader.calendar import (
     EventValueText,
     capture_calendar_events,
     load_calendar_events,
+    open_window_start,
     rejected_events,
 )
 from custom_components.haeo.core.data.util.field_units import field_unit_label
@@ -121,10 +122,11 @@ class CalendarInputLoader:
     calendar changes or the horizon moves, and loads again from the kept
     events when another source of such an input changes.
 
-    A meter or switch input reads its window calendar, so it loads here too.
-    The loader keeps its meters' running totals and its switches' on periods
-    and injects them beside the events, so the input's captured source states
-    hold everything it resolved from.
+    A meter input reads its window calendar, so it loads here too. The loader
+    keeps its meters' running totals and injects them beside the events, so
+    the input's captured source states hold everything it resolved from. A
+    switch input reads its window calendar too, and the loader keeps and
+    injects its switches' on periods the same way.
     """
 
     def __init__(
@@ -259,14 +261,40 @@ class CalendarInputLoader:
         than leaving the last plan in place, and an unchanged fetch does not
         re-optimize.
         """
+        calendars = CalendarStateMachine(HomeAssistantStateMachine(self._hass), self._events)
         sm = AnnotatedStateMachine(
-            CalendarStateMachine(HomeAssistantStateMachine(self._hass), self._events),
-            {**self._meters.attributes(), **self._switches.attributes()},
+            calendars, {**self._meters.attributes(self._meters_read_since(calendars)), **self._switches.attributes()}
         )
         changed = [store for store in self._stores.values() if store.resolve_from_sources(sm)]
         for store in changed:
             store.notify_listeners()
         self._report_ignored_event_values(sm)
+
+    def _meters_read_since(self, calendars: StateMachine) -> dict[str, float | None]:
+        """Return when each meter is read since: the earliest start of the windows open at the horizon start.
+
+        A meter input measures its meters from the window its calendars have
+        open at the horizon start. A meter read by no open window is read
+        since no time.
+        """
+        at = datetime.fromtimestamp(self._horizon_manager.get_forecast_timestamps()[0], tz=UTC)
+        since: dict[str, float | None] = {}
+        for store in self._stores.values():
+            if store.hint.meter is None:
+                continue
+            events = [
+                event
+                for eid in store.source_entity_ids
+                if is_calendar_entity(eid)
+                for event in load_calendar_events(calendars.get(eid)) or []
+            ]
+            opened = open_window_start(events, at)
+            for eid in store.source_entity_ids:
+                if is_calendar_entity(eid):
+                    continue
+                known = since.get(eid)
+                since[eid] = opened if known is None else known if opened is None else min(known, opened)
+        return since
 
     def _report_ignored_event_values(self, sm: StateMachine) -> None:
         """Raise a repair issue for each input ignoring calendar events whose values it cannot use.

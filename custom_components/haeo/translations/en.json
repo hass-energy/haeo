@@ -328,7 +328,7 @@
             "advanced": {
               "data": { "charge_limit_cost": "Limit cost" },
               "data_description": {
-                "charge_limit_cost": "Holding cost per kWh below the min charge, for every hour it lasts. Keep it far above the public charging price and any price the battery could earn from, so the min charge acts as a hard limit."
+                "charge_limit_cost": "Holding cost per kWh below the min charge, for every hour it lasts. Keep it far above anything you could pay to charge away from home or earn from the battery, so the min charge acts as a hard limit."
               },
               "name": "Advanced"
             },
@@ -363,9 +363,18 @@
               "name": "Vehicle"
             }
           }
+        },
+        "states": {
+          "title": "On and off states",
+          "description": "{entities} report words rather than on or off. Choose which states mean on, such as plugged in, and which mean off. Leave one list empty to count every other state as the opposite.",
+          "data": { "off_states": "States meaning off", "on_states": "States meaning on" }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "states_required": "Choose at least one state"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "grid": {

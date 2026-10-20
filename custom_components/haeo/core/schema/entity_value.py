@@ -1,23 +1,33 @@
 """Schema values for entity-based inputs."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping, Sequence
-from typing import Literal, TypedDict, TypeGuard
+from typing import Literal, NotRequired, TypedDict, TypeGuard
 
 VALUE_TYPE_ENTITY = "entity"
 
 
 class EntityValue(TypedDict):
-    """Schema value representing entity-based inputs."""
+    """Schema value representing entity-based inputs.
+
+    An on/off input reading entities whose states are words, such as a
+    charger reporting ``Charging`` or ``Idle``, lists which states mean on
+    and which mean off.
+    """
 
     type: Literal["entity"]
     value: Sequence[str]
+    on_states: NotRequired[Sequence[str]]
+    off_states: NotRequired[Sequence[str]]
 
 
-def as_entity_value(value: list[str]) -> EntityValue:
-    """Create an entity schema value from entity IDs."""
-    return {"type": VALUE_TYPE_ENTITY, "value": value}
+def as_entity_value(value: list[str], *, on_states: Sequence[str] = (), off_states: Sequence[str] = ()) -> EntityValue:
+    """Create an entity schema value from entity IDs, with the states that mean on and off when given."""
+    entity_value: EntityValue = {"type": VALUE_TYPE_ENTITY, "value": value}
+    if on_states:
+        entity_value["on_states"] = list(on_states)
+    if off_states:
+        entity_value["off_states"] = list(off_states)
+    return entity_value
 
 
 def is_entity_value(value: object) -> TypeGuard[EntityValue]:

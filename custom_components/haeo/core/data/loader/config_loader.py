@@ -34,6 +34,7 @@ from custom_components.haeo.core.state import StateMachine
 
 from .calendar_resolver import resolve_calendar
 from .meter import resolve_meter
+from .on_off_states import OnOffStateMachine, lists_on_off_states
 from .sensor_loader import load_sensors
 from .switch import resolve_switch
 
@@ -346,6 +347,8 @@ def resolve_field(
         unwrapped: float | bool | Sequence[str] = value["value"]
     elif is_entity_value(value):
         unwrapped = value["value"]
+        if lists_on_off_states(value):
+            sm = OnOffStateMachine(sm, value)
     else:
         return None
 

@@ -113,8 +113,11 @@ function LegendView(props: LegendProps): JSX.Element {
           const active = props.hoveredElement === null || props.hoveredElement === elementName;
           const isBatteryElement = elementSeries.some((series) => series.elementType === "battery");
           const icons = mdiIcons;
-          const batterySocSeriesGroup = isBatteryElement ? sortedSeries.filter((series) => series.lane === "soc") : [];
-          const batteryNonSocSeries = isBatteryElement ? sortedSeries.filter((series) => series.lane !== "soc") : [];
+          // Only the battery's own charge joins its group; a buffer it holds keeps its own toggle
+          const isBatterySoc = (series: ForecastSeries): boolean =>
+            series.lane === "soc" && series.elementType === "battery";
+          const batterySocSeriesGroup = isBatteryElement ? sortedSeries.filter(isBatterySoc) : [];
+          const batteryNonSocSeries = isBatteryElement ? sortedSeries.filter((series) => !isBatterySoc(series)) : [];
           return (
             <div
               key={elementName}

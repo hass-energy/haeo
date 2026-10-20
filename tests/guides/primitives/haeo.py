@@ -28,7 +28,6 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MIN_CHARGE_PERCENTAGE,
 )
 from custom_components.haeo.core.schema.elements.buffer import (
     CONF_GENERATION,
@@ -53,6 +52,7 @@ from custom_components.haeo.core.schema.elements.ev import (
     SECTION_PUBLIC_CHARGING,
     SECTION_TRIP,
 )
+from custom_components.haeo.core.schema.elements.ev import CONF_MIN_CHARGE_PERCENTAGE as EV_CONF_MIN_CHARGE_PERCENTAGE
 from custom_components.haeo.core.schema.sections import (
     CONF_FORECAST,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -60,6 +60,7 @@ from custom_components.haeo.core.schema.sections import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
 )
+from custom_components.haeo.flows.on_off_states import CONF_OFF_STATES, STEP_STATES
 
 from .capture import guide_step
 
@@ -144,6 +145,12 @@ def _step_user(element_type: str) -> JsonObjectType:
     """Get the step user translations for an element type."""
     step = _json_dict(_subentry(element_type)["step"])
     return _json_dict(step["user"])
+
+
+def _states_label(element_type: str, field: str) -> str:
+    """Get the label of a field in the step asking which states mean on and off."""
+    step = _json_dict(_subentry(element_type)["step"])
+    return _json_str(_json_dict(_json_dict(step[STEP_STATES])["data"])[field])
 
 
 def _dialog_title(element_type: str) -> str:
@@ -411,7 +418,7 @@ def add_battery(
         CONF_INITIAL_CHARGE_PERCENTAGE: initial_charge_percentage,
     }
     if min_charge_percentage is not None:
-        fields[CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
+        fields[EV_CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
     if max_charge_percentage is not None:
         fields[CONF_MAX_CHARGE_PERCENTAGE] = max_charge_percentage
     if max_power_target_source is not None:
@@ -637,12 +644,18 @@ def add_ev(
     current_soc: EntityInput,
     max_charge_rate: EntityInput | ConstantInput,
     connected: EntityInput,
+    min_charge_percentage: EntityInput | ConstantInput | None = None,
     max_discharge_rate: EntityInput | ConstantInput | None = None,
     trip_calendar: EntityInput | None = None,
     odometer: EntityInput | None = None,
     public_charging_price: EntityInput | ConstantInput | None = None,
+    unplugged_states: list[str] | None = None,
 ) -> None:
-    """Add EV element to HAEO network."""
+    """Add EV element to HAEO network.
+
+    A plugged-in sensor that reports words is followed by a step choosing its
+    states; ``unplugged_states`` are the states meaning unplugged.
+    """
     et = ElementType.EV
     _LOGGER.info("Adding EV: %s", name)
 
@@ -657,8 +670,10 @@ def add_ev(
         CONF_CAPACITY: capacity,
         CONF_ENERGY_PER_DISTANCE: energy_per_distance,
         CONF_CURRENT_SOC: current_soc,
-        CONF_MAX_CHARGE_RATE: max_charge_rate,
     }
+    if min_charge_percentage is not None:
+        fields[EV_CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
+    fields[CONF_MAX_CHARGE_RATE] = max_charge_rate
     if max_discharge_rate is not None:
         fields[CONF_MAX_DISCHARGE_RATE] = max_discharge_rate
     fields[CONF_CONNECTED] = connected
@@ -682,6 +697,9 @@ def add_ev(
 
     with page.expect_config_reload():
         page.submit()
+        if unplugged_states is not None:
+            page.select_dropdown_multi(_states_label(et, CONF_OFF_STATES), unplugged_states)
+            page.submit()
         page.close_element_dialog()
 
     _LOGGER.info("EV added: %s", name)
