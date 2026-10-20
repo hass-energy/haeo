@@ -76,6 +76,7 @@ def test_an_ev_reads_a_charger_reporting_words(charger_state: str, expected: flo
             "connected": as_entity_value([CHARGER], off_states=["Idle"]),
         },
         "efficiency": {},
+        "advanced": {"charge_limit_cost": as_constant_value(100.0)},
     }
 
     loaded = load_element_config("ev", config, FakeStateMachine(states), (0.0, 3600.0, 7200.0))
