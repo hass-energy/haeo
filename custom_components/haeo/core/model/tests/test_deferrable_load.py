@@ -37,6 +37,7 @@ def _build_network(
     overage_price: np.ndarray | float = 0.0,
     supply_price: list[float] | None = None,
     max_supply_power: list[float] | None = None,
+    max_energy: list[float] | None = None,
 ) -> tuple[Network, DeferrableLoad]:
     """Build a grid-fed deferrable load network with one-hour periods."""
     n = len(in_window)
@@ -57,6 +58,7 @@ def _build_network(
             "deficit_price": np.broadcast_to(np.asarray(deficit_price, dtype=np.float64), n + 1).copy(),
             "initial_energy": initial_energy,
             "overage_price": np.broadcast_to(np.asarray(overage_price, dtype=np.float64), n + 1).copy(),
+            "max_energy": None if max_energy is None else np.array(max_energy),
             "is_source": False,
             "is_sink": True,
         }
@@ -558,3 +560,33 @@ def test_reserve_buffer_counts_the_planned_load() -> None:
     required = np.asarray(buffer.outputs()[BUFFER_ENERGY_REQUIRED].values)
     np.testing.assert_allclose(required[1:4], power[1:], atol=1e-9)
     np.testing.assert_allclose(buffer.outputs()[BUFFER_ENERGY_SHORTFALL].values, [0.0] * 5, atol=1e-9)
+
+
+def test_max_energy_spreads_delivery_over_the_window() -> None:
+    """A maximum energy per period spreads delivery, even when one period is cheaper."""
+    network, load = _build_network(
+        in_window=[1.0, 1.0],
+        window_start=[1.0, 0.0, 0.0],
+        due=[0.0, 0.0, 6.0],
+        supply_price=[0.1, 0.5],
+        max_energy=[3.0, 3.0],
+    )
+
+    network.optimize()
+
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_power"), [3.0, 3.0], atol=1e-9)
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_shortfall"), [0.0, 0.0, 0.0], atol=1e-9)
+
+
+def test_requirement_beyond_max_energy_is_a_shortfall() -> None:
+    """A requirement the maximum energy cannot meet is a priced shortfall, never infeasible."""
+    network, load = _build_network(
+        in_window=[1.0, 1.0],
+        window_start=[1.0, 0.0, 0.0],
+        due=[0.0, 0.0, 6.0],
+        max_energy=[2.0, 2.0],
+    )
+
+    network.optimize()
+
+    np.testing.assert_allclose(_outputs(load, "deferrable_load_energy_shortfall"), [0.0, 0.0, 2.0], atol=1e-9)

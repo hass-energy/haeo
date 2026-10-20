@@ -43,11 +43,13 @@ CONF_CONNECTED: Final = "connected"
 # Trip section field names
 CONF_TRIP_CALENDAR: Final = "trip_calendar"
 # Inputs the trip calendar feeds: the periods away, where trips start, and
-# the distances of the trips starting and ending at each boundary.
+# the distances of the trips starting and ending at each boundary, and each
+# period's share of the trips' distances, spread evenly over each trip.
 CONF_AWAY: Final = "away"
 CONF_TRIP_START: Final = "trip_start"
 CONF_TRIP_OPENED: Final = "trip_opened"
 CONF_TRIP_DUE: Final = "trip_due"
+CONF_TRIP_SPREAD: Final = "trip_spread"
 CONF_ODOMETER: Final = "odometer"
 
 # Public charging section field names
@@ -130,6 +132,7 @@ class TripData(TypedDict, total=False):
     trip_start: NDArray[np.float64]
     trip_opened: NDArray[np.float64]
     trip_due: NDArray[np.float64]
+    trip_spread: NDArray[np.float64]
     odometer: float
 
 
@@ -211,6 +214,7 @@ class EvConfigSchema(ConnectedCommonConfig):
                             CONF_TRIP_START: calendar_input(OutputType.AVAILABILITY, "window_starts"),
                             CONF_TRIP_OPENED: calendar_input(OutputType.DISTANCE, "event_opens"),
                             CONF_TRIP_DUE: calendar_input(OutputType.DISTANCE, "event_due"),
+                            CONF_TRIP_SPREAD: calendar_input(OutputType.DISTANCE, "event_spread"),
                         },
                     ),
                     CONF_ODOMETER: FieldHint(
@@ -300,6 +304,7 @@ __all__ = [
     "CONF_TRIP_CALENDAR",
     "CONF_TRIP_DUE",
     "CONF_TRIP_OPENED",
+    "CONF_TRIP_SPREAD",
     "CONF_TRIP_START",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",

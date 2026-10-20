@@ -57,12 +57,14 @@ def _trips(*trips: tuple[int, int, float], n: int = N_PERIODS) -> dict[str, obje
     trip_start = np.zeros(n + 1)
     opened = np.zeros(n + 1)
     due = np.zeros(n + 1)
+    spread = np.zeros(n)
     for start, end, distance in trips:
         away[start:end] = 1.0
         trip_start[start] = float(start > 0)
         opened[start] += distance
         due[end] += distance
-    return {"away": away, "trip_start": trip_start, "trip_opened": opened, "trip_due": due}
+        spread[start:end] += distance / (end - start)
+    return {"away": away, "trip_start": trip_start, "trip_opened": opened, "trip_due": due, "trip_spread": spread}
 
 
 def _ev_config(*, plugged_in: bool = True, **overrides: object) -> EvConfigData:
@@ -114,6 +116,12 @@ def _max_power(connection: ConnectionElementConfig) -> NDArray[np.float64] | flo
     max_power = segment.get("max_power")
     assert max_power is not None
     return max_power
+
+
+def _present[T](value: T | None) -> T:
+    """Narrow an optional model element value that the test expects to be set."""
+    assert value is not None
+    return value
 
 
 def _home(config: EvConfigData) -> NDArray[np.float64]:
@@ -288,6 +296,7 @@ def test_loads_an_open_trip_from_captured_states() -> None:
     np.testing.assert_allclose(trip_load["window_start"], [0.0] * (N_PERIODS + 1))
     np.testing.assert_allclose(trip_load["opened"], [10.0, 0.0, 0.0, 0.0, 0.0])
     np.testing.assert_allclose(trip_load["due"], [0.0, 0.0, 10.0, 0.0, 0.0])
+    np.testing.assert_allclose(_present(trip_load.get("max_energy")), [5.0, 5.0, 0.0, 0.0])
     assert trip_load.get("initial_energy") == pytest.approx(6.0)
 
 
@@ -378,6 +387,15 @@ def test_driving_beyond_the_trip_completes_it_at_no_cost() -> None:
     np.testing.assert_allclose(trip_outputs[DEFERRABLE_LOAD_ENERGY_OVERAGE].values, [0.0] * (N_PERIODS + 1))
     assert trip_outputs[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[1] == pytest.approx(6.0)
     assert network.elements["ev:trip_connection"].outputs()["connection_power"].values[0] == pytest.approx(0.0)
+
+
+def test_trips_use_their_energy_at_a_steady_pace() -> None:
+    """A trip draws its energy evenly over its duration rather than all at once."""
+    network = _solve_ev_network(_ev_config(trip=_trips((1, 4, 30.0))), grid_price=[0.1, 0.1, 0.1, 0.1])
+
+    np.testing.assert_allclose(
+        network.elements["ev:trip"].outputs()["deferrable_load_power"].values, [0.0, 2.0, 2.0, 2.0], atol=1e-9
+    )
 
 
 def test_negative_prices_never_plan_driving_further_than_the_trip() -> None:
