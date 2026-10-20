@@ -181,17 +181,3 @@ def test_events_of_every_calendar_count_together() -> None:
     assert (
         resolve_calendar([ENTITY_ID, other], hint, OutputType.ENERGY, FakeStateMachine(states), BOUNDARY_TIMES) is None
     )
-
-
-def test_event_spread_shares_each_events_value_over_its_periods() -> None:
-    """Each event's value spreads evenly over its periods, and overlapping events add up."""
-    events = [_event(0, 2, location="40 kWh"), _event(1, 4, location="30 kWh")]
-
-    assert _resolve(events, "event_spread") == pytest.approx([20.0, 30.0, 10.0, 10.0])
-
-
-def test_event_spread_covers_only_the_horizon() -> None:
-    """An event under way at the horizon start, or running past its end, spreads over its periods in the horizon."""
-    events = [_event(-2, 2, location="40 kWh"), _event(3, 6, location="10 kWh")]
-
-    assert _resolve(events, "event_spread") == pytest.approx([20.0, 20.0, 0.0, 10.0])

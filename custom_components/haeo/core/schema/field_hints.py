@@ -11,7 +11,7 @@ from typing import Annotated, Literal, NotRequired, Required, get_args, get_orig
 
 from custom_components.haeo.core.model.const import OutputType
 
-type CalendarProjection = Literal["window_active", "window_starts", "event_opens", "event_due", "event_spread"]
+type CalendarProjection = Literal["window_active", "window_starts", "event_opens", "event_due"]
 
 # Projections with one value per horizon boundary rather than per period
 _BOUNDARY_PROJECTIONS: frozenset[CalendarProjection] = frozenset({"window_starts", "event_opens", "event_due"})
@@ -35,9 +35,6 @@ class CalendarFieldHint:
             - 'event_due': per boundary, the summed values of the events
               ending there. An event running past the horizon is due at its
               end.
-            - 'event_spread': per period, the summed share of each event's
-              value falling in the period, spread evenly over the part of the
-              event within the horizon.
 
             Each event's value is a number with its unit, such as "40 km",
             converted to the input's unit.

@@ -47,7 +47,6 @@ Boundaries are indexed $k \in \{0, 1, \ldots, T\}$.
 **Optional parameters**:
 
 - $E_0$: Energy already delivered to the window open at the horizon start (kWh) - `initial_energy`, defaults to 0
-- $d_{\max}(t)$: Most energy delivered in period $t$ (kWh) - `max_energy`, unlimited when unset
 - `inbound_tags`: Tags this load can consume — None means all tags (see [Tagged Power](../../tagged-power.md))
 
 Window profiles and prices are arrays, one value per period for $w$ and one per boundary for the rest.
@@ -115,14 +114,6 @@ It is never negative, so energy is never taken back out:
 $$
 d(t) \geq 0 \quad \forall t \in [1, T]
 $$
-
-With a maximum, no period delivers more than it:
-
-$$
-d(t) \leq d_{\max}(t) \quad \forall t \in [1, T]
-$$
-
-The maximum only limits delivery, so a requirement it cannot meet is a priced shortfall.
 
 #### 3. Window gating
 
