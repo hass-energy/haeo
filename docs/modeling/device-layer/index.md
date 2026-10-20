@@ -102,6 +102,14 @@ This prevents naming collisions and groups related components visually in Home A
 
     [:material-arrow-right: Buffer modeling](buffer.md)
 
+- :material-dishwasher:{ .lg .middle } **Schedulable load**
+
+    ---
+
+    Fixed-profile appliances started once per calendar window.
+
+    [:material-arrow-right: Schedulable load modeling](schedulable_load.md)
+
 - :material-battery-charging:{ .lg .middle } **Battery Section**
 
     ---

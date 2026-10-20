@@ -29,6 +29,7 @@ from custom_components.haeo.core.model.linear import LinearArray, Rows
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import TrackedParam, computed, constraint, cost, output
 from custom_components.haeo.core.model.solver import Solver
+from custom_components.haeo.core.model.util import window_carry, window_end
 
 # Model element type for deferrable loads
 ELEMENT_TYPE: Final = "deferrable_load"
@@ -195,19 +196,13 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
 
     @computed
     def _carry(self) -> NDArray[np.float64]:
-        """Return 1 for each period that continues the window of the boundary before it.
-
-        A period carries the accumulator forward when it is inside a window
-        and no window starts at its opening boundary. Every other period
-        starts the accumulator from zero.
-        """
-        return self.in_window * (1.0 - self.window_start[:-1])
+        """Return 1 for each period that continues the window of the boundary before it."""
+        return window_carry(self.in_window, self.window_start)
 
     @computed
     def _window_end(self) -> NDArray[np.float64]:
         """Return 1 at boundaries 1..T where a window ends."""
-        next_continues = np.append(self._carry()[1:], 0.0)
-        return self.in_window * (1.0 - next_continues)
+        return window_end(self.in_window, self.window_start)
 
     def _window_total(self, values: NDArray[np.float64]) -> NDArray[np.float64]:
         """Return the running total of per-period values since each period's window started."""

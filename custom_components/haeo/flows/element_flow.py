@@ -95,7 +95,8 @@ def build_inclusion_map(
     calendar inputs includes only calendars, and a field that can read a
     calendar as a forecast also includes every calendar. A meter field only
     includes entities the recorder keeps a running total for, as it reads
-    that total.
+    that total. A switch field is not filtered by unit; its domains limit it
+    to on/off entities.
 
     Args:
         input_fields: Mapping of InputFieldInfo from element's schema.
@@ -113,7 +114,7 @@ def build_inclusion_map(
         unit_spec = get_unit_spec_for_output_type(field_info.output_type)
         if reads_calendar(field_info):
             result[field_info.field_name] = calendars
-        elif unit_spec is not None:
+        elif field_info.switch is None and unit_spec is not None:
             compatible = filter_compatible_entities(entity_metadata, unit_spec)
             included = [eid for eid in compatible if eid in totals] if field_info.meter is not None else compatible
             result[field_info.field_name] = (

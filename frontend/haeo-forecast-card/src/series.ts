@@ -161,6 +161,7 @@ const ELEMENT_TYPE_KEYS: Record<ElementType, true> = {
   junction: true,
   load: true,
   node: true,
+  schedulable_load: true,
   solar: true,
   policy: true,
 };

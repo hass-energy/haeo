@@ -23,8 +23,9 @@ from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE, CalendarEventDict
 from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.switch import ON_PERIODS_ATTRIBUTE
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint, calendar_input
+from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint, SwitchFieldHint, calendar_input
 from custom_components.haeo.horizon import HorizonManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -689,5 +690,45 @@ async def test_loader_resolves_a_meter_input_with_its_totals_beside_the_events(
     assert METER_TOTALS_ATTRIBUTE in captured[METER_ID].attributes
     assert (
         ir.async_get(hass).async_get_issue(DOMAIN, "calendar_event_values_entry_id_Pump_schedule.energy_meter") is None
+    )
+    loader.cleanup()
+
+
+SWITCH_ID = "binary_sensor.dishwasher_running"
+
+
+async def test_loader_resolves_a_switch_input_with_its_periods_beside_the_events(
+    hass: HomeAssistant, horizon_manager: Mock
+) -> None:
+    """A switch input resolves to how long ago its switch first switched on in the open window."""
+    # The horizon starts ten minutes after the switch turns on below
+    start = dt_util.utcnow().timestamp() + 600.0
+    timestamps = (start, start + 3600.0)
+    horizon_manager.get_forecast_timestamps.return_value = timestamps
+    await _add_stub_calendar(hass, [_demand(start - 3600.0, start + 3600.0, "Dishwasher")])
+    hass.states.async_set(SWITCH_ID, "off")
+    sources = {"type": "entity", "value": [SWITCH_ID, ENTITY_ID]}
+    store = create_input_store(
+        value=sources,
+        storage=_MemStorage(sources),
+        hint=FieldHint(output_type=OutputType.DURATION, min_value=0.0, switch=SwitchFieldHint(since="window_calendar")),
+        get_forecast_timestamps=lambda: timestamps,
+    )
+    loader = CalendarInputLoader(hass, "entry_id", {("Dishwasher", ("schedule", "running")): store}, horizon_manager)
+    loader.start()
+    await hass.async_block_till_done()
+    assert store.value == pytest.approx(0.0)
+
+    hass.states.async_set(SWITCH_ID, "on")
+    switched_on = hass.states.get(SWITCH_ID)
+    assert switched_on is not None
+    await hass.async_block_till_done()
+
+    assert store.value == pytest.approx((start - switched_on.last_changed_timestamp) / 3600.0)
+    captured = store.captured_source_states
+    assert CALENDAR_EVENTS_ATTRIBUTE in captured[ENTITY_ID].attributes
+    assert ON_PERIODS_ATTRIBUTE in captured[SWITCH_ID].attributes
+    assert (
+        ir.async_get(hass).async_get_issue(DOMAIN, "calendar_event_values_entry_id_Dishwasher_schedule.running") is None
     )
     loader.cleanup()

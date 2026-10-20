@@ -126,6 +126,22 @@ When one of its entities reports words instead, the element flow's `states` step
 With only one list, every other state is the opposite; with both, a state in neither reads as `unknown`, and states already reading as on or off keep their reading unless listed.
 Input stores capture the states as reported, so diagnostics replay the same reading from the stored lists.
 
+### Switches
+
+A field whose hint sets `switch` reads on/off switches, such as an appliance's running sensor.
+Its value is how many hours before the horizon start its switches first switched on in the calendar window open then, so its input entity shows how long the load has been running.
+A switch already on when the window opened counts from when it switched on, and with several switches the earliest switch-on counts.
+With no window open, or no switch-on in it, the value is zero.
+
+Like a meter, the switch hint names the calendar field whose window it reads in, and `input_value` adds that field's calendars to the input's entities.
+The calendar loader keeps each switch's on periods with the [switch history](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/switch_history.py).
+It reads the switch's state changes from the recorder over the past week, extends them with the state changes as they arrive, and injects the periods into the switch's state as the `haeo_on_periods` attribute.
+`on`, `true`, and numbers of 0.5 or more are on; `off`, `false`, and smaller numbers are off; `unavailable` and `unknown` neither start nor end a period, so a restart leaves no switch-on behind.
+Switch fields offer only on/off entities: switches, binary sensors, and input booleans.
+
+The input store captures the calendars with their events and the switches with their periods, so diagnostics replay the same value.
+Historical diagnostics read each switch's periods as of the run from the recorder and inject them the same way.
+
 ### Responsibilities
 
 - Load every referenced sensor, and treat the field as unavailable if any sensor is missing or has no data

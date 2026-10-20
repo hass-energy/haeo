@@ -36,6 +36,7 @@ from .calendar_resolver import resolve_calendar
 from .meter import resolve_meter
 from .on_off_states import OnOffStateMachine, lists_on_off_states
 from .sensor_loader import load_sensors
+from .switch import resolve_switch
 
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
 
@@ -114,15 +115,15 @@ def configured_value(element_config: Mapping[str, object], config_path: InputPat
 def input_value(element_config: Mapping[str, object], element_input: ElementInput) -> SchemaValue | bool | None:
     """Return the value an input resolves from, or None when the input is absent or disabled.
 
-    This is the input's configured value, except that a meter input also
-    reads the entities of its window calendar field, so its source states
-    carry the calendar events it measures from.
+    This is the input's configured value, except that a meter or switch
+    input also reads the entities of its window calendar field, so its
+    source states carry the calendar events it measures from.
     """
     value = configured_value(element_config, element_input.config_path)
-    meter = element_input.hint.meter
-    if meter is None or not is_entity_value(value):
+    reads_since = element_input.hint.meter or element_input.hint.switch
+    if reads_since is None or not is_entity_value(value):
         return value
-    window = configured_value(element_config, (*element_input.config_path[:-1], meter.since))
+    window = configured_value(element_config, (*element_input.config_path[:-1], reads_since.since))
     calendars = list(window["value"]) if is_entity_value(window) else []
     return as_entity_value([*value["value"], *calendars])
 
@@ -367,6 +368,9 @@ def resolve_field(
 
     if hint.meter is not None:
         return resolve_meter(unwrapped, hint.output_type, sm, forecast_times)
+
+    if hint.switch is not None:
+        return resolve_switch(unwrapped, sm, forecast_times)
 
     resolved = _resolve_entities(unwrapped, hint, sm, forecast_times, is_percent=is_percent)
     if negate and resolved is not None:

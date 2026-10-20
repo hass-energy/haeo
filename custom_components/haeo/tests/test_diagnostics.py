@@ -31,6 +31,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, C
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.data.loader.config_loader import ElementInput
 from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.switch import ON_PERIODS_ATTRIBUTE
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema, ElementType
@@ -45,7 +46,7 @@ from custom_components.haeo.core.schema.elements.battery import (
     SECTION_LIMITS,
     SECTION_STORAGE,
 )
-from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint
+from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint, SwitchFieldHint
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
@@ -978,6 +979,60 @@ async def test_fetch_inputs_at_injects_meter_totals_as_of_the_run(hass: HomeAssi
     assert METER_TOTALS_ATTRIBUTE not in soc_attributes
     assert totals_at.await_args is not None
     assert totals_at.await_args.args[1:3] == ("sensor.battery_capacity", target_time)
+
+
+async def test_fetch_inputs_at_injects_switch_periods_as_of_the_run(hass: HomeAssistant) -> None:
+    """Historical inputs carry each switch input's on periods as of the run, as a live run injects them."""
+    entry = MockConfigEntry(domain=DOMAIN, data=_hub_entry_data(), entry_id="hub_entry")
+    entry.add_to_hass(hass)
+    battery_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            _battery_config(
+                name="Battery",
+                connection="DC Bus",
+                capacity="sensor.battery_capacity",
+                initial_charge_percentage="sensor.battery_soc",
+            )
+        ),
+        subentry_type=ElementType.BATTERY,
+        title="Battery",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(entry, battery_subentry)
+    target_time = datetime(2024, 1, 1, tzinfo=UTC)
+    switch_input = ElementInput(
+        ("storage", "capacity"),
+        ("storage", "capacity"),
+        FieldHint(output_type=OutputType.DURATION, switch=SwitchFieldHint(since="initial_charge_percentage")),
+    )
+    mock_recorder = Mock()
+    mock_recorder.async_add_executor_job = AsyncMock(side_effect=lambda fn: fn())
+    periods_at = AsyncMock(return_value=[(target_time.timestamp(), None)])
+
+    with (
+        patch("custom_components.haeo.diagnostics.collector.get_recorder_instance", return_value=mock_recorder),
+        patch(
+            "custom_components.haeo.diagnostics.collector.get_significant_states_full",
+            return_value={
+                "sensor.battery_capacity": [State("sensor.battery_capacity", "5000", {"unit_of_measurement": "Wh"})],
+                "sensor.battery_soc": [State("sensor.battery_soc", "75", {"unit_of_measurement": "%"})],
+            },
+        ),
+        patch("custom_components.haeo.diagnostics.collector.element_inputs", return_value=[switch_input]),
+        patch("custom_components.haeo.diagnostics.collector.async_on_periods_at", periods_at),
+    ):
+        inputs, missing = await _fetch_inputs_at(hass, entry, target_time)
+
+    assert missing == []
+    by_id = {inp["entity_id"]: inp for inp in inputs}
+    capacity_attributes = by_id["sensor.battery_capacity"]["attributes"]
+    assert isinstance(capacity_attributes, Mapping)
+    assert capacity_attributes[ON_PERIODS_ATTRIBUTE] == [(target_time.timestamp(), None)]
+    soc_attributes = by_id["sensor.battery_soc"]["attributes"]
+    assert isinstance(soc_attributes, Mapping)
+    assert ON_PERIODS_ATTRIBUTE not in soc_attributes
+    assert periods_at.await_args is not None
+    assert periods_at.await_args.args[1:3] == ("sensor.battery_capacity", target_time)
 
 
 async def test_fetch_inputs_at_reports_missing_entities(hass: HomeAssistant) -> None:

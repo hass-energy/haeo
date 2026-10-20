@@ -21,6 +21,10 @@ from custom_components.haeo.core.schema.elements.junction import JunctionConfigD
 from custom_components.haeo.core.schema.elements.load import LoadConfigData, LoadConfigSchema
 from custom_components.haeo.core.schema.elements.node import NodeConfigData, NodeConfigSchema
 from custom_components.haeo.core.schema.elements.policy import PolicyConfigData, PolicyConfigSchema
+from custom_components.haeo.core.schema.elements.schedulable_load import (
+    SchedulableLoadConfigData,
+    SchedulableLoadConfigSchema,
+)
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData, SolarConfigSchema
 
 ElementConfigSchema = (
@@ -36,6 +40,7 @@ ElementConfigSchema = (
     | JunctionConfigSchema
     | PolicyConfigSchema
     | BufferConfigSchema
+    | SchedulableLoadConfigSchema
     | ConnectionConfigSchema
 )
 
@@ -52,6 +57,7 @@ ElementConfigData = (
     | JunctionConfigData
     | PolicyConfigData
     | BufferConfigData
+    | SchedulableLoadConfigData
     | ConnectionConfigData
 )
 
@@ -68,6 +74,7 @@ ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
     ElementType.LOAD: LoadConfigSchema,
     ElementType.NODE: NodeConfigSchema,
     ElementType.POLICY: PolicyConfigSchema,
+    ElementType.SCHEDULABLE_LOAD: SchedulableLoadConfigSchema,
     ElementType.SOLAR: SolarConfigSchema,
 }
 

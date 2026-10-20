@@ -54,7 +54,7 @@ It delivers a global optimum when a feasible solution exists and scales well as 
 
     **Mixed-integer programming (MILP) is a tool of last resort**: we look for linear encodings first (penalties, slacks, forecast-shaped loads) and add integers only when LP cannot deliver the same outcome.
     **Deferrable loads follow that approach**: a [deferrable load](model-layer/elements/deferrable_load.md) is pure LP, with each window's requirement settled at its end and any shortfall priced rather than enforced.
-    Loads that need a discrete **run-now** decision, such as fixed-power appliances that cannot modulate, are still fixed or forecast consumption, or scheduled externally (for example via EMHASS) and passed in as inputs.
+    Loads that need a discrete **run-now** decision use the [schedulable load](model-layer/elements/schedulable_load.md): its starts are continuous except, by default, the decision to start in the current period, which is the only decision acted on before the next optimization.
 
 ## Mathematical Model Structure
 
@@ -95,6 +95,12 @@ The weight is never raised to a weight already found too large for the cost in t
 Between a weight known too small and one known too large, the weight is bisected, and the blended solve is repeated from the same basis.
 The weight settled on is kept for later solves, and since inputs change, no weight is ruled out for good.
 If no weight puts the plan in order without failing the cost, the cost-optimal plan is kept; if none is cost-optimal at all, the cost alone is solved.
+
+Elements can require integer variables, such as the [schedulable load's](model-layer/elements/schedulable_load.md#integer-starts) start decisions.
+Each plan solve is then mixed-integer, and the integer variables are fixed at their solved values so the same objective can be solved again as a linear program with valid duals.
+Reduced costs at that basis only see moves of the continuous variables, not a cheaper integer decision.
+So a plan with integer variables is cost-optimal only when its cost also matches the cost-only optimum, solved once per optimization with a zero MIP gap.
+Networks without integer variables skip both steps.
 
 The primary objective is priced last, so its dual values at the plan's basis are the shadow prices: the blended duals without the secondary's contribution.
 

@@ -59,6 +59,21 @@ class MeterFieldHint:
 
 
 @dataclass(frozen=True, slots=True)
+class SwitchFieldHint:
+    """How an input reads an on/off switch: when it first switched on in a calendar window.
+
+    Attributes:
+        since: The calendar field, in the same section, whose window open at
+            the horizon start the switch is read in. The input loads how long
+            before the horizon start the switch first switched on in that
+            window, in hours, or 0 when it has not.
+
+    """
+
+    since: str
+
+
+@dataclass(frozen=True, slots=True)
 class FieldHint:
     """Metadata for a config field that becomes an input entity.
 
@@ -81,6 +96,8 @@ class FieldHint:
             reads can so feed several inputs, each with its own entity.
         meter: When set, the input reads meters, and the amount they rose
             since a calendar window started loads beside it.
+        switch: When set, the input reads on/off switches, and how long ago
+            they first switched on in a calendar window loads beside it.
 
     """
 
@@ -97,6 +114,7 @@ class FieldHint:
     calendar: CalendarFieldHint | None = None
     outputs: Mapping[str, "FieldHint"] | None = None
     meter: MeterFieldHint | None = None
+    switch: SwitchFieldHint | None = None
 
 
 def calendar_input(output_type: OutputType, projection: CalendarProjection) -> FieldHint:

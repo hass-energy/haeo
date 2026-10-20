@@ -18,6 +18,12 @@ class ObjSense(IntEnum):
     kMinimize = 0
     kMaximize = 1
 
+class HighsVarType(IntEnum):
+    kContinuous = 0
+    kInteger = 1
+    kSemiContinuous = 2
+    kSemiInteger = 3
+
 class HighsModelStatus(IntEnum):
     kNotset = 0
     kLoadError = 1
@@ -153,6 +159,24 @@ class Highs:
         costs: NDArray[np.float64],
     ) -> None: ...
     def changeColBounds(self, col: int, lower: float, upper: float) -> None: ...
+    def changeColsBounds(
+        self,
+        num_cols: int,
+        cols: NDArray[np.int32],
+        lower: NDArray[np.float64],
+        upper: NDArray[np.float64],
+    ) -> HighsStatus: ...
+    def changeColsIntegrality(
+        self,
+        num_cols: int,
+        cols: NDArray[np.int32],
+        integrality: NDArray[np.generic],
+    ) -> HighsStatus: ...
+    def getCols(
+        self,
+        num_cols: int,
+        cols: NDArray[np.int32],
+    ) -> tuple[HighsStatus, int, NDArray[np.float64], NDArray[np.float64], NDArray[np.float64], int]: ...
     def changeCoeff(self, row: int, col: int, value: float) -> None: ...
     def getInfoValue(self, info: str) -> tuple[HighsStatus, int | float]: ...
     def getInfo(self) -> HighsInfo: ...
