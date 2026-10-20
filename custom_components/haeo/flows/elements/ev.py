@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
 
-from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.config_entries import SubentryFlowResult
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
@@ -45,10 +45,11 @@ from custom_components.haeo.flows.field_schema import (
     sectioned_view,
     validate_sectioned_choose_fields,
 )
+from custom_components.haeo.flows.on_off_states import ElementSubentryFlow
 from custom_components.haeo.sections import build_common_fields, efficiency_section, power_limits_section
 
 
-class EvSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
+class EvSubentryFlowHandler(ElementFlowMixin, ElementSubentryFlow):
     """Handle EV element configuration flows."""
 
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
@@ -116,7 +117,7 @@ class EvSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
 
         if user_input is not None and not errors:
             config = self._build_config(user_input)
-            return self._finalize(config, user_input)
+            return await self._async_finalize(config, user_input)
 
         entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         section_inclusion_map = build_sectioned_inclusion_map(input_fields, entity_metadata)
@@ -229,10 +230,6 @@ class EvSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             **config_dict,
         }
 
-    def _finalize(self, config: dict[str, object], user_input: Mapping[str, object]) -> SubentryFlowResult:
+    async def _async_finalize(self, config: dict[str, object], user_input: Mapping[str, object]) -> SubentryFlowResult:
         """Finalize the flow by creating or updating the entry."""
-        name = str(user_input[CONF_NAME])
-        subentry = self._get_subentry()
-        if subentry is not None:
-            return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
-        return self.async_create_entry(title=name, data=config)
+        return await self._async_save_entry(str(user_input[CONF_NAME]), config)
