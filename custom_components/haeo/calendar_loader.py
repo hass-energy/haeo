@@ -325,8 +325,12 @@ async def async_fetch_calendar_events(
         _LOGGER.debug("Calendar entity %s not found; no events injected", entity_id)
         return None
 
+    # Calendars match floating event times (no timezone, as create_event and
+    # many imported calendars store them) in the query's timezone, so ask in
+    # local time, which is what a floating time means in Home Assistant
+    local_tz = dt_util.get_default_time_zone()
     try:
-        calendar_events = await entity.async_get_events(hass, start, end)
+        calendar_events = await entity.async_get_events(hass, start.astimezone(local_tz), end.astimezone(local_tz))
     except Exception:
         _LOGGER.warning("Failed to fetch events from %s", entity_id, exc_info=True)
         return None
