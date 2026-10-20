@@ -14,7 +14,7 @@ import asyncio
 from collections.abc import Callable, Coroutine, Mapping
 from datetime import UTC, date, datetime
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from homeassistant.components.calendar import CalendarEntity
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
@@ -26,6 +26,7 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo.core.data.loader.calendar import (
     CALENDAR_EVENTS_ATTRIBUTE,
     CalendarEventData,
+    EventValueText,
     capture_calendar_events,
     load_calendar_events,
     rejected_events,
@@ -88,6 +89,25 @@ def _as_datetime(value: datetime | date) -> datetime:
     if isinstance(value, datetime):
         return value
     return dt_util.start_of_local_day(value)
+
+
+# Longest event text quoted in the repair issue, so a long description does not swamp it
+_QUOTED_TEXT_LENGTH: Final = 60
+
+
+def _one_line(text: str) -> str:
+    """Return text on one line, shortened with an ellipsis when it is long."""
+    text = " ".join(text.split())
+    return text if len(text) <= _QUOTED_TEXT_LENGTH else f"{text[: _QUOTED_TEXT_LENGTH - 1].rstrip()}…"
+
+
+def _ignored_event_line(event: CalendarEventData, value_text: EventValueText) -> str:
+    """Describe an ignored event by its start, its summary, and the text its value was read from.
+
+    For example: ``2026-10-22T10:00:00+11:00 Pool pump — "Run 2 kW or 3 kW"``.
+    """
+    name = f" {_one_line(event.summary)}" if event.summary and value_text.field != "summary" else ""
+    return f'{event.start.isoformat()}{name} — "{_one_line(value_text.text)}"'
 
 
 class CalendarInputLoader:
@@ -249,9 +269,11 @@ class CalendarInputLoader:
         for (element_name, field_path), (store, unit) in reading_values.items():
             calendars = [eid for eid in store.source_entity_ids if is_calendar_entity(eid)]
             ignored = [
-                f"{event.start.isoformat()} {event.summary or ''}: {typed}"
+                _ignored_event_line(event, value_text)
                 for eid in calendars
-                for event, typed in rejected_events(load_calendar_events(sm.get(eid)) or [], store.hint.output_type)
+                for event, value_text in rejected_events(
+                    load_calendar_events(sm.get(eid)) or [], store.hint.output_type
+                )
             ]
             if ignored:
                 create_calendar_event_values_issue(
