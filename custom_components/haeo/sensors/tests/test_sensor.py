@@ -20,6 +20,7 @@ from homeassistant.util import dt as dt_util
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from conftest import added_entities
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import (
     CONF_RECORD_FORECASTS,
@@ -248,8 +249,7 @@ async def test_async_setup_entry_creates_sensors_with_metadata(
 
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    async_add_entities.assert_called_once()
-    sensors = list(async_add_entities.call_args.args[0])
+    sensors = added_entities(async_add_entities)
     # 3 output sensors + 1 horizon entity = 4 total
     assert len(sensors) == 4
 
@@ -305,8 +305,7 @@ async def test_async_setup_entry_creates_horizon_when_no_outputs(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     # Horizon entity is always added (created in sensor platform from horizon_manager)
-    async_add_entities.assert_called_once()
-    entities = async_add_entities.call_args[0][0]
+    entities = added_entities(async_add_entities)
     assert len(entities) == 1
     # The first entity is the HaeoHorizonEntity created in sensor platform
     # Import is at function scope to avoid circular import issues in test module
@@ -566,8 +565,7 @@ async def test_async_setup_entry_creates_sub_device_sensors(
 
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    async_add_entities.assert_called_once()
-    sensors = list(async_add_entities.call_args.args[0])
+    sensors = added_entities(async_add_entities)
     # 2 entities: horizon entity + 1 output sensor
     assert len(sensors) == 2
 
@@ -905,7 +903,7 @@ async def test_async_setup_entry_flattens_connection_endpoints_into_placeholders
 
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    sensors = [s for s in async_add_entities.call_args.args[0] if isinstance(s, HaeoSensor)]
+    sensors = [s for s in added_entities(async_add_entities) if isinstance(s, HaeoSensor)]
     assert len(sensors) == 1
     translations = await async_get_translations(hass, "en", "entity", integrations=[DOMAIN])
     name = translations[f"component.{DOMAIN}.entity.sensor.{sensors[0].translation_key}.name"]
@@ -957,21 +955,19 @@ async def test_outputs_added_after_failed_first_optimization(
     async_add_entities = Mock()
 
     await async_setup_entry(hass, config_entry, async_add_entities)
-    (horizon_only,) = async_add_entities.call_args.args
-    assert [type(entity).__name__ for entity in horizon_only] == ["HaeoHorizonEntity"]
+    assert [type(entity).__name__ for entity in added_entities(async_add_entities)] == ["HaeoHorizonEntity"]
 
     # A failed update adds nothing
     for listener in list(listeners):
         listener()
-    assert async_add_entities.call_count == 1
+    assert len(added_entities(async_add_entities)) == 1
 
     coordinator.data = _make_coordinator_data(_status_outputs(config_entry.title))
     for _ in range(2):
         for listener in list(listeners):
             listener()
 
-    assert async_add_entities.call_count == 2
-    (outputs,) = async_add_entities.call_args.args
+    _, *outputs = added_entities(async_add_entities)
     assert [sensor.translation_key for sensor in outputs] == [OUTPUT_NAME_OPTIMIZATION_STATUS]
 
 

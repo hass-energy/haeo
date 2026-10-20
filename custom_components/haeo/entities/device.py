@@ -12,6 +12,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceEntry
 
 from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
+from custom_components.haeo.unique_id import element_unique_id
 
 if TYPE_CHECKING:
     from custom_components.haeo.elements import ElementDeviceName
@@ -24,8 +25,6 @@ def build_device_identifier(
 ) -> tuple[str, str]:
     """Build a device identifier tuple.
 
-    Uses identifier pattern: {entry_id}_{subentry_id}_{device_name}
-
     Args:
         config_entry: The config entry for the integration
         subentry: The subentry for the element
@@ -35,7 +34,7 @@ def build_device_identifier(
         Identifier tuple (DOMAIN, identifier_string)
 
     """
-    return (DOMAIN, f"{config_entry.entry_id}_{subentry.subentry_id}_{device_name}")
+    return (DOMAIN, element_unique_id(config_entry.entry_id, subentry.subentry_id, device_name))
 
 
 def get_or_create_element_device(
