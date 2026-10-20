@@ -135,7 +135,7 @@ _TRIP_HINT = FieldHint(
     output_type=OutputType.AVAILABILITY,
     outputs={
         "trip_away": calendar_input(OutputType.AVAILABILITY, "window_active"),
-        "trip_due": calendar_input(OutputType.ENERGY, "window_due"),
+        "trip_due": calendar_input(OutputType.ENERGY, "event_due"),
     },
 )
 

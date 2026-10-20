@@ -12,6 +12,7 @@ from custom_components.haeo.core.adapters.elements.battery import adapter as bat
 from custom_components.haeo.core.adapters.elements.battery_section import adapter as battery_section_adapter
 from custom_components.haeo.core.adapters.elements.buffer import adapter as buffer_adapter
 from custom_components.haeo.core.adapters.elements.connection import adapter as connection_adapter
+from custom_components.haeo.core.adapters.elements.deferrable_load import adapter as deferrable_load_adapter
 from custom_components.haeo.core.adapters.elements.grid import adapter as grid_adapter
 from custom_components.haeo.core.adapters.elements.inverter import adapter as inverter_adapter
 from custom_components.haeo.core.adapters.elements.junction import adapter as junction_adapter
@@ -85,6 +86,7 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
     ElementType.INVERTER: inverter_adapter,
     ElementType.SOLAR: solar_adapter,
     ElementType.BATTERY: battery_adapter,
+    ElementType.DEFERRABLE_LOAD: deferrable_load_adapter,
     ElementType.CONNECTION: connection_adapter,
     ElementType.JUNCTION: junction_adapter,
     ElementType.NODE: node_adapter,

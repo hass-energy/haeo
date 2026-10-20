@@ -910,7 +910,7 @@ def test_field_with_outputs_loads_each_output_from_its_calendar(monkeypatch: pyt
                 output_type=OutputType.AVAILABILITY,
                 outputs={
                     "away": calendar_input(OutputType.AVAILABILITY, "window_active"),
-                    "due": calendar_input(OutputType.ENERGY, "window_due"),
+                    "due": calendar_input(OutputType.ENERGY, "event_due"),
                 },
             )
         }

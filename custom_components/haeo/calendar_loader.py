@@ -234,15 +234,17 @@ class CalendarInputLoader:
     def _report_ignored_event_values(self, sm: StateMachine) -> None:
         """Raise a repair issue for each input ignoring calendar events whose values it cannot use.
 
-        Only inputs reading event values, a forecast or a window's due value,
-        in a unit can ignore one; window flags and meters do not read them.
+        Only inputs reading event values in a unit, a forecast or the events'
+        due amounts, can ignore one; window flags and meters do not read them.
+        The due amounts report for the opened amounts too, as both read the
+        same values.
         """
         reading_values = {
             key: (store, unit)
             for key, store in self._stores.items()
             if (unit := field_unit_label(store.hint.output_type)) is not None
             and store.hint.meter is None
-            and (store.hint.calendar is None or store.hint.calendar.projection == "window_due")
+            and (store.hint.calendar is None or store.hint.calendar.projection == "event_due")
         }
         for (element_name, field_path), (store, unit) in reading_values.items():
             calendars = [eid for eid in store.source_entity_ids if is_calendar_entity(eid)]

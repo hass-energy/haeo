@@ -121,6 +121,32 @@ describe("normalizeSeries", () => {
     expect(first.priority).toBe(3);
   });
 
+  it("ingests deferrable load power outputs", () => {
+    const hass = withSingleHubRegistry({
+      states: {
+        "sensor.pool_pump_power": {
+          entity_id: "sensor.pool_pump_power",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1.5 },
+              { time: "2026-03-14T01:00:00Z", value: 0 },
+            ],
+            field_type: "power",
+            output_name: "deferrable_load_power",
+            direction: "-",
+            element_type: "deferrable_load",
+            element_name: "Pool Pump",
+            unit_of_measurement: "kW",
+          },
+        },
+      },
+    });
+    const output = normalizeSeries(hass, testHubConfig);
+    expect(output).toHaveLength(1);
+    expect(output[0]!.elementType).toBe("deferrable_load");
+    expect(output[0]!.lane).toBe("power");
+  });
+
   it("handles state_of_charge output type as line draw", () => {
     const hass = withSingleHubRegistry({
       states: {

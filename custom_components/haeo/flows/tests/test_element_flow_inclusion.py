@@ -131,7 +131,7 @@ def test_build_inclusion_map_offers_only_calendars_for_calendar_fields() -> None
         field_name="trip_due",
         entity_description=NumberEntityDescription(key="trip_due", name="trip_due"),
         output_type=OutputType.ENERGY,
-        calendar=CalendarFieldHint(projection="window_due"),
+        calendar=CalendarFieldHint(projection="event_due"),
     )
     field = InputFieldInfo(
         field_name="trip_calendar",

@@ -13,6 +13,7 @@ import numpy as np
 
 from custom_components.haeo.core.adapters.registry import is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.data.util.field_units import NON_NEGATIVE_OUTPUT_TYPES
 from custom_components.haeo.core.data.util.forecast_combiner import fuse_sensor_payloads, split_sensor_payloads
 from custom_components.haeo.core.data.util.input_values import enforce_non_negative
 from custom_components.haeo.core.model.const import OutputType
@@ -38,18 +39,6 @@ from .sensor_loader import load_sensors
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
 
 type InputPath = tuple[str, ...]
-
-# Physical quantities that cannot be negative. Prices can, and switches have no sign.
-_NON_NEGATIVE_OUTPUT_TYPES = frozenset(
-    {
-        OutputType.POWER,
-        OutputType.POWER_LIMIT,
-        OutputType.ENERGY,
-        OutputType.STATE_OF_CHARGE,
-        OutputType.EFFICIENCY,
-        OutputType.DURATION,
-    }
-)
 
 
 class ElementInput(NamedTuple):
@@ -393,7 +382,7 @@ def _is_non_negative_field(hint: FieldHint) -> bool:
     Deciding from the hint means runtime input stores and offline loading
     (diagnostics, simulation, scenarios) treat the same values the same way.
     """
-    return hint.output_type in _NON_NEGATIVE_OUTPUT_TYPES or (hint.min_value is not None and hint.min_value >= 0)
+    return hint.output_type in NON_NEGATIVE_OUTPUT_TYPES or (hint.min_value is not None and hint.min_value >= 0)
 
 
 def resolve_constant(

@@ -87,6 +87,20 @@ def test_to_field_unit_rejects_values_it_cannot_convert(unit: str | None, output
     assert to_field_unit(5.0, unit, output_type) is None
 
 
+@pytest.mark.parametrize(
+    ("output_type", "expected"),
+    [
+        pytest.param(OutputType.ENERGY, None, id="energy_cannot_be_negative"),
+        pytest.param(OutputType.PRICE, -0.05, id="price_can_be_negative"),
+    ],
+)
+def test_to_field_unit_rejects_negative_quantities(output_type: OutputType, expected: float | None) -> None:
+    """A quantity that cannot be negative rejects a negative value; a price takes one."""
+    unit = "$/kWh" if output_type == OutputType.PRICE else "kWh"
+
+    assert to_field_unit(-0.05, unit, output_type) == expected
+
+
 def test_field_unit_label() -> None:
     """A field's unit is named to users, and a field without one has no label."""
     assert field_unit_label(OutputType.POWER) == "kW"
