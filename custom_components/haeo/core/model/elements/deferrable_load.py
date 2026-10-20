@@ -1,18 +1,20 @@
 """Deferrable load entity for electrical system modeling.
 
-A deferrable load absorbs energy only inside scheduled, non-overlapping
-windows (e.g. calendar events). A single energy accumulator counts the energy
-delivered in the current window: it resets to zero at each window start, and
-its value at a window's end boundary is the energy that window received.
+A deferrable load receives energy only inside scheduled windows (e.g.
+calendar events). Each event has its own requirement and its own start and
+end, and overlapping events share one window. A single energy accumulator
+counts the energy delivered since the window started.
 
-Each window's requirement is settled at its end boundary. Neither side is
-enforced: a shortfall is priced at the deficit price and delivery beyond the
-requirement at the overage price. The optimization therefore stays feasible
-when the requirement physically cannot be met, and when the device has
-already run past it, whether by its own cycle or by someone running it.
+Inside a window the accumulator must stay within a band. Its lower edge is
+the energy due: the requirements of the events that have ended. Its upper
+edge is the energy started: the requirements of the events that have begun.
+Falling below the band is shortfall, priced at the deficit price, and rising
+above it is overage, priced at the overage price. Neither is ever forbidden,
+so the optimization stays feasible when a requirement physically cannot be
+met and when the device has already run past it.
 
-The problem shape never depends on the number of windows: every variable and
-constraint is sized by the horizon, and windows only change parameter values.
+The problem shape never depends on the number of events: every variable and
+constraint is sized by the horizon, and events only change parameter values.
 """
 
 from typing import Final, Literal, NotRequired, TypedDict
@@ -70,7 +72,8 @@ class DeferrableLoadElementConfig(TypedDict):
     name: str
     in_window: NDArray[np.float64]
     window_start: NDArray[np.float64]
-    requirement: NDArray[np.float64]
+    opened: NDArray[np.float64]
+    due: NDArray[np.float64]
     deficit_price: NDArray[np.float64]
     overage_price: NDArray[np.float64]
     initial_energy: NotRequired[float]
@@ -83,34 +86,46 @@ class DeferrableLoadElementConfig(TypedDict):
 class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
     """Deferrable load entity for electrical system modeling.
 
-    Window structure is described by three masks over the horizon:
+    The window structure and events are described over the horizon:
 
     - ``in_window`` (per period): 1 where the period lies inside a window.
       Power is zero in every other period.
     - ``window_start`` (per boundary): 1 where a window starts, resetting
       the accumulator. It separates windows that touch end to start.
-    - ``requirement`` (per boundary): the energy a window must receive,
-      placed at its end boundary.
+    - ``opened`` (per boundary): the requirements of the events starting at
+      each boundary. An event already open at the horizon start opens at
+      boundary 0.
+    - ``due`` (per boundary): the requirements of the events ending at each
+      boundary. An event running past the horizon end is due at the final
+      boundary, clamped to the horizon.
 
-    A window's end boundary is the last boundary of a run of in-window
-    periods, or a boundary where the next window starts. A window still
-    open at the horizon end therefore settles at the final boundary.
+    Within a window, the energy started by boundary ``k`` is the sum of the
+    events opened before ``k``, and the energy due by ``k`` is the sum of the
+    events due by ``k``. The accumulator, less any overage, must reach the
+    energy due, and anything above the energy started is overage. Shortfall
+    and overage never shrink within a window and are priced as they grow, so
+    a missed deadline stays missed, energy delivered before an event starts
+    never counts toward it, and each kWh is priced once at the boundary
+    where it is missed or delivered beyond what has started.
+
+    The band is exact when events do not nest, that is when an event that
+    starts later also ends later. An event nested inside another still gets
+    its share of the window's energy by its end, but that energy may arrive
+    before it starts.
 
     ``initial_energy`` is the energy already delivered to the window open at
-    the horizon start. It seeds the accumulator for that window only. When it
-    is already past the requirement, the overshoot is overage like any other:
-    pricing it adds a fixed cost that changes no decision.
+    the horizon start. It seeds the accumulator for that window only, and an
+    overshoot is overage like any other: a fixed cost that changes no
+    decision.
 
-    ``in_window`` has one value per period; ``window_start``, ``requirement``,
-    and both prices have one per boundary. The requirement, initial energy,
-    and prices are never negative: a negative price would reward booking a
-    shortfall or overage that never happens.
+    The requirements, initial energy, and prices are never negative.
     """
 
     # Parameters
     in_window: TrackedParam[NDArray[np.float64]] = TrackedParam()
     window_start: TrackedParam[NDArray[np.float64]] = TrackedParam()
-    requirement: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    opened: TrackedParam[NDArray[np.float64]] = TrackedParam()
+    due: TrackedParam[NDArray[np.float64]] = TrackedParam()
     initial_energy: TrackedParam[float] = TrackedParam()
     deficit_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
     overage_price: TrackedParam[NDArray[np.float64]] = TrackedParam()
@@ -123,7 +138,8 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         solver: Solver,
         in_window: NDArray[np.float64],
         window_start: NDArray[np.float64],
-        requirement: NDArray[np.float64],
+        opened: NDArray[np.float64],
+        due: NDArray[np.float64],
         deficit_price: NDArray[np.float64],
         overage_price: NDArray[np.float64],
         initial_energy: float = 0.0,
@@ -149,7 +165,8 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
 
         self.in_window = in_window
         self.window_start = window_start
-        self.requirement = requirement
+        self.opened = opened
+        self.due = due
         self.initial_energy = initial_energy
         self.deficit_price = deficit_price
         self.overage_price = overage_price
@@ -158,9 +175,9 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         self.energy = solver.add_variables(n_periods + 1, name=f"{name}.energy")
         # Energy delivered during each period
         self.delivered = solver.add_variables(n_periods, name=f"{name}.delivered")
-        # Shortfall against the requirement at boundaries 1..T
+        # Energy due but not delivered, at boundaries 1..T
         self.shortfall = solver.add_variables(n_periods, name=f"{name}.shortfall")
-        # Delivery beyond the requirement at boundaries 1..T
+        # Energy delivered beyond what has started, at boundaries 1..T
         self.overage = solver.add_variables(n_periods, name=f"{name}.overage")
 
     @property
@@ -181,16 +198,22 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         """
         return self.in_window * (1.0 - self.window_start[:-1])
 
-    def _window_end(self) -> NDArray[np.float64]:
-        """Return 1 at boundaries 1..T where a window ends."""
-        in_window = self.in_window
-        next_in_window = np.append(in_window[1:], 0.0)
-        next_continues = next_in_window * (1.0 - self.window_start[1:])
-        return in_window * (1.0 - next_continues)
+    def _window_total(self, values: NDArray[np.float64]) -> NDArray[np.float64]:
+        """Return the running total of per-period values since each period's window started."""
+        totals = np.cumsum(values)
+        starts = np.flatnonzero(self._carry() <= 0.0)
+        last_start = np.zeros(len(values), dtype=np.intp)
+        last_start[starts] = starts
+        last_start = np.maximum.accumulate(last_start)
+        return totals - (totals - values)[last_start]
 
-    def _settled_requirement(self) -> NDArray[np.float64]:
-        """Return the requirement settled at boundaries 1..T, nonzero only at window ends."""
-        return self._window_end() * self.requirement[1:]
+    def _started(self) -> NDArray[np.float64]:
+        """Return the energy started by boundaries 1..T: the events opened in the window so far."""
+        return self._window_total(self.in_window * self.opened[:-1])
+
+    def _due_by(self) -> NDArray[np.float64]:
+        """Return the energy due by boundaries 1..T: the events ended in the window so far."""
+        return self._window_total(self.in_window * self.due[1:])
 
     @constraint
     def deferrable_load_initial_energy(self) -> Rows:
@@ -213,35 +236,36 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
 
     @constraint(output=True, unit="$/kWh")
     def deferrable_load_requirement(self) -> Rows:
-        """Constraint: delivered energy plus shortfall covers the requirement at window ends.
+        """Constraint: delivered energy, less overage, plus shortfall reaches the energy due.
 
         Output: shadow price indicating the marginal cost of requiring one more kWh.
         """
-        window_end = self._window_end()
-        return window_end * self.energy[1:] + self.shortfall >= self._settled_requirement()
+        return self.energy[1:] - self.overage + self.shortfall >= self._due_by()
+
+    @constraint
+    def deferrable_load_started(self) -> Rows:
+        """Constraint: delivered energy beyond the energy started is overage."""
+        return self.energy[1:] - self.overage <= self._started()
 
     @constraint
     def deferrable_load_shortfall_limit(self) -> Rows:
-        """Constraint: shortfall never exceeds the settled requirement.
-
-        This pins the shortfall to zero away from window ends and keeps it
-        bounded even where it is unpriced.
-        """
-        return self.shortfall <= self._settled_requirement()
-
-    @constraint
-    def deferrable_load_overage(self) -> Rows:
-        """Constraint: overage covers delivery beyond the requirement at window ends."""
-        return self._window_end() * self.energy[1:] - self.overage <= self._settled_requirement()
+        """Constraint: shortfall never exceeds the energy due, keeping it bounded where unpriced."""
+        return self.shortfall <= self._due_by()
 
     @constraint
     def deferrable_load_overage_limit(self) -> Rows:
-        """Constraint: overage never exceeds the energy delivered at a window end.
+        """Constraint: overage never exceeds the energy delivered, keeping it bounded where unpriced."""
+        return self.overage - self.energy[1:] <= 0.0
 
-        This pins the overage to zero away from window ends and keeps it
-        bounded even where it is unpriced.
-        """
-        return self.overage - self._window_end() * self.energy[1:] <= 0.0
+    @constraint
+    def deferrable_load_shortfall_kept(self) -> Rows:
+        """Constraint: within a window, a shortfall never shrinks, so a missed deadline stays missed."""
+        return self.shortfall[1:] - self._carry()[1:] * self.shortfall[:-1] >= 0.0
+
+    @constraint
+    def deferrable_load_overage_kept(self) -> Rows:
+        """Constraint: within a window, overage never shrinks, so it never counts toward a later event."""
+        return self.overage[1:] - self._carry()[1:] * self.overage[:-1] >= 0.0
 
     def element_power_produced(self) -> LinearArray | None:
         """Deferrable loads never produce power."""
@@ -251,22 +275,27 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         """Return power consumed by the load."""
         return self.power_consumption
 
+    def _growth(self, slack: LinearArray, price: NDArray[np.float64]) -> LinearArray:
+        """Return the cost of a slack's growth at each boundary, at that boundary's price."""
+        return (price[1:] * slack).total() - (price[2:] * self._carry()[1:] * slack[:-1]).total()
+
     @cost
     def deferrable_load_shortfall_cost(self) -> LinearArray:
-        """Cost: each window's shortfall priced at its end boundary."""
-        return (self.deficit_price[1:] * self.shortfall).total()
+        """Cost: each kWh of shortfall priced at the boundary where it is missed."""
+        return self._growth(self.shortfall, self.deficit_price)
 
     @cost
     def deferrable_load_overage_cost(self) -> LinearArray:
-        """Cost: each window's overage priced at its end boundary."""
-        return (self.overage_price[1:] * self.overage).total()
+        """Cost: each kWh of overage priced at the boundary where it is delivered beyond what has started."""
+        return self._growth(self.overage, self.overage_price)
 
     # Output methods
 
-    def _settlement(self) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
-        """Return the delivered-minus-requirement gap and window end mask at boundaries 1..T."""
-        energy = np.asarray(self.extract_values(self.energy[1:]), dtype=np.float64)
-        return energy - self._settled_requirement(), self._window_end()
+    def _growth_values(self, slack: LinearArray) -> tuple[float, ...]:
+        """Return a slack's growth at each boundary, zero at boundary 0."""
+        values = np.asarray(self.extract_values(slack), dtype=np.float64)
+        growth = values - np.concatenate(([0.0], self._carry()[1:] * values[:-1]))
+        return (0.0, *(float(v) for v in np.maximum(growth, 0.0)))
 
     @output
     def deferrable_load_power(self) -> OutputData:
@@ -282,14 +311,10 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
 
     @output
     def deferrable_load_energy_shortfall(self) -> OutputData:
-        """Output: requirement missed by each window, at its end boundary."""
-        gap, window_end = self._settlement()
-        values = (0.0, *(float(v) for v in window_end * np.maximum(-gap, 0.0)))
-        return OutputData(type=OutputType.ENERGY, unit="kWh", values=values)
+        """Output: energy missed at each boundary."""
+        return OutputData(type=OutputType.ENERGY, unit="kWh", values=self._growth_values(self.shortfall))
 
     @output
     def deferrable_load_energy_overage(self) -> OutputData:
-        """Output: delivery beyond each window's requirement, at its end boundary."""
-        gap, window_end = self._settlement()
-        values = (0.0, *(float(v) for v in window_end * np.maximum(gap, 0.0)))
-        return OutputData(type=OutputType.ENERGY, unit="kWh", values=values)
+        """Output: energy delivered beyond what has started, at each boundary."""
+        return OutputData(type=OutputType.ENERGY, unit="kWh", values=self._growth_values(self.overage))
