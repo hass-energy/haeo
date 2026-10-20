@@ -86,7 +86,6 @@ $$
 ### Decision variables
 
 - $E(k) \geq 0$: Energy delivered in the current window by boundary $k$ (kWh)
-- $d(t) \geq 0$: Energy delivered during period $t$ (kWh)
 - $S(k) \geq 0$: Energy due but not delivered by boundary $k \geq 1$ (kWh)
 - $O(k) \geq 0$: Energy delivered beyond what has started by boundary $k \geq 1$ (kWh)
 
@@ -103,12 +102,18 @@ $$
 The initial energy never seeds a later window.
 An overshoot it reports is overage like any other: a fixed cost that changes no decision.
 
-#### 2. Accumulation
+#### 2. Delivery
 
-The accumulator adds each period's delivery and resets at window starts:
+The energy delivered during period $t$ is the accumulator's step, which restarts at window starts:
 
 $$
-E(t) = c(t) \cdot E(t-1) + d(t) \quad \forall t \in [1, T]
+d(t) = E(t) - c(t) \cdot E(t-1)
+$$
+
+It is never negative, so energy is never taken back out:
+
+$$
+d(t) \geq 0 \quad \forall t \in [1, T]
 $$
 
 #### 3. Window gating

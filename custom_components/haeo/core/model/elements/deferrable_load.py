@@ -175,8 +175,6 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
 
         # Energy delivered in the current window, at every boundary
         self.energy = solver.add_variables(n_periods + 1, name=f"{name}.energy")
-        # Energy delivered during each period
-        self.delivered = solver.add_variables(n_periods, name=f"{name}.delivered")
         # Energy due but not delivered, at boundaries 1..T
         self.shortfall = solver.add_variables(n_periods, name=f"{name}.shortfall")
         # Energy delivered beyond what has started, at boundaries 1..T
@@ -190,6 +188,11 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         tracking when called from within @constraint or @cost decorated methods.
         """
         return self.delivered * (1.0 / self.periods)
+
+    @property
+    def delivered(self) -> LinearArray:
+        """Energy delivered during each period: the accumulator's step, which restarts at window starts."""
+        return self.energy[1:] - self._carry() * self.energy[:-1]
 
     @computed
     def _carry(self) -> NDArray[np.float64]:
@@ -241,9 +244,9 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         return self.energy[0] == self._carry()[0] * self.initial_energy
 
     @constraint
-    def deferrable_load_accumulation(self) -> Rows:
-        """Constraint: the accumulator adds each period's delivery, resetting at window starts."""
-        return self.energy[1:] - self._carry() * self.energy[:-1] - self.delivered == 0.0
+    def deferrable_load_delivery(self) -> Rows:
+        """Constraint: energy is never taken back out, so the accumulator only grows within a window."""
+        return self.delivered >= 0.0
 
     @constraint
     def deferrable_load_window(self) -> Rows:
