@@ -6,6 +6,8 @@ from homeassistant.const import STATE_ON, EntityCategory
 from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.restore_state import RestoreEntity
 
+from custom_components.haeo.unique_id import hub_unique_id
+
 
 class AutoOptimizeSwitch(SwitchEntity, RestoreEntity):  # pyright: ignore[reportIncompatibleVariableOverride]
     """Switch entity to enable/disable automatic optimization.
@@ -43,7 +45,7 @@ class AutoOptimizeSwitch(SwitchEntity, RestoreEntity):  # pyright: ignore[report
         self.device_entry = device_entry
 
         # Unique ID: entry_id + auto_optimize
-        self._attr_unique_id = f"{config_entry.entry_id}_auto_optimize"
+        self._attr_unique_id = hub_unique_id(config_entry.entry_id, "auto_optimize")
 
         # Default state - will be overridden by restored state in async_added_to_hass
         self._attr_is_on = True

@@ -43,6 +43,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 
 from custom_components.haeo.const import (
     ELEMENT_TYPE_NETWORK,
+    NETWORK_DEVICE_NAMES,
     NETWORK_OUTPUT_NAMES,
     NetworkDeviceName,
     NetworkOutputName,
@@ -70,6 +71,18 @@ from custom_components.haeo.core.adapters.elements.connection import (
     CONNECTION_OUTPUT_NAMES,
     ConnectionDeviceName,
     ConnectionOutputName,
+)
+from custom_components.haeo.core.adapters.elements.deferrable_load import (
+    DEFERRABLE_LOAD_DEVICE_NAMES,
+    DEFERRABLE_LOAD_ELEMENT_OUTPUT_NAMES,
+    DeferrableLoadDeviceName,
+    DeferrableLoadElementOutputName,
+)
+from custom_components.haeo.core.adapters.elements.ev import (
+    EV_DEVICE_NAMES,
+    EV_OUTPUT_NAMES,
+    EvDeviceName,
+    EvOutputName,
 )
 from custom_components.haeo.core.adapters.elements.grid import (
     GRID_DEVICE_NAMES,
@@ -110,12 +123,7 @@ from custom_components.haeo.core.adapters.elements.solar import (
 )
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
-from custom_components.haeo.core.schema.elements import (
-    ELEMENT_CONFIG_SCHEMAS,
-    ElementConfigData,
-    ElementConfigSchema,
-    ElementType,
-)
+from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigSchema, ElementType
 from custom_components.haeo.core.schema.elements.battery import OPTIONAL_INPUT_FIELDS as BATTERY_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.battery import BatteryConfigData
 from custom_components.haeo.core.schema.elements.battery_section import (
@@ -128,6 +136,12 @@ from custom_components.haeo.core.schema.elements.connection import (
     OPTIONAL_INPUT_FIELDS as CONNECTION_OPTIONAL_INPUT_FIELDS,
 )
 from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData
+from custom_components.haeo.core.schema.elements.deferrable_load import (
+    OPTIONAL_INPUT_FIELDS as DEFERRABLE_LOAD_OPTIONAL_INPUT_FIELDS,
+)
+from custom_components.haeo.core.schema.elements.deferrable_load import DeferrableLoadConfigData
+from custom_components.haeo.core.schema.elements.ev import OPTIONAL_INPUT_FIELDS as EV_OPTIONAL_INPUT_FIELDS
+from custom_components.haeo.core.schema.elements.ev import EvConfigData
 from custom_components.haeo.core.schema.elements.grid import OPTIONAL_INPUT_FIELDS as GRID_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
 from custom_components.haeo.core.schema.elements.inverter import OPTIONAL_INPUT_FIELDS as INVERTER_OPTIONAL_INPUT_FIELDS
@@ -142,10 +156,10 @@ from custom_components.haeo.core.schema.elements.policy import PolicyConfigData
 from custom_components.haeo.core.schema.elements.solar import OPTIONAL_INPUT_FIELDS as SOLAR_OPTIONAL_INPUT_FIELDS
 from custom_components.haeo.core.schema.elements.solar import SolarConfigData
 from custom_components.haeo.core.schema.field_hints import extract_field_hints, extract_list_field_hints
+from custom_components.haeo.core.schema.field_schema import FieldSchemaInfo
 from custom_components.haeo.core.schema.surfaced_policy import get_surfaced_price_hints
 from custom_components.haeo.elements.field_hints import build_input_fields, build_list_input_fields
 
-from .field_schema import FieldSchemaInfo
 from .input_fields import AnyInputFieldInfo, InputFieldGroups, InputFieldInfo, InputFieldPath, InputFieldSection
 
 _LOGGER = logging.getLogger(__name__)
@@ -156,6 +170,8 @@ type ElementOutputName = (
     | BatteryOutputName
     | BatterySectionOutputName
     | ConnectionOutputName
+    | DeferrableLoadElementOutputName
+    | EvOutputName
     | GridOutputName
     | LoadOutputName
     | NodeOutputName
@@ -170,6 +186,8 @@ ELEMENT_OUTPUT_NAMES: Final[frozenset[ElementOutputName]] = frozenset(
     | BATTERY_OUTPUT_NAMES
     | BATTERY_SECTION_OUTPUT_NAMES
     | CONNECTION_OUTPUT_NAMES
+    | DEFERRABLE_LOAD_ELEMENT_OUTPUT_NAMES
+    | EV_OUTPUT_NAMES
     | GRID_OUTPUT_NAMES
     | LOAD_OUTPUT_NAMES
     | NODE_OUTPUT_NAMES
@@ -184,6 +202,8 @@ type ElementDeviceName = (
     | BatteryDeviceName
     | BatterySectionDeviceName
     | ConnectionDeviceName
+    | DeferrableLoadDeviceName
+    | EvDeviceName
     | GridDeviceName
     | LoadDeviceName
     | NodeDeviceName
@@ -194,13 +214,14 @@ type ElementDeviceName = (
     | NetworkDeviceName
 )
 
-NETWORK_DEVICE_NAMES: Final[frozenset[NetworkDeviceName]] = frozenset(("network",))
 
 ELEMENT_DEVICE_NAMES: Final[frozenset[ElementDeviceName]] = frozenset(
     INVERTER_DEVICE_NAMES
     | BATTERY_DEVICE_NAMES
     | BATTERY_SECTION_DEVICE_NAMES
     | CONNECTION_DEVICE_NAMES
+    | DEFERRABLE_LOAD_DEVICE_NAMES
+    | EV_DEVICE_NAMES
     | GRID_DEVICE_NAMES
     | LOAD_DEVICE_NAMES
     | NODE_DEVICE_NAMES
@@ -216,6 +237,8 @@ ELEMENT_DEVICE_NAMES_BY_TYPE: Final[dict[str, frozenset[ElementDeviceName]]] = {
     ElementType.BATTERY: frozenset(BATTERY_DEVICE_NAMES),
     ElementType.BATTERY_SECTION: frozenset(BATTERY_SECTION_DEVICE_NAMES),
     ElementType.CONNECTION: frozenset(CONNECTION_DEVICE_NAMES),
+    ElementType.DEFERRABLE_LOAD: frozenset(DEFERRABLE_LOAD_DEVICE_NAMES),
+    ElementType.EV: frozenset(EV_DEVICE_NAMES),
     ElementType.GRID: frozenset(GRID_DEVICE_NAMES),
     ElementType.LOAD: frozenset(LOAD_DEVICE_NAMES),
     ElementType.JUNCTION: frozenset(JUNCTION_DEVICE_NAMES),
@@ -240,6 +263,8 @@ ELEMENT_CONFIG_DATA: Final[dict[ElementType, type]] = {
     ElementType.BATTERY: BatteryConfigData,
     ElementType.BATTERY_SECTION: BatterySectionConfigData,
     ElementType.CONNECTION: ConnectionConfigData,
+    ElementType.DEFERRABLE_LOAD: DeferrableLoadConfigData,
+    ElementType.EV: EvConfigData,
     ElementType.GRID: GridConfigData,
     ElementType.INVERTER: InverterConfigData,
     ElementType.LOAD: LoadConfigData,
@@ -254,6 +279,8 @@ ELEMENT_OPTIONAL_INPUT_FIELDS: Final[dict[ElementType, frozenset[str]]] = {
     ElementType.BATTERY: BATTERY_OPTIONAL_INPUT_FIELDS,
     ElementType.BATTERY_SECTION: BATTERY_SECTION_OPTIONAL_INPUT_FIELDS,
     ElementType.CONNECTION: CONNECTION_OPTIONAL_INPUT_FIELDS,
+    ElementType.DEFERRABLE_LOAD: DEFERRABLE_LOAD_OPTIONAL_INPUT_FIELDS,
+    ElementType.EV: EV_OPTIONAL_INPUT_FIELDS,
     ElementType.GRID: GRID_OPTIONAL_INPUT_FIELDS,
     ElementType.INVERTER: INVERTER_OPTIONAL_INPUT_FIELDS,
     ElementType.LOAD: LOAD_OPTIONAL_INPUT_FIELDS,
@@ -398,22 +425,6 @@ def is_element_config_schema(value: object) -> TypeGuard[ElementConfigSchema]:
     schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]
 
     return _conforms_to_typed_dict(value, schema_cls)
-
-
-def is_element_config_data(value: object) -> TypeGuard[ElementConfigData]:
-    """Return True when value matches any ElementConfigData TypedDict.
-
-    Checks required keys and types, plus optional key types when present.
-    """
-    if not isinstance(value, Mapping):
-        return False
-
-    element_type = value.get(CONF_ELEMENT_TYPE)
-    if not is_element_type(element_type):
-        return False
-
-    data_cls = ELEMENT_CONFIG_DATA[element_type]
-    return _conforms_to_typed_dict(value, data_cls, check_optional=True)
 
 
 def collect_element_subentries(entry: ConfigEntry) -> list[ValidatedElementSubentry]:
@@ -593,29 +604,6 @@ def find_nested_config_path(config: Mapping[str, object], field_name: str) -> In
     return None
 
 
-def get_nested_config_value_by_path(config: Mapping[str, object], field_path: InputFieldPath) -> object | None:
-    """Find a field value in a nested element config using a path.
-
-    Supports both mapping keys and integer indices for list traversal.
-    A path like ``("rules", "0", "price")`` navigates into
-    ``config["rules"][0]["price"]``.
-    """
-    current: object = config
-    for key in field_path:
-        if isinstance(current, Mapping):
-            if key not in current:
-                return None
-            current = current[key]
-        elif isinstance(current, Sequence) and not isinstance(current, str):
-            try:
-                current = current[int(key)]
-            except (ValueError, IndexError):
-                return None
-        else:
-            return None
-    return current
-
-
 def set_nested_config_value(config: dict[str, object], field_name: str, value: object) -> bool:
     """Set a field value in a nested element config."""
     for nested in config.values():
@@ -681,9 +669,7 @@ __all__ = [
     "get_input_fields",
     "get_list_input_fields",
     "get_nested_config_value",
-    "get_nested_config_value_by_path",
     "get_surfaced_input_fields",
-    "is_element_config_data",
     "is_element_config_schema",
     "iter_input_field_paths",
     "set_nested_config_value",

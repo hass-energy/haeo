@@ -38,6 +38,8 @@ from custom_components.haeo.flows.field_schema import CHOICE_NONE
 def _add_elements(hass: HomeAssistant, hub_entry: MockConfigEntry) -> None:
     for name, element_type in (
         ("House", ElementType.LOAD),
+        ("Pool pump", ElementType.DEFERRABLE_LOAD),
+        ("Car", ElementType.EV),
         ("Solar", ElementType.SOLAR),
         ("Battery", ElementType.BATTERY),
         ("Section", ElementType.BATTERY_SECTION),
@@ -98,16 +100,19 @@ def _add_buffer(hass: HomeAssistant, hub_entry: MockConfigEntry, data: dict[str,
 async def test_participant_lists_offer_loads_generation_and_storage(
     hass: HomeAssistant, hub_entry: MockConfigEntry
 ) -> None:
-    """Each participant list offers only the elements that fit it, with batteries and battery sections as storage."""
+    """Each participant list offers only the elements that fit it.
+
+    Deferrable loads count as loads, batteries and battery sections as storage, and an EV as both.
+    """
     _add_elements(hass, hub_entry)
     flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
 
     result = await flow.async_step_user(user_input=None)
 
     assert _section_options(result["data_schema"], SECTION_PARTICIPANTS) == {
-        CONF_LOADS: ["House"],
+        CONF_LOADS: ["House", "Pool pump", "Car"],
         CONF_GENERATION: ["Solar"],
-        CONF_STORAGE: ["Battery", "Section"],
+        CONF_STORAGE: ["Car", "Battery", "Section"],
     }
 
 

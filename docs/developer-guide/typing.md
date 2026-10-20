@@ -76,8 +76,8 @@ Use TypedDict to type dictionary-like structures, especially configuration data 
 
 HAEO uses a dual TypedDict pattern for element configuration:
 
-- **Schema mode**: Contains entity IDs as strings (what the user enters in config flow)
-- **Data mode**: Contains loaded values (what the optimizer uses at runtime)
+- **Schema mode**: Contains schema values (what the config flow stores in the subentry)
+- **Data mode**: Contains loaded values (what the adapters and optimizer use at runtime)
 
 Each element defines these types in its own schema module:
 
@@ -85,23 +85,20 @@ Each element defines these types in its own schema module:
 # core/schema/elements/battery.py
 
 
-class BatteryConfigSchema(TypedDict):
-    """Schema mode: entity IDs for UI configuration."""
+class StorageSocConfig(TypedDict):
+    """Schema mode: an entity, constant, or none value per field."""
 
-    element_type: Literal["battery"]
-    name: str
-    capacity: str  # Entity ID string
+    capacity: EntityValue | ConstantValue
 
 
-class BatteryConfigData(TypedDict):
+class StorageSocData(TypedDict):
     """Data mode: loaded values for optimization."""
 
-    element_type: Literal["battery"]
-    name: str
-    capacity: list[float]  # Loaded float values in kWh
+    capacity: NDArray[np.float64]  # kWh at each horizon boundary
 ```
 
-The `load()` function in each element's adapter module converts from Schema mode to Data mode, performing validation and data loading at the boundary.
+The config loader (`core/data/loader/config_loader.py`) converts Schema mode to Data mode at the boundary, as each field's hint directs.
+See [Config flow](config-flow.md#schema-vs-data-mode) for the full pattern.
 
 ## Model element configs
 
@@ -132,30 +129,9 @@ def process_element(config: ElementConfigData) -> None:
 
 Each element type has dedicated modules split across three packages:
 
-- **`core/schema/elements/{type}.py`**: Defines `ConfigSchema` and `ConfigData` TypedDicts with explicit types
-- **`flows/elements/{type}.py`**: Implements config flow with voluptuous schemas and selectors
-- **`core/adapters/elements/{type}.py`**: Contains `load()` function to convert Schema to Data mode
-
-This explicit approach keeps the types clear at a glance:
-
-```python
-# core/schema/elements/solar.py
-class SolarConfigSchema(TypedDict):
-    element_type: Literal["solar"]
-    name: str
-    connection: str
-    forecast: str  # Entity ID for forecast sensor
-
-
-# flows/elements/solar.py
-def async_get_schema(hass: HomeAssistant) -> vol.Schema:
-    return vol.Schema(
-        {
-            vol.Required(CONF_NAME): TextSelector(...),
-            vol.Required(CONF_FORECAST): EntitySelector(...),
-        }
-    )
-```
+- **`core/schema/elements/{type}.py`**: Defines the `ConfigSchema` and `ConfigData` TypedDicts and the field hints
+- **`flows/elements/{type}.py`**: Implements the config flow, building its form from the field hints
+- **`core/adapters/elements/{type}.py`**: Implements the adapter that turns `ConfigData` into model elements and outputs
 
 ## Pyright configuration
 

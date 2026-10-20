@@ -28,7 +28,6 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MIN_CHARGE_PERCENTAGE,
 )
 from custom_components.haeo.core.schema.elements.buffer import (
     CONF_GENERATION,
@@ -41,6 +40,19 @@ from custom_components.haeo.core.schema.elements.buffer import (
     BufferKind,
 )
 from custom_components.haeo.core.schema.elements.element_type import ElementType
+from custom_components.haeo.core.schema.elements.ev import (
+    CONF_CONNECTED,
+    CONF_CURRENT_SOC,
+    CONF_ENERGY_PER_DISTANCE,
+    CONF_MAX_CHARGE_RATE,
+    CONF_MAX_DISCHARGE_RATE,
+    CONF_ODOMETER,
+    CONF_PUBLIC_CHARGING_PRICE,
+    CONF_TRIP_CALENDAR,
+    SECTION_PUBLIC_CHARGING,
+    SECTION_TRIP,
+)
+from custom_components.haeo.core.schema.elements.ev import CONF_MIN_CHARGE_PERCENTAGE as EV_CONF_MIN_CHARGE_PERCENTAGE
 from custom_components.haeo.core.schema.sections import (
     CONF_FORECAST,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -48,6 +60,7 @@ from custom_components.haeo.core.schema.sections import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
 )
+from custom_components.haeo.flows.on_off_states import CONF_OFF_STATES, STEP_STATES
 
 from .capture import guide_step
 
@@ -132,6 +145,12 @@ def _step_user(element_type: str) -> JsonObjectType:
     """Get the step user translations for an element type."""
     step = _json_dict(_subentry(element_type)["step"])
     return _json_dict(step["user"])
+
+
+def _states_label(element_type: str, field: str) -> str:
+    """Get the label of a field in the step asking which states mean on and off."""
+    step = _json_dict(_subentry(element_type)["step"])
+    return _json_str(_json_dict(_json_dict(step[STEP_STATES])["data"])[field])
 
 
 def _dialog_title(element_type: str) -> str:
@@ -399,7 +418,7 @@ def add_battery(
         CONF_INITIAL_CHARGE_PERCENTAGE: initial_charge_percentage,
     }
     if min_charge_percentage is not None:
-        fields[CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
+        fields[EV_CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
     if max_charge_percentage is not None:
         fields[CONF_MAX_CHARGE_PERCENTAGE] = max_charge_percentage
     if max_power_target_source is not None:
@@ -564,6 +583,126 @@ def add_node(page: HAPage, *, name: str) -> None:
         page.close_element_dialog()
 
     _LOGGER.info("Node added: %s", name)
+
+
+@guide_step
+def add_local_calendar(page: HAPage, *, calendar_name: str) -> None:
+    """Add a Local Calendar integration to Home Assistant.
+
+    Navigates to integrations, adds the Local Calendar integration,
+    and configures it with the given calendar name.
+    """
+    _LOGGER.info("Adding Local Calendar: %s", calendar_name)
+
+    page.navigate_to_settings()
+    page.navigate_to_integrations()
+    page.click_add_integration()
+    page.search_integration("Local calendar")
+
+    page.wait_for_dialog("Local calendar")
+    page.fill_textbox("Calendar name", calendar_name)
+    page.submit()
+
+    page.close_success_dialog()
+
+    _LOGGER.info("Local Calendar added: %s", calendar_name)
+
+
+@guide_step
+def create_calendar_event(
+    page: HAPage,
+    *,
+    title: str,
+    location: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    recurrence: str | None = None,
+) -> None:
+    """Create a calendar event via the HA calendar UI."""
+    _LOGGER.info("Creating calendar event: %s", title)
+
+    page.navigate_to_calendar()
+    page.create_calendar_event(
+        title=title,
+        location=location,
+        start_time=start_time,
+        end_time=end_time,
+        recurrence=recurrence,
+    )
+
+    _LOGGER.info("Calendar event created: %s", title)
+
+
+@guide_step
+def add_ev(
+    page: HAPage,
+    *,
+    name: str,
+    connection: str,
+    capacity: EntityInput | ConstantInput,
+    energy_per_distance: EntityInput | ConstantInput,
+    current_soc: EntityInput,
+    max_charge_rate: EntityInput | ConstantInput,
+    connected: EntityInput,
+    min_charge_percentage: EntityInput | ConstantInput | None = None,
+    max_discharge_rate: EntityInput | ConstantInput | None = None,
+    trip_calendar: EntityInput | None = None,
+    odometer: EntityInput | None = None,
+    public_charging_price: EntityInput | ConstantInput | None = None,
+    unplugged_states: list[str] | None = None,
+) -> None:
+    """Add EV element to HAEO network.
+
+    A plugged-in sensor that reports words is followed by a step choosing its
+    states; ``unplugged_states`` are the states meaning unplugged.
+    """
+    et = ElementType.EV
+    _LOGGER.info("Adding EV: %s", name)
+
+    page.click_button(_button_label(et))
+    page.wait_for_dialog(_dialog_title(et))
+
+    page.fill_textbox(_name_label(et), name)
+    page.select_combobox(_connection_label(et), connection)
+
+    # Vehicle and charging sections are expanded by default
+    fields: dict[str, FieldInput] = {
+        CONF_CAPACITY: capacity,
+        CONF_ENERGY_PER_DISTANCE: energy_per_distance,
+        CONF_CURRENT_SOC: current_soc,
+    }
+    if min_charge_percentage is not None:
+        fields[EV_CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
+    fields[CONF_MAX_CHARGE_RATE] = max_charge_rate
+    if max_discharge_rate is not None:
+        fields[CONF_MAX_DISCHARGE_RATE] = max_discharge_rate
+    fields[CONF_CONNECTED] = connected
+    _fill_element_fields(page, et, fields)
+
+    trip_fields: dict[str, FieldInput] = {}
+    if trip_calendar is not None:
+        trip_fields[CONF_TRIP_CALENDAR] = trip_calendar
+    if odometer is not None:
+        trip_fields[CONF_ODOMETER] = odometer
+    if trip_fields:
+        _fill_element_fields(page, et, trip_fields, collapsed_sections=frozenset({SECTION_TRIP}))
+
+    if public_charging_price is not None:
+        _fill_element_fields(
+            page,
+            et,
+            {CONF_PUBLIC_CHARGING_PRICE: public_charging_price},
+            collapsed_sections=frozenset({SECTION_PUBLIC_CHARGING}),
+        )
+
+    with page.expect_config_reload():
+        page.submit()
+        if unplugged_states is not None:
+            page.select_dropdown_multi(_states_label(et, CONF_OFF_STATES), unplugged_states)
+            page.submit()
+        page.close_element_dialog()
+
+    _LOGGER.info("EV added: %s", name)
 
 
 @guide_step

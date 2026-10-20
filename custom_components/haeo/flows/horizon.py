@@ -11,12 +11,15 @@ from homeassistant.helpers.selector import (
     ChooseSelectorConfig,
     EntitySelector,
     EntitySelectorConfig,
+    SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
 )
+from homeassistant.helpers.translation import async_get_translations
 import voluptuous as vol
 
+from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.const import CONF_HORIZON, HORIZON_PRESET_5_DAYS, HORIZON_PRESET_DAYS
 from custom_components.haeo.core.data.forecast_times import forecast_boundaries
 from custom_components.haeo.core.schema.entity_value import as_entity_value
@@ -45,7 +48,23 @@ class HorizonSelector(ChooseSelector):  # type: ignore[type-arg]
         return as_entity_value([value])
 
 
-def horizon_field(current: HorizonValue | None = None) -> tuple[vol.Required, HorizonSelector]:
+async def async_horizon_preset_labels(hass: HomeAssistant) -> dict[str, str]:
+    """Return the translated label of each horizon preset.
+
+    Home Assistant's choose selector does not pass translations down to a
+    select inside it, so the presets would show their raw values. The form
+    gives the select its labels instead.
+    """
+    translations = await async_get_translations(hass, hass.config.language, "selector", integrations=[DOMAIN])
+    return {
+        preset: translations.get(f"component.{DOMAIN}.selector.horizon_preset.options.{preset}", preset)
+        for preset in HORIZON_PRESET_DAYS
+    }
+
+
+def horizon_field(
+    preset_labels: Mapping[str, str], current: HorizonValue | None = None
+) -> tuple[vol.Required, HorizonSelector]:
     """Return the schema entry for the planning horizon, defaulting to the current horizon.
 
     The current horizon's choice is listed first, because Home Assistant only
@@ -55,7 +74,7 @@ def horizon_field(current: HorizonValue | None = None) -> tuple[vol.Required, Ho
     preset_choice = ChooseSelectorChoiceConfig(
         selector=SelectSelector(
             SelectSelectorConfig(
-                options=list(HORIZON_PRESET_DAYS),
+                options=[SelectOptionDict(value=preset, label=preset_labels[preset]) for preset in HORIZON_PRESET_DAYS],
                 mode=SelectSelectorMode.DROPDOWN,
                 translation_key="horizon_preset",
             )
