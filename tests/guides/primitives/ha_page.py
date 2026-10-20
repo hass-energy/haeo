@@ -1196,3 +1196,231 @@ class HAPage:
             add_btn.click()
 
     # endregion
+
+    # region: Calendar
+
+    def navigate_to_calendar(self) -> None:
+        """Navigate to Calendar page via sidebar."""
+        ctx = ScreenshotContext.current()
+        calendar_link = self.page.get_by_text("Calendar", exact=True)
+        calendar_link.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        if ctx:
+            with ctx.scope("navigate_calendar"):
+                self._capture_with_indicator("sidebar", calendar_link)
+                calendar_link.click()
+                self.page.wait_for_url("**/calendar")
+                self._capture("calendar_page")
+        else:
+            calendar_link.click()
+            self.page.wait_for_url("**/calendar")
+
+    def create_calendar_event(
+        self,
+        *,
+        title: str,
+        location: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        recurrence: str | None = None,
+    ) -> None:
+        """Create a calendar event using the HA calendar UI.
+
+        Opens the event creation dialog, fills in details, and saves.
+        Assumes we're already on the Calendar page.
+
+        Args:
+            title: Event title/summary.
+            location: Event location (optional).
+            start_time: Start time in HH:MM format (optional).
+            end_time: End time in HH:MM format (optional).
+            recurrence: Recurrence rule label (e.g., "Weekly") or None.
+
+        """
+        ctx = ScreenshotContext.current()
+
+        # Click the add event FAB
+        add_btn = self.page.locator("ha-fab").first
+        add_btn.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        if ctx:
+            with ctx.scope("create_event"):
+                self._capture_with_indicator("add_button", add_btn)
+                add_btn.click()
+
+                # Wait for the event dialog
+                dialog = self.page.locator("ha-dialog[open]")
+                dialog.wait_for(state="attached", timeout=DEFAULT_TIMEOUT)
+                self._capture("event_dialog")
+
+                # Fill title
+                title_input = dialog.get_by_role("textbox", name="Title")
+                title_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                self._capture_with_indicator("title_field", title_input)
+                title_input.fill(title)
+                self._capture("title_filled")
+
+                if location:
+                    location_input = dialog.get_by_role("textbox", name="Location")
+                    location_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                    self._capture_with_indicator("location_field", location_input)
+                    location_input.fill(location)
+                    self._capture("location_filled")
+
+                self._fill_event_times(dialog, start_time, end_time)
+
+                if recurrence:
+                    self._set_event_recurrence(dialog, recurrence)
+
+                # Save the event
+                save_btn = dialog.locator("ha-button[slot='primaryAction']").first
+                save_btn.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                # Use the inner button for proper border-radius highlighting
+                inner_btn = save_btn.locator("button").first
+                if inner_btn.is_visible(timeout=500):
+                    self._scroll_into_view(inner_btn)
+                    self._capture_with_indicator("save_button", inner_btn)
+                else:
+                    self._scroll_into_view(save_btn)
+                    self._capture_with_indicator("save_button", save_btn)
+                save_btn.click()
+                dialog.wait_for(state="hidden", timeout=SEARCH_TIMEOUT)
+                self._capture("event_saved")
+        else:
+            add_btn.click()
+            dialog = self.page.locator("ha-dialog[open]")
+            dialog.wait_for(state="attached", timeout=DEFAULT_TIMEOUT)
+            title_input = dialog.get_by_role("textbox", name="Title")
+            title_input.fill(title)
+            if location:
+                location_input = dialog.get_by_role("textbox", name="Location")
+                location_input.fill(location)
+            self._fill_event_times(dialog, start_time, end_time)
+            if recurrence:
+                self._set_event_recurrence(dialog, recurrence)
+            save_btn = dialog.locator("ha-button[slot='primaryAction']").first
+            save_btn.click()
+            dialog.wait_for(state="hidden", timeout=SEARCH_TIMEOUT)
+
+    def _fill_event_times(
+        self,
+        dialog: Locator,
+        start_time: str | None,
+        end_time: str | None,
+    ) -> None:
+        """Fill start and end times in the event dialog.
+
+        HA's event dialog defaults to all-day events. We need to
+        uncheck the all-day toggle to reveal time fields, then fill
+        the hour, minute, and AM/PM fields by clicking into them.
+
+        Times are specified in 24-hour format (e.g. "08:00", "17:30").
+        """
+        ctx = ScreenshotContext.current()
+
+        # Toggle off all-day if we're setting specific times
+        if start_time or end_time:
+            all_day_toggle = dialog.locator("ha-formfield").filter(has_text="All day")
+            all_day_toggle.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            switch = all_day_toggle.locator("ha-switch")
+            is_checked = switch.evaluate("(el) => el.checked === true")
+            if is_checked:
+                if ctx:
+                    self._capture_with_indicator("all_day_toggle", all_day_toggle)
+                all_day_toggle.click()
+                dialog.locator("ha-time-input").first.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        time_inputs = dialog.locator("ha-time-input")
+
+        if start_time and time_inputs.count() >= 1:
+            self._fill_single_time(time_inputs.first, start_time, "start_time")
+
+        if end_time and time_inputs.count() >= 2:
+            self._fill_single_time(time_inputs.nth(1), end_time, "end_time")
+
+    def _fill_single_time(
+        self,
+        time_input: Locator,
+        time_value: str,
+        screenshot_prefix: str,
+    ) -> None:
+        """Fill a single ha-time-input by clicking into hh/mm fields and setting AM/PM.
+
+        Args:
+            time_input: The ha-time-input locator.
+            time_value: Time in 24-hour format (e.g. "08:00", "17:30").
+            screenshot_prefix: Name prefix for screenshots.
+
+        """
+        ctx = ScreenshotContext.current()
+        hour_24, minute = (int(p) for p in time_value.split(":"))
+
+        # Convert 24h to 12h format
+        if hour_24 == 0:
+            hour_12, period = 12, "AM"
+        elif hour_24 < 12:
+            hour_12, period = hour_24, "AM"
+        elif hour_24 == 12:
+            hour_12, period = 12, "PM"
+        else:
+            hour_12, period = hour_24 - 12, "PM"
+
+        # HA's ha-time-input renders input fields inside shadow DOM.
+        hour_field = time_input.locator("input").first
+        minute_field = time_input.locator("input").nth(1)
+
+        # Set AM/PM first to avoid HA auto-adjusting end time
+        # when the period changes mid-edit.
+        period_select = time_input.locator("ha-select").first
+        current_period = period_select.evaluate("(el) => el.value || el.textContent.trim().split('\\n')[0].trim()")
+        if current_period != period:
+            period_select.click()
+            option = self.page.get_by_role("option", name=period)
+            option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            if ctx:
+                self._capture_with_indicator(f"{screenshot_prefix}_period", option)
+            option.click()
+            self._settle()
+
+        # Fill hour
+        hour_field.click()
+        hour_field.fill(str(hour_12))
+        self._settle()
+        if ctx:
+            self._capture_with_indicator(f"{screenshot_prefix}_hour", hour_field)
+
+        # Fill minute
+        minute_field.click()
+        minute_field.fill(f"{minute:02d}")
+        self._settle()
+        if ctx:
+            self._capture_with_indicator(f"{screenshot_prefix}_minute", minute_field)
+
+    def _set_event_recurrence(self, dialog: Locator, recurrence: str) -> None:
+        """Set event recurrence in the event dialog.
+
+        Args:
+            dialog: The event dialog locator.
+            recurrence: The recurrence label (e.g., "Weekly").
+
+        """
+        ctx = ScreenshotContext.current()
+
+        repeat_selector = dialog.locator("ha-select").filter(has_text="repeat")
+        repeat_selector.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+
+        if ctx:
+            self._capture_with_indicator("recurrence_selector", repeat_selector)
+        repeat_selector.click()
+
+        option = self.page.get_by_role("option", name=recurrence)
+        option.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        if ctx:
+            self._capture_with_indicator("recurrence_option", option)
+        option.click()
+        self._settle()
+
+        if ctx:
+            self._capture("recurrence_set")
+
+    # endregion
