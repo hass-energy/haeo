@@ -337,7 +337,7 @@ def test_wildcard_excludes_sink_only_from_sources() -> None:
 
 @pytest.mark.parametrize("sources", [["*"], ["ev", "grid"]], ids=["wildcard", "named"])
 def test_a_sink_only_deferrable_load_takes_no_outbound_tags(sources: list[str]) -> None:
-    """A deferrable load declared sink-only takes no outbound tags, whether a policy reaches it by wildcard or by name."""
+    """A sink-only deferrable load takes no outbound tags, whether a policy reaches it by wildcard or by name."""
     elements: list[ModelElementConfig] = [
         _node("grid", is_source=True),
         DeferrableLoadElementConfig(
