@@ -87,9 +87,9 @@ class DeferrableLoadAdapter:
         and delivery beyond what has started at the overage price, never
         forbidden.
 
-        Energy the delivered sensor reports becomes the initial energy of the
-        window open at the horizon start, so each re-optimization only plans
-        the remainder of that window. It never counts toward a later window.
+        The energy meter's rise since the open window began becomes that
+        window's initial energy, so each re-optimization only plans the
+        remainder of it.
         """
         name = config["name"]
         schedule = config[SECTION_SCHEDULE]

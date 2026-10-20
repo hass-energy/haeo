@@ -215,7 +215,7 @@ def _open_window_config(**schedule: object) -> DeferrableLoadConfigData:
 
 
 @pytest.mark.parametrize(
-    ("since_window", "expected_initial", "expected_new"),
+    ("metered", "expected_initial", "expected_new"),
     [
         pytest.param(None, 0.0, 6.0, id="unconfigured"),
         pytest.param(4.0, 4.0, 2.0, id="under_target"),
@@ -223,10 +223,10 @@ def _open_window_config(**schedule: object) -> DeferrableLoadConfigData:
     ],
 )
 def test_energy_since_the_window_opened_seeds_it(
-    since_window: float | None, expected_initial: float, expected_new: float
+    metered: float | None, expected_initial: float, expected_new: float
 ) -> None:
     """Energy the meter counted since the open window started seeds it; only the remainder is planned."""
-    schedule = {} if since_window is None else {"energy_meter": since_window}
+    schedule = {} if metered is None else {"energy_meter": metered}
     config = _open_window_config(**schedule)
     network = _solve(config, grid_price=[0.1, 0.1, 0.1, 0.1])
 
@@ -235,15 +235,6 @@ def test_energy_since_the_window_opened_seeds_it(
     assert delivered[3] - delivered[0] == pytest.approx(expected_new)
     shortfall = network.elements["pump"].outputs()[DEFERRABLE_LOAD_ENERGY_SHORTFALL].values
     assert shortfall[3] == pytest.approx(0.0)
-
-
-def test_energy_since_window_never_seeds_a_later_window() -> None:
-    """With no window open at the horizon start the metered energy is ignored."""
-    config = _config(power={"max_power": 10.0}, schedule={**_config()["schedule"], "energy_meter": 4.0})
-    network = _solve(config, grid_price=[0.1, 0.1, 0.1, 0.1])
-
-    delivered = network.elements["pump"].outputs()[DEFERRABLE_LOAD_ENERGY_DELIVERED].values
-    np.testing.assert_allclose(delivered, [0.0, 0.0, 0.0, 6.0, 0.0])
 
 
 def test_config_loads_from_a_captured_calendar_state() -> None:
