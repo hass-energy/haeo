@@ -5,11 +5,10 @@ from typing import Annotated, Final, Literal, NotRequired, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import CalendarValue, ConstantValue, EntityValue, NoneValue
+from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, FieldHint, SectionHints
+from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint, SectionHints, calendar_input
 from custom_components.haeo.core.schema.sections import ConnectedCommonConfig, ConnectedCommonData
 
 ELEMENT_TYPE = ElementType.DEFERRABLE_LOAD
@@ -21,7 +20,13 @@ SECTION_PRICING: Final = "pricing"
 
 # Schedule section field names
 CONF_WINDOW_CALENDAR: Final = "window_calendar"
-CONF_ENERGY_DELIVERED: Final = "energy_delivered"
+CONF_ENERGY_METER: Final = "energy_meter"
+
+# Inputs the window calendar feeds
+CONF_IN_WINDOW: Final = "in_window"
+CONF_WINDOW_START: Final = "window_start"
+CONF_OPENED: Final = "opened"
+CONF_DUE: Final = "due"
 
 # Power section field names
 CONF_MAX_POWER: Final = "max_power"
@@ -35,11 +40,16 @@ CONF_OVERAGE_PRICE: Final = "overage_price"
 # optimization infeasible.
 DEFAULT_DEFICIT_PRICE: Final = 10.0
 
+# Default overage price ($/kWh) pre-filled in the flow: delivery beyond a
+# window's requirement is free, so the load only takes extra when energy
+# pays to be used. It is never forbidden, so a device that has already run
+# past its requirement cannot make the optimization infeasible.
+DEFAULT_OVERAGE_PRICE: Final = 0.0
+
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
-        CONF_ENERGY_DELIVERED,
+        CONF_ENERGY_METER,
         CONF_MAX_POWER,
-        CONF_OVERAGE_PRICE,
     }
 )
 
@@ -50,21 +60,27 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
 class ScheduleConfig(TypedDict):
     """Run window schedule configuration.
 
-    The calendar drives the run windows and their energy requirements; the
-    optional delivered energy sensor reports how much the currently open
-    window has already received, so re-optimizing mid-window does not demand
-    that energy again.
+    The calendar drives the run windows and the energy each must receive.
+    The optional energy meter is a running total of the energy the load has
+    used; how much it rose since the open window started is credited to that
+    window, so re-optimizing mid-window does not demand that energy again.
     """
 
-    window_calendar: CalendarValue
-    energy_delivered: NotRequired[EntityValue | NoneValue]
+    window_calendar: EntityValue
+    energy_meter: NotRequired[EntityValue | NoneValue]
 
 
 class ScheduleData(TypedDict):
-    """Loaded run window schedule."""
+    """Loaded run window schedule, with the inputs the window calendar feeds.
 
-    window_calendar: CalendarBoundaryData
-    energy_delivered: NotRequired[float]
+    The energy meter loads as the energy it counted since the open window began.
+    """
+
+    in_window: NDArray[np.float64]
+    window_start: NDArray[np.float64]
+    opened: NDArray[np.float64]
+    due: NDArray[np.float64]
+    energy_meter: NotRequired[float]
 
 
 # --- Power section ---
@@ -89,14 +105,14 @@ class PricingConfig(TypedDict):
     """Shortfall and overage pricing configuration."""
 
     deficit_price: EntityValue | ConstantValue
-    overage_price: NotRequired[EntityValue | ConstantValue | NoneValue]
+    overage_price: EntityValue | ConstantValue
 
 
 class PricingData(TypedDict):
-    """Loaded pricing values."""
+    """Loaded pricing values, one per horizon boundary."""
 
-    deficit_price: NDArray[np.float64] | float
-    overage_price: NotRequired[NDArray[np.float64] | float]
+    deficit_price: NDArray[np.float64]
+    overage_price: NDArray[np.float64]
 
 
 # --- Main element schemas ---
@@ -112,14 +128,17 @@ class DeferrableLoadConfigSchema(ConnectedCommonConfig):
             {
                 CONF_WINDOW_CALENDAR: FieldHint(
                     output_type=OutputType.ENERGY,
-                    time_series=True,
-                    boundaries=True,
-                    calendar=CalendarFieldHint(parser="number"),
+                    outputs={
+                        CONF_IN_WINDOW: calendar_input(OutputType.AVAILABILITY, "window_active"),
+                        CONF_WINDOW_START: calendar_input(OutputType.AVAILABILITY, "window_starts"),
+                        CONF_OPENED: calendar_input(OutputType.ENERGY, "event_opens"),
+                        CONF_DUE: calendar_input(OutputType.ENERGY, "event_due"),
+                    },
                 ),
-                CONF_ENERGY_DELIVERED: FieldHint(
+                CONF_ENERGY_METER: FieldHint(
                     output_type=OutputType.ENERGY,
                     time_series=False,
-                    min_value=0.0,
+                    meter=MeterFieldHint(since=CONF_WINDOW_CALENDAR),
                 ),
             }
         ),
@@ -145,6 +164,7 @@ class DeferrableLoadConfigSchema(ConnectedCommonConfig):
                 CONF_DEFICIT_PRICE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=True,
+                    boundaries=True,
                     min_value=0.0,
                     default_mode="value",
                     default_value=DEFAULT_DEFICIT_PRICE,
@@ -152,7 +172,10 @@ class DeferrableLoadConfigSchema(ConnectedCommonConfig):
                 CONF_OVERAGE_PRICE: FieldHint(
                     output_type=OutputType.PRICE,
                     time_series=True,
+                    boundaries=True,
                     min_value=0.0,
+                    default_mode="value",
+                    default_value=DEFAULT_OVERAGE_PRICE,
                 ),
             }
         ),
@@ -170,11 +193,16 @@ class DeferrableLoadConfigData(ConnectedCommonData):
 
 __all__ = [
     "CONF_DEFICIT_PRICE",
-    "CONF_ENERGY_DELIVERED",
+    "CONF_DUE",
+    "CONF_ENERGY_METER",
+    "CONF_IN_WINDOW",
     "CONF_MAX_POWER",
+    "CONF_OPENED",
     "CONF_OVERAGE_PRICE",
     "CONF_WINDOW_CALENDAR",
+    "CONF_WINDOW_START",
     "DEFAULT_DEFICIT_PRICE",
+    "DEFAULT_OVERAGE_PRICE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_POWER",

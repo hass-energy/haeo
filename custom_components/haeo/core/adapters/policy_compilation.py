@@ -31,38 +31,21 @@ See docs/developer-guide/vlan-optimization.md for optimization proofs.
 from collections import defaultdict, deque
 from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
-from typing import NotRequired, TypedDict, TypeGuard
+from typing import NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
 
 from custom_components.haeo.core.model.elements import (
-    FLOW_READER_ELEMENT_TYPES,
     MODEL_ELEMENT_TYPE_CONNECTION,
     ModelElementConfig,
+    NetworkElementConfig,
+    is_network_element_config,
+    is_source_element_config,
 )
-from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
-from custom_components.haeo.core.model.elements.deferrable_load import DeferrableLoadElementConfig
-from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
-from custom_components.haeo.core.model.elements.schedulable_load import SchedulableLoadElementConfig
-
-# Non-connection element configs (nodes, batteries, loads) that can carry tags
-_TaggableConfig = NodeElementConfig | BatteryElementConfig | DeferrableLoadElementConfig | SchedulableLoadElementConfig
-
-
-def _is_taggable(elem: ModelElementConfig) -> TypeGuard[_TaggableConfig]:
-    """Return whether an element produces or consumes power itself, so it carries tags.
-
-    Connections carry power between elements, and flow readers only read the
-    planned flows; every other element is a network element.
-    """
-    return (
-        elem["element_type"] != MODEL_ELEMENT_TYPE_CONNECTION and elem["element_type"] not in FLOW_READER_ELEMENT_TYPES
-    )
-
 
 # A rule grouping identifies a rule by its source/destination sets,
 # independent of price. Rules with the same grouping share VLAN structure.
@@ -114,17 +97,17 @@ def compile_policies(
         policy rule index to pricing element names.
 
     """
-    # Partition by element type — connections have source/target fields, nodes and
-    # batteries carry tags, and the rest read other elements' flows so they are
+    # Partition by element type — connections have source/target fields, network
+    # elements carry tags, and the rest read other elements' flows so they are
     # added after the connections
     connections: list[ConnectionElementConfig] = []
     non_connections: list[ModelElementConfig] = []
     dependents: list[ModelElementConfig] = []
-    by_name: dict[str, _TaggableConfig] = {}
+    by_name: dict[str, NetworkElementConfig] = {}
     for elem in elements:
         if elem["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION:
             connections.append(elem)
-        elif _is_taggable(elem):
+        elif is_network_element_config(elem):
             by_name[elem["name"]] = elem
             non_connections.append(elem)
         else:
@@ -238,8 +221,11 @@ def compile_policies(
     # Every source in the tag map gets outbound_tags forcing its production
     # onto its assigned VLAN. Unpolicied and policied sources are treated
     # uniformly — the difference is only whether pricing elements exist.
+    # An element declared unable to produce takes no outbound tags, even
+    # when a policy names it as a source.
     for name, vlan_id in tag_map.items():
-        by_name[name]["outbound_tags"] = {vlan_id}
+        if is_source_element_config(element := by_name[name]):
+            element["outbound_tags"] = {vlan_id}
 
     # --- Step 7: Node inbound tags ---
     # All sinks accept every active VLAN so both policied and unpolicied

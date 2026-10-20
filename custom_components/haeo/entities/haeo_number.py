@@ -14,18 +14,18 @@ from homeassistant.helpers.event import EventStateChangedData, async_track_state
 from homeassistant.util import dt as dt_util
 
 from custom_components.haeo import HaeoConfigEntry
+from custom_components.haeo.calendar_loader import is_calendar_driven
 from custom_components.haeo.const import CONF_RECORD_FORECASTS
 from custom_components.haeo.core.data.input_store import InputMode, InputStore
-from custom_components.haeo.core.data.loader.source_history import takes_history
 from custom_components.haeo.core.schema import as_constant_value
-from custom_components.haeo.core.state import StateMachine
-from custom_components.haeo.elements import InputFieldPath, find_nested_config_path, get_nested_config_value_by_path
+from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
+from custom_components.haeo.elements import InputFieldPath, find_nested_config_path
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.plot_metadata import SOURCE_ROLE_KEY, classify_source_role
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.source_history import HistoryStateMachine, SourceHistory
+from custom_components.haeo.unique_id import element_unique_id
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -74,7 +74,6 @@ class HaeoInputNumber(NumberEntity):
     ) -> None:
         """Initialize the input number entity."""
         self._config_entry: HaeoConfigEntry = config_entry
-        self._subentry = subentry
         self._field_info = field_info
         self._field_path = (
             field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
@@ -89,10 +88,6 @@ class HaeoInputNumber(NumberEntity):
         # Suppresses reacting to store change notifications this entity itself
         # triggered, so only sibling entities sharing the store react.
         self._suppress_store_change = False
-
-        # Recent history of the source entities, for driven inputs whose
-        # output type uses it; created once the entity has hass
-        self._history: SourceHistory | None = None
 
         # A reload from source entities queued but not yet started
         self._pending_reload: asyncio.Task[None] | None = None
@@ -119,7 +114,7 @@ class HaeoInputNumber(NumberEntity):
             )
         ):
             unique_key = field_path_key
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{unique_key}"
+        self._attr_unique_id = element_unique_id(config_entry.entry_id, subentry.subentry_id, unique_key)
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
@@ -170,11 +165,6 @@ class HaeoInputNumber(NumberEntity):
 
         self._record_forecasts = config_entry.data.get(CONF_RECORD_FORECASTS, False)
 
-    @property
-    def store(self) -> InputStore:
-        """Return the underlying InputStore."""
-        return self._store
-
     def _display_value(self, value: float | None) -> float | None:
         """Transform a stored value into the value surfaced by this entity."""
         if value is None:
@@ -203,7 +193,12 @@ class HaeoInputNumber(NumberEntity):
         if self._uses_forecast:
             self.async_on_remove(self._horizon_manager.subscribe(self._handle_horizon_change))
 
-        if self._store.mode == InputMode.EDITABLE:
+        if is_calendar_driven(self._store):
+            # The calendar loader fetches events and loads inputs with a
+            # calendar source; a calendar's own state carries no events, so
+            # this entity only shows what the store holds.
+            self._sync_from_store()
+        elif self._store.mode == InputMode.EDITABLE:
             # Refresh to signal readiness (mirrors previous _update_editable_forecast path)
             with self._suppress_self_notifications():
                 self._store.refresh()
@@ -218,10 +213,7 @@ class HaeoInputNumber(NumberEntity):
                     self._handle_source_state_change,
                 )
             )
-            # Load initial data, with the sources' recent history for inputs that use it
-            if takes_history(self._store.hint.output_type):
-                self._history = SourceHistory(self.hass, self._store.source_entity_ids, self._store.hint.output_type)
-                await self._history.async_load()
+            # Load initial data
             await self._async_load_and_sync()
 
     def _apply_recorder_attribute_filtering(self) -> None:
@@ -233,7 +225,7 @@ class HaeoInputNumber(NumberEntity):
     @callback
     def _handle_horizon_change(self) -> None:
         """Handle horizon change - refresh with new time windows."""
-        if not self._uses_forecast:
+        if not self._uses_forecast or is_calendar_driven(self._store):
             return
         if self._store.mode == InputMode.EDITABLE:
             with self._suppress_self_notifications():
@@ -253,10 +245,8 @@ class HaeoInputNumber(NumberEntity):
         self.async_write_ha_state()
 
     @callback
-    def _handle_source_state_change(self, event: Event[EventStateChangedData]) -> None:
+    def _handle_source_state_change(self, _event: Event[EventStateChangedData]) -> None:
         """Handle source entity state change."""
-        if self._history is not None:
-            self._history.record(event.data["entity_id"], event.data["new_state"])
         self._schedule_reload()
 
     @callback
@@ -291,14 +281,9 @@ class HaeoInputNumber(NumberEntity):
     async def _async_load_and_sync(self) -> bool:
         """Load data from store via HA state machine and sync entity attributes.
 
-        An input that uses its sources' recent history gets it injected into
-        the source states.
-
         Returns True if loading succeeded and state was synced.
         """
-        sm: StateMachine = HomeAssistantStateMachine(self.hass)
-        if self._history is not None:
-            sm = HistoryStateMachine(sm, self._history.attributes())
+        sm = HomeAssistantStateMachine(self.hass)
         with self._suppress_self_notifications():
             loaded = await self._store.async_load(sm)
         if not loaded:
@@ -344,16 +329,6 @@ class HaeoInputNumber(NumberEntity):
     async def wait_ready(self) -> None:
         """Wait for data to be ready."""
         await self._store.wait_ready()
-
-    @property
-    def entity_mode(self) -> InputMode:
-        """Return the entity's operating mode (EDITABLE or DRIVEN)."""
-        return self._store.mode
-
-    @property
-    def uses_forecast(self) -> bool:
-        """Return True if this entity produces time-series forecast data."""
-        return self._uses_forecast
 
     async def async_set_native_value(self, value: float) -> None:
         """Handle user setting a value.

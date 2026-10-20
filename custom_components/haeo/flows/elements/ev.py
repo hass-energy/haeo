@@ -10,17 +10,18 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema import get_connection_target_name, normalize_connection_target
 from custom_components.haeo.core.schema.elements.ev import (
     CONF_CAPACITY,
+    CONF_CHARGE_LIMIT_COST,
     CONF_CONNECTED,
     CONF_CURRENT_SOC,
     CONF_ENERGY_PER_DISTANCE,
     CONF_MAX_CHARGE_RATE,
     CONF_MAX_DISCHARGE_RATE,
+    CONF_MIN_CHARGE_PERCENTAGE,
     CONF_ODOMETER,
     CONF_PUBLIC_CHARGING_PRICE,
-    CONF_RESERVE_PRICE,
-    CONF_RESERVE_SOC,
     CONF_TRIP_CALENDAR,
     ELEMENT_TYPE,
+    SECTION_ADVANCED,
     SECTION_CHARGING,
     SECTION_PUBLIC_CHARGING,
     SECTION_TRIP,
@@ -30,8 +31,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
 )
 from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
@@ -47,7 +46,7 @@ from custom_components.haeo.flows.field_schema import (
     sectioned_view,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.sections import build_common_fields, efficiency_section, power_limits_section
+from custom_components.haeo.sections import build_common_fields, efficiency_section
 
 
 class EvSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -58,22 +57,19 @@ class EvSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return (
             SectionDefinition(
                 key=SECTION_VEHICLE,
-                fields=(CONF_CAPACITY, CONF_ENERGY_PER_DISTANCE, CONF_CURRENT_SOC),
+                fields=(CONF_CAPACITY, CONF_ENERGY_PER_DISTANCE, CONF_CURRENT_SOC, CONF_MIN_CHARGE_PERCENTAGE),
                 collapsed=False,
             ),
             SectionDefinition(
                 key=SECTION_CHARGING,
-                fields=(CONF_MAX_CHARGE_RATE, CONF_MAX_DISCHARGE_RATE),
+                fields=(CONF_MAX_CHARGE_RATE, CONF_MAX_DISCHARGE_RATE, CONF_CONNECTED),
                 collapsed=False,
             ),
             SectionDefinition(
                 key=SECTION_TRIP,
                 fields=(
                     CONF_TRIP_CALENDAR,
-                    CONF_CONNECTED,
                     CONF_ODOMETER,
-                    CONF_RESERVE_SOC,
-                    CONF_RESERVE_PRICE,
                 ),
                 collapsed=True,
             ),
@@ -82,14 +78,11 @@ class EvSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                 fields=(CONF_PUBLIC_CHARGING_PRICE,),
                 collapsed=True,
             ),
-            power_limits_section(
-                (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE),
-                collapsed=True,
-            ),
             efficiency_section(
                 (CONF_EFFICIENCY_SOURCE_TARGET, CONF_EFFICIENCY_TARGET_SOURCE),
                 collapsed=True,
             ),
+            SectionDefinition(key=SECTION_ADVANCED, fields=(CONF_CHARGE_LIMIT_COST,), collapsed=True),
         )
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:

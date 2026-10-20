@@ -23,8 +23,8 @@ class AnnotatedState:
     """EntityState wrapper that merges extra attributes into a base state.
 
     Lets the integration hand the core loader data Home Assistant does not
-    keep on the state itself, such as fetched calendar events or recorder
-    history, in the same form diagnostics capture and replay.
+    keep on the state itself, such as fetched calendar events or a meter's
+    recorded totals, in the same form diagnostics capture and replay.
     """
 
     def __init__(self, base: EntityState, extra_attributes: Mapping[str, object]) -> None:
@@ -52,4 +52,21 @@ class AnnotatedState:
         return {**self._base.as_dict(), "attributes": self.attributes}
 
 
-__all__ = ["AnnotatedState", "HomeAssistantStateMachine"]
+class AnnotatedStateMachine(StateMachine):
+    """State machine decorator that merges extra attributes into the states of the entities it knows."""
+
+    def __init__(self, base: StateMachine, attributes: Mapping[str, Mapping[str, object]]) -> None:
+        """Initialize with a base state machine and the extra attributes per entity."""
+        self._base = base
+        self._attributes = attributes
+
+    def get(self, entity_id: str) -> EntityState | None:
+        """Return the entity state, with its extra attributes merged when known."""
+        state = self._base.get(entity_id)
+        extra = self._attributes.get(entity_id)
+        if state is None or extra is None:
+            return state
+        return AnnotatedState(state, extra)
+
+
+__all__ = ["AnnotatedState", "AnnotatedStateMachine", "HomeAssistantStateMachine"]

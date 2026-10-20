@@ -5,23 +5,17 @@ from typing import Annotated, Final, Literal, NotRequired, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
-from custom_components.haeo.core.data.loader.source_history import OffPeriod, Reading
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import CalendarValue, ConstantValue, EntityValue, NoneValue
+from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, FieldHint, SectionHints
+from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint, SectionHints, calendar_input
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
     ConnectedCommonConfig,
     ConnectedCommonData,
     EfficiencyConfig,
     EfficiencyData,
-    PowerLimitsConfig,
-    PowerLimitsData,
 )
 
 ELEMENT_TYPE = ElementType.EV
@@ -31,42 +25,41 @@ SECTION_VEHICLE: Final = "vehicle"
 SECTION_CHARGING: Final = "charging"
 SECTION_TRIP: Final = "trip"
 SECTION_PUBLIC_CHARGING: Final = "public_charging"
+SECTION_ADVANCED: Final = "advanced"
 
 # Vehicle section field names
 CONF_CAPACITY: Final = "capacity"
 CONF_ENERGY_PER_DISTANCE: Final = "energy_per_distance"
 CONF_CURRENT_SOC: Final = "current_soc"
+CONF_MIN_CHARGE_PERCENTAGE: Final = "min_charge_percentage"
 
 # Charging section field names
 CONF_MAX_CHARGE_RATE: Final = "max_charge_rate"
 CONF_MAX_DISCHARGE_RATE: Final = "max_discharge_rate"
+CONF_CONNECTED: Final = "connected"
 
 # Trip section field names
-CONF_CONNECTED: Final = "connected"
-# Loaded beside the connected field: the periods the plugged-in sensors all
-# read unplugged, from Home Assistant's history.
-CONF_CONNECTED_OFF_PERIODS: Final = "connected_off_periods"
 CONF_TRIP_CALENDAR: Final = "trip_calendar"
+# Inputs the trip calendar feeds: the periods away, where trips start, and
+# the distances of the trips starting and ending at each boundary.
+CONF_AWAY: Final = "away"
+CONF_TRIP_START: Final = "trip_start"
+CONF_TRIP_OPENED: Final = "trip_opened"
+CONF_TRIP_DUE: Final = "trip_due"
 CONF_ODOMETER: Final = "odometer"
-# Loaded beside the odometer field: its recorded readings, from Home
-# Assistant's history.
-CONF_ODOMETER_READINGS: Final = "odometer_readings"
-CONF_RESERVE_SOC: Final = "reserve_soc"
-CONF_RESERVE_PRICE: Final = "reserve_price"
 
 # Public charging section field names
 CONF_PUBLIC_CHARGING_PRICE: Final = "public_charging_price"
 
+# Advanced section field names
+CONF_CHARGE_LIMIT_COST: Final = "charge_limit_cost"
+
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
-        CONF_CONNECTED,
         CONF_TRIP_CALENDAR,
         CONF_ODOMETER,
-        CONF_RESERVE_SOC,
-        CONF_RESERVE_PRICE,
         CONF_MAX_DISCHARGE_RATE,
-        CONF_MAX_POWER_SOURCE_TARGET,
-        CONF_MAX_POWER_TARGET_SOURCE,
+        CONF_MIN_CHARGE_PERCENTAGE,
         CONF_EFFICIENCY_SOURCE_TARGET,
         CONF_EFFICIENCY_TARGET_SOURCE,
         CONF_PUBLIC_CHARGING_PRICE,
@@ -83,6 +76,7 @@ class VehicleConfig(TypedDict):
     capacity: EntityValue | ConstantValue
     energy_per_distance: EntityValue | ConstantValue
     current_soc: EntityValue
+    min_charge_percentage: NotRequired[EntityValue | ConstantValue | NoneValue]
 
 
 class VehicleData(TypedDict):
@@ -91,53 +85,54 @@ class VehicleData(TypedDict):
     capacity: NDArray[np.float64]
     energy_per_distance: float
     current_soc: float
+    min_charge_percentage: NotRequired[NDArray[np.float64]]
 
 
 # --- Charging section ---
 
 
 class ChargingConfig(TypedDict):
-    """Charging rate configuration."""
+    """Charging configuration: the home charger's rates and whether the car is plugged in."""
 
     max_charge_rate: EntityValue | ConstantValue
     max_discharge_rate: NotRequired[EntityValue | ConstantValue | NoneValue]
+    connected: EntityValue
 
 
 class ChargingData(TypedDict):
-    """Loaded charging rate values."""
+    """Loaded charging values."""
 
     max_charge_rate: NDArray[np.float64] | float
     max_discharge_rate: NotRequired[NDArray[np.float64] | float]
+    connected: NDArray[np.float64]
 
 
 # --- Trip section ---
 
 
 class TripConfig(TypedDict, total=False):
-    """Trip availability configuration.
+    """Trip configuration.
 
-    The trip calendar drives future availability and per-trip energy
-    requirements; the connected sensor pins the present plugged-in state.
-    Odometer readings correct mid-trip energy accounting.
+    The trip calendar drives when the car is away and how far each trip
+    goes. The odometer reports how far the open trip has gone, so a car that
+    is driving or back home is not planned as if it had not left.
     """
 
-    trip_calendar: CalendarValue | NoneValue
-    connected: EntityValue | NoneValue
+    trip_calendar: EntityValue | NoneValue
     odometer: EntityValue | NoneValue
-    reserve_soc: EntityValue | ConstantValue | NoneValue
-    reserve_price: EntityValue | ConstantValue | NoneValue
 
 
 class TripData(TypedDict, total=False):
-    """Loaded trip availability values."""
+    """Loaded trip values, with the inputs the trip calendar feeds.
 
-    trip_calendar: CalendarBoundaryData
-    connected: NDArray[np.float64] | float
-    connected_off_periods: list[OffPeriod]
+    The odometer loads as the distance driven since the open trip began.
+    """
+
+    away: NDArray[np.float64]
+    trip_start: NDArray[np.float64]
+    trip_opened: NDArray[np.float64]
+    trip_due: NDArray[np.float64]
     odometer: float
-    odometer_readings: list[Reading]
-    reserve_soc: float
-    reserve_price: NDArray[np.float64] | float
 
 
 # --- Public charging section ---
@@ -153,6 +148,21 @@ class PublicChargingData(TypedDict, total=False):
     """Loaded public charging pricing values."""
 
     public_charging_price: NDArray[np.float64] | float
+
+
+# --- Advanced section ---
+
+
+class AdvancedConfig(TypedDict):
+    """Advanced EV configuration values."""
+
+    charge_limit_cost: EntityValue | ConstantValue
+
+
+class AdvancedData(TypedDict):
+    """Loaded advanced EV values."""
+
+    charge_limit_cost: NDArray[np.float64] | float
 
 
 # --- Main element schemas ---
@@ -180,6 +190,11 @@ class EvConfigSchema(ConnectedCommonConfig):
                     time_series=False,
                     step=0.1,
                 ),
+                CONF_MIN_CHARGE_PERCENTAGE: FieldHint(
+                    output_type=OutputType.STATE_OF_CHARGE,
+                    time_series=True,
+                    boundaries=True,
+                ),
             }
         ),
     ]
@@ -199,6 +214,10 @@ class EvConfigSchema(ConnectedCommonConfig):
                     time_series=True,
                     step=0.1,
                 ),
+                CONF_CONNECTED: FieldHint(
+                    output_type=OutputType.AVAILABILITY,
+                    time_series=True,
+                ),
             }
         ),
     ]
@@ -209,27 +228,17 @@ class EvConfigSchema(ConnectedCommonConfig):
                 {
                     CONF_TRIP_CALENDAR: FieldHint(
                         output_type=OutputType.DISTANCE,
-                        time_series=True,
-                        boundaries=True,
-                        calendar=CalendarFieldHint(parser="distance"),
-                    ),
-                    CONF_CONNECTED: FieldHint(
-                        output_type=OutputType.AVAILABILITY,
-                        time_series=True,
+                        outputs={
+                            CONF_AWAY: calendar_input(OutputType.AVAILABILITY, "window_active"),
+                            CONF_TRIP_START: calendar_input(OutputType.AVAILABILITY, "window_starts"),
+                            CONF_TRIP_OPENED: calendar_input(OutputType.DISTANCE, "event_opens"),
+                            CONF_TRIP_DUE: calendar_input(OutputType.DISTANCE, "event_due"),
+                        },
                     ),
                     CONF_ODOMETER: FieldHint(
                         output_type=OutputType.DISTANCE,
                         time_series=False,
-                    ),
-                    CONF_RESERVE_SOC: FieldHint(
-                        output_type=OutputType.STATE_OF_CHARGE,
-                        time_series=False,
-                        step=1.0,
-                    ),
-                    CONF_RESERVE_PRICE: FieldHint(
-                        output_type=OutputType.PRICE,
-                        time_series=True,
-                        min_value=0.0,
+                        meter=MeterFieldHint(since=CONF_TRIP_CALENDAR),
                     ),
                 }
             ),
@@ -243,28 +252,12 @@ class EvConfigSchema(ConnectedCommonConfig):
                     CONF_PUBLIC_CHARGING_PRICE: FieldHint(
                         output_type=OutputType.PRICE,
                         time_series=True,
+                        boundaries=True,
                         min_value=0.0,
                     ),
                 }
             ),
         ]
-    ]
-    power_limits: Annotated[
-        PowerLimitsConfig,
-        SectionHints(
-            {
-                CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
-                    output_type=OutputType.POWER_LIMIT,
-                    direction="+",
-                    time_series=True,
-                ),
-                CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
-                    output_type=OutputType.POWER_LIMIT,
-                    direction="-",
-                    time_series=True,
-                ),
-            }
-        ),
     ]
     efficiency: Annotated[
         EfficiencyConfig,
@@ -286,6 +279,22 @@ class EvConfigSchema(ConnectedCommonConfig):
         ),
     ]
 
+    advanced: Annotated[
+        AdvancedConfig,
+        SectionHints(
+            {
+                CONF_CHARGE_LIMIT_COST: FieldHint(
+                    output_type=OutputType.PRICE_RATE,
+                    direction="-",
+                    time_series=True,
+                    min_value=0.0,
+                    default_mode="value",
+                    default_value=100.0,
+                ),
+            }
+        ),
+    ]
+
 
 class EvConfigData(ConnectedCommonData):
     """EV element configuration with loaded values."""
@@ -295,30 +304,35 @@ class EvConfigData(ConnectedCommonData):
     charging: ChargingData
     trip: NotRequired[TripData]
     public_charging: NotRequired[PublicChargingData]
-    power_limits: PowerLimitsData
     efficiency: EfficiencyData
+    advanced: AdvancedData
 
 
 __all__ = [
+    "CONF_AWAY",
     "CONF_CAPACITY",
+    "CONF_CHARGE_LIMIT_COST",
     "CONF_CONNECTED",
-    "CONF_CONNECTED_OFF_PERIODS",
     "CONF_CURRENT_SOC",
     "CONF_ENERGY_PER_DISTANCE",
     "CONF_MAX_CHARGE_RATE",
     "CONF_MAX_DISCHARGE_RATE",
+    "CONF_MIN_CHARGE_PERCENTAGE",
     "CONF_ODOMETER",
-    "CONF_ODOMETER_READINGS",
     "CONF_PUBLIC_CHARGING_PRICE",
-    "CONF_RESERVE_PRICE",
-    "CONF_RESERVE_SOC",
     "CONF_TRIP_CALENDAR",
+    "CONF_TRIP_DUE",
+    "CONF_TRIP_OPENED",
+    "CONF_TRIP_START",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
+    "SECTION_ADVANCED",
     "SECTION_CHARGING",
     "SECTION_PUBLIC_CHARGING",
     "SECTION_TRIP",
     "SECTION_VEHICLE",
+    "AdvancedConfig",
+    "AdvancedData",
     "ChargingConfig",
     "ChargingData",
     "EvConfigData",

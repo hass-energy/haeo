@@ -84,7 +84,7 @@ This separation allows the same element types to be connected in different ways 
 
     ---
 
-    Battery, deferrable load, and Node model elements.
+    The building blocks that produce, consume, store, or read power.
 
     [:material-arrow-right: Element types](../elements/index.md)
 

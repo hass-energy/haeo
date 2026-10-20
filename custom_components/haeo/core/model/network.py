@@ -251,13 +251,36 @@ class Network:
 
         return element_instance
 
-    def _network_element(self, buffer_name: str, element_name: str) -> NetworkElement[Any]:
-        """Return the network element a buffer names, raising when there is none."""
-        element = self.elements.get(element_name)
-        if not isinstance(element, NetworkElement):
-            msg = f"Buffer '{buffer_name}' references unknown element '{element_name}'"
+    def _device_elements(self, buffer_name: str, device: str) -> list[NetworkElement[Any]]:
+        """Return the network elements of a device a buffer names, raising when there are none.
+
+        A device's elements are the one named after it and those named with
+        its name as a prefix, such as an EV's ``EV:trip`` load.
+        """
+        elements = [
+            element
+            for name, element in self.elements.items()
+            if (name == device or name.startswith(f"{device}:")) and isinstance(element, NetworkElement)
+        ]
+        if not elements:
+            msg = f"Buffer '{buffer_name}' references unknown element '{device}'"
             raise TypeError(msg)
-        return element
+        return elements
+
+    def _buffer_role(
+        self, buffer_name: str, devices: list[str], *, source: bool, sink: bool
+    ) -> list[NetworkElement[Any]]:
+        """Return the elements of the named devices that only produce or only consume power.
+
+        A device takes part through whichever of its elements fit the role, so
+        an EV counts its trips as a load while its pack can hold the buffer.
+        """
+        return [
+            element
+            for device in devices
+            for element in self._device_elements(buffer_name, device)
+            if element.is_source == source and element.is_sink == sink
+        ]
 
     def _add_policy_pricing(self, config: PolicyPricingElementConfig) -> PolicyPricing:
         """Create a PolicyPricing element by resolving connection/tag references."""
@@ -294,15 +317,19 @@ class Network:
         so any element can take part in a buffer.
         """
         name = config["name"]
-        loads = [self._network_element(name, element_name) for element_name in config["loads"]]
-        generation = [self._network_element(name, element_name) for element_name in config["generation"]]
+        loads = self._buffer_role(name, config["loads"], source=False, sink=True)
+        generation = self._buffer_role(name, config["generation"], source=True, sink=False)
         storage: list[Battery] = []
-        for battery_name in config["storage"]:
-            battery = self.elements.get(battery_name)
-            if not isinstance(battery, Battery):
-                msg = f"Buffer '{name}' references '{battery_name}', which is not a battery"
+        for device in config["storage"]:
+            batteries = [
+                element
+                for element_name, element in self.elements.items()
+                if (element_name == device or element_name.startswith(f"{device}:")) and isinstance(element, Battery)
+            ]
+            if not batteries:
+                msg = f"Buffer '{name}' references '{device}', which is not a battery"
                 raise TypeError(msg)
-            storage.append(battery)
+            storage.extend(batteries)
 
         element = Buffer(
             name=name,

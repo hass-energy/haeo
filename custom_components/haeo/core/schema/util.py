@@ -1,6 +1,6 @@
 """Utility functions for HAEO schema system."""
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from enum import StrEnum
 import re
 
@@ -72,3 +72,26 @@ def extract_unit_parts(unit: str, spec: Iterable[str]) -> tuple[str, ...] | None
         else:
             result.append(p)
     return tuple(result)
+
+
+def get_nested_config_value_by_path(config: Mapping[str, object], field_path: Sequence[str]) -> object | None:
+    """Find a field value in a nested element config using a path.
+
+    Supports both mapping keys and integer indices for list traversal.
+    A path like ``("rules", "0", "price")`` navigates into
+    ``config["rules"][0]["price"]``.
+    """
+    current: object = config
+    for key in field_path:
+        if isinstance(current, Mapping):
+            if key not in current:
+                return None
+            current = current[key]
+        elif isinstance(current, Sequence) and not isinstance(current, str):
+            try:
+                current = current[int(key)]
+            except (ValueError, IndexError):
+                return None
+        else:
+            return None
+    return current

@@ -202,9 +202,17 @@ def _build_coordinator_output(
     forecast: list[ForecastPoint] | None = None
 
     if forecast_times and len(values) > 1:
-        # Interval values use n_periods times and boundary values use all
-        # n_periods+1 times (strict=False handles both)
-        forecast = [ForecastPoint(time=time, value=value) for time, value in zip(forecast_times, values, strict=False)]
+        # Interval values use n_periods times and boundary values use all n_periods+1
+        if len(values) not in (len(forecast_times) - 1, len(forecast_times)):
+            msg = (
+                f"Output {output_name!r} has {len(values)} values for {len(forecast_times)} forecast times; "
+                f"expected {len(forecast_times) - 1} interval values or {len(forecast_times)} boundary values"
+            )
+            raise ValueError(msg)
+        forecast = [
+            ForecastPoint(time=time, value=value)
+            for time, value in zip(forecast_times[: len(values)], values, strict=True)
+        ]
 
     return CoordinatorOutput(
         type=output_data.type,
@@ -578,9 +586,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Check forecast input stores have values and matching horizon
         for store in runtime_data.input_stores.values():
-            # A store that rejected its source's value keeps its previous horizon;
-            # the update reports the rejection instead of waiting on alignment.
-            if not store.time_series or store.error is not None:
+            # A store that rejected its source's value, or could not load it,
+            # keeps its previous horizon; the update reports the problem instead
+            # of waiting on alignment that will not come.
+            if not store.time_series or store.error is not None or not store.available:
                 continue
             store_horizon = store.horizon_start
             if store_horizon is None:
@@ -600,18 +609,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             field_path: store.value
             for (name, field_path), store in runtime_data.input_stores.items()
             if name == element_name
-        }
-
-    def _source_states_for_element(self, element_name: str) -> dict[str, EntityState]:
-        """Collect the source states the element's input stores last loaded from."""
-        runtime_data = self._get_runtime_data()
-        if runtime_data is None:
-            return {}
-        return {
-            entity_id: state
-            for (name, _field_path), store in runtime_data.input_stores.items()
-            if name == element_name
-            for entity_id, state in store.captured_source_states.items()
         }
 
     def _load_element_config(self, element_name: str) -> ElementConfigData:
@@ -643,7 +640,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             participant_configs[element_name],
             self._field_values_for_element(element_name),
             forecast_times,
-            self._source_states_for_element(element_name),
         )
 
     def _load_from_input_stores(self) -> dict[str, ElementConfigData]:
@@ -664,7 +660,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 config,
                 self._field_values_for_element(name),
                 forecast_times,
-                self._source_states_for_element(name),
             )
             for name, config in self._get_participant_configs().items()
         }

@@ -5,7 +5,7 @@ import logging
 from homeassistant.config_entries import ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
@@ -98,7 +98,7 @@ def _build_surfaced_mirror_entities(
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: HaeoConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up HAEO number entities from a config entry.
 
@@ -113,8 +113,6 @@ async def async_setup_entry(
     runtime_data = config_entry.runtime_data
     horizon_manager = runtime_data.horizon_manager
     currency = currency_symbol(hass.config.currency)
-
-    entities: list[HaeoInputNumber] = []
 
     for subentry in config_entry.subentries.values():
         if not is_element_config_schema(subentry.data):
@@ -131,14 +129,12 @@ async def async_setup_entry(
         # Combine all number fields from both sources
         all_fields = {**input_fields, **list_input_fields}
 
-        # Filter to only number fields (by entity description class name).
-        # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper.
-        # Calendar-driven fields resolve to boundary arrays with no meaningful
-        # scalar value, so they get no input entity.
+        # Filter to only number fields (by entity description class name)
+        # Note: isinstance doesn't work due to Home Assistant's frozen_dataclass_compat wrapper
         number_fields = [
             (field_path, field_info)
             for field_path, field_info in iter_input_field_paths(all_fields)
-            if is_number_field_info(field_info) and field_info.calendar is None
+            if is_number_field_info(field_info)
         ]
 
         surfaced_hints = get_surfaced_price_hints(element_type)
@@ -149,6 +145,7 @@ async def async_setup_entry(
         # Input entities go on the main device (element_type matches device_name)
         device_entry = get_or_create_element_device(hass, config_entry, subentry, element_type)
 
+        entities: list[HaeoInputNumber] = []
         for field_path, field_info in number_fields:
             # Only create entities for fields that have a prebuilt store
             # (none/disabled fields are skipped during store construction)
@@ -179,8 +176,5 @@ async def async_setup_entry(
             )
         )
 
-    if entities:
-        _LOGGER.debug("Creating %d number entities for HAEO inputs", len(entities))
-        async_add_entities(entities)
-    else:
-        _LOGGER.debug("No number entities to create for entry %s", config_entry.entry_id)
+        _LOGGER.debug("Creating %d number entities for %s", len(entities), subentry.title)
+        async_add_entities(entities, config_subentry_id=subentry.subentry_id)

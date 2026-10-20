@@ -9,7 +9,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
 from custom_components.haeo.core.const import CONF_NAME
-from custom_components.haeo.core.schema import as_calendar_value, as_constant_value
+from custom_components.haeo.core.schema import as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.deferrable_load import (
     CONF_DEFICIT_PRICE,
@@ -32,8 +32,8 @@ def _user_input(**overrides: object) -> dict[str, object]:
     data: dict[str, object] = {
         CONF_NAME: "Pool Pump",
         CONF_CONNECTION: "TestNode",
-        SECTION_SCHEDULE: {CONF_WINDOW_CALENDAR: "calendar.pool_pump"},
-        SECTION_PRICING: {CONF_DEFICIT_PRICE: 10.0},
+        SECTION_SCHEDULE: {CONF_WINDOW_CALENDAR: ["calendar.pool_pump"]},
+        SECTION_PRICING: {CONF_DEFICIT_PRICE: 10.0, CONF_OVERAGE_PRICE: 0.0},
         SECTION_POWER: {CONF_MAX_POWER: 1.5},
     }
     data.update(overrides)
@@ -54,7 +54,7 @@ async def test_user_step_creates_entry_with_calendar(
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
     data = flow.async_create_entry.call_args.kwargs["data"]
-    assert data[SECTION_SCHEDULE][CONF_WINDOW_CALENDAR] == as_calendar_value("calendar.pool_pump")
+    assert data[SECTION_SCHEDULE][CONF_WINDOW_CALENDAR] == as_entity_value(["calendar.pool_pump"])
     assert data[SECTION_PRICING][CONF_DEFICIT_PRICE] == as_constant_value(10.0)
     assert data[SECTION_POWER][CONF_MAX_POWER] == as_constant_value(1.5)
 
@@ -71,7 +71,7 @@ async def test_missing_calendar_is_an_error(
     result = await flow.async_step_user(user_input=_user_input(schedule={CONF_WINDOW_CALENDAR: None}))
 
     assert result.get("type") == FlowResultType.FORM
-    assert CONF_WINDOW_CALENDAR in result.get("errors", {})
+    assert result.get("errors") == {SECTION_SCHEDULE: "required"}
 
 
 @pytest.mark.parametrize("field", [CONF_DEFICIT_PRICE, CONF_OVERAGE_PRICE])

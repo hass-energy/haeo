@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import Iterable
+from pathlib import Path
 from types import MappingProxyType
 from typing import ClassVar
 from unittest.mock import AsyncMock, Mock
@@ -13,6 +14,7 @@ from homeassistant.const import EVENT_COMPONENT_LOADED, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.loader import async_get_integration
 from homeassistant.setup import ATTR_COMPONENT
@@ -21,6 +23,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
 from custom_components.haeo import (
+    CARD_STATIC_DIR,
+    MIGRATION_MINOR_VERSION,
     HaeoRuntimeData,
     _async_register_static_frontend_resources,
     _cleanup_buffer_participants,
@@ -32,10 +36,12 @@ from custom_components.haeo import (
     async_setup_entry,
     async_unload_entry,
     async_update_listener,
+    card_static_url,
 )
 from custom_components.haeo.const import (
     CONF_INTEGRATION_TYPE,
     DOMAIN,
+    ELEMENT_TYPE_NETWORK,
     INTEGRATION_TYPE_HUB,
     STATIC_CARD_BUNDLES,
     STATIC_CARD_STATIC_DIR,
@@ -566,7 +572,6 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
 
     # Create a mock input store that never becomes ready
     class NeverReadyStore:
-        source_kind = "entity"
         source_entity_ids: ClassVar[list[str]] = ["sensor.limit"]
 
         def __init__(self) -> None:
@@ -666,7 +671,7 @@ async def test_setup_reentry_after_timeout_failure(
 
     # Create a mock input store that fails first time, succeeds second time
     class ConditionalReadyStore:
-        source_kind = "entity"
+        source_entity_ids: ClassVar[list[str]] = []
         error = None
 
         def __init__(self) -> None:
@@ -989,7 +994,7 @@ async def test_setup_preserves_config_entry_error_exception(
 
 
 async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistant) -> None:
-    """Test that async_setup registers each card bundle as its own resource."""
+    """Test that async_setup serves the bundles under a versioned URL with cache headers."""
     mock_http = Mock()
     mock_http.async_register_static_paths = AsyncMock()
     hass.http = mock_http  # type: ignore[attr-defined]
@@ -1004,11 +1009,11 @@ async def test_async_setup_registers_static_frontend_resource(hass: HomeAssistan
     mock_http.async_register_static_paths.assert_called_once()
     configs: list[StaticPathConfig] = mock_http.async_register_static_paths.call_args[0][0]
     assert len(configs) == 1
-    assert configs[0].url_path == STATIC_CARD_STATIC_PATH
+    static_url = card_static_url(CARD_STATIC_DIR)
+    assert configs[0].url_path == static_url
     assert configs[0].path.endswith(STATIC_CARD_STATIC_DIR)
-    registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
-    for _file_path, url_path in STATIC_CARD_BUNDLES:
-        assert url_path in registered_urls
+    assert configs[0].cache_headers is True
+    assert hass.data[DATA_EXTRA_MODULE_URL].urls == {f"{static_url}/{name}" for name in STATIC_CARD_BUNDLES}
 
 
 async def test_async_setup_registers_static_urls_when_frontend_sets_up_later(hass: HomeAssistant) -> None:
@@ -1037,9 +1042,8 @@ async def test_async_setup_registers_static_urls_when_frontend_sets_up_later(has
     hass.bus.async_fire(EVENT_COMPONENT_LOADED, {ATTR_COMPONENT: "frontend"})
     await hass.async_block_till_done()
 
-    registered_urls = hass.data[DATA_EXTRA_MODULE_URL].urls
-    for _file_path, url_path in STATIC_CARD_BUNDLES:
-        assert url_path in registered_urls
+    static_url = card_static_url(CARD_STATIC_DIR)
+    assert hass.data[DATA_EXTRA_MODULE_URL].urls == {f"{static_url}/{name}" for name in STATIC_CARD_BUNDLES}
 
 
 async def test_async_register_static_skips_when_http_unavailable(
@@ -1064,6 +1068,20 @@ async def test_async_register_static_skips_when_card_not_found(
         await _async_register_static_frontend_resources(hass)
 
     mock_http.async_register_static_paths.assert_not_called()
+
+
+def test_card_static_url_changes_with_bundle_contents(tmp_path: Path) -> None:
+    """Test that rebuilding a bundle moves the URL it is served under, so no cached copy goes stale."""
+    (tmp_path / "haeo-forecast-card.min.js").write_text("a")
+    (tmp_path / "haeo-forecast-card.forecast-card-controller.js").write_text("b")
+    first = card_static_url(tmp_path)
+
+    assert first.startswith(f"{STATIC_CARD_STATIC_PATH}/")
+    assert card_static_url(tmp_path) == first
+
+    (tmp_path / "haeo-forecast-card.forecast-card-controller.js").write_text("c")
+
+    assert card_static_url(tmp_path) != first
 
 
 def _add_buffer(hass: HomeAssistant, hub_entry: MockConfigEntry, participants: dict[str, list[str]]) -> ConfigSubentry:
@@ -1126,3 +1144,45 @@ def test_cleanup_buffer_participants_removes_buffer_without_batteries(
     _cleanup_buffer_participants(hass, mock_hub_entry)
 
     assert subentry.subentry_id not in mock_hub_entry.subentries
+
+
+async def test_removing_an_element_removes_its_entities(hass: HomeAssistant, mock_hub_entry: MockConfigEntry) -> None:
+    """Every entity is linked to its element's subentry, so deleting the element removes its entities."""
+    hass.config_entries.async_update_entry(mock_hub_entry, minor_version=MIGRATION_MINOR_VERSION)
+    grid = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ElementType.GRID,
+                CONF_NAME: "Test Grid",
+                CONF_CONNECTION: as_connection_target("Switchboard"),
+                SECTION_PRICING: {
+                    CONF_PRICE_SOURCE_TARGET: as_constant_value(0.3),
+                    CONF_PRICE_TARGET_SOURCE: as_constant_value(0.1),
+                },
+                SECTION_POWER_LIMITS: {},
+            }
+        ),
+        subentry_type=ElementType.GRID,
+        title="Test Grid",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(mock_hub_entry, grid)
+    assert await hass.config_entries.async_setup(mock_hub_entry.entry_id)
+    await hass.async_block_till_done()
+
+    entity_registry = er.async_get(hass)
+    entities = er.async_entries_for_config_entry(entity_registry, mock_hub_entry.entry_id)
+    network = next(s for s in mock_hub_entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK)
+    linked = {entity.unique_id: entity.config_subentry_id for entity in entities}
+    assert linked[f"{mock_hub_entry.entry_id}_auto_optimize"] == network.subentry_id
+    assert linked[f"{mock_hub_entry.entry_id}_horizon"] == network.subentry_id
+    grid_prefix = f"{mock_hub_entry.entry_id}_{grid.subentry_id}_"
+    grid_entities = [entity for entity in entities if entity.unique_id.startswith(grid_prefix)]
+    assert {entity.domain for entity in grid_entities} == {"number", "sensor"}
+    assert {entity.config_subentry_id for entity in grid_entities} == {grid.subentry_id}
+
+    hass.config_entries.async_remove_subentry(mock_hub_entry, grid.subentry_id)
+    await hass.async_block_till_done()
+
+    remaining = er.async_entries_for_config_entry(entity_registry, mock_hub_entry.entry_id)
+    assert not [entity.unique_id for entity in remaining if entity.unique_id.startswith(grid_prefix)]

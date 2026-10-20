@@ -127,64 +127,6 @@ def dismiss_invalid_connection_endpoints_issue(
     _LOGGER.debug("Dismissed invalid connection endpoints issue for entry %s", entry_id)
 
 
-def create_missing_sensor_issue(
-    hass: HomeAssistant,
-    element_name: str,
-    sensor_entity_id: str,
-) -> None:
-    """Create a repair issue for a missing sensor entity.
-
-    Args:
-        hass: Home Assistant instance
-        element_name: Name of the element missing the sensor
-        sensor_entity_id: The entity ID that is missing
-
-    """
-    issue_id = f"missing_sensor_{element_name}_{sensor_entity_id.replace('.', '_')}"
-
-    async_create_issue(
-        hass,
-        DOMAIN,
-        issue_id,
-        is_fixable=False,
-        is_persistent=False,
-        severity=IssueSeverity.WARNING,
-        translation_key="missing_sensor",
-        translation_placeholders={
-            "element_name": element_name,
-            "sensor_entity_id": sensor_entity_id,
-        },
-    )
-
-    _LOGGER.info(
-        "Created repair issue for missing sensor: %s on element %s",
-        sensor_entity_id,
-        element_name,
-    )
-
-
-def dismiss_missing_sensor_issue(
-    hass: HomeAssistant,
-    element_name: str,
-    sensor_entity_id: str,
-) -> None:
-    """Dismiss a repair issue when the sensor becomes available.
-
-    Args:
-        hass: Home Assistant instance
-        element_name: Name of the element
-        sensor_entity_id: The entity ID that is now available
-
-    """
-    issue_id = f"missing_sensor_{element_name}_{sensor_entity_id.replace('.', '_')}"
-    async_delete_issue(hass, DOMAIN, issue_id)
-    _LOGGER.debug(
-        "Dismissed repair issue for sensor: %s on element %s",
-        sensor_entity_id,
-        element_name,
-    )
-
-
 def create_optimization_persistent_failure_issue(
     hass: HomeAssistant,
     entry_id: str,
@@ -235,37 +177,41 @@ def dismiss_optimization_failure_issue(
     _LOGGER.debug("Dismissed optimization failure repair issue")
 
 
-def create_invalid_config_issue(
+def _calendar_event_values_issue_id(entry_id: str, element_name: str, field_path: Sequence[str]) -> str:
+    return f"calendar_event_values_{entry_id}_{element_name}_{'.'.join(field_path)}"
+
+
+def create_calendar_event_values_issue(
     hass: HomeAssistant,
+    entry_id: str,
     element_name: str,
-    config_problem: str,
+    field_path: Sequence[str],
+    *,
+    calendars: Sequence[str],
+    events: Sequence[str],
+    unit: str,
 ) -> None:
-    """Create a repair issue for invalid element configuration.
-
-    Args:
-        hass: Home Assistant instance
-        element_name: Name of the element with invalid config
-        config_problem: Description of the configuration problem
-
-    """
-    issue_id = f"invalid_config_{element_name}"
-
+    """Create a repair issue for calendar events whose values an input ignores."""
     async_create_issue(
         hass,
         DOMAIN,
-        issue_id,
-        is_fixable=True,
-        is_persistent=True,
-        severity=IssueSeverity.ERROR,
-        translation_key="invalid_config",
+        _calendar_event_values_issue_id(entry_id, element_name, field_path),
+        is_fixable=False,
+        is_persistent=False,
+        severity=IssueSeverity.WARNING,
+        translation_key="calendar_event_values_ignored",
         translation_placeholders={
-            "element_name": element_name,
-            "config_problem": config_problem,
+            "element": element_name,
+            "field": ".".join(field_path),
+            "calendars": ", ".join(calendars),
+            "events": "\n".join(f"- {event}" for event in events),
+            "unit": unit,
         },
     )
 
-    _LOGGER.error(
-        "Created repair issue for invalid configuration on element %s: %s",
-        element_name,
-        config_problem,
-    )
+
+def dismiss_calendar_event_values_issue(
+    hass: HomeAssistant, entry_id: str, element_name: str, field_path: Sequence[str]
+) -> None:
+    """Dismiss the repair issue for an input's calendar events, if raised."""
+    async_delete_issue(hass, DOMAIN, _calendar_event_values_issue_id(entry_id, element_name, field_path))

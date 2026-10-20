@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+import hashlib
 import logging
 from pathlib import Path
 from types import MappingProxyType
@@ -41,6 +42,7 @@ from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import InputStoreMap, build_input_stores, input_error_placeholders
 from custom_components.haeo.repairs import dismiss_entry_issues
 from custom_components.haeo.services import async_setup_services
+from custom_components.haeo.unique_id import parse_element_unique_id
 
 from . import migrations as _migrations
 
@@ -68,6 +70,9 @@ OUTPUT_PLATFORMS: list[Platform] = [Platform.SENSOR]
 # Timeout in seconds for waiting for input entities to be ready
 INPUT_ENTITY_READY_TIMEOUT = 5
 
+# Directory holding the built Lovelace card bundles
+CARD_STATIC_DIR = Path(__file__).parent / STATIC_CARD_STATIC_DIR
+
 
 async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     """Set up the HAEO integration.
@@ -77,6 +82,19 @@ async def async_setup(hass: HomeAssistant, _config: ConfigType) -> bool:
     await _async_register_static_frontend_resources(hass)
     await async_setup_services(hass)
     return True
+
+
+def card_static_url(static_dir: Path) -> str:
+    """Return the URL the card bundles in the static directory are served under.
+
+    The URL ends in a hash of every bundle file, so each build is served from a
+    URL of its own and browsers can cache it indefinitely.
+    """
+    digest = hashlib.sha256()
+    for path in sorted(static_dir.glob("*.js")):
+        digest.update(path.name.encode())
+        digest.update(path.read_bytes())
+    return f"{STATIC_CARD_STATIC_PATH}/{digest.hexdigest()[:12]}"
 
 
 async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None:
@@ -92,23 +110,18 @@ async def _async_register_static_frontend_resources(hass: HomeAssistant) -> None
         _LOGGER.debug("HTTP component unavailable; skipping static card registration")
         return
 
-    integration_dir = Path(__file__).parent
-    static_dir = integration_dir / STATIC_CARD_STATIC_DIR
-    available_bundles = [
-        url_path for file_path, url_path in STATIC_CARD_BUNDLES if (integration_dir / file_path).exists()
-    ]
+    available_bundles = [name for name in STATIC_CARD_BUNDLES if (CARD_STATIC_DIR / name).exists()]
     if not available_bundles:
-        _LOGGER.debug("No static card bundles found in %s", static_dir)
+        _LOGGER.debug("No static card bundles found in %s", CARD_STATIC_DIR)
         return
 
-    await http.async_register_static_paths(
-        [StaticPathConfig(STATIC_CARD_STATIC_PATH, str(static_dir), cache_headers=False)]
-    )
+    static_url = await hass.async_add_executor_job(card_static_url, CARD_STATIC_DIR)
+    await http.async_register_static_paths([StaticPathConfig(static_url, str(CARD_STATIC_DIR), cache_headers=True)])
 
     async def _register_card_urls(hass: HomeAssistant, _component: str) -> None:
         """Register each available card bundle as a Lovelace resource."""
-        for url_path in available_bundles:
-            add_extra_js_url(hass, url_path)
+        for name in available_bundles:
+            add_extra_js_url(hass, f"{static_url}/{name}")
 
     # add_extra_js_url writes to a registry the frontend component only creates during its
     # own setup, so calling it here would race with startup ordering. Defer registration
@@ -415,9 +428,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
     # and the coordinator reads their resolved values.
     runtime_data.input_stores = build_input_stores(hass, entry, horizon_manager)
 
-    # Calendar-driven stores have no input entity to load them; a dedicated
-    # loader fetches upcoming events and keeps them aligned with the horizon.
-    calendar_loader = CalendarInputLoader(hass, runtime_data.input_stores, horizon_manager)
+    # A calendar's state carries no events, so stores reading a calendar are
+    # loaded by a loader that fetches its events over the horizon.
+    calendar_loader = CalendarInputLoader(hass, entry.entry_id, runtime_data.input_stores, horizon_manager)
     calendar_loader.start()
     entry.async_on_unload(calendar_loader.cleanup)
 
@@ -552,42 +565,27 @@ async def async_remove_config_entry_device(
         # Device already removed or does not exist; nothing to clean up
         return False
 
-    # Get all current subentries (devices are keyed by subentry_id, not element name)
-    subentries_by_id = {subentry.subentry_id: subentry for subentry in config_entry.subentries.values()}
-
-    # Check if this device's identifier matches any current subentry
+    # Check if this device's identifier matches a device of a current subentry
     has_haeo_identifier = False
-    for identifier in device_entry.identifiers:
-        if identifier[0] == DOMAIN:
-            has_haeo_identifier = True
-            identifier_str = identifier[1]
+    for domain, identifier in device_entry.identifiers:
+        if domain != DOMAIN:
+            continue
+        has_haeo_identifier = True
 
-            # Hub device has identifier (DOMAIN, entry_id) without subentry suffix - always keep
-            if identifier_str == config_entry.entry_id:
-                return False
+        # Hub device has identifier (DOMAIN, entry_id) without subentry suffix - always keep
+        if identifier == config_entry.entry_id:
+            return False
 
-            if identifier_str.startswith(f"{config_entry.entry_id}_"):
-                # Extract suffix from identifier
-                # Pattern: {entry_id}_{subentry_id}_{device_name}
-                suffix = identifier_str.replace(f"{config_entry.entry_id}_", "", 1)
-
-                # Check if any current subentry_id is a prefix of the suffix
-                # The suffix is subentry_id_device_name, so we check for subentry_id_
-                for subentry_id, subentry in subentries_by_id.items():
-                    prefix = f"{subentry_id}_"
-                    if not suffix.startswith(prefix):
-                        continue
-
-                    device_name = suffix.removeprefix(prefix)
-                    allowed_device_names = ELEMENT_DEVICE_NAMES_BY_TYPE.get(subentry.subentry_type)
-                    if allowed_device_names is None:
-                        # Unknown subentry type - keep device to avoid accidental removal
-                        return False
-                    if device_name in allowed_device_names:
-                        # Device belongs to an existing subentry - keep it
-                        return False
-                    # Device name no longer created for this subentry
-                    break
+        element = parse_element_unique_id(config_entry.entry_id, identifier)
+        if element is None or element.subentry_id not in config_entry.subentries:
+            continue
+        allowed_device_names = ELEMENT_DEVICE_NAMES_BY_TYPE.get(
+            config_entry.subentries[element.subentry_id].subentry_type
+        )
+        # Keep devices of unknown subentry types to avoid accidental removal, and
+        # devices still created for their subentry
+        if allowed_device_names is None or element.key in allowed_device_names:
+            return False
 
     # If device has no HAEO identifiers, it's not managed by us - keep it
     if not has_haeo_identifier:

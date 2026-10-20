@@ -238,6 +238,17 @@ def _base_factor(unit: UnitOfMeasurement | None, device_class: DeviceClass | Non
     return _TO_BASE_UNIT[device_class].get(unit)
 
 
+def _price_conversion(unit: str | UnitOfMeasurement | None) -> tuple[float, str] | None:
+    """Return the factor and base unit for a price per energy unit, such as ``€/MWh`` to ``€/kWh``."""
+    if not isinstance(unit, str):
+        return None
+    currency, separator, energy = str(unit).rpartition("/")
+    energy_unit = UnitOfMeasurement.of(energy)
+    if not separator or not currency or energy_unit is None or energy_unit not in _ENERGY_TO_KWH:
+        return None
+    return 1.0 / _ENERGY_TO_KWH[energy_unit], f"{currency}/{UnitOfMeasurement.KILO_WATT_HOUR}"
+
+
 def base_unit_conversion(
     unit: str | UnitOfMeasurement | None,
     device_class: str | DeviceClass | None,
@@ -245,12 +256,16 @@ def base_unit_conversion(
     """Return the scale factor to the base unit, the base unit, and the parsed device class.
 
     Conversion to base units is a pure scaling, so a series of values sharing a
-    unit converts by multiplying every value by the one factor. A unit with no
+    unit converts by multiplying every value by the one factor. A price per
+    energy unit converts to the same currency per kWh. A unit with no
     conversion to the base unit, such as the reciprocal km/kWh for energy per
-    distance, keeps its own unit and a factor of 1 so selectors filter it out.
+    distance, keeps its own unit and a factor of 1, so it never matches the
+    unit an input expects.
     """
     parsed_unit = UnitOfMeasurement.of(unit)
     parsed_device_class = DeviceClass.of(device_class)
+    if parsed_unit is None and (price := _price_conversion(unit)) is not None:
+        return price[0], price[1], parsed_device_class
     effective_device_class = parsed_device_class or _infer_device_class_from_unit(parsed_unit)
 
     if unit is None:

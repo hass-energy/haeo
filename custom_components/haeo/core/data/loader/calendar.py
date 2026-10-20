@@ -1,31 +1,37 @@
 """Calendar event loading — extract time-windowed values from calendar entities.
 
 Calendar entities in HA expose events with start/end times, summary, location,
-and description fields. This loader extracts a numeric value from each event
-using a configurable field + parser, producing ``CalendarWindow`` objects that
-downstream fusers align to the optimization horizon.
-
-Outside of any window, fused values are None — callers decide how to fill
-gaps (e.g. 0.0 for availability, hold-last for a schedule, etc.).
+and description fields. An event's value is a number with its unit, such as
+"5 kW", typed in one of its text fields. Events become ``CalendarWindow``
+objects that downstream fusers align to the optimization horizon.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
-import math
 import re
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, TypedDict
 
-from custom_components.haeo.core.schema.calendar_value import CalendarEventDict
+from custom_components.haeo.core.data.util.field_units import to_field_unit
 
 if TYPE_CHECKING:
-    from custom_components.haeo.core.schema.calendar_value import CalendarValue
-    from custom_components.haeo.core.state import StateMachine
+    from custom_components.haeo.core.model.const import OutputType
+    from custom_components.haeo.core.state import EntityState
 
 # State attribute carrying fetched events, injected by the HA-level calendar loader
 CALENDAR_EVENTS_ATTRIBUTE: Final = "haeo_events"
+
+
+class CalendarEventDict(TypedDict):
+    """Serialized calendar event, as injected into a calendar state and captured in diagnostics."""
+
+    start: str
+    end: str
+    summary: str | None
+    location: str | None
+    description: str | None
 
 
 @dataclass(frozen=True)
@@ -37,69 +43,17 @@ class CalendarWindow:
     value: float
 
 
-# Pattern: number (with optional decimal) followed by required unit
-# Examples: "50 km", "30mi", "100.5 miles", "15.2 m"
-_DISTANCE_PATTERN: Final = re.compile(
-    r"^\s*(\d+(?:\.\d+)?)\s*([a-zA-Zμ]+)\s*$",
-)
-
-# Mapping of common distance unit strings to HA UnitOfLength values
-_UNIT_ALIASES: Final[dict[str, str]] = {
-    "km": "km",
-    "kilometer": "km",
-    "kilometers": "km",
-    "kilometre": "km",
-    "kilometres": "km",
-    "mi": "mi",
-    "mile": "mi",
-    "miles": "mi",
-    "m": "m",
-    "meter": "m",
-    "meters": "m",
-    "metre": "m",
-    "metres": "m",
-    "ft": "ft",
-    "feet": "ft",
-    "foot": "ft",
-    "yd": "yd",
-    "yard": "yd",
-    "yards": "yd",
-}
+# A number, optionally signed and with decimals, then an optional unit
+# Examples: "50 km", "5kW", "0.30 $/kWh", "-2.5 kW", "3"
+_QUANTITY_PATTERN: Final = re.compile(r"^\s*([-+]?\d+(?:\.\d+)?)\s*(\S(?:.*\S)?)?\s*$")
 
 
-def parse_distance(text: str) -> tuple[float, str] | None:
-    """Parse a distance value with unit from text.
-
-    Returns (value, normalized_unit) or None if unparseable.
-    """
-    match = _DISTANCE_PATTERN.match(text)
+def parse_quantity(text: str) -> tuple[float, str | None] | None:
+    """Parse a number with an optional unit from text, or None when the text is not one."""
+    match = _QUANTITY_PATTERN.match(text)
     if match is None:
         return None
-
-    value = float(match.group(1))
-    unit_str = match.group(2).lower()
-
-    unit = _UNIT_ALIASES.get(unit_str)
-    if unit is None:
-        return None
-
-    return (value, unit)
-
-
-def parse_number(text: str) -> float | None:
-    """Parse a plain non-negative, finite numeric value from text.
-
-    Calendar numbers are quantities (e.g. kWh to deliver), so negative,
-    NaN, and infinite values are treated as unparseable rather than being
-    passed on to the optimization.
-    """
-    try:
-        value = float(text.strip())
-    except (ValueError, AttributeError):
-        return None
-    if not math.isfinite(value) or value < 0:
-        return None
-    return value
+    return float(match.group(1)), match.group(2)
 
 
 @dataclass(frozen=True)
@@ -113,110 +67,73 @@ class CalendarEventData:
     description: str | None = None
 
 
-type EventValueFn = Callable[[CalendarEventData], float | None]
-"""Function that extracts a numeric value from a calendar event.
-
-Returns None if the event should be skipped (no value extractable).
-"""
+_TEXT_FIELDS: Final[tuple[str, ...]] = ("location", "summary", "description")
 
 
-def extract_calendar_windows(
-    events: Sequence[CalendarEventData],
-    extract_value: EventValueFn,
-) -> list[CalendarWindow]:
-    """Extract time windows with values from calendar events.
+def event_quantity(event: CalendarEventData) -> tuple[float, str | None] | None:
+    """Return the number and unit of the first text field holding one, or None when no field does.
 
-    Args:
-        events: Calendar events to process.
-        extract_value: Function that extracts a float from each event.
-            Return None to skip an event.
-
-    Returns:
-        Sorted list of windows. Events with end ≤ start or None value are skipped.
-
+    Fields are tried in order: location, summary, description.
     """
-    windows: list[CalendarWindow] = []
-
-    for event in events:
-        if event.end <= event.start:
-            continue
-
-        value = extract_value(event)
-        if value is None:
-            continue
-
-        windows.append(CalendarWindow(start=event.start, end=event.end, value=value))
-
-    return sorted(windows, key=lambda w: w.start)
+    for field in _TEXT_FIELDS:
+        text = getattr(event, field)
+        if text and (quantity := parse_quantity(text)) is not None:
+            return quantity
+    return None
 
 
-# --- Pre-built value extractors ---
+def event_value(event: CalendarEventData, output_type: OutputType) -> float | None:
+    """Return an event's value in an input's unit, or None when it has no number or one the input cannot use."""
+    quantity = event_quantity(event)
+    return None if quantity is None else to_field_unit(*quantity, output_type)
 
-_DEFAULT_TEXT_FIELDS: Final[tuple[str, ...]] = ("location", "summary", "description")
 
+def event_windows(events: Sequence[CalendarEventData], output_type: OutputType) -> list[CalendarWindow]:
+    """Return a window per event, sorted by start, holding its value in an input's unit.
 
-def make_field_fallback_extractor(
-    parser: Callable[[str], float | None],
-    fields: Sequence[str] = _DEFAULT_TEXT_FIELDS,
-) -> EventValueFn:
-    """Create an extractor that parses the first text field holding a parseable value.
-
-    Tries fields in order (default: location, summary, description), skipping
-    empty fields and fields the parser cannot read. Returns None when no field
-    yields a value.
+    Every event is a window: one without a number, or with one the input
+    cannot use, holds zero. Events that end before they start are skipped.
     """
+    return sorted(
+        (
+            CalendarWindow(start=event.start, end=event.end, value=event_value(event, output_type) or 0.0)
+            for event in events
+            if event.end > event.start
+        ),
+        key=lambda window: window.start,
+    )
 
-    def _extract(event: CalendarEventData) -> float | None:
-        for field in fields:
-            text = getattr(event, field, None)
-            if text and (value := parser(text)) is not None:
-                return value
-        return None
 
-    return _extract
+def open_window_start(events: Sequence[CalendarEventData], at: datetime) -> float | None:
+    """Return the POSIX time the window open at *at* began, or None when no window is open then.
 
-
-def make_distance_extractor(
-    energy_per_distance: float,
-    target_unit: str,
-    convert_distance: Callable[[float, str, str], float] | None = None,
-) -> EventValueFn:
-    """Create an extractor that parses distance from location and converts to energy.
-
-    Args:
-        energy_per_distance: Energy consumption per unit distance (kWh/unit).
-        target_unit: Distance unit that energy_per_distance is expressed in.
-        convert_distance: Optional unit conversion function.
-
-    Returns:
-        EventValueFn that extracts energy (kWh) from an event's location field.
-
+    Windows are formed as for every calendar input: every event is a window,
+    overlapping events chain into one, and events that only touch stay
+    separate. Calendars are read from the horizon start, so the window begins
+    at the earliest start among the events open then.
     """
-
-    def _parse_distance_energy(text: str) -> float | None:
-        parsed = parse_distance(text)
-        if parsed is None:
-            return None
-        raw_distance, raw_unit = parsed
-        if raw_unit != target_unit:
-            if convert_distance is None:
-                return None
-            raw_distance = convert_distance(raw_distance, raw_unit, target_unit)
-        return raw_distance * energy_per_distance
-
-    return make_field_fallback_extractor(_parse_distance_energy)
+    windows: list[tuple[datetime, datetime]] = []
+    for event in sorted((e for e in events if e.end > e.start), key=lambda e: e.start):
+        if windows and event.start < windows[-1][1]:
+            windows[-1] = (windows[-1][0], max(windows[-1][1], event.end))
+        else:
+            windows.append((event.start, event.end))
+    return next((start.timestamp() for start, end in windows if start <= at < end), None)
 
 
-def make_presence_extractor(present_value: float = 1.0) -> EventValueFn:
-    """Create an extractor that returns a constant value for any event.
+def rejected_events(
+    events: Sequence[CalendarEventData], output_type: OutputType
+) -> list[tuple[CalendarEventData, str]]:
+    """Return the events holding a number an input cannot use, such as one without a unit, with the value as typed.
 
-    Useful for binary availability: value during event, None outside.
+    Inputs ignore these events' values rather than failing, so one mistyped
+    event does not stop the rest of the calendar from loading.
     """
-
-    def _extract(_event: CalendarEventData) -> float | None:
-        return present_value
-
-    return _extract
+    return [
+        (event, f"{quantity[0]:g}" if quantity[1] is None else f"{quantity[0]:g} {quantity[1]}")
+        for event in events
+        if (quantity := event_quantity(event)) is not None and to_field_unit(*quantity, output_type) is None
+    ]
 
 
 def _default_local_timezone() -> tzinfo:
@@ -241,50 +158,33 @@ def _optional_str(value: object) -> str | None:
 
 
 def load_calendar_events(
-    value: CalendarValue,
-    sm: StateMachine,
+    state: EntityState | None,
     *,
     default_tz: tzinfo | None = None,
-) -> list[CalendarEventData]:
-    """Load calendar events from a CalendarValue schema field.
+) -> list[CalendarEventData] | None:
+    """Load the events injected into a calendar entity's state.
 
-    Two paths based on type discrimination:
-    - If ``value["events"]`` is populated (diagnostic replay), parse directly
-    - Otherwise, load from the StateMachine (live HA entity)
-
-    The live path reads events from the entity's ``haeo_events`` attribute,
-    which must be injected by the HA-level calendar service caller before
-    the core loader sees it.
+    Home Assistant calendar states only show the current or next event, so
+    the HA-level calendar loader fetches the horizon's events and injects them
+    as the ``haeo_events`` attribute. Captured states keep the attribute, so
+    diagnostics and scenarios replay the same events.
 
     Args:
-        value: Calendar schema value with entity_id and optional captured events.
-        sm: State machine for entity state lookup.
+        state: The calendar entity's state.
         default_tz: Timezone assumed for naive event timestamps. Defaults to
             the system local timezone.
 
     Returns:
-        List of CalendarEventData objects.
+        The events, or None when the state is missing or carries no injected
+        events, so the input cannot be resolved.
 
     """
-    tz = default_tz if default_tz is not None else _default_local_timezone()
-
-    # Path 1: Events already captured (diagnostic replay / scenario test)
-    captured = value.get("events")
-    if captured is not None:
-        return _parse_event_dicts(captured, default_tz=tz)
-
-    # Path 2: Load from entity state
-    entity_id = value["value"]
-    state = sm.get(entity_id)
     if state is None:
-        return []
-
-    # Events are expected in the events attribute, injected by the HA-level
-    # adapter before the core loader runs.
+        return None
     raw_events = state.attributes.get(CALENDAR_EVENTS_ATTRIBUTE)
     if not isinstance(raw_events, list):
-        return []
-
+        return None
+    tz = default_tz if default_tz is not None else _default_local_timezone()
     return _parse_event_dicts(raw_events, default_tz=tz)
 
 
@@ -293,8 +193,7 @@ def capture_calendar_events(
 ) -> list[CalendarEventDict]:
     """Serialize calendar events for diagnostics capture.
 
-    Produces the format stored in CalendarValue.events and in
-    entity state attributes for diagnostic replay.
+    Produces the format injected into calendar entity states.
     """
     return [
         CalendarEventDict(

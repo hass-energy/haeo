@@ -4,9 +4,6 @@ from collections.abc import Mapping
 from dataclasses import replace
 from typing import Final, Literal
 
-import numpy as np
-
-from custom_components.haeo.core.adapters.calendar_windows import calendar_windows, extend_to_boundaries
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -25,12 +22,16 @@ from custom_components.haeo.core.model.elements.deferrable_load import (
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.buffer import CONF_LOADS, BufferRole
 from custom_components.haeo.core.schema.elements.deferrable_load import (
     CONF_DEFICIT_PRICE,
-    CONF_ENERGY_DELIVERED,
+    CONF_DUE,
+    CONF_ENERGY_METER,
+    CONF_IN_WINDOW,
     CONF_MAX_POWER,
+    CONF_OPENED,
     CONF_OVERAGE_PRICE,
-    CONF_WINDOW_CALENDAR,
+    CONF_WINDOW_START,
     ELEMENT_TYPE,
     SECTION_POWER,
     SECTION_PRICING,
@@ -71,7 +72,7 @@ class DeferrableLoadAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = False
     can_sink: bool = True
-    can_store: bool = False
+    buffer_roles: frozenset[BufferRole] = frozenset({CONF_LOADS})
 
     def model_elements(self, config: DeferrableLoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for deferrable load configuration.
@@ -81,45 +82,33 @@ class DeferrableLoadAdapter:
         2. {name}:connection - Connection (network → load)
 
         Calendar events define the run windows; each event's text carries the
-        energy (kWh) that window must receive. Overlapping events merge into
-        one window with their energy summed. Each window is settled at its
-        end: a shortfall is priced at the deficit price, and delivery beyond
-        the requirement is priced at the overage price, or forbidden when no
-        overage price is configured.
+        energy it must receive, such as "3 kWh". Overlapping events share one
+        window, but each event's energy must arrive between its own start and
+        end: a shortfall is priced at the deficit price where the event ends,
+        and delivery beyond what has started at the overage price, never
+        forbidden.
 
-        Energy the delivered sensor reports becomes the initial energy of the
-        window open at the horizon start, so each re-optimization only plans
-        the remainder of that window. It never counts toward a later window.
+        The energy meter's rise since the open window began becomes that
+        window's initial energy, so each re-optimization only plans the
+        remainder of it.
         """
         name = config["name"]
         schedule = config[SECTION_SCHEDULE]
         pricing = config[SECTION_PRICING]
         power = config.get(SECTION_POWER, {})
 
-        windows = calendar_windows(schedule[CONF_WINDOW_CALENDAR])
-        n_boundaries = len(windows.requirement)
-
-        # A negative reading is a sensor fault, never energy taken back out.
-        initial_energy = max(schedule.get(CONF_ENERGY_DELIVERED, 0.0), 0.0)
-
-        # Penalty prices are clamped at zero: the model rejects negative
-        # prices, and an entity can report one even though the form cannot.
-        deficit_price = np.maximum(pricing[CONF_DEFICIT_PRICE], 0.0)
-        overage_price = pricing.get(CONF_OVERAGE_PRICE)
-
         load: DeferrableLoadElementConfig = {
             "element_type": MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
             "name": name,
             "is_source": False,
             "is_sink": True,
-            "in_window": windows.in_window,
-            "window_start": windows.window_start,
-            "requirement": windows.requirement,
-            "initial_energy": initial_energy,
-            "deficit_price": extend_to_boundaries(deficit_price, n_boundaries),
-            "overage_price": (
-                None if overage_price is None else extend_to_boundaries(np.maximum(overage_price, 0.0), n_boundaries)
-            ),
+            "in_window": schedule[CONF_IN_WINDOW],
+            "window_start": schedule[CONF_WINDOW_START],
+            "opened": schedule[CONF_OPENED],
+            "due": schedule[CONF_DUE],
+            "initial_energy": schedule.get(CONF_ENERGY_METER, 0.0),
+            "deficit_price": pricing[CONF_DEFICIT_PRICE],
+            "overage_price": pricing[CONF_OVERAGE_PRICE],
         }
 
         max_power = power.get(CONF_MAX_POWER)

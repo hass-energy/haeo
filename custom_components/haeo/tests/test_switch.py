@@ -1,7 +1,5 @@
 """Tests for the HAEO switch platform."""
 
-from collections.abc import Mapping
-from dataclasses import replace
 from types import MappingProxyType
 from unittest.mock import Mock
 
@@ -12,6 +10,7 @@ from homeassistant.helpers.device_registry import DeviceEntry
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from conftest import added_entities
 from custom_components.haeo import HaeoRuntimeData
 from custom_components.haeo.const import DOMAIN, ELEMENT_TYPE_NETWORK
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
@@ -36,10 +35,8 @@ from custom_components.haeo.core.schema.elements.solar import (
     SECTION_FORECAST,
 )
 from custom_components.haeo.core.schema.elements.solar import ELEMENT_TYPE as SOLAR_TYPE
-from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
-from custom_components.haeo.elements import InputFieldGroups, get_input_fields
 from custom_components.haeo.entities.auto_optimize_switch import AutoOptimizeSwitch
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.horizon import HorizonManager
@@ -184,8 +181,7 @@ async def test_setup_creates_auto_optimize_switch_for_network(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     # Auto-optimize switch is created for network
-    async_add_entities.assert_called_once()
-    entities = list(async_add_entities.call_args.args[0])
+    entities = added_entities(async_add_entities)
     assert len(entities) == 1
     assert isinstance(entities[0], AutoOptimizeSwitch)
 
@@ -246,7 +242,7 @@ async def test_setup_handles_switch_field_variants(
     async_add_entities = Mock()
     await async_setup_entry(hass, config_entry, async_add_entities)
 
-    entities = list(async_add_entities.call_args.args[0]) if async_add_entities.called else []
+    entities = added_entities(async_add_entities)
     input_switches = [e for e in entities if hasattr(e, "_field_info")]
 
     if expect_field is None:
@@ -254,7 +250,7 @@ async def test_setup_handles_switch_field_variants(
     else:
         matches = [e for e in input_switches if e._field_info.field_name == expect_field]
         assert matches
-        assert matches[0].entity_mode == expect_mode
+        assert matches[0]._store.mode == expect_mode
 
 
 async def test_setup_creates_switch_entities_for_solar_curtailment(
@@ -281,49 +277,12 @@ async def test_setup_creates_switch_entities_for_solar_curtailment(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
+        entities = added_entities(async_add_entities)
         # Filter out AutoOptimizeSwitch to get only input switches
         input_switches = [e for e in entities if hasattr(e, "_field_info")]
         # Check if any switch entity was created for curtailment
         field_names = {e._field_info.field_name for e in input_switches}
         assert CONF_CURTAILMENT in field_names
-
-
-async def test_setup_skips_calendar_driven_switch_fields(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Calendar-driven status fields resolve from calendar events and get no switch entity."""
-    _add_subentry(hass, config_entry, ELEMENT_TYPE_NETWORK, "Test Network", {})
-    _add_subentry(
-        hass,
-        config_entry,
-        SOLAR_TYPE,
-        "Rooftop Solar",
-        {
-            "connection": "main_bus",
-            "forecast": "sensor.solar_forecast",
-            CONF_CURTAILMENT: "input_boolean.curtail_solar",
-        },
-    )
-
-    def calendar_input_fields(element_config: Mapping[str, object]) -> InputFieldGroups:
-        return {
-            section: {
-                name: replace(info, calendar=CalendarFieldHint()) if name == CONF_CURTAILMENT else info
-                for name, info in fields.items()
-            }
-            for section, fields in get_input_fields(element_config).items()
-        }
-
-    monkeypatch.setattr("custom_components.haeo.switch.get_input_fields", calendar_input_fields)
-
-    async_add_entities = Mock()
-    await async_setup_entry(hass, config_entry, async_add_entities)
-
-    entities = list(async_add_entities.call_args.args[0])
-    assert [type(e) for e in entities] == [AutoOptimizeSwitch]
 
 
 async def test_setup_creates_switch_entities_for_policy_rule_enabled(
@@ -352,7 +311,7 @@ async def test_setup_creates_switch_entities_for_policy_rule_enabled(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     assert async_add_entities.called
-    entities = list(async_add_entities.call_args.args[0])
+    entities = added_entities(async_add_entities)
     input_switches = [e for e in entities if hasattr(e, "_field_info")]
     enabled_switches = [e for e in input_switches if e._field_info.field_name == CONF_POLICY_ENABLED]
     assert enabled_switches
@@ -381,7 +340,7 @@ async def test_setup_creates_correct_device_identifiers(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
+        entities = added_entities(async_add_entities)
         for entity in entities:
             # Each entity should have a device_entry attached
             assert entity.device_entry is not None
@@ -421,12 +380,12 @@ async def test_setup_handles_multiple_solar_elements(
     await async_setup_entry(hass, config_entry, async_add_entities)
 
     if async_add_entities.called:
-        entities = list(async_add_entities.call_args.args[0])
+        entities = added_entities(async_add_entities)
         # Filter out AutoOptimizeSwitch to get only input switches
         input_switches = [e for e in entities if hasattr(e, "_subentry")]
 
         # Should have entities from both solar panels
-        element_names = {e._subentry.title for e in input_switches}
+        element_names = {e.extra_state_attributes["element_name"] for e in input_switches}
         if len(input_switches) > 0:
             # At least one should be present
             assert "Solar North" in element_names or "Solar South" in element_names

@@ -27,6 +27,7 @@ from custom_components.haeo.core.model import ModelElementConfig, ModelOutputNam
 from custom_components.haeo.core.model.elements import FLOW_READER_ELEMENT_TYPES, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
+from custom_components.haeo.core.schema.elements.buffer import BufferRole
 
 
 @runtime_checkable
@@ -47,7 +48,10 @@ class ElementAdapter(Protocol):
     can_source: bool
 
     can_sink: bool
-    can_store: bool
+
+    # What a buffer can count the element as: a load it covers, generation
+    # it covers, or storage that holds it
+    buffer_roles: frozenset[BufferRole]
 
     def model_elements(self, config: Any) -> list[ModelElementConfig]:
         """Return model element parameters for the loaded config.

@@ -6,9 +6,19 @@ from typing import Final, Literal, Protocol
 import numpy as np
 from numpy.typing import NDArray
 
+from .const import OutputType
 from .linear import LinearArray, Rows, total
 from .output_data import OutputData
-from .reactive import OutputMethod, ReactiveConstraint, ReactiveCost, TrackedParam, applied_constraint, constraint, cost
+from .reactive import (
+    OutputMethod,
+    ReactiveConstraint,
+    ReactiveCost,
+    TrackedParam,
+    applied_constraint,
+    constraint,
+    cost,
+    output,
+)
 from .solver import Solver
 from .util.solver_rows import RowIndices
 
@@ -375,7 +385,19 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
             }
         return self._produced_by_tag
 
-    @constraint(output=True, unit="$/kWh")
+    def _tag_sets(self) -> tuple[set[int], set[int], set[int]]:
+        """Return the connection tags and the tags production and consumption may use."""
+        tags = self.connection_tags()
+        outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
+        inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
+        return tags, outbound, inbound
+
+    def _balance_count(self) -> int:
+        """Return how many per-period balance blocks lead the power balance rows."""
+        tags, outbound, inbound = self._tag_sets()
+        return len(outbound | inbound) if tags else 1
+
+    @constraint
     def element_power_balance(self) -> Rows:
         """Per-tag energy balance: for each tag, (connection + produced - consumed) * dt == 0.
 
@@ -387,11 +409,13 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
         Consumption is decomposed across ``inbound_tags`` via per-tag variables.
         Tags outside both sets are blocked (each connection's per-tag flow == 0).
 
-        Output: shadow price indicating the marginal value of energy at this element.
+        The rows start with one balance block per balanced tag, in tag order,
+        followed by the decomposition blocks and the blocked connection rows,
+        so ``power_balance_price`` can read the balance duals by position.
         Has no rows when there are no connections and no external power.
         """
         dt = self.periods  # hours per period
-        tags = self.connection_tags()
+        tags, outbound, inbound = self._tag_sets()
         produced = self.element_power_produced()
         consumed = self.element_power_consumed()
         if not tags:
@@ -404,46 +428,50 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
                 terms.append(-consumed)
             return LinearArray.sum_of(terms) * dt == 0
 
-        # Determine which tags can carry produced/consumed power
-        outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
-        inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
-
-        blocks: list[Rows] = []
-
-        # Decompose production across outbound tags
-        produced_by_tag: dict[int, LinearArray] = {}
-        if produced is not None:
-            if outbound:
-                produced_by_tag = self._get_produced_by_tag(outbound)
-                blocks.append(LinearArray.sum_of([*produced_by_tag.values(), -produced]) * dt == 0)
-            else:
-                blocks.append(produced * dt == 0)
-
-        # Decompose consumption across inbound tags
-        consumed_by_tag: dict[int, LinearArray] = {}
-        if consumed is not None:
-            if inbound:
-                consumed_by_tag = self._get_consumed_by_tag(inbound)
-                blocks.append(LinearArray.sum_of([*consumed_by_tag.values(), -consumed]) * dt == 0)
-            else:
-                blocks.append(consumed * dt == 0)
+        produced_by_tag = self._get_produced_by_tag(outbound) if produced is not None and outbound else {}
+        consumed_by_tag = self._get_consumed_by_tag(inbound) if consumed is not None and inbound else {}
 
         # Per-tag power balance
-        for tag in sorted(tags):
-            if tag in outbound or tag in inbound:
-                terms = [self.connection_power_for_tag(tag)]
-                if tag in produced_by_tag:
-                    terms.append(produced_by_tag[tag])
-                if tag in consumed_by_tag:
-                    terms.append(-consumed_by_tag[tag])
-                blocks.append(LinearArray.sum_of(terms) * dt == 0)
-            else:
-                blocks.extend(
-                    (conn.power_into_source_for_tag(tag) if end == "source" else conn.power_into_target_for_tag(tag))
-                    * dt
-                    == 0
-                    for conn, end in self._connections
-                    if tag in conn.connection_tags()
-                )
+        blocks: list[Rows] = []
+        for tag in sorted(outbound | inbound):
+            terms = [self.connection_power_for_tag(tag)]
+            if tag in produced_by_tag:
+                terms.append(produced_by_tag[tag])
+            if tag in consumed_by_tag:
+                terms.append(-consumed_by_tag[tag])
+            blocks.append(LinearArray.sum_of(terms) * dt == 0)
+
+        # Decompose production across outbound tags
+        if produced is not None:
+            blocks.append(LinearArray.sum_of([*produced_by_tag.values(), -produced]) * dt == 0)
+
+        # Decompose consumption across inbound tags
+        if consumed is not None:
+            blocks.append(LinearArray.sum_of([*consumed_by_tag.values(), -consumed]) * dt == 0)
+
+        # Tags outside both sets cannot pass through this element
+        blocks.extend(
+            (conn.power_into_source_for_tag(tag) if end == "source" else conn.power_into_target_for_tag(tag)) * dt == 0
+            for tag in sorted(tags - outbound - inbound)
+            for conn, end in self._connections
+            if tag in conn.connection_tags()
+        )
 
         return Rows.concat(blocks)
+
+    @output(name=ELEMENT_POWER_BALANCE)
+    def power_balance_price(self) -> OutputData | None:
+        """Return the marginal cost of drawing one more kWh from this element in each period.
+
+        Each balanced tag's dual is the cost of withdrawing a kWh of that tag here.
+        An extra load draws whichever tag is cheapest, so the price is the lowest of them.
+        """
+        rows = applied_constraint(self, "element_power_balance")
+        if rows is None:
+            return None
+        duals = self._solver.row_duals()[rows][: self._balance_count() * self.n_periods]
+        return OutputData(
+            type=OutputType.SHADOW_PRICE,
+            unit="$/kWh",
+            values=tuple(duals.reshape(-1, self.n_periods).min(axis=0).tolist()),
+        )
