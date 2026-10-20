@@ -32,7 +32,8 @@ from custom_components.haeo.core.data.loader.calendar import (
 )
 from custom_components.haeo.core.data.util.field_units import field_unit_label
 from custom_components.haeo.core.state import EntityState, StateMachine
-from custom_components.haeo.ha_state_machine import AnnotatedState, HomeAssistantStateMachine
+from custom_components.haeo.ha_state_machine import AnnotatedState, AnnotatedStateMachine, HomeAssistantStateMachine
+from custom_components.haeo.meter_history import MeterHistory
 from custom_components.haeo.repairs import create_calendar_event_values_issue, dismiss_calendar_event_values_issue
 
 if TYPE_CHECKING:
@@ -98,6 +99,10 @@ class CalendarInputLoader:
     through a state machine that injects them. It fetches again when a
     calendar changes or the horizon moves, and loads again from the kept
     events when another source of such an input changes.
+
+    A meter input reads its window calendar, so it loads here too. The loader
+    keeps its meters' running totals and injects them beside the events, so
+    the input's captured source states hold everything it resolved from.
     """
 
     def __init__(
@@ -112,6 +117,18 @@ class CalendarInputLoader:
         }
         self._calendars = sorted(
             {eid for store in self._stores.values() for eid in store.source_entity_ids if is_calendar_entity(eid)}
+        )
+        self._meters = MeterHistory(
+            hass,
+            sorted(
+                {
+                    eid
+                    for store in self._stores.values()
+                    if store.hint.meter is not None
+                    for eid in store.source_entity_ids
+                    if not is_calendar_entity(eid)
+                }
+            ),
         )
         self._events: dict[str, list[CalendarEventDict] | None] = {}
         self._events_horizon: tuple[float, ...] = ()
@@ -138,7 +155,8 @@ class CalendarInputLoader:
             self._schedule(self.async_load_all())
 
         @callback
-        def _on_source_change(_event: Event[EventStateChangedData]) -> None:
+        def _on_source_change(event: Event[EventStateChangedData]) -> None:
+            self._meters.record(event.data["entity_id"], event.data["new_state"])
             self._schedule(self.async_resolve())
 
         self._unsubs.append(async_track_state_change_event(self._hass, self._calendars, _on_calendar_change))
@@ -146,7 +164,12 @@ class CalendarInputLoader:
             self._unsubs.append(async_track_state_change_event(self._hass, other_sources, _on_source_change))
         self._unsubs.append(self._horizon_manager.subscribe(lambda: self._schedule(self.async_load_all())))
 
-        self._schedule(self.async_load_all())
+        self._schedule(self._async_start())
+
+    async def _async_start(self) -> None:
+        """Read the meters' recorded totals, then load every store."""
+        await self._meters.async_load()
+        await self.async_load_all()
 
     @callback
     def _schedule(self, load: Coroutine[object, object, None]) -> None:
@@ -195,7 +218,9 @@ class CalendarInputLoader:
         than leaving the last plan in place, and an unchanged fetch does not
         re-optimize.
         """
-        sm = CalendarStateMachine(HomeAssistantStateMachine(self._hass), self._events)
+        sm = AnnotatedStateMachine(
+            CalendarStateMachine(HomeAssistantStateMachine(self._hass), self._events), self._meters.attributes()
+        )
         changed = [store for store in self._stores.values() if store.resolve_from_sources(sm)]
         for store in changed:
             store.notify_listeners()
@@ -205,12 +230,13 @@ class CalendarInputLoader:
         """Raise a repair issue for each input ignoring calendar events whose values it cannot use.
 
         Only inputs reading event values, a forecast or a window's due value,
-        in a unit can ignore one; window flags do not read them.
+        in a unit can ignore one; window flags and meters do not read them.
         """
         reading_values = {
             key: (store, unit)
             for key, store in self._stores.items()
             if (unit := field_unit_label(store.hint.output_type)) is not None
+            and store.hint.meter is None
             and (store.hint.calendar is None or store.hint.calendar.projection == "window_due")
         }
         for (element_name, field_path), (store, unit) in reading_values.items():
