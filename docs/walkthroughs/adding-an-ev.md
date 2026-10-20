@@ -1,14 +1,15 @@
 # Adding an EV to your system
 
-This walkthrough demonstrates adding an Electric Vehicle (EV) to an existing home energy system.
-It covers creating a trip calendar, scheduling a trip, and configuring the EV element so HAEO charges the car ahead of departures.
+This walkthrough adds an electric vehicle (EV) to an existing home energy system.
+It covers creating a trip calendar, scheduling trips, and configuring the EV element so HAEO charges the car ahead of departures.
+It follows a BYD Atto 2 set up with the [BYD vehicle](https://github.com/jkaberg/hass-byd-vehicle) integration, but any integration with similar sensors works the same way.
 
 ## System overview
 
 After completing this walkthrough, your system will include:
 
 - **Base system**: Inverter, battery, solar, grid, and load (from the [Sigenergy System](sigenergy-system.md) guide)
-- **EV**: 60 kWh battery starting at 10% charge, 7.4 kW home charging, and a trip calendar that drives departure readiness
+- **EV**: a 45.1 kWh battery, a 7 kW home charger, a 20% minimum charge, and a trip calendar
 
 ```mermaid
 graph LR
@@ -21,7 +22,7 @@ graph LR
         Inverter[Inverter<br/>30kW] <--> Switchboard[Switchboard]
         Grid[Grid<br/>±55kW/±30kW] <--> Switchboard
         Switchboard --> Load[Load<br/>1kW]
-        Switchboard <--> EV[EV<br/>60kWh<br/>7.4kW]
+        Switchboard <--> EV[EV<br/>45.1kWh<br/>7kW]
     end
 ```
 
@@ -33,34 +34,44 @@ This guide builds on that configuration and adds a trip calendar and an EV eleme
 ```guide-setup
 run_guide("sigenergy-system")
 hass.set_state(
-    "sensor.ev_battery_state_of_charge",
-    "10",
+    "sensor.byd_atto_2_battery_level",
+    "89",
+    {"unit_of_measurement": "%", "device_class": "battery", "friendly_name": "Atto 2 Battery level"},
+)
+hass.set_state(
+    "binary_sensor.byd_atto_2_plug",
+    "on",
+    {"device_class": "plug", "friendly_name": "Atto 2 Plug"},
+)
+hass.set_state(
+    "sensor.byd_atto_2_odometer",
+    "8566",
     {
-        "unit_of_measurement": "%",
-        "device_class": "battery",
-        "friendly_name": "EV Battery State of Charge",
+        "unit_of_measurement": "km",
+        "device_class": "distance",
+        "state_class": "total_increasing",
+        "friendly_name": "Atto 2 Odometer",
     },
 )
 hass.set_state(
-    "binary_sensor.ev_plugged_in",
-    "on",
-    {"device_class": "plug", "friendly_name": "EV Plugged In"},
+    "sensor.byd_atto_2_lifetime_average_ev_consumption",
+    "14.6",
+    {"unit_of_measurement": "kWh/100km", "friendly_name": "Atto 2 Lifetime average EV consumption"},
 )
 ```
 
-### EV-specific requirements
+### EV sensors
 
-In addition to the base system, you will need:
+These come from your car's integration, or from your charger's integration for the plug:
 
-- **EV battery SOC sensor**: A sensor reporting the EV's current state of charge
-- **Plugged-in sensor**: A binary sensor reporting when the EV is connected to your charger.
-    A car still plugged in after a trip's start has not left yet, so HAEO fits the trip into the rest of the event.
-- **Odometer** (optional): With one, HAEO also knows how far the car has driven on a trip, so it can tell a car that is back early from one that has not left (see [Plugged in](../user-guide/elements/ev.md#plugged-in)).
-
-!!! tip "Where do these sensors come from?"
-
-    These sensors typically come from your EV manufacturer's integration (e.g., Tesla, Hyundai, Kia)
-    or from your charger's integration (e.g., Wallbox, Easee, OpenEVSE).
+- **Battery level**: the car's state of charge.
+- **Plug**: a binary sensor that is on while the car is plugged in at home.
+    It is required, since you need one to automate charging anyway.
+    A sensor that reports words instead, such as a charger reporting `Charging` or `Idle`, also works: HAEO asks which of its states mean plugged in.
+- **Odometer** (optional): tells HAEO how far the car has gone on the current trip, so a car that is back early is not planned as if it had not left.
+    It needs a state class of `total_increasing`, which car integrations usually set.
+- **Average consumption** (optional): a sensor in `kWh/100km`, `kWh/km`, or `Wh/km`, so trip energy follows how the car is actually driven.
+    You can enter a fixed figure instead.
 
 ## Step 1: Create a trip calendar
 
@@ -73,26 +84,25 @@ add_local_calendar(page, calendar_name="EV Trips")
 
 ## Step 2: Schedule a trip
 
-Create an event for each planned trip.
-The event's start and end mark when the car is away; the **location field carries the trip distance** (e.g., `50 km`).
-The commute happens every day, so set the event to repeat daily and each day's trip is planned without adding it again.
+Create an event for each trip.
+Its start and end mark when the car is away, and its title says where it goes and how far, such as `Office 105 km`.
+The commute happens every day, so set it to repeat daily and each day's trip is planned without adding it again.
 
 ```guide
 create_calendar_event(
     page,
-    title="Commute",
-    location="50 km",
-    start_time="09:00",
-    end_time="17:00",
+    title="Office 105 km",
+    start_time="08:30",
+    end_time="18:30",
     recurrence="Daily",
 )
 ```
 
 !!! tip "Distance format"
 
-    Enter only a number followed by a unit, such as `50 km` or `30 mi`.
+    Write the distance as a number followed by its unit, such as `105 km` or `30 mi`, among any other words in the title.
+    Keep to one distance per event: a title with two distances, or a number without a unit, is ignored, and HAEO raises a repair issue so you can fix the event.
     An event without a distance still marks the car away for its duration, but asks for no trip energy.
-    A number without a unit is ignored, and HAEO raises a repair issue so you can fix the event.
 
 ## Step 3: Add the EV element
 
@@ -104,34 +114,33 @@ page.navigate_to_integrations()
 page.navigate_to_integration("HAEO")
 ```
 
-Configure the EV with battery details, charging rate, plugged-in sensor, and the trip calendar.
-The EV connects to the **Switchboard** — the junction HAEO automatically created
-with your hub — where the home charger is wired.
+Configure the EV with its battery, charging, and trip details.
+The EV connects to the **Switchboard**, the junction HAEO created with your hub, where the home charger is wired.
 
 ```guide
 add_ev(
     page,
-    name="Commuter EV",
+    name="Atto 2",
     connection="Switchboard",
-    capacity=ConstantInput(60),
-    energy_per_distance=ConstantInput(0.15),
-    current_soc=EntityInput("EV battery state of charge", "EV Battery State of Charge"),
-    max_charge_rate=ConstantInput(7.4),
-    connected=EntityInput("EV plugged in", "EV Plugged In"),
+    capacity=ConstantInput(45.1),
+    energy_per_distance=EntityInput("Atto 2 Lifetime average EV consumption", "Atto 2 Lifetime average EV consumption"),
+    current_soc=EntityInput("Atto 2 Battery level", "Atto 2 Battery level"),
+    min_charge_percentage=ConstantInput(20),
+    max_charge_rate=ConstantInput(7),
+    connected=EntityInput("Atto 2 Plug", "Atto 2 Plug"),
     trip_calendar=EntityInput("EV Trips", "EV Trips"),
+    odometer=EntityInput("Atto 2 Odometer", "Atto 2 Odometer"),
     public_charging_price=ConstantInput(0.60),
 )
 ```
 
-!!! tip "Energy per distance"
+!!! tip "Min charge and public charging"
 
-    Set this to your EV's average energy consumption in kWh/km.
-    For example, 0.15 kWh/km means 15 kWh per 100 km.
-    A consumption sensor in `Wh/km`, `kWh/km`, or `kWh/100km` also works and is converted automatically.
-    Check your EV's trip computer for a realistic average.
+    The min charge keeps the battery above 20% for an unplanned trip: HAEO never plans to drain past it.
+    The public charging price is what a top-up away from home costs; HAEO weighs it against charging at home before each trip.
 
-The 50 km commute at 0.15 kWh/km needs 7.5 kWh, more than the 6 kWh the EV holds at its starting 10% charge.
-HAEO must therefore charge the car before departure to avoid paying the public charging price for the difference.
+The 105 km commute at 14.6 kWh/100km needs about 15.3 kWh.
+HAEO plans that energy into the car before each departure, choosing the cheapest time to charge, and keeps the battery above 20% throughout.
 
 ## Step 4: Verify setup
 
@@ -147,20 +156,20 @@ Navigate to **Settings → Devices & Services → HAEO** to view the complete sy
 
 ### Expected device hierarchy
 
-| Element     | Type | Key Sensors                                             |
-| ----------- | ---- | ------------------------------------------------------- |
-| Commuter EV | EV   | Charge power, energy stored, SOC, trip energy delivered |
+| Element | Type | Key Sensors                                             |
+| ------- | ---- | ------------------------------------------------------- |
+| Atto 2  | EV   | Charge power, energy stored, SOC, trip energy delivered |
 
 The EV element adds to the existing base system elements (Inverter, Battery, Solar, Grid, Load).
 
 ### Key EV sensors
 
-- `sensor.commuter_ev_charge_power` — Optimal charging power (kW)
-- `sensor.commuter_ev_discharge_power` — V2G discharge power (kW), which stays at 0 without a max discharge rate
-- `sensor.commuter_ev_energy_stored` — Current energy in the EV battery (kWh)
-- `sensor.commuter_ev_state_of_charge` — EV battery percentage (%)
-- `sensor.commuter_ev_trip_energy_delivered` — Energy used by the current trip, reset at each trip start (kWh)
-- `sensor.commuter_ev_trip_energy_shortfall` — Trip energy expected to be topped up publicly, at each trip's end (kWh)
+- `sensor.atto_2_charge_power` — Optimal charging power (kW)
+- `sensor.atto_2_discharge_power` — V2G discharge power (kW), which stays at 0 without a max discharge rate
+- `sensor.atto_2_energy_stored` — Current energy in the EV battery (kWh)
+- `sensor.atto_2_state_of_charge` — EV battery percentage (%)
+- `sensor.atto_2_trip_energy_delivered` — Energy used by the current trip, reset at each trip start (kWh)
+- `sensor.atto_2_trip_energy_shortfall` — Trip energy expected to be topped up publicly, at each trip's end (kWh)
 
 All sensors include a `forecast` attribute with optimized future values.
 

@@ -28,7 +28,6 @@ from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
     CONF_MAX_CHARGE_PERCENTAGE,
-    CONF_MIN_CHARGE_PERCENTAGE,
 )
 from custom_components.haeo.core.schema.elements.buffer import (
     CONF_GENERATION,
@@ -53,6 +52,7 @@ from custom_components.haeo.core.schema.elements.ev import (
     SECTION_PUBLIC_CHARGING,
     SECTION_TRIP,
 )
+from custom_components.haeo.core.schema.elements.ev import CONF_MIN_CHARGE_PERCENTAGE as EV_CONF_MIN_CHARGE_PERCENTAGE
 from custom_components.haeo.core.schema.sections import (
     CONF_FORECAST,
     CONF_MAX_POWER_SOURCE_TARGET,
@@ -411,7 +411,7 @@ def add_battery(
         CONF_INITIAL_CHARGE_PERCENTAGE: initial_charge_percentage,
     }
     if min_charge_percentage is not None:
-        fields[CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
+        fields[EV_CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
     if max_charge_percentage is not None:
         fields[CONF_MAX_CHARGE_PERCENTAGE] = max_charge_percentage
     if max_power_target_source is not None:
@@ -637,6 +637,7 @@ def add_ev(
     current_soc: EntityInput,
     max_charge_rate: EntityInput | ConstantInput,
     connected: EntityInput,
+    min_charge_percentage: EntityInput | ConstantInput | None = None,
     max_discharge_rate: EntityInput | ConstantInput | None = None,
     trip_calendar: EntityInput | None = None,
     odometer: EntityInput | None = None,
@@ -657,8 +658,10 @@ def add_ev(
         CONF_CAPACITY: capacity,
         CONF_ENERGY_PER_DISTANCE: energy_per_distance,
         CONF_CURRENT_SOC: current_soc,
-        CONF_MAX_CHARGE_RATE: max_charge_rate,
     }
+    if min_charge_percentage is not None:
+        fields[EV_CONF_MIN_CHARGE_PERCENTAGE] = min_charge_percentage
+    fields[CONF_MAX_CHARGE_RATE] = max_charge_rate
     if max_discharge_rate is not None:
         fields[CONF_MAX_DISCHARGE_RATE] = max_discharge_rate
     fields[CONF_CONNECTED] = connected
