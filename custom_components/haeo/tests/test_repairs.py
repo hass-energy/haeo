@@ -11,6 +11,7 @@ from custom_components.haeo.repairs import (
     dismiss_disconnected_network_issue,
     dismiss_entry_issues,
     dismiss_optimization_failure_issue,
+    sync_unavailable_input_issues,
 )
 
 
@@ -138,3 +139,35 @@ async def test_dismiss_entry_issues_only_removes_that_entry(hass: HomeAssistant)
     dismiss_entry_issues(hass, "entry123")
 
     assert list(async_get(hass).issues) == [(DOMAIN, "node_replaced_by_junction_entry456_Switchboard")]
+
+
+async def test_sync_unavailable_input_issues_raises_and_dismisses(hass: HomeAssistant) -> None:
+    """Each unavailable input gets an issue naming its sensors, and recovered inputs lose theirs."""
+    sync_unavailable_input_issues(
+        hass,
+        "entry123",
+        {
+            ("EV Charger", ("schedule", "energy_meter")): ("sensor.ev_energy",),
+            ("Grid", ("pricing", "price_source_target")): ("sensor.price_a", "sensor.price_b"),
+        },
+    )
+    sync_unavailable_input_issues(hass, "entry456", {("Grid", ("pricing", "price_source_target")): ("sensor.x",)})
+
+    meter = async_get(hass).async_get_issue(DOMAIN, "unavailable_input_entry123_EV Charger_schedule.energy_meter")
+    assert meter is not None
+    assert meter.translation_key == "unavailable_input"
+    assert meter.severity == IssueSeverity.ERROR
+    assert meter.translation_placeholders == {
+        "element": "EV Charger",
+        "field": "schedule.energy_meter",
+        "entities": "sensor.ev_energy",
+    }
+
+    sync_unavailable_input_issues(
+        hass, "entry123", {("Grid", ("pricing", "price_source_target")): ("sensor.price_a", "sensor.price_b")}
+    )
+
+    assert sorted(issue_id for _, issue_id in async_get(hass).issues) == [
+        "unavailable_input_entry123_Grid_pricing.price_source_target",
+        "unavailable_input_entry456_Grid_pricing.price_source_target",
+    ]

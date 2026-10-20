@@ -416,7 +416,10 @@ HAEO treats input_number helpers like any other sensor, reading the current valu
 
 ### Sensor Not Found
 
-**Problem**: Error "Input entities not ready after … seconds", or an input entity shows as unavailable
+**Problem**: Error "Input … has no reading from …", or an input entity shows as unavailable
+
+An input with no reading shows as unavailable, and HAEO does not optimize until it has one, whether at startup or while running.
+A repair issue names the element, the input, and the sensors with no reading, and clears itself once they report again.
 
 **Solutions**:
 

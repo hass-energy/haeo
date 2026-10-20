@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory, UnitOfEnergy
 from homeassistant.core import HomeAssistant, State
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import EventStateChangedData
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -1890,14 +1891,12 @@ async def test_async_update_data_raises_when_inputs_unavailable(
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
 ) -> None:
-    """Optimization raises UpdateFailed when any input store is unavailable.
-
-    The availability gate iterates the runtime data's input stores and skips
-    optimization whenever any store cannot supply a value.
-    """
+    """Optimization is skipped with an error and a repair issue naming the sensor with no reading."""
     unavailable_store = MagicMock()
     unavailable_store.available = False
     unavailable_store.error = None
+    unavailable_store.source_entity_ids = ["sensor.price_a", "sensor.price_b"]
+    unavailable_store.unavailable_sources = ("sensor.price_b",)
     unavailable_store.captured_source_states = {}
     mock_runtime_data.input_stores[("Unavailable Grid", (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))] = (
         unavailable_store
@@ -1906,8 +1905,23 @@ async def test_async_update_data_raises_when_inputs_unavailable(
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     coordinator.network = MagicMock()
 
-    with pytest.raises(UpdateFailed, match="unavailable"):
+    with pytest.raises(UpdateFailed) as exc_info:
         await coordinator._async_update_data()
+
+    placeholders = {
+        "element": "Unavailable Grid",
+        "field": f"{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}",
+        "entities": "sensor.price_b",
+    }
+    assert exc_info.value.translation_key == "input_unavailable"
+    assert exc_info.value.translation_placeholders == placeholders
+    issue = ir.async_get(hass).async_get_issue(
+        DOMAIN,
+        f"unavailable_input_{mock_hub_entry.entry_id}_Unavailable Grid_{SECTION_PRICING}.{CONF_PRICE_SOURCE_TARGET}",
+    )
+    assert issue is not None
+    assert issue.translation_key == "unavailable_input"
+    assert issue.translation_placeholders == placeholders
 
 
 async def test_async_update_data_raises_translated_input_error(
@@ -1938,3 +1952,4 @@ async def test_async_update_data_raises_translated_input_error(
         "entities": "sensor.import_limit",
         "value": "-4.5",
     }
+    assert not [issue_id for _, issue_id in ir.async_get(hass).issues if issue_id.startswith("unavailable_input_")]

@@ -546,12 +546,15 @@ async def test_element_flow_in_progress(
 
 
 @pytest.mark.parametrize(
-    ("input_error", "expected_translation_key"),
+    ("input_error", "expected_translation_key", "expected_issues"),
     [
-        pytest.param(None, "input_entities_not_ready", id="not_ready"),
+        pytest.param(
+            None, "input_unavailable", ["unavailable_input_{entry_id}_Test Element_section.field"], id="unavailable"
+        ),
         pytest.param(
             InputError(translation_key="negative_input_value", translation_placeholders={"value": "-4.5"}),
             "negative_input_value",
+            [],
             id="input_error",
         ),
     ],
@@ -562,17 +565,21 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
     monkeypatch: pytest.MonkeyPatch,
     input_error: InputError | None,
     expected_translation_key: str,
+    expected_issues: list[str],
 ) -> None:
     """Setup raises ConfigEntryNotReady when input stores don't become ready in time.
 
-    Verifies that ConfigEntryNotReady is raised with descriptive translation key,
-    using the rejecting check's translation when a store rejected its source's value.
-    Cleanup is handled via async_on_unload callbacks registered during setup.
+    An input with no reading names its sensors in the error and in a repair
+    issue. A store that rejected its source's value reports that check's
+    translation instead. Cleanup is handled via async_on_unload callbacks
+    registered during setup.
     """
 
     # Create a mock input store that never becomes ready
     class NeverReadyStore:
-        source_entity_ids: ClassVar[list[str]] = ["sensor.limit"]
+        source_entity_ids: ClassVar[list[str]] = ["sensor.limit", "sensor.other"]
+        unavailable_sources = ("sensor.limit",)
+        available = False
 
         def __init__(self) -> None:
             self.error = input_error
@@ -630,6 +637,15 @@ async def test_async_setup_entry_raises_config_entry_not_ready_on_timeout(
 
     # Verify the exception has the correct translation key
     assert exc_info.value.translation_key == expected_translation_key
+    assert exc_info.value.translation_placeholders == {
+        "element": "Test Element",
+        "field": "section.field",
+        "entities": "sensor.limit, sensor.other" if input_error else "sensor.limit",
+        **({"value": "-4.5"} if input_error else {}),
+    }
+    assert [issue_id for _, issue_id in ir.async_get(hass).issues if issue_id.startswith("unavailable_input_")] == [
+        issue_id.format(entry_id=mock_hub_entry.entry_id) for issue_id in expected_issues
+    ]
 
     # Note: Platform cleanup is handled via async_on_unload callbacks.
     # When testing directly (not via hass.config_entries.async_setup), the HA
@@ -671,11 +687,16 @@ async def test_setup_reentry_after_timeout_failure(
 
     # Create a mock input store that fails first time, succeeds second time
     class ConditionalReadyStore:
-        source_entity_ids: ClassVar[list[str]] = []
+        source_entity_ids: ClassVar[list[str]] = ["sensor.limit"]
+        unavailable_sources = ("sensor.limit",)
         error = None
 
         def __init__(self) -> None:
             self._ready = False
+
+        @property
+        def available(self) -> bool:
+            return self._ready
 
         async def wait_settled(self) -> None:
             if attempt_count == 1:
@@ -733,7 +754,7 @@ async def test_setup_reentry_after_timeout_failure(
         await async_setup_entry(hass, mock_hub_entry)
 
     # Verify the exception has the correct translation key
-    assert exc_info.value.translation_key == "input_entities_not_ready"
+    assert exc_info.value.translation_key == "input_unavailable"
 
     # Restore normal timeout for second attempt
     monkeypatch.setattr("asyncio.timeout", original_timeout)

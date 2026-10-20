@@ -275,21 +275,19 @@ class HaeoInputNumber(NumberEntity):
 
     async def _async_load_sync_and_update(self) -> None:
         """Load data, sync attributes, and write state."""
-        if await self._async_load_and_sync():
-            self.async_write_ha_state()
+        await self._async_load_and_sync()
+        self.async_write_ha_state()
 
-    async def _async_load_and_sync(self) -> bool:
+    async def _async_load_and_sync(self) -> None:
         """Load data from store via HA state machine and sync entity attributes.
 
-        Returns True if loading succeeded and state was synced.
+        A failed load keeps the previous value, and the entity shows as
+        unavailable until a load succeeds.
         """
         sm = HomeAssistantStateMachine(self.hass)
         with self._suppress_self_notifications():
-            loaded = await self._store.async_load(sm)
-        if not loaded:
-            return False
+            await self._store.async_load(sm)
         self._sync_from_store()
-        return True
 
     def _sync_from_store(self) -> None:
         """Synchronize HA entity attributes from the store's current state."""
@@ -321,6 +319,11 @@ class HaeoInputNumber(NumberEntity):
             {"time": datetime.fromtimestamp(ts, tz=local_tz), "value": self._display_value(val)}
             for ts, val in zip(timestamps, display_values, strict=True)
         ]
+
+    @property
+    def available(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]
+        """Return whether the input holds a value the optimization can use."""
+        return self._store.available
 
     def is_ready(self) -> bool:
         """Return True if data has been loaded and entity is ready."""

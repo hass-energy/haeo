@@ -334,6 +334,31 @@ async def test_driven_async_load_failure_keeps_unavailable() -> None:
     assert store.value is None
 
 
+@pytest.mark.parametrize(
+    ("states", "expected_unavailable"),
+    [
+        pytest.param({"sensor.a": "1.0", "sensor.b": "unavailable"}, ("sensor.b",), id="unavailable"),
+        pytest.param({"sensor.a": "1.0", "sensor.b": "unknown"}, ("sensor.b",), id="unknown"),
+        pytest.param({"sensor.a": "1.0"}, ("sensor.b",), id="missing"),
+        pytest.param({"sensor.a": "unavailable", "sensor.b": "unknown"}, ("sensor.a", "sensor.b"), id="both"),
+        pytest.param({"sensor.a": "1.0", "sensor.b": "not a number"}, (), id="unreadable_state"),
+    ],
+)
+async def test_driven_async_load_names_sources_without_a_reading(
+    states: dict[str, str], expected_unavailable: tuple[str, ...]
+) -> None:
+    """A failed load names the sources with no reading, and the next good load clears them."""
+    store = _make_store(storage_value=as_entity_value(["sensor.a", "sensor.b"]), output_type=OutputType.PRICE)
+
+    sm = FakeStateMachine({eid: FakeEntityState(eid, state, {}) for eid, state in states.items()})
+    assert await store.async_load(sm) is False
+    assert store.unavailable_sources == expected_unavailable
+
+    recovered = FakeStateMachine({eid: FakeEntityState(eid, "1.0", {}) for eid in ("sensor.a", "sensor.b")})
+    assert await store.async_load(recovered) is True
+    assert store.unavailable_sources == ()
+
+
 async def test_driven_async_load_records_input_error() -> None:
     """A rejected source value is recorded, notified, and cleared by the next good load."""
     storage = _MemStorage(as_entity_value(["sensor.x"]))

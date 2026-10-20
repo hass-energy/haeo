@@ -39,8 +39,13 @@ from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
 from custom_components.haeo.horizon import HorizonManager
-from custom_components.haeo.input_stores import InputStoreMap, build_input_stores, input_error_placeholders
-from custom_components.haeo.repairs import dismiss_entry_issues
+from custom_components.haeo.input_stores import (
+    InputStoreMap,
+    build_input_stores,
+    input_error_placeholders,
+    unavailable_input_placeholders,
+)
+from custom_components.haeo.repairs import dismiss_entry_issues, sync_unavailable_input_issues
 from custom_components.haeo.services import async_setup_services
 from custom_components.haeo.unique_id import parse_element_unique_id
 
@@ -463,14 +468,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: HaeoConfigEntry) -> bool
             await asyncio.gather(*[store.wait_settled() for store in runtime_data.input_stores.values()])
     except TimeoutError:
         _raise_for_rejected_inputs(runtime_data.input_stores)
-        not_ready = {key: store for key, store in runtime_data.input_stores.items() if not store.is_ready()}
+        not_ready = {
+            key: store.unavailable_sources or tuple(store.source_entity_ids)
+            for key, store in runtime_data.input_stores.items()
+            if not store.is_ready()
+        }
+        sync_unavailable_input_issues(hass, entry.entry_id, not_ready)
+        key, entities = next(iter(not_ready.items()))
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
-            translation_key="input_entities_not_ready",
-            translation_placeholders={
-                "not_ready": str(list(not_ready)),
-                "timeout": str(INPUT_ENTITY_READY_TIMEOUT),
-            },
+            translation_key="input_unavailable",
+            translation_placeholders=unavailable_input_placeholders(key, entities),
         ) from None
     _raise_for_rejected_inputs(runtime_data.input_stores)
     _LOGGER.debug("All input entities ready")

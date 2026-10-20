@@ -675,8 +675,8 @@
     "horizon_entity_not_ready": {
       "message": "The planning horizon sensor {entity_id} does not report a usable HAEO-format forecast yet."
     },
-    "input_entities_not_ready": {
-      "message": "Input entities not ready after {timeout} seconds: {not_ready}. Some sensors may not be available yet."
+    "input_unavailable": {
+      "message": "Input {field} of {element} has no reading from {entities}, so HAEO cannot optimize until it does."
     },
     "input_unit_incompatible": {
       "message": "Input {field} of {element} needs a value in {expected}, but {entities} supplied one in {unit}, which does not convert."
@@ -712,6 +712,10 @@
     "optimization_failure": {
       "title": "Optimization failed",
       "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. An infeasible or numerically difficult optimization problem\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your system configuration for conflicting constraints\n4. Adjust interval tiers or simplify the network if solves are slow or failing\n5. This issue will automatically dismiss when optimization succeeds"
+    },
+    "unavailable_input": {
+      "title": "{element} has no reading for {field}",
+      "description": "HAEO skips every optimization while input {field} of {element} has no reading, so the whole plan stays out of date.\n\nSensors with no reading: {entities}\n\nTo fix this issue:\n1. Check that these sensors are available and reporting values in Developer tools > States\n2. If a sensor was removed or renamed, reconfigure {element} to read one that exists\n3. This issue clears automatically once the input has a reading again"
     }
   },
   "selector": {
