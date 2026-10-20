@@ -350,7 +350,8 @@ HAEO converts it to the field's unit as it would a sensor reading.
 HAEO reads the value by these rules:
 
 - A number must stand as its own word: the `2` in `EV2` or the `1.2` in `v1.2` is not a number.
-    Pieces of a larger number are not read on their own either, such as the `500` in `1,500`, the `30` in `10:30`, or the `10` in `8-10`, so write `1500 Wh` rather than `1,500 Wh`.
+    Pieces of a larger number are not read on their own either, such as the `500` in `1,500`, the `30` in `10:30`, or the `10` in `8-10`.
+    Use a dot for decimals and no thousands separators: write `1.5 kWh` rather than `1,5 kWh`, and `1500 Wh` rather than `1,500 Wh`.
 - The unit is the word typed right after the number, with or without a space between them.
 - Only a number whose unit converts to the field's unit is a value.
     Other numbers, such as a tariff number or a charger's `7 kW` in an energy field, are passed over.
