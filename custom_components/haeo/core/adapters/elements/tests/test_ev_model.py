@@ -42,7 +42,14 @@ from custom_components.haeo.core.model.elements.deferrable_load import (
 )
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.ev import EvConfigData, EvConfigSchema
+from custom_components.haeo.core.schema.elements.ev import (
+    CONF_MAX_CHARGE_RATE,
+    CONF_MAX_DISCHARGE_RATE,
+    SECTION_CHARGING,
+    EvConfigData,
+    EvConfigSchema,
+)
+from custom_components.haeo.core.schema.field_hints import extract_field_hints
 
 N_PERIODS = 4
 
@@ -381,6 +388,19 @@ def test_home_charge_limit_binds_at_the_charger() -> None:
     # Both periods before departure charge at the 2 kW limit; 90% of it reaches the pack.
     np.testing.assert_allclose(outputs[EV_POWER_CHARGE].values[:2], [2.0, 2.0], atol=1e-6)
     np.testing.assert_allclose(outputs[EV_ENERGY_STORED].values[:3], [5.0, 6.8, 8.6], atol=1e-6)
+
+
+def test_rate_limits_share_the_direction_of_the_power_they_limit() -> None:
+    """Each rate limit carries the direction of the power it limits, so the forecast card draws it on that series."""
+    config = _ev_config(charging={"max_charge_rate": 2.0, "connected": np.ones(N_PERIODS)})
+    network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
+    model_outputs = {name: element.outputs() for name, element in network.elements.items()}
+    outputs = adapter.outputs("ev", model_outputs, config=config)[EV_DEVICE_EV]
+
+    charging = extract_field_hints(EvConfigSchema)[SECTION_CHARGING]
+
+    assert charging[CONF_MAX_CHARGE_RATE].direction == outputs[EV_POWER_CHARGE].direction
+    assert charging[CONF_MAX_DISCHARGE_RATE].direction == outputs[EV_POWER_DISCHARGE].direction
 
 
 def test_driving_beyond_the_trip_completes_it_at_no_cost() -> None:
