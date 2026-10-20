@@ -108,7 +108,8 @@ With no window open the rise is zero.
 
 The calendar loader keeps each meter's running totals with the [meter history](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/meter_history.py).
 It reads the meter's sum from the recorder's 5-minute statistics over the past week, which carries on through resets as the Energy dashboard reads it.
-It extends the sum with the meter's state changes as they arrive, treating a fall in the reading as a reset that rose from zero, and injects the totals into the meter's state as the `haeo_meter_totals` attribute.
+It extends the sum with the meter's state changes as they arrive, keeping totals five minutes apart, and injects the totals into the meter's state as the `haeo_meter_totals` attribute.
+It detects resets as the recorder does: a `total_increasing` reading below 90% of the last one, or a `total` meter whose `last_reset` changes, rose from zero.
 Statistics only exist for sensors with a `total` or `total_increasing` state class, so meter fields only offer those sensors.
 When the totals start after the window began, the rise counts from the earliest total, the most the meter is known to have risen.
 

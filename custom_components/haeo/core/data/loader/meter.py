@@ -21,7 +21,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.state import EntityState, StateMachine
 from custom_components.haeo.core.units import DeviceClass, base_unit_conversion
 
-from .calendar import load_calendar_events, open_window_start
+from .calendar import CalendarEventData, load_calendar_events, open_window_start
 
 # State attribute carrying a meter's recorded totals, injected by the integration
 METER_TOTALS_ATTRIBUTE: Final = "haeo_meter_totals"
@@ -82,11 +82,15 @@ def resolve_meter(
     states = [sm.get(entity_id) for entity_id in entity_ids]
     if not forecast_times or any(state is None for state in states):
         return None
-    calendars = [events for state in states if (events := load_calendar_events(state)) is not None]
-    meters = [state for state in states if state is not None and load_calendar_events(state) is None]
-    opened = open_window_start(
-        [event for events in calendars for event in events], datetime.fromtimestamp(forecast_times[0], tz=UTC)
-    )
+    events: list[CalendarEventData] = []
+    meters: list[EntityState] = []
+    for state in states:
+        found = load_calendar_events(state)
+        if found is not None:
+            events.extend(found)
+        elif state is not None:
+            meters.append(state)
+    opened = open_window_start(events, datetime.fromtimestamp(forecast_times[0], tz=UTC))
     if opened is None:
         return 0.0
     rises = [_rise_in_base_unit(meter, opened, output_type) for meter in meters]

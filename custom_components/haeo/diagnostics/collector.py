@@ -256,7 +256,11 @@ async def _fetch_inputs_at(
             for eid, found_events in events.items()
             if found_events is not None
         },
-        **{eid: {METER_TOTALS_ATTRIBUTE: meter_totals} for eid, meter_totals in zip(meters, totals, strict=True)},
+        **{
+            eid: {METER_TOTALS_ATTRIBUTE: meter_totals}
+            for eid, meter_totals in zip(meters, totals, strict=True)
+            if meter_totals is not None
+        },
     }
     inputs = [
         _captured_state(state, extra_attributes.get(state.entity_id))

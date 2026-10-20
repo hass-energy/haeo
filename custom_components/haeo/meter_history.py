@@ -5,7 +5,7 @@ A meter, such as an energy sensor that only counts up, can reset: an
 keep a sum for such sensors that carries on through resets, as the Energy
 dashboard reads it. The calendar loader reads that sum from the 5-minute
 statistics once when it starts, then extends it with the meter's state
-changes as they arrive, treating a fall in the reading as a reset. The totals
+changes as they arrive, detecting resets as the recorder does. The totals
 are injected into the meter's state for the core loader, which reads how
 much the meter rose since a window started.
 
@@ -22,6 +22,8 @@ import logging
 from typing import Final
 
 from homeassistant.components.recorder import statistics
+from homeassistant.components.sensor import ATTR_LAST_RESET, ATTR_STATE_CLASS, SensorStateClass
+from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.recorder import get_instance
 from homeassistant.util import dt as dt_util
@@ -37,6 +39,20 @@ RECORDER_DOMAIN: Final = "recorder"
 # credited from the earliest total.
 LOOKBACK: Final = timedelta(days=7)
 
+# The spacing kept between live totals, matching the statistics' 5-minute
+# buckets, so a meter that updates every few seconds keeps a bounded history.
+SPACING: Final = timedelta(minutes=5)
+
+# A total_increasing reading below this share of the last one is a reset, as
+# the recorder decides; a smaller dip is noise that the next reading undoes.
+RESET_RATIO: Final = 0.9
+
+
+def _unit(state: State | None) -> str | None:
+    """Return a meter state's unit of measurement, or None when it states none."""
+    unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state is not None else None
+    return unit if isinstance(unit, str) else None
+
 
 def _reading(state: State | None) -> float | None:
     """Return a meter state's numeric reading, or None when it reads no number."""
@@ -48,25 +64,57 @@ def _reading(state: State | None) -> float | None:
         return None
 
 
+def _is_reset(state: State, reading: float, last: State | None, last_reading: float) -> bool:
+    """Return whether a meter reset between two readings, as the recorder decides.
+
+    A total meter resets when its last_reset changes. A total_increasing meter
+    resets when its reading falls below most of the last one.
+    """
+    if state.attributes.get(ATTR_STATE_CLASS) == SensorStateClass.TOTAL_INCREASING:
+        return reading < RESET_RATIO * last_reading
+    last_reset = state.attributes.get(ATTR_LAST_RESET)
+    return last is not None and last_reset is not None and last_reset != last.attributes.get(ATTR_LAST_RESET)
+
+
 class _MeterTotals:
-    """One meter's running totals, extended with each new reading."""
+    """One meter's running totals, extended with each new reading.
+
+    Totals are kept at least ``SPACING`` apart, with the latest held aside
+    until the next one is far enough from the last kept, so the history stays
+    bounded however often the meter updates.
+    """
 
     def __init__(self, totals: list[MeterTotal], last_reading: float | None) -> None:
-        self.totals = totals
+        self._kept = totals
+        self._latest: MeterTotal | None = None
         self._last_reading = last_reading
+        self._last_state: State | None = None
 
-    def record(self, reading: float, at: float) -> None:
-        """Add a reading's rise to the total; a reading below the last is a reset that rose from zero."""
-        if self._last_reading is not None:
-            rise = reading - self._last_reading if reading >= self._last_reading else reading
-            last_total = self.totals[-1][1] if self.totals else 0.0
-            self.totals.append((at, last_total + rise))
-        elif not self.totals:
-            self.totals.append((at, 0.0))
+    @property
+    def totals(self) -> list[MeterTotal]:
+        """Return the totals, oldest first, ending with the latest."""
+        return [*self._kept, self._latest] if self._latest is not None else list(self._kept)
+
+    def record(self, state: State, reading: float, at: float) -> None:
+        """Add a reading's rise to the total; after a reset the meter rose from zero."""
+        if self._last_reading is None:
+            if not self._kept and self._latest is None:
+                self._latest = (at, 0.0)
+        else:
+            reset = _is_reset(state, reading, self._last_state, self._last_reading)
+            rise = reading if reset else reading - self._last_reading
+            totals = self.totals
+            last_total = totals[-1][1] if totals else 0.0
+            if self._latest is not None and (
+                not self._kept or self._latest[0] - self._kept[-1][0] >= SPACING.total_seconds()
+            ):
+                self._kept.append(self._latest)
+            self._latest = (at, last_total + rise)
         self._last_reading = reading
+        self._last_state = state
         cutoff = at - LOOKBACK.total_seconds()
-        while len(self.totals) > 1 and self.totals[1][0] <= cutoff:
-            self.totals.pop(0)
+        while len(self._kept) > 1 and self._kept[1][0] <= cutoff:
+            self._kept.pop(0)
 
 
 class MeterHistory:
@@ -80,7 +128,9 @@ class MeterHistory:
 
     async def async_load(self) -> None:
         """Read each meter's recorded totals over the lookback, then extend them with its live state."""
-        found = await asyncio.gather(*(self._async_recorded(entity_id) for entity_id in self._entity_ids))
+        found = await asyncio.gather(
+            *(self._async_recorded(entity_id, self._hass.states.get(entity_id)) for entity_id in self._entity_ids)
+        )
         self._meters = {
             entity_id: _MeterTotals(totals, last_reading)
             for entity_id, (totals, last_reading) in zip(self._entity_ids, found, strict=True)
@@ -93,53 +143,66 @@ class MeterHistory:
         reading = _reading(state)
         meter = self._meters.get(entity_id)
         if reading is not None and meter is not None and state is not None:
-            meter.record(reading, state.last_updated_timestamp)
+            meter.record(state, reading, state.last_updated_timestamp)
 
     def attributes(self) -> dict[str, dict[str, object]]:
         """Return the totals to inject into each meter's state."""
         return {entity_id: {METER_TOTALS_ATTRIBUTE: list(meter.totals)} for entity_id, meter in self._meters.items()}
 
-    async def _async_recorded(self, entity_id: str) -> tuple[list[MeterTotal], float | None]:
+    async def _async_recorded(self, entity_id: str, state: State | None) -> tuple[list[MeterTotal], float | None]:
         """Return a meter's recorded totals over the lookback and its last recorded reading."""
         if RECORDER_DOMAIN not in self._hass.config.components:
             return [], None
         start = dt_util.utcnow() - LOOKBACK
         try:
             return await get_instance(self._hass).async_add_executor_job(
-                recorded_totals, self._hass, entity_id, start, None
+                recorded_totals, self._hass, entity_id, _unit(state), start, None
             )
         except Exception:
             _LOGGER.warning("Failed to read recorder statistics for %s", entity_id, exc_info=True)
             return [], None
 
 
-async def async_meter_totals_at(hass: HomeAssistant, entity_id: str, at: datetime, state: State) -> list[MeterTotal]:
+async def async_meter_totals_at(
+    hass: HomeAssistant, entity_id: str, at: datetime, state: State
+) -> list[MeterTotal] | None:
     """Return a meter's running totals over the lookback ending at a past time, with its state then.
 
     Historical diagnostics inject these into the meter's recorded state, as a
-    live run injects its current totals.
+    live run injects its current totals. Returns None when the statistics
+    cannot be read, so the meter carries no totals rather than wrong ones.
     """
-    totals, last_reading = await get_instance(hass).async_add_executor_job(
-        recorded_totals, hass, entity_id, at - LOOKBACK, at
-    )
+    try:
+        totals, last_reading = await get_instance(hass).async_add_executor_job(
+            recorded_totals, hass, entity_id, _unit(state), at - LOOKBACK, at
+        )
+    except Exception:
+        _LOGGER.warning("Failed to read recorder statistics for %s", entity_id, exc_info=True)
+        return None
     meter = _MeterTotals(totals, last_reading)
     reading = _reading(state)
     if reading is not None:
-        meter.record(reading, at.timestamp())
+        meter.record(state, reading, at.timestamp())
     return meter.totals
 
 
 def recorded_totals(
-    hass: HomeAssistant, entity_id: str, start: datetime, end: datetime | None
+    hass: HomeAssistant, entity_id: str, unit: str | None, start: datetime, end: datetime | None
 ) -> tuple[list[MeterTotal], float | None]:
     """Return a meter's 5-minute statistics totals between two times, and its last reading.
 
     Each total is the statistics sum at the end of its 5-minute bucket, which
-    carries on through resets. Runs in the recorder executor.
+    carries on through resets. Values are converted to the meter's current
+    unit, which its live readings are in. Only buckets ending by *end* count,
+    so no reading from after it is seen. Runs in the recorder executor.
     """
-    rows = statistics.statistics_during_period(hass, start, end, {entity_id}, "5minute", None, {"sum", "state"}).get(
+    converter = statistics.STATISTIC_UNIT_TO_UNIT_CONVERTER.get(unit)
+    units = {converter.UNIT_CLASS: unit} if converter is not None and unit is not None else None
+    rows = statistics.statistics_during_period(hass, start, end, {entity_id}, "5minute", units, {"sum", "state"}).get(
         entity_id, []
     )
+    if end is not None:
+        rows = [row for row in rows if (ended := row.get("end")) is not None and ended <= end.timestamp()]
     totals = [
         (ended, total)
         for row in rows
@@ -149,4 +212,4 @@ def recorded_totals(
     return totals, readings[-1] if readings else None
 
 
-__all__ = ["LOOKBACK", "MeterHistory", "async_meter_totals_at", "recorded_totals"]
+__all__ = ["LOOKBACK", "SPACING", "MeterHistory", "async_meter_totals_at", "recorded_totals"]
