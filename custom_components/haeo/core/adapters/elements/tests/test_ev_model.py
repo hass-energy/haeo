@@ -80,7 +80,6 @@ def _ev_config(*, plugged_in: bool = True, **overrides: object) -> EvConfigData:
             "max_charge_rate": 10.0,
             "connected": np.full(N_PERIODS, 1.0 if plugged_in else 0.0),
         },
-        "power_limits": {},
         "efficiency": {},
     }
     config.update(overrides)
@@ -276,7 +275,6 @@ def test_loads_an_open_trip_from_captured_states() -> None:
             "trip_calendar": as_entity_value(["calendar.trips"]),
             "odometer": as_entity_value(["sensor.odometer"]),
         },
-        "power_limits": {},
         "efficiency": {},
     }
     times = tuple(start + 3600.0 * k for k in range(1, N_PERIODS + 2))
@@ -334,6 +332,21 @@ def test_optimizer_precharges_before_trip_in_cheap_period() -> None:
     # The 1 kWh top-up (5 kWh initial vs 6 kWh trip) buys in the cheap period.
     ev_stored = network.elements["ev"].outputs()[BATTERY_ENERGY_STORED].values
     assert ev_stored[1] == pytest.approx(6.0, abs=1e-6)
+
+
+def test_trips_stop_at_the_min_charge_and_leave_the_rest_to_public_charging() -> None:
+    """A trip draws the pack down to its min charge, and the rest is a public top-up rather than draining past it."""
+    config = _ev_config(
+        charging={"max_charge_rate": 0.0, "connected": np.ones(N_PERIODS)},
+        trip=_trips((1, 2, 50.0)),
+    )
+    config["vehicle"]["current_soc"] = 0.3
+    config["vehicle"]["min_charge_percentage"] = np.full(N_PERIODS + 1, 0.2)
+    network = _solve_ev_network(config, grid_price=[0.1, 0.1, 0.1, 0.1])
+
+    stored = network.elements["ev"].outputs()[BATTERY_ENERGY_STORED].values
+    assert min(stored) == pytest.approx(10.0)
+    assert network.elements["ev:trip"].outputs()[DEFERRABLE_LOAD_ENERGY_SHORTFALL].values[2] == pytest.approx(5.0)
 
 
 def test_trip_shortfall_is_left_to_public_charging() -> None:

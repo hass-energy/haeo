@@ -85,6 +85,10 @@ A missed trip stays priced at its own end, and the next trip starts from zero.
 
 The pack's initial charge clamps to $[0, C]$ so a glitched state-of-charge sensor cannot overfill the model.
 
+An optional min charge holds the pack above a fraction of its capacity, as the [battery](battery.md) does.
+Energy below it costs \$100/kWh per hour, far above the public charging price, so neither V2G nor a trip ever plans to drain past it: a trip that would need more leaves a priced shortfall.
+A car that comes home below it stays feasible.
+
 ### Trip progress
 
 The odometer is a [meter input](../../developer-guide/data-loading.md#meters) measured from the trip calendar.
@@ -134,21 +138,20 @@ The EV element creates a single Home Assistant device:
 
 ## Parameter mapping
 
-| User configuration         | Model element(s)              | Model parameter               | Notes                                   |
-| -------------------------- | ----------------------------- | ----------------------------- | --------------------------------------- |
-| `capacity`                 | Battery `{name}`              | `capacity`                    | kWh, time-series boundary array         |
-| `current_soc`              | Battery `{name}`              | `initial_charge`              | SOC ratio × capacity                    |
-| `trip_calendar`            | Deferrable load `{name}:trip` | Window masks, `opened`, `due` | Distances × energy per distance         |
-| `max_charge_rate`          | Connection `{name}:charge`    | Power limit segment           | Masked by connected flag                |
-| `max_discharge_rate`       | Connection `{name}:discharge` | Power limit segment           | Masked by connected flag                |
-| `connected`                | Connections                   | Home and away masks           | Pins the current interval               |
-| `energy_per_distance`      | Trip energy calculation       | Multiplied by distance        | Wh/km and kWh/100km converted to kWh/km |
-| `odometer`                 | Deferrable load `{name}:trip` | `initial_energy`              | Distance since the trip began × rate    |
-| `public_charging_price`    | Deferrable load `{name}:trip` | `deficit_price`               | Defaults to \$10/kWh                    |
-| `efficiency_source_target` | Connection `{name}:discharge` | Efficiency segment            | Discharge direction                     |
-| `efficiency_target_source` | Connection `{name}:charge`    | Efficiency segment            | Charge direction                        |
-| `max_power_source_target`  | Connection `{name}:discharge` | Power limit segment           | Combined with discharge rate            |
-| `max_power_target_source`  | Connection `{name}:charge`    | Power limit segment           | Combined with charge rate               |
+| User configuration         | Model element(s)              | Model parameter                   | Notes                                         |
+| -------------------------- | ----------------------------- | --------------------------------- | --------------------------------------------- |
+| `capacity`                 | Battery `{name}`              | `capacity`                        | kWh, time-series boundary array               |
+| `current_soc`              | Battery `{name}`              | `initial_charge`                  | SOC ratio × capacity                          |
+| `min_charge_percentage`    | Battery `{name}`              | `min_charge`, `charge_limit_cost` | Ratio × capacity, \$100/kWh per hour below it |
+| `trip_calendar`            | Deferrable load `{name}:trip` | Window masks, `opened`, `due`     | Distances × energy per distance               |
+| `max_charge_rate`          | Connection `{name}:charge`    | Power limit segment               | Masked by connected flag                      |
+| `max_discharge_rate`       | Connection `{name}:discharge` | Power limit segment               | Masked by connected flag                      |
+| `connected`                | Connections                   | Home and away masks               | Pins the current interval                     |
+| `energy_per_distance`      | Trip energy calculation       | Multiplied by distance            | Wh/km and kWh/100km converted to kWh/km       |
+| `odometer`                 | Deferrable load `{name}:trip` | `initial_energy`                  | Distance since the trip began × rate          |
+| `public_charging_price`    | Deferrable load `{name}:trip` | `deficit_price`                   | Defaults to \$10/kWh                          |
+| `efficiency_source_target` | Connection `{name}:discharge` | Efficiency segment                | Discharge direction                           |
+| `efficiency_target_source` | Connection `{name}:charge`    | Efficiency segment                | Charge direction                              |
 
 ## Output mapping
 

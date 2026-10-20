@@ -15,6 +15,7 @@ from custom_components.haeo.core.schema.elements.ev import (
     CONF_ENERGY_PER_DISTANCE,
     CONF_MAX_CHARGE_RATE,
     CONF_MAX_DISCHARGE_RATE,
+    CONF_MIN_CHARGE_PERCENTAGE,
     CONF_ODOMETER,
     CONF_PUBLIC_CHARGING_PRICE,
     CONF_TRIP_CALENDAR,
@@ -28,8 +29,6 @@ from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
 )
 from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
@@ -45,7 +44,7 @@ from custom_components.haeo.flows.field_schema import (
     sectioned_view,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.sections import build_common_fields, efficiency_section, power_limits_section
+from custom_components.haeo.sections import build_common_fields, efficiency_section
 
 
 class EvSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
@@ -56,7 +55,7 @@ class EvSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return (
             SectionDefinition(
                 key=SECTION_VEHICLE,
-                fields=(CONF_CAPACITY, CONF_ENERGY_PER_DISTANCE, CONF_CURRENT_SOC),
+                fields=(CONF_CAPACITY, CONF_ENERGY_PER_DISTANCE, CONF_CURRENT_SOC, CONF_MIN_CHARGE_PERCENTAGE),
                 collapsed=False,
             ),
             SectionDefinition(
@@ -75,10 +74,6 @@ class EvSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
             SectionDefinition(
                 key=SECTION_PUBLIC_CHARGING,
                 fields=(CONF_PUBLIC_CHARGING_PRICE,),
-                collapsed=True,
-            ),
-            power_limits_section(
-                (CONF_MAX_POWER_SOURCE_TARGET, CONF_MAX_POWER_TARGET_SOURCE),
                 collapsed=True,
             ),
             efficiency_section(

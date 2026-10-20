@@ -46,11 +46,10 @@ Fields configured with "Constant" create input entities that you can adjust at r
 | **[Battery capacity](#battery-capacity)**                | Energy     | Yes      | -        | Total usable battery capacity                   |
 | **[Energy per distance](#energy-per-distance)**          | Ratio      | Yes      | -        | Energy consumption rate (e.g. kWh/km)           |
 | **[Current state of charge](#current-state-of-charge)**  | Percentage | Yes      | -        | Sensor reporting current SOC (0–100%)           |
+| **[Min charge level](#min-charge-level)**                | Percentage | No       | -        | Charge the battery is kept above                |
 | **[Max charge rate](#max-charge-and-discharge-rate)**    | Power      | Yes      | -        | Maximum home charging power                     |
 | **[Max discharge rate](#max-charge-and-discharge-rate)** | Power      | No       | -        | Maximum V2G discharge power                     |
 | **[Public charging price](#public-charging-price)**      | Price      | No       | \$10/kWh | Cost per kWh for public charging                |
-| **[Max charge power](#power-limits)**                    | Power      | No       | -        | Overall max charge power limit                  |
-| **[Max discharge power](#power-limits)**                 | Power      | No       | -        | Overall max discharge power limit               |
 | **[Charge efficiency](#efficiency)**                     | Percentage | No       | 95%      | Efficiency when charging                        |
 | **[Discharge efficiency](#efficiency)**                  | Percentage | No       | 95%      | Efficiency when discharging                     |
 
@@ -149,6 +148,13 @@ HAEO multiplies this by trip distance to determine how much energy each trip req
 Select the Home Assistant sensor reporting the EV's current battery percentage (0–100%).
 HAEO uses this as the starting point for optimization.
 
+### Min charge level
+
+The charge HAEO keeps the battery above, as a percentage of its capacity, the same as a battery's [min charge level](battery.md#min-and-max-charge-percentage).
+HAEO never plans to drain the battery below it, neither through V2G nor on a trip: a trip that would need more leaves the rest to public charging.
+If the car comes home below it, the plan stays valid and charges back up.
+This is separate from any [buffer](#keeping-a-margin), which only prices falling short.
+
 ### Max charge and discharge rate
 
 Set the maximum charging and discharging rates for home charging.
@@ -164,11 +170,6 @@ Trip requirements are not hard constraints: any shortfall against a trip's energ
 When this field is not set, a deliberately high default of \$10/kWh is used, which strongly discourages a shortfall.
 The optimizer still compares it against the effective cost of home charging, so if import prices or policy costs push that above \$10/kWh it can deliberately leave a shortfall rather than pre-charge.
 Set a realistic price to let the optimizer genuinely trade off pre-charging at home against topping up publicly; the expected top-up appears in the trip energy shortfall sensor.
-
-### Power limits
-
-Additional power limits applied to the home charging connection.
-These are combined with the charge/discharge rate limits, taking the minimum of both when both are set.
 
 ### Efficiency
 

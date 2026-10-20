@@ -317,8 +317,7 @@
             "energy_per_distance": "Energy per distance",
             "max_charge_rate": "Max charge rate",
             "max_discharge_rate": "Max discharge rate",
-            "max_power_source_target": "Max discharge power",
-            "max_power_target_source": "Max charge power",
+            "min_charge_percentage": "Min charge level",
             "name": "EV Name",
             "odometer": "Odometer",
             "public_charging_price": "Public charging price",
@@ -341,13 +340,6 @@
               },
               "name": "Efficiency"
             },
-            "power_limits": {
-              "data": {
-                "max_power_source_target": "Max discharge power",
-                "max_power_target_source": "Max charge power"
-              },
-              "name": "Power limits"
-            },
             "public_charging": {
               "data": { "public_charging_price": "Public charging price" },
               "name": "Public charging"
@@ -357,7 +349,8 @@
               "data": {
                 "capacity": "Battery capacity",
                 "current_soc": "Current state of charge",
-                "energy_per_distance": "Energy per distance"
+                "energy_per_distance": "Energy per distance",
+                "min_charge_percentage": "Min charge level"
               },
               "name": "Vehicle"
             }
@@ -660,8 +653,7 @@
       "ev_energy_per_distance": { "name": "Energy per distance" },
       "ev_max_charge_rate": { "name": "Max charge rate" },
       "ev_max_discharge_rate": { "name": "Max discharge rate" },
-      "ev_max_power_source_target": { "name": "Max discharge power" },
-      "ev_max_power_target_source": { "name": "Max charge power" },
+      "ev_min_charge_percentage": { "name": "Min charge level" },
       "ev_odometer": { "name": "Distance since trip started" },
       "ev_public_charging_price": { "name": "Public charging price" },
       "ev_trip_due": { "name": "Trip distance due" },
