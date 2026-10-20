@@ -12,14 +12,10 @@ from custom_components.haeo.core.schema.field_hints import FieldHint, MeterField
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
-    CONF_MAX_POWER_SOURCE_TARGET,
-    CONF_MAX_POWER_TARGET_SOURCE,
     ConnectedCommonConfig,
     ConnectedCommonData,
     EfficiencyConfig,
     EfficiencyData,
-    PowerLimitsConfig,
-    PowerLimitsData,
 )
 
 ELEMENT_TYPE = ElementType.EV
@@ -34,6 +30,7 @@ SECTION_PUBLIC_CHARGING: Final = "public_charging"
 CONF_CAPACITY: Final = "capacity"
 CONF_ENERGY_PER_DISTANCE: Final = "energy_per_distance"
 CONF_CURRENT_SOC: Final = "current_soc"
+CONF_MIN_CHARGE_PERCENTAGE: Final = "min_charge_percentage"
 
 # Charging section field names
 CONF_MAX_CHARGE_RATE: Final = "max_charge_rate"
@@ -58,8 +55,7 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
         CONF_TRIP_CALENDAR,
         CONF_ODOMETER,
         CONF_MAX_DISCHARGE_RATE,
-        CONF_MAX_POWER_SOURCE_TARGET,
-        CONF_MAX_POWER_TARGET_SOURCE,
+        CONF_MIN_CHARGE_PERCENTAGE,
         CONF_EFFICIENCY_SOURCE_TARGET,
         CONF_EFFICIENCY_TARGET_SOURCE,
         CONF_PUBLIC_CHARGING_PRICE,
@@ -76,6 +72,7 @@ class VehicleConfig(TypedDict):
     capacity: EntityValue | ConstantValue
     energy_per_distance: EntityValue | ConstantValue
     current_soc: EntityValue
+    min_charge_percentage: NotRequired[EntityValue | ConstantValue | NoneValue]
 
 
 class VehicleData(TypedDict):
@@ -84,6 +81,7 @@ class VehicleData(TypedDict):
     capacity: NDArray[np.float64]
     energy_per_distance: float
     current_soc: float
+    min_charge_percentage: NotRequired[NDArray[np.float64]]
 
 
 # --- Charging section ---
@@ -173,6 +171,11 @@ class EvConfigSchema(ConnectedCommonConfig):
                     time_series=False,
                     step=0.1,
                 ),
+                CONF_MIN_CHARGE_PERCENTAGE: FieldHint(
+                    output_type=OutputType.STATE_OF_CHARGE,
+                    time_series=True,
+                    boundaries=True,
+                ),
             }
         ),
     ]
@@ -237,23 +240,6 @@ class EvConfigSchema(ConnectedCommonConfig):
             ),
         ]
     ]
-    power_limits: Annotated[
-        PowerLimitsConfig,
-        SectionHints(
-            {
-                CONF_MAX_POWER_SOURCE_TARGET: FieldHint(
-                    output_type=OutputType.POWER_LIMIT,
-                    direction="+",
-                    time_series=True,
-                ),
-                CONF_MAX_POWER_TARGET_SOURCE: FieldHint(
-                    output_type=OutputType.POWER_LIMIT,
-                    direction="-",
-                    time_series=True,
-                ),
-            }
-        ),
-    ]
     efficiency: Annotated[
         EfficiencyConfig,
         SectionHints(
@@ -283,7 +269,6 @@ class EvConfigData(ConnectedCommonData):
     charging: ChargingData
     trip: NotRequired[TripData]
     public_charging: NotRequired[PublicChargingData]
-    power_limits: PowerLimitsData
     efficiency: EfficiencyData
 
 
@@ -295,6 +280,7 @@ __all__ = [
     "CONF_ENERGY_PER_DISTANCE",
     "CONF_MAX_CHARGE_RATE",
     "CONF_MAX_DISCHARGE_RATE",
+    "CONF_MIN_CHARGE_PERCENTAGE",
     "CONF_ODOMETER",
     "CONF_PUBLIC_CHARGING_PRICE",
     "CONF_TRIP_CALENDAR",
