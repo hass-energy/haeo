@@ -47,8 +47,10 @@ from custom_components.haeo.core.model.const import OutputType
         pytest.param("Firmware v1.2", [], id="version_is_not_a_number"),
         pytest.param("8 kWh or 10 kWh", [(8.0, "kWh"), (10.0, "kWh")], id="several"),
         pytest.param("Tariff 2 at 0.30 $/kWh", [(2.0, "at"), (0.30, "$/kWh")], id="number_before_value"),
-        pytest.param("8-10 kWh", [(8.0, None)], id="range"),
-        pytest.param("8 - 10 kWh", [(8.0, None)], id="spaced_range"),
+        pytest.param("8-10 kWh", [(8.0, "-10 kWh")], id="range"),
+        pytest.param("8 - 10 kWh", [(8.0, "- 10 kWh")], id="spaced_range"),
+        pytest.param("8  to  10 kWh", [(8.0, "to  10 kWh")], id="worded_range"),
+        pytest.param("2026-10-22", [(2026.0, "-10")], id="date"),
         pytest.param("1,500 Wh", [(1.0, None)], id="thousands_separator"),
         pytest.param("1/2 kWh", [(1.0, None)], id="fraction"),
         pytest.param("At 10:30", [(10.0, None)], id="time"),
@@ -111,20 +113,20 @@ def _text_event(
         pytest.param(
             _text_event(location="12 Main St", summary="EV 8 kWh"),
             OutputType.ENERGY,
-            EventValueText("summary", "EV 8 kWh", 8.0),
-            id="field_without_usable_number_passed_over",
+            EventValueText("location", "12 Main St", None),
+            id="first_field_with_a_number_even_without_a_value",
+        ),
+        pytest.param(
+            _text_event(location="8", description="2 kWh"),
+            OutputType.ENERGY,
+            EventValueText("location", "8", None),
+            id="mistyped_field_not_replaced_by_a_later_one",
         ),
         pytest.param(
             _text_event(summary="8 kWh or 10 kWh", description="8 kWh"),
             OutputType.ENERGY,
             EventValueText("summary", "8 kWh or 10 kWh", None),
             id="several_usable_numbers_give_no_value",
-        ),
-        pytest.param(
-            _text_event(location="Bay 3", summary="EV 8"),
-            OutputType.ENERGY,
-            EventValueText("location", "Bay 3", None),
-            id="no_usable_number_reports_first_field_with_a_number",
         ),
         pytest.param(
             _text_event(location="Bay 3"),
@@ -136,10 +138,10 @@ def _text_event(
         pytest.param(_text_event(), OutputType.ENERGY, None, id="no_fields"),
     ],
 )
-def test_event_value_text_is_the_first_field_holding_a_usable_number(
+def test_event_value_text_is_the_first_field_holding_a_number(
     event: CalendarEventData, output_type: OutputType, expected: EventValueText | None
 ) -> None:
-    """The first of location, summary, and description holding one number the input can use gives the value."""
+    """The first of location, summary, and description holding a number gives the value, if it holds one usable."""
     assert event_value_text(event, output_type) == expected
 
 
@@ -155,6 +157,8 @@ def test_event_value_text_is_the_first_field_holding_a_usable_number(
         pytest.param("EV -8 kWh", OutputType.ENERGY, True, id="negative"),
         pytest.param("EV 8 kWh then 2 kWh", OutputType.ENERGY, True, id="several_usable_numbers"),
         pytest.param("8-10 kWh", OutputType.ENERGY, True, id="range"),
+        pytest.param("8 to 10 kWh", OutputType.ENERGY, True, id="worded_range"),
+        pytest.param("Peak 30c/kWh", OutputType.PRICE, False, id="cents_price"),
         pytest.param("1,500 Wh", OutputType.ENERGY, True, id="thousands_separator"),
         pytest.param("Rebate -0.10 $/kWh", OutputType.PRICE, False, id="negative_price"),
     ],

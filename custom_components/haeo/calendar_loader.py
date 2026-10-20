@@ -14,7 +14,7 @@ import asyncio
 from collections.abc import Callable, Coroutine, Mapping
 from datetime import UTC, date, datetime
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from homeassistant.components.calendar import CalendarEntity
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
@@ -91,13 +91,23 @@ def _as_datetime(value: datetime | date) -> datetime:
     return dt_util.start_of_local_day(value)
 
 
-def _ignored_event_line(event: CalendarEventData, value_text: EventValueText) -> str:
-    """Describe an ignored event by its start, its summary, and the field and text its value was read from.
+# Longest event text quoted in the repair issue, so a long description does not swamp it
+_QUOTED_TEXT_LENGTH: Final = 60
 
-    For example: ``2026-10-22T10:00:00+11:00 Pool pump, description "run 2"``.
+
+def _one_line(text: str) -> str:
+    """Return text on one line, shortened with an ellipsis when it is long."""
+    text = " ".join(text.split())
+    return text if len(text) <= _QUOTED_TEXT_LENGTH else f"{text[: _QUOTED_TEXT_LENGTH - 1].rstrip()}…"
+
+
+def _ignored_event_line(event: CalendarEventData, value_text: EventValueText) -> str:
+    """Describe an ignored event by its start, its summary, and the text its value was read from.
+
+    For example: ``2026-10-22T10:00:00+11:00 Pool pump — "Run 2 kW or 3 kW"``.
     """
-    name = f" {event.summary}" if event.summary and value_text.field != "summary" else ""
-    return f'{event.start.isoformat()}{name}, {value_text.field} "{value_text.text}"'
+    name = f" {_one_line(event.summary)}" if event.summary and value_text.field != "summary" else ""
+    return f'{event.start.isoformat()}{name} — "{_one_line(value_text.text)}"'
 
 
 class CalendarInputLoader:

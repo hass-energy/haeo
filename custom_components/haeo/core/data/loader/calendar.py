@@ -43,15 +43,23 @@ class CalendarWindow:
     value: float
 
 
+_NUMBER: Final = r"[-+]?(?:\d+(?:\.\d+)?|\.\d+)"
+
 # A number standing as its own word, optionally signed and with decimals,
 # then the word typed after it as its unit, if any. A digit inside a word,
 # such as in "EV2" or "v1.2", is not a number, nor is the part of a number
-# after a comma, slash, colon, or range dash, as in "1,500", "1/2", "10:30",
-# "8-10", or "8 - 10", so no piece of a larger number is read on its own.
+# after a comma, slash, colon, or dash, as in "1,500", "1/2", or "10:30".
+# A range, such as "8-10 kWh" or "8 to 10 kWh", is one number whose unit is
+# the rest of the range, so no input reads it as a value.
 # Examples: "50 km", "5kW", "0.30 $/kWh", "-2.5 kW", "3", "EV 8 kWh tonight"
 _QUANTITY_PATTERN: Final = re.compile(
-    r"(?<![\w.,/:])(?<!\d[-\u2013])(?<!\d [-\u2013] )([-+]?(?:\d+(?:\.\d+)?|\.\d+))"
-    r"(?:\s*([^\s\d.,;:!?()\[\]{}\"'/+\u2013-][^\s,;:!?()\[\]{}\"']*))?"
+    rf"""
+    (?<![\w.,/:])(?<!\d[-\u2013])
+    (?P<number>{_NUMBER})
+    (?P<range>\s*(?:[-\u2013]|\bto\b)\s*{_NUMBER})?
+    (?:\s*(?P<unit>[^\s\d.,;:!?()\[\]{{}}"'/+\u2013-][^\s,;:!?()\[\]{{}}"']*))?
+    """,
+    re.VERBOSE,
 )
 
 
@@ -60,7 +68,11 @@ def find_quantities(text: str) -> list[tuple[float, str | None]]:
 
     A unit ending a sentence, as in "Charge 8 kWh.", leaves its full stop.
     """
-    return [(float(number), unit.rstrip(".") if unit else None) for number, unit in _QUANTITY_PATTERN.findall(text)]
+    quantities: list[tuple[float, str | None]] = []
+    for match in _QUANTITY_PATTERN.finditer(text):
+        unit = text[match.end("number") : match.end()].strip() if match["range"] else match["unit"]
+        quantities.append((float(match["number"]), unit.rstrip(".") if unit else None))
+    return quantities
 
 
 @dataclass(frozen=True)
@@ -90,23 +102,19 @@ class EventValueText:
 def event_value_text(event: CalendarEventData, output_type: OutputType) -> EventValueText | None:
     """Return the text field an event's value is read from, or None when no field holds a number.
 
-    The value is a number typed with a unit the input can use, so other
-    numbers around it, as in "Tariff 2 at 0.30 $/kWh", are passed over.
     Fields are tried in order: location, summary, description. The first
-    holding such a number gives the value, or no value when it holds several.
-    When no field holds one, the first holding any number is returned without
-    a value, so the number the input cannot use can be reported.
+    holding any number is the value's field, even when none of its numbers
+    can be used, so a later field never silently stands in for a mistyped
+    one. The value is the field's one number typed with a unit the input can
+    use, so other numbers around it, as in "Tariff 2 at 0.30 $/kWh", are
+    passed over. A field holding several such numbers gives no value.
     """
-    unusable: EventValueText | None = None
     for field in _TEXT_FIELDS:
         text = getattr(event, field)
-        if not text or not (quantities := find_quantities(text)):
-            continue
-        values = [value for quantity in quantities if (value := to_field_unit(*quantity, output_type)) is not None]
-        if values:
+        if text and (quantities := find_quantities(text)):
+            values = [value for quantity in quantities if (value := to_field_unit(*quantity, output_type)) is not None]
             return EventValueText(field, text, values[0] if len(values) == 1 else None)
-        unusable = unusable or EventValueText(field, text, None)
-    return unusable
+    return None
 
 
 def event_value(event: CalendarEventData, output_type: OutputType) -> float | None:
@@ -153,11 +161,11 @@ def rejected_events(
 ) -> list[tuple[CalendarEventData, EventValueText]]:
     """Return the events holding numbers an input cannot read a value from, with the field it read.
 
-    An event is rejected when none of its numbers has a unit that converts
-    to the input's unit, or is not negative for a quantity that cannot be,
-    or when one field holds several that do. Inputs ignore these events'
-    values rather than failing, so one mistyped event does not stop the rest
-    of the calendar from loading.
+    An event is rejected when its value's field holds no number the input
+    can use, or several. A number can be used when its unit converts to the
+    input's unit and it is not negative for a quantity that cannot be.
+    Inputs ignore these events' values rather than failing, so one mistyped
+    event does not stop the rest of the calendar from loading.
     """
     return [
         (event, value_text)

@@ -539,7 +539,7 @@ async def test_loader_raises_a_repair_for_event_values_an_input_ignores(
         start=datetime.fromtimestamp(3600.0, tz=UTC),
         end=datetime.fromtimestamp(7200.0, tz=UTC),
         summary="Pool pump",
-        description="Run 2 kW or 3 kW",
+        description="Run 2 kW or 3 kW\nJoin the call at https://example.com/meeting/123456 to watch the pump run",
     )
     calendar = await _add_stub_calendar(hass, [_demand(0.0, 3600.0, "2"), _demand(3600.0, 7200.0, "3 kW"), pump])
     store = _forecast_store()
@@ -552,8 +552,8 @@ async def test_loader_raises_a_repair_for_event_values_an_input_ignores(
     assert issue is not None
     assert issue.translation_placeholders is not None
     assert issue.translation_placeholders["events"] == (
-        '- 1970-01-01T00:00:00+00:00, summary "2"\n'
-        '- 1970-01-01T01:00:00+00:00 Pool pump, description "Run 2 kW or 3 kW"'
+        '- 1970-01-01T00:00:00+00:00 — "2"\n'
+        '- 1970-01-01T01:00:00+00:00 Pool pump — "Run 2 kW or 3 kW Join the call at https://example.com/meeti…"'
     )
     assert issue.translation_placeholders["unit"] == "kW"
 
