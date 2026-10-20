@@ -41,6 +41,7 @@ class ConnectionAdapter:
     can_source: bool = False
     can_sink: bool = False
     can_store: bool = False
+    can_consume: bool = False
 
     def model_elements(self, config: ConnectionConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Connection configuration."""

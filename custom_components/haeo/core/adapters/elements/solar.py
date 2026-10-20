@@ -52,6 +52,7 @@ class SolarAdapter:
     can_source: bool = True
     can_sink: bool = False
     can_store: bool = False
+    can_consume: bool = False
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Solar configuration."""

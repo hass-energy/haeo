@@ -23,9 +23,8 @@ class AnnotatedState:
     """EntityState wrapper that merges extra attributes into a base state.
 
     Lets the integration hand the core loader data Home Assistant does not
-    keep on the state itself, such as fetched calendar events, recorder
-    history, or a meter's recorded totals, in the same form diagnostics
-    capture and replay.
+    keep on the state itself, such as fetched calendar events or a meter's
+    recorded totals, in the same form diagnostics capture and replay.
     """
 
     def __init__(self, base: EntityState, extra_attributes: Mapping[str, object]) -> None:

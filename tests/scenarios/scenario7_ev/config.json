@@ -8,7 +8,11 @@
     "EV": {
       "name": "EV",
       "element_type": "ev",
-      "charging": { "max_charge_rate": { "type": "constant", "value": 7.4 }, "max_discharge_rate": { "type": "none" } },
+      "charging": {
+        "connected": { "type": "entity", "value": ["binary_sensor.ev_plugged_in"] },
+        "max_charge_rate": { "type": "constant", "value": 7.4 },
+        "max_discharge_rate": { "type": "none" }
+      },
       "connection": { "type": "connection_target", "value": "Switchboard" },
       "efficiency": {
         "efficiency_source_target": { "type": "constant", "value": 95.0 },
@@ -16,18 +20,23 @@
       },
       "power_limits": {},
       "public_charging": { "public_charging_price": { "type": "constant", "value": 0.9 } },
-      "trip": {
-        "connected": { "type": "entity", "value": ["binary_sensor.ev_plugged_in"] },
-        "odometer": { "type": "none" },
-        "reserve_price": { "type": "none" },
-        "reserve_soc": { "type": "constant", "value": 20.0 },
-        "trip_calendar": { "type": "entity", "value": ["calendar.ev_trips"] }
-      },
+      "trip": { "odometer": { "type": "none" }, "trip_calendar": { "type": "entity", "value": ["calendar.ev_trips"] } },
       "vehicle": {
         "capacity": { "type": "constant", "value": 60.0 },
         "current_soc": { "type": "entity", "value": ["sensor.ev_soc"] },
         "energy_per_distance": { "type": "constant", "value": 0.18 }
       }
+    },
+    "EV margin": {
+      "name": "EV margin",
+      "element_type": "buffer",
+      "kind": "reserve",
+      "pricing": { "shortfall_cost": { "type": "constant", "value": 0.05 } },
+      "requirement": {
+        "level": { "type": "constant", "value": 20.0 },
+        "window": { "type": "constant", "value": 12.0 }
+      },
+      "participants": { "loads": ["EV"], "storage": ["EV"] }
     },
     "Grid": {
       "name": "Grid",

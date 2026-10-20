@@ -44,6 +44,7 @@ class NodeAdapter:
     can_source: bool = True
     can_sink: bool = True
     can_store: bool = False
+    can_consume: bool = False
 
     def model_elements(self, config: NodeConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Node configuration."""

@@ -322,13 +322,15 @@
             "name": "EV Name",
             "odometer": "Odometer",
             "public_charging_price": "Public charging price",
-            "reserve_price": "Reserve shortfall price",
-            "reserve_soc": "Reserve state of charge",
             "trip_calendar": "Trip calendar"
           },
           "sections": {
             "charging": {
-              "data": { "max_charge_rate": "Max charge rate", "max_discharge_rate": "Max discharge rate" },
+              "data": {
+                "connected": "Plugged in",
+                "max_charge_rate": "Max charge rate",
+                "max_discharge_rate": "Max discharge rate"
+              },
               "name": "Charging"
             },
             "common": { "data": { "connection": "Connection", "name": "EV Name" }, "name": "Common settings" },
@@ -350,16 +352,7 @@
               "data": { "public_charging_price": "Public charging price" },
               "name": "Public charging"
             },
-            "trip": {
-              "data": {
-                "connected": "Plugged in",
-                "odometer": "Odometer",
-                "reserve_price": "Reserve shortfall price",
-                "reserve_soc": "Reserve state of charge",
-                "trip_calendar": "Trip calendar"
-              },
-              "name": "Trips"
-            },
+            "trip": { "data": { "odometer": "Odometer", "trip_calendar": "Trip calendar" }, "name": "Trips" },
             "vehicle": {
               "data": {
                 "capacity": "Battery capacity",
@@ -669,11 +662,10 @@
       "ev_max_discharge_rate": { "name": "Max discharge rate" },
       "ev_max_power_source_target": { "name": "Max discharge power" },
       "ev_max_power_target_source": { "name": "Max charge power" },
-      "ev_odometer": { "name": "Odometer" },
+      "ev_odometer": { "name": "Distance since trip started" },
       "ev_public_charging_price": { "name": "Public charging price" },
-      "ev_reserve_price": { "name": "Reserve shortfall price" },
-      "ev_reserve_soc": { "name": "Reserve state of charge" },
-      "ev_trip_distance": { "name": "Trip distance due" },
+      "ev_trip_due": { "name": "Trip distance due" },
+      "ev_trip_opened": { "name": "Trip distance opening" },
       "ev_trip_start": { "name": "Trip start" },
       "grid_max_power_source_target": { "name": "Import limit" },
       "grid_max_power_target_source": { "name": "Export limit" },
@@ -725,7 +717,6 @@
       "ev_power_discharge": { "name": "Discharge power" },
       "ev_power_max_charge_price": { "name": "Max charge power shadow price" },
       "ev_power_max_discharge_price": { "name": "Max discharge power shadow price" },
-      "ev_reserve_shortfall": { "name": "Reserve shortfall" },
       "ev_state_of_charge": { "name": "State of charge" },
       "ev_trip_energy_delivered": { "name": "Trip energy delivered" },
       "ev_trip_energy_shortfall": { "name": "Trip energy shortfall" },

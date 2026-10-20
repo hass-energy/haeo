@@ -104,11 +104,6 @@ def event_windows(events: Sequence[CalendarEventData], output_type: OutputType) 
     )
 
 
-def open_since_field(field_name: str) -> str:
-    """Return the loaded config key holding when the window open at the horizon start began, for a calendar field."""
-    return f"{field_name}_open_since"
-
-
 def open_window_start(events: Sequence[CalendarEventData], at: datetime) -> float | None:
     """Return the POSIX time the window open at *at* began, or None when no window is open then.
 

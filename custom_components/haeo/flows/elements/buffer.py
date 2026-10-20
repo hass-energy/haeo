@@ -42,7 +42,7 @@ from custom_components.haeo.flows.field_schema import (
 
 # Which elements each participant list offers, by what the element's adapter can do
 PARTICIPANT_FILTERS: dict[str, Callable[[ElementAdapter], bool]] = {
-    CONF_LOADS: lambda adapter: adapter.can_sink and not adapter.can_source,
+    CONF_LOADS: lambda adapter: adapter.can_consume,
     CONF_GENERATION: lambda adapter: adapter.can_source and not adapter.can_sink,
     CONF_STORAGE: lambda adapter: adapter.can_store,
 }

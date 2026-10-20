@@ -62,6 +62,7 @@ class BatterySectionAdapter:
     can_source: bool = True
     can_sink: bool = True
     can_store: bool = True
+    can_consume: bool = False
 
     def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:
         """Create model elements for BatterySection configuration.
