@@ -11,11 +11,11 @@
       "element_type": "ev",
       "advanced": { "charge_limit_cost": { "type": "constant", "value": 100.0 } },
       "charging": {
-        "connected": { "type": "entity", "value": ["binary_sensor.byd_atto_2_plug"] },
-        "max_charge_rate": { "type": "constant", "value": 7.0 },
-        "max_discharge_rate": { "type": "none" }
+        "connected": { "off_states": ["Idle"], "type": "entity", "value": ["sensor.sigen_dc_charger_running_state"] },
+        "max_charge_rate": { "type": "entity", "value": ["sensor.sigen_dc_charger_rated_charging_power"] },
+        "max_discharge_rate": { "type": "constant", "value": 3.3 }
       },
-      "connection": { "type": "connection_target", "value": "Switchboard" },
+      "connection": { "type": "connection_target", "value": "Inverter" },
       "efficiency": {
         "efficiency_source_target": { "type": "constant", "value": 95.0 },
         "efficiency_target_source": { "type": "constant", "value": 95.0 }
@@ -26,7 +26,7 @@
         "trip_calendar": { "type": "entity", "value": ["calendar.ev_trips"] }
       },
       "vehicle": {
-        "capacity": { "type": "constant", "value": 45.1 },
+        "capacity": { "type": "constant", "value": 51.13 },
         "current_soc": { "type": "entity", "value": ["sensor.byd_atto_2_battery_level"] },
         "energy_per_distance": { "type": "entity", "value": ["sensor.byd_atto_2_lifetime_average_ev_consumption"] },
         "min_charge_percentage": { "type": "constant", "value": 20.0 }

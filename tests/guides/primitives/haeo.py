@@ -60,6 +60,7 @@ from custom_components.haeo.core.schema.sections import (
     CONF_PRICE_SOURCE_TARGET,
     CONF_PRICE_TARGET_SOURCE,
 )
+from custom_components.haeo.flows.on_off_states import CONF_OFF_STATES, STEP_STATES
 
 from .capture import guide_step
 
@@ -144,6 +145,12 @@ def _step_user(element_type: str) -> JsonObjectType:
     """Get the step user translations for an element type."""
     step = _json_dict(_subentry(element_type)["step"])
     return _json_dict(step["user"])
+
+
+def _states_label(element_type: str, field: str) -> str:
+    """Get the label of a field in the step asking which states mean on and off."""
+    step = _json_dict(_subentry(element_type)["step"])
+    return _json_str(_json_dict(_json_dict(step[STEP_STATES])["data"])[field])
 
 
 def _dialog_title(element_type: str) -> str:
@@ -642,8 +649,13 @@ def add_ev(
     trip_calendar: EntityInput | None = None,
     odometer: EntityInput | None = None,
     public_charging_price: EntityInput | ConstantInput | None = None,
+    unplugged_states: list[str] | None = None,
 ) -> None:
-    """Add EV element to HAEO network."""
+    """Add EV element to HAEO network.
+
+    A plugged-in sensor that reports words is followed by a step choosing its
+    states; ``unplugged_states`` are the states meaning unplugged.
+    """
     et = ElementType.EV
     _LOGGER.info("Adding EV: %s", name)
 
@@ -685,6 +697,9 @@ def add_ev(
 
     with page.expect_config_reload():
         page.submit()
+        if unplugged_states is not None:
+            page.select_dropdown_multi(_states_label(et, CONF_OFF_STATES), unplugged_states)
+            page.submit()
         page.close_element_dialog()
 
     _LOGGER.info("EV added: %s", name)
