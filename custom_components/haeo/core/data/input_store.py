@@ -389,14 +389,16 @@ def _same_error(previous: InputError | None, error: InputError) -> bool:
 
 def create_input_store(
     *,
+    value: object,
     storage: Storage,
     hint: FieldHint,
     get_forecast_timestamps: Callable[[], tuple[float, ...]],
     negate: bool = False,
 ) -> InputStore:
-    """Create an InputStore from its storage binding and field hint.
+    """Create an InputStore from the value it resolves from, its storage binding, and field hint.
 
-    Reads the persisted schema value to determine mode and initial state:
+    The value is the input's schema value, as ``input_value`` returns it, and
+    determines mode and initial state:
     - {"type": "entity", "value": [...]} → DRIVEN mode
     - {"type": "constant", "value": X} → EDITABLE mode with that value
     - bare bool/int/float → EDITABLE mode with that value
@@ -406,8 +408,7 @@ def create_input_store(
     Constant values are already stored negated, so the flag only changes the
     driven path.
     """
-    config_value = storage.read()
-    match config_value:
+    match value:
         case {"type": "entity", "value": entity_ids} if isinstance(entity_ids, (list, tuple)):
             return InputStore(
                 mode=InputMode.DRIVEN,
@@ -457,7 +458,7 @@ def create_input_store(
                 negate=negate,
             )
         case _:
-            msg = f"Invalid config value: {config_value}"
+            msg = f"Invalid config value: {value}"
             raise RuntimeError(msg)
 
 

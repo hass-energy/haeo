@@ -16,7 +16,7 @@ from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.util.forecast_combiner import fuse_sensor_payloads, split_sensor_payloads
 from custom_components.haeo.core.data.util.input_values import enforce_non_negative
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.schema import SchemaValue, as_constant_value, is_schema_value
+from custom_components.haeo.core.schema import SchemaValue, as_constant_value, as_entity_value, is_schema_value
 from custom_components.haeo.core.schema.constant_value import is_constant_value
 from custom_components.haeo.core.schema.elements import ELEMENT_CONFIG_SCHEMAS, ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
@@ -32,13 +32,14 @@ from custom_components.haeo.core.schema.util import get_nested_config_value_by_p
 from custom_components.haeo.core.state import StateMachine
 
 from .calendar_resolver import resolve_calendar
+from .meter import resolve_meter
 from .sensor_loader import load_sensors
 
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
 
-# Physical quantities that cannot be negative. Prices can, and switches have no sign.
 type InputPath = tuple[str, ...]
 
+# Physical quantities that cannot be negative. Prices can, and switches have no sign.
 _NON_NEGATIVE_OUTPUT_TYPES = frozenset(
     {
         OutputType.POWER,
@@ -120,6 +121,22 @@ def configured_value(element_config: Mapping[str, object], config_path: InputPat
     return None
 
 
+def input_value(element_config: Mapping[str, object], element_input: ElementInput) -> SchemaValue | bool | None:
+    """Return the value an input resolves from, or None when the input is absent or disabled.
+
+    This is the input's configured value, except that a meter input also
+    reads the entities of its window calendar field, so its source states
+    carry the calendar events it measures from.
+    """
+    value = configured_value(element_config, element_input.config_path)
+    meter = element_input.hint.meter
+    if meter is None or not is_entity_value(value):
+        return value
+    window = configured_value(element_config, (*element_input.config_path[:-1], meter.since))
+    calendars = list(window["value"]) if is_entity_value(window) else []
+    return as_entity_value([*value["value"], *calendars])
+
+
 def load_element_config(
     element_name: str,
     element_config: ElementConfigSchema,
@@ -155,7 +172,7 @@ def load_element_config(
     field_values: dict[InputPath, bool | float | np.ndarray] = {}
     unavailable: list[InputPath] = []
     for element_input in element_inputs(element_config):
-        value = configured_value(element_config, element_input.config_path)
+        value = input_value(element_config, element_input)
         if value is None:
             continue
         resolved = resolve_field(
@@ -356,6 +373,9 @@ def resolve_field(
     if hint.calendar is not None:
         return resolve_calendar(unwrapped, hint.calendar, hint.output_type, sm, forecast_times)
 
+    if hint.meter is not None:
+        return resolve_meter(unwrapped, hint.output_type, sm, forecast_times)
+
     resolved = _resolve_entities(unwrapped, hint, sm, forecast_times, is_percent=is_percent)
     if negate and resolved is not None:
         return -resolved
@@ -444,6 +464,7 @@ __all__ = [
     "InputsUnavailableError",
     "configured_value",
     "element_inputs",
+    "input_value",
     "is_percent_field",
     "load_element_config",
     "load_element_config_from_values",

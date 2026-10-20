@@ -95,6 +95,27 @@ Loading in Home Assistant and offline (the diag CLI and scenario benchmarks) sha
 An input that has no data stops the optimization in Home Assistant.
 Offline, `load_element_config` raises `InputsUnavailableError` naming those inputs, rather than filling in a default.
 
+### Meters
+
+A field whose hint sets `meter` reads meters: running totals, such as an energy sensor that only counts up.
+Its value is how much its meters rose since the calendar window open at the horizon start began, so its input entity shows that rise.
+Many meters reset (an "energy today" sensor returns to zero at midnight), so a reading alone cannot say how much a meter rose since a window started.
+
+The meter hint names the calendar field, in the same section, whose window sets the zero point.
+`input_value` adds that field's calendars to the meter input's entities, so the input reads both and the calendar loader loads it with the events injected.
+Overlapping events chain into one window, so the rise counts from the earliest start among the events open at the horizon start.
+With no window open the rise is zero.
+
+The calendar loader keeps each meter's running totals with the [meter history](https://github.com/hass-energy/haeo/blob/main/custom_components/haeo/meter_history.py).
+It reads the meter's sum from the recorder's 5-minute statistics over the past week, which carries on through resets as the Energy dashboard reads it.
+It extends the sum with the meter's state changes as they arrive, keeping totals five minutes apart, and injects the totals into the meter's state as the `haeo_meter_totals` attribute.
+It detects resets as the recorder does: a `total_increasing` reading below 90% of the last one, or a `total` meter whose `last_reset` changes, rose from zero.
+Statistics only exist for sensors with a `total` or `total_increasing` state class, so meter fields only offer those sensors.
+When the totals start after the window began, the rise counts from the earliest total, the most the meter is known to have risen.
+
+The input store captures the calendars with their events and the meters with their totals, so diagnostics replay the same rise.
+Historical diagnostics read each meter's totals as of the run from the recorder and inject them the same way.
+
 ### Responsibilities
 
 - Load every referenced sensor, and treat the field as unavailable if any sensor is missing or has no data

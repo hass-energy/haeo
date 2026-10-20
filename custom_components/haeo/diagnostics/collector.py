@@ -19,11 +19,15 @@ from custom_components.haeo.calendar_loader import async_fetch_calendar_events
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.context import OptimizationContext
-from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE, CalendarEventDict
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.config_loader import configured_value, element_inputs
+from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
+from custom_components.haeo.core.schema.entity_value import is_entity_value
 from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
 from custom_components.haeo.elements import is_element_config_schema
+from custom_components.haeo.meter_history import async_meter_totals_at
 from custom_components.haeo.sensor_utils import (
     SensorStateDict,
     get_duration_sensor_entity_id,
@@ -241,19 +245,52 @@ async def _fetch_inputs_at(
     events = dict(zip(calendars, fetched, strict=True))
     unqueryable = {eid for eid, calendar_events in events.items() if calendar_events is None}
 
+    meters = sorted(_collect_meter_entity_ids(config_entry) & set(entity_states))
+    totals = await asyncio.gather(
+        *(async_meter_totals_at(hass, eid, target_time, entity_states[eid]) for eid in meters)
+    )
+
+    extra_attributes: dict[str, Mapping[str, object]] = {
+        **{
+            eid: {CALENDAR_EVENTS_ATTRIBUTE: found_events}
+            for eid, found_events in events.items()
+            if found_events is not None
+        },
+        **{
+            eid: {METER_TOTALS_ATTRIBUTE: meter_totals}
+            for eid, meter_totals in zip(meters, totals, strict=True)
+            if meter_totals is not None
+        },
+    }
     inputs = [
-        _captured_state(state, events.get(state.entity_id)) for state in found if state.entity_id not in unqueryable
+        _captured_state(state, extra_attributes.get(state.entity_id))
+        for state in found
+        if state.entity_id not in unqueryable
     ]
     missing = (all_entity_ids - set(entity_states)) | unqueryable
     return inputs, sorted(missing)
 
 
-def _captured_state(state: State, events: list[CalendarEventDict] | None) -> Mapping[str, object]:
-    """Return a state as captured, carrying the events fetched for a calendar."""
+def _collect_meter_entity_ids(config_entry: HaeoConfigEntry) -> set[str]:
+    """Collect the entities read by meter inputs in config entry subentries."""
+    meters: set[str] = set()
+    for subentry in config_entry.subentries.values():
+        participant_config = {**subentry.data, CONF_ELEMENT_TYPE: subentry.subentry_type}
+        if subentry.subentry_type == ELEMENT_TYPE_NETWORK or not is_element_config_schema(participant_config):
+            continue
+        for element_input in element_inputs(participant_config):
+            value = configured_value(participant_config, element_input.config_path)
+            if element_input.hint.meter is not None and is_entity_value(value):
+                meters.update(value["value"])
+    return meters
+
+
+def _captured_state(state: State, extra_attributes: Mapping[str, object] | None) -> Mapping[str, object]:
+    """Return a state as captured, carrying what a live run injects into it, such as calendar events."""
     captured = state.as_dict()
-    if events is None:
+    if extra_attributes is None:
         return captured
-    return {**captured, "attributes": {**state.attributes, CALENDAR_EVENTS_ATTRIBUTE: events}}
+    return {**captured, "attributes": {**state.attributes, **extra_attributes}}
 
 
 async def _get_last_run_before(
