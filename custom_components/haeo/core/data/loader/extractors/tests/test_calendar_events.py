@@ -98,6 +98,7 @@ def test_calendar_without_usable_values_is_a_forecast_with_no_points(
         pytest.param("0.30 AUD/kWh", OutputType.PRICE, 0.30, id="price_per_kwh"),
         pytest.param("120 €/MWh", OutputType.PRICE, 0.12, id="price_per_mwh"),
         pytest.param("30 min", OutputType.DURATION, 0.5, id="duration"),
+        pytest.param("Peak 0.30 $/kWh tonight", OutputType.PRICE, 0.30, id="price_among_words"),
     ],
 )
 def test_event_values_convert_to_the_input_unit(summary: str, output_type: OutputType, expected: float) -> None:

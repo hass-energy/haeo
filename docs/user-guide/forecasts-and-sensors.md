@@ -344,11 +344,21 @@ Events that overlap add together.
 A calendar combined with sensors adds to them like any other forecast.
 
 An event's value is a number followed by its unit, such as `5 kW`, `500 W`, `0.30 $/kWh`, or `120 €/MWh`.
-HAEO reads it from the event's location, summary, or description, whichever holds a number first, and converts it to the field's unit as it would a sensor reading.
-An event without a number counts as zero.
+It can sit among other words, so a summary of `EV 8 kWh` or `Charge 8kWh tonight` holds 8 kWh.
+HAEO converts it to the field's unit as it would a sensor reading.
 
-A number without a unit, or in a unit that does not convert to the field's unit, is never guessed.
-HAEO ignores that event's value, so one mistyped event does not stop the rest of the calendar from loading, and raises a repair issue listing the events to fix.
+HAEO reads the value by these rules:
+
+- The location, summary, and description are checked in that order, and the first holding a number is the value's field.
+    Fields after it are not read, even when its number cannot be used.
+- A number must stand as its own word: the `2` in `EV2` or the `1.2` in `v1.2` is not a number.
+- The unit is the word typed right after the number, with or without a space between them.
+- The value's field must hold exactly one number.
+    Write `1500 Wh` rather than `1,500 Wh`, and keep times, dates, and other numbers in a different field.
+- An event with no number in any field counts as zero.
+
+A number HAEO cannot use is never guessed: one without a unit, in a unit that does not convert to the field's unit, negative for a quantity that cannot be, or sharing its field with another number.
+HAEO ignores that event's value, so one mistyped event does not stop the rest of the calendar from loading, and raises a repair issue listing each such event with the field it read and that field's text.
 The issue clears once every event's value can be used.
 
 **Example**: A demand charge of 0.30 \$/kWh on weekday evenings.

@@ -43,17 +43,22 @@ class CalendarWindow:
     value: float
 
 
-# A number, optionally signed and with decimals, then an optional unit
-# Examples: "50 km", "5kW", "0.30 $/kWh", "-2.5 kW", "3"
-_QUANTITY_PATTERN: Final = re.compile(r"^\s*([-+]?\d+(?:\.\d+)?)\s*(\S(?:.*\S)?)?\s*$")
+# A number standing as its own word, optionally signed and with decimals,
+# then the word typed after it as its unit, if any. A digit inside a word,
+# such as in "EV2" or "v1.2", is not a number.
+# Examples: "50 km", "5kW", "0.30 $/kWh", "-2.5 kW", "3", "EV 8 kWh tonight"
+_QUANTITY_PATTERN: Final = re.compile(
+    r"(?<![\w.])([-+]?(?:\d+(?:\.\d+)?|\.\d+))"
+    r"(?:\s*([^\s\d.,;:!?()\[\]{}\"'+-][^\s,;:!?()\[\]{}\"']*))?"
+)
 
 
-def parse_quantity(text: str) -> tuple[float, str | None] | None:
-    """Parse a number with an optional unit from text, or None when the text is not one."""
-    match = _QUANTITY_PATTERN.match(text)
-    if match is None:
-        return None
-    return float(match.group(1)), match.group(2)
+def find_quantities(text: str) -> list[tuple[float, str | None]]:
+    """Return every number in text with the unit typed after it, if any.
+
+    A unit ending a sentence, as in "Charge 8 kWh.", leaves its full stop.
+    """
+    return [(float(number), unit.rstrip(".") if unit else None) for number, unit in _QUANTITY_PATTERN.findall(text)]
 
 
 @dataclass(frozen=True)
@@ -70,22 +75,36 @@ class CalendarEventData:
 _TEXT_FIELDS: Final[tuple[str, ...]] = ("location", "summary", "description")
 
 
-def event_quantity(event: CalendarEventData) -> tuple[float, str | None] | None:
-    """Return the number and unit of the first text field holding one, or None when no field does.
+@dataclass(frozen=True)
+class EventValueText:
+    """The text field an event's value is read from, with the number and unit typed in it."""
 
-    Fields are tried in order: location, summary, description.
+    field: str
+    text: str
+    # None when the field holds several numbers, so which one is the value is not guessed
+    quantity: tuple[float, str | None] | None
+
+
+def event_value_text(event: CalendarEventData) -> EventValueText | None:
+    """Return the first text field holding a number, or None when no field does.
+
+    Fields are tried in order: location, summary, description. The first
+    holding any number is the value's field, even when that number cannot be
+    used, so a later field never silently stands in for a mistyped one.
     """
     for field in _TEXT_FIELDS:
         text = getattr(event, field)
-        if text and (quantity := parse_quantity(text)) is not None:
-            return quantity
+        if text and (quantities := find_quantities(text)):
+            return EventValueText(field, text, quantities[0] if len(quantities) == 1 else None)
     return None
 
 
 def event_value(event: CalendarEventData, output_type: OutputType) -> float | None:
     """Return an event's value in an input's unit, or None when it has no number or one the input cannot use."""
-    quantity = event_quantity(event)
-    return None if quantity is None else to_field_unit(*quantity, output_type)
+    value_text = event_value_text(event)
+    if value_text is None or value_text.quantity is None:
+        return None
+    return to_field_unit(*value_text.quantity, output_type)
 
 
 def event_windows(events: Sequence[CalendarEventData], output_type: OutputType) -> list[CalendarWindow]:
@@ -123,16 +142,19 @@ def open_window_start(events: Sequence[CalendarEventData], at: datetime) -> floa
 
 def rejected_events(
     events: Sequence[CalendarEventData], output_type: OutputType
-) -> list[tuple[CalendarEventData, str]]:
-    """Return the events holding a number an input cannot use, such as one without a unit, with the value as typed.
+) -> list[tuple[CalendarEventData, EventValueText]]:
+    """Return the events holding a number an input cannot use, with the text field it was read from.
 
-    Inputs ignore these events' values rather than failing, so one mistyped
-    event does not stop the rest of the calendar from loading.
+    A number cannot be used when it has no unit or one that does not convert
+    to the input's unit, is negative for a quantity that cannot be, or shares
+    its field with another number. Inputs ignore these events' values rather
+    than failing, so one mistyped event does not stop the rest of the calendar
+    from loading.
     """
     return [
-        (event, f"{quantity[0]:g}" if quantity[1] is None else f"{quantity[0]:g} {quantity[1]}")
+        (event, value_text)
         for event in events
-        if (quantity := event_quantity(event)) is not None and to_field_unit(*quantity, output_type) is None
+        if (value_text := event_value_text(event)) is not None and event_value(event, output_type) is None
     ]
 
 

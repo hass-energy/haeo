@@ -10,12 +10,14 @@ from custom_components.haeo.core.data.loader.calendar import (
     CALENDAR_EVENTS_ATTRIBUTE,
     CalendarEventData,
     CalendarEventDict,
+    EventValueText,
     capture_calendar_events,
-    event_quantity,
+    event_value_text,
     event_windows,
+    find_quantities,
     load_calendar_events,
     open_window_start,
-    parse_quantity,
+    rejected_events,
 )
 from custom_components.haeo.core.data.util.calendar_fuser import (
     fuse_window_edges_to_boundaries,
@@ -23,27 +25,39 @@ from custom_components.haeo.core.data.util.calendar_fuser import (
 )
 from custom_components.haeo.core.model.const import OutputType
 
-# --- parse_quantity ---
+# --- find_quantities ---
 
 
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
-        pytest.param("50 km", (50.0, "km"), id="number_and_unit"),
-        pytest.param("5kW", (5.0, "kW"), id="no_space"),
-        pytest.param("  0.30 $/kWh  ", (0.30, "$/kWh"), id="price_with_whitespace"),
-        pytest.param("-2.5 kW", (-2.5, "kW"), id="negative"),
-        pytest.param("42", (42.0, None), id="bare_number"),
-        pytest.param("Office", None, id="no_number"),
-        pytest.param("", None, id="empty"),
+        pytest.param("50 km", [(50.0, "km")], id="number_and_unit"),
+        pytest.param("5kW", [(5.0, "kW")], id="no_space"),
+        pytest.param("  0.30 $/kWh  ", [(0.30, "$/kWh")], id="price_with_whitespace"),
+        pytest.param("-2.5 kW", [(-2.5, "kW")], id="negative"),
+        pytest.param(".5 kWh", [(0.5, "kWh")], id="leading_decimal_point"),
+        pytest.param("42", [(42.0, None)], id="bare_number"),
+        pytest.param("EV 8 kWh", [(8.0, "kWh")], id="word_before"),
+        pytest.param("Charge 8kWh tonight", [(8.0, "kWh")], id="words_around"),
+        pytest.param("Charge 8 kWh.", [(8.0, "kWh")], id="full_stop_after_unit"),
+        pytest.param("Charge 8 kWh, then rest", [(8.0, "kWh")], id="comma_after_unit"),
+        pytest.param("Peak (0.30 $/kWh)", [(0.30, "$/kWh")], id="in_parentheses"),
+        pytest.param("Charge 5 by noon", [(5.0, "by")], id="word_after_is_the_unit"),
+        pytest.param("EV2 8 kWh", [(8.0, "kWh")], id="digit_inside_word_is_not_a_number"),
+        pytest.param("Firmware v1.2", [], id="version_is_not_a_number"),
+        pytest.param("8 kWh or 10 kWh", [(8.0, "kWh"), (10.0, "kWh")], id="several"),
+        pytest.param("8-10 kWh", [(8.0, None), (10.0, "kWh")], id="range"),
+        pytest.param("1,500 Wh", [(1.0, None), (500.0, "Wh")], id="thousands_separator"),
+        pytest.param("Office", [], id="no_number"),
+        pytest.param("", [], id="empty"),
     ],
 )
-def test_parse_quantity(text: str, expected: tuple[float, str | None] | None) -> None:
-    """A number parses with the unit typed after it, if any."""
-    assert parse_quantity(text) == expected
+def test_find_quantities(text: str, expected: list[tuple[float, str | None]]) -> None:
+    """Every number standing as its own word is found, with the word typed after it as its unit."""
+    assert find_quantities(text) == expected
 
 
-# --- event_quantity ---
+# --- event_value_text ---
 
 
 def _dt(hour: int, minute: int = 0) -> datetime:
@@ -57,30 +71,70 @@ def _event(start_h: int, end_h: int, location: str | None = None) -> CalendarEve
 @pytest.mark.parametrize(
     ("event", "expected"),
     [
-        pytest.param(CalendarEventData(start=_dt(9), end=_dt(10), location="50 km"), (50.0, "km"), id="location"),
         pytest.param(
-            CalendarEventData(start=_dt(9), end=_dt(10), location="Office", summary="50 km"),
-            (50.0, "km"),
-            id="summary_after_unparseable_location",
+            CalendarEventData(start=_dt(9), end=_dt(10), location="50 km"),
+            EventValueText("location", "50 km", (50.0, "km")),
+            id="location",
+        ),
+        pytest.param(
+            CalendarEventData(start=_dt(9), end=_dt(10), location="Office", summary="EV 50 km"),
+            EventValueText("summary", "EV 50 km", (50.0, "km")),
+            id="summary_after_location_without_number",
         ),
         pytest.param(
             CalendarEventData(start=_dt(9), end=_dt(10), location="Office", summary="Commute", description="2 kW"),
-            (2.0, "kW"),
+            EventValueText("description", "2 kW", (2.0, "kW")),
             id="description_last",
+        ),
+        pytest.param(
+            CalendarEventData(start=_dt(9), end=_dt(10), location="Bay 3", summary="8 kWh"),
+            EventValueText("location", "Bay 3", (3.0, None)),
+            id="first_field_with_a_number_even_if_unusable",
+        ),
+        pytest.param(
+            CalendarEventData(start=_dt(9), end=_dt(10), summary="8 kWh or 10 kWh", description="8 kWh"),
+            EventValueText("summary", "8 kWh or 10 kWh", None),
+            id="several_numbers_give_no_quantity",
         ),
         pytest.param(
             CalendarEventData(start=_dt(9), end=_dt(10), location="Office", summary="Commute"),
             None,
-            id="no_field_parses",
+            id="no_field_holds_a_number",
         ),
         pytest.param(CalendarEventData(start=_dt(9), end=_dt(10)), None, id="no_fields"),
     ],
 )
-def test_event_quantity_uses_first_field_holding_a_number(
-    event: CalendarEventData, expected: tuple[float, str | None] | None
+def test_event_value_text_is_the_first_field_holding_a_number(
+    event: CalendarEventData, expected: EventValueText | None
 ) -> None:
-    """The first of location, summary, and description holding a number gives the event's quantity."""
-    assert event_quantity(event) == expected
+    """The first of location, summary, and description holding a number gives the event's value."""
+    assert event_value_text(event) == expected
+
+
+@pytest.mark.parametrize(
+    ("summary", "output_type", "rejected"),
+    [
+        pytest.param("EV 8 kWh", OutputType.ENERGY, False, id="number_and_unit"),
+        pytest.param("Pool pump", OutputType.ENERGY, False, id="no_number"),
+        pytest.param("EV 8", OutputType.ENERGY, True, id="no_unit"),
+        pytest.param("Charge 8 by noon", OutputType.ENERGY, True, id="unknown_unit"),
+        pytest.param("EV 8 kW", OutputType.ENERGY, True, id="unit_of_another_quantity"),
+        pytest.param("EV -8 kWh", OutputType.ENERGY, True, id="negative"),
+        pytest.param("EV 8 kWh then 2 kWh", OutputType.ENERGY, True, id="several_numbers"),
+        pytest.param("Rebate -0.10 $/kWh", OutputType.PRICE, False, id="negative_price"),
+    ],
+)
+def test_rejected_events_hold_a_number_the_input_cannot_use(
+    summary: str, output_type: OutputType, rejected: bool
+) -> None:
+    """An event holding a number the input cannot use is rejected with its text; one without a number is not."""
+    event = CalendarEventData(start=_dt(9), end=_dt(10), summary=summary)
+
+    result = rejected_events([event], output_type)
+
+    assert [(rejected_event, value_text.text) for rejected_event, value_text in result] == (
+        [(event, summary)] if rejected else []
+    )
 
 
 # --- event_windows ---

@@ -26,6 +26,7 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo.core.data.loader.calendar import (
     CALENDAR_EVENTS_ATTRIBUTE,
     CalendarEventData,
+    EventValueText,
     capture_calendar_events,
     load_calendar_events,
     rejected_events,
@@ -88,6 +89,15 @@ def _as_datetime(value: datetime | date) -> datetime:
     if isinstance(value, datetime):
         return value
     return dt_util.start_of_local_day(value)
+
+
+def _ignored_event_line(event: CalendarEventData, value_text: EventValueText) -> str:
+    """Describe an ignored event by its start, its summary, and the field and text its value was read from.
+
+    For example: ``2026-10-22T10:00:00+11:00 Pool pump, description "run 2"``.
+    """
+    name = f" {event.summary}" if event.summary and value_text.field != "summary" else ""
+    return f'{event.start.isoformat()}{name}, {value_text.field} "{value_text.text}"'
 
 
 class CalendarInputLoader:
@@ -249,9 +259,11 @@ class CalendarInputLoader:
         for (element_name, field_path), (store, unit) in reading_values.items():
             calendars = [eid for eid in store.source_entity_ids if is_calendar_entity(eid)]
             ignored = [
-                f"{event.start.isoformat()} {event.summary or ''}: {typed}"
+                _ignored_event_line(event, value_text)
                 for eid in calendars
-                for event, typed in rejected_events(load_calendar_events(sm.get(eid)) or [], store.hint.output_type)
+                for event, value_text in rejected_events(
+                    load_calendar_events(sm.get(eid)) or [], store.hint.output_type
+                )
             ]
             if ignored:
                 create_calendar_event_values_issue(
