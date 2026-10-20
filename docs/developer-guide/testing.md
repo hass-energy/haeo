@@ -270,6 +270,15 @@ The instance loads `scenario1`'s input states, and the clock stands still at tha
 Home Assistant's wall clock is frozen while its event loop keeps real time, so timers still fire, and each browser context is pinned to the same instant.
 Every capture therefore shows the same horizon however slowly the run goes.
 
+Before every screenshot the pointer moves off the page and the capture waits for the page to settle (`tests/guides/primitives/js/wait_settled.js`).
+Settling waits on signals the page gives rather than on time: custom elements being defined, Lit updates completing, images on screen loading, icons and ripples finishing, and an animation frame passing with no change to the DOM.
+Animations and transitions are finished on the spot.
+A page that has not settled within ten seconds fails the guide, naming what it was still waiting for.
+
+Primitives never sleep for a fixed time.
+After an action, they wait for the condition that shows it took effect, such as a URL, an attribute, or a dialog appearing.
+After a change to the configuration, `expect_config_reload` waits for the reload and then brings the frontend up to date with Home Assistant, so counts of devices and entities are current.
+
 ### Showing the plan
 
 Guides can show what HAEO plans, not only how to configure it.

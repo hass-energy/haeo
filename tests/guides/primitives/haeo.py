@@ -22,8 +22,6 @@ from pathlib import Path
 import types
 from typing import TYPE_CHECKING, get_args
 
-from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
-
 from custom_components.haeo.core.schema.elements.battery import (
     CONF_CAPACITY,
     CONF_INITIAL_CHARGE_PERCENTAGE,
@@ -50,6 +48,7 @@ from custom_components.haeo.core.schema.sections import (
 )
 
 from .capture import guide_step
+from .ha_page import DEFAULT_TIMEOUT, SEARCH_TIMEOUT
 
 if TYPE_CHECKING:
     from homeassistant.util.json import JsonObjectType, JsonValueType
@@ -365,7 +364,7 @@ def add_inverter(
 
     with page.expect_config_reload():
         page.submit()
-        page.close_element_dialog()
+    page.close_element_dialog()
 
     _LOGGER.info("Inverter added: %s", name)
 
@@ -416,7 +415,7 @@ def add_battery(
 
     with page.expect_config_reload():
         page.submit()
-        page.close_element_dialog()
+    page.close_element_dialog()
 
     _LOGGER.info("Battery added: %s", name)
 
@@ -448,7 +447,7 @@ def add_solar(
 
     with page.expect_config_reload():
         page.submit()
-        page.close_element_dialog()
+    page.close_element_dialog()
 
     _LOGGER.info("Solar added: %s", name)
 
@@ -493,7 +492,7 @@ def add_grid(
 
     with page.expect_config_reload():
         page.submit()
-        page.close_element_dialog()
+    page.close_element_dialog()
 
     _LOGGER.info("Grid added: %s", name)
 
@@ -525,7 +524,7 @@ def add_load(
 
     with page.expect_config_reload():
         page.submit()
-        page.close_element_dialog()
+    page.close_element_dialog()
 
     _LOGGER.info("Load added: %s", name)
 
@@ -543,7 +542,7 @@ def add_junction(page: HAPage, *, name: str) -> None:
 
     with page.expect_config_reload():
         page.submit()
-        page.close_element_dialog()
+    page.close_element_dialog()
 
     _LOGGER.info("Junction added: %s", name)
 
@@ -561,7 +560,7 @@ def add_node(page: HAPage, *, name: str) -> None:
 
     with page.expect_config_reload():
         page.submit()
-        page.close_element_dialog()
+    page.close_element_dialog()
 
     _LOGGER.info("Node added: %s", name)
 
@@ -619,25 +618,18 @@ def add_policies(
     with page.expect_config_reload():
         page.submit()
 
-        # First add: async_create_entry shows a Finish dialog.
-        # Subsequent adds: async_update_and_abort shows an abort dialog
-        # with a close button in the header (Escape/scrim are disabled).
-        finish = page.page.get_by_role("button", name="Finish")
-        try:
-            finish.wait_for(state="visible", timeout=2000)
-        except PlaywrightTimeoutError:
-            # Close the abort dialog via the header X button
-            close_btn = page.page.locator(
-                "dialog-data-entry-flow ha-icon-button[dialogaction='close']",
-            )
-            close_btn.click(timeout=2000)
-            page.page.locator("dialog-data-entry-flow ha-dialog[open]").wait_for(
-                state="detached",
-                timeout=5000,
-            )
-            _LOGGER.info("Policy appended to existing subentry")
-        else:
-            page.close_element_dialog()
+    # First add: async_create_entry shows a Finish dialog.
+    # Subsequent adds: async_update_and_abort shows an abort dialog
+    # with a close button in the header (Escape/scrim are disabled).
+    created = page.page.locator("step-flow-create-entry")
+    aborted = page.page.locator("step-flow-abort")
+    created.or_(aborted).wait_for(state="visible", timeout=SEARCH_TIMEOUT)
+    if created.is_visible():
+        page.close_element_dialog()
+    else:
+        page.page.locator("dialog-data-entry-flow ha-icon-button[dialogaction='close']").click(timeout=DEFAULT_TIMEOUT)
+        page.page.locator("dialog-data-entry-flow ha-dialog[open]").wait_for(state="detached", timeout=SEARCH_TIMEOUT)
+        _LOGGER.info("Policy appended to existing subentry")
 
     _LOGGER.info("Policy rule added: %s", name)
 
@@ -679,7 +671,7 @@ def add_buffer(
 
     with page.expect_config_reload():
         page.submit()
-        page.close_element_dialog()
+    page.close_element_dialog()
 
     _LOGGER.info("Buffer added: %s", name)
 
