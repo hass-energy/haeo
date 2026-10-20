@@ -13,6 +13,7 @@ from custom_components.haeo.core.schema import get_connection_target_name, norma
 from custom_components.haeo.core.schema.elements.schedulable_load import (
     CONF_DEFICIT_PRICE,
     CONF_DURATION,
+    CONF_ENERGY_METER,
     CONF_INTEGER_MODE,
     CONF_POWER,
     CONF_RUNNING,
@@ -50,7 +51,7 @@ class SchedulableLoadSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         return (
             SectionDefinition(
                 key=SECTION_SCHEDULE,
-                fields=(CONF_WINDOW_CALENDAR, CONF_RUNNING),
+                fields=(CONF_WINDOW_CALENDAR, CONF_RUNNING, CONF_ENERGY_METER),
                 collapsed=False,
             ),
             SectionDefinition(

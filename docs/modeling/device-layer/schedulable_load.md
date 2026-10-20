@@ -30,7 +30,6 @@ The connection needs no power limit: the profile fixes the power the load draws.
 
 The power and run duration form a one-step profile: the configured power for the configured duration.
 The [schedulable load model](../model-layer/elements/schedulable_load.md) accepts any number of steps, so a load with a measured multi-phase profile reuses the same model element with a longer profile.
-Negative readings are treated as zero.
 
 ### Window scheduling
 
@@ -45,16 +44,21 @@ The adapter builds windows the same way as for the [deferrable load](deferrable_
 ### Runs already started
 
 Each optimization starts a fresh horizon, so the device must tell the model what the load is already doing.
-When a running sensor is configured, the integration reads the periods it read off from the recorder, the same history the [EV's plugged-in sensor](ev.md#early-return) uses.
-A run starts when an off period ends, so the end of the latest finished off period is when the latest run started.
+Two optional inputs do that: a running sensor, read for its current state, and an energy meter, read for how much it rose since the window open at the horizon start began.
+The meter is read the same way as the [deferrable load's](deferrable_load.md#energy-already-delivered), from the window's calendar event even when it began before the horizon.
 
-- **Running now**: the run is committed.
-    The model consumes the rest of the profile from the horizon start, counting from the run's start, and allows no new start until it finishes.
-    Without history, or while the history still shows the sensor off, the run is taken to have just started, which plans the whole profile.
-- **Run started inside the open window**: that window needs no further run, whether the run is still going or has finished.
-- **Run started before the open window opened**: the run does not count toward the open window, which still needs its own run once the committed run finishes.
+The meter's rise $E$ is how far through the profile the load is: the time $a$ at which the profile's cumulative energy reaches $E$.
 
-The open window's start comes from its calendar event, even when it began before the horizon.
+- **Running now**: the run is committed from $a$.
+    The model consumes the rest of the profile from the horizon start and allows no new start until it finishes.
+    The open window takes no further run.
+    Without a meter, $a = 0$ and the whole profile is planned.
+- **Idle, with the meter up by at least half a run's energy**: the open window's run is done, and it takes no further run.
+    Standby use stays well below half a run, and a run stopped partway through counts once it is mostly done.
+- **Idle otherwise**: the open window still needs its run.
+
+A meter only counts from the open window's start, so a run that began before the window opened is credited only the energy it used since.
+That plans more of the run than remains, never less.
 HAEO keeps no state of its own, so the decision replays the same way from diagnostics.
 
 ### Start decision
@@ -76,10 +80,11 @@ The schedulable load element creates a single Home Assistant device:
 | User configuration | Model element(s)          | Model parameter             | Notes                                       |
 | ------------------ | ------------------------- | --------------------------- | ------------------------------------------- |
 | `window_calendar`  | Schedulable load `{name}` | `in_window`, `window_start` | Overlaps merged, clamped to the horizon end |
-| `running`          | Schedulable load `{name}` | `elapsed`, `window_started` | From the sensor's off periods               |
-| `power`            | Schedulable load `{name}` | `profile_power`             | One step, clamped ≥ 0                       |
-| `duration`         | Schedulable load `{name}` | `profile_duration`          | One step in hours, clamped ≥ 0              |
-| `deficit_price`    | Schedulable load `{name}` | `deficit_price`             | Defaults to \$10/kWh, clamped ≥ 0           |
+| `running`          | Schedulable load `{name}` | `elapsed`, `window_started` | Current state only                          |
+| `energy_meter`     | Schedulable load `{name}` | `elapsed`, `window_started` | Rise since the open window began            |
+| `power`            | Schedulable load `{name}` | `profile_power`             | One step                                    |
+| `duration`         | Schedulable load `{name}` | `profile_duration`          | One step in hours                           |
+| `deficit_price`    | Schedulable load `{name}` | `deficit_price`             | Defaults to \$10/kWh                        |
 | `integer_mode`     | Schedulable load `{name}` | `integer_mode`              | Defaults to `first`                         |
 
 ## Output mapping

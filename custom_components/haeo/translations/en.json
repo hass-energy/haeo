@@ -585,6 +585,7 @@
             "connection": "Connection",
             "deficit_price": "Missed run price",
             "duration": "Run duration",
+            "energy_meter": "Energy meter",
             "integer_mode": "Start decision",
             "name": "Schedulable Load Name",
             "power": "Power",
@@ -606,7 +607,11 @@
             "pricing": { "data": { "deficit_price": "Missed run price" }, "name": "Pricing" },
             "profile": { "data": { "duration": "Run duration", "power": "Power" }, "name": "Run profile" },
             "schedule": {
-              "data": { "running": "Running", "window_calendar": "Run window calendar" },
+              "data": {
+                "energy_meter": "Energy meter",
+                "running": "Running",
+                "window_calendar": "Run window calendar"
+              },
               "name": "Schedule"
             }
           }
@@ -725,8 +730,11 @@
       "policy_price": { "name": "{rule_name} price" },
       "schedulable_load_deficit_price": { "name": "Missed run price" },
       "schedulable_load_duration": { "name": "Run duration" },
+      "schedulable_load_energy_meter": { "name": "Energy since window started" },
+      "schedulable_load_in_window": { "name": "Run window" },
       "schedulable_load_power": { "name": "Power" },
       "schedulable_load_running": { "name": "Running" },
+      "schedulable_load_window_start": { "name": "Window start" },
       "solar_forecast": { "name": "Forecast" },
       "solar_price_source_target": { "name": "Production price" }
     },

@@ -39,13 +39,7 @@ from custom_components.haeo.core.model.linear import LinearArray, Rows
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.model.reactive import TrackedParam, constraint, cost, output
 from custom_components.haeo.core.model.solver import Solver
-from custom_components.haeo.core.model.util import (
-    broadcast_to_sequence,
-    require_non_negative,
-    window_carry,
-    window_end,
-    window_end_index,
-)
+from custom_components.haeo.core.model.util import broadcast_to_sequence, window_carry, window_end, window_end_index
 
 # Model element type for schedulable loads
 ELEMENT_TYPE: Final = "schedulable_load"
@@ -103,7 +97,6 @@ class SchedulableLoadElementConfig(TypedDict):
     integer_mode: NotRequired[IntegerMode]
     is_source: Literal[False]
     is_sink: Literal[True]
-    outbound_tags: NotRequired[set[int] | None]
     inbound_tags: NotRequired[set[int] | None]
 
 
@@ -122,8 +115,7 @@ class SchedulableLoad(NetworkElement[SchedulableLoadOutputName]):
     further run.
 
     ``deficit_price`` prices a missed run per kWh of the profile's energy at
-    the window's end boundary. It must be non-negative: a negative price
-    would reward missing runs.
+    the window's end boundary. The profile and prices are never negative.
     """
 
     # Parameters
@@ -149,12 +141,15 @@ class SchedulableLoad(NetworkElement[SchedulableLoadOutputName]):
         elapsed: float | None = None,
         window_started: bool = False,
         integer_mode: IntegerMode = "first",
-        is_source: Literal[False],
-        is_sink: Literal[True],
-        outbound_tags: set[int] | None = None,
+        is_source: Literal[False] = False,
+        is_sink: Literal[True] = True,
         inbound_tags: set[int] | None = None,
     ) -> None:
-        """Initialize a schedulable load entity."""
+        """Initialize a schedulable load entity.
+
+        A schedulable load only consumes, which ``is_source`` and ``is_sink``
+        declare for policy compilation and buffer roles.
+        """
         super().__init__(
             name=name,
             periods=periods,
@@ -162,7 +157,6 @@ class SchedulableLoad(NetworkElement[SchedulableLoadOutputName]):
             output_names=SCHEDULABLE_LOAD_OUTPUT_NAMES,
             is_source=is_source,
             is_sink=is_sink,
-            outbound_tags=outbound_tags,
             inbound_tags=inbound_tags,
         )
         n_periods = self.n_periods
@@ -345,7 +339,6 @@ class SchedulableLoad(NetworkElement[SchedulableLoadOutputName]):
     def schedulable_load_missed_cost(self) -> LinearArray:
         """Cost: each missed run priced per kWh of the profile at its window end."""
         deficit_price = self._boundaries_of(self.deficit_price)
-        require_non_negative("deficit_price", deficit_price)
         return (self.missed * (deficit_price[1:] * self._run_total_energy())).total()
 
     # Output methods

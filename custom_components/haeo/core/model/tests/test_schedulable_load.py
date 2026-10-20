@@ -293,19 +293,6 @@ def test_integer_starts_free_again_on_next_solve() -> None:
     np.testing.assert_allclose(_outputs(load, "schedulable_load_power"), [1.0, 0.0, 0.0], atol=1e-9)
 
 
-def test_negative_deficit_price_rejected() -> None:
-    """A negative deficit price would reward missed runs."""
-    network, _load = _build_network(
-        supply_price=[0.1],
-        profile_power=[1.0],
-        profile_duration=[1.0],
-        deficit_price=-1.0,
-    )
-
-    with pytest.raises(ValueError, match="deficit_price must be non-negative"):
-        network.optimize()
-
-
 @pytest.mark.parametrize("integer_mode", ["none", "first", "all"])
 def test_time_preference_never_outweighs_cost(integer_mode: IntegerMode) -> None:
     """The secondary objective's preference for earlier power never buys a dearer start."""

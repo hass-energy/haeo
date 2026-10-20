@@ -5,8 +5,8 @@ from dataclasses import replace
 from typing import Final, Literal
 
 import numpy as np
+from numpy.typing import NDArray
 
-from custom_components.haeo.core.adapters.calendar_windows import calendar_windows
 from custom_components.haeo.core.adapters.output_utils import connection_power, expect_output_data
 from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
@@ -23,14 +23,16 @@ from custom_components.haeo.core.model.elements.schedulable_load import (
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.buffer import CONF_LOADS, BufferRole
 from custom_components.haeo.core.schema.elements.schedulable_load import (
     CONF_DEFICIT_PRICE,
     CONF_DURATION,
+    CONF_ENERGY_METER,
+    CONF_IN_WINDOW,
     CONF_INTEGER_MODE,
     CONF_POWER,
     CONF_RUNNING,
-    CONF_RUNNING_OFF_PERIODS,
-    CONF_WINDOW_CALENDAR,
+    CONF_WINDOW_START,
     DEFAULT_INTEGER_MODE,
     ELEMENT_TYPE,
     SECTION_ADVANCED,
@@ -38,14 +40,16 @@ from custom_components.haeo.core.schema.elements.schedulable_load import (
     SECTION_PROFILE,
     SECTION_SCHEDULE,
     SchedulableLoadConfigData,
-    ScheduleData,
 )
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
 
 # Readings at or above this count as running, matching availability inputs.
 _RUNNING_THRESHOLD: Final = 0.5
 
-_SECONDS_PER_HOUR: Final = 3600.0
+# Fraction of a run's energy an idle load must have used since the open
+# window began for that window's run to count as done. Standby use stays far
+# below it, and a run that stopped partway through counts once mostly done.
+_DONE_FRACTION: Final = 0.5
 
 # Schedulable-load-specific output names for translation/sensor mapping
 type SchedulableLoadElementOutputName = Literal[
@@ -77,7 +81,7 @@ class SchedulableLoadAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = False
     can_sink: bool = True
-    can_store: bool = False
+    buffer_roles: frozenset[BufferRole] = frozenset({CONF_LOADS})
 
     def model_elements(self, config: SchedulableLoadConfigData) -> list[ModelElementConfig]:
         """Create model elements for schedulable load configuration.
@@ -90,13 +94,13 @@ class SchedulableLoadAdapter:
         overlapping events merge into one window. The profile is a single
         step at the configured power for the configured duration.
 
-        The running sensor ties the plan to what the load is doing. A run
-        starts when an off period of the sensor ends. A load running now
-        finishes its run from the horizon start, counting from when that run
-        started. The window open at the horizon start needs no further run
-        when its run already started inside it, whether that run is still
-        going or has finished. Without history for a running load, the run
-        is taken to have just started.
+        The running sensor and energy meter tie the plan to what the load is
+        doing. The meter's rise since the open window began is how far through
+        the profile the load is. A load running now finishes the rest of its
+        run from the horizon start, and the open window takes no further run.
+        Without a meter, a running load is taken to have just started. An idle
+        load whose meter rose by at least half a run's energy since the open
+        window began has done that window's run.
         """
         name = config["name"]
         schedule = config[SECTION_SCHEDULE]
@@ -104,31 +108,23 @@ class SchedulableLoadAdapter:
         pricing = config[SECTION_PRICING]
         advanced = config.get(SECTION_ADVANCED, {})
 
-        calendar = schedule[CONF_WINDOW_CALENDAR]
-        windows = calendar_windows(calendar)
-
-        horizon_start = calendar["horizon_start"]
-        run_start = _run_start(schedule, horizon_start)
-        open_since = calendar["open_since"]
-        window_started = (
-            windows.in_window[0] > 0.0 and run_start is not None and open_since is not None and run_start >= open_since
-        )
-        elapsed = (
-            (horizon_start - run_start) / _SECONDS_PER_HOUR if run_start is not None and _is_running(schedule) else None
-        )
+        in_window = schedule[CONF_IN_WINDOW]
+        profile_power = np.array([float(profile[CONF_POWER])])
+        profile_duration = np.array([float(profile[CONF_DURATION])])
+        used = schedule.get(CONF_ENERGY_METER, 0.0)
+        running = float(schedule.get(CONF_RUNNING, 0.0)) >= _RUNNING_THRESHOLD
+        run_energy = float(np.sum(profile_power * profile_duration))
 
         load: SchedulableLoadElementConfig = {
             "element_type": MODEL_ELEMENT_TYPE_SCHEDULABLE_LOAD,
             "name": name,
-            "profile_power": np.array([max(float(profile[CONF_POWER]), 0.0)]),
-            "profile_duration": np.array([max(float(profile[CONF_DURATION]), 0.0)]),
-            "in_window": windows.in_window,
-            "window_start": windows.window_start,
-            # Penalty prices are clamped at zero: the model rejects negative
-            # prices, and an entity can report one even though the form cannot.
-            "deficit_price": max(float(pricing[CONF_DEFICIT_PRICE]), 0.0),
-            "elapsed": elapsed,
-            "window_started": bool(window_started),
+            "profile_power": profile_power,
+            "profile_duration": profile_duration,
+            "in_window": in_window,
+            "window_start": schedule[CONF_WINDOW_START],
+            "deficit_price": pricing[CONF_DEFICIT_PRICE],
+            "elapsed": _profile_time(profile_power, profile_duration, used) if running else None,
+            "window_started": bool(in_window[0] > 0.0 and (running or used >= _DONE_FRACTION * run_energy > 0.0)),
             "integer_mode": advanced.get(CONF_INTEGER_MODE, DEFAULT_INTEGER_MODE),
             "is_source": False,
             "is_sink": True,
@@ -175,20 +171,8 @@ class SchedulableLoadAdapter:
 adapter = SchedulableLoadAdapter()
 
 
-def _is_running(schedule: ScheduleData) -> bool:
-    """Return True when the running sensor reports the load running now."""
-    return float(schedule.get(CONF_RUNNING, 0.0)) >= _RUNNING_THRESHOLD
-
-
-def _run_start(schedule: ScheduleData, horizon_start: float) -> float | None:
-    """Return when the latest run started, in POSIX seconds.
-
-    A run starts when an off period of the running sensor ends. A running
-    load whose history shows no such end, or still shows it off, has just
-    started. An idle load without one has no known run.
-    """
-    periods = schedule.get(CONF_RUNNING_OFF_PERIODS, [])
-    ended = [end for _start, end in periods if end is not None]
-    if _is_running(schedule) and (not ended or periods[-1][1] is None):
-        return horizon_start
-    return ended[-1] if ended else None
+def _profile_time(profile_power: NDArray[np.float64], profile_duration: NDArray[np.float64], energy: float) -> float:
+    """Return how long, in hours, the profile runs to use *energy*."""
+    cumulative_time = np.concatenate(([0.0], np.cumsum(profile_duration)))
+    cumulative_energy = np.concatenate(([0.0], np.cumsum(profile_power * profile_duration)))
+    return float(np.interp(energy, cumulative_energy, cumulative_time))

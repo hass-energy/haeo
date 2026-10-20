@@ -39,9 +39,10 @@ Boundaries are indexed $k \in \{0, 1, \ldots, T\}$, with $\tau(k)$ the time of b
 - $a$: How long the run in progress at the horizon start has been running (hours), or none when idle - `elapsed`
 - $\sigma \in \{0, 1\}$: 1 when the window open at the horizon start already had its run start - `window_started`
 - `integer_mode`: Which start weights are integer - `none`, `first` (default), or `all`
-- `outbound_tags`, `inbound_tags`: As for every network element (see [Tagged Power](../../tagged-power.md))
+- `inbound_tags`: Tags this load can consume, None for all (see [Tagged Power](../../tagged-power.md))
 
-The deficit price must be non-negative, and the model raises an error otherwise: a negative price would reward missing runs.
+The load only consumes, so it takes no outbound tags.
+The profile and prices are never negative.
 
 ### Profile geometry
 

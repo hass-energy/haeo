@@ -89,7 +89,9 @@ ModelElementConfig = (
 
 # Configs of the elements that produce or consume power themselves, which
 # connections join and power balance applies to
-type NetworkElementConfig = BatteryElementConfig | NodeElementConfig | DeferrableLoadElementConfig
+type NetworkElementConfig = (
+    BatteryElementConfig | NodeElementConfig | DeferrableLoadElementConfig | SchedulableLoadElementConfig
+)
 
 # Configs of the network elements that may produce power, which take outbound tags
 type SourceElementConfig = BatteryElementConfig | NodeElementConfig

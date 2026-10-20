@@ -2,13 +2,14 @@
 
 from typing import Annotated, Final, Literal, NotRequired, TypedDict
 
-from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
-from custom_components.haeo.core.data.loader.source_history import OffPeriod
+import numpy as np
+from numpy.typing import NDArray
+
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import IntegerMode
-from custom_components.haeo.core.schema import CalendarValue, ConstantValue, EntityValue, NoneValue
+from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, FieldHint, SectionHints
+from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint, SectionHints, calendar_input
 from custom_components.haeo.core.schema.sections import ConnectedCommonConfig, ConnectedCommonData
 
 ELEMENT_TYPE = ElementType.SCHEDULABLE_LOAD
@@ -22,9 +23,11 @@ SECTION_ADVANCED: Final = "advanced"
 # Schedule section field names
 CONF_WINDOW_CALENDAR: Final = "window_calendar"
 CONF_RUNNING: Final = "running"
-# Loaded beside the running field: the periods the running sensor read off,
-# from Home Assistant's history.
-CONF_RUNNING_OFF_PERIODS: Final = "running_off_periods"
+CONF_ENERGY_METER: Final = "energy_meter"
+
+# Inputs the window calendar feeds
+CONF_IN_WINDOW: Final = "in_window"
+CONF_WINDOW_START: Final = "window_start"
 
 # Profile section field names
 CONF_POWER: Final = "power"
@@ -37,7 +40,7 @@ CONF_DEFICIT_PRICE: Final = "deficit_price"
 CONF_INTEGER_MODE: Final = "integer_mode"
 DEFAULT_INTEGER_MODE: Final[IntegerMode] = "first"
 
-OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_RUNNING})
+OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_RUNNING, CONF_ENERGY_METER})
 
 
 # --- Schedule section ---
@@ -46,21 +49,29 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset({CONF_RUNNING})
 class ScheduleConfig(TypedDict):
     """Run window schedule configuration.
 
-    The calendar drives the windows the load must run inside; the optional
-    running sensor reports whether the load is running now, so a run already
-    in progress is finished rather than planned again.
+    The calendar drives the windows the load must run inside. The optional
+    running sensor reports whether the load is running now, and the optional
+    energy meter is a running total of the energy the load has used. How much
+    the meter rose since the open window started tells how far through its
+    run the load is, so a run already in progress is finished rather than
+    planned again, and a window whose run is done takes no further run.
     """
 
-    window_calendar: CalendarValue
+    window_calendar: EntityValue
     running: NotRequired[EntityValue | NoneValue]
+    energy_meter: NotRequired[EntityValue | NoneValue]
 
 
 class ScheduleData(TypedDict):
-    """Loaded run window schedule."""
+    """Loaded run window schedule, with the inputs the window calendar feeds.
 
-    window_calendar: CalendarBoundaryData
+    The energy meter loads as the energy it counted since the open window began.
+    """
+
+    in_window: NDArray[np.float64]
+    window_start: NDArray[np.float64]
     running: NotRequired[float]
-    running_off_periods: NotRequired[list[OffPeriod]]
+    energy_meter: NotRequired[float]
 
 
 # --- Profile section ---
@@ -90,9 +101,9 @@ class PricingConfig(TypedDict):
 
 
 class PricingData(TypedDict):
-    """Loaded pricing values."""
+    """Loaded pricing values, one per horizon boundary."""
 
-    deficit_price: float
+    deficit_price: NDArray[np.float64]
 
 
 # --- Advanced section ---
@@ -116,14 +127,20 @@ class SchedulableLoadConfigSchema(ConnectedCommonConfig):
         SectionHints(
             {
                 CONF_WINDOW_CALENDAR: FieldHint(
-                    output_type=OutputType.STATUS,
-                    time_series=True,
-                    boundaries=True,
-                    calendar=CalendarFieldHint(parser="presence"),
+                    output_type=OutputType.AVAILABILITY,
+                    outputs={
+                        CONF_IN_WINDOW: calendar_input(OutputType.AVAILABILITY, "window_active"),
+                        CONF_WINDOW_START: calendar_input(OutputType.AVAILABILITY, "window_starts"),
+                    },
                 ),
                 CONF_RUNNING: FieldHint(
                     output_type=OutputType.AVAILABILITY,
                     time_series=False,
+                ),
+                CONF_ENERGY_METER: FieldHint(
+                    output_type=OutputType.ENERGY,
+                    time_series=False,
+                    meter=MeterFieldHint(since=CONF_WINDOW_CALENDAR),
                 ),
             }
         ),
@@ -152,7 +169,8 @@ class SchedulableLoadConfigSchema(ConnectedCommonConfig):
             {
                 CONF_DEFICIT_PRICE: FieldHint(
                     output_type=OutputType.PRICE,
-                    time_series=False,
+                    time_series=True,
+                    boundaries=True,
                     min_value=0.0,
                     default_mode="value",
                     default_value=10.0,
@@ -176,11 +194,13 @@ class SchedulableLoadConfigData(ConnectedCommonData):
 __all__ = [
     "CONF_DEFICIT_PRICE",
     "CONF_DURATION",
+    "CONF_ENERGY_METER",
     "CONF_INTEGER_MODE",
+    "CONF_IN_WINDOW",
     "CONF_POWER",
     "CONF_RUNNING",
-    "CONF_RUNNING_OFF_PERIODS",
     "CONF_WINDOW_CALENDAR",
+    "CONF_WINDOW_START",
     "DEFAULT_INTEGER_MODE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",

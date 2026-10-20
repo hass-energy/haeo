@@ -1,8 +1,10 @@
 """Tests for schedulable load element model mapping and optimization behavior."""
 
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
+from conftest import FakeEntityState, FakeStateMachine
 from custom_components.haeo.core.adapters.elements.schedulable_load import (
     SCHEDULABLE_ENERGY_MISSED,
     SCHEDULABLE_LOAD_DEVICE,
@@ -10,7 +12,9 @@ from custom_components.haeo.core.adapters.elements.schedulable_load import (
     SCHEDULABLE_START,
     adapter,
 )
-from custom_components.haeo.core.data.loader.calendar_resolver import CalendarBoundaryData
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.config_loader import load_element_config
+from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_CONNECTION,
@@ -18,44 +22,36 @@ from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_SCHEDULABLE_LOAD,
     SchedulableLoadElementConfig,
 )
-from custom_components.haeo.core.schema import as_connection_target
+from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
-from custom_components.haeo.core.schema.elements.schedulable_load import SchedulableLoadConfigData
+from custom_components.haeo.core.schema.elements.schedulable_load import (
+    SchedulableLoadConfigData,
+    SchedulableLoadConfigSchema,
+)
 
-_HORIZON_START = 10_000.0
-# The window in _config opened half an hour before the horizon start.
-_OPEN_SINCE = _HORIZON_START - 1800.0
 
+def _window(n_periods: int, start: int, end: int) -> dict[str, NDArray[np.float64]]:
+    """Build the loaded window inputs for one window over periods ``start`` to ``end``.
 
-def _boundary_data(n_periods: int, events: list[tuple[int, int]], open_since: float | None) -> CalendarBoundaryData:
-    """Build presence calendar boundary data from period-aligned (start, end) events."""
-    span = np.zeros(n_periods + 1)
-    edge_start = np.zeros(n_periods + 1)
-    edge_end = np.zeros(n_periods + 1)
-    for start, end in events:
-        span[start:end] += 1.0
-        edge_start[start] += 1.0
-        if end <= n_periods:
-            edge_end[end] += 1.0
-    return CalendarBoundaryData(
-        presence=(span > 0).astype(np.float64),
-        value_span=span,
-        value_edge_start=edge_start,
-        value_edge_end=edge_end,
-        open_since=open_since,
-        horizon_start=_HORIZON_START,
-    )
+    A window starting before the horizon is open at its start, so it does not start.
+    """
+    in_window = np.zeros(n_periods)
+    in_window[max(start, 0) : end] = 1.0
+    window_start = np.zeros(n_periods + 1)
+    if start > 0:
+        window_start[start] = 1.0
+    return {"in_window": in_window, "window_start": window_start}
 
 
 def _config(**schedule: object) -> SchedulableLoadConfigData:
-    """Build a 1 kW, one-hour schedulable load with a window open over periods 0-2."""
+    """Build a 1 kW, one-hour schedulable load whose window is open over periods 0-2."""
     config: dict[str, object] = {
         "element_type": ElementType.SCHEDULABLE_LOAD,
         "name": "dishwasher",
         "connection": as_connection_target("home"),
-        "schedule": {"window_calendar": _boundary_data(4, [(0, 3)], open_since=_OPEN_SINCE), **schedule},
+        "schedule": {**_window(4, -1, 3), **schedule},
         "profile": {"power": 1.0, "duration": 1.0},
-        "pricing": {"deficit_price": 10.0},
+        "pricing": {"deficit_price": np.full(5, 10.0)},
     }
     return config  # type: ignore[return-value]  # constructed to match SchedulableLoadConfigData
 
@@ -68,17 +64,15 @@ def _load(config: SchedulableLoadConfigData) -> SchedulableLoadElementConfig:
 
 
 def test_model_elements_structure() -> None:
-    """The adapter creates the load from the calendar windows and the profile, plus its connection."""
-    config = _config()
-
-    load, connection = adapter.model_elements(config)
+    """The adapter creates the load from the window inputs and the profile, plus its connection."""
+    load, connection = adapter.model_elements(_config())
 
     assert load["element_type"] == MODEL_ELEMENT_TYPE_SCHEDULABLE_LOAD
     np.testing.assert_allclose(load["in_window"], [1.0, 1.0, 1.0, 0.0])
-    np.testing.assert_allclose(load["window_start"], [0.0, 0.0, 0.0, 0.0, 0.0])
+    np.testing.assert_allclose(load["window_start"], [0.0] * 5)
     np.testing.assert_allclose(load["profile_power"], [1.0])
     np.testing.assert_allclose(load["profile_duration"], [1.0])
-    assert load["deficit_price"] == pytest.approx(10.0)
+    np.testing.assert_allclose(load["deficit_price"], [10.0] * 5)
     assert load.get("integer_mode") == "first"
     assert connection["element_type"] == MODEL_ELEMENT_TYPE_CONNECTION
     assert connection["source"] == "home"
@@ -96,72 +90,45 @@ def test_integer_mode_comes_from_advanced_section() -> None:
 @pytest.mark.parametrize(
     ("schedule", "elapsed", "window_started"),
     [
-        pytest.param({}, None, False, id="no_running_sensor"),
-        pytest.param({"running": 0.0}, None, False, id="idle_without_history"),
-        pytest.param({"running": 1.0}, 0.0, True, id="running_without_history_just_started"),
-        pytest.param(
-            {"running": 1.0, "running_off_periods": [(0.0, _HORIZON_START - 900.0)]},
-            0.25,
-            True,
-            id="running_since_window_opened",
-        ),
-        pytest.param(
-            {"running": 1.0, "running_off_periods": [(0.0, _HORIZON_START - 3600.0)]},
-            1.0,
-            False,
-            id="running_since_before_window",
-        ),
-        pytest.param(
-            {"running": 1.0, "running_off_periods": [(0.0, _HORIZON_START - 3600.0), (_HORIZON_START - 60.0, None)]},
-            0.0,
-            True,
-            id="running_while_history_still_off_just_started",
-        ),
-        pytest.param(
-            {"running": 0.0, "running_off_periods": [(0.0, _HORIZON_START - 900.0), (_HORIZON_START - 300.0, None)]},
-            None,
-            True,
-            id="finished_inside_window",
-        ),
-        pytest.param(
-            {"running": 0.0, "running_off_periods": [(0.0, _HORIZON_START - 3600.0), (_HORIZON_START - 2000.0, None)]},
-            None,
-            False,
-            id="finished_before_window",
-        ),
+        pytest.param({}, None, False, id="no_running_sensor_or_meter"),
+        pytest.param({"running": 0.0}, None, False, id="idle_without_meter"),
+        pytest.param({"running": 1.0}, 0.0, True, id="running_without_meter_just_started"),
+        pytest.param({"running": 1.0, "energy_meter": 0.25}, 0.25, True, id="running_quarter_through"),
+        pytest.param({"running": 1.0, "energy_meter": 2.0}, 1.0, True, id="running_past_the_profile"),
+        pytest.param({"running": 0.0, "energy_meter": 0.9}, None, True, id="idle_after_its_run"),
+        pytest.param({"running": 0.0, "energy_meter": 0.1}, None, False, id="idle_with_standby_use"),
+        pytest.param({"energy_meter": 0.9}, None, True, id="meter_alone_marks_the_run_done"),
     ],
 )
-def test_running_sensor_sets_committed_run_and_window_state(
-    schedule: dict[str, object],
+def test_running_sensor_and_meter_set_committed_run_and_window_state(
+    schedule: dict[str, float],
     elapsed: float | None,
     window_started: bool,
 ) -> None:
-    """The running sensor commits a run in progress and marks a window whose run already started."""
+    """The meter's rise since the window opened is how far through its run the load is."""
     load = _load(_config(**schedule))
 
     assert load.get("elapsed") == (None if elapsed is None else pytest.approx(elapsed))
     assert load.get("window_started") is window_started
 
 
+def test_progress_follows_a_multi_step_profile() -> None:
+    """Energy used maps to time through each profile step at that step's power."""
+    config = _config(running=1.0, energy_meter=2.5)
+    config["profile"] = {"power": 2.0, "duration": 2.0}
+
+    assert _load(config).get("elapsed") == pytest.approx(1.25)
+
+
 def test_no_window_open_means_no_started_window() -> None:
-    """A run started while no window is open never satisfies a later window."""
-    config = _config(running=0.0, running_off_periods=[(0.0, _HORIZON_START - 900.0), (_HORIZON_START - 300.0, None)])
-    config["schedule"]["window_calendar"] = _boundary_data(4, [(2, 4)], open_since=None)
-
-    assert _load(config).get("window_started") is False
-
-
-def test_negative_inputs_are_clamped() -> None:
-    """Negative entity readings never reach the model as negative profile values or prices."""
-    config = _config()
-    config["profile"] = {"power": -1.0, "duration": -1.0}
-    config["pricing"] = {"deficit_price": -5.0}
+    """A run never satisfies a window that is not open at the horizon start."""
+    config = _config(running=1.0, energy_meter=0.5)
+    config["schedule"].update(_window(4, 2, 4))  # type: ignore[typeddict-item]  # the window inputs are ScheduleData keys
 
     load = _load(config)
 
-    np.testing.assert_allclose(load["profile_power"], [0.0])
-    np.testing.assert_allclose(load["profile_duration"], [0.0])
-    assert load["deficit_price"] == pytest.approx(0.0)
+    assert load.get("window_started") is False
+    assert load.get("elapsed") == pytest.approx(0.5)
 
 
 def _solve(config: SchedulableLoadConfigData, grid_price: list[float]) -> Network:
@@ -203,10 +170,71 @@ def test_outputs_report_power_start_and_missed_energy() -> None:
 
 def test_run_in_progress_finishes_before_anything_else() -> None:
     """A run in progress finishes its remaining profile from the horizon start."""
-    config = _config(running=1.0, running_off_periods=[(0.0, _HORIZON_START - 1800.0)])
+    config = _config(running=1.0, energy_meter=0.5)
     network = _solve(config, grid_price=[0.3, 0.1, 0.2, 0.1])
     model_outputs = {name: element.outputs() for name, element in network.elements.items()}
 
     outputs = adapter.outputs("dishwasher", model_outputs, config=config)[SCHEDULABLE_LOAD_DEVICE]
 
     np.testing.assert_allclose(outputs[SCHEDULABLE_POWER].values, [0.5, 0.0, 0.0, 0.0], atol=1e-9)
+
+
+def _event(start: str, end: str) -> dict[str, object]:
+    return {"start": start, "end": end, "summary": "Dishwasher", "location": None, "description": None}
+
+
+def _schema(**schedule: object) -> SchedulableLoadConfigSchema:
+    return {
+        "element_type": ElementType.SCHEDULABLE_LOAD,
+        "name": "dishwasher",
+        "connection": as_connection_target("home"),
+        "schedule": {"window_calendar": as_entity_value(["calendar.dishwasher"]), **schedule},  # type: ignore[typeddict-item]  # loose test overrides
+        "profile": {"power": as_constant_value(1.8), "duration": as_constant_value(2.0)},
+        "pricing": {"deficit_price": as_constant_value(10.0)},
+    }
+
+
+def test_calendar_events_load_as_windows() -> None:
+    """Every calendar event is a window, whatever its text says."""
+    event = _event("1970-01-01T01:00:00+00:00", "1970-01-01T03:00:00+00:00")
+    states = {
+        "calendar.dishwasher": FakeEntityState("calendar.dishwasher", "off", {CALENDAR_EVENTS_ATTRIBUTE: [event]})
+    }
+
+    loaded = load_element_config(
+        "dishwasher", _schema(), FakeStateMachine(states), (0.0, 3600.0, 7200.0, 10800.0, 14400.0)
+    )
+    assert loaded["element_type"] == ElementType.SCHEDULABLE_LOAD
+    load = _load(loaded)
+
+    np.testing.assert_allclose(load["in_window"], [0.0, 1.0, 1.0, 0.0])
+    np.testing.assert_allclose(load["window_start"], [0.0, 1.0, 0.0, 0.0, 0.0])
+    np.testing.assert_allclose(load["profile_duration"], [2.0])
+
+
+def test_energy_meter_rise_sets_progress_through_the_run() -> None:
+    """A running load's meter rise since the window opened, converted to kWh, sets how far through its run it is."""
+    event = _event("1970-01-01T00:00:00+00:00", "1970-01-01T04:00:00+00:00")
+    meter_attributes = {
+        "unit_of_measurement": "Wh",
+        "device_class": "energy",
+        "state_class": "total_increasing",
+        METER_TOTALS_ATTRIBUTE: [(-300.0, 9000.0), (0.0, 10000.0), (1800.0, 10900.0)],
+    }
+    states = {
+        "calendar.dishwasher": FakeEntityState("calendar.dishwasher", "on", {CALENDAR_EVENTS_ATTRIBUTE: [event]}),
+        "sensor.dishwasher_energy": FakeEntityState("sensor.dishwasher_energy", "900", meter_attributes),
+        "binary_sensor.dishwasher_running": FakeEntityState("binary_sensor.dishwasher_running", "on", {}),
+    }
+    config = _schema(
+        running=as_entity_value(["binary_sensor.dishwasher_running"]),
+        energy_meter=as_entity_value(["sensor.dishwasher_energy"]),
+    )
+
+    loaded = load_element_config("dishwasher", config, FakeStateMachine(states), (1800.0, 3600.0, 7200.0, 10800.0))
+    assert loaded["element_type"] == ElementType.SCHEDULABLE_LOAD
+    load = _load(loaded)
+
+    # 0.9 kWh of a 1.8 kW run is half an hour in.
+    assert load.get("elapsed") == pytest.approx(0.5)
+    assert load.get("window_started") is True

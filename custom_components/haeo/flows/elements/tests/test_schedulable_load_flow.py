@@ -9,7 +9,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
 from custom_components.haeo.core.const import CONF_NAME
-from custom_components.haeo.core.schema import as_calendar_value, as_constant_value
+from custom_components.haeo.core.schema import as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import node
 from custom_components.haeo.core.schema.elements.schedulable_load import (
     CONF_DEFICIT_PRICE,
@@ -58,7 +58,7 @@ async def test_user_step_stores_profile_and_integer_mode(
 
     assert result.get("type") == FlowResultType.CREATE_ENTRY
     data = flow.async_create_entry.call_args.kwargs["data"]
-    assert data[SECTION_SCHEDULE][CONF_WINDOW_CALENDAR] == as_calendar_value("calendar.dishwasher")
+    assert data[SECTION_SCHEDULE][CONF_WINDOW_CALENDAR] == as_entity_value(["calendar.dishwasher"])
     assert data[SECTION_PROFILE][CONF_POWER] == as_constant_value(1.8)
     assert data[SECTION_PROFILE][CONF_DURATION] == as_constant_value(2.5)
     assert data[SECTION_ADVANCED][CONF_INTEGER_MODE] == "all"
