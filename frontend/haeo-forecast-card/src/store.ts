@@ -305,7 +305,7 @@ export class ForecastCardStore {
   }
 
   get windowBands(): WindowBand[] {
-    return windowBands(this.windowSeries, (time) => this.xScale(time));
+    return windowBands(this.windowSeries, (time) => this.xScale(time), this.fullXDomain.max);
   }
 
   get socSeries(): ForecastSeries[] {

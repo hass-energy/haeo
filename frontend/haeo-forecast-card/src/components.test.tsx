@@ -216,6 +216,42 @@ describe("ForecastCardView components", () => {
     expect(elementToggles.length).toBeGreaterThanOrEqual(0);
   });
 
+  it("keeps a buffer's level out of its battery's charge toggle", () => {
+    const toggles: string[] = [];
+    const series = normalizeSeries(testFixture, testCardConfig);
+    const batterySoc = series.find((item) => item.entityId === "sensor.battery_soc")!;
+    const reserve = {
+      ...batterySoc,
+      key: "sensor.reserve_soc:level",
+      label: "Reserve level",
+      elementType: "buffer" as const,
+      direction: "+" as const,
+    };
+    render(
+      <Legend
+        series={[...series, reserve]}
+        locale="en"
+        highlightedSeries={null}
+        hoveredElement={null}
+        hiddenSeriesKeys={new Set()}
+        visibilityRevision={0}
+        onHighlight={() => undefined}
+        onHighlightGroup={() => undefined}
+        onElementHover={() => undefined}
+        onToggleSeries={(key) => {
+          toggles.push(key);
+        }}
+        onToggleElement={() => undefined}
+      />,
+      root
+    );
+
+    root.querySelector<HTMLButtonElement>('[title="Toggle Battery Min / max / charge %"]')?.click();
+    root.querySelector<HTMLButtonElement>('[title="Reserve level"]')?.click();
+
+    expect(toggles).toEqual([batterySoc.key, reserve.key]);
+  });
+
   it("updates store state from forecast view interactions", () => {
     const store = new ForecastCardStore();
     store.setConfig({ ...testCardConfig });
