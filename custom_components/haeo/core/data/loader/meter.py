@@ -102,7 +102,7 @@ def resolve_meter(
     events: list[CalendarEventData] = []
     meters: list[EntityState] = []
     for state in states:
-        found = load_calendar_events(state)
+        found = load_calendar_events(state, sm.time_zone)
         if found is not None:
             events.extend(found)
         elif state is not None:

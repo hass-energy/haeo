@@ -50,7 +50,7 @@ def test_extract_valid_sensors(hass: HomeAssistant, parser_type: str, sensor_dat
     assert isinstance(attributes, dict)
     state = _create_sensor_state(hass, entity_id, state_value, attributes)
 
-    result = extractors.extract(state)
+    result = extractors.extract(state, time_zone=UTC)
 
     assert result is not None, f"Expected data for {parser_type}"
     assert isinstance(result.data, list), "Valid forecasts should return a list of time series entries"
@@ -82,7 +82,7 @@ def test_invalid_sensor_handling(hass: HomeAssistant, parser_type: str, sensor_d
     state = _create_sensor_state(hass, entity_id, state_value, attributes)
 
     # Invalid sensors should fall back to simple value extraction
-    result = extractors.extract(state)
+    result = extractors.extract(state, time_zone=UTC)
 
     # Should fall back to reading the state as a float
     assert isinstance(result.data, float)
@@ -118,7 +118,7 @@ def test_extract_unknown_format_fallback(
     """Unknown attributes fall back to simple value extraction."""
     state = _create_sensor_state(hass, "sensor.unknown", state_value, attributes)
 
-    result = extractors.extract(state)
+    result = extractors.extract(state, time_zone=UTC)
 
     assert isinstance(result.data, float)
     assert result.data == expected_value
@@ -137,7 +137,7 @@ def test_extract_raises_for_non_numeric_state(hass: HomeAssistant) -> None:
     )
 
     with pytest.raises(ValueError, match="could not convert string to float"):
-        extractors.extract(state)
+        extractors.extract(state, time_zone=UTC)
 
 
 def test_aemo_block_prices_fuse_to_steps(hass: HomeAssistant) -> None:
@@ -155,7 +155,7 @@ def test_aemo_block_prices_fuse_to_steps(hass: HomeAssistant) -> None:
         {"forecast": [{"start_time": start, "end_time": end, "price": price} for start, end, price in blocks]},
     )
 
-    result = extractors.extract(state)
+    result = extractors.extract(state, time_zone=UTC)
     assert isinstance(result.data, list)
     start = 1759662000
     horizon_times = [start + 1800 * period for period in range(5)]
@@ -179,7 +179,7 @@ def test_solcast_period_means_of_a_ramp_fuse_back_to_the_same_means(hass: HomeAs
         },
     )
 
-    result = extractors.extract(state)
+    result = extractors.extract(state, time_zone=UTC)
     assert isinstance(result.data, list)
     horizon_times = [start + 1800 * period for period in range(len(means) + 1)]
 
@@ -205,7 +205,7 @@ def test_haeo_interval_forecast_fuses_to_its_period_values(hass: HomeAssistant) 
         },
     )
 
-    result = extractors.extract(state)
+    result = extractors.extract(state, time_zone=UTC)
     assert isinstance(result.data, list)
     horizon_times = [start + 1800 * period for period in range(len(values) + 1)]
 
@@ -242,7 +242,7 @@ class TestInterpolationModeExtraction:
             attributes,
         )
 
-        result = extractors.extract(state)
+        result = extractors.extract(state, time_zone=UTC)
         assert isinstance(result.data, list)
         assert len(result.data) == 2
 
@@ -262,7 +262,7 @@ class TestInterpolationModeExtraction:
             },
         )
 
-        result = extractors.extract(state)
+        result = extractors.extract(state, time_zone=UTC)
         assert result.data == [
             (1704067200.0, 100.0),
             (np.nextafter(1704070800.0, -np.inf), 100.0),
@@ -286,7 +286,7 @@ class TestInterpolationModeExtraction:
             },
         )
 
-        result = extractors.extract(state)
+        result = extractors.extract(state, time_zone=UTC)
         assert isinstance(result.data, list)
         # Next mode: 2 original + 1 synthetic = 3 points
         assert len(result.data) == 3
@@ -313,7 +313,7 @@ class TestInterpolationModeExtraction:
             },
         )
 
-        result = extractors.extract(state)
+        result = extractors.extract(state, time_zone=UTC)
         assert isinstance(result.data, list)
         # Nearest mode: 2 original + 2 synthetic = 4 points
         assert len(result.data) == 4
@@ -334,7 +334,7 @@ class TestInterpolationModeExtraction:
             },
         )
 
-        result = extractors.extract(state)
+        result = extractors.extract(state, time_zone=UTC)
         assert isinstance(result.data, list)
         # Falls back to linear: only 2 points
         assert len(result.data) == 2
@@ -351,7 +351,7 @@ class TestInterpolationModeExtraction:
             },
         )
 
-        result = extractors.extract(state)
+        result = extractors.extract(state, time_zone=UTC)
         # Simple value extraction, not affected by interpolation_mode
         assert isinstance(result.data, float)
         assert result.data == 42.0

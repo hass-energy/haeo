@@ -1,7 +1,7 @@
 """Amber Electric energy pricing forecast parser."""
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
@@ -66,13 +66,15 @@ class Parser:
         )
 
     @staticmethod
-    def _round_to_minute(timestamp: str | datetime) -> int:
+    def _round_to_minute(timestamp: str | datetime, time_zone: tzinfo) -> int:
         """Round timestamp to nearest minute (Amber provides times 1 second into each period)."""
-        raw = parse_datetime_to_timestamp(timestamp)
+        raw = parse_datetime_to_timestamp(timestamp, time_zone)
         return int(round(raw / 60.0) * 60.0)
 
     @staticmethod
-    def extract(state: AmberElectricState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
+    def extract(
+        state: AmberElectricState, time_zone: tzinfo
+    ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Amber Electric pricing format.
 
         Each price holds for its whole window, so the windows become a step function.
@@ -80,7 +82,11 @@ class Parser:
         Returns timestamps in seconds as integers.
         """
         parsed = step_points(
-            (Parser._round_to_minute(item["start_time"]), Parser._round_to_minute(item["end_time"]), item["per_kwh"])
+            (
+                Parser._round_to_minute(item["start_time"], time_zone),
+                Parser._round_to_minute(item["end_time"], time_zone),
+                item["per_kwh"],
+            )
             for item in state.attributes["forecasts"]
         )
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

@@ -5,6 +5,7 @@ from collections.abc import Callable, Mapping
 from datetime import UTC, date, datetime
 import logging
 from unittest.mock import Mock
+from zoneinfo import ZoneInfo
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
@@ -186,6 +187,13 @@ def test_state_machine_reads_a_calendar_without_events_as_missing() -> None:
     sm = CalendarStateMachine(base, {ENTITY_ID: None})
 
     assert sm.get(ENTITY_ID) is None
+
+
+def test_state_machine_reads_in_the_base_time_zone() -> None:
+    """The decorated state machine reads naive times in its base's time zone."""
+    adelaide = ZoneInfo("Australia/Adelaide")
+
+    assert CalendarStateMachine(FakeStateMachine({}, time_zone=adelaide), {}).time_zone is adelaide
 
 
 # --- CalendarInputLoader ---
@@ -581,6 +589,48 @@ async def test_loader_reads_all_day_events_from_local_midnight(hass: HomeAssista
     timestamps = (start.timestamp() - 3600.0, start.timestamp(), start.timestamp() + 3600.0)
     horizon_manager.get_forecast_timestamps.return_value = timestamps
     await _add_stub_calendar(hass, [CalendarEvent(start=date(2026, 1, 1), end=date(2026, 1, 2), summary="Away")])
+    store = _calendar_store(get_forecast_timestamps=lambda: timestamps)
+    loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_away")): store}, horizon_manager)
+
+    loader.start()
+    await hass.async_block_till_done()
+
+    np.testing.assert_allclose(_presence(store), [0.0, 1.0])
+    loader.cleanup()
+
+
+class _FloatingCalendar(_StubCalendar):
+    """Calendar double storing floating times, read in the query's timezone as local_calendar does."""
+
+    def __init__(self, floating: list[tuple[datetime, datetime]]) -> None:
+        super().__init__([])
+        self._floating = floating
+
+    async def async_get_events(
+        self,
+        hass: HomeAssistant,  # noqa: ARG002 (signature fixed by CalendarEntity)
+        start_date: datetime,
+        end_date: datetime,
+    ) -> list[CalendarEvent]:
+        """Match floating times against the range in its own timezone, returning them as local times."""
+        query_tz = start_date.tzinfo
+        local_tz = dt_util.get_default_time_zone()
+        return [
+            CalendarEvent(start=start.replace(tzinfo=local_tz), end=end.replace(tzinfo=local_tz), summary="Trip")
+            for start, end in self._floating
+            if end.replace(tzinfo=query_tz) > start_date and start.replace(tzinfo=query_tz) < end_date
+        ]
+
+
+async def test_loader_fetches_floating_events_in_local_time(hass: HomeAssistant, horizon_manager: Mock) -> None:
+    """A floating event, as create_event and imported calendars store them, is matched to the horizon in local time."""
+    await hass.config.async_set_time_zone("Australia/Sydney")
+    local_tz = dt_util.get_default_time_zone()
+    timestamps = tuple(datetime(2026, 10, 25, hour, tzinfo=local_tz).timestamp() for hour in (0, 6, 12))
+    horizon_manager.get_forecast_timestamps.return_value = timestamps
+    floating = (datetime(2026, 10, 25, 9), datetime(2026, 10, 25, 19, 30))  # noqa: DTZ001 (floating times have no zone)
+    calendar = _FloatingCalendar([floating])
+    await _add_stub_calendars(hass, calendar)
     store = _calendar_store(get_forecast_timestamps=lambda: timestamps)
     loader = CalendarInputLoader(hass, "entry_id", {("EV", ("trip", "trip_away")): store}, horizon_manager)
 

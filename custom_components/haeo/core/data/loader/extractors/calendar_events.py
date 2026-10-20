@@ -15,7 +15,7 @@ mistyped event does not stop the rest of the calendar from loading.
 """
 
 from collections.abc import Sequence
-from datetime import timedelta
+from datetime import timedelta, tzinfo
 from typing import Final, Literal, TypeGuard
 
 from custom_components.haeo.core.data.loader.calendar import (
@@ -47,7 +47,7 @@ class Parser:
 
     @staticmethod
     def extract(
-        state: EntityState, output_type: OutputType | None = None
+        state: EntityState, time_zone: tzinfo, output_type: OutputType | None = None
     ) -> tuple[Sequence[tuple[float, float]] | float, str | None, DeviceClass | None]:
         """Return the events' values as step-function points, or no points when there are none.
 
@@ -63,7 +63,7 @@ class Parser:
         if output_type is None:
             return [], None, None
         changes: dict[float, float] = {}
-        for window in event_windows(load_calendar_events(state) or [], output_type):
+        for window in event_windows(load_calendar_events(state, time_zone) or [], output_type):
             if window.value:
                 start, end = window.start.timestamp(), window.end.timestamp()
                 changes[start] = changes.get(start, 0.0) + window.value

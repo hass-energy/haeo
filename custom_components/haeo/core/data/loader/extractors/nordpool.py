@@ -9,6 +9,7 @@ See: https://github.com/custom-components/nordpool
 """
 
 from collections.abc import Mapping, Sequence
+from datetime import tzinfo
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
@@ -97,21 +98,27 @@ class Parser:
         return f"{state.attributes['currency']}/kWh"
 
     @staticmethod
-    def _blocks(entries: Sequence[NordpoolForecastEntry]) -> list[tuple[int, int, float]]:
+    def _blocks(entries: Sequence[NordpoolForecastEntry], time_zone: tzinfo) -> list[tuple[int, int, float]]:
         """Parse a list of Nordpool forecast entries into (start, end, value) blocks."""
         return [
-            (parse_datetime_to_timestamp(item["start"]), parse_datetime_to_timestamp(item["end"]), item["value"])
+            (
+                parse_datetime_to_timestamp(item["start"], time_zone),
+                parse_datetime_to_timestamp(item["end"], time_zone),
+                item["value"],
+            )
             for item in entries
         ]
 
     @staticmethod
-    def extract(state: NordpoolState) -> tuple[Sequence[tuple[int, float]], str, DeviceClass]:
+    def extract(state: NordpoolState, time_zone: tzinfo) -> tuple[Sequence[tuple[int, float]], str, DeviceClass]:
         """Extract forecast data from Nordpool format.
 
         Combines ``raw_today`` and ``raw_tomorrow`` (when available) into a
         single time series with step-function boundaries.
         """
-        parsed = step_points(Parser._blocks([*state.attributes["raw_today"], *state.attributes["raw_tomorrow"]]))
+        parsed = step_points(
+            Parser._blocks([*state.attributes["raw_today"], *state.attributes["raw_tomorrow"]], time_zone)
+        )
 
         unit = Parser._unit(state)
         return parsed, unit, Parser.DEVICE_CLASS

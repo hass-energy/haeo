@@ -8,6 +8,7 @@ EMHASS (Energy Management for Home Assistant) provides forecasts with a unique f
 """
 
 from collections.abc import Mapping, Sequence
+from datetime import tzinfo
 from typing import Literal, Protocol, TypeGuard
 
 from custom_components.haeo.core.state import EntityState
@@ -124,6 +125,7 @@ class Parser:
     @staticmethod
     def extract(
         state: EmhassState,
+        time_zone: tzinfo,
     ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement | str | None, DeviceClass | None]:
         """Extract forecast data from EMHASS format.
 
@@ -144,7 +146,7 @@ class Parser:
         # detect() validated all items have date and entity_name keys
         parsed: list[tuple[int, float]] = [
             (
-                parse_datetime_to_timestamp(item["date"]),
+                parse_datetime_to_timestamp(item["date"], time_zone),
                 _parse_numeric(item[entity_name]),
             )
             for item in forecast

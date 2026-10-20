@@ -1,7 +1,7 @@
 """Solcast solar forecast parser."""
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
@@ -69,7 +69,9 @@ class Parser:
         )
 
     @staticmethod
-    def extract(state: SolcastSolarState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
+    def extract(
+        state: SolcastSolarState, time_zone: tzinfo
+    ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Solcast solar forecast format.
 
         Each pv_estimate is the mean power over the 30 minutes from its
@@ -77,7 +79,11 @@ class Parser:
         interpolated points at the middle of each period.
         """
         parsed = period_means(
-            (start := parse_datetime_to_timestamp(item["period_start"]), start + PERIOD_SECONDS, item["pv_estimate"])
+            (
+                start := parse_datetime_to_timestamp(item["period_start"], time_zone),
+                start + PERIOD_SECONDS,
+                item["pv_estimate"],
+            )
             for item in state.attributes["detailedForecast"]
         )
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

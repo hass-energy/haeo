@@ -9,6 +9,7 @@ them. Captured states keep the words, so diagnostics replay the same reading.
 """
 
 from collections.abc import Mapping, Sequence
+from datetime import tzinfo
 from typing import Final
 
 from custom_components.haeo.core.schema import EntityValue
@@ -84,6 +85,11 @@ class OnOffStateMachine:
         self._entity_ids = frozenset(value["value"])
         self._on_states = tuple(value.get("on_states", ()))
         self._off_states = tuple(value.get("off_states", ()))
+
+    @property
+    def time_zone(self) -> tzinfo:
+        """Return the base state machine's time zone."""
+        return self._base.time_zone
 
     def get(self, entity_id: str) -> EntityState | None:
         """Return the entity state, read as on or off when it is one of the input's entities."""

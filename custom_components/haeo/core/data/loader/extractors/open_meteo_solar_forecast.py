@@ -1,7 +1,7 @@
 """Open-Meteo solar forecast parser."""
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
@@ -55,7 +55,9 @@ class Parser:
         return all(is_parsable_to_datetime(k) and isinstance(v, (int, float)) for k, v in watts.items())
 
     @staticmethod
-    def extract(state: OpenMeteoSolarState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
+    def extract(
+        state: OpenMeteoSolarState, time_zone: tzinfo
+    ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Open-Meteo solar forecast format.
 
         Each watts value is the instantaneous power 15 minutes after its
@@ -63,7 +65,7 @@ class Parser:
         between instants.
         """
         parsed = sorted(
-            (parse_datetime_to_timestamp(time) + WATTS_OFFSET_SECONDS, value)
+            (parse_datetime_to_timestamp(time, time_zone) + WATTS_OFFSET_SECONDS, value)
             for time, value in state.attributes["watts"].items()
         )
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

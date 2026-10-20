@@ -1,7 +1,7 @@
 """Volcast solar forecast parser."""
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
 from itertools import pairwise
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
@@ -70,7 +70,9 @@ class Parser:
         )
 
     @staticmethod
-    def extract(state: VolcastState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
+    def extract(
+        state: VolcastState, time_zone: tzinfo
+    ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Volcast format.
 
         Each power_w is the mean power over the 5 minutes from its period_start.
@@ -80,7 +82,11 @@ class Parser:
         making the power zero across the gaps and through the night.
         """
         blocks = sorted(
-            (start := parse_datetime_to_timestamp(item["period_start"]), start + PERIOD_SECONDS, item["power_w"])
+            (
+                start := parse_datetime_to_timestamp(item["period_start"], time_zone),
+                start + PERIOD_SECONDS,
+                item["power_w"],
+            )
             for item in state.attributes["detailedForecast"]
         )
         # Zero periods just before the forecast, just after it, and at both ends of each gap

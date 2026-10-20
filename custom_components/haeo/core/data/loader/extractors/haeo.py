@@ -5,7 +5,7 @@ attribute containing a mapping of datetime keys to float values.
 """
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
 from enum import StrEnum
 from itertools import pairwise
 import logging
@@ -108,6 +108,7 @@ class Parser:
     @staticmethod
     def extract(
         state: HaeoForecastState,
+        time_zone: tzinfo,
     ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement | str, DeviceClass | None]:
         """Extract forecast data from HAEO forecast format.
 
@@ -121,7 +122,7 @@ class Parser:
         forecast = state.attributes["forecast"]
 
         # Parse list of {"time": ..., "value": ...} dicts
-        parsed = [(parse_datetime_to_timestamp(item["time"]), float(item["value"])) for item in forecast]
+        parsed = [(parse_datetime_to_timestamp(item["time"], time_zone), float(item["value"])) for item in forecast]
         parsed.sort(key=lambda x: x[0])
 
         parsed = _apply_interpolation_mode(parsed, _interpolation_mode(state.attributes.get("interpolation_mode")))

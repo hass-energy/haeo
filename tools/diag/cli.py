@@ -16,7 +16,7 @@ import argparse
 from collections.abc import Mapping, Sequence
 import contextlib
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
 import json
 from pathlib import Path
 import sys
@@ -149,8 +149,9 @@ class DiagnosticsData:
 class DiagnosticsStateProvider:
     """StateMachine implementation backed by diagnostics input data."""
 
-    def __init__(self, inputs: list[dict[str, JsonValueType]]) -> None:
-        """Initialize with inputs list from diagnostics."""
+    def __init__(self, inputs: list[dict[str, JsonValueType]], time_zone: tzinfo) -> None:
+        """Initialize with inputs list from diagnostics and the time zone it was captured in."""
+        self.time_zone = time_zone
         self._states: dict[str, DiagEntityState] = {}
         for entity_state in inputs:
             entity_id = entity_state.get("entity_id")
@@ -345,6 +346,7 @@ def _find_element_name(participants: dict[str, JsonValueType], element_type: str
 def infer_interval_starts_from_outputs(
     outputs: dict[str, JsonValueType],
     config: dict[str, JsonValueType],
+    time_zone: tzinfo,
 ) -> list[float]:
     """Infer interval start timestamps from diagnostics outputs."""
     participants_raw = config.get("participants", {})
@@ -366,7 +368,7 @@ def infer_interval_starts_from_outputs(
     for series in candidates:
         if len(series) < MIN_INTERVAL_POINTS:
             continue
-        timestamps = sorted(parse_datetime_to_timestamp(time_str) for time_str in series)
+        timestamps = sorted(parse_datetime_to_timestamp(time_str, time_zone) for time_str in series)
         if len(timestamps) >= MIN_INTERVAL_POINTS:
             return [float(timestamp) for timestamp in timestamps]
     return []
@@ -1006,9 +1008,10 @@ def run_diagnostics(
     optimization_start_str = optimization_start_raw if isinstance(optimization_start_raw, str) else ""
     timezone_raw = environment.get("timezone", "UTC")
     timezone_str = timezone_raw if isinstance(timezone_raw, str) else "UTC"
+    time_zone = ZoneInfo(timezone_str)
 
     start_time = (
-        parse_datetime_to_timestamp(optimization_start_str)
+        parse_datetime_to_timestamp(optimization_start_str, time_zone)
         if optimization_start_str
         else datetime.now(tz=UTC).timestamp()
     )
@@ -1073,7 +1076,7 @@ def run_diagnostics(
         print(f"Optimization periods: {len(periods_seconds)} intervals (from diagnostics)")
         print(f"Forecast horizon: {len(forecast_times)} boundaries (from diagnostics)")
     elif compare and diag.outputs:
-        interval_starts = infer_interval_starts_from_outputs(diag.outputs, config)
+        interval_starts = infer_interval_starts_from_outputs(diag.outputs, config, time_zone)
         if len(interval_starts) >= MIN_INTERVAL_POINTS:
             periods_seconds = [
                 round(interval_starts[i + 1] - interval_starts[i]) for i in range(len(interval_starts) - 1)
@@ -1105,7 +1108,7 @@ def run_diagnostics(
         element_config_obj: dict[str, object] = dict(element_config) if isinstance(element_config, dict) else {}
         normalized_participants[element_name] = normalize_participant_config_for_diag(element_config_obj)
 
-    state_provider = DiagnosticsStateProvider(diag.inputs)
+    state_provider = DiagnosticsStateProvider(diag.inputs, time_zone)
     normalized_participants = migrate_batteries_for_diag(normalized_participants)
 
     participants: dict[str, ElementConfigSchema] = {}

@@ -7,7 +7,7 @@ data via MQTT. Key differences from the official Amber Electric integration:
 """
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
@@ -76,13 +76,15 @@ class Parser:
         )
 
     @staticmethod
-    def _round_to_minute(timestamp: str | datetime) -> int:
+    def _round_to_minute(timestamp: str | datetime, time_zone: tzinfo) -> int:
         """Round timestamp to nearest minute (Amber provides times 1 second into each period)."""
-        raw = parse_datetime_to_timestamp(timestamp)
+        raw = parse_datetime_to_timestamp(timestamp, time_zone)
         return int(round(raw / 60.0) * 60.0)
 
     @staticmethod
-    def extract(state: Amber2MqttState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
+    def extract(
+        state: Amber2MqttState, time_zone: tzinfo
+    ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Amber2MQTT pricing format.
 
         Each price holds for its whole window, so the windows become a step function.
@@ -94,8 +96,8 @@ class Parser:
         sign = -1 if state.attributes.get("channel_type") == "feedin" else 1
         parsed = step_points(
             (
-                Parser._round_to_minute(item["start_time"]),
-                Parser._round_to_minute(item["end_time"]),
+                Parser._round_to_minute(item["start_time"], time_zone),
+                Parser._round_to_minute(item["end_time"], time_zone),
                 sign * item["advanced_price_predicted"],
             )
             for item in state.attributes["Forecasts"]

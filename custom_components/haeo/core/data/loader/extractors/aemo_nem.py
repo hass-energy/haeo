@@ -1,7 +1,7 @@
 """AEMO energy market forecast parser."""
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
 import logging
 from typing import Literal, NotRequired, Protocol, TypedDict, TypeGuard
 
@@ -68,7 +68,9 @@ class Parser:
         )
 
     @staticmethod
-    def extract(state: AemoNemState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
+    def extract(
+        state: AemoNemState, time_zone: tzinfo
+    ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from AEMO energy market format.
 
         Each price holds for its whole block, so the blocks become a step
@@ -76,14 +78,21 @@ class Parser:
         starts, and the last block lasts one pre-dispatch interval.
         """
         blocks = sorted(
-            ((parse_datetime_to_timestamp(item["start_time"]), item) for item in state.attributes["forecast"]),
+            (
+                (parse_datetime_to_timestamp(item["start_time"], time_zone), item)
+                for item in state.attributes["forecast"]
+            ),
             key=lambda block: block[0],
         )
         starts = [start for start, _ in blocks]
         next_starts = [*starts[1:], starts[-1] + BLOCK_SECONDS]
 
         parsed = step_points(
-            (start, parse_datetime_to_timestamp(item["end_time"]) if "end_time" in item else next_start, item["price"])
+            (
+                start,
+                parse_datetime_to_timestamp(item["end_time"], time_zone) if "end_time" in item else next_start,
+                item["price"],
+            )
             for (start, item), next_start in zip(blocks, next_starts, strict=True)
         )
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS

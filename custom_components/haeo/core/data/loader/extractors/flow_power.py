@@ -5,6 +5,7 @@ Adjustment (PEA) and Happy Hour export pricing. See: https://github.com/bolagnai
 """
 
 from collections.abc import Mapping, Sequence
+from datetime import tzinfo
 import logging
 from typing import Literal, Protocol, TypedDict, TypeGuard
 
@@ -62,7 +63,9 @@ class Parser:
         )
 
     @staticmethod
-    def extract(state: FlowPowerState) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
+    def extract(
+        state: FlowPowerState, time_zone: tzinfo
+    ) -> tuple[Sequence[tuple[int, float]], UnitOfMeasurement, DeviceClass]:
         """Extract forecast data from Flow Power format.
 
         Flow Power provides prices at the start of each period. Each price holds
@@ -72,6 +75,6 @@ class Parser:
         Returns timestamps in seconds as integers.
         """
         forecast_dict = state.attributes["forecast_dict"]
-        prices = [(parse_datetime_to_timestamp(ts), float(price)) for ts, price in forecast_dict.items()]
+        prices = [(parse_datetime_to_timestamp(ts, time_zone), float(price)) for ts, price in forecast_dict.items()]
         parsed = step_points(hold_until_next(prices))
         return parsed, Parser.UNIT, Parser.DEVICE_CLASS
