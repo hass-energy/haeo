@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
-import json
 import logging
 from typing import TYPE_CHECKING
 from xml.sax.saxutils import quoteattr
@@ -166,12 +165,6 @@ def _hass_payload(hass: LiveHomeAssistant, entity_filter: Callable[[str, dict[st
     return json_dumps(hass.run_coro(_collect()))
 
 
-def _is_dark(page: HAPage) -> bool:
-    """Return whether the guide is capturing the dark theme."""
-    selected = page.page.evaluate("() => localStorage.getItem('selectedTheme')")
-    return isinstance(selected, str) and bool(json.loads(selected).get("dark"))
-
-
 def _card_css(dark: bool) -> str:
     """Return the styles of the card's frame, shared by the preview page and the saved figure."""
     theme = _THEME_VARIABLES[dark]
@@ -288,7 +281,7 @@ def _card_page(
         color_scheme="dark" if dark else "light",
         reduced_motion="reduce",
     )
-    hass.configure_context(context, dark_mode=dark)
+    hass.configure_context(context)
     preview: Page = context.new_page()
     try:
         preview.route(f"{page.url}{_PREVIEW_PATH}", lambda route: route.fulfill(content_type="text/html", body=html))
@@ -347,11 +340,15 @@ def _render_card(
     """Optimize, render a card from the entities that pass the filter, and save it as a figure of the current step."""
     optimize(hass)
     hass_json = _hass_payload(hass, entity_filter)
-    dark = _is_dark(page)
-    with _card_page(
-        page, hass, tag=tag, config=config, hass_json=hass_json, fill_height=fill_height, dark=dark, hidden=hidden
-    ) as preview:
-        ctx.save_figure(step, _card_svg(preview, dark=dark))
+
+    def render(theme: str) -> str:
+        dark = theme == "dark"
+        with _card_page(
+            page, hass, tag=tag, config=config, hass_json=hass_json, fill_height=fill_height, dark=dark, hidden=hidden
+        ) as preview:
+            return _card_svg(preview, dark=dark)
+
+    ctx.save_figure(step, render)
 
 
 @guide_step

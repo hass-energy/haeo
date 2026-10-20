@@ -270,6 +270,8 @@ The instance loads `scenario1`'s input states, and the clock stands still at tha
 Home Assistant's wall clock is frozen while its event loop keeps real time, so timers still fire, and each browser context is pinned to the same instant.
 Every capture therefore shows the same horizon however slowly the run goes.
 
+Each guide runs once, and every capture is saved in both themes: the page is captured in the theme it shows, then switched to the other with Home Assistant's own theme setting and captured again.
+
 Before every screenshot the pointer moves off the page and the capture waits for the page to settle (`tests/guides/primitives/js/wait_settled.js`).
 Settling waits on signals the page gives rather than on time: HTTP and websocket requests being answered, custom elements being defined, Lit updates completing, images on screen loading, icons, ripples and dialogs finishing, and an animation frame passing with no change to the DOM.
 Animations and transitions are finished on the spot.
@@ -296,7 +298,7 @@ The card primitives in `tests/guides/primitives/cards.py` render the integration
 - `set_input(hass, element=..., field=..., value=...)` changes an input entity, as a user would from a dashboard, so the next card shows what the change does.
 - `set_policy_rule(hass, rule=..., enabled=...)` turns a policy rule on or off with its enabled switch.
 
-The cards load from the bundles the integration serves, on a page of their own in Home Assistant's default theme for the mode being captured.
+The cards load from the bundles the integration serves, on a page of their own in Home Assistant's default theme, once for each theme.
 Each figure carries the card's own markup and styles inside the SVG, so it stays sharp at any size, legend included.
 Rebuild the bundles with `npm run build` in `frontend/haeo-forecast-card` after changing the cards, so guides show the current version.
 

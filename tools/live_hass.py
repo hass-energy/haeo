@@ -327,14 +327,13 @@ class LiveHomeAssistant:
         future = asyncio.run_coroutine_threadsafe(async_wait_recording_done(self.hass), self.loop)
         future.result(timeout=timeout)
 
-    def configure_context(self, context: BrowserContext, *, dark_mode: bool = False) -> None:
+    def configure_context(self, context: BrowserContext) -> None:
         """Apply browser preferences for a Playwright context.
 
         Authentication is automatic from loopback via the trusted_networks
         provider. The browser clock is pinned to Home Assistant's frozen now,
-        so the frontend agrees with the backend about the time, HTTP requests
-        are tracked so captures can wait for them, and the dark mode theme is
-        seeded when requested.
+        so the frontend agrees with the backend about the time, and HTTP
+        requests are tracked so captures can wait for them.
         """
         context.clock.set_fixed_time(dt_util.utcnow())
         in_flight: set[Request] = set()
@@ -342,13 +341,6 @@ class LiveHomeAssistant:
         context.on("requestfinished", lambda request: in_flight.discard(request))
         context.on("requestfailed", lambda request: in_flight.discard(request))
         _IN_FLIGHT[context] = in_flight
-        if not dark_mode:
-            return
-
-        theme_data = {"theme": "default", "dark": True}
-        context.add_init_script(
-            f"localStorage.setItem('selectedTheme', JSON.stringify({json.dumps(theme_data)}));",
-        )
 
     def call_service(
         self,

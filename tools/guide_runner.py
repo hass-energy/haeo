@@ -55,6 +55,7 @@ from tests.guides.primitives import (
     validate_policies,
     verify_setup,
 )
+from tests.guides.primitives.capture import THEMES
 from tools.guide_hashing import compute_content_hash, compute_page_hash, extract_sources
 from tools.live_hass import LiveHomeAssistant, live_home_assistant
 
@@ -318,25 +319,20 @@ def output_dir_for_guide(guide_md: Path) -> Path:
     return guide_md.parent / guide_md.stem
 
 
-def run_blocks_for_mode(
+def run_blocks(
     hass: LiveHomeAssistant,
     blocks: list[GuideBlock],
     output_dir: Path,
-    mode: str,
     prerequisites: PrerequisiteCache,
     *,
     headless: bool = True,
 ) -> list[list[str]]:
-    """Execute all guide blocks in sequence for a single theme mode.
+    """Execute all guide blocks in sequence, capturing every step in each theme.
 
-    Returns a list of screenshot filename lists, one per block.
+    Returns a list of screenshot filename lists, one per capturing block.
     """
-    dark_mode = mode == "dark"
-    mode_dir = output_dir / mode
-
-    if mode_dir.exists():
-        shutil.rmtree(mode_dir)
-    mode_dir.mkdir(parents=True)
+    for theme in THEMES:
+        shutil.rmtree(output_dir / theme, ignore_errors=True)
 
     with (
         sync_playwright() as playwright,
@@ -346,7 +342,7 @@ def run_blocks_for_mode(
             reduced_motion="reduce",
         ) as context,
     ):
-        hass.configure_context(context, dark_mode=dark_mode)
+        hass.configure_context(context)
         with context.new_page() as page_obj:
             page_obj.set_default_timeout(5000)
             try:
@@ -355,7 +351,7 @@ def run_blocks_for_mode(
 
                 # All blocks share one screenshot context (continuous numbering)
                 # but we track per-block boundaries
-                with screenshot_context(mode_dir) as ctx:
+                with screenshot_context(output_dir) as ctx:
                     per_block: list[list[str]] = []
 
                     for block in blocks:
@@ -372,15 +368,13 @@ def run_blocks_for_mode(
                         exec(compile(block.source, f"<guide block {block.index}>", "exec"), namespace)  # noqa: S102 (guide runner must execute user-authored code blocks)
 
                         # Collect screenshots produced by this block
-                        all_names = list(ctx.screenshots.keys())
-                        block_names = all_names[before_count:]
-                        per_block.append(block_names)
+                        per_block.append(ctx.screenshots[before_count:])
 
                     return per_block
 
             except Exception:
                 _LOGGER.exception("Error running guide block")
-                error_path = mode_dir / "error_state.png"
+                error_path = output_dir / "error_state.png"
                 page_obj.screenshot(path=str(error_path))
                 raise
 
@@ -393,7 +387,7 @@ def run_guide_from_markdown(
 ) -> GuideManifest:
     """Extract guide blocks from a markdown file and execute them.
 
-    Runs all blocks in both light and dark modes, capturing screenshots.
+    Runs all blocks once, capturing screenshots in both light and dark themes.
     Uses content-hash caching: skips execution if the manifest is up to date.
 
     Args:
@@ -433,19 +427,7 @@ def run_guide_from_markdown(
         prerequisites = PrerequisiteCache(Path(prerequisite_dir))
 
         with live_home_assistant(timeout=120, environment=scenario_environment, states=INPUTS_FILE) as hass:
-            _LOGGER.info("Capturing light mode screenshots...")
-            light_results = run_blocks_for_mode(hass, blocks, output_dir, "light", prerequisites, headless=headless)
-
-        # Need a fresh HA instance for dark mode (different auth/theme state)
-        with live_home_assistant(timeout=120, environment=scenario_environment, states=INPUTS_FILE) as hass:
-            _LOGGER.info("Capturing dark mode screenshots...")
-            dark_results = run_blocks_for_mode(hass, blocks, output_dir, "dark", prerequisites, headless=headless)
-
-    # Validate screenshot parity between modes
-    for i, (light_names, dark_names) in enumerate(zip(light_results, dark_results, strict=True)):
-        if light_names != dark_names:
-            msg = f"Block {i} screenshot mismatch between light and dark modes: light={light_names}, dark={dark_names}"
-            raise RuntimeError(msg)
+            results = run_blocks(hass, blocks, output_dir, prerequisites, headless=headless)
 
     # Build manifest from capturing blocks only (setup blocks are excluded)
     capturing_blocks = [b for b in blocks if b.captures]
@@ -453,7 +435,7 @@ def run_guide_from_markdown(
         BlockResult(
             index=block.index,
             content_hash=block.content_hash,
-            screenshots=light_results[i],
+            screenshots=results[i],
         )
         for i, block in enumerate(capturing_blocks)
     ]
@@ -462,7 +444,7 @@ def run_guide_from_markdown(
     manifest.save(manifest_path)
 
     total_screenshots = sum(len(b.screenshots) for b in block_results)
-    _LOGGER.info("Guide complete: %d blocks, %d screenshots per mode", len(blocks), total_screenshots)
+    _LOGGER.info("Guide complete: %d blocks, %d screenshots per theme", len(blocks), total_screenshots)
 
     return manifest
 
