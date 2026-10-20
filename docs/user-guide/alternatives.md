@@ -9,20 +9,20 @@ It reflects EMHASS v0.18.6 (October 2026).
 
 ## At a glance
 
-| What you care about          | HAEO                                                  | EMHASS                                                         |
-| ---------------------------- | ----------------------------------------------------- | -------------------------------------------------------------- |
-| **Installing**               | HACS integration, any Home Assistant install          | Add-on (HA OS/Supervised), or Docker/standalone                |
-| **Setting up**               | Home Assistant UI, one element at a time              | EMHASS web UI and configuration file                           |
-| **Re-planning**              | Automatic, whenever an input changes                  | When your automation calls it                                  |
-| **Using the plan**           | Sensors with the plan in a `forecast` attribute       | Sensors published by EMHASS, plus a REST API                   |
-| **Batteries, solar, grids**  | Any number, wired however your system is wired        | Several batteries and arrays in a fixed layout with one grid   |
-| **Flexible appliances**      | Energy by a deadline, scheduled from a calendar       | On/off scheduling, run times, minimum run time, fixed programs |
-| **Electric vehicles**        | EV element with trips from a calendar and V2G         | As a flexible appliance or extra battery, plus recipes         |
-| **Heat pumps and hot water** | Not yet                                               | Tanks, heating zones, and heat pump efficiency                 |
-| **Backup reserve**           | Sized from the loads you want to keep and outage time | Fixed low-charge threshold with a cost                         |
-| **Demand charges**           | Not yet                                               | Yes                                                            |
-| **Source-dependent prices**  | Yes, with power policies                              | On/off switches such as "no battery export"                    |
-| **Forecasts**                | From other integrations, or a calendar                | Built-in solar and machine-learning load forecasts             |
+| What you care about          | HAEO                                                                 | EMHASS                                                                     |
+| ---------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **Installing**               | HACS integration, any Home Assistant install                         | Add-on (HA OS/Supervised), or Docker/standalone                            |
+| **Setting up**               | Home Assistant UI, one element at a time                             | EMHASS web UI and configuration file                                       |
+| **Re-planning**              | Automatic, whenever an input changes                                 | When your automation calls it                                              |
+| **Using the plan**           | Sensors with the plan in a `forecast` attribute                      | Sensors published by EMHASS, plus a REST API                               |
+| **Batteries, solar, grids**  | Any number, wired however your system is wired                       | Several batteries and arrays in a fixed layout with one grid               |
+| **Flexible appliances**      | Energy by a deadline, from a calendar; not yet start-once appliances | Energy by a deadline, on/off at full power, start-once, and fixed programs |
+| **Electric vehicles**        | EV element with trips from a calendar and V2G                        | As a flexible appliance or extra battery, plus recipes                     |
+| **Heat pumps and hot water** | Not yet                                                              | Tanks, heating zones, and heat pump efficiency                             |
+| **Backup reserve**           | Sized from the loads you want to keep and outage time                | Fixed low-charge threshold with a cost                                     |
+| **Demand charges**           | Not yet                                                              | Yes                                                                        |
+| **Source-dependent prices**  | Yes, with power policies                                             | On/off switches such as "no battery export"                                |
+| **Forecasts**                | From other integrations, or a calendar                               | Built-in solar and machine-learning load forecasts                         |
 
 ## How each one fits into your day
 
@@ -74,18 +74,28 @@ In exchange, it can schedule appliances that really are either on at full power 
 
 ### Flexible appliances
 
-HAEO's [deferrable load](elements/deferrable_load.md) is for devices that need a set amount of energy by a deadline and can run at any power up to their limit, such as a pool pump or an EV charger.
+Appliances come in two broad kinds:
+
+- **Energy by a deadline**: the device needs a set amount of energy within a window and can run at any power up to its limit, such as an EV charger.
+- **Start once and run to completion**: the device runs at a set power for a set time once started, such as a dishwasher or washing machine, so the only choice is when to start it.
+
+HAEO handles the first kind with its [deferrable load](elements/deferrable_load.md).
 You put each run window in a Home Assistant calendar, with the energy it needs in the event text, such as `8 kWh`.
 HAEO fits that energy into the cheapest part of each window.
 An optional energy meter lets it plan only what is left when it re-plans partway through a window.
 If the energy cannot fit, HAEO plans for the shortfall at a cost you set instead of failing.
+HAEO does not handle the second kind yet.
 
-EMHASS covers appliances that HAEO does not model yet:
+EMHASS has a single "deferrable load" type, with settings that cover both kinds:
 
-- Loads that are either on at a fixed power or off
-- Minimum on and off times, to stop short cycling
-- Fixed programs, such as a washing machine cycle, where EMHASS only picks the start time
-- Loads that run only when doing so costs less than a limit you set
+- By default a load is either off or on at its full power, for a total number of hours.
+- Turn that off and the load can run at any power, like HAEO's deferrable load.
+- A "single constant" setting makes the load run in one unbroken block, so EMHASS only picks the start time.
+- A power profile, such as a washing machine cycle, runs once with EMHASS picking the start.
+- Minimum on and off times stop short cycling, and a cost limit lets a load run only when it is cheap enough.
+
+The two projects use the same name for different things.
+An EMHASS deferrable load switches between off and full power unless you change it; a HAEO deferrable load can run at any power up to its limit.
 
 In EMHASS, each appliance's window and run hours are configuration values or are passed in on each run, rather than read from a calendar.
 
@@ -181,7 +191,7 @@ It also has tools that check its forecasts against your own history, and it can 
 
 ## What HAEO does not do yet
 
-- **Fixed-power appliances and fixed programs**: A deferrable load can run at any power up to its limit, so appliances that are only on or off, need a minimum run time, or follow a fixed cycle are not modeled.
+- **Start-once appliances**: Appliances that run at a set power for a set time once started, such as a dishwasher, are not modeled yet, nor are fixed cycles or minimum run times.
 - **Heating**: There is no heat pump, tank, or heating zone model.
 - **Demand charges**: Peak import is not priced.
 - **Battery detail**: Charge power does not slow as the battery fills, and efficiency does not change with power.
@@ -201,7 +211,7 @@ Choose **HAEO** if you:
 Choose **EMHASS** if you:
 
 - Have day-ahead prices and want a full-day schedule
-- Need to schedule on/off appliances, minimum run times, or fixed programs
+- Need to schedule appliances that run at full power once started, minimum run times, or fixed programs
 - Have a heat pump or hot water system you want planned
 - Pay demand charges
 - Want forecasting built in
@@ -213,10 +223,10 @@ Choose **EMHASS** if you:
 Yes, and for some homes that is the best split.
 Running both on the same battery is redundant, so give each one the parts it does best:
 
-| What                                                        | Tool       |
-| ----------------------------------------------------------- | ---------- |
-| Heating, fixed-power appliances, machine-learning forecasts | **EMHASS** |
-| Battery, solar, grid, EV, flexible loads, power policies    | **HAEO**   |
+| What                                                       | Tool       |
+| ---------------------------------------------------------- | ---------- |
+| Heating, start-once appliances, machine-learning forecasts | **EMHASS** |
+| Battery, solar, grid, EV, flexible loads, power policies   | **HAEO**   |
 
 After EMHASS publishes its plan, point a HAEO [load](elements/load.md) at the EMHASS sensors, such as `sensor.p_deferrable0`.
 HAEO recognizes the [EMHASS format](forecasts-and-sensors.md#supported-forecast-formats) and plans the rest of your system around that consumption.
