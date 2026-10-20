@@ -15,6 +15,7 @@ from custom_components.haeo.core.adapters.elements.deferrable_load import (
 )
 from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
+from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
 from custom_components.haeo.core.model import Network
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_CONNECTION,
@@ -214,18 +215,18 @@ def _open_window_config(**schedule: object) -> DeferrableLoadConfigData:
 
 
 @pytest.mark.parametrize(
-    ("energy_delivered", "expected_initial", "expected_new"),
+    ("since_window", "expected_initial", "expected_new"),
     [
         pytest.param(None, 0.0, 6.0, id="unconfigured"),
         pytest.param(4.0, 4.0, 2.0, id="under_target"),
         pytest.param(10.0, 10.0, 0.0, id="over_target"),
     ],
 )
-def test_energy_delivered_seeds_the_open_window(
-    energy_delivered: float | None, expected_initial: float, expected_new: float
+def test_energy_since_the_window_opened_seeds_it(
+    since_window: float | None, expected_initial: float, expected_new: float
 ) -> None:
-    """Delivered energy seeds the open window; only the remainder is planned."""
-    schedule = {} if energy_delivered is None else {"energy_delivered": energy_delivered}
+    """Energy the meter counted since the open window started seeds it; only the remainder is planned."""
+    schedule = {} if since_window is None else {"energy_meter_since_window": since_window}
     config = _open_window_config(**schedule)
     network = _solve(config, grid_price=[0.1, 0.1, 0.1, 0.1])
 
@@ -236,9 +237,9 @@ def test_energy_delivered_seeds_the_open_window(
     assert shortfall[3] == pytest.approx(0.0)
 
 
-def test_energy_delivered_never_seeds_a_later_window() -> None:
-    """With no window open at the horizon start the delivered reading is ignored."""
-    config = _config(power={"max_power": 10.0}, schedule={**_config()["schedule"], "energy_delivered": 4.0})
+def test_energy_since_window_never_seeds_a_later_window() -> None:
+    """With no window open at the horizon start the metered energy is ignored."""
+    config = _config(power={"max_power": 10.0}, schedule={**_config()["schedule"], "energy_meter_since_window": 4.0})
     network = _solve(config, grid_price=[0.1, 0.1, 0.1, 0.1])
 
     delivered = network.elements["pump"].outputs()[DEFERRABLE_LOAD_ENERGY_DELIVERED].values
@@ -272,3 +273,39 @@ def test_config_loads_from_a_captured_calendar_state() -> None:
     np.testing.assert_allclose(load["opened"], [0.0, 0.0, 6.0, 0.0, 0.0])
     np.testing.assert_allclose(load["due"], [0.0, 0.0, 0.0, 6.0, 0.0])
     np.testing.assert_allclose(load["deficit_price"], [10.0] * 5)
+
+
+def test_energy_meter_credits_the_open_window_with_its_rise() -> None:
+    """A meter's rise since the open window started, converted to kWh, seeds that window."""
+    event = {
+        "start": "1970-01-01T00:00:00+00:00",
+        "end": "1970-01-01T03:00:00+00:00",
+        "summary": "Pool pump",
+        "location": "6 kWh",
+        "description": None,
+    }
+    meter_attributes = {
+        "unit_of_measurement": "Wh",
+        "device_class": "energy",
+        "state_class": "total_increasing",
+        METER_TOTALS_ATTRIBUTE: [(-300.0, 9000.0), (0.0, 10000.0), (1800.0, 12500.0)],
+    }
+    states = {
+        "calendar.pool_pump": FakeEntityState("calendar.pool_pump", "on", {CALENDAR_EVENTS_ATTRIBUTE: [event]}),
+        "sensor.pool_pump_energy": FakeEntityState("sensor.pool_pump_energy", "500", meter_attributes),
+    }
+    config: DeferrableLoadConfigSchema = {
+        "element_type": ElementType.DEFERRABLE_LOAD,
+        "name": "pump",
+        "connection": as_connection_target("home"),
+        "schedule": {
+            "window_calendar": as_entity_value(["calendar.pool_pump"]),
+            "energy_meter": as_entity_value(["sensor.pool_pump_energy"]),
+        },
+        "pricing": {"deficit_price": as_constant_value(10.0), "overage_price": as_constant_value(0.0)},
+    }
+
+    loaded = load_element_config("pump", config, FakeStateMachine(states), (1800.0, 3600.0, 7200.0, 10800.0))
+    assert loaded["element_type"] == ElementType.DEFERRABLE_LOAD
+
+    assert _load(loaded).get("initial_energy") == pytest.approx(2.5)

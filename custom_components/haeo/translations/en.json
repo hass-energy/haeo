@@ -273,7 +273,7 @@
           "data": {
             "connection": "Connection",
             "deficit_price": "Shortfall price",
-            "energy_delivered": "Energy delivered this window",
+            "energy_meter": "Energy meter",
             "max_power": "Max power",
             "name": "Deferrable Load Name",
             "overage_price": "Overage price",
@@ -290,7 +290,7 @@
               "name": "Pricing"
             },
             "schedule": {
-              "data": { "energy_delivered": "Energy delivered this window", "window_calendar": "Run window calendar" },
+              "data": { "energy_meter": "Energy meter", "window_calendar": "Run window calendar" },
               "name": "Schedule"
             }
           }

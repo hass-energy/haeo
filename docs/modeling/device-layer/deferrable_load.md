@@ -67,13 +67,13 @@ The deferrable load element creates a single Home Assistant device:
 
 ## Parameter mapping
 
-| User configuration | Model element(s)               | Model parameter                              | Notes                      |
-| ------------------ | ------------------------------ | -------------------------------------------- | -------------------------- |
-| `window_calendar`  | Deferrable load `{name}`       | `in_window`, `window_start`, `opened`, `due` | Clamped to the horizon end |
-| `energy_delivered` | Deferrable load `{name}`       | `initial_energy`                             | Seeds the open window only |
-| `deficit_price`    | Deferrable load `{name}`       | `deficit_price`                              | Defaults to \$10/kWh       |
-| `overage_price`    | Deferrable load `{name}`       | `overage_price`                              | Defaults to \$0/kWh        |
-| `max_power`        | Connection `{name}:connection` | Power limit segment                          | Optional                   |
+| User configuration | Model element(s)               | Model parameter                              | Notes                              |
+| ------------------ | ------------------------------ | -------------------------------------------- | ---------------------------------- |
+| `window_calendar`  | Deferrable load `{name}`       | `in_window`, `window_start`, `opened`, `due` | Clamped to the horizon end         |
+| `energy_meter`     | Deferrable load `{name}`       | `initial_energy`                             | Rise since the open window started |
+| `deficit_price`    | Deferrable load `{name}`       | `deficit_price`                              | Defaults to \$10/kWh               |
+| `overage_price`    | Deferrable load `{name}`       | `overage_price`                              | Defaults to \$0/kWh                |
+| `max_power`        | Connection `{name}:connection` | Power limit segment                          | Optional                           |
 
 ## Output mapping
 

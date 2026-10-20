@@ -22,15 +22,15 @@ A deferrable load in HAEO represents:
 
 ## Configuration fields
 
-| Field                                                             | Type   | Required | Default | Description                                   |
-| ----------------------------------------------------------------- | ------ | -------- | ------- | --------------------------------------------- |
-| **[Name](#name)**                                                 | String | Yes      | -       | Unique identifier (e.g., "Pool Pump")         |
-| **[Connection](#connection)**                                     | Select | Yes      | -       | Junction or inverter the load is attached to  |
-| **[Run window calendar](#run-windows)**                           | Entity | Yes      | -       | Calendar entity with run window events        |
-| **[Energy delivered this window](#energy-delivered-this-window)** | Energy | No       | -       | Energy the open window has already received   |
-| **[Shortfall price](#pricing)**                                   | Price  | Yes      | 10      | Cost per kWh the window fails to receive      |
-| **[Overage price](#pricing)**                                     | Price  | Yes      | 0       | Cost per kWh delivered beyond the requirement |
-| **[Max power](#max-power)**                                       | Power  | No       | -       | Maximum power the device can draw             |
+| Field                                   | Type   | Required | Default | Description                                     |
+| --------------------------------------- | ------ | -------- | ------- | ----------------------------------------------- |
+| **[Name](#name)**                       | String | Yes      | -       | Unique identifier (e.g., "Pool Pump")           |
+| **[Connection](#connection)**           | Select | Yes      | -       | Junction or inverter the load is attached to    |
+| **[Run window calendar](#run-windows)** | Entity | Yes      | -       | Calendar entity with run window events          |
+| **[Energy meter](#energy-meter)**       | Energy | No       | -       | Running total of the energy the device has used |
+| **[Shortfall price](#pricing)**         | Price  | Yes      | 10      | Cost per kWh the window fails to receive        |
+| **[Overage price](#pricing)**           | Price  | Yes      | 0       | Cost per kWh delivered beyond the requirement   |
+| **[Max power](#max-power)**             | Power  | No       | -       | Maximum power the device can draw               |
 
 See [Where values are measured](../measurement-points.md) for the convention HAEO uses for where limits, prices, and reported power apply.
 
@@ -67,34 +67,23 @@ If its energy cannot fit before then, the plan shows a shortfall that shrinks as
     Use recurring calendar events for daily or weekly routines — a pool pump
     that needs 8 kWh every day is one repeating event with `8 kWh` in the location.
 
-### Energy delivered this window
+### Energy meter
 
 HAEO re-plans regularly, and each plan starts from the present.
-Without this sensor, a plan made halfway through a window asks for the window's full energy again, so the device runs longer than needed or a large shortfall is predicted near the window's end.
+Without a meter, a plan made halfway through a window asks for the window's full energy again, so the device runs longer than needed or a large shortfall is predicted near the window's end.
 
-Select a sensor that reports the energy (kWh) the device has used since the current window started.
-A simple way to build one is a [utility meter](https://www.home-assistant.io/integrations/utility_meter/) on the device's energy sensor, reset by an automation triggered when a calendar event starts:
+Select the device's energy sensor: one that counts the energy it has used, such as a smart plug's total energy.
+HAEO reads how much it rose since the open window started from the sensor's long-term statistics, so the sensor never needs to reset when a window starts.
+Sensors that reset on their own, such as an "energy today" sensor, also work, and a window that runs past midnight still counts all its energy.
 
-```yaml
-automation:
-  - alias: Reset pool pump window energy
-    triggers:
-      - trigger: calendar
-        event: start
-        entity_id: calendar.pool_pump
-    actions:
-      - action: utility_meter.reset
-        target:
-          entity_id: sensor.pool_pump_window_energy
-```
+Only sensors with statistics are offered: an energy sensor whose state class is `total` or `total_increasing`.
+Statistics reach back a week, so a window that started earlier than that is credited nothing.
 
-HAEO credits the reading only to the window that is open when the plan starts.
-Readings outside a window are ignored, so the sensor does not need to reset at the window's end, but it must reset when a window starts.
+HAEO credits the rise only to the window that is open when the plan starts.
 
 - **Below the window's energy**: only the remainder is planned.
 - **Above the window's energy**: the window is treated as complete.
     The extra energy is already used, so it counts as overage but never changes the plan or makes it fail.
-- **Slightly negative readings**: treated as zero.
 
 ### Pricing
 

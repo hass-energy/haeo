@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import ConstantValue, EntityValue, NoneValue
 from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.field_hints import FieldHint, SectionHints, calendar_input
+from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint, SectionHints, calendar_input
 from custom_components.haeo.core.schema.sections import ConnectedCommonConfig, ConnectedCommonData
 
 ELEMENT_TYPE = ElementType.DEFERRABLE_LOAD
@@ -20,7 +20,10 @@ SECTION_PRICING: Final = "pricing"
 
 # Schedule section field names
 CONF_WINDOW_CALENDAR: Final = "window_calendar"
-CONF_ENERGY_DELIVERED: Final = "energy_delivered"
+CONF_ENERGY_METER: Final = "energy_meter"
+
+# How much the energy meter rose since the open window started, loaded beside it
+CONF_ENERGY_SINCE_WINDOW: Final = "energy_meter_since_window"
 
 # Inputs the window calendar feeds
 CONF_IN_WINDOW: Final = "in_window"
@@ -48,7 +51,7 @@ DEFAULT_OVERAGE_PRICE: Final = 0.0
 
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
-        CONF_ENERGY_DELIVERED,
+        CONF_ENERGY_METER,
         CONF_MAX_POWER,
     }
 )
@@ -60,14 +63,14 @@ OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
 class ScheduleConfig(TypedDict):
     """Run window schedule configuration.
 
-    The calendars drive the run windows and the energy each must receive;
-    the optional delivered energy sensor reports how much the currently open
-    window has already received, so re-optimizing mid-window does not demand
-    that energy again.
+    The calendar drives the run windows and the energy each must receive.
+    The optional energy meter is a running total of the energy the load has
+    used; how much it rose since the open window started is credited to that
+    window, so re-optimizing mid-window does not demand that energy again.
     """
 
     window_calendar: EntityValue
-    energy_delivered: NotRequired[EntityValue | NoneValue]
+    energy_meter: NotRequired[EntityValue | NoneValue]
 
 
 class ScheduleData(TypedDict):
@@ -77,7 +80,8 @@ class ScheduleData(TypedDict):
     window_start: NDArray[np.float64]
     opened: NDArray[np.float64]
     due: NDArray[np.float64]
-    energy_delivered: NotRequired[float]
+    energy_meter: NotRequired[float]
+    energy_meter_since_window: NotRequired[float]
 
 
 # --- Power section ---
@@ -132,10 +136,10 @@ class DeferrableLoadConfigSchema(ConnectedCommonConfig):
                         CONF_DUE: calendar_input(OutputType.ENERGY, "event_due"),
                     },
                 ),
-                CONF_ENERGY_DELIVERED: FieldHint(
+                CONF_ENERGY_METER: FieldHint(
                     output_type=OutputType.ENERGY,
                     time_series=False,
-                    min_value=0.0,
+                    meter=MeterFieldHint(since=CONF_WINDOW_CALENDAR),
                 ),
             }
         ),
@@ -191,7 +195,8 @@ class DeferrableLoadConfigData(ConnectedCommonData):
 __all__ = [
     "CONF_DEFICIT_PRICE",
     "CONF_DUE",
-    "CONF_ENERGY_DELIVERED",
+    "CONF_ENERGY_METER",
+    "CONF_ENERGY_SINCE_WINDOW",
     "CONF_IN_WINDOW",
     "CONF_MAX_POWER",
     "CONF_OPENED",
