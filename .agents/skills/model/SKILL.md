@@ -126,9 +126,12 @@ Degenerate LPs have many optimal solutions; the secondary objective is what stop
 
 - Catch optimization failures gracefully and return appropriate status indicators.
 
+- Tell an overshoot the plan should adapt to apart from a plan that is impossible.
+    A limit live data can realistically go past, such as an EV driving beyond its estimated target, is a failure to plan; price it with a slack variable, as [Keep every starting state feasible](#keep-every-starting-state-feasible) describes.
+    A plan that asks for what the system physically cannot do, such as more power than every source can supply, is impossible; it goes through the failure path rather than slack variables that every feasible solve would pay for.
+
 - An infeasible solve raises `InfeasibleError` at once, since no blend weight can make it feasible.
     `core/model/infeasibility.py` names the conflicting rows from HiGHS's irreducible infeasible subsystem, and relaxes the model when the network is built with `relax_infeasible`.
-    Do not add slack variables to keep a model feasible; relaxation runs only on the failure path, so feasible solves pay nothing for it.
 
 - Log solver diagnostics at debug level.
 

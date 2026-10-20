@@ -177,8 +177,10 @@ def dismiss_optimization_failure_issue(
     _LOGGER.debug("Dismissed optimization failure repair issue")
 
 
-def create_optimization_infeasible_issue(hass: HomeAssistant, entry_id: str, conflicts: str) -> None:
-    """Create a repair issue naming the constraints that leave no feasible plan."""
+def create_optimization_infeasible_issue(
+    hass: HomeAssistant, entry_id: str, translation_key: str, placeholders: Mapping[str, str]
+) -> None:
+    """Create a repair issue naming the elements whose constraints leave no feasible plan."""
     async_create_issue(
         hass,
         DOMAIN,
@@ -186,8 +188,8 @@ def create_optimization_infeasible_issue(hass: HomeAssistant, entry_id: str, con
         is_fixable=False,
         is_persistent=False,
         severity=IssueSeverity.ERROR,
-        translation_key="optimization_infeasible",
-        translation_placeholders={"conflicts": conflicts},
+        translation_key=translation_key,
+        translation_placeholders=dict(placeholders),
     )
 
 
@@ -196,8 +198,8 @@ def dismiss_optimization_infeasible_issue(hass: HomeAssistant, entry_id: str) ->
     async_delete_issue(hass, DOMAIN, f"optimization_infeasible_{entry_id}")
 
 
-def create_optimization_relaxed_issue(hass: HomeAssistant, entry_id: str, relaxations: str) -> None:
-    """Create a repair issue listing the constraints the current plan had to relax."""
+def create_optimization_relaxed_issue(hass: HomeAssistant, entry_id: str, placeholders: Mapping[str, str]) -> None:
+    """Create a repair issue naming where the current plan had to relax constraints."""
     async_create_issue(
         hass,
         DOMAIN,
@@ -206,7 +208,7 @@ def create_optimization_relaxed_issue(hass: HomeAssistant, entry_id: str, relaxa
         is_persistent=False,
         severity=IssueSeverity.WARNING,
         translation_key="optimization_relaxed",
-        translation_placeholders={"relaxations": relaxations},
+        translation_placeholders=dict(placeholders),
     )
 
 

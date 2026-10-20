@@ -6,14 +6,18 @@ import pytest
 from custom_components.haeo.core.model.infeasibility import MAX_LISTED_ROWS, RowLabel, listing, row_labels
 
 
-def test_row_labels_leave_the_period_unknown_when_rows_do_not_cover_the_horizon_in_blocks() -> None:
-    """Rows in whole-horizon blocks get a period, and a constraint of any other length does not."""
+def test_row_labels_give_periods_to_whole_blocks_and_mark_balance_rows() -> None:
+    """Rows in whole-horizon blocks get a period, other lengths do not, and only balance rows are marked as such."""
     labels = row_labels(
         {
             "battery:charge": {"battery:charge_power_limit_power_limit": np.array([0, 1, 2, 3], dtype=np.int32)},
-            "battery": {"energy": np.array([4, 5, 6], dtype=np.int32)},
+            "battery": {
+                "energy": np.array([4, 5, 6], dtype=np.int32),
+                "element_power_balance": np.array([7, 8, 9, 10], dtype=np.int32),
+            },
         },
         n_periods=2,
+        balance_rows={7, 8},
     )
 
     assert labels == {
@@ -24,6 +28,10 @@ def test_row_labels_leave_the_period_unknown_when_rows_do_not_cover_the_horizon_
         4: RowLabel("battery", "energy", None),
         5: RowLabel("battery", "energy", None),
         6: RowLabel("battery", "energy", None),
+        7: RowLabel("battery", "element_power_balance", 0, balance=True),
+        8: RowLabel("battery", "element_power_balance", 1, balance=True),
+        9: RowLabel("battery", "element_power_balance", 0),
+        10: RowLabel("battery", "element_power_balance", 1),
     }
 
 

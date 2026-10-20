@@ -1147,7 +1147,7 @@ def run_diagnostics(
         cost = network.optimize()
         print(f"Optimization complete. Total cost: ${cost:.2f}")
         for relaxation in network.relaxations:
-            print(f"  Relaxed {relaxation.row} by {relaxation.amount:+.3g}")
+            print(f"  Relaxed {relaxation}")
     except Exception as e:
         print(f"Optimization failed: {e}")
         sys.exit(1)

@@ -130,10 +130,11 @@ When sensor data is available but loading fails (invalid format, missing forecas
 When network optimization fails (infeasible constraints, solver not installed, numerical instabilities), the coordinator raises `UpdateFailed` with the solver error.
 
 An infeasible model raises `InfeasibleError` carrying the conflicting constraint rows.
-The coordinator raises the `optimization_infeasible` repair issue listing them, grouped by element and constraint with the times they apply, and fails the update with the same list.
+The coordinator raises the `optimization_infeasible` repair issue naming the configured elements those rows belong to and the minutes from the start of the plan to the first of them, and fails the update with the same message.
+The wording lives in the translations; the coordinator passes only element names and numbers as placeholders.
 
 When the hub's `relax_infeasible` option is on, the network relaxes the model instead and records `Network.relaxations`.
-The coordinator raises the `optimization_relaxed` warning issue listing them after the update succeeds, and dismisses it once a plan needs no relaxation.
+The coordinator raises the `optimization_relaxed` warning issue after the update succeeds, naming the conflicting elements, the elements where constraints were relaxed, and how many periods, and dismisses it once a plan needs no relaxation or the optimization fails.
 
 ### Error propagation
 

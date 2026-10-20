@@ -405,7 +405,7 @@ def test_infeasible_network_names_the_conflicting_constraints(caplog: pytest.Log
         network.optimize()
 
     assert set(error.value.conflicts) == {
-        RowLabel("switchboard", "element_power_balance", 1),
+        RowLabel("switchboard", "element_power_balance", 1, balance=True),
         RowLabel("grid:import", "power_limit_power_limit", 1),
         RowLabel("battery:discharge", "power_limit_power_limit", 1),
         RowLabel("load:connection", "power_limit_power_limit", 1),
@@ -421,10 +421,11 @@ def test_relaxed_network_leaves_the_shortfall_at_a_power_balance() -> None:
 
     network.optimize()
 
-    shortfall = RowLabel("switchboard", "element_power_balance", 1)
+    shortfall = RowLabel("switchboard", "element_power_balance", 1, balance=True)
     [relaxation] = network.relaxations
     assert relaxation.row == shortfall
     assert relaxation.amount == pytest.approx(-0.5)
+    assert shortfall in network.conflicts
     load_power = network.elements["load:connection"].outputs()["connection_power"]
     assert isinstance(load_power, OutputData)
     np.testing.assert_allclose(load_power.values, [3.0, 15.5, 3.0], atol=1e-9)
@@ -445,6 +446,24 @@ def test_relaxations_clear_once_the_network_is_feasible_again() -> None:
     network.optimize()
 
     assert network.relaxations == ()
+    assert network.conflicts == ()
+
+
+def test_infeasible_network_is_recognised_when_presolve_cannot_say_whether_it_is_unbounded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A model presolve reports as unbounded or infeasible is solved again without presolve to learn which."""
+    network = _over_demanded_network()
+    solver = network._solver
+    real_status = solver.getModelStatus
+    statuses = iter([HighsModelStatus.kUnboundedOrInfeasible])
+    monkeypatch.setattr(solver, "getModelStatus", lambda: next(statuses, None) or real_status())
+
+    with pytest.raises(InfeasibleError) as error:
+        network.optimize()
+
+    assert error.value.conflicts
+    assert solver.getOptionValue("presolve") == (HighsStatus.kOk, "choose")
 
 
 def test_infeasible_network_reports_no_conflicts_when_the_solver_finds_none(monkeypatch: pytest.MonkeyPatch) -> None:

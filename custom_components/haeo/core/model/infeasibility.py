@@ -10,6 +10,7 @@ period they cover, so a conflict reads in terms of the network.
 """
 
 from collections.abc import Iterable, Mapping
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import Final
 
@@ -17,7 +18,6 @@ from highspy import Highs, HighsStatus, IisStrategy
 import numpy as np
 from numpy.typing import NDArray
 
-from .element import ELEMENT_POWER_BALANCE
 from .util.solver_rows import RowIndices
 
 # Relaxing a power balance leaves energy unserved or unabsorbed at one point
@@ -26,7 +26,8 @@ from .util.solver_rows import RowIndices
 BALANCE_RELAXATION_WEIGHT: Final = 1.0
 LIMIT_RELAXATION_WEIGHT: Final = 1000.0
 
-# A row counts as relaxed when it moves further than this past its bound (kWh)
+# A relaxed row is reported when it moves further than this past its bound (kWh).
+# Every row the relaxation moves is widened, however little, so the plan stays feasible.
 RELAXATION_TOLERANCE: Final = 1e-6
 
 # Rows named in a message before the rest are counted instead
@@ -38,11 +39,16 @@ _IIS_STRATEGY: Final = int(IisStrategy.kIisStrategyFromLp) | int(IisStrategy.kIi
 
 @dataclass(frozen=True, slots=True)
 class RowLabel:
-    """The element, constraint, and period a solver row belongs to."""
+    """The element, constraint, and period a solver row belongs to.
+
+    ``balance`` marks a row that balances one tag's power at an element, where a
+    shortfall reads as energy no source could supply or nothing could absorb.
+    """
 
     element: str
     constraint: str
     period: int | None
+    balance: bool = False
 
     def __str__(self) -> str:
         """Render the row as ``element constraint[period]``."""
@@ -62,6 +68,10 @@ class Relaxation:
 
     row: RowLabel
     amount: float
+
+    def __str__(self) -> str:
+        """Render the row and how far past its bound it went."""
+        return f"{self.row} by {self.amount:+.3g}"
 
 
 class InfeasibleError(ValueError):
@@ -84,7 +94,9 @@ def listing(items: Iterable[str]) -> str:
     return f"{shown}, and {hidden} more" if hidden > 0 else shown
 
 
-def row_labels(constraints: Mapping[str, Mapping[str, RowIndices]], n_periods: int) -> dict[int, RowLabel]:
+def row_labels(
+    constraints: Mapping[str, Mapping[str, RowIndices]], n_periods: int, balance_rows: AbstractSet[int]
+) -> dict[int, RowLabel]:
     """Label every solver row with the element and constraint that own it.
 
     A constraint covers the horizon in blocks of one row per period, so a row's
@@ -97,7 +109,8 @@ def row_labels(constraints: Mapping[str, Mapping[str, RowIndices]], n_periods: i
             name = constraint.removeprefix(f"{element}_")
             whole_blocks = len(rows) % n_periods == 0
             for position, row in enumerate(rows.tolist()):
-                labels[row] = RowLabel(element, name, position % n_periods if whole_blocks else None)
+                period = position % n_periods if whole_blocks else None
+                labels[row] = RowLabel(element, name, period, balance=row in balance_rows)
     return labels
 
 
@@ -118,11 +131,12 @@ def relaxed_rows(solver: Highs, labels: Mapping[int, RowLabel]) -> tuple[NDArray
     """Return the rows a smallest weighted relaxation moves, and the values it moves them to.
 
     Only rows give way, never variable bounds, and power balances give way
-    before limits. Returns None when no relaxation of the rows is feasible.
+    before limits. Every row the relaxation moves is returned, however little.
+    Returns None when no relaxation of the rows is feasible.
     """
     weights = np.full(solver.getNumRow(), LIMIT_RELAXATION_WEIGHT)
     for row, label in labels.items():
-        if label.constraint == ELEMENT_POWER_BALANCE:
+        if label.balance:
             weights[row] = BALANCE_RELAXATION_WEIGHT
     not_relaxable = -1.0
     status = solver.feasibilityRelaxation(not_relaxable, not_relaxable, LIMIT_RELAXATION_WEIGHT, None, None, weights)
@@ -133,7 +147,7 @@ def relaxed_rows(solver: Highs, labels: Mapping[int, RowLabel]) -> tuple[NDArray
     lp = solver.getLp()
     values = np.asarray(solution.row_value, dtype=np.float64)
     excess = np.maximum(values - np.asarray(lp.row_upper_), 0.0) - np.maximum(np.asarray(lp.row_lower_) - values, 0.0)
-    rows = np.flatnonzero(np.abs(excess) > RELAXATION_TOLERANCE).astype(np.int32)
+    rows = np.flatnonzero(excess).astype(np.int32)
     return rows, values[rows]
 
 
@@ -141,6 +155,7 @@ __all__ = [
     "BALANCE_RELAXATION_WEIGHT",
     "LIMIT_RELAXATION_WEIGHT",
     "MAX_LISTED_ROWS",
+    "RELAXATION_TOLERANCE",
     "InfeasibleError",
     "Relaxation",
     "RowLabel",

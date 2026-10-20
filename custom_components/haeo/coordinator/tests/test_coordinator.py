@@ -93,6 +93,7 @@ from custom_components.haeo.core.units import currency_symbol
 from custom_components.haeo.elements import get_element_configs
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 from custom_components.haeo.input_stores import build_input_stores
+from custom_components.haeo.repairs import create_optimization_relaxed_issue
 
 _TIMES = tuple(datetime(2024, 6, 1, tzinfo=UTC) + timedelta(minutes=30 * i) for i in range(4))
 
@@ -331,21 +332,28 @@ def test_update_interval_is_none_for_event_driven(
 
 @pytest.mark.usefixtures("mock_connection_subentry")
 @pytest.mark.parametrize(
-    ("relaxations", "relaxed_issue"),
+    ("conflicts", "relaxations", "relaxed_issue"),
     [
-        pytest.param((), None, id="feasible"),
+        pytest.param((), (), None, id="feasible"),
         pytest.param(
             (
-                Relaxation(RowLabel("Switchboard", "element_power_balance", 0), -0.05),
-                Relaxation(RowLabel("Switchboard", "element_power_balance", 1), -0.25),
-                Relaxation(RowLabel("Inverter", "element_power_balance", 0), 0.1),
-                Relaxation(RowLabel("Battery", "energy", None), 0.2),
-                Relaxation(RowLabel("Battery", "energy", None), 0.3),
+                RowLabel("Test Grid:import", "power_limit_power_limit", 1),
+                RowLabel("Switchboard", "element_power_balance", 1, balance=True),
+                RowLabel("Test Grid:export", "power_limit_power_limit", 1),
             ),
-            "- Switchboard: up to 0.50 kW of demand no source could supply in 2 periods from {0} to {1}\n"
-            "- Inverter: up to 0.20 kW of supply nothing could absorb at {0}\n"
-            "- Battery energy across the horizon: up to +0.3 past its limit",
+            (
+                Relaxation(RowLabel("Switchboard", "element_power_balance", 0, balance=True), -0.05),
+                Relaxation(RowLabel("Switchboard", "element_power_balance", 1, balance=True), -0.25),
+                Relaxation(RowLabel("Test Battery", "energy", None), 0.2),
+            ),
+            {"elements": "Test Grid, Switchboard", "minutes": "30", "relaxed_elements": "Switchboard, Test Battery"},
             id="relaxed",
+        ),
+        pytest.param(
+            (),
+            (Relaxation(RowLabel("Test Battery", "element_power_balance", 1, balance=True), 0.1),),
+            {"elements": "Test Battery", "minutes": "30", "relaxed_elements": "Test Battery"},
+            id="relaxed_without_conflicts",
         ),
     ],
 )
@@ -355,8 +363,9 @@ async def test_async_update_data_returns_outputs(
     mock_battery_subentry: ConfigSubentry,
     mock_grid_subentry: ConfigSubentry,
     mock_runtime_data: HaeoRuntimeData,
+    conflicts: tuple[RowLabel, ...],
     relaxations: tuple[Relaxation, ...],
-    relaxed_issue: str | None,
+    relaxed_issue: dict[str, str] | None,
 ) -> None:
     """Coordinator returns optimization results merged with element outputs, and reports any relaxed constraints."""
     fake_element = MagicMock()
@@ -365,6 +374,7 @@ async def test_async_update_data_returns_outputs(
     }
 
     fake_network = MagicMock()
+    fake_network.conflicts = conflicts
     fake_network.relaxations = relaxations
     empty_element = MagicMock()
     empty_element.outputs.return_value = {}
@@ -503,10 +513,8 @@ async def test_async_update_data_returns_outputs(
         assert issue is None
     else:
         assert issue is not None
-        period_starts = [
-            f"{dt_util.as_local(dt_util.utc_from_timestamp(t)):%Y-%m-%d %H:%M}" for t in expected_forecast_times
-        ]
-        assert issue.translation_placeholders == {"relaxations": relaxed_issue.format(*period_starts)}
+        relaxed_periods = str(len({r.row.period for r in relaxations if r.row.period is not None}))
+        assert issue.translation_placeholders == {**relaxed_issue, "relaxed_periods": relaxed_periods}
 
 
 async def test_async_initialize_with_empty_input_stores(
@@ -568,33 +576,34 @@ async def test_async_update_data_propagates_errors(
 
 
 @pytest.mark.parametrize(
-    ("conflicts", "described"),
+    ("conflicts", "translation_key", "placeholders"),
     [
         pytest.param(
             (
-                RowLabel("Switchboard", "element_power_balance", 1),
-                RowLabel("Grid:import", "power_limit_power_limit", 1),
+                RowLabel("Switchboard", "element_power_balance", 2, balance=True),
+                RowLabel("Test Grid:import", "power_limit_power_limit", 1),
+                RowLabel("Test Grid:import", "power_limit_power_limit", 2),
             ),
-            "- Switchboard element_power_balance at {1}\n- Grid:import power_limit_power_limit at {1}",
+            "optimization_infeasible",
+            {"elements": "Switchboard, Test Grid", "minutes": "17"},
             id="conflicts",
         ),
-        pytest.param((), "- The solver could not narrow down which constraints conflict", id="no_conflicts"),
+        pytest.param((), "optimization_infeasible_unexplained", {}, id="no_conflicts"),
     ],
 )
+@pytest.mark.usefixtures("mock_grid_subentry")
 async def test_async_update_data_reports_an_infeasible_plan(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_runtime_data: HaeoRuntimeData,
     conflicts: tuple[RowLabel, ...],
-    described: str,
+    translation_key: str,
+    placeholders: dict[str, str],
 ) -> None:
-    """An infeasible plan fails the update and raises a repair issue naming the conflicting constraints."""
+    """An infeasible plan fails the update with a repair issue naming the elements and how far into the plan."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     coordinator.network = MagicMock()
-    period_starts = [
-        f"{dt_util.as_local(dt_util.utc_from_timestamp(t)):%Y-%m-%d %H:%M}"
-        for t in _get_mock_horizon(mock_runtime_data).get_forecast_timestamps()
-    ]
+    create_optimization_relaxed_issue(hass, mock_hub_entry.entry_id, {})
 
     with (
         patch.object(coordinator, "_load_from_input_stores", return_value={}),
@@ -603,10 +612,15 @@ async def test_async_update_data_reports_an_infeasible_plan(
     ):
         await coordinator._async_update_data()
 
-    assert error.value.translation_key == "optimization_infeasible"
-    issue = ir.async_get(hass).async_get_issue(DOMAIN, f"optimization_infeasible_{mock_hub_entry.entry_id}")
+    assert error.value.translation_key == translation_key
+    assert error.value.translation_placeholders == placeholders
+    issues = ir.async_get(hass)
+    issue = issues.async_get_issue(DOMAIN, f"optimization_infeasible_{mock_hub_entry.entry_id}")
     assert issue is not None
-    assert issue.translation_placeholders == {"conflicts": described.format(*period_starts)}
+    assert issue.translation_key == translation_key
+    assert issue.translation_placeholders == placeholders
+    # A relaxed plan from an earlier cycle no longer exists
+    assert issues.async_get_issue(DOMAIN, f"optimization_relaxed_{mock_hub_entry.entry_id}") is None
 
 
 async def test_async_update_data_raises_on_missing_model_element(

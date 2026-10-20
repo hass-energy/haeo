@@ -26,7 +26,16 @@ from .elements.connection import Connection, ConnectionElementConfig, Connection
 from .elements.deferrable_load import DeferrableLoad, DeferrableLoadElementConfig
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
-from .infeasibility import InfeasibleError, Relaxation, conflicting_rows, listing, relaxed_rows, row_labels
+from .infeasibility import (
+    RELAXATION_TOLERANCE,
+    InfeasibleError,
+    Relaxation,
+    RowLabel,
+    conflicting_rows,
+    listing,
+    relaxed_rows,
+    row_labels,
+)
 from .linear import LinearArray, total
 from .solver import Solver
 from .util.solver_rows import RowIndices
@@ -126,6 +135,8 @@ class Network:
         self.elements: dict[str, Element[Any]] = {}
         self.options = options or SolveOptions()
         self.relax_infeasible = relax_infeasible
+        # Rows that could not all hold in the last solve, empty unless it was infeasible
+        self.conflicts: tuple[RowLabel, ...] = ()
         # Rows the last plan moved past their bounds, empty unless it was relaxed
         self.relaxations: tuple[Relaxation, ...] = ()
         self._solver = Solver()
@@ -415,15 +426,21 @@ class Network:
         all_col_indices = np.arange(n_vars, dtype=np.int32)
         cost_vectors = _build_cost_vectors((primary, secondary), n_vars)
 
+        self.conflicts = ()
         self.relaxations = ()
         try:
             return self._solve(all_col_indices, cost_vectors)
         except InfeasibleError:
-            labels = row_labels(self.constraints(), self.n_periods)
-            if not self.relax_infeasible:
-                raise InfeasibleError(conflicting_rows(h, labels)) from None
-            if (relaxed := relaxed_rows(h, labels)) is None:
-                raise InfeasibleError(conflicting_rows(h, labels)) from None
+            balance_rows = {
+                row
+                for element in self.elements.values()
+                if isinstance(element, NetworkElement) and (rows := element.balance_rows()) is not None
+                for row in rows.tolist()
+            }
+            labels = row_labels(self.constraints(), self.n_periods, balance_rows)
+            self.conflicts = conflicting_rows(h, labels)
+            if not self.relax_infeasible or (relaxed := relaxed_rows(h, labels)) is None:
+                raise InfeasibleError(self.conflicts) from None
 
         rows, values = relaxed
         lp = h.getLp()
@@ -438,12 +455,13 @@ class Network:
         finally:
             h.changeRowsBounds(len(rows), rows, lower, upper)
         self.relaxations = tuple(
-            Relaxation(labels[row], value - min(max(value, low), high))
+            Relaxation(labels[row], amount)
             for row, value, low, high in zip(
                 rows.tolist(), values.tolist(), lower.tolist(), upper.tolist(), strict=True
             )
+            if abs(amount := value - min(max(value, low), high)) > RELAXATION_TOLERANCE
         )
-        _LOGGER.warning("Relaxed constraints to find a plan: %s", listing(map(_describe_relaxation, self.relaxations)))
+        _LOGGER.warning("Relaxed constraints to find a plan: %s", listing(map(str, self.relaxations)))
         return cost
 
     def _solve(self, all_col_indices: NDArray[np.int32], cost_vectors: list[NDArray[np.float64]]) -> float:
@@ -507,6 +525,8 @@ class Network:
         _set_cost_vector(h, all_col_indices, cost_vectors[0] + weight * cost_vectors[1])
         h.run()
         status = h.getModelStatus()
+        if status == HighsModelStatus.kUnboundedOrInfeasible:
+            status = _status_without_presolve(h)
         if status == HighsModelStatus.kInfeasible:
             # Infeasibility does not depend on the objective, so no other weight can help
             raise InfeasibleError
@@ -684,9 +704,15 @@ class BlendWeightSearch:
         return None
 
 
-def _describe_relaxation(relaxation: Relaxation) -> str:
-    """Describe a relaxed row and how far past its bound it went."""
-    return f"{relaxation.row} by {relaxation.amount:+.3g}"
+def _status_without_presolve(solver: Highs) -> HighsModelStatus:
+    """Solve again without presolve, which can only tell that a model is unbounded or infeasible, to learn which."""
+    _, presolve = solver.getOptionValue("presolve")
+    solver.setOptionValue("presolve", "off")
+    try:
+        solver.run()
+    finally:
+        solver.setOptionValue("presolve", presolve)
+    return solver.getModelStatus()
 
 
 def _ensure_optimal(solver: Highs) -> float:

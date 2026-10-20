@@ -1,6 +1,6 @@
 """Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
@@ -35,8 +35,7 @@ from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMEN
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
-from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE
-from custom_components.haeo.core.model.infeasibility import InfeasibleError, Relaxation, RowLabel
+from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel
 from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.util import extract_unit_parts
@@ -783,12 +782,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             try:
                 cost = await self.hass.async_add_executor_job(network.optimize)
             except InfeasibleError as error:
-                conflicts = _describe_conflicts(error.conflicts, forecast_timestamps)
-                create_optimization_infeasible_issue(self.hass, entry_id, conflicts)
+                dismiss_optimization_relaxed_issue(self.hass, entry_id)
+                translation_key = "optimization_infeasible_unexplained"
+                placeholders: dict[str, str] = {}
+                if error.conflicts:
+                    translation_key = "optimization_infeasible"
+                    placeholders = {
+                        "elements": _element_names(error.conflicts, context.participants),
+                        "minutes": _minutes_into_plan(error.conflicts, forecast_timestamps),
+                    }
+                create_optimization_infeasible_issue(self.hass, entry_id, translation_key, placeholders)
                 raise UpdateFailed(
                     translation_domain=DOMAIN,
-                    translation_key="optimization_infeasible",
-                    translation_placeholders={"conflicts": conflicts},
+                    translation_key=translation_key,
+                    translation_placeholders=placeholders,
                 ) from error
 
             end_time = time.time()
@@ -801,12 +808,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             dismiss_optimization_failure_issue(self.hass, entry_id)
             dismiss_optimization_infeasible_issue(self.hass, entry_id)
             if network.relaxations:
+                relaxed_rows = [relaxation.row for relaxation in network.relaxations]
+                conflicts = network.conflicts or relaxed_rows
                 create_optimization_relaxed_issue(
                     self.hass,
                     entry_id,
-                    _describe_relaxations(
-                        network.relaxations, forecast_timestamps, runtime_data.horizon_manager.periods_seconds
-                    ),
+                    {
+                        "elements": _element_names(conflicts, context.participants),
+                        "minutes": _minutes_into_plan(conflicts, forecast_timestamps),
+                        "relaxed_elements": _element_names(relaxed_rows, context.participants),
+                        "relaxed_periods": str(len({row.period for row in relaxed_rows if row.period is not None})),
+                    },
                 )
             else:
                 dismiss_optimization_relaxed_issue(self.hass, entry_id)
@@ -910,63 +922,25 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 self.signal_optimization_stale()
 
 
-def _period_start(period: int, forecast_timestamps: Sequence[float]) -> str:
-    """Return the local start time of a period."""
-    return f"{dt_util.as_local(dt_util.utc_from_timestamp(forecast_timestamps[period])):%Y-%m-%d %H:%M}"
+def _participant_name(model_element: str, participants: Collection[str]) -> str:
+    """Return the configured element a model element belongs to, such as ``Grid`` for ``Grid:import``."""
+    owners = [name for name in participants if model_element == name or model_element.startswith(f"{name}:")]
+    return max(owners, key=len, default=model_element)
 
 
-def _when(rows: Sequence[RowLabel], forecast_timestamps: Sequence[float]) -> str:
-    """Describe the periods a group of rows covers."""
-    periods = sorted({row.period for row in rows if row.period is not None})
-    if not periods:
-        return "across the horizon"
-    if len(periods) == 1:
-        return f"at {_period_start(periods[0], forecast_timestamps)}"
-    first, last = (_period_start(period, forecast_timestamps) for period in (periods[0], periods[-1]))
-    return f"in {len(periods)} periods from {first} to {last}"
+def _element_names(rows: Sequence[RowLabel], participants: Collection[str]) -> str:
+    """Return the configured elements some constraint rows belong to, in the order they first appear."""
+    return ", ".join(dict.fromkeys(_participant_name(row.element, participants) for row in rows))
 
 
-def _describe_conflicts(conflicts: Sequence[RowLabel], forecast_timestamps: Sequence[float]) -> str:
-    """List the constraints that cannot all hold, one line per element and constraint."""
-    if not conflicts:
-        return "- The solver could not narrow down which constraints conflict"
-    groups: dict[tuple[str, str], list[RowLabel]] = {}
-    for row in conflicts:
-        groups.setdefault((row.element, row.constraint), []).append(row)
-    return "\n".join(
-        f"- {element} {constraint} {_when(rows, forecast_timestamps)}" for (element, constraint), rows in groups.items()
-    )
+def _minutes_into_plan(rows: Sequence[RowLabel], forecast_timestamps: Sequence[float]) -> str:
+    """Return the whole minutes from the start of the plan to the first period any of the rows applies in.
 
-
-def _describe_relaxations(
-    relaxations: Sequence[Relaxation], forecast_timestamps: Sequence[float], periods_seconds: Sequence[int]
-) -> str:
-    """List the constraints a plan relaxed, one line per element, constraint, and direction.
-
-    A relaxed power balance is described by the most power that could not be
-    supplied or absorbed there. Any other constraint is described by the
-    furthest past its limit the plan went.
+    A person can find that point in the plan without reading timestamps.
     """
-    groups: dict[tuple[str, str, bool], list[Relaxation]] = {}
-    for relaxation in relaxations:
-        key = (relaxation.row.element, relaxation.row.constraint, relaxation.amount < 0)
-        groups.setdefault(key, []).append(relaxation)
-
-    lines: list[str] = []
-    for (element, constraint, short), group in groups.items():
-        when = _when([relaxation.row for relaxation in group], forecast_timestamps)
-        if constraint == ELEMENT_POWER_BALANCE:
-            power = max(
-                abs(relaxation.amount) / (periods_seconds[relaxation.row.period] / 3600)
-                for relaxation in group
-                if relaxation.row.period is not None
-            )
-            kind = "demand no source could supply" if short else "supply nothing could absorb"
-            lines.append(f"- {element}: up to {power:.2f} kW of {kind} {when}")
-        else:
-            furthest = max((relaxation.amount for relaxation in group), key=abs)
-            lines.append(f"- {element} {constraint} {when}: up to {furthest:+.3g} past its limit")
-    return "\n".join(lines)
+    periods = [row.period for row in rows if row.period is not None]
+    first = forecast_timestamps[min(periods)] if periods else forecast_timestamps[0]
+    return str(round((first - forecast_timestamps[0]) / 60))
 
 
 __all__ = [
