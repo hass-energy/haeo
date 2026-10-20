@@ -37,18 +37,26 @@ from custom_components.haeo.core.schema.elements.deferrable_load import (
 
 
 def _window(n_periods: int, start: int, end: int, energy: float) -> dict[str, NDArray[np.float64]]:
-    """Build the loaded window inputs for one window over periods ``start`` to ``end``, due ``energy``.
+    """Build the loaded window inputs for one event over periods ``start`` to ``end``, due ``energy``.
 
-    A window starting before the horizon is open at its start, so it does not start.
+    An event starting before the horizon is open at its start, so its window
+    does not start and it opens at boundary 0.
     """
     in_window = np.zeros(n_periods)
     in_window[max(start, 0) : end] = 1.0
     window_start = np.zeros(n_periods + 1)
     if start > 0:
         window_start[start] = 1.0
-    requirement = np.zeros(n_periods + 1)
-    requirement[end] = energy
-    return {"in_window": in_window, "window_start": window_start, "requirement": requirement}
+    opened = np.zeros(n_periods + 1)
+    opened[max(start, 0)] = energy
+    due = np.zeros(n_periods + 1)
+    due[end] = energy
+    return {"in_window": in_window, "window_start": window_start, "opened": opened, "due": due}
+
+
+def _prices(deficit: float = 10.0, overage: float = 0.0) -> dict[str, NDArray[np.float64]]:
+    """Build loaded per-boundary prices over the four-period horizon."""
+    return {"deficit_price": np.full(5, deficit), "overage_price": np.full(5, overage)}
 
 
 def _config(**overrides: object) -> DeferrableLoadConfigData:
@@ -61,7 +69,7 @@ def _config(**overrides: object) -> DeferrableLoadConfigData:
             **_window(4, 2, 3, 6.0),
         },
         "pricing": {
-            "deficit_price": 10.0,
+            **_prices(),
         },
     }
     config.update(overrides)
@@ -90,9 +98,10 @@ def test_model_elements_structure() -> None:
     load = _load(config)
     np.testing.assert_allclose(load["in_window"], [0.0, 0.0, 1.0, 0.0])
     np.testing.assert_allclose(load["window_start"], [0.0, 0.0, 1.0, 0.0, 0.0])
-    np.testing.assert_allclose(load["requirement"], [0.0, 0.0, 0.0, 6.0, 0.0])
+    np.testing.assert_allclose(load["opened"], [0.0, 0.0, 6.0, 0.0, 0.0])
+    np.testing.assert_allclose(load["due"], [0.0, 0.0, 0.0, 6.0, 0.0])
     np.testing.assert_allclose(load["deficit_price"], 10.0)
-    assert load.get("overage_price") is None
+    np.testing.assert_allclose(load["overage_price"], 0.0)
 
     connection = _connection(config)
     assert connection["source"] == "home"
@@ -108,12 +117,9 @@ def test_no_power_limit_when_unconfigured() -> None:
 def test_overage_price_reaches_the_model() -> None:
     """A configured overage price reaches the model as its per-boundary series."""
     overage = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
-    config = _config(pricing={"deficit_price": 10.0, "overage_price": overage})
+    config = _config(pricing={"deficit_price": np.full(5, 10.0), "overage_price": overage})
 
-    overage_price = _load(config).get("overage_price")
-
-    assert overage_price is not None
-    np.testing.assert_allclose(overage_price, overage)
+    np.testing.assert_allclose(_load(config)["overage_price"], overage)
 
 
 def _solve(config: DeferrableLoadConfigData, grid_price: list[float]) -> Network:
@@ -163,7 +169,7 @@ def test_power_stays_inside_windows_without_a_limit() -> None:
 
 def test_too_small_window_prices_the_shortfall() -> None:
     """When the device cannot deliver enough in the window, the shortfall is priced."""
-    config = _config(power={"max_power": 2.0}, pricing={"deficit_price": 5.0})
+    config = _config(power={"max_power": 2.0}, pricing=_prices(deficit=5.0))
     network = _solve(config, grid_price=[0.1, 0.1, 0.1, 0.1])
 
     load_outputs = network.elements["pump"].outputs()
@@ -191,9 +197,10 @@ def test_outputs_mapping() -> None:
     np.testing.assert_allclose(outputs[DEFERRABLE_POWER].values, [0.0, 0.0, 6.0, 0.0])
 
 
-def test_without_overage_price_delivery_is_capped() -> None:
-    """With no overage price the window takes no more than its requirement, even when paid to."""
-    network = _solve(_config(power={"max_power": 10.0}), grid_price=[-0.1, -0.1, -0.1, -0.1])
+def test_overage_above_the_energy_reward_stops_at_the_requirement() -> None:
+    """An overage price above what the energy pays keeps the window at its requirement, even when paid to take more."""
+    config = _config(power={"max_power": 10.0}, pricing=_prices(overage=1.0))
+    network = _solve(config, grid_price=[-0.1, -0.1, -0.1, -0.1])
 
     assert network.elements["pump"].outputs()[DEFERRABLE_LOAD_ENERGY_DELIVERED].values[3] == pytest.approx(6.0)
 
@@ -253,7 +260,7 @@ def test_config_loads_from_a_captured_calendar_state() -> None:
         "name": "pump",
         "connection": as_connection_target("home"),
         "schedule": {"window_calendar": as_entity_value(["calendar.pool_pump"])},
-        "pricing": {"deficit_price": as_constant_value(10.0)},
+        "pricing": {"deficit_price": as_constant_value(10.0), "overage_price": as_constant_value(0.0)},
     }
 
     loaded = load_element_config("pump", config, FakeStateMachine(states), (0.0, 3600.0, 7200.0, 10800.0, 14400.0))
@@ -262,5 +269,6 @@ def test_config_loads_from_a_captured_calendar_state() -> None:
 
     np.testing.assert_allclose(load["in_window"], [0.0, 0.0, 1.0, 0.0])
     np.testing.assert_allclose(load["window_start"], [0.0, 0.0, 1.0, 0.0, 0.0])
-    np.testing.assert_allclose(load["requirement"], [0.0, 0.0, 0.0, 6.0, 0.0])
+    np.testing.assert_allclose(load["opened"], [0.0, 0.0, 6.0, 0.0, 0.0])
+    np.testing.assert_allclose(load["due"], [0.0, 0.0, 0.0, 6.0, 0.0])
     np.testing.assert_allclose(load["deficit_price"], [10.0] * 5)

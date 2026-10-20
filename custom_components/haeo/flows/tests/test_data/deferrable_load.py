@@ -34,7 +34,7 @@ VALID_DATA = [
         },
     },
     {
-        "description": "Minimal deferrable load - calendar and shortfall price only",
+        "description": "Minimal deferrable load - calendar and default prices only",
         "config": {
             CONF_NAME: "Hot Water",
             CONF_CONNECTION: as_connection_target("switchboard"),
@@ -43,6 +43,7 @@ VALID_DATA = [
             },
             SECTION_PRICING: {
                 CONF_DEFICIT_PRICE: as_constant_value(10.0),
+                CONF_OVERAGE_PRICE: as_constant_value(0.0),
             },
             SECTION_POWER: {},
         },

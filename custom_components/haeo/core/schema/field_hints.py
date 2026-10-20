@@ -11,10 +11,10 @@ from typing import Annotated, Literal, NotRequired, Required, get_args, get_orig
 
 from custom_components.haeo.core.model.const import OutputType
 
-type CalendarProjection = Literal["window_active", "window_starts", "window_due"]
+type CalendarProjection = Literal["window_active", "window_starts", "event_opens", "event_due"]
 
 # Projections with one value per horizon boundary rather than per period
-_BOUNDARY_PROJECTIONS: frozenset[CalendarProjection] = frozenset({"window_starts", "window_due"})
+_BOUNDARY_PROJECTIONS: frozenset[CalendarProjection] = frozenset({"window_starts", "event_opens", "event_due"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,10 +29,15 @@ class CalendarFieldHint:
               only touch stay separate.
             - 'window_starts': per boundary, 1.0 where a window starts after the
               horizon start. A window open at the horizon start does not start.
-            - 'window_due': per boundary, each window's summed value at its end
-              boundary. A window running past the horizon is due at its end.
-              Each event's value is a number with its unit, such as "40 km",
-              converted to the input's unit.
+            - 'event_opens': per boundary, the summed values of the events
+              starting there. An event open at the horizon start opens at
+              boundary 0.
+            - 'event_due': per boundary, the summed values of the events
+              ending there. An event running past the horizon is due at its
+              end.
+
+            Each event's value is a number with its unit, such as "40 km",
+            converted to the input's unit.
 
     """
 

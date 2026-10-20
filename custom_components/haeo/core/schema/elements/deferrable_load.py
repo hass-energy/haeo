@@ -25,7 +25,8 @@ CONF_ENERGY_DELIVERED: Final = "energy_delivered"
 # Inputs the window calendar feeds
 CONF_IN_WINDOW: Final = "in_window"
 CONF_WINDOW_START: Final = "window_start"
-CONF_REQUIREMENT: Final = "requirement"
+CONF_OPENED: Final = "opened"
+CONF_DUE: Final = "due"
 
 # Power section field names
 CONF_MAX_POWER: Final = "max_power"
@@ -39,11 +40,16 @@ CONF_OVERAGE_PRICE: Final = "overage_price"
 # optimization infeasible.
 DEFAULT_DEFICIT_PRICE: Final = 10.0
 
+# Default overage price ($/kWh) pre-filled in the flow: delivery beyond a
+# window's requirement is free, so the load only takes extra when energy
+# pays to be used. It is never forbidden, so a device that has already run
+# past its requirement cannot make the optimization infeasible.
+DEFAULT_OVERAGE_PRICE: Final = 0.0
+
 OPTIONAL_INPUT_FIELDS: Final[frozenset[str]] = frozenset(
     {
         CONF_ENERGY_DELIVERED,
         CONF_MAX_POWER,
-        CONF_OVERAGE_PRICE,
     }
 )
 
@@ -69,7 +75,8 @@ class ScheduleData(TypedDict):
 
     in_window: NDArray[np.float64]
     window_start: NDArray[np.float64]
-    requirement: NDArray[np.float64]
+    opened: NDArray[np.float64]
+    due: NDArray[np.float64]
     energy_delivered: NotRequired[float]
 
 
@@ -95,14 +102,14 @@ class PricingConfig(TypedDict):
     """Shortfall and overage pricing configuration."""
 
     deficit_price: EntityValue | ConstantValue
-    overage_price: NotRequired[EntityValue | ConstantValue | NoneValue]
+    overage_price: EntityValue | ConstantValue
 
 
 class PricingData(TypedDict):
-    """Loaded pricing values."""
+    """Loaded pricing values, one per horizon boundary."""
 
-    deficit_price: NDArray[np.float64] | float
-    overage_price: NotRequired[NDArray[np.float64] | float]
+    deficit_price: NDArray[np.float64]
+    overage_price: NDArray[np.float64]
 
 
 # --- Main element schemas ---
@@ -121,7 +128,8 @@ class DeferrableLoadConfigSchema(ConnectedCommonConfig):
                     outputs={
                         CONF_IN_WINDOW: calendar_input(OutputType.AVAILABILITY, "window_active"),
                         CONF_WINDOW_START: calendar_input(OutputType.AVAILABILITY, "window_starts"),
-                        CONF_REQUIREMENT: calendar_input(OutputType.ENERGY, "window_due"),
+                        CONF_OPENED: calendar_input(OutputType.ENERGY, "event_opens"),
+                        CONF_DUE: calendar_input(OutputType.ENERGY, "event_due"),
                     },
                 ),
                 CONF_ENERGY_DELIVERED: FieldHint(
@@ -163,6 +171,8 @@ class DeferrableLoadConfigSchema(ConnectedCommonConfig):
                     time_series=True,
                     boundaries=True,
                     min_value=0.0,
+                    default_mode="value",
+                    default_value=DEFAULT_OVERAGE_PRICE,
                 ),
             }
         ),
@@ -180,14 +190,16 @@ class DeferrableLoadConfigData(ConnectedCommonData):
 
 __all__ = [
     "CONF_DEFICIT_PRICE",
+    "CONF_DUE",
     "CONF_ENERGY_DELIVERED",
     "CONF_IN_WINDOW",
     "CONF_MAX_POWER",
+    "CONF_OPENED",
     "CONF_OVERAGE_PRICE",
-    "CONF_REQUIREMENT",
     "CONF_WINDOW_CALENDAR",
     "CONF_WINDOW_START",
     "DEFAULT_DEFICIT_PRICE",
+    "DEFAULT_OVERAGE_PRICE",
     "ELEMENT_TYPE",
     "OPTIONAL_INPUT_FIELDS",
     "SECTION_POWER",

@@ -37,7 +37,6 @@ from .sensor_loader import load_sensors
 
 _PERCENT_OUTPUT_TYPES = frozenset({OutputType.STATE_OF_CHARGE, OutputType.EFFICIENCY})
 
-# Physical quantities that cannot be negative. Prices can, and switches have no sign.
 type InputPath = tuple[str, ...]
 
 
