@@ -3,7 +3,12 @@
 import pytest
 
 from conftest import FakeEntityState
-from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE, read_meter_totals, rise_since
+from custom_components.haeo.core.data.loader.meter import (
+    METER_TOTALS_ATTRIBUTE,
+    read_meter_totals,
+    rise_since,
+    totals_since,
+)
 
 
 def _state(attributes: dict[str, object]) -> FakeEntityState:
@@ -62,3 +67,24 @@ def test_a_meter_whose_totals_fell_rose_nothing() -> None:
 def test_a_meter_without_totals_has_no_rise() -> None:
     """Without totals nothing is known of how much a meter rose."""
     assert rise_since([], 100.0) is None
+
+
+@pytest.mark.parametrize(
+    ("since", "expected"),
+    [
+        pytest.param(150.0, [(100.0, 1.0), (300.0, 5.0)], id="from_the_total_before"),
+        pytest.param(200.0, [(200.0, 3.0), (300.0, 5.0)], id="from_the_total_at"),
+        pytest.param(50.0, [(100.0, 1.0), (300.0, 5.0)], id="from_the_earliest_when_they_start_later"),
+        pytest.param(350.0, [(300.0, 5.0)], id="the_latest_alone_when_it_is_the_start"),
+        pytest.param(None, [(300.0, 5.0)], id="only_the_latest_with_no_window"),
+    ],
+)
+def test_totals_since(since: float | None, expected: list[tuple[float, float]]) -> None:
+    """Only the total a rise starts from and the latest are kept, and they give the same rise."""
+    totals = [(100.0, 1.0), (200.0, 3.0), (300.0, 5.0)]
+
+    kept = totals_since(totals, since)
+
+    assert kept == expected
+    if since is not None:
+        assert rise_since(kept, since) == rise_since(totals, since)

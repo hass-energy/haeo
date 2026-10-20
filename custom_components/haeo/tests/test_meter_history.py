@@ -13,8 +13,9 @@ from custom_components.haeo.meter_history import LOOKBACK, SPACING, MeterHistory
 METER = "sensor.pump_energy"
 
 
-def _totals(history: MeterHistory) -> list[tuple[float, float]]:
-    attributes = history.attributes()[METER]
+def _totals(history: MeterHistory, since: float = 0.0) -> list[tuple[float, float]]:
+    """Return the totals a meter injects for a window open since a time, by default before them all."""
+    attributes = history.attributes({METER: since})[METER]
     totals = attributes[METER_TOTALS_ATTRIBUTE]
     assert isinstance(totals, list)
     return totals
@@ -104,8 +105,13 @@ async def test_live_totals_are_kept_five_minutes_apart(hass: HomeAssistant) -> N
     for seconds, reading in ((10, "11"), (20, "12"), (SPACING.total_seconds() + 1, "13"), (400, "14")):
         history.record(METER, _state(reading, start + timedelta(seconds=seconds)))
 
-    offsets = [round(at - start.timestamp()) for at, _total in _totals(history)]
-    assert offsets == [0, 301, 400]
+    def rises_from(seconds: float) -> int:
+        at, _total = _totals(history, start.timestamp() + seconds)[0]
+        return round(at - start.timestamp())
+
+    # The readings at 10 s and 20 s were folded away, so a window from 15 s rises from the total at 0 s
+    assert rises_from(15) == 0
+    assert rises_from(350) == 301
     assert _totals(history)[-1][1] == pytest.approx(4.0)
 
 
@@ -161,7 +167,7 @@ async def test_totals_older_than_the_lookback_are_dropped(hass: HomeAssistant) -
     ):
         await history.async_load()
 
-    assert [total for _at, total in _totals(history)] == [35.0, 40.0, 42.0]
+    assert [total for _at, total in _totals(history)] == [35.0, 42.0]
 
 
 def test_recorded_totals_read_the_statistics_sums_in_the_meter_unit(hass: HomeAssistant) -> None:
@@ -236,4 +242,21 @@ async def test_a_meter_state_carrying_totals_keeps_them(hass: HomeAssistant) -> 
     history = MeterHistory(hass, [METER])
     await history.async_load()
 
-    assert history.attributes() == {}
+    assert history.attributes({METER: 0.0}) == {}
+
+
+async def test_only_the_totals_a_rise_reads_are_injected(hass: HomeAssistant) -> None:
+    """A meter injects the total it rises from and its latest, or only its latest with no window open."""
+    start = datetime.now(UTC)
+    history = await _history(hass, _state("10", start))
+    for minutes, reading in ((10, "11"), (20, "12"), (30, "13")):
+        history.record(METER, _state(reading, start + timedelta(minutes=minutes)))
+    read_since = (start + timedelta(minutes=15)).timestamp()
+
+    def injected(since: float | None) -> list[float]:
+        totals = history.attributes({METER: since})[METER][METER_TOTALS_ATTRIBUTE]
+        assert isinstance(totals, list)
+        return [total for _at, total in totals]
+
+    assert injected(read_since) == [1.0, 3.0]
+    assert injected(None) == [3.0]

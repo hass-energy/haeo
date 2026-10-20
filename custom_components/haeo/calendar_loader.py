@@ -29,6 +29,7 @@ from custom_components.haeo.core.data.loader.calendar import (
     EventValueText,
     capture_calendar_events,
     load_calendar_events,
+    open_window_start,
     rejected_events,
 )
 from custom_components.haeo.core.data.util.field_units import field_unit_label
@@ -243,13 +244,38 @@ class CalendarInputLoader:
         than leaving the last plan in place, and an unchanged fetch does not
         re-optimize.
         """
-        sm = AnnotatedStateMachine(
-            CalendarStateMachine(HomeAssistantStateMachine(self._hass), self._events), self._meters.attributes()
-        )
+        calendars = CalendarStateMachine(HomeAssistantStateMachine(self._hass), self._events)
+        sm = AnnotatedStateMachine(calendars, self._meters.attributes(self._meters_read_since(calendars)))
         changed = [store for store in self._stores.values() if store.resolve_from_sources(sm)]
         for store in changed:
             store.notify_listeners()
         self._report_ignored_event_values(sm)
+
+    def _meters_read_since(self, calendars: StateMachine) -> dict[str, float | None]:
+        """Return when each meter is read since: the earliest start of the windows open at the horizon start.
+
+        A meter input measures its meters from the window its calendars have
+        open at the horizon start. A meter read by no open window is read
+        since no time.
+        """
+        at = datetime.fromtimestamp(self._horizon_manager.get_forecast_timestamps()[0], tz=UTC)
+        since: dict[str, float | None] = {}
+        for store in self._stores.values():
+            if store.hint.meter is None:
+                continue
+            events = [
+                event
+                for eid in store.source_entity_ids
+                if is_calendar_entity(eid)
+                for event in load_calendar_events(calendars.get(eid)) or []
+            ]
+            opened = open_window_start(events, at)
+            for eid in store.source_entity_ids:
+                if is_calendar_entity(eid):
+                    continue
+                known = since.get(eid)
+                since[eid] = opened if known is None else known if opened is None else min(known, opened)
+        return since
 
     def _report_ignored_event_values(self, sm: StateMachine) -> None:
         """Raise a repair issue for each input ignoring calendar events whose values it cannot use.
