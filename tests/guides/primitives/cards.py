@@ -288,6 +288,7 @@ def _card_page(
         color_scheme="dark" if dark else "light",
         reduced_motion="reduce",
     )
+    hass.configure_context(context, dark_mode=dark)
     preview: Page = context.new_page()
     try:
         preview.route(f"{page.url}{_PREVIEW_PATH}", lambda route: route.fulfill(content_type="text/html", body=html))

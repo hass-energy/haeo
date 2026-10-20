@@ -266,6 +266,10 @@ Walkthrough pages in `docs/walkthroughs/` contain `guide` fenced code blocks tha
 The guide runner (`tools/guide_runner.py`) extracts these blocks, executes them sequentially against a live HA instance, and captures screenshots into per-block directories.
 Consecutive blocks share the same browser and HA context so state accumulates across steps.
 
+The instance loads `scenario1`'s input states, and the clock stands still at that scenario's `optimization_start_time` for the whole run.
+Home Assistant's wall clock is frozen while its event loop keeps real time, so timers still fire, and each browser context is pinned to the same instant.
+Every capture therefore shows the same horizon however slowly the run goes.
+
 ### Showing the plan
 
 Guides can show what HAEO plans, not only how to configure it.

@@ -30,6 +30,7 @@ import threading
 from typing import TYPE_CHECKING
 import warnings
 
+from freezegun import freeze_time
 from homeassistant import loader
 from homeassistant.auth import auth_manager_from_config
 from homeassistant.auth.models import Credentials
@@ -46,8 +47,11 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers import label_registry as lr
 from homeassistant.helpers import restore_state as rs
 from homeassistant.setup import async_setup_component
+from homeassistant.util import dt as dt_util
 from homeassistant.util.json import JsonValueType
 from playwright.sync_api import BrowserContext
+
+from tools.time_shift import parse_anchor_timestamp
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry
@@ -303,8 +307,11 @@ class LiveHomeAssistant:
         """Apply browser preferences for a Playwright context.
 
         Authentication is automatic from loopback via the trusted_networks
-        provider, so this only seeds the dark mode theme when requested.
+        provider. The browser clock is pinned to Home Assistant's frozen now,
+        so the frontend agrees with the backend about the time, and the dark
+        mode theme is seeded when requested.
         """
+        context.clock.set_fixed_time(dt_util.utcnow())
         if not dark_mode:
             return
 
@@ -491,13 +498,19 @@ def _run_hass_thread(
 def live_home_assistant(
     timeout: float = 60.0,
     *,
-    environment: dict[str, JsonValueType] | None = None,
+    environment: dict[str, JsonValueType],
 ) -> Generator[LiveHomeAssistant]:
-    """Context manager for a live Home Assistant instance."""
-    scenario_environment = environment or {}
-    timezone = str(scenario_environment.get("timezone", "UTC"))
+    """Context manager for a live Home Assistant instance.
 
-    with tempfile.TemporaryDirectory(prefix="ha_live_") as tmp_dir:
+    Wall clock time is frozen at the scenario's optimization start time for the
+    life of the instance, so every capture sees the same horizon however long
+    the run takes. The event loop keeps real time, so timers and timeouts still
+    fire.
+    """
+    timezone = str(environment.get("timezone", "UTC"))
+    now = parse_anchor_timestamp(str(environment["optimization_start_time"]))
+
+    with freeze_time(now, real_asyncio=True), tempfile.TemporaryDirectory(prefix="ha_live_") as tmp_dir:
         guide_config_dir = Path(tmp_dir)
         config_dir = str(guide_config_dir)
 
