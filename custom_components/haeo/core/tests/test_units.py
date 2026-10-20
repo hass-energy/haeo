@@ -203,6 +203,9 @@ def test_currency_symbol(currency: str, expected: str) -> None:
         pytest.param("AUD/kWh", 0.3, "AUD/kWh", id="currency_code_per_kwh"),
         pytest.param("€/MWh", 0.0003, "€/kWh", id="per_mwh"),
         pytest.param("£/Wh", 300.0, "£/kWh", id="per_wh"),
+        pytest.param("c/kWh", 0.003, "$/kWh", id="cents_per_kwh"),
+        pytest.param("¢/kWh", 0.003, "$/kWh", id="cent_sign_per_kwh"),
+        pytest.param("p/MWh", 0.000003, "£/kWh", id="pence_per_mwh"),
         pytest.param("$/kWh/h", 0.3, "$/kWh/h", id="price_rate_unchanged"),
     ],
 )
