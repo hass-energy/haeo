@@ -133,6 +133,40 @@ Some connections are unidirectional:
 
 Ensure directions match physical capabilities.
 
+## No Plan Meets Every Constraint
+
+### Problem
+
+Your forecasts ask for more than your system can do, so no plan can meet them.
+A typical cause is a load forecast spike above what the grid import limit and the batteries can supply together, such as an EV charging session carried forward into the forecast.
+
+### Symptoms
+
+- A repair issue titled "No plan meets every constraint"
+- Optimization status shows `failed`
+- Logs show `Optimization failed with status: Infeasible` followed by the conflicting constraints
+
+### Solutions
+
+#### Read the conflicting constraints
+
+The repair issue lists the smallest set of constraints that cannot all hold, with the element and the time each applies.
+A power balance in the list is where supply and demand fail to meet, and the power limits in the list are what stops more power from reaching it.
+
+#### Check the forecasts and limits
+
+Check the forecasts of the elements named in the issue for values your system cannot meet, and the power limits on the path between them.
+The issue clears automatically once a plan is found.
+
+#### Relax impossible plans
+
+Turn on **Relax impossible plans** in the hub's advanced settings to keep planning while a forecast asks for more than your system can do.
+HAEO then finds the smallest shortfall that makes a plan possible, places it at a power balance where it can, and optimizes the rest of the plan as usual.
+A repair issue titled "The plan relaxes constraints it cannot meet" lists each relaxed constraint and how far, such as the power no source could supply at the switchboard.
+
+The relaxed periods cannot happen as planned, so treat that issue as a sign to check the forecast.
+The shortfall is placed to be as small as possible rather than as cheap as possible, so the rest of the plan can cost a little more than it would with the shortfall placed by cost.
+
 ## Optimization Takes Too Long
 
 ### Problem

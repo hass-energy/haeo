@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import STATE_OFF, STATE_ON, EntityCategory, UnitOfEnergy
 from homeassistant.core import HomeAssistant, State
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import EventStateChangedData
 from homeassistant.helpers.update_coordinator import UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -54,6 +55,7 @@ from custom_components.haeo.core.const import (
 from custom_components.haeo.core.data.util.input_values import InputError
 from custom_components.haeo.core.model import Network, OutputData, OutputType
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.infeasibility import InfeasibleError, Relaxation, RowLabel
 from custom_components.haeo.core.schema import as_connection_target, as_constant_value, as_entity_value
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.battery import (
@@ -328,20 +330,42 @@ def test_update_interval_is_none_for_event_driven(
 
 
 @pytest.mark.usefixtures("mock_connection_subentry")
+@pytest.mark.parametrize(
+    ("relaxations", "relaxed_issue"),
+    [
+        pytest.param((), None, id="feasible"),
+        pytest.param(
+            (
+                Relaxation(RowLabel("Switchboard", "element_power_balance", 0), -0.05),
+                Relaxation(RowLabel("Switchboard", "element_power_balance", 1), -0.25),
+                Relaxation(RowLabel("Inverter", "element_power_balance", 0), 0.1),
+                Relaxation(RowLabel("Battery", "energy", None), 0.2),
+                Relaxation(RowLabel("Battery", "energy", None), 0.3),
+            ),
+            "- Switchboard: up to 0.50 kW of demand no source could supply in 2 periods from {0} to {1}\n"
+            "- Inverter: up to 0.20 kW of supply nothing could absorb at {0}\n"
+            "- Battery energy across the horizon: up to +0.3 past its limit",
+            id="relaxed",
+        ),
+    ],
+)
 async def test_async_update_data_returns_outputs(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,
     mock_battery_subentry: ConfigSubentry,
     mock_grid_subentry: ConfigSubentry,
     mock_runtime_data: HaeoRuntimeData,
+    relaxations: tuple[Relaxation, ...],
+    relaxed_issue: str | None,
 ) -> None:
-    """Coordinator returns optimization results merged with element outputs."""
+    """Coordinator returns optimization results merged with element outputs, and reports any relaxed constraints."""
     fake_element = MagicMock()
     fake_element.outputs.return_value = {
         BATTERY_POWER_CHARGE: OutputData(type=OutputType.POWER, unit="kW", values=(1.0, 2.0))
     }
 
     fake_network = MagicMock()
+    fake_network.relaxations = relaxations
     empty_element = MagicMock()
     empty_element.outputs.return_value = {}
 
@@ -375,6 +399,7 @@ async def test_async_update_data_returns_outputs(
 
     # Configure mock horizon manager with forecast timestamps
     _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = expected_forecast_times
+    _get_mock_horizon(mock_runtime_data).periods_seconds = [1800, 1800]
 
     # Mock connection adapter to return proper outputs
     mock_connection_adapter = MagicMock()
@@ -473,6 +498,16 @@ async def test_async_update_data_returns_outputs(
 
     mock_dismiss.assert_called_once_with(hass, mock_hub_entry.entry_id)
 
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, f"optimization_relaxed_{mock_hub_entry.entry_id}")
+    if relaxed_issue is None:
+        assert issue is None
+    else:
+        assert issue is not None
+        period_starts = [
+            f"{dt_util.as_local(dt_util.utc_from_timestamp(t)):%Y-%m-%d %H:%M}" for t in expected_forecast_times
+        ]
+        assert issue.translation_placeholders == {"relaxations": relaxed_issue.format(*period_starts)}
+
 
 async def test_async_initialize_with_empty_input_stores(
     hass: HomeAssistant,
@@ -530,6 +565,48 @@ async def test_async_update_data_propagates_errors(
         pytest.raises(type(error), match=match),
     ):
         await coordinator._async_update_data()
+
+
+@pytest.mark.parametrize(
+    ("conflicts", "described"),
+    [
+        pytest.param(
+            (
+                RowLabel("Switchboard", "element_power_balance", 1),
+                RowLabel("Grid:import", "power_limit_power_limit", 1),
+            ),
+            "- Switchboard element_power_balance at {1}\n- Grid:import power_limit_power_limit at {1}",
+            id="conflicts",
+        ),
+        pytest.param((), "- The solver could not narrow down which constraints conflict", id="no_conflicts"),
+    ],
+)
+async def test_async_update_data_reports_an_infeasible_plan(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+    conflicts: tuple[RowLabel, ...],
+    described: str,
+) -> None:
+    """An infeasible plan fails the update and raises a repair issue naming the conflicting constraints."""
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+    period_starts = [
+        f"{dt_util.as_local(dt_util.utc_from_timestamp(t)):%Y-%m-%d %H:%M}"
+        for t in _get_mock_horizon(mock_runtime_data).get_forecast_timestamps()
+    ]
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        patch.object(hass, "async_add_executor_job", new_callable=AsyncMock, side_effect=InfeasibleError(conflicts)),
+        pytest.raises(UpdateFailed) as error,
+    ):
+        await coordinator._async_update_data()
+
+    assert error.value.translation_key == "optimization_infeasible"
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, f"optimization_infeasible_{mock_hub_entry.entry_id}")
+    assert issue is not None
+    assert issue.translation_placeholders == {"conflicts": described.format(*period_starts)}
 
 
 async def test_async_update_data_raises_on_missing_model_element(

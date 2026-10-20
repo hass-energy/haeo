@@ -35,6 +35,8 @@ from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMEN
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.core.model.element import ELEMENT_POWER_BALANCE
+from custom_components.haeo.core.model.infeasibility import InfeasibleError, Relaxation, RowLabel
 from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.util import extract_unit_parts
@@ -49,7 +51,13 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import input_error_placeholders
-from custom_components.haeo.repairs import dismiss_optimization_failure_issue
+from custom_components.haeo.repairs import (
+    create_optimization_infeasible_issue,
+    create_optimization_relaxed_issue,
+    dismiss_optimization_failure_issue,
+    dismiss_optimization_infeasible_issue,
+    dismiss_optimization_relaxed_issue,
+)
 
 from . import network as network_module
 
@@ -771,7 +779,17 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._apply_pending_element_updates()
 
             # Perform the optimization
-            cost = await self.hass.async_add_executor_job(network.optimize)
+            entry_id = self.config_entry.entry_id
+            try:
+                cost = await self.hass.async_add_executor_job(network.optimize)
+            except InfeasibleError as error:
+                conflicts = _describe_conflicts(error.conflicts, forecast_timestamps)
+                create_optimization_infeasible_issue(self.hass, entry_id, conflicts)
+                raise UpdateFailed(
+                    translation_domain=DOMAIN,
+                    translation_key="optimization_infeasible",
+                    translation_placeholders={"conflicts": conflicts},
+                ) from error
 
             end_time = time.time()
             optimization_duration = end_time - start_time
@@ -780,7 +798,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._last_optimization_time = end_time
 
             _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
-            dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
+            dismiss_optimization_failure_issue(self.hass, entry_id)
+            dismiss_optimization_infeasible_issue(self.hass, entry_id)
+            if network.relaxations:
+                create_optimization_relaxed_issue(
+                    self.hass,
+                    entry_id,
+                    _describe_relaxations(
+                        network.relaxations, forecast_timestamps, runtime_data.horizon_manager.periods_seconds
+                    ),
+                )
+            else:
+                dismiss_optimization_relaxed_issue(self.hass, entry_id)
 
             network_output_data: dict[NetworkOutputName, OutputData] = {
                 OUTPUT_NAME_OPTIMIZATION_COST: OutputData(type=OutputType.COST, unit="$", values=(cost,)),
@@ -879,6 +908,65 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             if self._pending_refresh:
                 self._pending_refresh = False
                 self.signal_optimization_stale()
+
+
+def _period_start(period: int, forecast_timestamps: Sequence[float]) -> str:
+    """Return the local start time of a period."""
+    return f"{dt_util.as_local(dt_util.utc_from_timestamp(forecast_timestamps[period])):%Y-%m-%d %H:%M}"
+
+
+def _when(rows: Sequence[RowLabel], forecast_timestamps: Sequence[float]) -> str:
+    """Describe the periods a group of rows covers."""
+    periods = sorted({row.period for row in rows if row.period is not None})
+    if not periods:
+        return "across the horizon"
+    if len(periods) == 1:
+        return f"at {_period_start(periods[0], forecast_timestamps)}"
+    first, last = (_period_start(period, forecast_timestamps) for period in (periods[0], periods[-1]))
+    return f"in {len(periods)} periods from {first} to {last}"
+
+
+def _describe_conflicts(conflicts: Sequence[RowLabel], forecast_timestamps: Sequence[float]) -> str:
+    """List the constraints that cannot all hold, one line per element and constraint."""
+    if not conflicts:
+        return "- The solver could not narrow down which constraints conflict"
+    groups: dict[tuple[str, str], list[RowLabel]] = {}
+    for row in conflicts:
+        groups.setdefault((row.element, row.constraint), []).append(row)
+    return "\n".join(
+        f"- {element} {constraint} {_when(rows, forecast_timestamps)}" for (element, constraint), rows in groups.items()
+    )
+
+
+def _describe_relaxations(
+    relaxations: Sequence[Relaxation], forecast_timestamps: Sequence[float], periods_seconds: Sequence[int]
+) -> str:
+    """List the constraints a plan relaxed, one line per element, constraint, and direction.
+
+    A relaxed power balance is described by the most power that could not be
+    supplied or absorbed there. Any other constraint is described by the
+    furthest past its limit the plan went.
+    """
+    groups: dict[tuple[str, str, bool], list[Relaxation]] = {}
+    for relaxation in relaxations:
+        key = (relaxation.row.element, relaxation.row.constraint, relaxation.amount < 0)
+        groups.setdefault(key, []).append(relaxation)
+
+    lines: list[str] = []
+    for (element, constraint, short), group in groups.items():
+        when = _when([relaxation.row for relaxation in group], forecast_timestamps)
+        if constraint == ELEMENT_POWER_BALANCE:
+            power = max(
+                abs(relaxation.amount) / (periods_seconds[relaxation.row.period] / 3600)
+                for relaxation in group
+                if relaxation.row.period is not None
+            )
+            kind = "demand no source could supply" if short else "supply nothing could absorb"
+            lines.append(f"- {element}: up to {power:.2f} kW of {kind} {when}")
+        else:
+            furthest = max((relaxation.amount for relaxation in group), key=abs)
+            lines.append(f"- {element} {constraint} {when}: up to {furthest:+.3g} past its limit")
+    return "\n".join(lines)
 
 
 __all__ = [

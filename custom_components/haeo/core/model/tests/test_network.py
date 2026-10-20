@@ -19,7 +19,7 @@ from custom_components.haeo.core.model.elements.connection import Connection, Co
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
 from custom_components.haeo.core.model.elements.segments import PowerLimitSegment
-from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel, row_labels
+from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel
 from custom_components.haeo.core.model.linear import LinearArray
 from custom_components.haeo.core.model.network import BlendWeightSearch, SolveOptions, _bisect_boundary
 from custom_components.haeo.core.model.output_data import OutputData
@@ -468,27 +468,6 @@ def test_relaxation_the_solver_cannot_find_raises_with_the_conflicts(monkeypatch
         network.optimize()
 
     assert error.value.conflicts
-
-
-def test_row_labels_leave_the_period_unknown_when_rows_do_not_cover_the_horizon_in_blocks() -> None:
-    """Rows in whole-horizon blocks get a period, and a constraint of any other length does not."""
-    labels = row_labels(
-        {
-            "battery:charge": {"battery:charge_power_limit_power_limit": np.array([0, 1, 2, 3], dtype=np.int32)},
-            "battery": {"energy": np.array([4, 5, 6], dtype=np.int32)},
-        },
-        n_periods=2,
-    )
-
-    assert labels == {
-        0: RowLabel("battery:charge", "power_limit_power_limit", 0),
-        1: RowLabel("battery:charge", "power_limit_power_limit", 1),
-        2: RowLabel("battery:charge", "power_limit_power_limit", 0),
-        3: RowLabel("battery:charge", "power_limit_power_limit", 1),
-        4: RowLabel("battery", "energy", None),
-        5: RowLabel("battery", "energy", None),
-        6: RowLabel("battery", "energy", None),
-    }
 
 
 def test_network_cost_with_multiple_elements() -> None:

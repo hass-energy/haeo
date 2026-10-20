@@ -9,7 +9,7 @@ Rows are named here by the element and constraint that own them, and the
 period they cover, so a conflict reads in terms of the network.
 """
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Final
 
@@ -28,6 +28,9 @@ LIMIT_RELAXATION_WEIGHT: Final = 1000.0
 
 # A row counts as relaxed when it moves further than this past its bound (kWh)
 RELAXATION_TOLERANCE: Final = 1e-6
+
+# Rows named in a message before the rest are counted instead
+MAX_LISTED_ROWS: Final = 10
 
 # Search the whole LP for a subsystem and reduce it until no row can be dropped
 _IIS_STRATEGY: Final = int(IisStrategy.kIisStrategyFromLp) | int(IisStrategy.kIisStrategyIrreducible)
@@ -69,8 +72,16 @@ class InfeasibleError(ValueError):
         self.conflicts = conflicts
         message = "Optimization failed with status: Infeasible"
         if conflicts:
-            message += f" (conflicting constraints: {', '.join(map(str, conflicts))})"
+            message += f" (conflicting constraints: {listing(map(str, conflicts))})"
         super().__init__(message)
+
+
+def listing(items: Iterable[str]) -> str:
+    """Join items with commas, counting those past ``MAX_LISTED_ROWS`` instead of naming them."""
+    names = list(items)
+    shown = ", ".join(names[:MAX_LISTED_ROWS])
+    hidden = len(names) - MAX_LISTED_ROWS
+    return f"{shown}, and {hidden} more" if hidden > 0 else shown
 
 
 def row_labels(constraints: Mapping[str, Mapping[str, RowIndices]], n_periods: int) -> dict[int, RowLabel]:
@@ -129,10 +140,12 @@ def relaxed_rows(solver: Highs, labels: Mapping[int, RowLabel]) -> tuple[NDArray
 __all__ = [
     "BALANCE_RELAXATION_WEIGHT",
     "LIMIT_RELAXATION_WEIGHT",
+    "MAX_LISTED_ROWS",
     "InfeasibleError",
     "Relaxation",
     "RowLabel",
     "conflicting_rows",
+    "listing",
     "relaxed_rows",
     "row_labels",
 ]

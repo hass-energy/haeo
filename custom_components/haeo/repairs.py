@@ -177,6 +177,44 @@ def dismiss_optimization_failure_issue(
     _LOGGER.debug("Dismissed optimization failure repair issue")
 
 
+def create_optimization_infeasible_issue(hass: HomeAssistant, entry_id: str, conflicts: str) -> None:
+    """Create a repair issue naming the constraints that leave no feasible plan."""
+    async_create_issue(
+        hass,
+        DOMAIN,
+        f"optimization_infeasible_{entry_id}",
+        is_fixable=False,
+        is_persistent=False,
+        severity=IssueSeverity.ERROR,
+        translation_key="optimization_infeasible",
+        translation_placeholders={"conflicts": conflicts},
+    )
+
+
+def dismiss_optimization_infeasible_issue(hass: HomeAssistant, entry_id: str) -> None:
+    """Dismiss the infeasible plan issue once a plan is found."""
+    async_delete_issue(hass, DOMAIN, f"optimization_infeasible_{entry_id}")
+
+
+def create_optimization_relaxed_issue(hass: HomeAssistant, entry_id: str, relaxations: str) -> None:
+    """Create a repair issue listing the constraints the current plan had to relax."""
+    async_create_issue(
+        hass,
+        DOMAIN,
+        f"optimization_relaxed_{entry_id}",
+        is_fixable=False,
+        is_persistent=False,
+        severity=IssueSeverity.WARNING,
+        translation_key="optimization_relaxed",
+        translation_placeholders={"relaxations": relaxations},
+    )
+
+
+def dismiss_optimization_relaxed_issue(hass: HomeAssistant, entry_id: str) -> None:
+    """Dismiss the relaxed plan issue once a plan meets every constraint."""
+    async_delete_issue(hass, DOMAIN, f"optimization_relaxed_{entry_id}")
+
+
 def _calendar_event_values_issue_id(entry_id: str, element_name: str, field_path: Sequence[str]) -> str:
     return f"calendar_event_values_{entry_id}_{element_name}_{'.'.join(field_path)}"
 

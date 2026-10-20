@@ -26,7 +26,7 @@ from .elements.connection import Connection, ConnectionElementConfig, Connection
 from .elements.deferrable_load import DeferrableLoad, DeferrableLoadElementConfig
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
-from .infeasibility import InfeasibleError, Relaxation, conflicting_rows, relaxed_rows, row_labels
+from .infeasibility import InfeasibleError, Relaxation, conflicting_rows, listing, relaxed_rows, row_labels
 from .linear import LinearArray, total
 from .solver import Solver
 from .util.solver_rows import RowIndices
@@ -443,9 +443,7 @@ class Network:
                 rows.tolist(), values.tolist(), lower.tolist(), upper.tolist(), strict=True
             )
         )
-        _LOGGER.warning(
-            "Relaxed constraints to find a plan: %s", ", ".join(map(_describe_relaxation, self.relaxations))
-        )
+        _LOGGER.warning("Relaxed constraints to find a plan: %s", listing(map(_describe_relaxation, self.relaxations)))
         return cost
 
     def _solve(self, all_col_indices: NDArray[np.int32], cost_vectors: list[NDArray[np.float64]]) -> float:

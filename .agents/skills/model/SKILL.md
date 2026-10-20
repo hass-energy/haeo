@@ -126,6 +126,10 @@ Degenerate LPs have many optimal solutions; the secondary objective is what stop
 
 - Catch optimization failures gracefully and return appropriate status indicators.
 
+- An infeasible solve raises `InfeasibleError` at once, since no blend weight can make it feasible.
+    `core/model/infeasibility.py` names the conflicting rows from HiGHS's irreducible infeasible subsystem, and relaxes the model when the network is built with `relax_infeasible`.
+    Do not add slack variables to keep a model feasible; relaxation runs only on the failure path, so feasible solves pay nothing for it.
+
 - Log solver diagnostics at debug level.
 
 ## Policy compilation

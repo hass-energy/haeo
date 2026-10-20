@@ -34,7 +34,9 @@ from custom_components.haeo.core.const import (
     CONF_ELEMENT_TYPE,
     CONF_HORIZON,
     CONF_NAME,
+    CONF_RELAX_INFEASIBLE,
     HORIZON_PRESET_DAYS,
+    HUB_SECTION_ADVANCED,
     HUB_SECTION_COMMON,
 )
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
@@ -1129,7 +1131,9 @@ def run_diagnostics(
     # Create network and run optimization
     print("\nCreating network...")
     periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
-    network = Network(name="diag", periods=periods_hours)
+    advanced = config.get(HUB_SECTION_ADVANCED)
+    relax_infeasible = isinstance(advanced, dict) and advanced.get(CONF_RELAX_INFEASIBLE) is True
+    network = Network(name="diag", periods=periods_hours, relax_infeasible=relax_infeasible)
     compiled = compile_policies(
         list(collect_model_elements(loaded_participants)),
         collect_policy_rules(loaded_participants),
@@ -1142,6 +1146,8 @@ def run_diagnostics(
     try:
         cost = network.optimize()
         print(f"Optimization complete. Total cost: ${cost:.2f}")
+        for relaxation in network.relaxations:
+            print(f"  Relaxed {relaxation.row} by {relaxation.amount:+.3g}")
     except Exception as e:
         print(f"Optimization failed: {e}")
         sys.exit(1)

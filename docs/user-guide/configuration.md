@@ -217,6 +217,10 @@ The hub automatically adjusts optimization for remaining elements.
 Click **Configure** on the hub entry to modify the planning horizon or advanced settings.
 Changes trigger immediate re-optimization with the new parameters.
 
+**Relax impossible plans**, in the advanced settings, keeps planning when your forecasts ask for more than your system can do.
+It is off by default, so an impossible plan fails and a repair issue names the constraints that conflict.
+See [no plan meets every constraint](troubleshooting.md#no-plan-meets-every-constraint) for what each setting does.
+
 ## Best Practices
 
 ### Start simple

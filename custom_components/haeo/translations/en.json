@@ -43,22 +43,26 @@
           "advanced_mode": "Expose raw model elements",
           "debounce_seconds": "Debounce Window (seconds)",
           "horizon": "Planning Horizon",
-          "record_forecasts": "Record forecast data"
+          "record_forecasts": "Record forecast data",
+          "relax_infeasible": "Relax impossible plans"
         },
         "data_description": {
           "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
-          "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
+          "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load.",
+          "relax_infeasible": "When the forecasts ask for more than your system can do, such as a load above what the grid and batteries can supply, plan with the fewest constraints relaxed instead of failing. A repair issue lists what was relaxed. Leave off to fail the optimization and list the constraints that conflict."
         },
         "sections": {
           "advanced": {
             "data": {
               "advanced_mode": "Expose raw model elements",
               "debounce_seconds": "Debounce Window (seconds)",
-              "record_forecasts": "Record forecast data"
+              "record_forecasts": "Record forecast data",
+              "relax_infeasible": "Relax impossible plans"
             },
             "data_description": {
               "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
-              "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load."
+              "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load.",
+              "relax_infeasible": "When the forecasts ask for more than your system can do, such as a load above what the grid and batteries can supply, plan with the fewest constraints relaxed instead of failing. A repair issue lists what was relaxed. Leave off to fail the optimization and list the constraints that conflict."
             },
             "name": "Advanced settings"
           },
@@ -791,6 +795,9 @@
     "no_history_at_time": {
       "message": "No history available at time {time} for: {missing}. The recorder may not have data this far back."
     },
+    "optimization_infeasible": {
+      "message": "No plan meets every constraint. These constraints conflict:\n{conflicts}"
+    },
     "setup_failed_permanent": {
       "message": "Setup failed due to configuration error: {error}. Please check your configuration."
     },
@@ -816,6 +823,14 @@
     "optimization_failure": {
       "title": "Optimization failed",
       "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. An infeasible or numerically difficult optimization problem\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your system configuration for conflicting constraints\n4. Adjust interval tiers or simplify the network if solves are slow or failing\n5. This issue will automatically dismiss when optimization succeeds"
+    },
+    "optimization_infeasible": {
+      "title": "No plan meets every constraint",
+      "description": "HAEO could not find a plan, because these constraints cannot all hold at once:\n{conflicts}\n\nTo fix this issue:\n1. Check the forecasts of the elements listed above for values your system cannot meet, such as a load spike above your grid and battery limits\n2. Check the power limits on the path between those elements\n3. To keep planning while a forecast asks for more than your system can do, turn on Relax impossible plans in the HAEO hub's advanced settings\n4. This issue clears automatically once a plan is found"
+    },
+    "optimization_relaxed": {
+      "title": "The plan relaxes constraints it cannot meet",
+      "description": "Your forecasts ask for more than your system can do, so the current plan relaxes these constraints:\n{relaxations}\n\nThe rest of the plan is optimized as usual, but these periods cannot happen as planned.\n\nTo fix this issue:\n1. Check the forecasts of the elements listed above for values your system cannot meet\n2. Check the power limits on the path to those elements\n3. This issue clears automatically once a plan meets every constraint"
     }
   },
   "selector": {
