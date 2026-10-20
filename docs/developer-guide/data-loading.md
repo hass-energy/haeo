@@ -116,6 +116,14 @@ When the totals start after the window began, the rise counts from the earliest 
 The input store captures the calendars with their events and the meters with their totals, so diagnostics replay the same rise.
 Historical diagnostics read each meter's totals as of the run from the recorder and inject them the same way.
 
+### On and off states
+
+An on/off input reads binary sensors as `on` and `off`.
+When one of its entities reports words instead, the element flow's `states` step asks which states mean on and which mean off, and stores them in the entity value as `on_states` and `off_states`.
+`resolve_field` then reads those entities through `OnOffStateMachine`, which rewrites each state to `on` or `off` before the sensor loader parses it.
+With only one list, every other state is the opposite; with both, a state in neither reads as `unknown`, and states already reading as on or off keep their reading unless listed.
+Input stores capture the states as reported, so diagnostics replay the same reading from the stored lists.
+
 ### Responsibilities
 
 - Load every referenced sensor, and treat the field as unavailable if any sensor is missing or has no data
