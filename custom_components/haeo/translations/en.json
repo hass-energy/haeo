@@ -363,9 +363,18 @@
               "name": "Vehicle"
             }
           }
+        },
+        "states": {
+          "title": "On and off states",
+          "description": "{entities} report words rather than on or off. Choose which states mean on, such as plugged in, and which mean off. Leave one list empty to count every other state as the opposite.",
+          "data": { "off_states": "States meaning off", "on_states": "States meaning on" }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "states_required": "Choose at least one state"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "grid": {
@@ -790,7 +799,7 @@
   "issues": {
     "calendar_event_values_ignored": {
       "title": "Calendar events with values {element} cannot use",
-      "description": "Input {field} of {element} reads {calendars}, but these events hold values it cannot use, so it ignores them:\n{events}\n\nTo fix this issue:\n1. Open each event listed above in its calendar\n2. Type its value as a number followed by a unit that converts to {unit}, such as 5 kW, 500 W, or 0.30 $/kWh\n3. Save the event; this issue clears automatically once every event's value can be used"
+      "description": "Input {field} of {element} reads {calendars}, but these events hold values it cannot use, so it ignores them. Each is listed with the text its value is read from:\n{events}\n\nTo fix this issue:\n1. Open each event listed above in its calendar\n2. Make that text hold exactly one number followed by a unit that converts to {unit}, such as 5 kW, 500 W, or 0.30 $/kWh\n3. Save the event; this issue clears automatically once every event's value can be used"
     },
     "disconnected_network": {
       "title": "System has disconnected components",

@@ -19,14 +19,20 @@ from custom_components.haeo.calendar_loader import async_fetch_calendar_events
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.context import OptimizationContext
-from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
-from custom_components.haeo.core.data.loader.config_loader import configured_value, element_inputs
-from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
+from custom_components.haeo.core.data.loader.calendar import (
+    CALENDAR_EVENTS_ATTRIBUTE,
+    CalendarEventDict,
+    load_calendar_events,
+    open_window_start,
+)
+from custom_components.haeo.core.data.loader.config_loader import configured_value, element_inputs, input_value
+from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE, totals_since
 from custom_components.haeo.core.schema import SchemaValue, is_schema_value
 from custom_components.haeo.core.schema.elements import ElementConfigSchema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
 from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
 from custom_components.haeo.elements import is_element_config_schema
+from custom_components.haeo.ha_state_machine import AnnotatedState
 from custom_components.haeo.meter_history import async_meter_totals_at
 from custom_components.haeo.sensor_utils import (
     SensorStateDict,
@@ -245,10 +251,15 @@ async def _fetch_inputs_at(
     events = dict(zip(calendars, fetched, strict=True))
     unqueryable = {eid for eid, calendar_events in events.items() if calendar_events is None}
 
-    meters = sorted(_collect_meter_entity_ids(config_entry) & set(entity_states))
-    totals = await asyncio.gather(
+    read_since = _meters_read_since(config_entry, entity_states, events, target_time)
+    meters = sorted(read_since.keys() & entity_states.keys())
+    recorded = await asyncio.gather(
         *(async_meter_totals_at(hass, eid, target_time, entity_states[eid]) for eid in meters)
     )
+    totals = [
+        None if meter_totals is None else totals_since(meter_totals, read_since[eid])
+        for eid, meter_totals in zip(meters, recorded, strict=True)
+    ]
 
     extra_attributes: dict[str, Mapping[str, object]] = {
         **{
@@ -271,18 +282,42 @@ async def _fetch_inputs_at(
     return inputs, sorted(missing)
 
 
-def _collect_meter_entity_ids(config_entry: HaeoConfigEntry) -> set[str]:
-    """Collect the entities read by meter inputs in config entry subentries."""
-    meters: set[str] = set()
+def _meters_read_since(
+    config_entry: HaeoConfigEntry,
+    entity_states: Mapping[str, State],
+    events: Mapping[str, list[CalendarEventDict] | None],
+    target_time: datetime,
+) -> dict[str, float | None]:
+    """Return when each meter read by a meter input is read since, as of a past time.
+
+    A meter input measures its meters from the window its calendars had open
+    at the target time, the replayed horizon's start; a meter read by no open
+    window is read since no time.
+    """
+    since: dict[str, float | None] = {}
     for subentry in config_entry.subentries.values():
         participant_config = {**subentry.data, CONF_ELEMENT_TYPE: subentry.subentry_type}
         if subentry.subentry_type == ELEMENT_TYPE_NETWORK or not is_element_config_schema(participant_config):
             continue
         for element_input in element_inputs(participant_config):
-            value = configured_value(participant_config, element_input.config_path)
-            if element_input.hint.meter is not None and is_entity_value(value):
-                meters.update(value["value"])
-    return meters
+            meters = configured_value(participant_config, element_input.config_path)
+            value = input_value(participant_config, element_input)
+            if element_input.hint.meter is None or not is_entity_value(meters) or not is_entity_value(value):
+                continue
+            calendars = [eid for eid in value["value"] if eid not in meters["value"]]
+            opened = open_window_start(
+                [
+                    event
+                    for eid in calendars
+                    if (state := entity_states.get(eid)) is not None and (found := events.get(eid)) is not None
+                    for event in load_calendar_events(AnnotatedState(state, {CALENDAR_EVENTS_ATTRIBUTE: found})) or []
+                ],
+                target_time,
+            )
+            for eid in meters["value"]:
+                known = since.get(eid)
+                since[eid] = opened if known is None else known if opened is None else min(known, opened)
+    return since
 
 
 def _captured_state(state: State, extra_attributes: Mapping[str, object] | None) -> Mapping[str, object]:

@@ -1,11 +1,12 @@
 """Tests for EV element config flow."""
 
 from types import MappingProxyType
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from conftest import add_participant
@@ -39,6 +40,12 @@ from custom_components.haeo.elements import get_input_field_schema_info, get_inp
 from custom_components.haeo.elements.input_fields import is_number_field_info
 from custom_components.haeo.flows.conftest import create_flow
 from custom_components.haeo.flows.field_schema import CHOICE_ENTITY
+from custom_components.haeo.flows.on_off_states import (
+    CONF_OFF_STATES,
+    CONF_ON_STATES,
+    STEP_STATES,
+    async_state_suggestions,
+)
 
 
 def _user_input(trip: dict[str, object] | None = None) -> dict[str, object]:
@@ -191,3 +198,140 @@ async def test_plugged_in_entity_picker_offers_binary_sensors(
     domains = entity_choice["selector"]["entity"]["domain"]
 
     assert {"binary_sensor", "input_boolean"} <= set(domains)
+
+
+CHARGER = "sensor.charger_status"
+
+
+def _charger_input() -> dict[str, object]:
+    """Build EV user input whose plugged-in sensor is a charger reporting words."""
+    user_input = _user_input()
+    user_input[SECTION_CHARGING] = {CONF_MAX_CHARGE_RATE: 7.4, CONF_CONNECTED: [CHARGER]}
+    return user_input
+
+
+async def test_plugged_in_sensor_reporting_words_asks_for_its_states(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """A plugged-in sensor reporting words leads to a step choosing its states before the EV is saved."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    hass.states.async_set(CHARGER, "Idle", {"options": ["Idle", "Charging", "Fault"]})
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test EV", "data": {}})
+
+    result = await flow.async_step_user(user_input=_charger_input())
+
+    assert result.get("type") == FlowResultType.FORM
+    assert result.get("step_id") == STEP_STATES
+    selector = result["data_schema"].schema[next(iter(result["data_schema"].schema))]
+    assert selector.config["options"] == ["Idle", "Charging", "Fault"]
+    flow.async_create_entry.assert_not_called()
+
+    result = await flow.async_step_states({CONF_OFF_STATES: ["Idle"]})
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+    data = flow.async_create_entry.call_args.kwargs["data"]
+    assert data[SECTION_CHARGING][CONF_CONNECTED] == as_entity_value([CHARGER], off_states=["Idle"])
+
+
+async def test_states_step_needs_at_least_one_state(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Choosing no states at all is rejected, as every state would then have no reading."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    hass.states.async_set(CHARGER, "Charging")
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    await flow.async_step_user(user_input=_charger_input())
+
+    result = await flow.async_step_states({CONF_ON_STATES: [], CONF_OFF_STATES: []})
+
+    assert result.get("step_id") == STEP_STATES
+    assert result.get("errors") == {"base": "states_required"}
+
+
+@pytest.mark.parametrize(
+    ("entity_id", "state"),
+    [
+        pytest.param("binary_sensor.ev_plugged_in", "on", id="binary_sensor"),
+        pytest.param("sensor.ev_plugged_in", "1", id="numeric_sensor"),
+    ],
+)
+async def test_plugged_in_sensor_reading_on_or_off_saves_directly(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    entity_id: str,
+    state: str,
+) -> None:
+    """A plugged-in sensor that already reads as on or off needs no states."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    hass.states.async_set(entity_id, state)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.async_create_entry = Mock(return_value={"type": FlowResultType.CREATE_ENTRY, "title": "Test EV", "data": {}})
+    user_input = _user_input()
+    user_input[SECTION_CHARGING] = {CONF_MAX_CHARGE_RATE: 7.4, CONF_CONNECTED: [entity_id]}
+
+    result = await flow.async_step_user(user_input=user_input)
+
+    assert result.get("type") == FlowResultType.CREATE_ENTRY
+
+
+async def test_states_suggest_what_the_recorder_saw(hass: HomeAssistant) -> None:
+    """A sensor without listed options suggests the states the recorder saw, then its current state."""
+    hass.config.components.add("recorder")
+    hass.states.async_set(CHARGER, "Idle")
+    recorder = Mock()
+    recorder.async_add_executor_job = AsyncMock(return_value=["Charging", "Idle", "unavailable", "Ended"])
+
+    with patch("custom_components.haeo.flows.on_off_states.get_instance", return_value=recorder):
+        suggestions = await async_state_suggestions(hass, [CHARGER])
+
+    assert suggestions == ["Charging", "Idle", "Ended"]
+
+
+async def test_reconfigure_suggests_the_stored_states(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+) -> None:
+    """Reconfiguring an EV suggests the states it stored."""
+    add_participant(hass, hub_entry, "TestNode", node.ELEMENT_TYPE)
+    hass.states.async_set(CHARGER, "Idle")
+    from custom_components.haeo.core.schema import as_connection_target  # noqa: PLC0415
+
+    existing_subentry = ConfigSubentry(
+        data=MappingProxyType(
+            {
+                CONF_ELEMENT_TYPE: ELEMENT_TYPE,
+                CONF_NAME: "Test EV",
+                CONF_CONNECTION: as_connection_target("TestNode"),
+                SECTION_VEHICLE: {
+                    CONF_CAPACITY: as_constant_value(60.0),
+                    CONF_ENERGY_PER_DISTANCE: as_constant_value(0.15),
+                    CONF_CURRENT_SOC: as_entity_value(["sensor.ev_soc"]),
+                },
+                SECTION_CHARGING: {
+                    CONF_MAX_CHARGE_RATE: as_constant_value(7.4),
+                    CONF_CONNECTED: as_entity_value([CHARGER], off_states=["Idle"]),
+                },
+                SECTION_TRIP: {},
+                SECTION_PUBLIC_CHARGING: {},
+                SECTION_EFFICIENCY: {},
+            }
+        ),
+        subentry_type=ELEMENT_TYPE,
+        title="Test EV",
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, existing_subentry)
+    flow = create_flow(hass, hub_entry, ELEMENT_TYPE)
+    flow.context = {"subentry_id": existing_subentry.subentry_id, "source": SOURCE_RECONFIGURE}
+    flow._get_reconfigure_subentry = Mock(return_value=existing_subentry)
+
+    result = await flow.async_step_reconfigure(user_input=_charger_input())
+
+    assert result.get("step_id") == STEP_STATES
+    suggested = {
+        marker.schema: (marker.description or {}).get("suggested_value") for marker in result["data_schema"].schema
+    }
+    assert suggested == {CONF_ON_STATES: [], CONF_OFF_STATES: ["Idle"]}
