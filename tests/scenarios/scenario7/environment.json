@@ -1,0 +1,11 @@
+{
+  "diagnostic_request_time": "2026-10-20T17:08:22.905655+11:00",
+  "diagnostic_target_time": null,
+  "diagnostics_version": 2,
+  "ha_version": "2026.9.4",
+  "haeo_version": "0.4.0rc7",
+  "horizon_start": "2026-10-20T17:08:00+11:00",
+  "optimization_end_time": "2026-10-20T17:08:22.347626+11:00",
+  "optimization_start_time": "2026-10-20T17:08:22.325537+11:00",
+  "timezone": "Australia/Sydney"
+}

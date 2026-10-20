@@ -16,8 +16,10 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 import logging
 from pathlib import Path
+import re
 
 from playwright.sync_api import Locator, Page, expect
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from tools.live_hass import LiveHomeAssistant
 
@@ -703,7 +705,8 @@ class HAPage:
         Sections are rendered as ``ha-expansion-panel`` within ``ha-form-expandable``.
         If the panel is already expanded, this is a no-op.
         """
-        panel = self.page.locator("ha-expansion-panel").filter(has_text=section_name)
+        # Match the header's exact text, so a description mentioning the name elsewhere does not match
+        panel = self.page.locator("ha-expansion-panel").filter(has=self.page.get_by_text(section_name, exact=True))
         panel.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
         expanded = self.page.locator("ha-expansion-panel[expanded]").filter(has_text=section_name)
 
@@ -994,8 +997,7 @@ class HAPage:
 
                 picker.click()
 
-                search_input = self.page.locator("vaadin-combo-box-overlay input").first
-                search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+                search_input = self._entity_picker_search_input()
                 self._capture_with_indicator("search_box", search_input)
 
                 search_input.fill(search_term)
@@ -1010,13 +1012,29 @@ class HAPage:
                 self._capture("selected")
         else:
             picker.click()
-            search_input = self.page.locator("vaadin-combo-box-overlay input").first
-            search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+            search_input = self._entity_picker_search_input()
             search_input.fill(search_term)
             result_item = self.page.locator(f"ha-combo-box-item:has-text('{entity_name}')").first
             result_item.wait_for(state="visible", timeout=SEARCH_TIMEOUT)
             result_item.click(timeout=DEFAULT_TIMEOUT)
             self._settle()
+
+    def _entity_picker_search_input(self) -> Locator:
+        """Return the visible search input of an open entity picker dropdown.
+
+        Newer frontends render the picker as an inline panel with a "Search"
+        textbox; older ones use a vaadin-combo-box-overlay input. The lookup
+        stays inside the open dialog so a "Search" box elsewhere on the page,
+        such as the integrations search behind the dialog, cannot match.
+        """
+        dialog = self.page.locator("ha-dialog[open]").last
+        search_input = dialog.get_by_role("textbox", name="Search", exact=True)
+        try:
+            search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        except PlaywrightTimeoutError:
+            search_input = self.page.locator("vaadin-combo-box-overlay input").first
+            search_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
+        return search_input
 
     # endregion
 
@@ -1273,7 +1291,7 @@ class HAPage:
                 self._capture("event_dialog")
 
                 # Fill title
-                title_input = dialog.get_by_role("textbox", name="Title")
+                title_input = dialog.get_by_role("textbox", name=re.compile("Title|Summary"))
                 title_input.wait_for(state="visible", timeout=DEFAULT_TIMEOUT)
                 self._capture_with_indicator("title_field", title_input)
                 title_input.fill(title)
@@ -1309,7 +1327,7 @@ class HAPage:
             add_btn.click()
             dialog = self.page.locator("ha-dialog[open]")
             dialog.wait_for(state="attached", timeout=DEFAULT_TIMEOUT)
-            title_input = dialog.get_by_role("textbox", name="Title")
+            title_input = dialog.get_by_role("textbox", name=re.compile("Title|Summary"))
             title_input.fill(title)
             if location:
                 location_input = dialog.get_by_role("textbox", name="Location")

@@ -5,7 +5,6 @@ import pytest
 from custom_components.haeo.core.units import (
     DeviceClass,
     UnitOfMeasurement,
-    _scale_factor,
     base_unit_for_device_class,
     convert_to_base_unit,
     currency_symbol,
@@ -19,6 +18,8 @@ from custom_components.haeo.core.units import (
         (DeviceClass.POWER, "kW"),
         (DeviceClass.ENERGY, "kWh"),
         (DeviceClass.ENERGY_STORAGE, "kWh"),
+        (DeviceClass.DISTANCE, "km"),
+        (DeviceClass.ENERGY_DISTANCE, "kWh/km"),
         (DeviceClass.DURATION, "h"),
         (None, None),
     ],
@@ -42,6 +43,15 @@ def test_base_unit_for_device_class(device_class: DeviceClass | None, expected: 
         (5.0, UnitOfMeasurement.KILO_WATT_HOUR, DeviceClass.ENERGY, 5.0),
         # Energy storage uses same base unit as energy
         (1000.0, UnitOfMeasurement.WATT_HOUR, DeviceClass.ENERGY_STORAGE, 1.0),
+        # Distance conversions
+        (5.0, UnitOfMeasurement.MILE, DeviceClass.DISTANCE, 8.04672),
+        (1500.0, UnitOfMeasurement.METER, DeviceClass.DISTANCE, 1.5),
+        (12.0, UnitOfMeasurement.KILOMETER, DeviceClass.DISTANCE, 12.0),
+        (10.0, UnitOfMeasurement.MILE, None, 16.09344),
+        # Energy per distance conversions
+        (18.0, UnitOfMeasurement.KILO_WATT_HOUR_PER_100_KILOMETER, DeviceClass.ENERGY_DISTANCE, 0.18),
+        (180.0, UnitOfMeasurement.WATT_HOUR_PER_KILOMETER, None, 0.18),
+        (0.2, UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER, DeviceClass.ENERGY_DISTANCE, 0.2),
         # Duration conversions to hours
         (90.0, UnitOfMeasurement.MINUTE, DeviceClass.DURATION, 1.5),
         (7200.0, UnitOfMeasurement.SECOND, DeviceClass.DURATION, 2.0),
@@ -69,7 +79,7 @@ def test_scale_factor(
     expected: float,
 ) -> None:
     """Test unit conversion to base units for various device classes and units."""
-    assert value * _scale_factor(unit, device_class) == pytest.approx(expected)
+    assert convert_to_base_unit(value, unit, device_class)[0] == pytest.approx(expected)
 
 
 @pytest.mark.parametrize(
@@ -100,10 +110,42 @@ def test_scale_factor(
             (50.0, UnitOfMeasurement.PERCENT, None),
         ),
         (
+            5.0,
+            "mi",
+            "distance",
+            (8.04672, UnitOfMeasurement.KILOMETER, DeviceClass.DISTANCE),
+        ),
+        (
+            18.0,
+            "kWh/100km",
+            "energy_distance",
+            (0.18, UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER, DeviceClass.ENERGY_DISTANCE),
+        ),
+        (
             12.0,
             "unknown_unit",
             None,
             (12.0, "unknown_unit", None),
+        ),
+        # Reciprocal efficiency units cannot convert, so they keep their own unit
+        (
+            4.0,
+            "mi/kWh",
+            "energy_distance",
+            (4.0, "mi/kWh", DeviceClass.ENERGY_DISTANCE),
+        ),
+        (
+            6.0,
+            "km/kWh",
+            "energy_distance",
+            (6.0, "km/kWh", DeviceClass.ENERGY_DISTANCE),
+        ),
+        # A power sensor in a unit with no kW conversion is not reported as kW
+        (
+            3.0,
+            "kVA",
+            "power",
+            (3.0, "kVA", DeviceClass.POWER),
         ),
     ],
 )
@@ -161,6 +203,9 @@ def test_currency_symbol(currency: str, expected: str) -> None:
         pytest.param("AUD/kWh", 0.3, "AUD/kWh", id="currency_code_per_kwh"),
         pytest.param("€/MWh", 0.0003, "€/kWh", id="per_mwh"),
         pytest.param("£/Wh", 300.0, "£/kWh", id="per_wh"),
+        pytest.param("c/kWh", 0.003, "$/kWh", id="cents_per_kwh"),
+        pytest.param("¢/kWh", 0.003, "$/kWh", id="cent_sign_per_kwh"),
+        pytest.param("p/MWh", 0.000003, "£/kWh", id="pence_per_mwh"),
         pytest.param("$/kWh/h", 0.3, "$/kWh/h", id="price_rate_unchanged"),
     ],
 )

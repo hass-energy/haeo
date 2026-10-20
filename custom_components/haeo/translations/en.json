@@ -299,6 +299,84 @@
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
+    "ev": {
+      "flow_title": "EV",
+      "entry_type": "EV",
+      "initiate_flow": { "user": "EV", "reconfigure": "EV" },
+      "step": {
+        "user": {
+          "title": "EV Configuration",
+          "description": "Configure your electric vehicle with battery details, charging rates, and trip planning",
+          "data": {
+            "capacity": "Battery capacity",
+            "charge_limit_cost": "Limit cost",
+            "connected": "Plugged in",
+            "connection": "Connection",
+            "current_soc": "Current state of charge",
+            "efficiency_source_target": "Discharge efficiency",
+            "efficiency_target_source": "Charge efficiency",
+            "energy_per_distance": "Energy per distance",
+            "max_charge_rate": "Max charge rate",
+            "max_discharge_rate": "Max discharge rate",
+            "min_charge_percentage": "Min charge level",
+            "name": "EV Name",
+            "odometer": "Odometer",
+            "public_charging_price": "Public charging price",
+            "trip_calendar": "Trip calendar"
+          },
+          "sections": {
+            "advanced": {
+              "data": { "charge_limit_cost": "Limit cost" },
+              "data_description": {
+                "charge_limit_cost": "Holding cost per kWh below the min charge, for every hour it lasts. Keep it far above anything you could pay to charge away from home or earn from the battery, so the min charge acts as a hard limit."
+              },
+              "name": "Advanced"
+            },
+            "charging": {
+              "data": {
+                "connected": "Plugged in",
+                "max_charge_rate": "Max charge rate",
+                "max_discharge_rate": "Max discharge rate"
+              },
+              "name": "Charging"
+            },
+            "common": { "data": { "connection": "Connection", "name": "EV Name" }, "name": "Common settings" },
+            "efficiency": {
+              "data": {
+                "efficiency_source_target": "Discharge efficiency",
+                "efficiency_target_source": "Charge efficiency"
+              },
+              "name": "Efficiency"
+            },
+            "public_charging": {
+              "data": { "public_charging_price": "Public charging price" },
+              "name": "Public charging"
+            },
+            "trip": { "data": { "odometer": "Odometer", "trip_calendar": "Trip calendar" }, "name": "Trips" },
+            "vehicle": {
+              "data": {
+                "capacity": "Battery capacity",
+                "current_soc": "Current state of charge",
+                "energy_per_distance": "Energy per distance",
+                "min_charge_percentage": "Min charge level"
+              },
+              "name": "Vehicle"
+            }
+          }
+        },
+        "states": {
+          "title": "On and off states",
+          "description": "{entities} report words rather than on or off. Choose which states mean on, such as plugged in, and which mean off. Leave one list empty to count every other state as the opposite.",
+          "data": { "off_states": "States meaning off", "on_states": "States meaning on" }
+        }
+      },
+      "error": {
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "states_required": "Choose at least one state"
+      },
+      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+    },
     "grid": {
       "flow_title": "Grid",
       "entry_type": "Grid",
@@ -543,6 +621,7 @@
     "buffer": { "name": "{name}" },
     "connection": { "name": "{name}" },
     "deferrable_load": { "name": "{name}" },
+    "ev": { "name": "{name}" },
     "grid": { "name": "{name}" },
     "inverter": { "name": "{name}" },
     "junction": { "name": "{name}" },
@@ -582,6 +661,22 @@
       "deferrable_load_opened": { "name": "Energy opening" },
       "deferrable_load_overage_price": { "name": "Overage price" },
       "deferrable_load_window_start": { "name": "Window start" },
+      "ev_away": { "name": "Away" },
+      "ev_capacity": { "name": "Battery capacity" },
+      "ev_charge_limit_cost": { "name": "Limit cost" },
+      "ev_connected": { "name": "Plugged in" },
+      "ev_current_soc": { "name": "Current state of charge" },
+      "ev_efficiency_source_target": { "name": "Discharge efficiency" },
+      "ev_efficiency_target_source": { "name": "Charge efficiency" },
+      "ev_energy_per_distance": { "name": "Energy per distance" },
+      "ev_max_charge_rate": { "name": "Max charge rate" },
+      "ev_max_discharge_rate": { "name": "Max discharge rate" },
+      "ev_min_charge_percentage": { "name": "Min charge level" },
+      "ev_odometer": { "name": "Distance since trip started" },
+      "ev_public_charging_price": { "name": "Public charging price" },
+      "ev_trip_due": { "name": "Trip distance due" },
+      "ev_trip_opened": { "name": "Trip distance opening" },
+      "ev_trip_start": { "name": "Trip start" },
       "grid_max_power_source_target": { "name": "Import limit" },
       "grid_max_power_target_source": { "name": "Export limit" },
       "grid_price_source_target": { "name": "Import price" },
@@ -626,6 +721,15 @@
       "deferrable_load_energy_overage": { "name": "Energy overage" },
       "deferrable_load_energy_shortfall": { "name": "Energy shortfall" },
       "deferrable_load_power": { "name": "Power" },
+      "ev_energy_stored": { "name": "Energy stored" },
+      "ev_power_active": { "name": "Active power" },
+      "ev_power_charge": { "name": "Charge power" },
+      "ev_power_discharge": { "name": "Discharge power" },
+      "ev_power_max_charge_price": { "name": "Max charge power shadow price" },
+      "ev_power_max_discharge_price": { "name": "Max discharge power shadow price" },
+      "ev_state_of_charge": { "name": "State of charge" },
+      "ev_trip_energy_delivered": { "name": "Trip energy delivered" },
+      "ev_trip_energy_shortfall": { "name": "Trip energy shortfall" },
       "grid_cost_import": { "name": "Import cost" },
       "grid_cost_net": { "name": "Net cost" },
       "grid_power_active": { "name": "Active power" },
@@ -695,7 +799,7 @@
   "issues": {
     "calendar_event_values_ignored": {
       "title": "Calendar events with values {element} cannot use",
-      "description": "Input {field} of {element} reads {calendars}, but these events hold values it cannot use, so it ignores them:\n{events}\n\nTo fix this issue:\n1. Open each event listed above in its calendar\n2. Type its value as a number followed by a unit that converts to {unit}, such as 5 kW, 500 W, or 0.30 $/kWh\n3. Save the event; this issue clears automatically once every event's value can be used"
+      "description": "Input {field} of {element} reads {calendars}, but these events hold values it cannot use, so it ignores them. Each is listed with the text its value is read from:\n{events}\n\nTo fix this issue:\n1. Open each event listed above in its calendar\n2. Make that text hold exactly one number followed by a unit that converts to {unit}, such as 5 kW, 500 W, or 0.30 $/kWh\n3. Save the event; this issue clears automatically once every event's value can be used"
     },
     "disconnected_network": {
       "title": "System has disconnected components",

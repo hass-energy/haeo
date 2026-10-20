@@ -16,6 +16,8 @@ NON_NEGATIVE_OUTPUT_TYPES: Final = frozenset(
         OutputType.STATE_OF_CHARGE,
         OutputType.EFFICIENCY,
         OutputType.DURATION,
+        OutputType.DISTANCE,
+        OutputType.ENERGY_PER_DISTANCE,
     }
 )
 
@@ -29,6 +31,11 @@ _FIELD_UNITS: Final[dict[OutputType, tuple[UnitSpec, str]]] = {
     OutputType.STATE_OF_CHARGE: (UnitOfMeasurement.PERCENT.value, UnitOfMeasurement.PERCENT.value),
     OutputType.EFFICIENCY: (UnitOfMeasurement.PERCENT.value, UnitOfMeasurement.PERCENT.value),
     OutputType.PRICE: (("*", "/", UnitOfMeasurement.KILO_WATT_HOUR.value), UnitOfMeasurement.DOLLAR_PER_KWH.value),
+    OutputType.DISTANCE: (UnitOfMeasurement.KILOMETER.value, UnitOfMeasurement.KILOMETER.value),
+    OutputType.ENERGY_PER_DISTANCE: (
+        UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER.value,
+        UnitOfMeasurement.KILO_WATT_HOUR_PER_KILOMETER.value,
+    ),
 }
 
 
