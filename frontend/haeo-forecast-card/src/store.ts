@@ -5,6 +5,7 @@ import { computeHoverIndices, sharedTimeline } from "./hover";
 import { calculatePowerBounds, powerValueForDisplay } from "./power-display";
 import { classifyPowerSeries, isPowerPotentialSeries, powerPairKey } from "./power-series-classification";
 import { normalizeSeries } from "./series";
+import { type WindowBand, windowBands } from "./window-bands";
 import type { HassLike } from "./series";
 import type { LineSvgPath, PowerShape } from "./store-paths";
 import { computeHoveredPowerKeys, computePowerShapes, computePricePaths, computeSocPaths } from "./store-paths";
@@ -13,7 +14,7 @@ import { clampHorizonToOptions, horizonPresetToDuration, type HorizonOption } fr
 import type { ChartMargins, ForecastCardConfig, ForecastSeries, LaneBounds, PowerDisplayMode } from "./types";
 
 const DEFAULT_HEIGHT = 360;
-const VISIBLE_LANES = new Set(["power", "price", "soc"]);
+const VISIBLE_LANES = new Set(["power", "price", "soc", "window"]);
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
@@ -297,6 +298,14 @@ export class ForecastCardStore {
 
   get priceSeries(): ForecastSeries[] {
     return this.visibleSeries.filter((s) => s.lane === "price");
+  }
+
+  get windowSeries(): ForecastSeries[] {
+    return this.visibleSeries.filter((s) => s.lane === "window");
+  }
+
+  get windowBands(): WindowBand[] {
+    return windowBands(this.windowSeries, (time) => this.xScale(time));
   }
 
   get socSeries(): ForecastSeries[] {

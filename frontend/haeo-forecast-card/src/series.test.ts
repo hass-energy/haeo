@@ -246,6 +246,49 @@ describe("normalizeSeries", () => {
     expect(lanes).toEqual(["power", "soc"]);
   });
 
+  it("reads calendar window inputs as window series in their element's color", () => {
+    const hass = withSingleHubRegistry({
+      states: {
+        "number.pool_pump_run_window": {
+          entity_id: "number.pool_pump_run_window",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 0 },
+              { time: "2026-03-14T01:00:00Z", value: 1 },
+            ],
+            field_type: "availability",
+            field_name: "in_window",
+            calendar_projection: "window_active",
+            config_mode: "driven",
+            element_type: "deferrable_load",
+            element_name: "Pool pump",
+            friendly_name: "Pool pump Run window",
+          },
+        },
+        "number.ev_plugged_in": {
+          entity_id: "number.ev_plugged_in",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1 },
+              { time: "2026-03-14T01:00:00Z", value: 1 },
+            ],
+            field_type: "availability",
+            field_name: "connected",
+            config_mode: "driven",
+            element_type: "ev",
+            element_name: "EV",
+          },
+        },
+      },
+    });
+
+    const output = normalizeSeries(hass, testHubConfig);
+
+    expect(output.map((series) => [series.label, series.lane, series.outputType])).toEqual([
+      ["Pool pump Run window", "window", "window"],
+    ]);
+  });
+
   it("uses friendly_name as label when present", () => {
     const hass = withSingleHubRegistry({
       states: {

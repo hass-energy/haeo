@@ -1437,3 +1437,5 @@ async def test_calendar_input_shows_what_the_calendar_loader_puts_in_its_store(
 
     assert entity._store.available
     assert entity.native_value == 1.0
+    assert entity.extra_state_attributes is not None
+    assert entity.extra_state_attributes["calendar_projection"] == "window_active"

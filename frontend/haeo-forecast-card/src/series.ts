@@ -67,6 +67,9 @@ function inferLane(outputType: CardOutputType): LaneType {
   if (outputType === "price") {
     return "price";
   }
+  if (outputType === "window") {
+    return "window";
+  }
   return "soc";
 }
 
@@ -174,7 +177,9 @@ function includeOutputType(outputType: string, direction: "+" | "-" | null): out
       return false;
     }
   }
-  return outputType === "power" || outputType === "price" || outputType === "state_of_charge";
+  return (
+    outputType === "power" || outputType === "price" || outputType === "state_of_charge" || outputType === "window"
+  );
 }
 
 function sourceRoleForSeries(configMode: string | null, fieldName: string | null): SeriesSourceRole {
@@ -259,7 +264,9 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
     const priorityRaw = attrs["priority"];
     const priority = asNumber(priorityRaw);
     const fieldType = asString(attrs["field_type"], "other");
-    const outputType = fieldType === "power_limit" ? "power" : fieldType;
+    // An input showing where a calendar's windows are open draws as windows
+    const outputType =
+      attrs["calendar_projection"] === "window_active" ? "window" : fieldType === "power_limit" ? "power" : fieldType;
     const elementName = asString(attrs["element_name"], entityId);
     const outputName = asString(attrs["output_name"], fieldType);
     const directionRaw = attrs["direction"];
@@ -288,7 +295,8 @@ export function normalizeSeries(hass: HassLike | null, config: ForecastCardConfi
       lane: inferLane(outputType),
       drawType: inferDrawType(outputType),
       unit,
-      color: colorForSeries(elementType, outputType, direction, elementName, variant),
+      // Windows take their element's main color, so they read as that element's
+      color: colorForSeries(elementType, outputType, direction, elementName, outputType === "window" ? 0 : variant),
       times,
       values,
     });
