@@ -41,6 +41,7 @@ from custom_components.haeo.core.model.elements import (
     ModelElementConfig,
     NetworkElementConfig,
     is_network_element_config,
+    is_source_element_config,
 )
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_POLICY_PRICING
@@ -220,8 +221,11 @@ def compile_policies(
     # Every source in the tag map gets outbound_tags forcing its production
     # onto its assigned VLAN. Unpolicied and policied sources are treated
     # uniformly — the difference is only whether pricing elements exist.
+    # An element declared unable to produce takes no outbound tags, even
+    # when a policy names it as a source.
     for name, vlan_id in tag_map.items():
-        by_name[name]["outbound_tags"] = {vlan_id}
+        if is_source_element_config(element := by_name[name]):
+            element["outbound_tags"] = {vlan_id}
 
     # --- Step 7: Node inbound tags ---
     # All sinks accept every active VLAN so both policied and unpolicied

@@ -80,6 +80,9 @@ ModelElementConfig = (
 # connections join and power balance applies to
 type NetworkElementConfig = BatteryElementConfig | NodeElementConfig | DeferrableLoadElementConfig
 
+# Configs of the network elements that may produce power, which take outbound tags
+type SourceElementConfig = BatteryElementConfig | NodeElementConfig
+
 
 @dataclass(frozen=True, slots=True)
 class ElementSpec:
@@ -121,6 +124,11 @@ def is_network_element_config(config: ModelElementConfig) -> TypeGuard[NetworkEl
     """Return whether a config builds a network element, one that produces or consumes power itself."""
     spec = ELEMENTS.get(config["element_type"])
     return spec is not None and issubclass(spec.factory, NetworkElement)
+
+
+def is_source_element_config(config: NetworkElementConfig) -> TypeGuard[SourceElementConfig]:
+    """Return whether a network element may produce power, so it takes outbound tags; it may unless declared not to."""
+    return config.get("is_source", True)
 
 
 __all__ = [
@@ -170,5 +178,7 @@ __all__ = [
     "Segment",
     "SegmentSpec",
     "SegmentType",
+    "SourceElementConfig",
     "is_network_element_config",
+    "is_source_element_config",
 ]

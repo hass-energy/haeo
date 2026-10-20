@@ -47,8 +47,7 @@ Boundaries are indexed $k \in \{0, 1, \ldots, T\}$.
 **Optional parameters**:
 
 - $E_0$: Energy already delivered to the window open at the horizon start (kWh) - `initial_energy`, defaults to 0
-- `outbound_tags`: Accepted like every network element, but unused because the load never produces power (see [Tagged Power](../../tagged-power.md))
-- `inbound_tags`: Tags this load can consume — None means all tags
+- `inbound_tags`: Tags this load can consume — None means all tags (see [Tagged Power](../../tagged-power.md))
 
 Window profiles and prices are arrays, one value per period for $w$ and one per boundary for the rest.
 An event already open at the horizon start opens at boundary 0.

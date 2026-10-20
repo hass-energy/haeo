@@ -80,7 +80,6 @@ class DeferrableLoadElementConfig(TypedDict):
     initial_energy: NotRequired[float]
     is_source: Literal[False]
     is_sink: Literal[True]
-    outbound_tags: NotRequired[set[int] | None]
     inbound_tags: NotRequired[set[int] | None]
 
 
@@ -147,7 +146,6 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
         initial_energy: float = 0.0,
         is_source: Literal[False] = False,  # noqa: ARG002 (declared in the config for policy compilation)
         is_sink: Literal[True] = True,  # noqa: ARG002 (declared in the config for policy compilation)
-        outbound_tags: set[int] | None = None,
         inbound_tags: set[int] | None = None,
     ) -> None:
         """Initialize a deferrable load entity.
@@ -160,7 +158,6 @@ class DeferrableLoad(NetworkElement[DeferrableLoadOutputName]):
             periods=periods,
             solver=solver,
             output_names=DEFERRABLE_LOAD_OUTPUT_NAMES,
-            outbound_tags=outbound_tags,
             inbound_tags=inbound_tags,
         )
         n_periods = self.n_periods
