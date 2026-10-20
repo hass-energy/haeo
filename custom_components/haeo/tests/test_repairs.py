@@ -1,13 +1,16 @@
 """Tests for the repairs module."""
 
+from homeassistant.components.repairs import ConfirmRepairFlow
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.issue_registry import IssueSeverity, async_get
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.repairs import (
+    async_create_fix_flow,
     create_disconnected_network_issue,
     create_node_replaced_by_junction_issue,
     create_optimization_persistent_failure_issue,
+    create_optimization_relaxed_issue,
     dismiss_disconnected_network_issue,
     dismiss_entry_issues,
     dismiss_optimization_failure_issue,
@@ -74,7 +77,8 @@ async def test_create_disconnected_network_issue(hass: HomeAssistant) -> None:
 
     assert issue is not None
     assert issue.severity == IssueSeverity.WARNING
-    assert issue.is_fixable
+    # It clears itself once the network is connected, so the user cannot resolve it by hand
+    assert not issue.is_fixable
     assert issue.is_persistent
     assert issue.translation_key == "disconnected_network"
     assert issue.translation_placeholders is not None
@@ -138,3 +142,15 @@ async def test_dismiss_entry_issues_only_removes_that_entry(hass: HomeAssistant)
     dismiss_entry_issues(hass, "entry123")
 
     assert list(async_get(hass).issues) == [(DOMAIN, "node_replaced_by_junction_entry456_Switchboard")]
+
+
+async def test_relaxed_plan_issue_stays_until_the_user_resolves_it(hass: HomeAssistant) -> None:
+    """A relaxed plan raises a persistent warning that the user resolves through a confirm flow."""
+    create_optimization_relaxed_issue(hass, "entry", {"elements": "Load"})
+
+    issue = async_get(hass).async_get_issue(DOMAIN, "optimization_relaxed_entry")
+    assert issue is not None
+    assert issue.severity == IssueSeverity.WARNING
+    assert issue.is_fixable
+    assert issue.is_persistent
+    assert isinstance(await async_create_fix_flow(hass, issue.issue_id, None), ConfirmRepairFlow)

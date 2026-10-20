@@ -55,7 +55,6 @@ from custom_components.haeo.repairs import (
     create_optimization_relaxed_issue,
     dismiss_optimization_failure_issue,
     dismiss_optimization_infeasible_issue,
-    dismiss_optimization_relaxed_issue,
 )
 
 from . import network as network_module
@@ -782,7 +781,6 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             try:
                 cost = await self.hass.async_add_executor_job(network.optimize)
             except InfeasibleError as error:
-                dismiss_optimization_relaxed_issue(self.hass, entry_id)
                 translation_key = "optimization_infeasible_unexplained"
                 placeholders: dict[str, str] = {}
                 if error.conflicts:
@@ -809,6 +807,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             dismiss_optimization_infeasible_issue(self.hass, entry_id)
             if network.relaxations:
                 relaxed_rows = [relaxation.row for relaxation in network.relaxations]
+                plan_start = dt_util.as_local(dt_util.utc_from_timestamp(forecast_timestamps[0]))
                 conflicts = network.conflicts or relaxed_rows
                 create_optimization_relaxed_issue(
                     self.hass,
@@ -818,10 +817,9 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         "minutes": _minutes_into_plan(conflicts, forecast_timestamps),
                         "relaxed_elements": _element_names(relaxed_rows, context.participants),
                         "relaxed_periods": str(len({row.period for row in relaxed_rows if row.period is not None})),
+                        "planned_at": f"{plan_start:%Y-%m-%d %H:%M}",
                     },
                 )
-            else:
-                dismiss_optimization_relaxed_issue(self.hass, entry_id)
 
             network_output_data: dict[NetworkOutputName, OutputData] = {
                 OUTPUT_NAME_OPTIMIZATION_COST: OutputData(type=OutputType.COST, unit="$", values=(cost,)),

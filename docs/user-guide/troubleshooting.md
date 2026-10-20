@@ -162,8 +162,12 @@ The issue clears automatically once a plan is found.
 
 Turn on **Relax impossible plans** in the hub's advanced settings to keep planning while a forecast asks for more than your system can do.
 HAEO then finds the smallest shortfall that makes a plan possible, places it at a power balance where it can, and optimizes the rest of the plan as usual.
-Something still went wrong, so a repair issue titled "The plan relaxes constraints it cannot meet" names the elements that conflict, how many minutes into the plan, and where and in how many periods the plan relaxed constraints, such as at the switchboard.
+Something still went wrong, so a repair issue titled "A plan had to relax constraints it cannot meet" names the elements that conflict, how many minutes into the plan, and where and in how many periods the plan relaxed constraints, such as at the switchboard.
 The log lists each relaxed constraint and by how much.
+
+That issue stays until you mark it resolved, even once later plans meet every constraint, so a forecast that only sometimes asks for too much is not missed.
+It shows the latest plan that had to relax constraints.
+Once you have addressed the cause, open the issue and select **Submit** to resolve it; it is raised again if a later plan has to relax constraints.
 
 The relaxed periods cannot happen as planned, so treat that issue as a sign to check the forecast.
 The shortfall is placed to be as small as possible rather than as cheap as possible, so the rest of the plan can cost a little more than it would with the shortfall placed by cost.

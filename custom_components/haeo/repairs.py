@@ -3,6 +3,7 @@
 from collections.abc import Collection, Mapping, Sequence
 import logging
 
+from homeassistant.components.repairs import ConfirmRepairFlow, RepairsFlow
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue, async_delete_issue
@@ -10,6 +11,19 @@ from homeassistant.helpers.issue_registry import IssueSeverity, async_create_iss
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def async_create_fix_flow(
+    hass: HomeAssistant,  # noqa: ARG001 (signature required by the repairs platform)
+    issue_id: str,  # noqa: ARG001 (signature required by the repairs platform)
+    data: Mapping[str, str | int | float | None] | None,  # noqa: ARG001 (signature required by the repairs platform)
+) -> RepairsFlow:
+    """Return a flow that resolves a fixable issue once the user confirms it.
+
+    Only a relaxed plan's issue is fixable: the others clear themselves once their
+    cause is gone, while a relaxed plan stays a failure until the user resolves it.
+    """
+    return ConfirmRepairFlow()
 
 
 def _summarize_components(components: Sequence[Collection[str]]) -> str:
@@ -37,7 +51,7 @@ def create_disconnected_network_issue(
         hass,
         DOMAIN,
         issue_id,
-        is_fixable=True,
+        is_fixable=False,
         is_persistent=True,
         severity=IssueSeverity.WARNING,
         translation_key="disconnected_network",
@@ -199,22 +213,22 @@ def dismiss_optimization_infeasible_issue(hass: HomeAssistant, entry_id: str) ->
 
 
 def create_optimization_relaxed_issue(hass: HomeAssistant, entry_id: str, placeholders: Mapping[str, str]) -> None:
-    """Create a repair issue naming where the current plan had to relax constraints."""
+    """Create a repair issue naming where a plan had to relax constraints.
+
+    A relaxed plan is still a failure, so the issue stays until the user marks it
+    resolved, even once later plans meet every constraint. Intermittent relaxations
+    then cannot raise and clear it before anyone sees it.
+    """
     async_create_issue(
         hass,
         DOMAIN,
         f"optimization_relaxed_{entry_id}",
-        is_fixable=False,
-        is_persistent=False,
+        is_fixable=True,
+        is_persistent=True,
         severity=IssueSeverity.WARNING,
         translation_key="optimization_relaxed",
         translation_placeholders=dict(placeholders),
     )
-
-
-def dismiss_optimization_relaxed_issue(hass: HomeAssistant, entry_id: str) -> None:
-    """Dismiss the relaxed plan issue once a plan meets every constraint."""
-    async_delete_issue(hass, DOMAIN, f"optimization_relaxed_{entry_id}")
 
 
 def _calendar_event_values_issue_id(entry_id: str, element_name: str, field_path: Sequence[str]) -> str:

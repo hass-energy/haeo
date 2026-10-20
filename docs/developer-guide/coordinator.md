@@ -134,7 +134,8 @@ The coordinator raises the `optimization_infeasible` repair issue naming the con
 The wording lives in the translations; the coordinator passes only element names and numbers as placeholders.
 
 When the hub's `relax_infeasible` option is on, the network relaxes the model instead and records `Network.relaxations`.
-The coordinator raises the `optimization_relaxed` warning issue after the update succeeds, naming the conflicting elements, the elements where constraints were relaxed, and how many periods, and dismisses it once a plan needs no relaxation or the optimization fails.
+The coordinator raises the `optimization_relaxed` warning issue after the update succeeds, naming the conflicting elements, the elements where constraints were relaxed, and how many periods.
+A relaxed plan is still a failure, so the coordinator never dismisses that issue: it is persistent and fixable, and the user resolves it through the confirm flow `repairs.async_create_fix_flow` returns.
 
 ### Error propagation
 

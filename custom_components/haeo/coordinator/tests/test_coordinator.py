@@ -95,6 +95,9 @@ from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMO
 from custom_components.haeo.input_stores import build_input_stores
 from custom_components.haeo.repairs import create_optimization_relaxed_issue
 
+# Placeholders of a relaxed plan from an earlier optimization
+EARLIER_RELAXATION = {"elements": "Earlier Load", "minutes": "45"}
+
 _TIMES = tuple(datetime(2024, 6, 1, tzinfo=UTC) + timedelta(minutes=30 * i) for i in range(4))
 
 
@@ -376,6 +379,7 @@ async def test_async_update_data_returns_outputs(
     fake_network = MagicMock()
     fake_network.conflicts = conflicts
     fake_network.relaxations = relaxations
+    create_optimization_relaxed_issue(hass, mock_hub_entry.entry_id, EARLIER_RELAXATION)
     empty_element = MagicMock()
     empty_element.outputs.return_value = {}
 
@@ -509,12 +513,18 @@ async def test_async_update_data_returns_outputs(
     mock_dismiss.assert_called_once_with(hass, mock_hub_entry.entry_id)
 
     issue = ir.async_get(hass).async_get_issue(DOMAIN, f"optimization_relaxed_{mock_hub_entry.entry_id}")
+    assert issue is not None
     if relaxed_issue is None:
-        assert issue is None
+        # A plan that meets every constraint leaves an earlier relaxation for the user to resolve
+        assert issue.translation_placeholders == EARLIER_RELAXATION
     else:
-        assert issue is not None
         relaxed_periods = str(len({r.row.period for r in relaxations if r.row.period is not None}))
-        assert issue.translation_placeholders == {**relaxed_issue, "relaxed_periods": relaxed_periods}
+        planned_at = f"{dt_util.as_local(dt_util.utc_from_timestamp(expected_forecast_times[0])):%Y-%m-%d %H:%M}"
+        assert issue.translation_placeholders == {
+            **relaxed_issue,
+            "relaxed_periods": relaxed_periods,
+            "planned_at": planned_at,
+        }
 
 
 async def test_async_initialize_with_empty_input_stores(
@@ -603,7 +613,7 @@ async def test_async_update_data_reports_an_infeasible_plan(
     """An infeasible plan fails the update with a repair issue naming the elements and how far into the plan."""
     coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
     coordinator.network = MagicMock()
-    create_optimization_relaxed_issue(hass, mock_hub_entry.entry_id, {})
+    create_optimization_relaxed_issue(hass, mock_hub_entry.entry_id, EARLIER_RELAXATION)
 
     with (
         patch.object(coordinator, "_load_from_input_stores", return_value={}),
@@ -619,8 +629,8 @@ async def test_async_update_data_reports_an_infeasible_plan(
     assert issue is not None
     assert issue.translation_key == translation_key
     assert issue.translation_placeholders == placeholders
-    # A relaxed plan from an earlier cycle no longer exists
-    assert issues.async_get_issue(DOMAIN, f"optimization_relaxed_{mock_hub_entry.entry_id}") is None
+    # An earlier relaxation stays for the user to resolve
+    assert issues.async_get_issue(DOMAIN, f"optimization_relaxed_{mock_hub_entry.entry_id}") is not None
 
 
 async def test_async_update_data_raises_on_missing_model_element(
