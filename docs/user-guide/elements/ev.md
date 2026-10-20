@@ -93,6 +93,11 @@ You need one to automate charging anyway, so it is required.
 The trip calendar is authoritative for future availability; this sensor pins the *current* state, so an early return or unplanned absence is reflected immediately.
 If you select more than one entity, the car counts as plugged in when any of them reports `on`.
 
+A sensor that reports words instead, such as a charger reporting `Charging`, `Occupied`, or `Idle`, works too.
+After you submit, HAEO asks which of its states mean plugged in and which mean unplugged, offering the states the sensor lists or has reported recently.
+Fill in only one list to count every other state as the opposite: for a charger that reports `Idle` when nothing is connected, choose `Idle` as unplugged.
+With both lists filled in, a state in neither reads as unknown, which pauses optimization until it changes.
+
 While a trip event is open, the sensor and the [odometer](#odometer) together tell where the trip is:
 
 - **Plugged in, not driven yet**: the car has not left.
