@@ -34,6 +34,7 @@ site/
 docs/**/manifest.json
 docs/**/light/
 docs/**/dark/
+docs/**/error_state.png
 
 # Node modules
 node_modules/
