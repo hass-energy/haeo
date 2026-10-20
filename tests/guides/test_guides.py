@@ -24,6 +24,7 @@ from tools.guide_runner import (
     INPUTS_FILE,
     BlockResult,
     GuideManifest,
+    PrerequisiteCache,
     extract_guide_blocks,
     get_page_hash,
     load_scenario_environment,
@@ -57,7 +58,7 @@ GUIDE_FILES = _discover_guide_files()
     GUIDE_FILES,
     ids=lambda p: p.stem,
 )
-def test_guide(guide_md: Path, dark_mode: bool) -> None:
+def test_guide(guide_md: Path, dark_mode: bool, prerequisites: PrerequisiteCache) -> None:
     """Run a guide's code blocks and capture screenshots.
 
     Each guide markdown file is run in both light and dark mode.
@@ -69,10 +70,8 @@ def test_guide(guide_md: Path, dark_mode: bool) -> None:
     blocks = extract_guide_blocks(markdown)
     output_dir = output_dir_for_guide(guide_md)
 
-    with live_home_assistant(timeout=120, environment=load_scenario_environment()) as hass:
-        hass.load_states_from_file(INPUTS_FILE)
-
-        screenshots_per_block = run_blocks_for_mode(hass, blocks, output_dir, mode, headless=True)
+    with live_home_assistant(timeout=120, environment=load_scenario_environment(), states=INPUTS_FILE) as hass:
+        screenshots_per_block = run_blocks_for_mode(hass, blocks, output_dir, mode, prerequisites, headless=True)
 
     total = sum(len(names) for names in screenshots_per_block)
     assert total > 0, f"No screenshots captured for {guide_md.name} ({mode})"

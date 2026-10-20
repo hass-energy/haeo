@@ -108,9 +108,7 @@ def test_battery_gets_device_and_entities_like_grid() -> None:
     """A battery created via the real UI flow must register a device + entities."""
     environment = load_scenario_environment()
 
-    with live_home_assistant(timeout=120, environment=environment) as live:
-        live.load_states_from_file(INPUTS_FILE)
-
+    with live_home_assistant(timeout=120, environment=environment, states=INPUTS_FILE) as live:
         with (
             sync_playwright() as playwright,
             playwright.firefox.launch(headless=True) as browser,

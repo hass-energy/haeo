@@ -2,8 +2,9 @@
  * Resolve once the page has finished rendering, for screenshot capture.
  *
  * Rather than sleeping, this waits on the signals the page itself offers:
- * custom elements becoming defined, Lit elements' updateComplete, icons
- * receiving their paths, images on screen loading, and web fonts loading.
+ * requests to Home Assistant being answered, custom elements becoming
+ * defined, Lit elements' updateComplete, icons receiving their paths, images
+ * on screen loading, and web fonts loading.
  * Finite animations and transitions are finished on the spot, as the
  * screenshot would show them, so their end handlers run without waiting out
  * their duration.
@@ -39,11 +40,14 @@ async (deadlineMs) => {
 
   // Some work runs on timers and leaves the DOM untouched until it is done,
   // so it is checked for directly: ha-icon looking its path up, ripples held
-  // pressed for a minimum time after a click, and Material menu surfaces and
-  // ripples, which mark their timed animations by class.
+  // pressed for a minimum time after a click, and Material dialogs, menu
+  // surfaces and ripples, which mark their timed animations by class. A dialog
+  // moves focus into itself once its opening animation ends.
   const iconLoading = (el) => el.localName === "ha-icon" && el.icon && !el._legacy && !el._path;
   const ripplePressed = (el) => (el.localName === "md-ripple" || el.localName === "ha-ripple") && el.pressed;
   const timedClasses = [
+    "mdc-dialog--opening",
+    "mdc-dialog--closing",
     "mdc-menu-surface--animating-open",
     "mdc-menu-surface--animating-closed",
     "mdc-ripple-upgraded--foreground-activation",
@@ -93,6 +97,15 @@ async (deadlineMs) => {
     visit(document);
     for (const image of await showing(loading)) {
       waits.push([`image ${image.currentSrc || image.src}`, image.decode().catch(() => {})]);
+    }
+    // The frontend's connection keeps each request it is waiting on, beside
+    // its subscriptions, which are the entries with a callback. A page waiting
+    // on an answer, such as action descriptions, leaves the DOM untouched until
+    // it arrives.
+    const connection = document.querySelector("home-assistant")?.hass?.connection;
+    const requests = connection ? [...connection.commands.values()].filter((command) => !command.callback) : [];
+    if (requests.length > 0) {
+      waits.push(["Home Assistant requests", frame()]);
     }
     if (document.fonts.status !== "loaded") {
       waits.push(["fonts", document.fonts.ready]);

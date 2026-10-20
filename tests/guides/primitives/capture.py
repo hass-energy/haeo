@@ -16,6 +16,8 @@ from pathlib import Path
 
 from playwright.sync_api import Page
 
+from tools.live_hass import wait_for_requests
+
 _WAIT_SETTLED_JS = (Path(__file__).parent / "js" / "wait_settled.js").read_text()
 
 # How long a page may take to finish rendering before a capture fails
@@ -28,9 +30,13 @@ def wait_until_settled(page: Page) -> None:
     The pointer moves off the page first. A browser updates hover state on its
     own schedule after the layout under a still pointer changes, so leaving it
     over the page would show hover highlights in some captures and not others.
+    Settling repeats until no HTTP request is left in flight, since a request,
+    such as for the script of a panel, changes nothing until it is answered.
     """
     page.mouse.move(-1, -1)
     page.evaluate(_WAIT_SETTLED_JS, SETTLE_DEADLINE_MS)
+    while wait_for_requests(page):
+        page.evaluate(_WAIT_SETTLED_JS, SETTLE_DEADLINE_MS)
 
 
 @dataclass

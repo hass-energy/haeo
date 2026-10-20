@@ -29,6 +29,7 @@ import tempfile
 import threading
 from typing import TYPE_CHECKING
 import warnings
+from weakref import WeakKeyDictionary
 
 from freezegun import freeze_time
 from homeassistant import loader
@@ -49,7 +50,7 @@ from homeassistant.helpers import restore_state as rs
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 from homeassistant.util.json import JsonValueType
-from playwright.sync_api import BrowserContext
+from playwright.sync_api import BrowserContext, Page, Request
 
 from tools.time_shift import parse_anchor_timestamp
 
@@ -57,6 +58,28 @@ if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry
 
 PROJECT_ROOT = Path(__file__).parent.parent
+
+# The HTTP requests each configured browser context has in flight
+_IN_FLIGHT: WeakKeyDictionary[BrowserContext, set[Request]] = WeakKeyDictionary()
+
+
+def wait_for_requests(page: Page) -> bool:
+    """Block until every HTTP request of the page's browser context has been answered.
+
+    Returns whether there were any to wait for. Scripts, translations and
+    images all arrive this way, while the DOM stays as it was until they do.
+    """
+    in_flight = _IN_FLIGHT[page.context]
+    waited = bool(in_flight)
+    while in_flight:
+        request = next(iter(in_flight))
+        response = request.response()
+        if response is not None:
+            response.finished()
+        in_flight.discard(request)
+    return waited
+
+
 _LOGGER = logging.getLogger(__name__)
 
 # Loopback networks the trusted_networks auth provider auto-logs in from. Home
@@ -174,6 +197,7 @@ class LiveHomeAssistant:
     port: int
     loop: asyncio.AbstractEventLoop
     _stop_event: asyncio.Event
+    _restart: Callable[[Callable[[Path], None]], None] | None = None
 
     def set_state(
         self,
@@ -308,10 +332,16 @@ class LiveHomeAssistant:
 
         Authentication is automatic from loopback via the trusted_networks
         provider. The browser clock is pinned to Home Assistant's frozen now,
-        so the frontend agrees with the backend about the time, and the dark
-        mode theme is seeded when requested.
+        so the frontend agrees with the backend about the time, HTTP requests
+        are tracked so captures can wait for them, and the dark mode theme is
+        seeded when requested.
         """
         context.clock.set_fixed_time(dt_util.utcnow())
+        in_flight: set[Request] = set()
+        context.on("request", lambda request: in_flight.add(request))
+        context.on("requestfinished", lambda request: in_flight.discard(request))
+        context.on("requestfailed", lambda request: in_flight.discard(request))
+        _IN_FLIGHT[context] = in_flight
         if not dark_mode:
             return
 
@@ -344,6 +374,18 @@ class LiveHomeAssistant:
     def stop(self) -> None:
         """Signal the HA instance to stop via thread-safe call."""
         self.loop.call_soon_threadsafe(self._stop_event.set)
+
+    def restart(self, prepare: Callable[[Path], None]) -> None:
+        """Stop Home Assistant, let ``prepare`` change its config directory, and start it again.
+
+        Stopping writes everything Home Assistant holds to its config
+        directory, so ``prepare`` can copy the state out or replace it.
+        The port stays the same, so pages can navigate back to it.
+        """
+        if self._restart is None:
+            msg = "This Home Assistant instance cannot restart"
+            raise RuntimeError(msg)
+        self._restart(prepare)
 
 
 async def _setup_home_assistant_async(
@@ -494,11 +536,69 @@ def _run_hass_thread(
         _shutdown_event_loop(loop)
 
 
+@dataclass
+class _Running:
+    """One run of Home Assistant in its background thread."""
+
+    hass: HomeAssistant
+    loop: asyncio.AbstractEventLoop
+    stop_event: asyncio.Event
+    thread: threading.Thread
+
+
+def _launch(port: int, config_dir: Path, timezone: str, timeout: float) -> _Running:
+    """Start Home Assistant in a background thread and wait until it is up."""
+    hass_holder: list[HomeAssistant] = []
+    loop_holder: list[asyncio.AbstractEventLoop] = []
+    error_holder: list[Exception] = []
+    async_stop_event_holder: list[asyncio.Event] = []
+    ready_event = threading.Event()
+
+    thread = threading.Thread(
+        target=_run_hass_thread,
+        args=(
+            port,
+            str(config_dir),
+            timezone,
+            hass_holder,
+            loop_holder,
+            ready_event,
+            async_stop_event_holder,
+            error_holder,
+        ),
+        daemon=True,
+    )
+    thread.start()
+
+    if not ready_event.wait(timeout=timeout):
+        if loop_holder and async_stop_event_holder:
+            loop_holder[0].call_soon_threadsafe(async_stop_event_holder[0].set)
+        thread.join(timeout=5)
+        msg = f"Home Assistant did not start within {timeout}s"
+        raise TimeoutError(msg)
+
+    if error_holder:
+        if loop_holder and async_stop_event_holder:
+            loop_holder[0].call_soon_threadsafe(async_stop_event_holder[0].set)
+        thread.join(timeout=5)
+        raise error_holder[0]
+
+    return _Running(hass_holder[0], loop_holder[0], async_stop_event_holder[0], thread)
+
+
+async def _async_set_up_config_entries(hass: HomeAssistant) -> None:
+    """Set up every integration that already has config entries, as a restart does."""
+    for domain in {entry.domain for entry in hass.config_entries.async_entries()}:
+        await _require_component(hass, domain, {})
+    await hass.async_block_till_done()
+
+
 @contextmanager
 def live_home_assistant(
     timeout: float = 60.0,
     *,
     environment: dict[str, JsonValueType],
+    states: Path,
 ) -> Generator[LiveHomeAssistant]:
     """Context manager for a live Home Assistant instance.
 
@@ -506,69 +606,53 @@ def live_home_assistant(
     life of the instance, so every capture sees the same horizon however long
     the run takes. The event loop keeps real time, so timers and timeouts still
     fire.
+
+    Each start loads the entity states in ``states`` before setting up any
+    integration with config entries, so a restart sees the same inputs.
     """
     timezone = str(environment.get("timezone", "UTC"))
     now = parse_anchor_timestamp(str(environment["optimization_start_time"]))
 
     with freeze_time(now, real_asyncio=True), tempfile.TemporaryDirectory(prefix="ha_live_") as tmp_dir:
-        guide_config_dir = Path(tmp_dir)
-        config_dir = str(guide_config_dir)
+        config_dir = Path(tmp_dir)
 
-        custom_components = guide_config_dir / "custom_components"
+        custom_components = config_dir / "custom_components"
         custom_components.mkdir()
         haeo_target = custom_components / "haeo"
         haeo_target.symlink_to(PROJECT_ROOT / "custom_components" / "haeo")
 
         port = _find_free_port()
-        hass_holder: list[HomeAssistant] = []
-        loop_holder: list[asyncio.AbstractEventLoop] = []
-        error_holder: list[Exception] = []
-        async_stop_event_holder: list[asyncio.Event] = []
-        ready_event = threading.Event()
 
-        thread = threading.Thread(
-            target=_run_hass_thread,
-            args=(
-                port,
-                config_dir,
-                timezone,
-                hass_holder,
-                loop_holder,
-                ready_event,
-                async_stop_event_holder,
-                error_holder,
-            ),
-            daemon=True,
-        )
-        thread.start()
+        def start() -> _Running:
+            running = _launch(port, config_dir, timezone, timeout)
+            instance.hass = running.hass
+            instance.loop = running.loop
+            instance._stop_event = running.stop_event  # noqa: SLF001 (the instance's own lifecycle)
+            instance.load_states_from_file(states)
+            instance.run_coro(_async_set_up_config_entries(running.hass), timeout=timeout)
+            return running
 
-        if not ready_event.wait(timeout=timeout):
-            if loop_holder and async_stop_event_holder:
-                loop_holder[0].call_soon_threadsafe(async_stop_event_holder[0].set)
-            thread.join(timeout=5)
-            msg = f"Home Assistant did not start within {timeout}s"
-            raise TimeoutError(msg)
+        def restart(prepare: Callable[[Path], None]) -> None:
+            nonlocal running
+            instance.stop()
+            running.thread.join(timeout=15)
+            prepare(config_dir)
+            running = start()
 
-        if error_holder:
-            if loop_holder and async_stop_event_holder:
-                loop_holder[0].call_soon_threadsafe(async_stop_event_holder[0].set)
-            thread.join(timeout=5)
-            raise error_holder[0]
-
-        hass = hass_holder[0]
-        loop = loop_holder[0]
-        async_stop_event = async_stop_event_holder[0]
-
+        first = _launch(port, config_dir, timezone, timeout)
         instance = LiveHomeAssistant(
-            hass=hass,
+            hass=first.hass,
             url=f"http://127.0.0.1:{port}",
             port=port,
-            loop=loop,
-            _stop_event=async_stop_event,
+            loop=first.loop,
+            _stop_event=first.stop_event,
+            _restart=restart,
         )
+        instance.load_states_from_file(states)
+        running = first
 
         try:
             yield instance
         finally:
             instance.stop()
-            thread.join(timeout=15)
+            running.thread.join(timeout=15)

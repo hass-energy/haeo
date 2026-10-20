@@ -20,7 +20,10 @@ from pathlib import Path
 import re
 import shutil
 import sys
+import tempfile
+from urllib.parse import urlparse
 
+from filelock import FileLock
 from homeassistant.util.json import JsonValueType
 from playwright.sync_api import sync_playwright
 
@@ -198,33 +201,77 @@ def get_page_hash(blocks: list[GuideBlock]) -> str:
     return compute_page_hash([b.source for b in blocks])
 
 
-def _run_guide_silently(page: HAPage, hass: LiveHomeAssistant, guide_name: str) -> None:
-    """Execute all guide blocks from another walkthrough without screenshots.
+@dataclass
+class PrerequisiteCache:
+    """Home Assistant as each prerequisite guide leaves it, saved once per run.
 
-    Loads the referenced guide's markdown, extracts its guide blocks
-    (excluding any guide-setup blocks to avoid recursive prerequisites),
-    and executes them in a fresh namespace sharing the same page.
-
-    Wraps execution in pause_screenshots() so that even if called from
-    a capturing guide block, the prerequisite's actions don't produce
-    screenshots attributed to the caller.
+    Replaying a prerequisite through the UI takes far longer than starting
+    Home Assistant, so the first guide to need one replays it and saves the
+    config directory, and later guides restore that instead. Both then
+    restart Home Assistant, so every guide continues from the same state.
+    Guides running in parallel share the directory, and a lock makes the
+    first replay before the rest restore.
     """
-    guide_path = DOCS_DIR / "walkthroughs" / f"{guide_name}.md"
-    if not guide_path.exists():
-        msg = f"Prerequisite guide not found: {guide_path}"
-        raise FileNotFoundError(msg)
 
-    markdown = guide_path.read_text(encoding="utf-8")
-    ref_blocks = extract_guide_blocks(markdown)
+    directory: Path
 
-    namespace = build_exec_namespace(page, hass)
-    with pause_screenshots():
-        for block in ref_blocks:
-            if block.captures:
-                exec(compile(block.source, f"<{guide_name} block {block.index}>", "exec"), namespace)  # noqa: S102 (guide runner must execute user-authored code blocks)
+    def run(self, page: HAPage, hass: LiveHomeAssistant, guide_name: str) -> None:
+        """Bring Home Assistant and the page to where the named walkthrough ends."""
+        guide_path = DOCS_DIR / "walkthroughs" / f"{guide_name}.md"
+        if not guide_path.exists():
+            msg = f"Prerequisite guide not found: {guide_path}"
+            raise FileNotFoundError(msg)
+
+        blocks = extract_guide_blocks(guide_path.read_text(encoding="utf-8"))
+        snapshot = self.directory / f"{guide_name}-{get_page_hash(blocks)}"
+
+        self.directory.mkdir(parents=True, exist_ok=True)
+        with FileLock(f"{snapshot}.lock"):
+            if snapshot.exists():
+                hass.restart(lambda config_dir: _restore_config(snapshot, config_dir))
+            else:
+                self._replay(page, hass, guide_name, blocks)
+                path = urlparse(page.page.url).path
+                hass.restart(lambda config_dir: _save_config(config_dir, snapshot, path))
+
+        page.goto("/")
+        page.navigate_in_app((snapshot / _PAGE_FILE).read_text(encoding="utf-8"))
+
+    def _replay(self, page: HAPage, hass: LiveHomeAssistant, guide_name: str, blocks: list[GuideBlock]) -> None:
+        """Execute a walkthrough's guide blocks without screenshots.
+
+        Setup blocks are skipped to avoid recursive prerequisites.
+        """
+        namespace = build_exec_namespace(page, hass, self)
+        with pause_screenshots():
+            for block in blocks:
+                if block.captures:
+                    exec(compile(block.source, f"<{guide_name} block {block.index}>", "exec"), namespace)  # noqa: S102 (guide runner must execute user-authored code blocks)
 
 
-def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, object]:
+# The page path a prerequisite ends on, saved beside its config directory
+_PAGE_FILE = "page"
+
+
+def _save_config(config_dir: Path, snapshot: Path, path: str) -> None:
+    """Copy a stopped Home Assistant's config directory into a snapshot."""
+    partial = snapshot.with_name(f"{snapshot.name}.partial")
+    shutil.copytree(config_dir, partial / "config", symlinks=True)
+    (partial / _PAGE_FILE).write_text(path, encoding="utf-8")
+    partial.rename(snapshot)
+
+
+def _restore_config(snapshot: Path, config_dir: Path) -> None:
+    """Replace a stopped Home Assistant's config directory with a snapshot's."""
+    for child in config_dir.iterdir():
+        if child.is_dir() and not child.is_symlink():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+    shutil.copytree(snapshot / "config", config_dir, symlinks=True, dirs_exist_ok=True)
+
+
+def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant, prerequisites: PrerequisiteCache) -> dict[str, object]:
     """Build the namespace dict available to guide code blocks."""
     return {
         "page": page,
@@ -257,7 +304,7 @@ def build_exec_namespace(page: HAPage, hass: LiveHomeAssistant) -> dict[str, obj
         # Developer Tools primitives
         "save_diagnostics": save_diagnostics,
         # Guide chaining
-        "run_guide": lambda guide_name: _run_guide_silently(page, hass, guide_name),
+        "run_guide": lambda guide_name: prerequisites.run(page, hass, guide_name),
     }
 
 
@@ -276,6 +323,7 @@ def run_blocks_for_mode(
     blocks: list[GuideBlock],
     output_dir: Path,
     mode: str,
+    prerequisites: PrerequisiteCache,
     *,
     headless: bool = True,
 ) -> list[list[str]]:
@@ -303,7 +351,7 @@ def run_blocks_for_mode(
             page_obj.set_default_timeout(5000)
             try:
                 page = HAPage(page=page_obj, url=hass.url, ha=hass)
-                namespace = build_exec_namespace(page, hass)
+                namespace = build_exec_namespace(page, hass, prerequisites)
 
                 # All blocks share one screenshot context (continuous numbering)
                 # but we track per-block boundaries
@@ -381,20 +429,17 @@ def run_guide_from_markdown(
 
     scenario_environment = load_scenario_environment()
 
-    with live_home_assistant(timeout=120, environment=scenario_environment) as hass:
-        hass.load_states_from_file(INPUTS_FILE)
+    with tempfile.TemporaryDirectory(prefix="guide_prerequisites_") as prerequisite_dir:
+        prerequisites = PrerequisiteCache(Path(prerequisite_dir))
 
-        # Run light mode
-        _LOGGER.info("Capturing light mode screenshots...")
-        light_results = run_blocks_for_mode(hass, blocks, output_dir, "light", headless=headless)
+        with live_home_assistant(timeout=120, environment=scenario_environment, states=INPUTS_FILE) as hass:
+            _LOGGER.info("Capturing light mode screenshots...")
+            light_results = run_blocks_for_mode(hass, blocks, output_dir, "light", prerequisites, headless=headless)
 
-    # Need a fresh HA instance for dark mode (different auth/theme state)
-    with live_home_assistant(timeout=120, environment=scenario_environment) as hass:
-        hass.load_states_from_file(INPUTS_FILE)
-
-        # Run dark mode
-        _LOGGER.info("Capturing dark mode screenshots...")
-        dark_results = run_blocks_for_mode(hass, blocks, output_dir, "dark", headless=headless)
+        # Need a fresh HA instance for dark mode (different auth/theme state)
+        with live_home_assistant(timeout=120, environment=scenario_environment, states=INPUTS_FILE) as hass:
+            _LOGGER.info("Capturing dark mode screenshots...")
+            dark_results = run_blocks_for_mode(hass, blocks, output_dir, "dark", prerequisites, headless=headless)
 
     # Validate screenshot parity between modes
     for i, (light_names, dark_names) in enumerate(zip(light_results, dark_results, strict=True)):

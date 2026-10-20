@@ -6,9 +6,11 @@
  * from parent overflow:hidden.
  */
 (el, clickableSelector) => {
+  // Focus without a focus ring, which browsers otherwise draw or not depending
+  // on whether the mouse has been used on the page yet.
   if (el.focus) {
     try {
-      el.focus();
+      el.focus({ focusVisible: false });
     } catch (e) {}
   }
 

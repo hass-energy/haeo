@@ -215,6 +215,18 @@ class HAPage:
         self.page.locator("ha-sidebar").wait_for(state="visible", timeout=initial_load_timeout)
         self._settle()
 
+    def navigate_in_app(self, path: str) -> None:
+        """Move to a path within the loaded app, as its own links do, without reloading the page."""
+        self.page.evaluate(
+            """(path) => {
+                history.pushState(null, '', path);
+                window.dispatchEvent(new CustomEvent('location-changed', { detail: { replace: false } }));
+            }""",
+            path,
+        )
+        self.page.wait_for_url(f"**{path}")
+        self._settle()
+
     def navigate_to_settings(self) -> None:
         """Navigate to Settings via sidebar click."""
         ctx = ScreenshotContext.current()
