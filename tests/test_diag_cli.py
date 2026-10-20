@@ -11,8 +11,7 @@ import pytest
 from custom_components.haeo.core.data.loader import config_loader as cl
 from custom_components.haeo.core.data.loader.config_loader import load_element_config
 from custom_components.haeo.core.schema import as_constant_value, as_entity_value
-from custom_components.haeo.core.schema.elements import battery
-from custom_components.haeo.core.schema.elements.battery import is_battery_config_data
+from custom_components.haeo.core.schema.elements import ElementType, battery
 from custom_components.haeo.elements import is_element_config_schema
 from tools.diag import cli as diag
 
@@ -40,7 +39,7 @@ def _load_battery_config(
     """Load a battery fixture after schema and result discriminators are verified."""
     assert is_element_config_schema(config)
     loaded = load_element_config("Battery", config, provider, forecast_times)
-    assert is_battery_config_data(loaded)
+    assert loaded["element_type"] == ElementType.BATTERY
     return loaded
 
 
@@ -70,22 +69,17 @@ def test_load_element_config_uses_present_value_for_scalar_entities(monkeypatch:
     monkeypatch.setattr(
         cl,
         "load_sensors",
-        lambda _provider, entity_ids: {entity_ids[0]: 75.0},
+        lambda _provider, entity_ids, **_kwargs: {entity_ids[0]: 75.0},
     )
     monkeypatch.setattr(
         cl,
-        "combine_sensor_payloads",
-        lambda _payloads: (75.0, ((0.0, 74.0),)),
+        "split_sensor_payloads",
+        lambda _payloads: (75.0, [[(0.0, 74.0)]]),
     )
     monkeypatch.setattr(
         cl,
-        "fuse_to_boundaries",
-        lambda *_args, **_kwargs: pytest.fail("fuse_to_boundaries should not run for scalar fields"),
-    )
-    monkeypatch.setattr(
-        cl,
-        "fuse_to_intervals",
-        lambda *_args, **_kwargs: pytest.fail("fuse_to_intervals should not run for scalar fields"),
+        "fuse_sensor_payloads",
+        lambda *_args, **_kwargs: pytest.fail("fuse_sensor_payloads should not run for scalar fields"),
     )
 
     loaded = _load_battery_config(config, diag.DiagnosticsStateProvider([]), (0.0, 1800.0, 3600.0))
@@ -104,16 +98,16 @@ def test_load_element_config_unwraps_entity_wrappers_for_time_series(monkeypatch
     monkeypatch.setattr(
         cl,
         "load_sensors",
-        lambda _provider, entity_ids: {entity_ids[0]: 13.5},
+        lambda _provider, entity_ids, **_kwargs: {entity_ids[0]: 13.5},
     )
     monkeypatch.setattr(
         cl,
-        "combine_sensor_payloads",
-        lambda _payloads: (13.5, ((0.0, 13.5),)),
+        "split_sensor_payloads",
+        lambda _payloads: (13.5, [[(0.0, 13.5)]]),
     )
     monkeypatch.setattr(
         cl,
-        "fuse_to_boundaries",
+        "fuse_sensor_payloads",
         lambda *_args, **_kwargs: [13.5, 13.4, 13.3],
     )
 

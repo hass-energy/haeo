@@ -25,9 +25,14 @@ from custom_components.haeo.core.adapters.policy_compilation import (
 )
 from custom_components.haeo.core.model import ModelElementConfig
 from custom_components.haeo.core.model.element import NetworkElement
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+    MODEL_ELEMENT_TYPE_NODE,
+)
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
+from custom_components.haeo.core.model.elements.deferrable_load import DeferrableLoadElementConfig
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig
 from custom_components.haeo.core.model.elements.segments import SegmentSpec
@@ -328,6 +333,32 @@ def test_wildcard_excludes_sink_only_from_sources() -> None:
     # Junction is neither — not expanded as source, no outbound tag
     sw = _find(result, "sw", element_type=MODEL_ELEMENT_TYPE_NODE)
     assert sw.get("outbound_tags") is None
+
+
+@pytest.mark.parametrize("sources", [["*"], ["ev", "grid"]], ids=["wildcard", "named"])
+def test_a_sink_only_deferrable_load_takes_no_outbound_tags(sources: list[str]) -> None:
+    """A sink-only deferrable load takes no outbound tags, whether a policy reaches it by wildcard or by name."""
+    elements: list[ModelElementConfig] = [
+        _node("grid", is_source=True),
+        DeferrableLoadElementConfig(
+            element_type=MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+            name="ev",
+            in_window=np.ones(1),
+            window_start=np.zeros(2),
+            opened=np.array([5.0, 0.0]),
+            due=np.array([0.0, 5.0]),
+            deficit_price=np.ones(2),
+            overage_price=np.zeros(2),
+            is_source=False,
+            is_sink=True,
+        ),
+        _conn("grid_ev", "grid", "ev"),
+    ]
+    policies = [_policy(sources, ["*"], 0.05)]
+    result = compile_policies(elements, policies)
+    ev = next(e for e in result["elements"] if e["name"] == "ev" and e["element_type"] == "deferrable_load")
+    assert ev.get("outbound_tags") is None
+    assert _outbound_tag(result, "grid") in (ev.get("inbound_tags") or set())
 
 
 def test_wildcard_excludes_source_only_from_destinations() -> None:

@@ -96,6 +96,12 @@ def test_invalid_sensor_handling(hass: HomeAssistant, parser_type: str, sensor_d
             "test_unit",
             id="unknown_with_unit",
         ),
+        pytest.param("on", {}, 1.0, None, id="binary_on"),
+        pytest.param("off", {}, 0.0, None, id="binary_off"),
+        pytest.param("true", {}, 1.0, None, id="binary_true"),
+        pytest.param("false", {}, 0.0, None, id="binary_false"),
+        pytest.param("ON", {}, 1.0, None, id="binary_uppercase"),
+        pytest.param(" Off ", {}, 0.0, None, id="binary_mixed_case_whitespace"),
     ],
 )
 def test_extract_unknown_format_fallback(
@@ -128,18 +134,6 @@ def test_extract_raises_for_non_numeric_state(hass: HomeAssistant) -> None:
 
     with pytest.raises(ValueError, match="could not convert string to float"):
         extractors.extract(state)
-
-
-PARSER_MAP: dict[str, extractors.DataExtractor] = {
-    extractors.amber2mqtt.DOMAIN: extractors.amber2mqtt.Parser,
-    extractors.amberelectric.DOMAIN: extractors.amberelectric.Parser,
-    extractors.aemo_nem.DOMAIN: extractors.aemo_nem.Parser,
-    extractors.flow_power.DOMAIN: extractors.flow_power.Parser,
-    extractors.haeo.DOMAIN: extractors.haeo.Parser,
-    extractors.nordpool.DOMAIN: extractors.nordpool.Parser,
-    extractors.solcast_solar.DOMAIN: extractors.solcast_solar.Parser,
-    extractors.open_meteo_solar_forecast.DOMAIN: extractors.open_meteo_solar_forecast.Parser,
-}
 
 
 # --- Interpolation Mode Tests ---

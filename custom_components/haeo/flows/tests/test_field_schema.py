@@ -1,5 +1,7 @@
 """Tests for flows/field_schema.py utilities."""
 
+from dataclasses import replace
+
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
@@ -17,7 +19,8 @@ from custom_components.haeo.core.schema import (
     as_entity_value,
     as_none_value,
 )
-from custom_components.haeo.elements.field_schema import FieldSchemaInfo
+from custom_components.haeo.core.schema.field_hints import CalendarFieldHint
+from custom_components.haeo.core.schema.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import AnyInputFieldInfo, InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.flows.field_schema import (
     CHOICE_CONSTANT,
@@ -142,6 +145,30 @@ def test_build_choose_selector_creates_normalizing_choose_selector(
     """NormalizingChooseSelector is created with entity and constant choices."""
     selector = build_choose_selector(number_field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
     assert isinstance(selector, NormalizingChooseSelector)
+
+
+@pytest.mark.parametrize(
+    ("time_series", "output_type", "expected"),
+    [
+        pytest.param(True, OutputType.POWER, True, id="forecast_field"),
+        pytest.param(False, OutputType.POWER, False, id="scalar_field"),
+        pytest.param(True, OutputType.AVAILABILITY, False, id="forecast_field_without_unit"),
+    ],
+)
+def test_build_choose_selector_offers_calendars_for_forecast_fields(
+    number_field: InputFieldInfo[NumberEntityDescription],
+    *,
+    time_series: bool,
+    output_type: OutputType,
+    expected: bool,
+) -> None:
+    """A number forecast field with a unit can pick a calendar, read as a forecast; other fields cannot."""
+    field = replace(number_field, time_series=time_series, output_type=output_type)
+
+    selector = build_choose_selector(field, allowed_choices=ALLOWED_CHOICES_REQUIRED)
+
+    domains = selector.config["choices"][CHOICE_ENTITY]["selector"]["entity"]["domain"]
+    assert ("calendar" in domains) is expected
 
 
 def test_build_choose_selector_entity_first_by_default(
@@ -1350,3 +1377,43 @@ def test_convert_sectioned_choose_data_to_config_handles_non_mapping_section(
     config = convert_sectioned_choose_data_to_config({"inputs": "invalid"}, input_fields, sections)
 
     assert config == {"inputs": {}}
+
+
+# --- Tests for calendar-driven fields ---
+
+
+def _calendar_field() -> InputFieldInfo[NumberEntityDescription]:
+    """Create a config field feeding a calendar input, for testing."""
+    output = InputFieldInfo(
+        field_name="window_due",
+        entity_description=NumberEntityDescription(key="window_due"),
+        output_type=OutputType.ENERGY,
+        time_series=True,
+        boundaries=True,
+        calendar=CalendarFieldHint(projection="event_due"),
+        source_field="window_calendar",
+    )
+    return InputFieldInfo(
+        field_name="window_calendar",
+        entity_description=NumberEntityDescription(key="window_calendar"),
+        output_type=OutputType.ENERGY,
+        outputs={"window_due": output},
+    )
+
+
+def test_calendar_field_offers_only_calendars() -> None:
+    """A field feeding calendar inputs is an ordinary entity choice offering only calendars."""
+    field = _calendar_field()
+
+    entries = build_choose_field_entries(
+        _field_map(field),
+        field_schema={"window_calendar": FieldSchemaInfo(value_type=EntityValue, is_optional=False)},
+        inclusion_map={"window_calendar": ["calendar.pool_pump"]},
+    )
+
+    _marker, selector = entries["window_calendar"]
+    assert isinstance(selector, NormalizingChooseSelector)
+    entity = selector.config["choices"][CHOICE_ENTITY]["selector"]["entity"]
+    assert entity["domain"] == ["calendar"]
+    assert entity["include_entities"] == ["calendar.pool_pump"]
+    assert list(selector.config["choices"]) == [CHOICE_ENTITY]

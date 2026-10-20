@@ -28,6 +28,9 @@ class OutputType(StrEnum):
 
     Other types:
         STATUS: Boolean or categorical status
+        AVAILABILITY: Binary availability schedule (0-1)
+        DISTANCE: Distance quantity (km)
+        ENERGY_PER_DISTANCE: Energy consumption per distance (kWh/km)
         DURATION: Time duration
         SHADOW_PRICE: Shadow prices from LP constraints
 
@@ -43,5 +46,8 @@ class OutputType(StrEnum):
     EFFICIENCY = auto()
     COST = auto()
     STATUS = auto()
+    AVAILABILITY = auto()
+    DISTANCE = auto()
+    ENERGY_PER_DISTANCE = auto()
     DURATION = auto()
     SHADOW_PRICE = auto()

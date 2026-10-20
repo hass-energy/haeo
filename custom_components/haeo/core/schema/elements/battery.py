@@ -1,6 +1,6 @@
 """Battery element schema definitions."""
 
-from typing import Annotated, Final, Literal, NotRequired, TypedDict, TypeGuard
+from typing import Annotated, Final, Literal, NotRequired, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -251,11 +251,6 @@ class BatteryConfigData(ConnectedCommonData):
     advanced: BatteryAdvancedData
 
 
-def is_battery_config_data(config: object) -> TypeGuard[BatteryConfigData]:
-    """Narrow a loaded element config to battery data using the element_type discriminator."""
-    return isinstance(config, dict) and config.get("element_type") == ELEMENT_TYPE
-
-
 __all__ = [
     "CONF_CAPACITY",
     "CONF_CHARGE_LIMIT_COST",
@@ -284,5 +279,4 @@ __all__ = [
     "LimitsData",
     "StorageSocConfig",
     "StorageSocData",
-    "is_battery_config_data",
 ]

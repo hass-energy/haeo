@@ -65,13 +65,27 @@ function pickEntities(states) {
     "sensor.battery_state_of_charge",
   ];
 
-  const selected = preferred.filter((entityId) => {
-    const state = states[entityId];
+  const hasForecast = (state) => {
     const forecast = state?.attributes?.forecast;
     return Array.isArray(forecast) && forecast.length > 1;
-  });
+  };
+  const selected = preferred.filter((entityId) => hasForecast(states[entityId]));
 
-  if (selected.length > 0) return selected;
+  if (selected.length > 0) {
+    // Elements the preferred entities do not cover, such as an EV, show their output sensors
+    const covered = new Set(selected.map((entityId) => states[entityId]?.attributes?.element_name));
+    const uncovered = Object.values(states)
+      .filter(
+        (state) =>
+          state.entity_id.startsWith("sensor.") && hasForecast(state) && !covered.has(state.attributes?.element_name)
+      )
+      .map((state) => state.entity_id);
+    // Calendar windows shade the chart wherever they are open
+    const windows = Object.values(states)
+      .filter((state) => state.attributes?.calendar_projection === "window_active" && hasForecast(state))
+      .map((state) => state.entity_id);
+    return [...selected, ...uncovered, ...windows];
+  }
 
   return Object.values(states)
     .filter((state) => {

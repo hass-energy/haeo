@@ -1151,6 +1151,27 @@ def test_are_inputs_aligned_ignores_store_that_rejected_its_value(
 
 
 @pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
+def test_are_inputs_aligned_ignores_store_that_could_not_load(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+) -> None:
+    """A store whose source failed to load does not block the update that reports it unavailable."""
+    _get_mock_horizon(mock_runtime_data).get_forecast_timestamps.return_value = (1000.0, 2000.0)
+
+    mock_store = MagicMock()
+    mock_store.time_series = True
+    mock_store.error = None
+    mock_store.available = False
+    mock_store.horizon_start = 500.0
+    mock_runtime_data.input_stores[("Test Battery", (SECTION_STORAGE, CONF_CAPACITY))] = mock_store
+
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+
+    assert coordinator._are_inputs_aligned() is True
+
+
+@pytest.mark.usefixtures("mock_battery_subentry", "mock_grid_subentry")
 def test_are_inputs_aligned_returns_true_when_aligned(
     hass: HomeAssistant,
     mock_hub_entry: MockConfigEntry,

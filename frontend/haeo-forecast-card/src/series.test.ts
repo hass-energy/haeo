@@ -121,6 +121,32 @@ describe("normalizeSeries", () => {
     expect(first.priority).toBe(3);
   });
 
+  it("ingests deferrable load power outputs", () => {
+    const hass = withSingleHubRegistry({
+      states: {
+        "sensor.pool_pump_power": {
+          entity_id: "sensor.pool_pump_power",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1.5 },
+              { time: "2026-03-14T01:00:00Z", value: 0 },
+            ],
+            field_type: "power",
+            output_name: "deferrable_load_power",
+            direction: "-",
+            element_type: "deferrable_load",
+            element_name: "Pool Pump",
+            unit_of_measurement: "kW",
+          },
+        },
+      },
+    });
+    const output = normalizeSeries(hass, testHubConfig);
+    expect(output).toHaveLength(1);
+    expect(output[0]!.elementType).toBe("deferrable_load");
+    expect(output[0]!.lane).toBe("power");
+  });
+
   it("handles state_of_charge output type as line draw", () => {
     const hass = withSingleHubRegistry({
       states: {
@@ -177,6 +203,135 @@ describe("normalizeSeries", () => {
     expect(output[0]!.direction).toBe(direction);
     expect(output[0]!.lane).toBe("soc");
     expect(output[0]!.color).toBe(color);
+  });
+
+  it("ingests EV power and state of charge series", () => {
+    const hass = withSingleHubRegistry({
+      states: {
+        "sensor.car_charge_power": {
+          entity_id: "sensor.car_charge_power",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 7.4 },
+              { time: "2026-03-14T01:00:00Z", value: 0 },
+            ],
+            field_type: "power",
+            output_name: "ev_power_charge",
+            direction: "-",
+            element_type: "ev",
+            element_name: "Car",
+            unit_of_measurement: "kW",
+          },
+        },
+        "sensor.car_state_of_charge": {
+          entity_id: "sensor.car_state_of_charge",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 40 },
+              { time: "2026-03-14T01:00:00Z", value: 60 },
+            ],
+            field_type: "state_of_charge",
+            output_name: "ev_state_of_charge",
+            element_type: "ev",
+            element_name: "Car",
+            unit_of_measurement: "%",
+          },
+        },
+      },
+    });
+    const output = normalizeSeries(hass, testHubConfig);
+    expect(output).toHaveLength(2);
+    expect(output.every((series) => series.elementType === "ev")).toBe(true);
+    const lanes = output.map((series) => series.lane).sort();
+    expect(lanes).toEqual(["power", "soc"]);
+  });
+
+  it("reads calendar window inputs as window series in their element's color", () => {
+    const hass = withSingleHubRegistry({
+      states: {
+        "number.pool_pump_run_window": {
+          entity_id: "number.pool_pump_run_window",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 0 },
+              { time: "2026-03-14T01:00:00Z", value: 1 },
+            ],
+            field_type: "availability",
+            field_name: "in_window",
+            calendar_projection: "window_active",
+            config_mode: "driven",
+            element_type: "deferrable_load",
+            element_name: "Pool pump",
+            friendly_name: "Pool pump Run window",
+          },
+        },
+        "number.ev_plugged_in": {
+          entity_id: "number.ev_plugged_in",
+          attributes: {
+            forecast: [
+              { time: "2026-03-14T00:00:00Z", value: 1 },
+              { time: "2026-03-14T01:00:00Z", value: 1 },
+            ],
+            field_type: "availability",
+            field_name: "connected",
+            config_mode: "driven",
+            element_type: "ev",
+            element_name: "EV",
+          },
+        },
+      },
+    });
+
+    const output = normalizeSeries(hass, testHubConfig);
+
+    expect(output.map((series) => [series.label, series.lane, series.outputType])).toEqual([
+      ["Pool pump Run window", "window", "window"],
+    ]);
+  });
+
+  it("puts a buffer held by a single battery with that battery", () => {
+    const reserve = (name: string) => ({
+      entity_id: `sensor.${name}_buffer_state_of_charge`,
+      attributes: {
+        forecast: [
+          { time: "2026-03-14T00:00:00Z", value: 20 },
+          { time: "2026-03-14T01:00:00Z", value: 20 },
+        ],
+        field_type: "state_of_charge",
+        direction: "+",
+        element_type: "buffer",
+        element_name: name,
+        output_name: "buffer_state_of_charge",
+      },
+    });
+    const hass = withSingleHubRegistry({
+      states: {
+        "sensor.home_reserve_buffer_state_of_charge": reserve("Home reserve"),
+        "sensor.shared_reserve_buffer_state_of_charge": reserve("Shared reserve"),
+        "sensor.optimizer_status": {
+          entity_id: "sensor.optimizer_status",
+          attributes: {
+            output_name: "optimization_status",
+            topology: {
+              nodes: [],
+              edges: [],
+              groups: {},
+              buffers: [
+                { name: "Home reserve", kind: "reserve", elements: [], storage: ["Battery"] },
+                { name: "Shared reserve", kind: "reserve", elements: [], storage: ["Battery", "EV"] },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    const output = normalizeSeries(hass, testHubConfig);
+
+    expect(output.map((series) => [series.entityId, series.elementName])).toEqual([
+      ["sensor.home_reserve_buffer_state_of_charge", "Battery"],
+      ["sensor.shared_reserve_buffer_state_of_charge", "Shared reserve"],
+    ]);
   });
 
   it("uses friendly_name as label when present", () => {

@@ -21,6 +21,7 @@ const EN_TRANSLATIONS: TranslationDict = {
   "tooltip.section.possible": "Possible",
   "tooltip.section.price": "Price",
   "tooltip.section.soc": "State of charge",
+  "tooltip.section.window": "Windows open",
   "tooltip.visibility.hide": "Hide hover details",
   "tooltip.visibility.show": "Show hover details",
   "legend.series.import_price": "{label} (import price)",

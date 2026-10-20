@@ -25,9 +25,11 @@ import numpy as np
 from custom_components.haeo.core.data.loader.config_loader import is_percent_field, resolve_constant, resolve_field
 from custom_components.haeo.core.data.storage import Storage
 from custom_components.haeo.core.data.util.input_values import InputError
-from custom_components.haeo.core.schema import as_entity_value
+from custom_components.haeo.core.schema import EntityValue, is_entity_value
 from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.state import EntityState, StateMachine
+
+type InputValue = bool | float | np.ndarray
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,7 +51,7 @@ class InputStore:
     Parameters
     ----------
         mode: Whether this store is user-editable or driven by entities.
-        source_entity_ids: Entity IDs that drive this store (empty for editable).
+        sources: The entity value that drives this store (None for editable).
         hint: Field hint describing output type, time-series shape, etc.
         get_forecast_timestamps: Callable returning current forecast timestamps.
         storage: Persistence binding backing this store.
@@ -62,7 +64,7 @@ class InputStore:
         self,
         *,
         mode: InputMode,
-        source_entity_ids: list[str],
+        sources: EntityValue | None,
         hint: FieldHint,
         get_forecast_timestamps: Callable[[], tuple[float, ...]],
         storage: Storage,
@@ -71,7 +73,8 @@ class InputStore:
     ) -> None:
         """Initialize the input store."""
         self._mode = mode
-        self._source_entity_ids = source_entity_ids
+        self._sources = sources
+        self._source_entity_ids = list(sources["value"]) if sources is not None else []
         self._hint = hint
         self._get_forecast_timestamps = get_forecast_timestamps
         self._storage = storage
@@ -83,7 +86,7 @@ class InputStore:
         self._negate = negate
 
         self._constant: float | bool | None = initial_value
-        self._value: bool | float | np.ndarray | None = None
+        self._value: InputValue | None = None
         self._available = False
         self._error: InputError | None = None
         self._loaded_timestamps: tuple[float, ...] = ()
@@ -126,7 +129,7 @@ class InputStore:
     # --- Values ---
 
     @property
-    def value(self) -> bool | float | np.ndarray | None:
+    def value(self) -> InputValue | None:
         """Return the resolved value in optimization units.
 
         For time-series numeric fields this is a numpy array; for scalar fields
@@ -233,7 +236,7 @@ class InputStore:
 
         return _unsub
 
-    def _notify(self) -> None:
+    def notify_listeners(self) -> None:
         """Fire all registered change listeners."""
         for listener in list(self._listeners):
             listener()
@@ -243,8 +246,8 @@ class InputStore:
     def set_value(self, value: float | bool) -> None:  # noqa: FBT001 (bool is a valid input value)
         """Set a new constant value (display units) and re-resolve.
 
-        Updates the resolved value, marks ready, and notifies listeners.
-        Persistence is performed separately via :meth:`persist`.
+        Updates the resolved value, marks ready, and notifies listeners if the
+        value changed. Persistence is performed separately via :meth:`persist`.
         """
         self._constant = value
         self._resolve_from_constant(mark_ready=True)
@@ -259,94 +262,144 @@ class InputStore:
             self._resolve_from_constant(mark_ready=True)
 
     async def async_load(self, sm: StateMachine) -> bool:
-        """Resolve data from source entities via the provided state machine.
+        """Resolve data from source entities and notify listeners if it changed.
 
         Returns True if data was successfully loaded, False otherwise. Does not
         modify state on failure (keeps previous values).
+        """
+        if self.resolve_from_sources(sm):
+            self.notify_listeners()
+        return self._available
+
+    def resolve_from_sources(self, sm: StateMachine) -> bool:
+        """Resolve data from source entities without notifying listeners.
+
+        Lets a caller reload several stores before any listener runs, then
+        notify each with :meth:`notify_listeners`. Returns True when listeners
+        should be notified because the value, its timestamps, its availability,
+        or the reason its source's value was rejected changed. Reloading an
+        identical value returns False so consumers do not re-optimize for
+        nothing. A failed load keeps the previous value. A rejected value is
+        recorded in :attr:`error`, so consumers report it rather than silently
+        keeping the previous value.
         """
         self._captured_source_states = {
             eid: state for eid in self._source_entity_ids if (state := sm.get(eid)) is not None
         }
 
-        if not self._source_entity_ids:
-            self._available = False
-            return False
+        if self._sources is None or not self._source_entity_ids:
+            return self._mark_unavailable()
 
         forecast_timestamps = self._get_forecast_timestamps()
-        self._error = None
         try:
             resolved = resolve_field(
-                as_entity_value(self._source_entity_ids),
+                self._sources,
                 self._hint,
                 sm,
                 list(forecast_timestamps),
                 negate=self._negate,
             )
         except InputError as err:
-            # Notify so consumers run and report the rejected value rather than
-            # silently keeping the previous one.
+            changed = self._available or not _same_error(self._error, err)
             self._error = err
             self._available = False
             self._settled.set()
-            self._notify()
-            return False
+            return changed
         except Exception:
             _LOGGER.debug(
                 "Load failed from sources %s; keeping previous value",
                 self._source_entity_ids,
                 exc_info=True,
             )
-            self._available = False
-            return False
+            return self._mark_unavailable()
 
-        if resolved is None or not isinstance(resolved, (bool, float, int, np.ndarray)):
+        if (
+            resolved is None
+            or not isinstance(resolved, (bool, float, int, np.ndarray))
+            or (isinstance(resolved, np.ndarray) and resolved.size == 0)
+        ):
             _LOGGER.debug(
                 "Load returned no value from sources %s; keeping previous value",
                 self._source_entity_ids,
             )
-            self._available = False
-            return False
+            return self._mark_unavailable()
 
-        if isinstance(resolved, np.ndarray) and resolved.size == 0:
-            self._available = False
-            return False
-
-        self._value = resolved
-        self._available = True
-        self._loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
+        changed = self._commit(resolved, forecast_timestamps)
         self._data_ready.set()
         self._settled.set()
-        self._notify()
-        return True
+        return changed
 
     def _resolve_from_constant(self, *, mark_ready: bool) -> None:
         """Resolve the stored constant into the optimization value."""
         if self._constant is None:
+            changed = self._mark_unavailable()
             self._value = None
-            self._available = False
             self._loaded_timestamps = ()
         else:
             forecast_timestamps = self._get_forecast_timestamps()
-            self._value = resolve_constant(self._constant, self._hint, list(forecast_timestamps))
-            self._available = True
-            self._loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
+            changed = self._commit(
+                resolve_constant(self._constant, self._hint, list(forecast_timestamps)), forecast_timestamps
+            )
 
         if mark_ready:
             self._data_ready.set()
             self._settled.set()
-            self._notify()
+            if changed:
+                self.notify_listeners()
+
+    def _commit(self, value: InputValue, forecast_timestamps: tuple[float, ...]) -> bool:
+        """Store a resolved value and return whether consumers should be told."""
+        loaded_timestamps = forecast_timestamps if self._hint.time_series else ()
+        changed = (
+            not self._available
+            or self._error is not None
+            or loaded_timestamps != self._loaded_timestamps
+            or not _same_value(self._value, value)
+        )
+        self._value = value
+        self._available = True
+        self._error = None
+        self._loaded_timestamps = loaded_timestamps
+        return changed
+
+    def _mark_unavailable(self) -> bool:
+        """Mark the store unavailable, keeping its value, and return whether consumers should be told."""
+        changed = self._available or self._error is not None
+        self._available = False
+        self._error = None
+        return changed
+
+
+def _same_value(previous: InputValue | None, resolved: InputValue) -> bool:
+    """Return whether a newly resolved value equals the previous one, including its type."""
+    return (
+        previous is not None
+        and type(previous) is type(resolved)
+        and bool(np.array_equal(previous, resolved, equal_nan=True))
+    )
+
+
+def _same_error(previous: InputError | None, error: InputError) -> bool:
+    """Return whether a rejection reports the same problem as the previous one."""
+    return (
+        previous is not None
+        and previous.translation_key == error.translation_key
+        and previous.translation_placeholders == error.translation_placeholders
+    )
 
 
 def create_input_store(
     *,
+    value: object,
     storage: Storage,
     hint: FieldHint,
     get_forecast_timestamps: Callable[[], tuple[float, ...]],
     negate: bool = False,
 ) -> InputStore:
-    """Create an InputStore from its storage binding and field hint.
+    """Create an InputStore from the value it resolves from, its storage binding, and field hint.
 
-    Reads the persisted schema value to determine mode and initial state:
+    The value is the input's schema value, as ``input_value`` returns it, and
+    determines mode and initial state:
     - {"type": "entity", "value": [...]} → DRIVEN mode
     - {"type": "constant", "value": X} → EDITABLE mode with that value
     - bare bool/int/float → EDITABLE mode with that value
@@ -356,12 +409,11 @@ def create_input_store(
     Constant values are already stored negated, so the flag only changes the
     driven path.
     """
-    config_value = storage.read()
-    match config_value:
-        case {"type": "entity", "value": entity_ids} if isinstance(entity_ids, (list, tuple)):
+    match value:
+        case {"type": "entity"} if is_entity_value(value):
             return InputStore(
                 mode=InputMode.DRIVEN,
-                source_entity_ids=list(entity_ids),
+                sources=value,
                 hint=hint,
                 get_forecast_timestamps=get_forecast_timestamps,
                 storage=storage,
@@ -370,7 +422,7 @@ def create_input_store(
         case {"type": "constant", "value": constant}:
             return InputStore(
                 mode=InputMode.EDITABLE,
-                source_entity_ids=[],
+                sources=None,
                 hint=hint,
                 get_forecast_timestamps=get_forecast_timestamps,
                 storage=storage,
@@ -380,7 +432,7 @@ def create_input_store(
         case {"type": "none"} | None:
             return InputStore(
                 mode=InputMode.EDITABLE,
-                source_entity_ids=[],
+                sources=None,
                 hint=hint,
                 get_forecast_timestamps=get_forecast_timestamps,
                 storage=storage,
@@ -389,7 +441,7 @@ def create_input_store(
         case bool() as constant:
             return InputStore(
                 mode=InputMode.EDITABLE,
-                source_entity_ids=[],
+                sources=None,
                 hint=hint,
                 get_forecast_timestamps=get_forecast_timestamps,
                 storage=storage,
@@ -399,7 +451,7 @@ def create_input_store(
         case int() | float() as constant:
             return InputStore(
                 mode=InputMode.EDITABLE,
-                source_entity_ids=[],
+                sources=None,
                 hint=hint,
                 get_forecast_timestamps=get_forecast_timestamps,
                 storage=storage,
@@ -407,8 +459,8 @@ def create_input_store(
                 negate=negate,
             )
         case _:
-            msg = f"Invalid config value: {config_value}"
+            msg = f"Invalid config value: {value}"
             raise RuntimeError(msg)
 
 
-__all__ = ["InputMode", "InputStore", "create_input_store"]
+__all__ = ["InputMode", "InputStore", "InputValue", "create_input_store"]

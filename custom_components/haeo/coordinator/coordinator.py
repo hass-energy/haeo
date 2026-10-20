@@ -55,7 +55,7 @@ from . import network as network_module
 
 if TYPE_CHECKING:
     from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
-    from custom_components.haeo.core.data.input_store import InputStore
+    from custom_components.haeo.core.data.input_store import InputStore, InputValue
     from custom_components.haeo.elements import InputFieldPath
     from custom_components.haeo.input_stores import InputStoreKey
 
@@ -586,9 +586,10 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         # Check forecast input stores have values and matching horizon
         for store in runtime_data.input_stores.values():
-            # A store that rejected its source's value keeps its previous horizon;
-            # the update reports the rejection instead of waiting on alignment.
-            if not store.time_series or store.error is not None:
+            # A store that rejected its source's value, or could not load it,
+            # keeps its previous horizon; the update reports the problem instead
+            # of waiting on alignment that will not come.
+            if not store.time_series or store.error is not None or not store.available:
                 continue
             store_horizon = store.horizon_start
             if store_horizon is None:
@@ -599,7 +600,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         return True
 
-    def _field_values_for_element(self, element_name: str) -> dict["InputFieldPath", bool | float | np.ndarray | None]:
+    def _field_values_for_element(self, element_name: str) -> dict["InputFieldPath", "InputValue | None"]:
         """Collect resolved field values from the element's input stores."""
         runtime_data = self._get_runtime_data()
         if runtime_data is None:

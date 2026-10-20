@@ -5,15 +5,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Literal
 
-from .calendar_value import CalendarValue
 from .connection_target import ConnectionTarget, ConnectionTargetValue
 from .constant_value import ConstantValue
 from .entity_value import EntityValue
 from .none_value import NoneValue
 
-type SchemaValueKind = Literal["entity", "constant", "none", "calendar"]
+type SchemaValueKind = Literal["entity", "constant", "none"]
 
-type SchemaValue = EntityValue | ConstantValue | NoneValue | CalendarValue
+type SchemaValue = EntityValue | ConstantValue | NoneValue
 type SchemaContainer = Mapping[str, SchemaValue]
 
 __all__ = [

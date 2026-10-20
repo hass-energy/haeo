@@ -30,6 +30,13 @@ def extract_entity_metadata(hass: HomeAssistant, hub_entry: ConfigEntry) -> list
         except (ValueError, KeyError, HomeAssistantError):
             unit = state.attributes.get("unit_of_measurement")
 
-        entities.append(EntityMetadata(entity_id=state.entity_id, unit_of_measurement=unit))
+        state_class = state.attributes.get("state_class")
+        entities.append(
+            EntityMetadata(
+                entity_id=state.entity_id,
+                unit_of_measurement=unit,
+                state_class=state_class if isinstance(state_class, str) else None,
+            )
+        )
 
     return entities
