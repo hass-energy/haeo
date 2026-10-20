@@ -12,11 +12,14 @@ from __future__ import annotations
 
 from collections.abc import Generator
 import datetime
+import os
 from pathlib import Path
 
 from homeassistant.util import dt as dt_util
 import pytest
 from pytest_socket import enable_socket
+
+from tools.guide_runner import PrerequisiteCache
 
 # Guide tests run a full HA instance in a background thread. The global
 # filterwarnings = ["error"] from pyproject.toml turns third-party
@@ -93,3 +96,16 @@ def _restore_timezone() -> Generator[None]:  # pyright: ignore[reportUnusedFunct
     yield
     # Reset to datetime.UTC which is what the pytest plugin expects
     dt_util.set_default_time_zone(datetime.UTC)
+
+
+@pytest.fixture(scope="session")
+def prerequisites(tmp_path_factory: pytest.TempPathFactory) -> PrerequisiteCache:
+    """Prerequisite guide snapshots shared by every guide in this run.
+
+    Under xdist each worker has its own temporary directory inside one for the
+    whole run, so the snapshots go there for all workers to share.
+    """
+    run_dir = tmp_path_factory.getbasetemp()
+    if "PYTEST_XDIST_WORKER" in os.environ:
+        run_dir = run_dir.parent
+    return PrerequisiteCache(run_dir / "guide-prerequisites")

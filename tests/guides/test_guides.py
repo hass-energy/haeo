@@ -4,7 +4,7 @@ Discovers markdown files with ```guide code blocks under docs/, extracts
 and executes them against a live Home Assistant instance, and captures
 screenshots for documentation.
 
-Each guide file is parameterized with light and dark mode variants.
+Each guide runs once and captures every step in both light and dark themes.
 Screenshots are written to the guide's output directory under docs/
 (gitignored) so the docs build serves them as static assets.
 
@@ -24,11 +24,12 @@ from tools.guide_runner import (
     INPUTS_FILE,
     BlockResult,
     GuideManifest,
+    PrerequisiteCache,
     extract_guide_blocks,
     get_page_hash,
     load_scenario_environment,
     output_dir_for_guide,
-    run_blocks_for_mode,
+    run_blocks,
 )
 from tools.live_hass import live_home_assistant
 
@@ -51,55 +52,41 @@ GUIDE_FILES = _discover_guide_files()
 @pytest.mark.guide
 @pytest.mark.enable_socket
 @pytest.mark.timeout(300)
-@pytest.mark.parametrize("dark_mode", [False, True], ids=["light", "dark"])
 @pytest.mark.parametrize(
     "guide_md",
     GUIDE_FILES,
     ids=lambda p: p.stem,
 )
-def test_guide(guide_md: Path, dark_mode: bool) -> None:
-    """Run a guide's code blocks and capture screenshots.
+def test_guide(guide_md: Path, prerequisites: PrerequisiteCache) -> None:
+    """Run a guide's code blocks and capture screenshots in both themes.
 
-    Each guide markdown file is run in both light and dark mode.
     Screenshots are saved to the guide's output directory under docs/
     so the docs build can serve them as static assets.
     """
-    mode = "dark" if dark_mode else "light"
     markdown = guide_md.read_text(encoding="utf-8")
     blocks = extract_guide_blocks(markdown)
     output_dir = output_dir_for_guide(guide_md)
 
-    with live_home_assistant(timeout=120, environment=load_scenario_environment()) as hass:
-        hass.load_states_from_file(INPUTS_FILE)
-
-        screenshots_per_block = run_blocks_for_mode(hass, blocks, output_dir, mode, headless=True)
+    with live_home_assistant(timeout=120, environment=load_scenario_environment(), states=INPUTS_FILE) as hass:
+        screenshots_per_block = run_blocks(hass, blocks, output_dir, prerequisites, headless=True)
 
     total = sum(len(names) for names in screenshots_per_block)
-    assert total > 0, f"No screenshots captured for {guide_md.name} ({mode})"
+    assert total > 0, f"No screenshots captured for {guide_md.name}"
 
-    # Only write the manifest from the light mode run to avoid
-    # the dark mode pass overwriting it with potentially different data.
-    if not dark_mode:
-        capturing_blocks = [b for b in blocks if b.captures]
-        block_results = [
-            BlockResult(
-                index=block.index,
-                content_hash=block.content_hash,
-                screenshots=screenshots_per_block[i],
-            )
-            for i, block in enumerate(capturing_blocks)
-        ]
-        manifest = GuideManifest(
-            page_hash=get_page_hash(blocks),
-            viewport={"width": 1280, "height": 800},
-            blocks=block_results,
+    capturing_blocks = [b for b in blocks if b.captures]
+    block_results = [
+        BlockResult(
+            index=block.index,
+            content_hash=block.content_hash,
+            screenshots=screenshots_per_block[i],
         )
-        manifest.save(output_dir / "manifest.json")
-
-    _LOGGER.info(
-        "Guide %s (%s): %d blocks, %d screenshots",
-        guide_md.stem,
-        mode,
-        len(blocks),
-        total,
+        for i, block in enumerate(capturing_blocks)
+    ]
+    manifest = GuideManifest(
+        page_hash=get_page_hash(blocks),
+        viewport={"width": 1280, "height": 800},
+        blocks=block_results,
     )
+    manifest.save(output_dir / "manifest.json")
+
+    _LOGGER.info("Guide %s: %d blocks, %d screenshots per theme", guide_md.stem, len(blocks), total)

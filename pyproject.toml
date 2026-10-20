@@ -15,6 +15,7 @@ sim = "tools.sim:main"
 
 [dependency-groups]
 dev = [
+    "filelock>=3.20.1",
     "freezegun>=1.5.2",
     "ical==12.1.2",  # matches the local_calendar requirement of the locked Home Assistant
     "home-assistant-frontend>=20260107.1",
@@ -35,6 +36,7 @@ dev = [
     "pytest>=9.0.0",
     "pytest-cov>=7.0.0",
     "pytest-homeassistant-custom-component>=0.13.300",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.14.10",
     "setuptools>=80.9.0",
     "syrupy>=5.0.0",
