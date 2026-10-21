@@ -173,7 +173,7 @@ def test_get_input_field_schema_info_marks_optional_fields() -> None:
 
 def test_get_input_field_schema_info_missing_section() -> None:
     """get_input_field_schema_info raises when section is missing."""
-    input_fields = dict(get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
+    input_fields = dict(get_input_fields(ELEMENT_TYPE))
     input_fields["missing_section"] = {}
 
     with pytest.raises(RuntimeError, match="Section 'missing_section' not found"):
