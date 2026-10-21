@@ -1,6 +1,6 @@
 """Data update coordinator for the Home Assistant Energy Optimizer integration."""
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
@@ -36,6 +36,7 @@ from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
 from custom_components.haeo.core.data.loader.extractors.haeo import InterpolationMode
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
+from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel, listing
 from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.util import extract_unit_parts
@@ -50,7 +51,14 @@ from custom_components.haeo.elements import (
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import input_error_placeholders
-from custom_components.haeo.repairs import dismiss_optimization_failure_issue
+from custom_components.haeo.repairs import (
+    create_optimization_infeasible_issue,
+    create_optimization_relaxed_issue,
+    dismiss_optimization_failure_issue,
+    optimization_infeasible_issue_raised,
+    optimization_relaxed_issue_raised,
+)
+from custom_components.haeo.services import async_save_diagnostics
 
 from . import network as network_module
 
@@ -686,6 +694,32 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         self._pending_element_updates.clear()
 
+    async def _save_failure_diagnostics(
+        self, context: OptimizationContext, started_at: datetime, kind: str, failure: dict[str, object]
+    ) -> str | None:
+        """Save diagnostics of the optimization that just failed or was relaxed, and return the file's path.
+
+        They hold the config and inputs the optimization used, so the failure can be
+        run again from the file a user attaches to a report. Returns None when the
+        file cannot be written, so its issue waits for the next optimization rather
+        than the plan or its error being lost.
+        """
+        # Imported here because the diagnostics package imports the integration, which imports this module
+        from custom_components.haeo.diagnostics import diagnostics_from_context  # noqa: PLC0415
+
+        now = dt_util.now()
+        result = await diagnostics_from_context(
+            self.hass, self.config_entry, context, started_at=started_at, completed_at=now, outputs=None
+        )
+        try:
+            path = await async_save_diagnostics(self.hass, {**result.to_dict(), "failure": failure}, kind, now)
+        except OSError:
+            _LOGGER.exception(
+                "Could not save the %s plan's diagnostics, so its repair issue waits for the next plan", kind
+            )
+            return None
+        return str(path)
+
     def _apply_pending_element_updates(self) -> None:
         """Apply all pending element updates to the network.
 
@@ -781,7 +815,38 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._apply_pending_element_updates()
 
             # Perform the optimization
-            cost = await self.hass.async_add_executor_job(network.optimize)
+            entry_id = self.config_entry.entry_id
+            try:
+                cost = await self.hass.async_add_executor_job(network.optimize)
+            except InfeasibleError as error:
+                translation_key = "optimization_infeasible_unexplained"
+                placeholders: dict[str, str] = {}
+                if error.conflicts:
+                    translation_key = "optimization_infeasible"
+                    placeholders = {
+                        "elements": _element_names(error.conflicts, context.participants),
+                        "minutes": _minutes_into_plan(error.conflicts, forecast_timestamps),
+                    }
+                if not optimization_infeasible_issue_raised(self.hass, entry_id) and (
+                    diagnostics := await self._save_failure_diagnostics(
+                        context,
+                        started_at,
+                        "infeasible",
+                        {"conflicts": [str(row) for row in error.conflicts]},
+                    )
+                ):
+                    create_optimization_infeasible_issue(
+                        self.hass,
+                        entry_id,
+                        translation_key,
+                        {**placeholders, "planned_at": _plan_start(forecast_timestamps)},
+                        diagnostics,
+                    )
+                raise UpdateFailed(
+                    translation_domain=DOMAIN,
+                    translation_key=translation_key,
+                    translation_placeholders=placeholders,
+                ) from error
 
             end_time = time.time()
             optimization_duration = end_time - start_time
@@ -790,7 +855,39 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             self._last_optimization_time = end_time
 
             _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
-            dismiss_optimization_failure_issue(self.hass, self.config_entry.entry_id)
+            dismiss_optimization_failure_issue(self.hass, entry_id)
+            if (
+                network.relaxations
+                and not optimization_relaxed_issue_raised(self.hass, entry_id)
+                and (
+                    diagnostics := await self._save_failure_diagnostics(
+                        context,
+                        started_at,
+                        "relaxed",
+                        {
+                            "conflicts": [str(row) for row in network.conflicts],
+                            "relaxations": [str(relaxation) for relaxation in network.relaxations],
+                        },
+                    )
+                )
+            ):
+                _LOGGER.warning(
+                    "The plan relaxed constraints it cannot meet: %s", listing(map(str, network.relaxations))
+                )
+                relaxed_rows = [relaxation.row for relaxation in network.relaxations]
+                conflicts = network.conflicts or relaxed_rows
+                create_optimization_relaxed_issue(
+                    self.hass,
+                    entry_id,
+                    {
+                        "elements": _element_names(conflicts, context.participants),
+                        "minutes": _minutes_into_plan(conflicts, forecast_timestamps),
+                        "relaxed_elements": _element_names(relaxed_rows, context.participants),
+                        "relaxed_periods": str(len({row.period for row in relaxed_rows if row.period is not None})),
+                        "planned_at": _plan_start(forecast_timestamps),
+                    },
+                    diagnostics,
+                )
 
             network_output_data: dict[NetworkOutputName, OutputData] = {
                 OUTPUT_NAME_OPTIMIZATION_COST: OutputData(type=OutputType.COST, unit="$", values=(cost,)),
@@ -889,6 +986,32 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
             if self._pending_refresh:
                 self._pending_refresh = False
                 self.signal_optimization_stale()
+
+
+def _participant_name(model_element: str, participants: Collection[str]) -> str:
+    """Return the configured element a model element belongs to, such as ``Grid`` for ``Grid:import``."""
+    owners = [name for name in participants if model_element == name or model_element.startswith(f"{name}:")]
+    return max(owners, key=len, default=model_element)
+
+
+def _plan_start(forecast_timestamps: Sequence[float]) -> str:
+    """Return the local time the plan starts, which places a repair issue read later."""
+    return f"{dt_util.as_local(dt_util.utc_from_timestamp(forecast_timestamps[0])):%Y-%m-%d %H:%M}"
+
+
+def _element_names(rows: Sequence[RowLabel], participants: Collection[str]) -> str:
+    """Return the configured elements some constraint rows belong to, in the order they first appear."""
+    return ", ".join(dict.fromkeys(_participant_name(row.element, participants) for row in rows))
+
+
+def _minutes_into_plan(rows: Sequence[RowLabel], forecast_timestamps: Sequence[float]) -> str:
+    """Return the whole minutes from the start of the plan to the first period any of the rows applies in.
+
+    A person can find that point in the plan without reading timestamps.
+    """
+    periods = [row.period for row in rows if row.period is not None]
+    first = forecast_timestamps[min(periods)] if periods else forecast_timestamps[0]
+    return str(round((first - forecast_timestamps[0]) / 60))
 
 
 __all__ = [

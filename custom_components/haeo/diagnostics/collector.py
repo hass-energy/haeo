@@ -448,24 +448,7 @@ async def collect_diagnostics(
             before the requested time (historical).
 
     """
-    now = _to_local_iso(dt_util.utcnow())
-
-    if target_time is not None:
-        run = await _get_last_run_before(hass, config_entry, target_time)
-        if run is None:
-            msg = "Cannot collect diagnostics: no optimization run found before the requested time"
-            raise RuntimeError(msg)
-
-        started_at, completed_at, horizon_start = run
-        config = _config_from_entry(config_entry)
-        config["version"] = config_entry.version
-        config["minor_version"] = config_entry.minor_version
-        inputs, missing = await _fetch_inputs_at(hass, config_entry, started_at)
-        diagnostic_target_time = _to_local_iso(target_time)
-        optimization_start_time = _to_local_iso(started_at)
-        optimization_end_time = _to_local_iso(completed_at)
-        outputs = None
-    else:
+    if target_time is None:
         runtime_data = config_entry.runtime_data
         if (
             not isinstance(runtime_data, HaeoRuntimeData)
@@ -476,24 +459,32 @@ async def collect_diagnostics(
             raise RuntimeError(msg)
 
         coordinator_data = runtime_data.coordinator.data
-        config = _config_from_context(coordinator_data.context)
-        config["version"] = config_entry.version
-        config["minor_version"] = config_entry.minor_version
-        inputs = _inputs_from_context(coordinator_data.context)
-        missing = []
-        diagnostic_target_time = None
-        optimization_start_time = _to_local_iso(coordinator_data.started_at)
-        optimization_end_time = _to_local_iso(coordinator_data.completed_at)
-        horizon_start = _to_local_iso(coordinator_data.context.horizon_start)
-        outputs = get_output_sensors(hass, config_entry)
+        return await diagnostics_from_context(
+            hass,
+            config_entry,
+            coordinator_data.context,
+            started_at=coordinator_data.started_at,
+            completed_at=coordinator_data.completed_at,
+            outputs=get_output_sensors(hass, config_entry),
+        )
 
+    run = await _get_last_run_before(hass, config_entry, target_time)
+    if run is None:
+        msg = "Cannot collect diagnostics: no optimization run found before the requested time"
+        raise RuntimeError(msg)
+
+    started_at, completed_at, horizon_start = run
+    config = _config_from_entry(config_entry)
+    config["version"] = config_entry.version
+    config["minor_version"] = config_entry.minor_version
+    inputs, missing = await _fetch_inputs_at(hass, config_entry, started_at)
     environment = await _build_environment(
         hass,
         config_entry,
-        diagnostic_request_time=now,
-        diagnostic_target_time=diagnostic_target_time,
-        optimization_start_time=optimization_start_time,
-        optimization_end_time=optimization_end_time,
+        diagnostic_request_time=_to_local_iso(dt_util.utcnow()),
+        diagnostic_target_time=_to_local_iso(target_time),
+        optimization_start_time=_to_local_iso(started_at),
+        optimization_end_time=_to_local_iso(completed_at),
         horizon_start=horizon_start,
     )
 
@@ -501,9 +492,50 @@ async def collect_diagnostics(
         config=async_redact_data(config, _REDACTED_CONFIG_KEYS),
         environment=environment,
         inputs=inputs,
-        outputs=outputs,
+        outputs=None,
         missing_entity_ids=tuple(missing),
     )
 
 
-__all__ = ["DIAGNOSTICS_SCHEMA_VERSION", "DiagnosticsResult", "EnvironmentInfo", "collect_diagnostics"]
+async def diagnostics_from_context(
+    hass: HomeAssistant,
+    config_entry: HaeoConfigEntry,
+    context: OptimizationContext,
+    *,
+    started_at: datetime,
+    completed_at: datetime,
+    outputs: dict[str, SensorStateDict] | None,
+) -> DiagnosticsResult:
+    """Collect diagnostics from the config and inputs an optimization used.
+
+    An optimization that failed has no outputs, but its context still holds
+    everything needed to run it again.
+    """
+    config = _config_from_context(context)
+    config["version"] = config_entry.version
+    config["minor_version"] = config_entry.minor_version
+    environment = await _build_environment(
+        hass,
+        config_entry,
+        diagnostic_request_time=_to_local_iso(dt_util.utcnow()),
+        diagnostic_target_time=None,
+        optimization_start_time=_to_local_iso(started_at),
+        optimization_end_time=_to_local_iso(completed_at),
+        horizon_start=_to_local_iso(context.horizon_start),
+    )
+    return DiagnosticsResult(
+        config=async_redact_data(config, _REDACTED_CONFIG_KEYS),
+        environment=environment,
+        inputs=_inputs_from_context(context),
+        outputs=outputs,
+        missing_entity_ids=(),
+    )
+
+
+__all__ = [
+    "DIAGNOSTICS_SCHEMA_VERSION",
+    "DiagnosticsResult",
+    "EnvironmentInfo",
+    "collect_diagnostics",
+    "diagnostics_from_context",
+]

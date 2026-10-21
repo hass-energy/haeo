@@ -106,6 +106,15 @@ At the default, tie-breaking differences can fall below the tolerance and leave 
 - **Optimal solution**: Satisfies all constraints with minimum total cost and deterministic tie-breaking
 - **Infeasible**: No solution exists that satisfies all constraints simultaneously
 
+Infeasibility does not depend on the objective, so the first infeasible solve ends the search for a blend weight.
+HiGHS then finds an irreducible infeasible subsystem: a smallest set of constraint rows that cannot all hold, which the error names by element, constraint, and period.
+
+When the hub relaxes impossible plans, HiGHS instead finds the smallest weighted violation of the constraint rows that makes the model feasible.
+Variable bounds never give way.
+A power balance row weighs 1 and every other row 1000, so a shortfall lands at a balance point, as energy no source could supply or nothing could absorb, unless only a limit can give way.
+The violated rows are widened to the values the relaxation found, the model is solved for cost as usual, and the rows are restored.
+The relaxation does not see the cost, so the violation is minimal but where it falls is not chosen by cost.
+
 ## Network Structure
 
 HAEO models energy systems as directed graphs:

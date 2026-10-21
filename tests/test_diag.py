@@ -9,7 +9,9 @@ the next step that goes missing fails here rather than the next time someone
 debugs a user report.
 """
 
+import json
 from pathlib import Path
+import shutil
 
 import pytest
 
@@ -48,3 +50,31 @@ def test_diag_outputs_only_skips_optimization(capsys: pytest.CaptureFixture[str]
     output = capsys.readouterr().out
     assert "Optimization complete" not in output
     assert "Battery" in output
+
+
+@pytest.mark.timeout(60)
+@pytest.mark.parametrize(
+    ("relax_infeasible", "expected"),
+    [
+        pytest.param(False, "Optimization failed with status: Infeasible (conflicting constraints:", id="infeasible"),
+        pytest.param(True, "Relaxed Switchboard element_power_balance[0] by", id="relaxed"),
+    ],
+)
+def test_diag_follows_the_hub_relax_setting(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], *, relax_infeasible: bool, expected: str
+) -> None:
+    """A load no source can supply fails with its conflicts, or is relaxed when the hub relaxes impossible plans."""
+    for name in ("environment.json", "inputs.json"):
+        shutil.copy(SCENARIOS_DIR / "scenario1" / name, tmp_path / name)
+    config = json.loads((SCENARIOS_DIR / "scenario1" / "config.json").read_text())
+    config["participants"]["Constant Load"]["forecast"]["forecast"]["value"] = 500.0
+    config["advanced"] = {"relax_infeasible": relax_infeasible}
+    (tmp_path / "config.json").write_text(json.dumps(config))
+
+    if relax_infeasible:
+        run_diagnostics(tmp_path)
+    else:
+        with pytest.raises(SystemExit):
+            run_diagnostics(tmp_path)
+
+    assert expected in capsys.readouterr().out

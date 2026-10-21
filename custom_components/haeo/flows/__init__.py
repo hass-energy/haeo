@@ -19,6 +19,7 @@ from custom_components.haeo.core.const import (
     CONF_DEBOUNCE_SECONDS,
     CONF_HORIZON,
     CONF_NAME,
+    CONF_RELAX_INFEASIBLE,
     DEFAULT_DEBOUNCE_SECONDS,
 )
 from custom_components.haeo.core.const import HUB_SECTION_ADVANCED as HUB_SECTION_ADVANCED
@@ -102,7 +103,7 @@ def get_hub_options_schema(config_entry: ConfigEntry, preset_labels: Mapping[str
         ),
         SectionDefinition(
             key=HUB_SECTION_ADVANCED,
-            fields=(CONF_DEBOUNCE_SECONDS, CONF_ADVANCED_MODE, CONF_RECORD_FORECASTS),
+            fields=(CONF_DEBOUNCE_SECONDS, CONF_ADVANCED_MODE, CONF_RELAX_INFEASIBLE, CONF_RECORD_FORECASTS),
             collapsed=True,
         ),
     )
@@ -127,6 +128,13 @@ def get_hub_options_schema(config_entry: ConfigEntry, preset_labels: Mapping[str
                 vol.Required(
                     CONF_ADVANCED_MODE,
                     default=advanced_data.get(CONF_ADVANCED_MODE, False),
+                ),
+                bool,
+            ),
+            CONF_RELAX_INFEASIBLE: (
+                vol.Required(
+                    CONF_RELAX_INFEASIBLE,
+                    default=advanced_data.get(CONF_RELAX_INFEASIBLE, False),
                 ),
                 bool,
             ),
