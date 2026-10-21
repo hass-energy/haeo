@@ -32,13 +32,10 @@ from custom_components.haeo.const import (
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
 from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import CONF_ADVANCED_MODE
-from custom_components.haeo.core.schema.elements.buffer import CONF_STORAGE, SECTION_PARTICIPANTS
-from custom_components.haeo.core.schema.elements.element_type import ElementType
-from custom_components.haeo.core.schema.elements.policy import PolicyRuleConfig
+from custom_components.haeo.core.schema.elements import ELEMENT_REFERENCE_PRUNERS
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
 from custom_components.haeo.flows.hub import async_network_subentry, async_switchboard_subentry
-from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import (
     InputStoreMap,
@@ -220,8 +217,7 @@ async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> 
     # for orphans; element deletions do not run a flow, so they still clean up.
     flow_in_progress = _element_flow_in_progress(hass, entry)
     if not flow_in_progress:
-        _cleanup_policy_rules(hass, entry)
-        _cleanup_buffer_participants(hass, entry)
+        prune_element_references(hass, entry)
 
     _LOGGER.info("HAEO configuration changed, reloading integration")
 
@@ -261,95 +257,25 @@ def _element_flow_in_progress(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return any(flow["handler"][0] == entry.entry_id for flow in hass.config_entries.subentries.async_progress())
 
 
-def _cleanup_policy_rules(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove deleted element references from policy rules.
+def prune_element_references(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Remove references to deleted elements from the elements that name them.
 
-    When an element subentry is deleted, policy rules may still reference
-    it by name. This strips deleted names from source/target lists,
-    removes rules where either side had elements but became empty, and
-    deduplicates rules that end up with the same source/target pattern.
+    Each element type that names other elements declares how it drops names
+    that no longer exist; an element left with nothing to do is removed.
     """
-    from custom_components.haeo.flows.surfaced_policy import _save_policy_rules  # noqa: PLC0415
-
-    policy_subentry = find_policy_subentry(entry)
-    if policy_subentry is None:
-        return
-
-    current_element_names = {
-        subentry.title for subentry in entry.subentries.values() if subentry.subentry_id != policy_subentry.subentry_id
-    }
-
-    rules = get_policy_rules(entry)
-    cleaned: list[PolicyRuleConfig] = []
-    seen_patterns: set[tuple[tuple[str, ...] | None, tuple[str, ...] | None]] = set()
-    changed = False
-
-    for rule in rules:
-        source = rule.get("source")
-        target = rule.get("target")
-
-        new_source = [name for name in source if name in current_element_names] if source else source
-        new_target = [name for name in target if name in current_element_names] if target else target
-
-        if new_source != source or new_target != target:
-            changed = True
-
-        # Drop rules where a named side lost all its elements
-        source_emptied = source and not new_source
-        target_emptied = target and not new_target
-        if source_emptied or target_emptied:
-            changed = True
-            continue
-
-        new_rule: PolicyRuleConfig = dict(rule)  # type: ignore[assignment]
-        if new_source != source:
-            if new_source:
-                new_rule["source"] = new_source
-            else:
-                new_rule.pop("source", None)
-        if new_target != target:
-            if new_target:
-                new_rule["target"] = new_target
-            else:
-                new_rule.pop("target", None)
-
-        # Deduplicate rules with the same source/target pattern
-        pattern = (
-            tuple(sorted(new_source)) if new_source else None,
-            tuple(sorted(new_target)) if new_target else None,
-        )
-        if pattern in seen_patterns:
-            changed = True
-            continue
-        seen_patterns.add(pattern)
-
-        cleaned.append(new_rule)
-
-    if changed:
-        _save_policy_rules(hass, entry, cleaned)
-
-
-def _cleanup_buffer_participants(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove deleted element references from buffer participants.
-
-    Each buffer names its loads, generation, and batteries, so deleting one of
-    those elements leaves a dangling name that is stripped here. A buffer left
-    with no batteries holds nothing, so it is removed, as a policy rule is when
-    one of its sides loses all its elements.
-    """
-    current_element_names = {subentry.title for subentry in entry.subentries.values()}
-    buffers = [subentry for subentry in entry.subentries.values() if subentry.subentry_type == ElementType.BUFFER]
-    for subentry in buffers:
-        participants = subentry.data[SECTION_PARTICIPANTS]
-        cleaned = {
-            field: [name for name in names if name in current_element_names] for field, names in participants.items()
-        }
-        if not cleaned[CONF_STORAGE]:
+    subentries = list(entry.subentries.values())
+    referencing = [
+        (subentry, ELEMENT_REFERENCE_PRUNERS[subentry.subentry_type])
+        for subentry in subentries
+        if subentry.subentry_type in ELEMENT_REFERENCE_PRUNERS
+    ]
+    for subentry, prune in referencing:
+        element_names = {other.title for other in subentries if other.subentry_id != subentry.subentry_id}
+        pruned = prune(subentry.data, element_names)
+        if pruned is None:
             hass.config_entries.async_remove_subentry(entry, subentry.subentry_id)
-        elif cleaned != participants:
-            hass.config_entries.async_update_subentry(
-                entry, subentry, data={**subentry.data, SECTION_PARTICIPANTS: cleaned}
-            )
+        elif pruned != subentry.data:
+            hass.config_entries.async_update_subentry(entry, subentry, data=pruned)
 
 
 def _raise_for_rejected_inputs(input_stores: InputStoreMap) -> None:
