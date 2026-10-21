@@ -52,7 +52,7 @@ See [Where values are measured](../measurement-points.md) for the convention HAE
 
 Use [input number helpers](https://www.home-assistant.io/integrations/input_number/) to configure constant values.
 
-### Connection Endpoint Selection
+### Connection endpoint selection
 
 The **Source** and **Target** fields list the points in your network that power can flow through.
 Elements that apply their own prices, forecasts, and limits on their own connection are not listed, because a connection made directly to them would bypass those.
@@ -60,7 +60,7 @@ Connect to the junction or inverter such an element is attached to instead.
 
 If an existing configuration connects directly to one of these elements, HAEO raises a repair issue listing each affected connection.
 
-## Configuration Examples
+## Configuration examples
 
 ### One-way link between junctions
 
@@ -82,7 +82,7 @@ Create one connection for each direction when both paths need limits or differen
 
 Use separate **Efficiency** and **Price** values on each connection when the directions differ.
 
-## Physical Interpretation
+## Physical interpretation
 
 **Unidirectional flow:**
 Power optimized on this connection always travels from source to target.
@@ -96,7 +96,7 @@ Example: with 95% efficiency and a **Max power** of 10 kW, the connection report
 **Transmission costs:**
 Connection pricing models fees for using a power transfer path (wheeling charges, connection fees, peak demand charges).
 
-## Common Patterns
+## Common patterns
 
 ### Unlimited one-way connection
 
@@ -157,7 +157,7 @@ Then configure the connection:
 
 The optimizer will only schedule charging when the sensor value is non-zero.
 
-### Input Entities
+### Input entities
 
 Each optional configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
@@ -171,9 +171,9 @@ Input entities appear as Number entities with the `config` entity category.
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
 
-## Sensors Created
+## Sensors created
 
-### Sensor Summary
+### Sensor summary
 
 A Connection element creates one device in Home Assistant.
 

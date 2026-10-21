@@ -25,7 +25,7 @@ run_guide("sigenergy-system")
 
 ## Generating the snapshot
 
-### Step 1: Open Developer Tools
+### Step 1: Open developer tools
 
 Open the Developer Tools from the Home Assistant sidebar and select the **Actions** tab.
 

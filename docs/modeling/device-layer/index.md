@@ -1,4 +1,4 @@
-# Device Layer Elements
+# Device layer elements
 
 Device Layer elements are the user-configured components that represent physical devices in your energy system.
 Each Device Layer element composes one or more [Model Layer elements](../model-layer/index.md) to achieve its behavior.
@@ -9,7 +9,7 @@ Device Layer elements transform user configuration into Model Layer elements.
 Each element type composes one or more Model Layer elements to achieve its specific behavior.
 See individual element pages for composition details.
 
-## Composition Pattern
+## Composition pattern
 
 Device Layer elements use an adapter pattern to transform user configuration into Model Layer elements:
 
@@ -19,13 +19,13 @@ Called during network construction before optimization.
 **Model → Devices** (`outputs`): Transforms optimization results into device-specific outputs with user-friendly names.
 Called after optimization to populate sensors.
 
-## Implicit Connections
+## Implicit connections
 
 Many Device Layer elements create implicit connections automatically as part of their model composition.
 These implicit connections simplify configuration—users specify their configuration needs, and the adapter handles connection creation with appropriate parameters.
 See individual element pages for details on which connections are created.
 
-## Sub-element Naming
+## Sub-element naming
 
 When adapters create multiple model elements or devices, they use a colon-separated naming convention:
 

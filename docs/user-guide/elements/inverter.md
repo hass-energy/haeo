@@ -30,7 +30,7 @@ This is typically your home's main electrical bus, such as the Switchboard junct
 
 Other elements (batteries, solar panels) connect to the inverter's DC bus by specifying the inverter name as their connection target.
 
-## Max Power DC to AC
+## Max power DC to AC
 
 Maximum power the inverter can convert from DC to AC (inverting direction).
 Leave empty for unlimited power.
@@ -40,7 +40,7 @@ The limit applies on the AC side, so a 5 kW limit means at most 5 kW reaches the
 
 Use a sensor to model time-varying power limits, or an input number helper for a constant value.
 
-## Max Power AC to DC
+## Max power AC to DC
 
 Maximum power the inverter can convert from AC to DC (rectifying direction).
 Leave empty for unlimited power.
@@ -64,9 +64,9 @@ Rectifying efficiency may differ from inverting efficiency.
 
 **Default**: 100% (no losses)
 
-## Configuration Examples
+## Configuration examples
 
-### Basic Hybrid Inverter
+### Basic hybrid inverter
 
 | Field                   | Value         |
 | ----------------------- | ------------- |
@@ -75,7 +75,7 @@ Rectifying efficiency may differ from inverting efficiency.
 | **Efficiency DC to AC** | 97.0          |
 | **Efficiency AC to DC** | 97.0          |
 
-### With Power Limits
+### With power limits
 
 | Field                   | Value                        |
 | ----------------------- | ---------------------------- |
@@ -86,7 +86,7 @@ Rectifying efficiency may differ from inverting efficiency.
 | **Max Power DC to AC**  | input_number.inverter_rating |
 | **Max Power AC to DC**  | input_number.inverter_rating |
 
-### Asymmetric Power Ratings
+### Asymmetric power ratings
 
 Some inverters have different power ratings for inverting vs. rectifying.
 
@@ -99,7 +99,7 @@ Some inverters have different power ratings for inverting vs. rectifying.
 | **Max Power DC to AC**  | input_number.inverter_max_5kw |
 | **Max Power AC to DC**  | input_number.inverter_max_3kw |
 
-### Input Entities
+### Input entities
 
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number entities with the `config` entity category.
@@ -114,9 +114,9 @@ Input entities appear as Number entities with the `config` entity category.
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
 
-## Sensors Created
+## Sensors created
 
-### Sensor Summary
+### Sensor summary
 
 An Inverter element creates 1 device in Home Assistant with the following sensors.
 Not all sensors are created for every inverter - only those relevant to the configuration.
@@ -130,21 +130,21 @@ Not all sensors are created for every inverter - only those relevant to the conf
 | [`sensor.{name}_max_power_dc_to_ac_price`](#shadow-prices)    | \$/kWh | Maximum DC to AC power shadow price      |
 | [`sensor.{name}_max_power_ac_to_dc_price`](#shadow-prices)    | \$/kWh | Maximum AC to DC power shadow price      |
 
-### DC to AC Power
+### DC to AC power
 
 The optimal power flowing from the DC bus to the AC network (inverting direction), measured on the AC side.
 Values are always positive or zero.
 
 **Example**: A value of 3.5 kW means the inverter is converting 3.5 kW from DC to AC at this time period.
 
-### AC to DC Power
+### AC to DC power
 
 The optimal power flowing from the AC network to the DC bus (rectifying direction), measured on the AC side.
 Values are always positive or zero.
 
 **Example**: A value of 2.0 kW means the inverter is converting 2.0 kW from AC to DC at this time period.
 
-### Active Power
+### Active power
 
 The net power flow through the inverter (DC to AC minus AC to DC), measured on the AC side.
 Positive values indicate net DC to AC conversion.
@@ -152,7 +152,7 @@ Negative values indicate net AC to DC conversion.
 
 **Example**: A value of 1.5 kW means the inverter is net converting 1.5 kW from DC to AC (e.g., 3.5 kW DC to AC and 2.0 kW AC to DC).
 
-### DC Bus Power Balance
+### DC bus power balance
 
 The marginal value of power balance at the DC bus.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -166,7 +166,7 @@ This shadow price shows how much the total system cost would decrease if the DC 
     - The value shows how much system cost would decrease if the balance constraint were relaxed
     - Helps identify when DC devices (batteries, solar) are not optimally balanced
 
-### Shadow Prices
+### Shadow prices
 
 The marginal value of additional power capacity in each direction.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.

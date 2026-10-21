@@ -1,12 +1,12 @@
-# Understanding Optimization Results
+# Understanding optimization results
 
 This guide explains how to interpret HAEO's optimization results and use them effectively.
 
-## Optimization Sensors
+## Optimization sensors
 
 HAEO creates three main network sensors:
 
-### Optimization Cost
+### Optimization cost
 
 **Entity ID**: `sensor.{network_name}_optimization_cost`
 
@@ -21,7 +21,7 @@ Total cost over the optimization horizon in dollars.
     When multiple schedules share the same primary cost, HAEO applies a secondary time-preference objective.
     This ordering favors earlier energy transfers without changing the reported optimization cost.
 
-### Optimization Status
+### Optimization status
 
 **Entity ID**: `sensor.{network_name}_optimization_status`
 
@@ -39,19 +39,19 @@ Some failures, such as an input with no reading or a plan that cannot meet every
 If optimizations keep failing for any other reason for five minutes, HAEO raises an "Optimization failed" repair issue with the error message.
 That issue clears on the next successful optimization.
 
-### Optimization Duration
+### Optimization duration
 
 **Entity ID**: `sensor.{network_name}_optimization_duration`
 
 Time taken to solve the optimization in seconds.
 If this value climbs higher than you expect, choose a shorter [planning horizon](configuration.md#planning-horizon) or simplify the network.
 
-## Element Sensors
+## Element sensors
 
 Each configured element creates optimization result sensors.
 The specific sensors depend on the element type—see each element's documentation for complete details on their outputs.
 
-### Sensor Structure
+### Sensor structure
 
 All HAEO sensors follow a consistent structure:
 
@@ -59,7 +59,7 @@ All HAEO sensors follow a consistent structure:
 
 **Forecast attributes**: Each sensor includes a `forecast` attribute containing future timestamped values across your optimization horizon.
 
-## Shadow Price Sensors
+## Shadow price sensors
 
 Shadow price sensors publish the marginal value of key constraints over the optimization horizon.
 They translate physical limits into dollar-per-kilowatt-hour signals that explain the optimizer's dispatch choices.
@@ -78,7 +78,7 @@ All shadow-price sensors are reported in `$/kWh` so they sit on the same axis as
 Each shadow price sensor mirrors the standard forecast attribute layout so you can inspect future periods in dashboards and automations.
 Review [Shadow Prices](../modeling/shadow-prices.md) for detailed interpretation guidance.
 
-### Understanding Forecast Attributes
+### Understanding forecast attributes
 
 All sensors include forecast attributes with future values:
 
@@ -93,9 +93,9 @@ attributes:
 
 Use these in automations or dashboards to visualize the optimal schedule.
 
-## Using Results in Automations
+## Using results in automations
 
-### Example: Control Battery Based on Optimization
+### Example: Control battery based on optimization
 
 ```yaml
 automation:
@@ -129,9 +129,9 @@ automation:
 **Note**: Battery elements create separate sensors for charging (`power_charge`) and discharging (`power_discharge`).
 See the [battery documentation](elements/battery.md) for complete details.
 
-## Performance Considerations
+## Performance considerations
 
-### Optimization Duration
+### Optimization duration
 
 Monitor the optimization duration sensor to keep solve times reasonable (typically under 10 seconds).
 
@@ -141,14 +141,14 @@ If optimization takes too long:
 2. **Simplify network**: Remove unnecessary elements or connections
 3. **Check configuration**: Verify all sensors are available and providing valid data
 
-### Update Frequency
+### Update frequency
 
 HAEO re-optimizes periodically. Balance:
 
 - **More frequent**: Better response to changes, higher CPU usage
 - **Less frequent**: Lower CPU usage, may miss price changes
 
-## Interpreting Cost
+## Interpreting cost
 
 The optimization cost represents the total forecasted cost over the full horizon, not just the immediate step.
 Track changes in this value when you adjust configuration parameters to confirm the optimiser is producing the expected behaviour.

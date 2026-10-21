@@ -3,7 +3,7 @@
 The Load device composes a [Node](../model-layer/elements/node.md) (power sink only) with an implicit [Connection](../model-layer/connections/connection.md) to model power consumption based on forecast data.
 The connection includes a power limit segment.
 
-## Model Elements Created
+## Model elements created
 
 ```mermaid
 graph LR
@@ -24,7 +24,7 @@ graph LR
 | [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=false, is_sink=true |
 | [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit segment values    |
 
-## Devices Created
+## Devices created
 
 Load creates 1 device in Home Assistant:
 
@@ -45,9 +45,9 @@ The adapter transforms user configuration into connection segments:
 | —                        | Node              | `is_source=false`         | Load cannot provide power                        |
 | —                        | Node              | `is_sink=true`            | Load consumes power                              |
 
-## Sensors Created
+## Sensors created
 
-### Load Device
+### Load device
 
 | Sensor                            | Unit   | Update    | Description                                                                                                 |
 | --------------------------------- | ------ | --------- | ----------------------------------------------------------------------------------------------------------- |
@@ -65,9 +65,9 @@ The adapter transforms user configuration into connection segments:
 
 See [Load Configuration](../../user-guide/elements/load.md) for detailed sensor and configuration documentation.
 
-## Configuration Examples
+## Configuration examples
 
-### Variable Load (Forecast)
+### Variable load (forecast)
 
 | Field          | Value                      |
 | -------------- | -------------------------- |
@@ -75,7 +75,7 @@ See [Load Configuration](../../user-guide/elements/load.md) for detailed sensor 
 | **Forecast**   | sensor.home_power_forecast |
 | **Connection** | Home Bus                   |
 
-### Constant Load
+### Constant load
 
 | Field          | Value     |
 | -------------- | --------- |
@@ -83,7 +83,7 @@ See [Load Configuration](../../user-guide/elements/load.md) for detailed sensor 
 | **Forecast**   | 2.5       |
 | **Connection** | Home Bus  |
 
-## Typical Use Cases
+## Typical use cases
 
 **Whole-House Consumption**:
 Use historical data or forecasting services to predict total home power consumption.
@@ -95,7 +95,7 @@ Model always-on consumption (refrigerator, networking equipment) with a fixed po
 **Scheduled Loads**:
 Model predictable loads like pool pumps, HVAC, or EV charging with time-varying forecasts.
 
-## Physical Interpretation
+## Physical interpretation
 
 Load represents power consumption that the system can choose to satisfy up to a forecast limit.
 When curtailment (shedding) is disabled, the forecast is enforced exactly.
@@ -104,7 +104,7 @@ When enabled, the optimizer may shed the load if that reduces total system cost.
 The model represents average power within each optimization period.
 This means reduced power can be interpreted as partial operation in whatever way fits the physical device (duty cycle, throttling, staging, etc.).
 
-### Configuration Guidelines
+### Configuration guidelines
 
 - **Forecast Accuracy**:
     Critical for optimization quality.

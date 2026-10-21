@@ -48,11 +48,11 @@ Allow HAEO to reduce load consumption below the forecast.
 
 **When enabled**: HAEO can shed the load when the system is fully supplied and further consumption would increase cost.
 
-## Constant Load Pattern
+## Constant load pattern
 
 For fixed baseline consumption that doesn't vary over time, use an [input_number helper](https://www.home-assistant.io/integrations/input_number/) providing a constant value.
 
-### Creating a Constant Load
+### Creating a constant load
 
 1. **Create Input Number Helper**:
 
@@ -71,7 +71,7 @@ For fixed baseline consumption that doesn't vary over time, use an [input_number
 
 This configuration represents constant consumption (e.g., 1 kW = 24 kWh per day).
 
-### Determining Your Baseline
+### Determining your baseline
 
 To find your baseline consumption:
 
@@ -79,7 +79,7 @@ To find your baseline consumption:
 2. **Add always-on devices**: Include refrigerators, networking equipment, standby devices
 3. **Add safety margin**: Increase by 10-20% to account for variations
 
-### Typical Values
+### Typical values
 
 - **Small apartment**: 0.2-0.4 kW
 - **Average home**: 0.5-1.2 kW
@@ -91,11 +91,11 @@ To find your baseline consumption:
     It's better to overestimate baseline consumption slightly.
     The optimizer will ensure sufficient power is available.
 
-## Forecast-Based Load Pattern
+## Forecast-based load pattern
 
 For variable consumption that changes over time, use sensors that provide forecast data.
 
-### Single Variable Load
+### Single variable load
 
 | Field        | Value                      |
 | ------------ | -------------------------- |
@@ -108,7 +108,7 @@ The forecast sensor should provide:
 - Forecast data for future periods
 - Unit of measurement: kW
 
-### Common Forecast Sources
+### Common forecast sources
 
 **Direct Measurement**:
 
@@ -128,7 +128,7 @@ The forecast sensor should provide:
 - Pool pump timers
 - HVAC duty cycles
 
-## Combining Constant and Variable Loads
+## Combining constant and variable loads
 
 For most accurate optimization, combine a constant baseline with variable consumption:
 
@@ -155,7 +155,7 @@ This approach:
 - Improves optimization reliability
 - Makes it easier to adjust baseline without changing forecasts
 
-## Combining Loads
+## Combining loads
 
 Combine multiple load sources in a single element:
 
@@ -166,9 +166,9 @@ Combine multiple load sources in a single element:
 
 HAEO automatically sums all sensors at each timestamp, allowing you to model complex load profiles from simple components.
 
-## Configuration Examples
+## Configuration examples
 
-### Simple Constant Load
+### Simple constant load
 
 Fixed baseline consumption:
 
@@ -177,7 +177,7 @@ Fixed baseline consumption:
 | **Name**     | Base Load                   |
 | **Forecast** | input_number.constant_power |
 
-### Variable Household Consumption
+### Variable household consumption
 
 Time-varying consumption with forecast:
 
@@ -186,7 +186,7 @@ Time-varying consumption with forecast:
 | **Name**     | House Load                        |
 | **Forecast** | sensor.house_consumption_forecast |
 
-### Combined Constant and Variable
+### Combined constant and variable
 
 Baseline plus variable components:
 
@@ -195,7 +195,7 @@ Baseline plus variable components:
 | **Name**     | Total Load                                             |
 | **Forecast** | input_number.baseline_power, sensor.appliance_forecast |
 
-### Multiple Variable Sources
+### Multiple variable sources
 
 Combine multiple consumption sources:
 
@@ -204,7 +204,7 @@ Combine multiple consumption sources:
 | **Name**     | All Loads                                                                                 |
 | **Forecast** | sensor.base_consumption, sensor.ev_charger, sensor.pool_pump_schedule, sensor.hvac_system |
 
-### Input Entities
+### Input entities
 
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number or Switch entities with the `config` entity category.
@@ -222,9 +222,9 @@ This also applies when the value is driven by a sensor: a positive sensor readin
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
 
-## Sensors Created
+## Sensors created
 
-### Sensor Summary
+### Sensor summary
 
 A Load element creates 1 device in Home Assistant with the following sensors.
 
@@ -255,7 +255,7 @@ When shedding is enabled, this may be lower than the forecast if the optimizer d
     - a load running at 100% for half the period.
         Interpret the reduced power in whatever way makes sense for the device you are controlling.
 
-### Forecast Limit Price
+### Forecast limit price
 
 Shadow price of the load power limit constraint at each time period.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -280,7 +280,7 @@ For variable loads, the forecast reflects the configured sensor forecast values.
 
 ## Troubleshooting
 
-### Sensor Not Found
+### Sensor not found
 
 **Problem**: Error "Input … has no reading from …", or an input entity shows as unavailable
 
@@ -291,7 +291,7 @@ For variable loads, the forecast reflects the configured sensor forecast values.
 - Ensure sensor provides numeric values
 - For input_number helpers, ensure they are created and have a value set
 
-### Incorrect Load Values
+### Incorrect load values
 
 **Problem**: Load values don't match expectations
 
@@ -302,7 +302,7 @@ For variable loads, the forecast reflects the configured sensor forecast values.
 3. **Constant vs Variable**: Confirm sensor type matches intent
 4. **Forecast data**: Check sensor attributes contain forecast if expected
 
-### Optimization Infeasible
+### Optimization infeasible
 
 If optimization fails with loads:
 
@@ -311,7 +311,7 @@ If optimization fails with loads:
 3. **Grid limits**: Ensure grid import limit is sufficient for load
 4. **Constant load too high**: If using constant load, verify it's within available power
 
-### Load Too Low
+### Load too low
 
 **Problem**: Optimizer shows lower consumption than expected
 

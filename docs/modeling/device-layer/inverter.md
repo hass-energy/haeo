@@ -1,8 +1,8 @@
-# Inverter Modeling
+# Inverter modeling
 
 The Inverter device composes a [Node](../model-layer/elements/node.md) (as a DC bus junction) with two [Connections](../model-layer/connections/connection.md), one per direction, to model bidirectional DC/AC power conversion with separate efficiency and power limits per direction.
 
-## Model Elements Created
+## Model elements created
 
 ```mermaid
 graph LR
@@ -41,7 +41,7 @@ Each connection therefore places its efficiency segment next to the DC bus and i
 The DC to AC, AC to DC, and active power sensors all report AC-side power.
 The DC bus supplies the DC to AC power plus the inverting loss, and receives the AC to DC power less the rectifying loss.
 
-## Devices Created
+## Devices created
 
 Inverter creates 1 device in Home Assistant:
 
@@ -63,9 +63,9 @@ The adapter transforms user configuration into connection segments:
 | —                          | Node              | `is_source=false`          | DC bus is not a power source          |
 | —                          | Node              | `is_sink=false`            | DC bus is not a power sink            |
 
-## Sensors Created
+## Sensors created
 
-### Inverter Device
+### Inverter device
 
 | Sensor                     | Unit   | Update    | Description                              |
 | -------------------------- | ------ | --------- | ---------------------------------------- |
@@ -80,9 +80,9 @@ The `max_power_*_price` sensors are only created when the corresponding limit is
 
 See [Inverter Configuration](../../user-guide/elements/inverter.md) for detailed sensor and configuration documentation.
 
-## Configuration Examples
+## Configuration examples
 
-### Basic Hybrid Inverter
+### Basic hybrid inverter
 
 | Field                   | Value         |
 | ----------------------- | ------------- |
@@ -91,7 +91,7 @@ See [Inverter Configuration](../../user-guide/elements/inverter.md) for detailed
 | **DC to AC Efficiency** | 97.0          |
 | **AC to DC Efficiency** | 97.0          |
 
-### With Power Limits
+### With power limits
 
 | Field                   | Value           |
 | ----------------------- | --------------- |
@@ -102,7 +102,7 @@ See [Inverter Configuration](../../user-guide/elements/inverter.md) for detailed
 | **Max DC to AC Power**  | 5.0             |
 | **Max AC to DC Power**  | 5.0             |
 
-## Typical Use Cases
+## Typical use cases
 
 **Hybrid Inverter Systems**:
 Connect batteries and solar panels to the inverter's DC bus, with the AC side connecting to the home bus where loads and grid are attached.
@@ -115,13 +115,13 @@ This models systems where solar feeds the battery directly on the DC side.
 Some inverters have different power ratings for inverting vs. rectifying.
 Configure separate `max_power_source_target` and `max_power_target_source` to model this.
 
-## Physical Interpretation
+## Physical interpretation
 
 The Inverter represents a power electronics device that converts between DC and AC power.
 The DC bus acts as a junction point where DC devices (batteries, solar panels with DC output) connect,
 while the AC side connects to your home's AC network.
 
-### Configuration Guidelines
+### Configuration guidelines
 
 - **Efficiency Values**: Typical modern inverters achieve 95-98% efficiency.
     Set slightly lower values to account for real-world losses.

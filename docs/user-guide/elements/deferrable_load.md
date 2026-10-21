@@ -1,4 +1,4 @@
-# Deferrable Load
+# Deferrable load
 
 Deferrable loads are appliances that must consume a set amount of energy within scheduled time windows, but are flexible about exactly when inside each window — pool pumps, hot water systems, irrigation, or an EV charger driven in energy mode.
 

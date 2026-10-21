@@ -42,7 +42,7 @@ After installation, restart Home Assistant:
 
 If you need a refresher on the restart process, see the [Home Assistant restart documentation](https://www.home-assistant.io/docs/configuration/troubleshooting/#restarting-home-assistant).
 
-## Method 2: Manual Installation
+## Method 2: Manual installation
 
 If you prefer not to use HACS or need manual control:
 
@@ -52,7 +52,7 @@ If you prefer not to use HACS or need manual control:
 2. Download the latest `haeo.zip` file
 3. Extract the archive
 
-### Step 2: Copy Files
+### Step 2: Copy files
 
 1. Connect to your Home Assistant instance (via SSH, Samba, or file editor)
 2. Navigate to your Home Assistant config directory (usually `/config`)
@@ -76,7 +76,7 @@ config/
 
 Restart Home Assistant as described in the HACS installation section.
 
-## Verify Installation
+## Verify installation
 
 After restarting, verify HAEO is installed correctly:
 
@@ -95,7 +95,7 @@ If HAEO appears in the list, the installation was successful!
 3. If an update is available, click **Update**
 4. Restart Home Assistant
 
-### Manual Update
+### Manual update
 
 1. Download the latest release
 2. Replace the `custom_components/haeo` directory with the new version
@@ -111,7 +111,7 @@ See the [troubleshooting page](troubleshooting.md) for help with common installa
 
 ## Uninstalling HAEO
 
-### Remove the Integration
+### Remove the integration
 
 1. Navigate to **Settings** → **Devices & Services**
 2. Find the HAEO integration
@@ -119,7 +119,7 @@ See the [troubleshooting page](troubleshooting.md) for help with common installa
 4. Select **Delete**
 5. Confirm deletion
 
-### Remove Files
+### Remove files
 
 Via HACS:
 

@@ -1,9 +1,9 @@
-# User Guide
+# User guide
 
 Welcome to the HAEO User Guide!
 This section will help you install, configure, and use HAEO to optimize your home's energy usage.
 
-## What You'll Learn
+## What you'll learn
 
 This guide covers everything you need to know as an end user:
 
@@ -38,16 +38,16 @@ The typical workflow for setting up HAEO is:
     If you encounter issues, HAEO provides diagnostic information you can export for troubleshooting or when requesting help.
     See the [troubleshooting guide](troubleshooting.md) for details on accessing diagnostic data.
 
-## Project Philosophy
+## Project philosophy
 
 HAEO follows a focused, Unix-like philosophy: **do one thing well**.
 
-### What HAEO Does
+### What HAEO does
 
 HAEO focuses exclusively on **energy optimization**.
 It computes the optimal schedule for your batteries, loads, and other devices based on forecasts and constraints.
 
-### What HAEO Doesn't Do
+### What HAEO doesn't do
 
 HAEO intentionally does not include:
 
@@ -56,7 +56,7 @@ HAEO intentionally does not include:
 - **Device control** - Use Home Assistant automations to implement the optimal schedule
 - **Load forecasting** - Use [HAFO](https://hafo.haeo.io), existing integrations, or template sensors
 
-### Why This Approach?
+### Why this approach?
 
 This focused design means:
 
@@ -67,13 +67,13 @@ This focused design means:
 
 HAEO provides optimization results as sensors with forecast attributes, letting you build automations with the full power of Home Assistant.
 
-## Installation Methods
+## Installation methods
 
 We recommend installing via HACS for automatic updates, but manual installation is also supported.
 
 [:material-arrow-right: Continue to Installation](installation.md)
 
-## Example Systems
+## Example systems
 
 Not sure where to start? Check out our complete system examples:
 
@@ -81,7 +81,7 @@ Not sure where to start? Check out our complete system examples:
 
 These examples show real-world configurations with all the details you need to replicate similar setups.
 
-## Getting Help
+## Getting help
 
 If you run into issues:
 

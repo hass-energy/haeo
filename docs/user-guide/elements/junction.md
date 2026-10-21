@@ -65,7 +65,7 @@ If you need a point that produces or consumes unlimited power, use a [node](node
     When a node that had its source or sink switch turned on becomes a junction, HAEO raises a repair issue for it.
     The junction keeps the node's device and power balance sensor, so their entity IDs, areas, and history carry over.
 
-## Use Cases
+## Use cases
 
 **Single junction (simple)**: Central hub for all elements.
 
@@ -95,7 +95,7 @@ graph LR
     class AC ac
 ```
 
-## Configuration Example
+## Configuration example
 
 Simple junction for connecting elements:
 
@@ -110,9 +110,9 @@ Then connect elements to "Sub Panel" via connections.
     If you delete a junction, you must update all connections that reference it.
     Connections cannot have endpoints that don't exist.
 
-## Sensors Created
+## Sensors created
 
-### Sensor Summary
+### Sensor summary
 
 A Junction element creates 1 device in Home Assistant with the following sensors.
 
@@ -120,7 +120,7 @@ A Junction element creates 1 device in Home Assistant with the following sensors
 | ------------------------------------------------------------ | ------ | ----------------------------------- |
 | [`sensor.{name}_power_balance_shadow_price`](#power-balance) | \$/kWh | Local energy price at this junction |
 
-### Power Balance
+### Power balance
 
 Displayed as "Power balance shadow price".
 The marginal cost or value of power at this point in the network.
@@ -156,7 +156,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 **Unexpected power flows**: Verify connection endpoints, review junction names unique, check connection min/max power limits.
 
-## Multiple Junctions
+## Multiple junctions
 
 **Use when**:
 
@@ -168,7 +168,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 **Complexity**: Requires more configuration and adds more constraints, but accurately models real system architecture.
 
-### Hybrid Inverter Example
+### Hybrid inverter example
 
 For hybrid (AC/DC) inverter systems, use separate AC and DC junctions with a connection between them:
 

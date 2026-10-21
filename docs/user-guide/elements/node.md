@@ -33,21 +33,21 @@ Used to identify the node in connection endpoints.
 
 Choose descriptive names based on what the node represents: "Generator", "Neighbor Supply", "Dump Load"
 
-## Is Source
+## Is source
 
 Whether this node can produce power.
 When on, the node can supply any amount of power that flows out through its connections.
 
 **Default**: off (node cannot produce power)
 
-## Is Sink
+## Is sink
 
 Whether this node can consume power.
 When on, the node can absorb any amount of power that flows in through its connections.
 
 **Default**: off (node cannot consume power)
 
-### Source and Sink Combinations
+### Source and sink combinations
 
 The combination of `is_source` and `is_sink` determines the node's behavior:
 
@@ -82,7 +82,7 @@ The combination of `is_source` and `is_sink` determines the node's behavior:
     Sinks terminate a policy's provenance — a `source=X → destination=Y` rule cannot see past an intermediate sink.
     See [Node roles and policy scope](../../modeling/tagged-power.md#node-roles-and-policy-scope) for the full rules.
 
-## Configuration Example
+## Configuration example
 
 A backup generator modeled as a source node:
 
@@ -99,7 +99,7 @@ Then add a connection from "Generator" to your switchboard with a maximum power 
     If you delete a node element, you must update all connections that reference it.
     Connections cannot have endpoints that don't exist.
 
-### Input Entities
+### Input entities
 
 Each configuration option creates a corresponding input entity in Home Assistant.
 Input entities appear as Switch entities with the `config` entity category.
@@ -113,9 +113,9 @@ Because they are entities, you can switch a node's role at runtime, for example 
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
 
-## Sensors Created
+## Sensors created
 
-### Sensor Summary
+### Sensor summary
 
 A Node element creates 1 device in Home Assistant with the following sensors.
 
@@ -123,7 +123,7 @@ A Node element creates 1 device in Home Assistant with the following sensors.
 | ------------------------------------------------------------ | ------ | ------------------------------- |
 | [`sensor.{name}_power_balance_shadow_price`](#power-balance) | \$/kWh | Local energy price at this node |
 
-### Power Balance
+### Power balance
 
 Displayed as "Power balance shadow price".
 The marginal cost or value of power at this node.

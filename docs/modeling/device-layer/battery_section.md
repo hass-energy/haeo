@@ -1,10 +1,10 @@
-# Battery Section Modeling
+# Battery section modeling
 
 The Battery Section device provides direct access to the model layer [Battery](../model-layer/elements/battery.md) element.
 Unlike the standard Battery element which composes multiple sections with connections and nodes,
 this element creates a single battery section that must be connected manually via Connection elements.
 
-## Model Elements Created
+## Model elements created
 
 ```mermaid
 graph LR
@@ -17,7 +17,7 @@ graph LR
 | --------------------------------------------- | -------- | ------------------------------ |
 | [Battery](../model-layer/elements/battery.md) | `{name}` | All parameters mapped directly |
 
-## Devices Created
+## Devices created
 
 Battery Section creates 1 device in Home Assistant:
 
@@ -25,7 +25,7 @@ Battery Section creates 1 device in Home Assistant:
 | ------- | -------- | ------------ | ------------------------------------ |
 | Primary | `{name}` | Always       | Direct access to model layer Battery |
 
-## Parameter Mapping
+## Parameter mapping
 
 The adapter passes user configuration directly to the Battery model element:
 
@@ -35,9 +35,9 @@ The adapter passes user configuration directly to the Battery model element:
 | `capacity`         | Battery       | `capacity`       | Battery capacity (kWh)              |
 | `initial_charge`   | Battery       | `initial_charge` | Current value of the sensor, in kWh |
 
-## Sensors Created
+## Sensors created
 
-### Battery Section Device
+### Battery section device
 
 | Sensor            | Unit   | Update    | Description                            |
 | ----------------- | ------ | --------- | -------------------------------------- |
@@ -53,9 +53,9 @@ The adapter passes user configuration directly to the Battery model element:
 
 See [Battery Section Configuration](../../user-guide/elements/battery_section.md#sensors-created) for detailed sensor documentation.
 
-## Configuration Example
+## Configuration example
 
-### Basic Configuration
+### Basic configuration
 
 | Field              | Value                   |
 | ------------------ | ----------------------- |
@@ -63,7 +63,7 @@ See [Battery Section Configuration](../../user-guide/elements/battery_section.md
 | **Capacity**       | sensor.battery_capacity |
 | **Initial Charge** | sensor.battery_energy   |
 
-## Typical Use Cases
+## Typical use cases
 
 **Direct Model Access**:
 Use Battery Section when you need direct control over battery modeling without the multi-section composition provided by the standard Battery element.
@@ -74,13 +74,13 @@ Create custom battery configurations by manually connecting multiple Battery Sec
 **Advanced Modeling**:
 Access raw model layer Battery behavior for research, testing, or advanced optimization scenarios.
 
-## Physical Interpretation
+## Physical interpretation
 
 Battery Section represents a single-section energy storage device with no implicit connections or internal routing.
 All power flow must be explicitly configured via Connection elements.
 Connections are unidirectional, so charging and discharging each need their own connection.
 
-### Configuration Guidelines
+### Configuration guidelines
 
 - **Manual Connections Required**: Unlike the standard Battery element, Battery Section does not create implicit connections.
     You must create Connection elements to connect it to nodes or other elements.

@@ -1,11 +1,11 @@
-# Connection Modeling
+# Connection modeling
 
 The Connection device provides explicit user-defined **unidirectional** power flow paths between elements.
 Unlike implicit connections created by other devices, it allows control over capacity, efficiency, and pricing along a single direction (source → target).
 
 Bidirectional physical paths are modeled as **two** Connection devices with swapped endpoints.
 
-## Model Elements Created
+## Model elements created
 
 ```mermaid
 graph LR
@@ -29,7 +29,7 @@ The adapter maps each configured field to a single forward segment.
 Segments are chained in the order power limit → pricing → efficiency, from source to target.
 The limit and price therefore apply to the power entering the connection, before its losses, the same point the connection power output measures.
 
-## Devices Created
+## Devices created
 
 Connection creates 1 device in Home Assistant:
 
@@ -56,9 +56,9 @@ Efficiency defaults to 100% via the efficiency segment.
 Because efficiency is the first segment, the power limit and price act on power after losses, which is the power delivered to the target.
 The reported connection power is the power entering the chain at the source, before losses.
 
-## Sensors Created
+## Sensors created
 
-### Connection Device
+### Connection device
 
 | Sensor             | Unit | Update    | Description                                        |
 | ------------------ | ---- | --------- | -------------------------------------------------- |
@@ -66,7 +66,7 @@ The reported connection power is the power entering the chain at the source, bef
 
 See [Connection Configuration](../../user-guide/elements/connections.md) for detailed sensor and configuration documentation.
 
-## Configuration Examples
+## Configuration examples
 
 ### One-way capacity limit
 
@@ -95,7 +95,7 @@ See [Connection Configuration](../../user-guide/elements/connections.md) for det
 
 For packaged AC/DC conversion with a DC bus, the [Inverter](inverter.md) device is often simpler than manual dual connections.
 
-## Typical Use Cases
+## Typical use cases
 
 **Additional network paths**:
 Connect nodes that are not linked by implicit element connections.
@@ -112,11 +112,11 @@ Constrain flow through bottlenecks (panel ratings, cable capacity).
 **Time-varying availability**:
 Use forecast sensors for max power to model maintenance or scheduling windows.
 
-## Physical Interpretation
+## Physical interpretation
 
 Connection represents one directed power flow path with optional constraints on capacity, efficiency, and cost.
 
-### When to Use Explicit Connections
+### When to use explicit connections
 
 Many device elements create implicit connections automatically:
 
@@ -131,7 +131,7 @@ Use explicit Connection devices when you need:
 - **Capacity constraints** beyond those set by connected devices
 - **Time-varying parameters** (availability windows, dynamic pricing)
 
-### Configuration Guidelines
+### Configuration guidelines
 
 - **Two directions**: Add two Connection subentries with swapped source and target when both directions matter.
 - **Efficiency matters**: Even small efficiency differences (95% vs 100%) significantly affect optimal dispatch.

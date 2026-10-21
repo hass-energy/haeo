@@ -1,4 +1,4 @@
-# Deferrable Load Model
+# Deferrable load model
 
 This page explains how HAEO models deferrable loads using linear programming.
 

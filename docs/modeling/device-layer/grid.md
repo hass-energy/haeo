@@ -1,8 +1,8 @@
-# Grid Modeling
+# Grid modeling
 
 The Grid device composes a [Node](../model-layer/elements/node.md) (bidirectional power source/sink) with an implicit [Connection](../model-layer/connections/connection.md) to model utility grid connections with time-varying import and export pricing.
 
-## Model Elements Created
+## Model elements created
 
 ```mermaid
 graph LR
@@ -22,7 +22,7 @@ graph LR
 | [Node](../model-layer/elements/node.md)                | `{name}`            | is_source=true, is_sink=true           |
 | [Connection](../model-layer/connections/connection.md) | `{name}:connection` | power-limit and pricing segment values |
 
-## Devices Created
+## Devices created
 
 Grid creates 1 device in Home Assistant:
 
@@ -44,9 +44,9 @@ The adapter transforms user configuration into connection segments:
 | —                         | Node              | `is_source=true`          | Grid can supply power                   |
 | —                         | Node              | `is_sink=true`            | Grid can absorb power                   |
 
-## Sensors Created
+## Sensors created
 
-### Grid Device
+### Grid device
 
 | Sensor                   | Unit     | Update    | Description                        |
 | ------------------------ | -------- | --------- | ---------------------------------- |
@@ -65,9 +65,9 @@ The `cost_*` sensors are only created when the corresponding price is configured
 
 See [Grid Configuration](../../user-guide/elements/grid.md) for detailed sensor and configuration documentation.
 
-## Configuration Examples
+## Configuration examples
 
-### Time-of-Use Pricing
+### Time-of-use pricing
 
 | Field            | Value                           |
 | ---------------- | ------------------------------- |
@@ -76,7 +76,7 @@ See [Grid Configuration](../../user-guide/elements/grid.md) for detailed sensor 
 | **Export Price** | sensor.electricity_export_price |
 | **Connection**   | Home Bus                        |
 
-### With Capacity Limits
+### With capacity limits
 
 | Field            | Value                           |
 | ---------------- | ------------------------------- |
@@ -87,7 +87,7 @@ See [Grid Configuration](../../user-guide/elements/grid.md) for detailed sensor 
 | **Export Limit** | 5.0                             |
 | **Connection**   | Home Bus                        |
 
-## Typical Use Cases
+## Typical use cases
 
 **Time-of-Use Optimization**:
 Grid with time-varying prices enables battery arbitrage—charge during low prices, discharge during high prices.
@@ -98,11 +98,11 @@ Configure export pricing to model solar export revenue and optimize when to expo
 **Demand-Limited Connections**:
 Use import/export limits to model connection capacity constraints and prevent exceeding utility limits.
 
-## Physical Interpretation
+## Physical interpretation
 
 Grid represents the utility connection that can supply power (import) when local generation is insufficient, or absorb excess power (export) from solar or battery discharge.
 
-### Configuration Guidelines
+### Configuration guidelines
 
 - **Import/Export Pricing**: Use [sensor](../../user-guide/forecasts-and-sensors.md) or [forecast](../../user-guide/forecasts-and-sensors.md) for time-varying prices. Ensure export prices are always less than import prices to prevent unrealistic arbitrage.
 - **Power Limits**: Configure limits to model connection capacity constraints. If omitted, grid has unlimited capacity.

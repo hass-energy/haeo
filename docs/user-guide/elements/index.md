@@ -3,7 +3,7 @@
 Elements are the building blocks of your HAEO energy network.
 Each element represents a physical device or logical component in your energy system.
 
-## Elements and Devices
+## Elements and devices
 
 When you configure an element, HAEO may create multiple devices in Home Assistant.
 Elements can create one or more devices depending on their configuration.
@@ -24,7 +24,7 @@ See individual element pages for which devices and sensors each element creates.
 
 For the mathematical details of how elements are modeled, see the [Modeling Documentation](../../modeling/index.md).
 
-## How Elements Work Together
+## How elements work together
 
 Elements work together once you connect them to match your real-world wiring.
 HAEO balances available energy, expected consumption, and any limits you set so the total system stays within bounds.
@@ -43,7 +43,7 @@ graph TD
 This layout lets HAEO decide when to store solar, rely on the grid, or draw from a battery while keeping every connection within the limits you configured.
 See the [modeling documentation](../../modeling/index.md) for the underlying mathematics.
 
-## Configuration Approach
+## Configuration approach
 
 When configuring elements:
 

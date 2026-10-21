@@ -58,9 +58,9 @@ Allow HAEO to reduce generation below the forecast level.
 - Inverter must support active power limiting
 - Control mechanism must be implemented separately (HAEO only optimizes)
 
-## Configuration Examples
+## Configuration examples
 
-### Basic Configuration
+### Basic configuration
 
 Single solar array with forecast:
 
@@ -70,7 +70,7 @@ Single solar array with forecast:
 | **Forecast**    | sensor.solcast_pv_forecast |
 | **Curtailment** | false                      |
 
-### Multiple Arrays
+### Multiple arrays
 
 Combine multiple solar arrays or forecast sources:
 
@@ -80,7 +80,7 @@ Combine multiple solar arrays or forecast sources:
 | **Forecast**    | sensor.east_array_forecast, sensor.west_array_forecast |
 | **Curtailment** | true                                                   |
 
-### Input Entities
+### Input entities
 
 Each configuration field creates a corresponding input entity in Home Assistant.
 Input entities appear as Number or Switch entities with the `config` entity category.
@@ -93,9 +93,9 @@ Input entities appear as Number or Switch entities with the `config` entity cate
 Input entities include a `forecast` attribute showing values for each optimization period.
 See the [Input Entities developer guide](../../developer-guide/inputs.md) for details on input entity behavior.
 
-## Sensors Created
+## Sensors created
 
-### Sensor Summary
+### Sensor summary
 
 A Solar element creates 1 device in Home Assistant with the following sensors.
 
@@ -116,7 +116,7 @@ When curtailment is enabled, this may be less than the forecast if the optimizer
 
 **Example**: A value of 4.2 kW means the solar array is producing 4.2 kW at this time period.
 
-### Forecast Limit
+### Forecast limit
 
 The marginal value of additional generation capacity.
 See the [Shadow Prices modeling guide](../../modeling/shadow-prices.md) for general shadow price concepts.
@@ -139,7 +139,7 @@ It indicates whether more solar generation would be beneficial or detrimental.
 
 ## Troubleshooting
 
-### Sensor Not Found
+### Sensor not found
 
 **Problem**: Error "Input … has no reading from …", or an input entity shows as unavailable
 
@@ -149,7 +149,7 @@ It indicates whether more solar generation would be beneficial or detrimental.
 - Check sensor is available (not "unavailable" or "unknown")
 - Ensure solar forecast integration is configured correctly
 
-### Incorrect Generation Values
+### Incorrect generation values
 
 **Problem**: Generation values don't match expectations
 
@@ -160,7 +160,7 @@ It indicates whether more solar generation would be beneficial or detrimental.
 - Forecast integration is providing realistic data
 - System size configured correctly in forecast integration
 
-### No Generation in Optimization
+### No generation in optimization
 
 **Problem**: Optimization shows zero solar generation
 

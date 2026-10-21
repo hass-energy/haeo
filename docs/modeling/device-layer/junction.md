@@ -1,8 +1,8 @@
-# Junction Modeling
+# Junction modeling
 
 The Junction device composes a [Node](../model-layer/elements/node.md) model element to represent an electrical bus where multiple elements connect and power must balance.
 
-## Model Elements Created
+## Model elements created
 
 ```mermaid
 graph LR
@@ -17,7 +17,7 @@ graph LR
 
 Junction creates only a Node model element with no implicit Connection.
 
-## Devices Created
+## Devices created
 
 Junction creates 1 device in Home Assistant:
 
@@ -25,7 +25,7 @@ Junction creates 1 device in Home Assistant:
 | ------- | -------- | ------------ | -------------------------------- |
 | Primary | `{name}` | Always       | Junction point for power balance |
 
-## Parameter Mapping
+## Parameter mapping
 
 The adapter transforms user configuration into model parameters:
 
@@ -39,9 +39,9 @@ A Junction device is always a pure junction.
 Power enters and leaves the network only through device elements that bound and price it, such as [Grid](grid.md), [Solar](solar.md), and [Loads](loads.md).
 The [Node](node.md) device exposes the model-layer source and sink flags for when unlimited production or consumption is wanted.
 
-## Sensors Created
+## Sensors created
 
-### Junction Device
+### Junction device
 
 | Sensor          | Unit   | Update    | Description                            |
 | --------------- | ------ | --------- | -------------------------------------- |
@@ -49,15 +49,15 @@ The [Node](node.md) device exposes the model-layer source and sink flags for whe
 
 See [Junction Configuration](../../user-guide/elements/junction.md) for detailed sensor and configuration documentation.
 
-## Configuration Examples
+## Configuration examples
 
-### Single Bus (Most Common)
+### Single bus (most common)
 
 | Field    | Value       |
 | -------- | ----------- |
 | **Name** | Switchboard |
 
-### Multi-Bus Topology
+### Multi-bus topology
 
 **DC Bus:**
 
@@ -71,7 +71,7 @@ See [Junction Configuration](../../user-guide/elements/junction.md) for detailed
 | -------- | ------ |
 | **Name** | AC Bus |
 
-## Typical Use Cases
+## Typical use cases
 
 **Single-Bus System**:
 Most residential installations use the Switchboard junction created with the hub as the central connection point for all elements.
@@ -82,11 +82,11 @@ Systems with DC-coupled batteries and AC-coupled solar may use separate DC and A
 **Multi-Site Systems**:
 Large installations may use multiple junctions to represent different physical locations or voltage levels.
 
-## Physical Interpretation
+## Physical interpretation
 
 Junction represents an electrical bus where Kirchhoff's current law applies—total power flowing in must equal total power flowing out at every instant.
 
-### Configuration Guidelines
+### Configuration guidelines
 
 - **Name Clearly**: Use descriptive names like `Switchboard`, `DC Bus`, `AC Bus` to clarify system topology.
 - **Single Junction Sufficient**: Most home systems only need the Switchboard. Don't create more junctions unless you have a specific need (DC/AC separation, etc.).
