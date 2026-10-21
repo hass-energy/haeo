@@ -1,14 +1,14 @@
 """Data extractor package for different energy data providers."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import tzinfo
 from enum import StrEnum
-from typing import Final, NamedTuple
+from typing import Final, NamedTuple, TypeGuard
 
 import numpy as np
 
 from custom_components.haeo.core.model.const import OutputType
-from custom_components.haeo.core.state import EntityState
+from custom_components.haeo.core.state import ON_OFF_STATE_VALUES, EntityState
 from custom_components.haeo.core.units import DeviceClass, UnitOfMeasurement, base_unit_conversion, convert_to_base_unit
 
 from . import (
@@ -26,17 +26,46 @@ from . import (
 )
 from .utils import EntityMetadata, separate_duplicate_timestamps
 
-# Binary sensor states mapped to numeric values so availability-style
-# sources (e.g. an EV charger's "connected" binary sensor) load as 1/0.
-_BINARY_STATES: Final[dict[str, float]] = {"on": 1.0, "true": 1.0, "off": 0.0, "false": 0.0}
+type RawExtracted = tuple[Sequence[tuple[float, float]] | float, UnitOfMeasurement | str | None, DeviceClass | None]
+"""A parser's data, with its unit and device class before conversion to base units."""
+
+type Parse = Callable[[EntityState, tzinfo, OutputType | None], RawExtracted | None]
+"""Read a state in one format, returning None when the state is not in that format."""
 
 
-def _parse_scalar_state(raw: str) -> float:
-    """Parse a state string as a float, mapping binary on/off states to 1/0."""
-    mapped = _BINARY_STATES.get(raw.strip().lower())
-    if mapped is not None:
-        return mapped
-    return float(raw)
+def _forecast_format[S](
+    detect: Callable[[EntityState], TypeGuard[S]], extract: Callable[[S, tzinfo], RawExtracted]
+) -> Parse:
+    """Return a parse function for a forecast format, which reads the same whatever the input."""
+
+    def parse(state: EntityState, time_zone: tzinfo, _output_type: OutputType | None) -> RawExtracted | None:
+        return extract(state, time_zone) if detect(state) else None
+
+    return parse
+
+
+def _calendar(state: EntityState, time_zone: tzinfo, output_type: OutputType | None) -> RawExtracted | None:
+    """Read a calendar's events, whose typed values read against the input's output type."""
+    return (
+        calendar_events.Parser.extract(state, time_zone, output_type) if calendar_events.Parser.detect(state) else None
+    )
+
+
+# Every format a state can be read in, tried in order. Volcast entries also
+# carry a Solcast-style pv_estimate, so Volcast comes before Solcast.
+PARSERS: Final[tuple[Parse, ...]] = (
+    _calendar,
+    _forecast_format(aemo_nem.Parser.detect, aemo_nem.Parser.extract),
+    _forecast_format(amber2mqtt.Parser.detect, amber2mqtt.Parser.extract),
+    _forecast_format(amberelectric.Parser.detect, amberelectric.Parser.extract),
+    _forecast_format(emhass.Parser.detect, emhass.Parser.extract),
+    _forecast_format(flow_power.Parser.detect, flow_power.Parser.extract),
+    _forecast_format(haeo.Parser.detect, haeo.Parser.extract),
+    _forecast_format(nordpool.Parser.detect, nordpool.Parser.extract),
+    _forecast_format(open_meteo_solar_forecast.Parser.detect, open_meteo_solar_forecast.Parser.extract),
+    _forecast_format(volcast.Parser.detect, volcast.Parser.extract),
+    _forecast_format(solcast_solar.Parser.detect, solcast_solar.Parser.extract),
+)
 
 
 class ExtractedData(NamedTuple):
@@ -48,50 +77,57 @@ class ExtractedData(NamedTuple):
     """Unit of measurement after conversion to base units. (None if unknown)"""
 
 
+class Reading(NamedTuple):
+    """A state's value now, with its unit."""
+
+    value: float
+    """The value in base units."""
+    unit: UnitOfMeasurement | str | None
+    """Unit of measurement after conversion to base units. (None if unknown)"""
+
+
+def extract_reading(state: EntityState) -> Reading:
+    """Read a state's value now, converted to base units, whatever forecast it carries.
+
+    Binary states read as 1 for on and 0 for off, so availability-style
+    sources, such as an EV charger's "connected" binary sensor, load as 1/0.
+
+    Raises:
+        ValueError: If the state is not a reading, such as ``unknown``, or is
+            a calendar's, whose state only says whether an event is on.
+
+    """
+    if calendar_events.Parser.detect(state):
+        msg = f"Calendar {state.entity_id} has no reading"
+        raise ValueError(msg)
+    raw = state.state.strip().lower()
+    value = ON_OFF_STATE_VALUES[raw] if raw in ON_OFF_STATE_VALUES else float(raw)
+    unit = state.attributes.get("unit_of_measurement")
+    converted, base_unit, _ = convert_to_base_unit(
+        value, unit if isinstance(unit, str) else None, DeviceClass.of(state.attributes.get("device_class"))
+    )
+    return Reading(converted, base_unit)
+
+
 def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | None = None) -> ExtractedData:
     """Extract data from a State object and convert to base units.
 
-    Timestamps without a time zone are read in ``time_zone``, Home Assistant's
-    local time zone.
+    The state is read in the first of :data:`PARSERS` that recognizes it,
+    or as its reading when none does. Timestamps without a time zone are
+    read in ``time_zone``, Home Assistant's local time zone.
 
     A calendar reads the value typed in each event against the input's output
     type when it is given, so values the input cannot use are ignored.
+
+    Raises:
+        ValueError: If the state has no data, such as a calendar without
+            injected events or a state that is not a reading.
+
     """
-
-    # Extract raw data and unit
-    data: Sequence[tuple[float, float]] | float
-    unit: UnitOfMeasurement | str | None
-    device_class: DeviceClass | None
-
-    if calendar_events.Parser.detect(state):
-        data, unit, device_class = calendar_events.Parser.extract(state, time_zone, output_type)
-    elif aemo_nem.Parser.detect(state):
-        data, unit, device_class = aemo_nem.Parser.extract(state, time_zone)
-    elif amber2mqtt.Parser.detect(state):
-        data, unit, device_class = amber2mqtt.Parser.extract(state, time_zone)
-    elif amberelectric.Parser.detect(state):
-        data, unit, device_class = amberelectric.Parser.extract(state, time_zone)
-    elif emhass.Parser.detect(state):
-        data, unit, device_class = emhass.Parser.extract(state, time_zone)
-    elif flow_power.Parser.detect(state):
-        data, unit, device_class = flow_power.Parser.extract(state, time_zone)
-    elif haeo.Parser.detect(state):
-        data, unit, device_class = haeo.Parser.extract(state, time_zone)
-    elif nordpool.Parser.detect(state):
-        data, unit, device_class = nordpool.Parser.extract(state, time_zone)
-    elif open_meteo_solar_forecast.Parser.detect(state):
-        data, unit, device_class = open_meteo_solar_forecast.Parser.extract(state, time_zone)
-    elif volcast.Parser.detect(state):
-        # Volcast entries also carry a Solcast-style pv_estimate, so Volcast is checked first
-        data, unit, device_class = volcast.Parser.extract(state, time_zone)
-    elif solcast_solar.Parser.detect(state):
-        data, unit, device_class = solcast_solar.Parser.extract(state, time_zone)
-    else:
-        # If no extractor matched read the state as a single float value
-        data = _parse_scalar_state(state.state)
-        unit_attr = state.attributes.get("unit_of_measurement")
-        unit = unit_attr if isinstance(unit_attr, str) else None
-        device_class = DeviceClass.of(state.attributes.get("device_class"))
+    parsed = next((found for parse in PARSERS if (found := parse(state, time_zone, output_type)) is not None), None)
+    if parsed is None:
+        return ExtractedData(*extract_reading(state))
+    data, unit, device_class = parsed
 
     # Normalize unit to string (handle enum values with .value attribute)
     unit_str: str | None = unit.value if isinstance(unit, StrEnum) else unit
@@ -111,6 +147,11 @@ def extract(state: EntityState, *, time_zone: tzinfo, output_type: OutputType | 
 
 
 __all__ = [
+    "PARSERS",
     "EntityMetadata",
+    "ExtractedData",
+    "Parse",
+    "Reading",
     "extract",
+    "extract_reading",
 ]
