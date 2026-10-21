@@ -107,6 +107,10 @@ async def async_setup_services(hass: HomeAssistant) -> None:
 
         entry_id = call.data[ATTR_CONFIG_ENTRY]
         target_timestamp: datetime | None = call.data.get(ATTR_TIMESTAMP)
+        # The datetime selector sends a time without a zone, which means Home
+        # Assistant's; left naive, the recorder would read it in the OS zone
+        if target_timestamp is not None and target_timestamp.tzinfo is None:
+            target_timestamp = target_timestamp.replace(tzinfo=dt_util.get_default_time_zone())
 
         # Validate config entry exists
         entry = hass.config_entries.async_get_entry(entry_id)

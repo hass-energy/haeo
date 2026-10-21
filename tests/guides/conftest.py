@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 import datetime
+import logging
 import os
 from pathlib import Path
 
@@ -20,6 +21,11 @@ import pytest
 from pytest_socket import enable_socket
 
 from tools.guide_runner import PrerequisiteCache
+
+# pytest-homeassistant-custom-component sets sqlalchemy.engine to INFO when it
+# loads. Guides run a real recorder, so a failing guide's captured log would be
+# thousands of SQL statements burying the actual error.
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 # Guide tests run a full HA instance in a background thread. The global
 # filterwarnings = ["error"] from pyproject.toml turns third-party
