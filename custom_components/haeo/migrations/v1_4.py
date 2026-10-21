@@ -8,89 +8,132 @@ entities to their element's subentry.
 
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Mapping
 import logging
 from types import MappingProxyType
+from typing import NamedTuple
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.adapters.elements.junction import JUNCTION_DEVICE_JUNCTION, JUNCTION_POWER_BALANCE
 from custom_components.haeo.core.adapters.elements.node import NODE_DEVICE_NODE, NODE_POWER_BALANCE
-from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME, HUB_SECTION_ADVANCED
+from custom_components.haeo.core.const import (
+    CONF_ADVANCED_MODE,
+    CONF_NAME,
+    HORIZON_PRESET_5_DAYS,
+    HORIZON_PRESET_DAYS,
+    HUB_SECTION_ADVANCED,
+)
 from custom_components.haeo.core.schema.elements import battery, buffer, connection, junction, node
 from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
 from custom_components.haeo.core.schema.migrations.v1_4 import (
-    REVERSE_TO_FORWARD,
-    endpoint_name,
-    endpoints_match_reverse,
+    REVERSE_FIELDS,
+    connection_route,
     junction_config,
-    merge_reverse_into_existing,
     migrate_battery_config,
     migrate_connection_config,
     migrate_hub_horizon,
     node_is_junction,
+    uses_custom_horizon,
 )
-from custom_components.haeo.repairs import create_node_replaced_by_junction_issue
+from custom_components.haeo.repairs import create_horizon_tiers_replaced_issue, create_node_replaced_by_junction_issue
 from custom_components.haeo.unique_id import element_output_unique_id, element_unique_id, parse_element_unique_id
 
 _LOGGER = logging.getLogger(__name__)
 
 MINOR_VERSION = 4
-_CONNECTION_TYPE = connection.ELEMENT_TYPE
 
-_REVERSE_FIELDS: frozenset[str] = frozenset(reverse_key for reverse_key, _ in REVERSE_TO_FORWARD)
+# The name the hub's Switchboard node was created with. English is the only
+# language HAEO has shipped translations for, and Home Assistant falls back to
+# it, so every Switchboard got this name whatever the language.
+_SWITCHBOARD_NAME = "Switchboard"
 
-
-def _collect_subentry_names(entry: ConfigEntry) -> set[str]:
-    return {subentry.title for subentry in entry.subentries.values()}
-
-
-def _find_reverse_subentry(
-    entry: ConfigEntry,
-    *,
-    source_name: str,
-    target_name: str,
-    candidate_ids: list[str],
-) -> ConfigSubentry | None:
-    for subentry_id in candidate_ids:
-        subentry = entry.subentries[subentry_id]
-        data = dict(subentry.data)
-        if data.get(CONF_ELEMENT_TYPE) != _CONNECTION_TYPE:
-            continue
-        endpoints = data.get(connection.SECTION_ENDPOINTS)
-        if isinstance(endpoints, Mapping) and endpoints_match_reverse(
-            endpoints, source_name=source_name, target_name=target_name
-        ):
-            return subentry
-    return None
+# Fields that elements no longer have, by the last part of the key their input
+# entities are identified by. Partition fields were keyed by their field name,
+# after the partition when both partitions were configured.
+_REMOVED_FIELDS: Mapping[str, frozenset[str]] = {
+    connection.ELEMENT_TYPE: frozenset(REVERSE_FIELDS),
+    battery.ELEMENT_TYPE: frozenset(
+        (partitions.CONF_CONFIGURE_PARTITIONS, partitions.CONF_PARTITION_PERCENTAGE, partitions.CONF_PARTITION_COST)
+    ),
+}
 
 
-def _remove_reverse_field_entities(hass: HomeAssistant, entry: ConfigEntry, connection_ids: set[str]) -> None:
-    """Remove the input entities of connection fields that no longer exist.
+class _ElementEntity(NamedTuple):
+    """An entity of an element, with the key its unique ID gives after the element's subentry ID."""
 
-    Reverse-direction values now live on a separate connection, which creates its
-    own entities with names that match it when the integration sets up.
+    entry: er.RegistryEntry
+    key: str
+
+
+def _element_entities(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, list[_ElementEntity]]:
+    """Return the config entry's element entities, by the subentry ID their unique ID names."""
+    entities: defaultdict[str, list[_ElementEntity]] = defaultdict(list)
+    for entity_entry in er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id):
+        element = parse_element_unique_id(entry.entry_id, entity_entry.unique_id)
+        if element is not None:
+            entities[element.subentry_id].append(_ElementEntity(entity_entry, element.key))
+    return entities
+
+
+def _split_connections(hass: HomeAssistant, entry: ConfigEntry, existing_names: set[str]) -> None:
+    """Make each connection unidirectional, creating a reverse connection where reverse flow was intended."""
+    connections = [s for s in entry.subentries.values() if s.subentry_type == connection.ELEMENT_TYPE]
+    routes = {connection_route(subentry.data) for subentry in connections}
+    for subentry in connections:
+        forward_data, reverse_data = migrate_connection_config(
+            subentry.data, existing_names=existing_names, routes=routes
+        )
+        hass.config_entries.async_update_subentry(entry, subentry, data=forward_data)
+        if reverse_data is not None:
+            reverse_title = str(reverse_data[CONF_NAME])
+            hass.config_entries.async_add_subentry(
+                entry,
+                ConfigSubentry(
+                    data=MappingProxyType(reverse_data),
+                    subentry_type=connection.ELEMENT_TYPE,
+                    title=reverse_title,
+                    unique_id=None,
+                ),
+            )
+            _LOGGER.info("Created reverse connection %s from %s", reverse_title, subentry.title)
+
+
+def _remove_removed_field_entities(
+    hass: HomeAssistant, entry: ConfigEntry, entities: dict[str, list[_ElementEntity]]
+) -> None:
+    """Remove the input entities of fields their element no longer has, and drop them from ``entities``.
+
+    A connection's reverse-direction values now live on a separate connection,
+    which creates its own entities when the integration sets up.
     """
     registry = er.async_get(hass)
-    for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
-        element = parse_element_unique_id(entry.entry_id, entity_entry.unique_id)
-        if (
-            element is not None
-            and element.subentry_id in connection_ids
-            and element.key.split(".")[-1] in _REVERSE_FIELDS
-        ):
-            _LOGGER.info(
-                "Removing %s because connections no longer have reverse-direction fields", entity_entry.entity_id
-            )
-            registry.async_remove(entity_entry.entity_id)
+    for subentry in entry.subentries.values():
+        removed_fields = _REMOVED_FIELDS.get(subentry.subentry_type, frozenset())
+        kept: list[_ElementEntity] = []
+        for element_entity in entities.get(subentry.subentry_id, []):
+            field = element_entity.key.rsplit(".", 1)[-1]
+            if field in removed_fields:
+                _LOGGER.info(
+                    "Removing %s because %s no longer has a %s field",
+                    element_entity.entry.entity_id,
+                    subentry.title,
+                    field,
+                )
+                registry.async_remove(element_entity.entry.entity_id)
+            else:
+                kept.append(element_entity)
+        entities[subentry.subentry_id] = kept
 
 
-def _swap_node_for_junction(hass: HomeAssistant, entry: ConfigEntry, subentry: ConfigSubentry) -> None:
+def _swap_node_for_junction(
+    hass: HomeAssistant, entry: ConfigEntry, subentry: ConfigSubentry, entities: list[_ElementEntity]
+) -> None:
     """Replace a node subentry with a junction that keeps its subentry ID, device, and sensor.
 
     Home Assistant deletes a removed subentry's devices and entities, so the
@@ -116,10 +159,7 @@ def _swap_node_for_junction(hass: HomeAssistant, entry: ConfigEntry, subentry: C
         device_registry.async_update_device(device.id, add_config_entry_id=entry.entry_id, add_config_subentry_id=None)
 
     kept_entity_ids: list[str] = []
-    for entity_entry in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
-        element = parse_element_unique_id(entry.entry_id, entity_entry.unique_id)
-        if element is None or element.subentry_id != subentry_id:
-            continue
+    for entity_entry, _ in entities:
         new_unique_id = rekeyed_unique_ids.get(entity_entry.unique_id)
         if new_unique_id is None:
             entity_registry.async_remove(entity_entry.entity_id)
@@ -165,7 +205,9 @@ def _swap_node_for_junction(hass: HomeAssistant, entry: ConfigEntry, subentry: C
         )
 
 
-async def _replace_nodes_with_junctions(hass: HomeAssistant, entry: ConfigEntry) -> None:
+def _replace_nodes_with_junctions(
+    hass: HomeAssistant, entry: ConfigEntry, entities: dict[str, list[_ElementEntity]]
+) -> None:
     """Replace nodes with junctions where they should only pass power through.
 
     The Switchboard is always a junction. Outside advanced mode a node cannot be
@@ -174,61 +216,26 @@ async def _replace_nodes_with_junctions(hass: HomeAssistant, entry: ConfigEntry)
     junction has no switches to turn on, and a node whose switch was on gets a
     repair issue saying it no longer produces or consumes power.
     """
-    translations = await async_get_translations(hass, hass.config.language, "common", integrations=[DOMAIN])
-    switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
     advanced_mode = entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
-    for subentry in list(entry.subentries.values()):
-        if subentry.subentry_type != node.ELEMENT_TYPE:
-            continue
-        if not node_is_junction(subentry.data):
-            if advanced_mode and subentry.title != switchboard_name:
-                continue
-            _LOGGER.warning(
-                "Node %s had its source or sink switch turned on or driven by an entity; "
-                "it is now a junction that only passes power through",
-                subentry.title,
-            )
-            create_node_replaced_by_junction_issue(hass, entry.entry_id, subentry.title)
-
-        _swap_node_for_junction(hass, entry, subentry)
-        _LOGGER.info("Replaced node %s with a junction", subentry.title)
+    nodes = [s for s in entry.subentries.values() if s.subentry_type == node.ELEMENT_TYPE]
+    for subentry in nodes:
+        is_junction = node_is_junction(subentry.data)
+        if is_junction or not advanced_mode or subentry.title == _SWITCHBOARD_NAME:
+            if not is_junction:
+                _LOGGER.warning(
+                    "Node %s had its source or sink switch turned on or driven by an entity; "
+                    "it is now a junction that only passes power through",
+                    subentry.title,
+                )
+                create_node_replaced_by_junction_issue(hass, entry.entry_id, subentry.title)
+            _swap_node_for_junction(hass, entry, subentry, entities.pop(subentry.subentry_id, []))
+            _LOGGER.info("Replaced node %s with a junction", subentry.title)
 
 
-# Partition fields were keyed by section when both partitions were configured
-# and by their bare field name when only one was. Batteries have no other fields
-# with those names.
-_PARTITION_ENTITY_PREFIXES: tuple[str, ...] = (
-    partitions.SECTION_UNDERCHARGE,
-    partitions.SECTION_OVERCHARGE,
-    partitions.CONF_CONFIGURE_PARTITIONS,
-)
-_PARTITION_ENTITY_KEYS: frozenset[str] = frozenset(
-    (partitions.CONF_PARTITION_PERCENTAGE, partitions.CONF_PARTITION_COST)
-)
-
-
-def _remove_partition_entities(hass: HomeAssistant, entry: ConfigEntry, battery_ids: set[str]) -> None:
-    """Remove the input entities of battery partition fields, which batteries no longer have."""
-    registry = er.async_get(hass)
-    for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
-        element = parse_element_unique_id(entry.entry_id, entity_entry.unique_id)
-        if (
-            element is not None
-            and element.subentry_id in battery_ids
-            and (element.key.startswith(_PARTITION_ENTITY_PREFIXES) or element.key in _PARTITION_ENTITY_KEYS)
-        ):
-            _LOGGER.info("Removing %s because batteries no longer have partitions", entity_entry.entity_id)
-            registry.async_remove(entity_entry.entity_id)
-
-
-def _migrate_batteries(hass: HomeAssistant, entry: ConfigEntry) -> None:
+def _migrate_batteries(hass: HomeAssistant, entry: ConfigEntry, existing_names: set[str]) -> None:
     """Move each battery's partitions into buffers for the battery and add the cost of its charge limits."""
-    existing_names = _collect_subentry_names(entry)
-    battery_ids: set[str] = set()
-    for subentry in list(entry.subentries.values()):
-        if subentry.subentry_type != battery.ELEMENT_TYPE:
-            continue
-        battery_ids.add(subentry.subentry_id)
+    batteries = [s for s in entry.subentries.values() if s.subentry_type == battery.ELEMENT_TYPE]
+    for subentry in batteries:
         migration = migrate_battery_config(subentry.data, existing_names=existing_names)
         hass.config_entries.async_update_subentry(entry, subentry, data=migration.battery)
         for buffer_config in migration.buffers:
@@ -244,10 +251,10 @@ def _migrate_batteries(hass: HomeAssistant, entry: ConfigEntry) -> None:
             )
             _LOGGER.info("Created buffer %s from the partitions of battery %s", title, subentry.title)
 
-    _remove_partition_entities(hass, entry, battery_ids)
 
-
-def _link_entities_to_subentries(hass: HomeAssistant, entry: ConfigEntry) -> None:
+def _link_entities_to_subentries(
+    hass: HomeAssistant, entry: ConfigEntry, entities: dict[str, list[_ElementEntity]]
+) -> None:
     """Link unlinked element entities to their subentry, or remove them if it no longer exists.
 
     Linked entities are removed along with their element. Entities of elements
@@ -256,17 +263,14 @@ def _link_entities_to_subentries(hass: HomeAssistant, entry: ConfigEntry) -> Non
     setup adds them, and entities with unrecognized unique IDs are left alone.
     """
     registry = er.async_get(hass)
-    for entity_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
-        if entity_entry.config_subentry_id is not None:
-            continue
-        element = parse_element_unique_id(entry.entry_id, entity_entry.unique_id)
-        if element is None:
-            continue
-        if element.subentry_id in entry.subentries:
-            registry.async_update_entity(entity_entry.entity_id, config_subentry_id=element.subentry_id)
-        else:
-            _LOGGER.info("Removing %s because its element no longer exists", entity_entry.entity_id)
-            registry.async_remove(entity_entry.entity_id)
+    for subentry_id, element_entities in entities.items():
+        unlinked = [entity_entry for entity_entry, _ in element_entities if entity_entry.config_subentry_id is None]
+        for entity_entry in unlinked:
+            if subentry_id in entry.subentries:
+                registry.async_update_entity(entity_entry.entity_id, config_subentry_id=subentry_id)
+            else:
+                _LOGGER.info("Removing %s because its element no longer exists", entity_entry.entity_id)
+                registry.async_remove(entity_entry.entity_id)
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -281,67 +285,22 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         MINOR_VERSION,
     )
 
-    original_subentry_ids = list(entry.subentries)
-    connection_ids: set[str] = set()
-    existing_names = _collect_subentry_names(entry)
+    existing_names = {subentry.title for subentry in entry.subentries.values()}
+    _split_connections(hass, entry, existing_names)
+    _migrate_batteries(hass, entry, existing_names)
 
-    for subentry_id in original_subentry_ids:
-        subentry = entry.subentries[subentry_id]
-        data = dict(subentry.data)
-        if data.get(CONF_ELEMENT_TYPE) != _CONNECTION_TYPE:
-            continue
+    entities = _element_entities(hass, entry)
+    _remove_removed_field_entities(hass, entry, entities)
+    _replace_nodes_with_junctions(hass, entry, entities)
+    _link_entities_to_subentries(hass, entry, entities)
 
-        connection_ids.add(subentry_id)
-        endpoints = data[connection.SECTION_ENDPOINTS]
-        if not isinstance(endpoints, Mapping):
-            msg = f"Connection {subentry.title} has no endpoints section"
-            raise TypeError(msg)
-        source_name = endpoint_name(endpoints[connection.CONF_SOURCE]) or ""
-        target_name = endpoint_name(endpoints[connection.CONF_TARGET]) or ""
-
-        forward_data, reverse_data = migrate_connection_config(data, existing_names=existing_names)
-        hass.config_entries.async_update_subentry(entry, subentry, data=forward_data)
-
-        if reverse_data is None:
-            _LOGGER.info("Connection %s has no reverse settings; no reverse connection created", subentry.title)
-            continue
-
-        existing_reverse = _find_reverse_subentry(
-            entry,
-            source_name=source_name,
-            target_name=target_name,
-            candidate_ids=[candidate for candidate in original_subentry_ids if candidate != subentry_id],
+    if uses_custom_horizon(entry.data):
+        _LOGGER.warning(
+            "Hub %s planned over custom horizon tiers, which are no longer supported; it now plans %s days ahead",
+            entry.title,
+            HORIZON_PRESET_DAYS[HORIZON_PRESET_5_DAYS],
         )
-        if existing_reverse is not None:
-            merged = merge_reverse_into_existing(dict(existing_reverse.data), reverse_data)
-            hass.config_entries.async_update_subentry(entry, existing_reverse, data=merged)
-            _LOGGER.info(
-                "Merged reverse connection settings from %s into existing subentry %s",
-                subentry.title,
-                existing_reverse.title,
-            )
-            continue
-
-        reverse_title = str(reverse_data[CONF_NAME])
-        new_subentry = ConfigSubentry(
-            data=MappingProxyType(reverse_data),
-            subentry_type=_CONNECTION_TYPE,
-            title=reverse_title,
-            unique_id=None,
-        )
-        hass.config_entries.async_add_subentry(entry, new_subentry)
-        existing_names.add(reverse_title)
-        _LOGGER.info(
-            "Created reverse connection subentry %s from %s",
-            reverse_title,
-            subentry.title,
-        )
-
-    _remove_reverse_field_entities(hass, entry, connection_ids)
-    await _replace_nodes_with_junctions(hass, entry)
-    _migrate_batteries(hass, entry)
-    _link_entities_to_subentries(hass, entry)
-
+        create_horizon_tiers_replaced_issue(hass, entry.entry_id, entry.title)
     hass.config_entries.async_update_entry(entry, data=migrate_hub_horizon(entry.data), minor_version=MINOR_VERSION)
     _LOGGER.info("Migration complete for %s entry %s", DOMAIN, entry.entry_id)
     return True

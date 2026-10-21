@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+import logging
 
 from custom_components.haeo.core.const import (
     CONF_ELEMENT_TYPE,
@@ -21,9 +22,9 @@ from custom_components.haeo.core.const import (
     HUB_SECTION_TIERS,
 )
 from custom_components.haeo.core.schema import (
+    as_connection_target,
     as_constant_value,
-    get_connection_target_name,
-    is_connection_target,
+    extract_connection_target,
     is_constant_value,
     is_none_value,
     normalize_connection_target,
@@ -31,6 +32,7 @@ from custom_components.haeo.core.schema import (
 from custom_components.haeo.core.schema.elements import battery, buffer, connection, junction, node
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.migrations import battery_partitions as partitions
+from custom_components.haeo.core.schema.migrations import section_dict
 from custom_components.haeo.core.schema.sections import (
     CONF_EFFICIENCY_SOURCE_TARGET,
     CONF_EFFICIENCY_TARGET_SOURCE,
@@ -43,13 +45,19 @@ from custom_components.haeo.core.schema.sections import (
     SECTION_PRICING,
 )
 
-REVERSE_TO_FORWARD: tuple[tuple[str, str], ...] = (
-    (CONF_MAX_POWER_TARGET_SOURCE, CONF_MAX_POWER_SOURCE_TARGET),
-    (CONF_PRICE_TARGET_SOURCE, CONF_PRICE_SOURCE_TARGET),
-    (CONF_EFFICIENCY_TARGET_SOURCE, CONF_EFFICIENCY_SOURCE_TARGET),
-)
+_LOGGER = logging.getLogger(__name__)
 
-_REVERSE_SECTIONS: tuple[str, ...] = (SECTION_POWER_LIMITS, SECTION_PRICING, SECTION_EFFICIENCY)
+# Each reverse-direction connection field, with its section and the field
+# that holds the same setting on a connection running the other way
+REVERSE_FIELDS: Mapping[str, tuple[str, str]] = {
+    CONF_MAX_POWER_TARGET_SOURCE: (SECTION_POWER_LIMITS, CONF_MAX_POWER_SOURCE_TARGET),
+    CONF_PRICE_TARGET_SOURCE: (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET),
+    CONF_EFFICIENCY_TARGET_SOURCE: (SECTION_EFFICIENCY, CONF_EFFICIENCY_SOURCE_TARGET),
+}
+
+_CONNECTION_SECTIONS: tuple[str, ...] = (SECTION_POWER_LIMITS, SECTION_PRICING, SECTION_EFFICIENCY)
+
+_SEGMENT_ORDER = "segment_order"
 
 
 def _is_configured_value(value: object) -> bool:
@@ -57,46 +65,9 @@ def _is_configured_value(value: object) -> bool:
     return value is not None and not is_none_value(value)
 
 
-def endpoint_name(value: object) -> str | None:
-    """Return the element name of a stored connection endpoint."""
-    if value is None or isinstance(value, str) or is_connection_target(value):
-        return get_connection_target_name(value)
-    msg = f"Unsupported connection target {value!r}"
-    raise TypeError(msg)
-
-
-def _section_dict(data: Mapping[str, object], section: str) -> dict[str, object]:
-    section_data = data.get(section, {})
-    return dict(section_data) if isinstance(section_data, Mapping) else {}
-
-
-def _strip_reverse_from_section(section_data: dict[str, object]) -> tuple[dict[str, object], dict[str, object]]:
-    """Remove reverse-direction keys and return extracted reverse values."""
-    reverse_values: dict[str, object] = {}
-    cleaned = dict(section_data)
-    for reverse_key, forward_key in REVERSE_TO_FORWARD:
-        if reverse_key in cleaned:
-            value = cleaned.pop(reverse_key)
-            if _is_configured_value(value):
-                reverse_values[forward_key] = value
-    return cleaned, reverse_values
-
-
-def _swap_endpoints(endpoints: dict[str, object]) -> dict[str, object]:
-    return {
-        connection.CONF_SOURCE: normalize_connection_target(endpoints[connection.CONF_TARGET]),
-        connection.CONF_TARGET: normalize_connection_target(endpoints[connection.CONF_SOURCE]),
-    }
-
-
-def _blocks_reverse_flow(power_limits: dict[str, object]) -> bool:
-    """Return True when the legacy reverse max power was the constant 0 used to block reverse flow."""
-    value = power_limits.get(CONF_MAX_POWER_TARGET_SOURCE)
+def _blocks_reverse_flow(value: object) -> bool:
+    """Return True when a legacy reverse max power is the constant 0 used to block reverse flow."""
     return is_constant_value(value) and value["value"] == 0
-
-
-def _reverse_connection_name(base_name: str, source_name: str, target_name: str) -> str:
-    return f"{base_name} ({target_name} to {source_name})"
 
 
 def _unique_name(base_name: str, existing_names: set[str]) -> str:
@@ -108,88 +79,91 @@ def _unique_name(base_name: str, existing_names: set[str]) -> str:
     return f"{base_name} {suffix}"
 
 
+def connection_route(data: Mapping[str, object]) -> tuple[str, str]:
+    """Return the names of the elements a connection carries power from and to."""
+    endpoints = section_dict(data, connection.SECTION_ENDPOINTS)
+    return (
+        extract_connection_target(normalize_connection_target(endpoints[connection.CONF_SOURCE])),
+        extract_connection_target(normalize_connection_target(endpoints[connection.CONF_TARGET])),
+    )
+
+
 def migrate_connection_config(
-    data: dict[str, object],
+    data: Mapping[str, object],
     *,
-    existing_names: set[str] | None = None,
+    existing_names: set[str],
+    routes: set[tuple[str, str]],
 ) -> tuple[dict[str, object], dict[str, object] | None]:
     """Migrate a connection config to unidirectional fields.
 
     Since connections became unidirectional in the model, the reverse-direction
     fields have had no effect, so a connection only carried power from source to
-    target. A reverse connection is created only when the user set at least one
-    reverse-direction field, carrying those fields, so a connection keeps behaving
-    as it did unless its reverse settings show reverse flow was intended. A reverse
-    max power of the constant 0 blocked reverse flow and creates no reverse connection.
+    target. The reverse fields are removed, and a reverse connection carrying
+    them is created only when they show reverse flow was intended: at least one
+    is set, the reverse max power is not the constant 0 that blocked reverse
+    flow, and no other connection already carries power the other way. A
+    connection that already does keeps behaving as it did.
+
+    ``routes`` holds the (source, target) names of every connection, see
+    ``connection_route``. The reverse connection's name is made unique against
+    ``existing_names``, and both sets gain the reverse connection.
 
     Returns:
         Tuple of forward connection data and reverse connection data, or None
         when there is no reverse flow to migrate.
 
     """
-    migrated = dict(data)
-    migrated.pop("segment_order", None)
+    name = str(data[CONF_NAME])
+    sections = {section: section_dict(data, section) for section in _CONNECTION_SECTIONS}
+    reverse_values = {
+        key: value
+        for key, (section, _) in REVERSE_FIELDS.items()
+        if _is_configured_value(value := sections[section].pop(key, None))
+    }
+    forward = {key: value for key, value in data.items() if key != _SEGMENT_ORDER} | sections
+    if not reverse_values:
+        return forward, None
 
-    legacy_power_limits = _section_dict(migrated, SECTION_POWER_LIMITS)
-    blocks_reverse = _blocks_reverse_flow(legacy_power_limits)
+    dropped = ", ".join(reverse_values)
 
-    power_limits, reverse_power = _strip_reverse_from_section(legacy_power_limits)
-    pricing, reverse_pricing = _strip_reverse_from_section(_section_dict(migrated, SECTION_PRICING))
-    efficiency, reverse_efficiency = _strip_reverse_from_section(_section_dict(migrated, SECTION_EFFICIENCY))
+    if _blocks_reverse_flow(reverse_values.get(CONF_MAX_POWER_TARGET_SOURCE)):
+        _LOGGER.info(
+            "Connection %s blocked reverse flow with a max power of 0, so no reverse connection was created "
+            "and its reverse settings were dropped: %s",
+            name,
+            dropped,
+        )
+        return forward, None
 
-    migrated[SECTION_POWER_LIMITS] = power_limits
-    migrated[SECTION_PRICING] = pricing
-    migrated[SECTION_EFFICIENCY] = efficiency
+    source_name, target_name = connection_route(data)
+    if (target_name, source_name) in routes:
+        _LOGGER.info(
+            "Another connection already carries power from %s to %s, so connection %s keeps carrying power "
+            "one way and its reverse settings, which had no effect, were dropped: %s",
+            target_name,
+            source_name,
+            name,
+            dropped,
+        )
+        return forward, None
 
-    if blocks_reverse or not (reverse_power or reverse_pricing or reverse_efficiency):
-        return migrated, None
-
-    endpoints = _section_dict(migrated, connection.SECTION_ENDPOINTS)
-    source_name = endpoint_name(endpoints.get(connection.CONF_SOURCE)) or "source"
-    target_name = endpoint_name(endpoints.get(connection.CONF_TARGET)) or "target"
-    base_name = str(migrated.get(CONF_NAME, "Connection"))
-    reverse_name = _reverse_connection_name(base_name, source_name, target_name)
-    if existing_names is not None:
-        reverse_name = _unique_name(reverse_name, existing_names)
-
-    reverse_data: dict[str, object] = {
+    reverse_name = _unique_name(f"{name} ({target_name} to {source_name})", existing_names)
+    existing_names.add(reverse_name)
+    routes.add((target_name, source_name))
+    reverse: dict[str, object] = {
         CONF_ELEMENT_TYPE: connection.ELEMENT_TYPE,
         CONF_NAME: reverse_name,
-        connection.SECTION_ENDPOINTS: _swap_endpoints(endpoints),
-        SECTION_POWER_LIMITS: reverse_power,
-        SECTION_PRICING: reverse_pricing,
-        SECTION_EFFICIENCY: reverse_efficiency,
+        connection.SECTION_ENDPOINTS: {
+            connection.CONF_SOURCE: as_connection_target(target_name),
+            connection.CONF_TARGET: as_connection_target(source_name),
+        },
     }
-    return migrated, reverse_data
-
-
-def endpoints_match_reverse(
-    endpoints: Mapping[str, object],
-    *,
-    source_name: str,
-    target_name: str,
-) -> bool:
-    """Return True when endpoints are the reverse of the given source/target names."""
-    return (
-        endpoint_name(endpoints.get(connection.CONF_SOURCE)) == target_name
-        and endpoint_name(endpoints.get(connection.CONF_TARGET)) == source_name
-    )
-
-
-def merge_reverse_into_existing(
-    existing: Mapping[str, object],
-    reverse_data: Mapping[str, object],
-) -> dict[str, object]:
-    """Merge reverse migration values into an existing reverse connection where unset."""
-    merged = dict(existing)
-    for section in _REVERSE_SECTIONS:
-        existing_section = _section_dict(merged, section)
-        reverse_section = _section_dict(reverse_data, section)
-        for key, value in reverse_section.items():
-            if key not in existing_section or not _is_configured_value(existing_section.get(key)):
-                existing_section[key] = value
-        merged[section] = existing_section
-    return merged
+    reverse_sections: dict[str, dict[str, object]] = {section: {} for section in _CONNECTION_SECTIONS}
+    for key, value in reverse_values.items():
+        section, forward_key = REVERSE_FIELDS[key]
+        reverse_sections[section][forward_key] = value
+    reverse.update(reverse_sections)
+    return forward, reverse
 
 
 def _role_enabled(value: object) -> bool:
@@ -214,16 +188,27 @@ def junction_config(data: Mapping[str, object]) -> dict[str, object]:
     return {CONF_ELEMENT_TYPE: junction.ELEMENT_TYPE, CONF_NAME: data[CONF_NAME]}
 
 
+def uses_custom_horizon(data: Mapping[str, object]) -> bool:
+    """Return True when a hub plans over custom tiers, which no horizon choice can hold."""
+    common = section_dict(data, HUB_SECTION_COMMON)
+    preset = common.get(CONF_HORIZON_PRESET)
+    return CONF_HORIZON not in common and preset is not None and preset not in HORIZON_PRESET_DAYS
+
+
 def migrate_hub_horizon(data: Mapping[str, object]) -> dict[str, object]:
     """Replace the hub's horizon preset and tiers with a horizon choice holding the preset.
 
-    Custom tiers are no longer supported, so a hub using them gets the default preset.
+    A hub that already has a horizon choice keeps it. Custom tiers are no
+    longer supported, so a hub using them gets the default preset.
     """
     migrated = {key: value for key, value in data.items() if key != HUB_SECTION_TIERS}
-    common = _section_dict(data, HUB_SECTION_COMMON)
+    common = section_dict(data, HUB_SECTION_COMMON)
     preset = common.pop(CONF_HORIZON_PRESET, None)
-    common[CONF_HORIZON] = as_horizon_preset_value(
-        preset if isinstance(preset, str) and preset in HORIZON_PRESET_DAYS else HORIZON_PRESET_5_DAYS
+    common.setdefault(
+        CONF_HORIZON,
+        as_horizon_preset_value(
+            preset if isinstance(preset, str) and preset in HORIZON_PRESET_DAYS else HORIZON_PRESET_5_DAYS
+        ),
     )
     migrated[HUB_SECTION_COMMON] = common
     return migrated
@@ -285,12 +270,12 @@ def migrate_battery_config(data: Mapping[str, object], *, existing_names: set[st
     Buffer names are made unique against ``existing_names``, which gains each new name.
     """
     migrated = {key: value for key, value in data.items() if key not in _PARTITION_SECTIONS}
-    limits = _section_dict(data, battery.SECTION_LIMITS)
+    limits = section_dict(data, battery.SECTION_LIMITS)
     buffers: list[dict[str, object]] = []
     battery_name = str(data[CONF_NAME])
 
     for kind in _PARTITION_KINDS:
-        partition = _section_dict(data, kind.section)
+        partition = section_dict(data, kind.section)
         percentage = partition.get(partitions.CONF_PARTITION_PERCENTAGE)
         cost = partition.get(partitions.CONF_PARTITION_COST)
         if not (_is_configured_value(percentage) and _is_configured_value(cost)):
@@ -318,7 +303,7 @@ def migrate_battery_config(data: Mapping[str, object], *, existing_names: set[st
     migrated[battery.SECTION_LIMITS] = limits
     migrated[battery.SECTION_ADVANCED] = {
         battery.CONF_CHARGE_LIMIT_COST: as_constant_value(LEGACY_CHARGE_LIMIT_COST),
-        **_section_dict(data, battery.SECTION_ADVANCED),
+        **section_dict(data, battery.SECTION_ADVANCED),
     }
     return BatteryMigration(migrated, tuple(buffers))
 
@@ -326,14 +311,13 @@ def migrate_battery_config(data: Mapping[str, object], *, existing_names: set[st
 __all__ = [
     "LEGACY_CHARGE_LIMIT_COST",
     "PARTITION_BUFFER_WINDOW",
-    "REVERSE_TO_FORWARD",
+    "REVERSE_FIELDS",
     "BatteryMigration",
-    "endpoint_name",
-    "endpoints_match_reverse",
+    "connection_route",
     "junction_config",
-    "merge_reverse_into_existing",
     "migrate_battery_config",
     "migrate_connection_config",
     "migrate_hub_horizon",
     "node_is_junction",
+    "uses_custom_horizon",
 ]
