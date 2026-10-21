@@ -9,7 +9,7 @@ Rows are named here by the element and constraint that own them, and the
 period they cover, so a conflict reads in terms of the network.
 """
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import Final, NamedTuple
@@ -18,6 +18,7 @@ from highspy import Highs, HighsStatus, IisStrategy
 import numpy as np
 from numpy.typing import NDArray
 
+from .solver import Solver
 from .util.solver_rows import RowIndices
 
 # Relaxing a power balance leaves energy unserved or unabsorbed at one point
@@ -100,17 +101,15 @@ def row_labels(
     """Label every solver row with the element and constraint that own it.
 
     A constraint covers the horizon in blocks of one row per period, so a row's
-    period is its position within its block. Connection segments name their
-    constraints with the connection's name as a prefix, which is dropped.
+    period is its position within its block.
     """
     labels: dict[int, RowLabel] = {}
     for element, element_constraints in constraints.items():
         for constraint, rows in element_constraints.items():
-            name = constraint.removeprefix(f"{element}_")
             whole_blocks = len(rows) % n_periods == 0
             for position, row in enumerate(rows.tolist()):
                 period = position % n_periods if whole_blocks else None
-                labels[row] = RowLabel(element, name, period, balance=row in balance_rows)
+                labels[row] = RowLabel(element, constraint, period, balance=row in balance_rows)
     return labels
 
 
@@ -136,7 +135,7 @@ class RelaxedRows(NamedTuple):
     upper: NDArray[np.float64]
 
 
-def relaxed_rows(solver: Highs, labels: Mapping[int, RowLabel]) -> RelaxedRows | None:
+def relaxed_rows(solver: Solver, labels: Mapping[int, RowLabel]) -> RelaxedRows | None:
     """Return the rows a smallest weighted relaxation moves, the values it moves them to, and their bounds.
 
     Only rows give way, never variable bounds, and power balances give way
@@ -161,6 +160,40 @@ def relaxed_rows(solver: Highs, labels: Mapping[int, RowLabel]) -> RelaxedRows |
     return RelaxedRows(rows, values[rows], lower[rows], upper[rows])
 
 
+def solve_relaxed(
+    solver: Solver, labels: Mapping[int, RowLabel], solve: Callable[[], float]
+) -> tuple[float, tuple[Relaxation, ...]] | None:
+    """Solve with the rows a smallest weighted relaxation moves widened, and report how far the plan moves them.
+
+    Each moved row's bounds are widened to take the relaxation's value, the model
+    is solved, and the bounds are restored. The amounts come from the plan the
+    solve delivers, which can stay inside a widened bound where the relaxation
+    did not. The plan is read before the bounds return, since changing them
+    discards the solution. Returns the plan's cost and the rows it moves past
+    their bounds, or None when no relaxation is feasible.
+    """
+    relaxed = relaxed_rows(solver, labels)
+    if relaxed is None:
+        return None
+    rows, values, lower, upper = relaxed
+    solver.changeRowsBounds(len(rows), rows, np.minimum(lower, values), np.maximum(upper, values))
+    try:
+        cost = solve()
+        solver.column_values()
+        solver.row_duals()
+        planned = np.asarray(solver.getSolution().row_value, dtype=np.float64)[rows]
+    except InfeasibleError:
+        return None
+    finally:
+        solver.changeRowsBounds(len(rows), rows, lower, upper)
+    relaxations = tuple(
+        Relaxation(labels[row], amount)
+        for row, value, low, high in zip(rows.tolist(), planned.tolist(), lower.tolist(), upper.tolist(), strict=True)
+        if abs(amount := value - min(max(value, low), high)) > RELAXATION_TOLERANCE
+    )
+    return cost, relaxations
+
+
 __all__ = [
     "BALANCE_RELAXATION_WEIGHT",
     "LIMIT_RELAXATION_WEIGHT",
@@ -174,4 +207,5 @@ __all__ = [
     "listing",
     "relaxed_rows",
     "row_labels",
+    "solve_relaxed",
 ]

@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 import logging
 import math
 from typing import (
@@ -26,16 +27,7 @@ from .elements.connection import Connection, ConnectionElementConfig, Connection
 from .elements.deferrable_load import DeferrableLoad, DeferrableLoadElementConfig
 from .elements.node import Node, NodeElementConfig
 from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
-from .infeasibility import (
-    RELAXATION_TOLERANCE,
-    InfeasibleError,
-    Relaxation,
-    RowLabel,
-    conflicting_rows,
-    listing,
-    relaxed_rows,
-    row_labels,
-)
+from .infeasibility import InfeasibleError, Relaxation, RowLabel, conflicting_rows, listing, row_labels, solve_relaxed
 from .linear import LinearArray, total
 from .solver import Solver
 from .util.solver_rows import RowIndices
@@ -114,6 +106,42 @@ class SolveOptions:
         h.setOptionValue("simplex_scale_strategy", self.simplex_scale_strategy)
         h.setOptionValue("primal_feasibility_tolerance", self.feasibility_tolerance)
         h.setOptionValue("dual_feasibility_tolerance", self.feasibility_tolerance)
+
+
+@dataclass(frozen=True, slots=True)
+class Objective:
+    """A linear objective as a dense cost per column and a constant offset.
+
+    Dense costs switch the objective in a single ``changeColsCost`` call
+    instead of the expression-based ``setObjective``, which zeros all columns
+    then sets non-zero ones (two FFI round-trips per objective switch).
+    """
+
+    costs: NDArray[np.float64]
+    offset: float
+
+    @classmethod
+    def of(cls, expr: LinearArray, n_columns: int) -> "Objective":
+        """Return the objective that sums every row of an expression."""
+        return cls(expr.column_coefficients(n_columns), float(expr.constant.sum()))
+
+    def value(self, column_values: NDArray[np.float64]) -> float:
+        """Return the objective's value at the given column values."""
+        return float(self.costs @ column_values) + self.offset
+
+
+@dataclass(frozen=True, slots=True)
+class Objectives:
+    """The cost the plan minimizes, and the secondary objective that breaks ties between equally cheap plans."""
+
+    cost: Objective
+    secondary: Objective
+
+    def blend(self, weight: float) -> Objective:
+        """Return the cost plus ``weight`` times the secondary."""
+        return Objective(
+            self.cost.costs + weight * self.secondary.costs, self.cost.offset + weight * self.secondary.offset
+        )
 
 
 class Network:
@@ -421,12 +449,12 @@ class Network:
                 msg = f"Failed to apply constraints for element '{element_name}'"
                 raise ValueError(msg) from e
 
-        objectives = self.cost()
-        if objectives is None:
+        costs = self.cost()
+        if costs is None:
             msg = "Network has no cost objectives — add connections with pricing segments"
             raise ValueError(msg)
 
-        primary, secondary = objectives
+        primary, secondary = costs
         if primary is None:
             msg = "Network has no primary cost — add pricing to connections or nodes"
             raise ValueError(msg)
@@ -436,12 +464,12 @@ class Network:
 
         n_vars = h.numVariables
         all_col_indices = np.arange(n_vars, dtype=np.int32)
-        cost_vectors = _build_cost_vectors((primary, secondary), n_vars)
+        objectives = _build_objectives(primary, secondary, n_vars)
 
         self.conflicts = ()
         self.relaxations = ()
         try:
-            return self._solve(all_col_indices, cost_vectors)
+            return self._solve(all_col_indices, objectives)
         except InfeasibleError:
             balance_rows = {
                 row
@@ -451,40 +479,26 @@ class Network:
             }
             labels = row_labels(self.constraints(), self.n_periods, balance_rows)
             self.conflicts = conflicting_rows(h, labels)
-            if not self.relax_infeasible or (relaxed := relaxed_rows(h, labels)) is None:
+            if not self.relax_infeasible:
                 raise InfeasibleError(self.conflicts) from None
 
-        rows, values, lower, upper = relaxed
-        h.changeRowsBounds(len(rows), rows, np.minimum(lower, values), np.maximum(upper, values))
-        try:
-            cost = self._solve(all_col_indices, cost_vectors)
-            # Read the plan before the bounds return, since changing them discards the solution
-            h.column_values()
-            h.row_duals()
-        except InfeasibleError:
-            raise InfeasibleError(self.conflicts) from None
-        finally:
-            h.changeRowsBounds(len(rows), rows, lower, upper)
-        self.relaxations = tuple(
-            Relaxation(labels[row], amount)
-            for row, value, low, high in zip(
-                rows.tolist(), values.tolist(), lower.tolist(), upper.tolist(), strict=True
-            )
-            if abs(amount := value - min(max(value, low), high)) > RELAXATION_TOLERANCE
-        )
+        relaxed = solve_relaxed(h, labels, partial(self._solve, all_col_indices, objectives))
+        if relaxed is None:
+            raise InfeasibleError(self.conflicts)
+        cost, self.relaxations = relaxed
         _LOGGER.debug("Relaxed constraints to find a plan: %s", listing(map(str, self.relaxations)))
         return cost
 
-    def _solve(self, all_col_indices: NDArray[np.int32], cost_vectors: list[NDArray[np.float64]]) -> float:
+    def _solve(self, all_col_indices: NDArray[np.int32], objectives: Objectives) -> float:
         """Solve the blended objective, calibrating its weight on the first solve."""
         if self._blend_weight is None:
-            self._blend_weight = self._calibrate_blend_weight(all_col_indices, cost_vectors)
-        return self._solve_blended(all_col_indices, cost_vectors, self._blend_weight)
+            self._blend_weight = self._calibrate_blend_weight(all_col_indices, objectives)
+        return self._solve_blended(all_col_indices, objectives, self._blend_weight)
 
     def _solve_blended(
         self,
         all_col_indices: NDArray[np.int32],
-        cost_vectors: list[NDArray[np.float64]],
+        objectives: Objectives,
         weight: float,
     ) -> float:
         """Solve primary + weight * secondary, moving the weight until the plan is cost-optimal and then in order.
@@ -498,7 +512,7 @@ class Network:
         plan_cost, cost_optimal, order_optimal = 0.0, False, True
         while next_weight is not None:
             weight = next_weight
-            plan_cost, cost_optimal, order_optimal = self._solve_at(all_col_indices, cost_vectors, weight)
+            plan_cost, cost_optimal, order_optimal = self._solve_at(all_col_indices, objectives, weight)
             next_weight = search.next_weight(weight, cost_optimal=cost_optimal, order_optimal=order_optimal)
             if next_weight is not None:
                 _LOGGER.debug("Blended plan at weight %.2e needs another solve; trying %.2e", weight, next_weight)
@@ -506,7 +520,7 @@ class Network:
         if not cost_optimal:
             # Keep the previous weight, and take the cheapest plan without the order
             _LOGGER.warning("No blend weight gives a cost-optimal plan; solving for the cost alone")
-            _set_cost_vector(h, all_col_indices, cost_vectors[0])
+            _set_objective(h, all_col_indices, objectives.cost)
             h.run()
             return _ensure_optimal(h)
 
@@ -518,7 +532,7 @@ class Network:
     def _solve_at(
         self,
         all_col_indices: NDArray[np.int32],
-        cost_vectors: list[NDArray[np.float64]],
+        objectives: Objectives,
         weight: float,
     ) -> tuple[float, bool, bool]:
         """Solve primary + weight * secondary, and return the plan's cost, whether it is cost-optimal, and in order.
@@ -533,23 +547,23 @@ class Network:
         cost-optimal, so the weight is lowered.
         """
         h = self._solver
-        _set_cost_vector(h, all_col_indices, cost_vectors[0] + weight * cost_vectors[1])
+        _set_objective(h, all_col_indices, objectives.blend(weight))
         h.run()
         status = h.getModelStatus()
         if status == HighsModelStatus.kUnboundedOrInfeasible:
             status = _status_without_presolve(h)
         if status == HighsModelStatus.kInfeasible:
-            if _infeasible_for_cost(h, all_col_indices, cost_vectors[0]):
+            if _infeasible_for_cost(h, all_col_indices, objectives.cost):
                 # Infeasibility does not depend on the objective, so no other weight can help
                 raise InfeasibleError
             return math.nan, False, True
         if status != HighsModelStatus.kOptimal:
             return math.nan, False, True
-        plan_cost = float(cost_vectors[0] @ h.column_values())
+        plan_cost = objectives.cost.value(h.column_values())
         solution = h.getSolution()
         blended = np.concatenate([solution.col_dual, solution.row_dual])
 
-        _set_cost_vector(h, all_col_indices, cost_vectors[0])
+        _set_objective(h, all_col_indices, objectives.cost)
         h.setOptionValue("simplex_iteration_limit", 0)
         try:
             h.run()
@@ -582,7 +596,7 @@ class Network:
     def _calibrate_blend_weight(
         self,
         all_col_indices: NDArray[np.int32],
-        cost_vectors: list[NDArray[np.float64]],
+        objectives: Objectives,
     ) -> float:
         """Return a weight ``_CAL_MARGIN`` decades below the largest whose plan is cost-optimal.
 
@@ -592,7 +606,7 @@ class Network:
         lo, hi = _CAL_LOG_LO, _CAL_LOG_HI
 
         def _cost_optimal(log_w: float) -> bool:
-            return self._solve_at(all_col_indices, cost_vectors, 10.0**log_w)[1]
+            return self._solve_at(all_col_indices, objectives, 10.0**log_w)[1]
 
         if _cost_optimal(hi):
             upper = hi
@@ -645,32 +659,19 @@ def _bisect_boundary(
     return lo
 
 
-def _build_cost_vectors(
-    objectives: tuple[LinearArray | None, LinearArray | None],
-    n_vars: int,
-) -> list[NDArray[np.float64]]:
-    """Convert objective expressions to dense cost vectors.
-
-    Pre-computing dense arrays enables single-call objective switching via
-    ``changeColsCost`` instead of the expression-based ``setObjective``
-    which zeros all columns then sets non-zero ones (two FFI round-trips
-    per objective switch).
-    """
-    return [np.zeros(n_vars) if obj is None else obj.column_coefficients(n_vars) for obj in objectives]
+def _build_objectives(primary: LinearArray, secondary: LinearArray, n_columns: int) -> Objectives:
+    """Convert the cost and secondary expressions to dense objectives."""
+    return Objectives(Objective.of(primary, n_columns), Objective.of(secondary, n_columns))
 
 
-def _set_cost_vector(
-    solver: Highs,
-    col_indices: NDArray[np.int32],
-    costs: NDArray[np.float64],
-) -> None:
-    """Set the full objective cost vector in a single C call.
+def _set_objective(solver: Highs, col_indices: NDArray[np.int32], objective: Objective) -> None:
+    """Set the full objective, its costs in a single C call and its offset.
 
     col_indices covers ALL variables (np.arange(n_vars)), so every column's
     cost is replaced — no stale costs from a previous objective can persist.
     """
-    solver.changeColsCost(len(col_indices), col_indices, costs)
-    solver.changeObjectiveOffset(0.0)
+    solver.changeColsCost(len(col_indices), col_indices, objective.costs)
+    solver.changeObjectiveOffset(objective.offset)
 
 
 @dataclass
@@ -717,14 +718,14 @@ class BlendWeightSearch:
         return None
 
 
-def _infeasible_for_cost(solver: Highs, all_col_indices: NDArray[np.int32], cost_vector: NDArray[np.float64]) -> bool:
+def _infeasible_for_cost(solver: Highs, all_col_indices: NDArray[np.int32], cost: Objective) -> bool:
     """Confirm an infeasible blended solve by solving for the cost alone.
 
     A badly scaled blend can be reported infeasible when the model is not, and a
     lower weight then finds the plan, so only a model infeasible for the cost too
     is treated as impossible.
     """
-    _set_cost_vector(solver, all_col_indices, cost_vector)
+    _set_objective(solver, all_col_indices, cost)
     solver.run()
     return solver.getModelStatus() == HighsModelStatus.kInfeasible
 

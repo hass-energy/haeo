@@ -24,6 +24,9 @@ def broadcast_to_sequence(
     For sequences that are too short, extends by repeating the last value.
     For sequences that are too long, truncates to n_periods.
 
+    The result is always a new, writable float array, so whatever holds it can
+    neither change the caller's array nor be changed through it.
+
     Args:
         value: Scalar value, array to broadcast, or None
         n_periods: Target number of periods
@@ -35,30 +38,16 @@ def broadcast_to_sequence(
         ValueError: If the input sequence is empty
 
     """
-    # Handle None input
     if value is None:
         return None
 
-    # Convert to array and broadcast
-    value_array: NDArray[np.float64] = np.atleast_1d(value)
-
-    if value_array.size == 0:
+    values = np.atleast_1d(np.asarray(value, dtype=np.float64))
+    if values.size == 0:
         msg = "Sequence cannot be empty"
         raise ValueError(msg)
 
-    # If it's a single value, broadcast it
-    if len(value_array) == 1:
-        return np.broadcast_to(value_array, (n_periods,))
-
-    # If it's a sequence repeat the last value if it's not the same length
-    if len(value_array) == n_periods:
-        return value_array
-
-    if len(value_array) > n_periods:
-        return value_array[:n_periods]
-
-    # Extend by repeating the last value
-    extended = np.empty(n_periods, dtype=np.float64)
-    extended[: len(value_array)] = value_array
-    extended[len(value_array) :] = value_array[-1]
-    return extended
+    result = np.empty(n_periods, dtype=np.float64)
+    count = min(len(values), n_periods)
+    result[:count] = values[:count]
+    result[count:] = values[-1]
+    return result

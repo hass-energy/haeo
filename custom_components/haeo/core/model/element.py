@@ -264,10 +264,10 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
             solver=solver,
             output_names=output_names,
         )
-        self.is_source = is_source
-        self.is_sink = is_sink
-        self.outbound_tags: set[int] | None = outbound_tags
-        self.inbound_tags: set[int] | None = inbound_tags
+        self._is_source = is_source
+        self._is_sink = is_sink
+        self._outbound_tags = None if outbound_tags is None else frozenset(outbound_tags)
+        self._inbound_tags = None if inbound_tags is None else frozenset(inbound_tags)
 
         # Track connections for power balance
         self._connections: list[tuple[_ConnectionLike, Literal["source", "target"]]] = []
@@ -277,6 +277,29 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
 
         # Lazily-created per-tag production decomposition variables
         self._produced_by_tag: dict[int, LinearArray] | None = None
+
+    # The roles and tags shape the power balance rows and the per-tag variables,
+    # which are created once, so they are fixed when the element is built
+
+    @property
+    def is_source(self) -> bool:
+        """Return whether the element can produce power, so policies may draw from it."""
+        return self._is_source
+
+    @property
+    def is_sink(self) -> bool:
+        """Return whether the element can consume power, so policies may deliver to it."""
+        return self._is_sink
+
+    @property
+    def outbound_tags(self) -> frozenset[int] | None:
+        """Return the tags produced power can be placed on, or None for all tags."""
+        return self._outbound_tags
+
+    @property
+    def inbound_tags(self) -> frozenset[int] | None:
+        """Return the tags consumed power can draw from, or None for all tags."""
+        return self._inbound_tags
 
     def register_connection(self, connection: _ConnectionLike, end: Literal["source", "target"]) -> None:
         """Register a connection to this element.
@@ -379,8 +402,8 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
     def _tag_sets(self) -> tuple[set[int], set[int], set[int]]:
         """Return the connection tags and the tags production and consumption may use."""
         tags = self.connection_tags()
-        outbound = set(tags) if self.outbound_tags is None else (self.outbound_tags & tags)
-        inbound = set(tags) if self.inbound_tags is None else (self.inbound_tags & tags)
+        outbound = set(tags) if self.outbound_tags is None else tags & self.outbound_tags
+        inbound = set(tags) if self.inbound_tags is None else tags & self.inbound_tags
         return tags, outbound, inbound
 
     def _balance_count(self) -> int:
@@ -455,11 +478,13 @@ class NetworkElement[OutputNameT: str](Element[OutputNameT]):
 
         These lead the power balance rows, ahead of the rows that split production
         and consumption across tags and the rows that block tags from passing.
+        An element whose connections carry only tags it blocks balances none.
         """
         rows = applied_constraint(self, "element_power_balance")
-        if rows is None:
+        balanced = self._balance_count()
+        if rows is None or balanced == 0:
             return None
-        return rows[: self._balance_count() * self.n_periods]
+        return rows[: balanced * self.n_periods]
 
     @output(name=ELEMENT_POWER_BALANCE)
     def power_balance_price(self) -> OutputData | None:

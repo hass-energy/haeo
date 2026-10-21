@@ -232,19 +232,26 @@ class Buffer(Element[BufferOutputName]):
         efficiency = self._efficiency(battery)
         return efficiency if self.kind == "reserve" else 1.0 / efficiency
 
+    def _capacity(self) -> NDArray[np.float64]:
+        """Return the batteries' combined capacity at each boundary."""
+        return sum((battery.capacity for battery in self._storage), np.zeros(self.n_periods + 1))
+
     def _scale(self) -> NDArray[np.float64]:
         """Return the capacity-weighted network-side worth of a stored kWh, at each boundary.
 
         It converts between the network-side energy the elements need and the
         energy stored in the batteries, exactly for one battery and for
-        batteries with the same efficiency.
+        batteries with the same efficiency. Where the batteries have no
+        capacity, each counts equally, so the shortfall is still priced as
+        stored energy.
         """
-        capacity = sum((battery.capacity for battery in self._storage), np.zeros(self.n_periods + 1))
+        empty = self._capacity() <= 0.0
+        weights = [np.where(empty, 1.0, battery.capacity) for battery in self._storage]
         weighted = sum(
-            (self._network_factor(battery) * battery.capacity for battery in self._storage),
+            (self._network_factor(battery) * weight for battery, weight in zip(self._storage, weights, strict=True)),
             np.zeros(self.n_periods + 1),
         )
-        return weighted / capacity
+        return weighted / sum(weights, np.zeros(self.n_periods + 1))
 
     def _available(self) -> LinearArray:
         """Return the network-side energy the storage can provide past its bases, at each boundary."""
@@ -382,11 +389,12 @@ class Buffer(Element[BufferOutputName]):
     @output
     def buffer_state_of_charge(self) -> OutputData:
         """Output: the combined state of charge the batteries should stay above, or below for headroom."""
-        capacity = sum((battery.capacity for battery in self._storage), np.zeros(self.n_periods + 1))
+        capacity = self._capacity()
         base = sum((self._base(battery) for battery in self._storage), np.zeros(self.n_periods + 1))
         required = self._required_values()
         line = base + required if self.kind == "reserve" else base - required
-        ratio = np.clip(line / capacity, 0.0, 1.0)
+        # Batteries with no capacity hold nothing, so their line sits at empty
+        ratio = np.clip(np.divide(line, capacity, out=np.zeros_like(line), where=capacity > 0.0), 0.0, 1.0)
         return OutputData(
             type=OutputType.STATE_OF_CHARGE,
             unit="%",

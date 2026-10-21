@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 from custom_components.haeo.core.model import Network, SolverError
+from custom_components.haeo.core.model import infeasibility as infeasibility_module
 from custom_components.haeo.core.model import network as network_module
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_BATTERY as ELEMENT_TYPE_BATTERY
@@ -23,6 +24,7 @@ from custom_components.haeo.core.model.infeasibility import InfeasibleError, Rel
 from custom_components.haeo.core.model.linear import LinearArray
 from custom_components.haeo.core.model.network import BlendWeightSearch, SolveOptions, _bisect_boundary
 from custom_components.haeo.core.model.output_data import OutputData
+from custom_components.haeo.core.model.reactive import cost
 from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util.solver_rows import add_rows
 
@@ -422,6 +424,37 @@ def test_relaxed_network_leaves_the_shortfall_at_a_power_balance() -> None:
     assert (lp.row_lower_[balance_row], lp.row_upper_[balance_row]) == (0.0, 0.0)
 
 
+def test_relaxations_report_what_the_delivered_plan_does(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A row widened further than the delivered plan uses is reported by how far the plan takes it, not the widening.
+
+    The relaxation also lets the switchboard dump 1 kWh in the first period, which
+    the plan has no reason to do, since that energy would cost money to import.
+    """
+    network = _over_demanded_network(relax_infeasible=True)
+    real_relaxed_rows = infeasibility_module.relaxed_rows
+    surplus = RowLabel("switchboard", "element_power_balance", 0, balance=True)
+
+    def widened_relaxed_rows(solver: Solver, labels: dict[int, RowLabel]) -> RelaxedRows | None:
+        relaxed = real_relaxed_rows(solver, labels)
+        assert relaxed is not None
+        [row] = [row for row, label in labels.items() if label == surplus]
+        return RelaxedRows(
+            np.append(relaxed.rows, np.int32(row)),
+            np.append(relaxed.values, 1.0),
+            np.append(relaxed.lower, 0.0),
+            np.append(relaxed.upper, 0.0),
+        )
+
+    monkeypatch.setattr(infeasibility_module, "relaxed_rows", widened_relaxed_rows)
+
+    network.optimize()
+
+    assert [relaxation.row for relaxation in network.relaxations] == [
+        RowLabel("switchboard", "element_power_balance", 1, balance=True)
+    ]
+    assert network.relaxations[0].amount == pytest.approx(-0.5)
+
+
 def test_relaxations_clear_once_the_network_is_feasible_again() -> None:
     """A later solve the network can meet in full reports no relaxations."""
     network = _over_demanded_network(relax_infeasible=True)
@@ -476,7 +509,7 @@ def test_relaxed_plan_the_solver_still_finds_infeasible_raises_with_the_conflict
     network = _over_demanded_network(relax_infeasible=True)
     empty = np.zeros(0)
     monkeypatch.setattr(
-        network_module,
+        infeasibility_module,
         "relaxed_rows",
         lambda *_args: RelaxedRows(np.zeros(0, dtype=np.int32), empty, empty, empty),
     )
@@ -1101,15 +1134,36 @@ def test_blended_solve_falls_back_to_the_cost_when_no_weight_passes(monkeypatch:
     assert network._blend_weight == weight
 
 
+class _FixedCharge(Element[str]):
+    """An element whose only cost is a fixed charge that no plan can change."""
+
+    @cost
+    def fixed_charge(self) -> LinearArray:
+        """Charge the same amount whatever the plan."""
+        return LinearArray.constants(2.5)
+
+
+@pytest.mark.parametrize("cost_alone", [False, True], ids=["blended", "cost_alone"])
+def test_a_constant_cost_is_part_of_the_plan_cost(monkeypatch: pytest.MonkeyPatch, *, cost_alone: bool) -> None:
+    """A cost that does not depend on the plan still counts toward the cost the network reports."""
+    network = _network_with(_interchangeable_batteries())
+    base = network.optimize()
+    network.elements["fixed"] = _FixedCharge("fixed", network.periods, solver=network._solver, output_names=frozenset())
+    if cost_alone:
+        monkeypatch.setattr(Network, "_solve_at", lambda *_args: (0.0, False, True))
+
+    assert network.optimize() == pytest.approx(base + 2.5)
+
+
 def test_a_failed_solve_counts_against_the_weight(monkeypatch: pytest.MonkeyPatch) -> None:
     """A blended solve that does not reach an optimum is treated as not cost-optimal, so the weight is lowered."""
     network = _network_with(_interchangeable_batteries())
     network.optimize()
     h = network._solver
-    cost_vectors = network_module._build_cost_vectors(_objectives(network), h.numVariables)
+    objectives = network_module._build_objectives(*_objectives(network), h.numVariables)
     monkeypatch.setattr(h, "getModelStatus", lambda: HighsModelStatus.kUnknown)
 
-    _, cost_optimal, _ = network._solve_at(np.arange(h.numVariables, dtype=np.int32), cost_vectors, 1e-6)
+    _, cost_optimal, _ = network._solve_at(np.arange(h.numVariables, dtype=np.int32), objectives, 1e-6)
 
     assert not cost_optimal
 
@@ -1132,12 +1186,12 @@ def test_checking_a_plan_leaves_it_and_its_basis_unchanged() -> None:
     cols = np.arange(h.getNumCol(), dtype=np.int32)
     weight = network._blend_weight
     assert weight is not None
-    primary, secondary = network_module._build_cost_vectors(_objectives(network), len(cols))
+    blended = network_module._build_objectives(*_objectives(network), len(cols)).blend(weight)
     # Same blend as the plan was solved with, so its solve stays put, but a cost of all ones to price
-    ones = np.ones(len(cols))
-    blended = primary + weight * secondary
+    ones = network_module.Objective(np.ones(len(cols)), 0.0)
+    secondary = network_module.Objective((blended.costs - ones.costs) / weight, blended.offset / weight)
 
-    network._solve_at(cols, [ones, (blended - ones) / weight], weight)
+    network._solve_at(cols, network_module.Objectives(ones, secondary), weight)
 
     after = h.getBasis()
     assert h.getInfo().simplex_iteration_count == 0

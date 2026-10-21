@@ -7,13 +7,14 @@ from custom_components.haeo.core.model.infeasibility import MAX_LISTED_ROWS, Row
 
 
 def test_row_labels_give_periods_to_whole_blocks_and_mark_balance_rows() -> None:
-    """Rows in whole-horizon blocks get a period, other lengths do not, and only balance rows are marked as such."""
+    """Rows keep their constraint's name, get a period in whole-horizon blocks, and only balance rows are marked."""
     labels = row_labels(
         {
-            "battery:charge": {"battery:charge_power_limit_power_limit": np.array([0, 1, 2, 3], dtype=np.int32)},
+            "battery:charge": {"power_limit_power_limit": np.array([0, 1, 2, 3], dtype=np.int32)},
             "battery": {
                 "energy": np.array([4, 5, 6], dtype=np.int32),
                 "element_power_balance": np.array([7, 8, 9, 10], dtype=np.int32),
+                "battery_soc_max": np.array([11, 12], dtype=np.int32),
             },
         },
         n_periods=2,
@@ -32,6 +33,8 @@ def test_row_labels_give_periods_to_whole_blocks_and_mark_balance_rows() -> None
         8: RowLabel("battery", "element_power_balance", 1, balance=True),
         9: RowLabel("battery", "element_power_balance", 0),
         10: RowLabel("battery", "element_power_balance", 1),
+        11: RowLabel("battery", "battery_soc_max", 0),
+        12: RowLabel("battery", "battery_soc_max", 1),
     }
 
 

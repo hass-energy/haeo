@@ -285,6 +285,23 @@ def test_blocked_tag_forces_per_connection_flow_to_zero(solver: Solver) -> None:
     assert solution_value(solver, tag2_in[0]) == pytest.approx(0.0, abs=0.01)
 
 
+def test_element_whose_connections_carry_only_blocked_tags_has_no_balance_price(solver: Solver) -> None:
+    """An element no balanced tag reaches has no power balance to price, so it reports none."""
+    node = Node(
+        name="hub",
+        periods=np.array([1.0, 1.0]),
+        solver=solver,
+        outbound_tags={1},
+        inbound_tags={1},
+    )
+    node.register_connection(_make_mock_connection(solver, 2, {2}, "cin"), "target")
+    node.constraints()
+    solver.run()
+
+    assert node.balance_rows() is None
+    assert ELEMENT_POWER_BALANCE not in node.outputs()
+
+
 # ---------------------------------------------------------------------------
 # Untagged connection fallback (no tags on connections)
 # ---------------------------------------------------------------------------

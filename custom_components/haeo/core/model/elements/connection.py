@@ -157,9 +157,12 @@ class Connection[TOutputName: str](Element[TOutputName]):
         self._target = target
         self._source_element: Element[Any] | None = None
         self._target_element: Element[Any] | None = None
-        self.is_external = is_external
-        self.is_time_sensitive = is_time_sensitive
-        self.priority = 0  # assigned by Network from sort_key
+        self._is_external = is_external
+        self._is_time_sensitive = is_time_sensitive
+        # Position in the network's time-preference order, assigned by the network
+        # before each solve. Only the secondary objective and the power output read
+        # it, and both are rebuilt on every solve, so it needs no tracking.
+        self.priority = 0
 
         self._segment_specs: OrderedDict[str, SegmentSpec] = OrderedDict(segments or {})
         self._segments: OrderedDict[str, Segment] = OrderedDict()
@@ -171,6 +174,16 @@ class Connection[TOutputName: str](Element[TOutputName]):
     def segments(self) -> OrderedDict[str, Segment]:
         """Return the ordered dict of segments."""
         return self._segments
+
+    @property
+    def is_external(self) -> bool:
+        """Return whether the connection is external, which orders it after the system's own connections."""
+        return self._is_external
+
+    @property
+    def is_time_sensitive(self) -> bool:
+        """Return whether the connection is time-sensitive, which orders it before time-invariant ones."""
+        return self._is_time_sensitive
 
     @property
     def sort_key(self) -> tuple[bool, bool, str, str, str]:
@@ -298,11 +311,11 @@ class Connection[TOutputName: str](Element[TOutputName]):
         return self.total_power_out
 
     def constraints(self) -> dict[str, RowIndices]:
-        """Collect constraints from all segments."""
+        """Collect constraints from all segments, each named after its segment and constraint."""
         result: dict[str, RowIndices] = {}
-        for segment in self._segments.values():
+        for seg_name, segment in self._segments.items():
             for name, cons in segment.constraints().items():
-                result[f"{segment.segment_id}_{name}"] = cons
+                result[f"{seg_name}_{name}"] = cons
         own_constraints = super().constraints()
         result.update(own_constraints)
         return result
