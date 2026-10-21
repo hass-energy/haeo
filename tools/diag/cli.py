@@ -20,16 +20,14 @@ from datetime import UTC, datetime, tzinfo
 import json
 from pathlib import Path
 import sys
-from typing import TypeGuard
 from zoneinfo import ZoneInfo
 
 import numpy as np
 from numpy.typing import NDArray
 from tabulate import tabulate
 
-from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
-from custom_components.haeo.core.adapters.policy_compilation import CompiledPolicyRule, compile_policies
-from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements, is_element_type
+from custom_components.haeo.core.adapters.network_builder import build_network
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
 from custom_components.haeo.core.const import (
     CONF_ELEMENT_TYPE,
     CONF_HORIZON,
@@ -45,7 +43,7 @@ from custom_components.haeo.core.data.loader.extractors.utils.parse_datetime imp
 from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue, Network
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema, ElementType
-from custom_components.haeo.core.schema.elements.policy import is_policy_config_data
+from custom_components.haeo.core.schema.elements.conformance import is_element_config_schema
 from custom_components.haeo.core.schema.horizon_value import is_horizon_preset_value
 from custom_components.haeo.core.schema.migrations.v1_3 import migrate_element_config
 from custom_components.haeo.core.schema.migrations.v1_4 import migrate_battery_config, migrate_hub_horizon
@@ -60,11 +58,6 @@ MIN_INTERVAL_POINTS = 2
 # restricted to core-only imports (see the import-linter contract) and must
 # not depend on homeassistant.
 type JsonValueType = str | int | float | bool | None | dict[str, "JsonValueType"] | list["JsonValueType"]
-
-
-def _is_element_config_schema(value: object) -> TypeGuard[ElementConfigSchema]:
-    """Structural pre-check before loading; load_element_config fully validates."""
-    return isinstance(value, Mapping) and is_element_type(value.get(CONF_ELEMENT_TYPE))
 
 
 @dataclass
@@ -243,16 +236,6 @@ def _preset_timeline(
     forecast_times = generate_forecast_timestamps(periods_seconds, start_dt.timestamp() if start_dt else start_time)
     print(f"Forecast horizon: {len(forecast_times)} boundaries (generated)")
     return periods_seconds, forecast_times
-
-
-def collect_policy_rules(participants: Mapping[str, ElementConfigData]) -> list[CompiledPolicyRule]:
-    """Extract compiled policy rules from the policy participants."""
-    return [
-        rule
-        for config in participants.values()
-        if is_policy_config_data(config)
-        for rule in extract_policy_rules(config)
-    ]
 
 
 def format_currency(value: float) -> str:
@@ -1115,7 +1098,7 @@ def run_diagnostics(
 
     participants: dict[str, ElementConfigSchema] = {}
     for element_name, element_config in normalized_participants.items():
-        if not _is_element_config_schema(element_config):
+        if not is_element_config_schema(element_config):
             print(f"Error: {element_name} is not a valid element config")
             sys.exit(1)
         participants[element_name] = element_config
@@ -1133,16 +1116,9 @@ def run_diagnostics(
 
     # Create network and run optimization
     print("\nCreating network...")
-    periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
     advanced = config.get(HUB_SECTION_ADVANCED)
     relax_infeasible = isinstance(advanced, dict) and advanced.get(CONF_RELAX_INFEASIBLE) is True
-    network = Network(name="diag", periods=periods_hours, relax_infeasible=relax_infeasible)
-    compiled = compile_policies(
-        list(collect_model_elements(loaded_participants)),
-        collect_policy_rules(loaded_participants),
-    )
-    for elem in compiled["elements"]:
-        network.add(elem)
+    network, _updaters = build_network("diag", loaded_participants, periods_seconds, relax_infeasible=relax_infeasible)
     print(f"Network elements: {list(network.elements.keys())}")
 
     print("\nRunning optimization...")

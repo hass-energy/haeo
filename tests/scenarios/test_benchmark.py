@@ -24,15 +24,11 @@ from numpy.typing import NDArray
 import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
-from custom_components.haeo.coordinator.network import ElementUpdater, _build_element_updater, _build_policy_updater
-from custom_components.haeo.core.adapters.elements.policy import extract_policy_rules
-from custom_components.haeo.core.adapters.policy_compilation import compile_policies
-from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, collect_model_elements
+from custom_components.haeo.core.adapters.network_builder import ElementUpdater, build_network, periods_in_hours
 from custom_components.haeo.core.data.forecast_times import generate_forecast_timestamps, preset_periods_seconds
 from custom_components.haeo.core.data.loader.config_loader import load_element_configs
 from custom_components.haeo.core.model.network import Network
-from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema, ElementType
-from custom_components.haeo.core.schema.elements.policy import is_policy_config_data
+from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.state import EntityState
 from custom_components.haeo.elements import is_element_config_schema
 from tools.diag.cli import config_horizon_preset, migrate_batteries_for_diag
@@ -128,41 +124,9 @@ def _build_network(
     """Build a Network from scenario data without Home Assistant."""
     participants = _participants_from_config(config)
     periods_seconds = preset_periods_seconds(config_horizon_preset(config), start_time=frozen_dt)
-    periods_hours = np.asarray(periods_seconds, dtype=float) / 3600
     forecast_times = generate_forecast_timestamps(periods_seconds, start_time=frozen_dt.timestamp())
-
     loaded_configs = load_element_configs(participants, sm, forecast_times)
-
-    network = Network(name="benchmark", periods=periods_hours)
-
-    sorted_model_elements = collect_model_elements(loaded_configs)
-
-    # Compile policy rules (same as coordinator/network.py)
-    policy_rules = [
-        rule for cfg in loaded_configs.values() if is_policy_config_data(cfg) for rule in extract_policy_rules(cfg)
-    ]
-    compiled_elements = compile_policies(sorted_model_elements, policy_rules)
-
-    for element_config in compiled_elements["elements"]:
-        network.add(element_config)
-
-    # Build element updaters
-    updaters: dict[str, ElementUpdater] = {}
-    for name, elem_config in loaded_configs.items():
-        element_type = elem_config.get("element_type")
-        if element_type == ElementType.POLICY:
-            continue
-        adapter = ELEMENT_TYPES[element_type]
-        initial_model_configs = adapter.model_elements(elem_config)
-        updaters[name] = _build_element_updater(network, element_type, initial_model_configs)
-
-    if compiled_elements["pricing_rule_map"]:
-        policy_updater = _build_policy_updater(network, compiled_elements["pricing_rule_map"])
-        for name, elem_config in loaded_configs.items():
-            if elem_config.get("element_type") == ElementType.POLICY:
-                updaters[name] = policy_updater
-
-    return network, updaters
+    return build_network("benchmark", loaded_configs, periods_seconds)
 
 
 def _load_configs(
@@ -188,7 +152,7 @@ def _load_shifted_horizon(
     shifted_periods = preset_periods_seconds(config_horizon_preset(config), start_time=shifted_dt)
     shifted_forecast_times = generate_forecast_timestamps(shifted_periods, start_time=shifted_epoch)
     configs = load_element_configs(_participants_from_config(config), sm, shifted_forecast_times)
-    return np.asarray(shifted_periods, dtype=float) / 3600, configs
+    return periods_in_hours(shifted_periods), configs
 
 
 # ---------------------------------------------------------------------------
