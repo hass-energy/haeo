@@ -7,6 +7,7 @@ loader (``resolve_field``/``resolve_constant``).
 """
 
 import asyncio
+import logging
 from unittest.mock import patch
 
 import numpy as np
@@ -271,8 +272,12 @@ def test_editable_none_storage_stays_unavailable() -> None:
     assert store.display_values is None
 
 
-async def test_driven_async_load_resolve_failure() -> None:
-    """Resolution exceptions leave the store unavailable without clearing prior state."""
+async def test_driven_async_load_resolve_failure(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unexpected resolution exception leaves the store unavailable and is logged as a warning with its cause."""
+    # HAEO's loggers write to the console only, so let this one reach caplog
+    monkeypatch.setattr(logging.getLogger("custom_components.haeo"), "propagate", True)
     store = _make_store(
         storage_value=as_entity_value(["sensor.x"]),
         output_type=OutputType.PRICE,
@@ -287,6 +292,9 @@ async def test_driven_async_load_resolve_failure() -> None:
         assert await store.async_load(sm) is False
 
     assert store.available is False
+    [record] = [record for record in caplog.records if record.levelno == logging.WARNING]
+    assert record.exc_info is not None
+    assert str(record.exc_info[1]) == "boom"
 
 
 async def test_driven_async_load_rejects_empty_time_series() -> None:

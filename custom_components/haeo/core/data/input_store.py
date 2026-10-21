@@ -322,8 +322,12 @@ class InputStore:
             self._settled.set()
             return changed
         except Exception:
-            _LOGGER.debug(
-                "Load failed from sources %s; keeping previous value",
+            # Loading runs in state change callbacks, where an exception would
+            # stop every other input updating too. The expected failures return
+            # None or raise InputError, so anything else is a bug: report it with
+            # its traceback and mark only this input unavailable.
+            _LOGGER.warning(
+                "Unexpected error loading from sources %s; marking the input unavailable",
                 self._source_entity_ids,
                 exc_info=True,
             )
@@ -427,58 +431,32 @@ def create_input_store(
     Constant values are already stored negated, so the flag only changes the
     driven path.
     """
+    mode = InputMode.EDITABLE
+    sources: EntityValue | None = None
+    initial_value: float | bool | None = None
     match value:
         case {"type": "entity"} if is_entity_value(value):
-            return InputStore(
-                mode=InputMode.DRIVEN,
-                sources=value,
-                hint=hint,
-                get_forecast_timestamps=get_forecast_timestamps,
-                storage=storage,
-                negate=negate,
-            )
-        case {"type": "constant", "value": constant}:
-            return InputStore(
-                mode=InputMode.EDITABLE,
-                sources=None,
-                hint=hint,
-                get_forecast_timestamps=get_forecast_timestamps,
-                storage=storage,
-                initial_value=constant if isinstance(constant, bool) else float(constant),
-                negate=negate,
-            )
+            mode = InputMode.DRIVEN
+            sources = value
+        case {"type": "constant", "value": bool() | int() | float() as constant} | (
+            bool() | int() | float() as constant
+        ):
+            initial_value = constant if isinstance(constant, bool) else float(constant)
         case {"type": "none"} | None:
-            return InputStore(
-                mode=InputMode.EDITABLE,
-                sources=None,
-                hint=hint,
-                get_forecast_timestamps=get_forecast_timestamps,
-                storage=storage,
-                negate=negate,
-            )
-        case bool() as constant:
-            return InputStore(
-                mode=InputMode.EDITABLE,
-                sources=None,
-                hint=hint,
-                get_forecast_timestamps=get_forecast_timestamps,
-                storage=storage,
-                initial_value=constant,
-                negate=negate,
-            )
-        case int() | float() as constant:
-            return InputStore(
-                mode=InputMode.EDITABLE,
-                sources=None,
-                hint=hint,
-                get_forecast_timestamps=get_forecast_timestamps,
-                storage=storage,
-                initial_value=float(constant),
-                negate=negate,
-            )
+            pass
         case _:
             msg = f"Invalid config value: {value}"
             raise RuntimeError(msg)
+
+    return InputStore(
+        mode=mode,
+        sources=sources,
+        hint=hint,
+        get_forecast_timestamps=get_forecast_timestamps,
+        storage=storage,
+        initial_value=initial_value,
+        negate=negate,
+    )
 
 
 __all__ = ["InputMode", "InputStore", "InputValue", "create_input_store"]
