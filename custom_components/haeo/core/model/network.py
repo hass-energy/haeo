@@ -442,16 +442,15 @@ class Network:
             if not self.relax_infeasible or (relaxed := relaxed_rows(h, labels)) is None:
                 raise InfeasibleError(self.conflicts) from None
 
-        rows, values = relaxed
-        lp = h.getLp()
-        lower = np.asarray(lp.row_lower_)[rows]
-        upper = np.asarray(lp.row_upper_)[rows]
+        rows, values, lower, upper = relaxed
         h.changeRowsBounds(len(rows), rows, np.minimum(lower, values), np.maximum(upper, values))
         try:
             cost = self._solve(all_col_indices, cost_vectors)
             # Read the plan before the bounds return, since changing them discards the solution
             h.column_values()
             h.row_duals()
+        except InfeasibleError:
+            raise InfeasibleError(self.conflicts) from None
         finally:
             h.changeRowsBounds(len(rows), rows, lower, upper)
         self.relaxations = tuple(
@@ -461,7 +460,7 @@ class Network:
             )
             if abs(amount := value - min(max(value, low), high)) > RELAXATION_TOLERANCE
         )
-        _LOGGER.warning("Relaxed constraints to find a plan: %s", listing(map(str, self.relaxations)))
+        _LOGGER.debug("Relaxed constraints to find a plan: %s", listing(map(str, self.relaxations)))
         return cost
 
     def _solve(self, all_col_indices: NDArray[np.int32], cost_vectors: list[NDArray[np.float64]]) -> float:
@@ -517,9 +516,9 @@ class Network:
         a fixed basis are linear in the objective, so the secondary's are the blended
         ones minus the cost's, over the weight. The plan is in order when no move that
         leaves the cost unchanged lowers the secondary. Rows count as variables too,
-        with their activity as the value. A solve that finds the model infeasible
-        raises, and any other failure counts as not cost-optimal, so the weight is
-        lowered.
+        with their activity as the value. A solve that finds the model infeasible,
+        for the cost alone too, raises. Any other failure counts as not
+        cost-optimal, so the weight is lowered.
         """
         h = self._solver
         _set_cost_vector(h, all_col_indices, cost_vectors[0] + weight * cost_vectors[1])
@@ -528,8 +527,10 @@ class Network:
         if status == HighsModelStatus.kUnboundedOrInfeasible:
             status = _status_without_presolve(h)
         if status == HighsModelStatus.kInfeasible:
-            # Infeasibility does not depend on the objective, so no other weight can help
-            raise InfeasibleError
+            if _infeasible_for_cost(h, all_col_indices, cost_vectors[0]):
+                # Infeasibility does not depend on the objective, so no other weight can help
+                raise InfeasibleError
+            return math.nan, False, True
         if status != HighsModelStatus.kOptimal:
             return math.nan, False, True
         plan_cost = float(cost_vectors[0] @ h.column_values())
@@ -702,6 +703,18 @@ class BlendWeightSearch:
         if self.too_large > self.too_small * _WEIGHT_RESOLUTION:
             return math.sqrt(self.too_small * self.too_large)
         return None
+
+
+def _infeasible_for_cost(solver: Highs, all_col_indices: NDArray[np.int32], cost_vector: NDArray[np.float64]) -> bool:
+    """Confirm an infeasible blended solve by solving for the cost alone.
+
+    A badly scaled blend can be reported infeasible when the model is not, and a
+    lower weight then finds the plan, so only a model infeasible for the cost too
+    is treated as impossible.
+    """
+    _set_cost_vector(solver, all_col_indices, cost_vector)
+    solver.run()
+    return solver.getModelStatus() == HighsModelStatus.kInfeasible
 
 
 def _status_without_presolve(solver: Highs) -> HighsModelStatus:

@@ -12,7 +12,7 @@ period they cover, so a conflict reads in terms of the network.
 from collections.abc import Iterable, Mapping
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, NamedTuple
 
 from highspy import Highs, HighsStatus, IisStrategy
 import numpy as np
@@ -127,8 +127,17 @@ def conflicting_rows(solver: Highs, labels: Mapping[int, RowLabel]) -> tuple[Row
     return tuple(labels[row] for row in iis.row_index_)
 
 
-def relaxed_rows(solver: Highs, labels: Mapping[int, RowLabel]) -> tuple[NDArray[np.int32], NDArray[np.float64]] | None:
-    """Return the rows a smallest weighted relaxation moves, and the values it moves them to.
+class RelaxedRows(NamedTuple):
+    """Rows a relaxation moved, the values it moved them to, and their bounds before it."""
+
+    rows: NDArray[np.int32]
+    values: NDArray[np.float64]
+    lower: NDArray[np.float64]
+    upper: NDArray[np.float64]
+
+
+def relaxed_rows(solver: Highs, labels: Mapping[int, RowLabel]) -> RelaxedRows | None:
+    """Return the rows a smallest weighted relaxation moves, the values it moves them to, and their bounds.
 
     Only rows give way, never variable bounds, and power balances give way
     before limits. Every row the relaxation moves is returned, however little.
@@ -146,9 +155,10 @@ def relaxed_rows(solver: Highs, labels: Mapping[int, RowLabel]) -> tuple[NDArray
 
     lp = solver.getLp()
     values = np.asarray(solution.row_value, dtype=np.float64)
-    excess = np.maximum(values - np.asarray(lp.row_upper_), 0.0) - np.maximum(np.asarray(lp.row_lower_) - values, 0.0)
-    rows = np.flatnonzero(excess).astype(np.int32)
-    return rows, values[rows]
+    lower = np.asarray(lp.row_lower_, dtype=np.float64)
+    upper = np.asarray(lp.row_upper_, dtype=np.float64)
+    rows = np.flatnonzero(np.maximum(values - upper, 0.0) - np.maximum(lower - values, 0.0)).astype(np.int32)
+    return RelaxedRows(rows, values[rows], lower[rows], upper[rows])
 
 
 __all__ = [
@@ -158,6 +168,7 @@ __all__ = [
     "RELAXATION_TOLERANCE",
     "InfeasibleError",
     "Relaxation",
+    "RelaxedRows",
     "RowLabel",
     "conflicting_rows",
     "listing",

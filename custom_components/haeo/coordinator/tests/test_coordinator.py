@@ -3,6 +3,7 @@
 from collections.abc import Awaitable, Callable, Generator
 from datetime import UTC, datetime, timedelta
 import json
+import logging
 from pathlib import Path
 import time
 from types import MappingProxyType
@@ -680,6 +681,37 @@ async def test_async_update_data_reports_an_infeasible_plan(
     assert {"config", "environment", "inputs"} <= diagnostics["data"].keys()
     # An earlier relaxation stays for the user to resolve
     assert issues.async_get_issue(DOMAIN, f"optimization_relaxed_{mock_hub_entry.entry_id}") is not None
+
+
+@pytest.mark.usefixtures("mock_grid_subentry")
+async def test_async_update_data_reports_an_infeasible_plan_whose_diagnostics_cannot_be_saved(
+    hass: HomeAssistant,
+    mock_hub_entry: MockConfigEntry,
+    mock_runtime_data: HaeoRuntimeData,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A diagnostics file that cannot be written leaves the issue for the next plan, and still reports the failure."""
+    # HAEO's loggers write to the console only, so let this one reach caplog
+    monkeypatch.setattr(logging.getLogger("custom_components.haeo"), "propagate", True)
+    hass.config.config_dir = str(tmp_path)
+    # A file where the diagnostics folder belongs makes writing it fail
+    (tmp_path / "haeo").mkdir()
+    (tmp_path / "haeo" / "diagnostics").write_text("")
+    coordinator = HaeoDataUpdateCoordinator(hass, mock_hub_entry)
+    coordinator.network = MagicMock()
+    coordinator.network.optimize.side_effect = InfeasibleError((RowLabel("Test Grid:import", "power_limit", 1),))
+
+    with (
+        patch.object(coordinator, "_load_from_input_stores", return_value={}),
+        pytest.raises(UpdateFailed) as error,
+    ):
+        await coordinator._async_update_data()
+
+    assert error.value.translation_key == "optimization_infeasible"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"optimization_infeasible_{mock_hub_entry.entry_id}") is None
+    assert "Could not save the infeasible plan's diagnostics" in caplog.text
 
 
 async def test_async_update_data_keeps_an_unresolved_infeasible_issue_and_its_diagnostics(

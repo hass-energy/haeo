@@ -35,7 +35,7 @@ from custom_components.haeo.core.const import CONF_DEBOUNCE_SECONDS, CONF_ELEMEN
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.config_loader import load_element_config_from_values
 from custom_components.haeo.core.model import ModelOutputName, Network, OutputData, OutputType
-from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel
+from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel, listing
 from custom_components.haeo.core.model.topology import serialize_topology
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementConfigSchema
 from custom_components.haeo.core.schema.util import extract_unit_parts
@@ -686,11 +686,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
     async def _save_failure_diagnostics(
         self, context: OptimizationContext, started_at: datetime, kind: str, failure: dict[str, object]
-    ) -> str:
+    ) -> str | None:
         """Save diagnostics of the optimization that just failed or was relaxed, and return the file's path.
 
         They hold the config and inputs the optimization used, so the failure can be
-        run again from the file a user attaches to a report.
+        run again from the file a user attaches to a report. Returns None when the
+        file cannot be written, so its issue waits for the next optimization rather
+        than the plan or its error being lost.
         """
         # Imported here because the diagnostics package imports the integration, which imports this module
         from custom_components.haeo.diagnostics import diagnostics_from_context  # noqa: PLC0415
@@ -699,7 +701,13 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
         result = await diagnostics_from_context(
             self.hass, self.config_entry, context, started_at=started_at, completed_at=now, outputs=None
         )
-        path = await async_save_diagnostics(self.hass, {**result.to_dict(), "failure": failure}, kind, now)
+        try:
+            path = await async_save_diagnostics(self.hass, {**result.to_dict(), "failure": failure}, kind, now)
+        except OSError:
+            _LOGGER.exception(
+                "Could not save the %s plan's diagnostics, so its repair issue waits for the next plan", kind
+            )
+            return None
         return str(path)
 
     def _apply_pending_element_updates(self) -> None:
@@ -809,13 +817,14 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         "elements": _element_names(error.conflicts, context.participants),
                         "minutes": _minutes_into_plan(error.conflicts, forecast_timestamps),
                     }
-                if not optimization_infeasible_issue_raised(self.hass, entry_id):
-                    diagnostics = await self._save_failure_diagnostics(
+                if not optimization_infeasible_issue_raised(self.hass, entry_id) and (
+                    diagnostics := await self._save_failure_diagnostics(
                         context,
                         started_at,
                         "infeasible",
                         {"conflicts": [str(row) for row in error.conflicts]},
                     )
+                ):
                     create_optimization_infeasible_issue(
                         self.hass,
                         entry_id,
@@ -837,18 +846,26 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
             dismiss_optimization_failure_issue(self.hass, entry_id)
-            if network.relaxations and not optimization_relaxed_issue_raised(self.hass, entry_id):
+            if (
+                network.relaxations
+                and not optimization_relaxed_issue_raised(self.hass, entry_id)
+                and (
+                    diagnostics := await self._save_failure_diagnostics(
+                        context,
+                        started_at,
+                        "relaxed",
+                        {
+                            "conflicts": [str(row) for row in network.conflicts],
+                            "relaxations": [str(relaxation) for relaxation in network.relaxations],
+                        },
+                    )
+                )
+            ):
+                _LOGGER.warning(
+                    "The plan relaxed constraints it cannot meet: %s", listing(map(str, network.relaxations))
+                )
                 relaxed_rows = [relaxation.row for relaxation in network.relaxations]
                 conflicts = network.conflicts or relaxed_rows
-                diagnostics = await self._save_failure_diagnostics(
-                    context,
-                    started_at,
-                    "relaxed",
-                    {
-                        "conflicts": [str(row) for row in network.conflicts],
-                        "relaxations": [str(relaxation) for relaxation in network.relaxations],
-                    },
-                )
                 create_optimization_relaxed_issue(
                     self.hass,
                     entry_id,

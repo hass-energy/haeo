@@ -19,7 +19,7 @@ from custom_components.haeo.core.model.elements.connection import Connection, Co
 from custom_components.haeo.core.model.elements.policy_pricing import ELEMENT_TYPE as ELEMENT_TYPE_POLICY_PRICING
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig, PolicyPricingTerm
 from custom_components.haeo.core.model.elements.segments import PowerLimitSegment
-from custom_components.haeo.core.model.infeasibility import InfeasibleError, RowLabel
+from custom_components.haeo.core.model.infeasibility import InfeasibleError, RelaxedRows, RowLabel
 from custom_components.haeo.core.model.linear import LinearArray
 from custom_components.haeo.core.model.network import BlendWeightSearch, SolveOptions, _bisect_boundary
 from custom_components.haeo.core.model.output_data import OutputData
@@ -397,11 +397,21 @@ def _over_demanded_network(*, relax_infeasible: bool = False) -> Network:
     return network
 
 
-def test_infeasible_network_names_the_conflicting_constraints(caplog: pytest.LogCaptureFixture) -> None:
+def test_infeasible_network_names_the_conflicting_constraints(monkeypatch: pytest.MonkeyPatch) -> None:
     """An infeasible network raises at once, naming the smallest set of constraints that conflict."""
     network = _over_demanded_network()
+    solver = network._solver
+    runs = 0
+    real_run = solver.run
 
-    with caplog.at_level(logging.WARNING), pytest.raises(InfeasibleError) as error:
+    def counted_run() -> HighsStatus:
+        nonlocal runs
+        runs += 1
+        return real_run()
+
+    monkeypatch.setattr(solver, "run", counted_run)
+
+    with pytest.raises(InfeasibleError) as error:
         network.optimize()
 
     assert set(error.value.conflicts) == {
@@ -411,8 +421,8 @@ def test_infeasible_network_names_the_conflicting_constraints(caplog: pytest.Log
         RowLabel("load:connection", "power_limit_power_limit", 1),
     }
     assert "switchboard element_power_balance[1]" in str(error.value)
-    # No blend weight is tried once the model is known to be infeasible
-    assert not caplog.records
+    # One blended solve, confirmed infeasible for the cost alone, and no other blend weight tried
+    assert runs == 2
 
 
 def test_relaxed_network_leaves_the_shortfall_at_a_power_balance() -> None:
@@ -464,6 +474,41 @@ def test_infeasible_network_is_recognised_when_presolve_cannot_say_whether_it_is
 
     assert error.value.conflicts
     assert solver.getOptionValue("presolve") == (HighsStatus.kOk, "choose")
+
+
+def test_blend_reported_infeasible_is_solved_when_the_cost_alone_is_feasible(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A blended solve wrongly reported infeasible lowers the weight instead of failing the plan."""
+    network = _over_demanded_network()
+    load_limit = network.elements["load:connection"]["power_limit"]
+    assert isinstance(load_limit, PowerLimitSegment)
+    load_limit.max_power = np.array([3.0, 12.0, 3.0])
+    solver = network._solver
+    real_status = solver.getModelStatus
+    statuses = iter([HighsModelStatus.kInfeasible])
+    monkeypatch.setattr(solver, "getModelStatus", lambda: next(statuses, None) or real_status())
+
+    network.optimize()
+
+    assert network.conflicts == ()
+
+
+def test_relaxed_plan_the_solver_still_finds_infeasible_raises_with_the_conflicts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A re-solve that stays infeasible after relaxing reports the conflicts already found."""
+    network = _over_demanded_network(relax_infeasible=True)
+    empty = np.zeros(0)
+    monkeypatch.setattr(
+        network_module,
+        "relaxed_rows",
+        lambda *_args: RelaxedRows(np.zeros(0, dtype=np.int32), empty, empty, empty),
+    )
+
+    with pytest.raises(InfeasibleError) as error:
+        network.optimize()
+
+    assert error.value.conflicts
+    assert error.value.conflicts == network.conflicts
 
 
 def test_infeasible_network_reports_no_conflicts_when_the_solver_finds_none(monkeypatch: pytest.MonkeyPatch) -> None:
