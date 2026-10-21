@@ -14,7 +14,7 @@ from custom_components.haeo.core.model.elements.node import Node
 from custom_components.haeo.core.model.linear import LinearArray, total
 from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.tests import test_data
-from custom_components.haeo.core.model.tests.test_data import minimize
+from custom_components.haeo.core.model.tests.test_data import minimize, solution_value
 from custom_components.haeo.core.model.tests.test_data.element_types import (
     ElementTestCase,
     ElementTestCaseInputs,
@@ -24,7 +24,9 @@ from custom_components.haeo.core.model.util import broadcast_to_sequence
 from custom_components.haeo.core.model.util.solver_rows import add_rows
 
 
-def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) -> dict[str, ExpectedOutput]:
+def _solve_element_scenario(
+    element: Any, inputs: ElementTestCaseInputs | None
+) -> tuple[dict[str, ExpectedOutput], float | None]:
     """Set up and solve an optimization scenario for an element.
 
     Args:
@@ -32,7 +34,7 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
         inputs: Configuration dict with power values and parameters, or None for no optimization
 
     Returns:
-        Dict mapping output names to {type, unit, values}
+        Dict mapping output names to {type, unit, values}, and the cost of the solution when one was solved for
 
     """
     if inputs is not None:
@@ -47,8 +49,10 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
         power = inputs.get("power", [None] * n_periods)
 
         # Create LinearArray variables to inject power
-        power_in_vars = h.add_variables(n_periods, name="power_in_vars")
-        power_out_vars = h.add_variables(n_periods, name="power_out_vars")
+        max_power = np.asarray(inputs.get("max_power", [np.inf] * n_periods), dtype=np.float64)
+        min_power = np.asarray(inputs.get("min_power", [-np.inf] * n_periods), dtype=np.float64)
+        power_in_vars = h.add_variables(n_periods, name="power_in_vars", upper=np.maximum(max_power, 0.0))
+        power_out_vars = h.add_variables(n_periods, name="power_out_vars", upper=np.maximum(-min_power, 0.0))
 
         # For fixed values, add constraints to fix the variables
         for i, val in enumerate(power):
@@ -84,9 +88,13 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
 
         # Minimize
         if cost_terms:
-            minimize(h, total(cost_terms))
+            minimize(h, objective := total(cost_terms))
+            cost = solution_value(h, objective)
         else:
             h.run()
+            cost = 0.0
+    else:
+        cost = None
 
     # Extract and return outputs
     outputs = element.outputs()
@@ -97,7 +105,7 @@ def _solve_element_scenario(element: Any, inputs: ElementTestCaseInputs | None) 
             "values": output_data.values,
         }
         for name, output_data in outputs.items()
-    }
+    }, cost
 
 
 @pytest.mark.parametrize(
@@ -115,7 +123,9 @@ def test_element_outputs(case: ElementTestCase, solver: Solver) -> None:
     element = factory(**data)
 
     # Run optimization scenario (or get outputs directly if no inputs)
-    outputs = _solve_element_scenario(element, case.get("inputs"))
+    outputs, cost = _solve_element_scenario(element, case.get("inputs"))
+    if "expected_cost" in case:
+        assert cost == pytest.approx(case["expected_cost"], abs=1e-9)
 
     # Validate outputs match expected
     assert "expected_outputs" in case

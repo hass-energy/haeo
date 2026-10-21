@@ -34,10 +34,10 @@ def minimize(h: Solver, objective: LinearArray) -> None:
 
 
 # Import modules after defining utilities to avoid circular imports
-from . import battery, connection, connection_segments, node, segments  # noqa: E402 (must import after utility functions are defined)
+from . import battery, connection, connection_segments, deferrable_load, node, segments  # noqa: E402 (must import after utility functions are defined)
 
 
-VALID_ELEMENT_CASES: list[ElementTestCase] = [*battery.VALID_CASES, *node.VALID_CASES]
+VALID_ELEMENT_CASES: list[ElementTestCase] = [*battery.VALID_CASES, *deferrable_load.VALID_CASES, *node.VALID_CASES]
 VALID_CONNECTION_CASES: list[ConnectionTestCase] = [*connection.VALID_CASES]
 SEGMENT_SCENARIOS: list[SegmentScenario] = [*segments.SEGMENT_SCENARIOS]
 CONNECTION_SEGMENT_SCENARIOS: list[ConnectionScenario] = [*connection_segments.CONNECTION_SCENARIOS]
@@ -50,6 +50,7 @@ __all__ = [
     "battery",
     "connection",
     "connection_segments",
+    "deferrable_load",
     "fixed_variables",
     "minimize",
     "node",
