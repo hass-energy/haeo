@@ -5,7 +5,6 @@ from typing import Literal, TypeAliasType, TypedDict
 import pytest
 
 from custom_components.haeo import elements as elements_module
-from custom_components.haeo.core.const import CONF_ELEMENT_TYPE
 from custom_components.haeo.elements import get_input_field_schema_info, get_input_fields
 from custom_components.haeo.core.schema.elements import ElementType, battery
 
@@ -36,7 +35,7 @@ def test_get_input_field_schema_info_marks_optional_fields() -> None:
 
 def test_get_input_field_schema_info_missing_section() -> None:
     """get_input_field_schema_info raises when section is missing."""
-    input_fields = dict(get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE}))
+    input_fields = dict(get_input_fields(ELEMENT_TYPE))
     input_fields["missing_section"] = {}
 
     with pytest.raises(RuntimeError, match="Section 'missing_section' not found"):
@@ -90,16 +89,6 @@ def test_get_input_field_schema_info_type_alias(monkeypatch: pytest.MonkeyPatch)
     )
 
     assert schema_info["dummy"]["field"].is_optional is False
-
-
-def test_get_input_fields_returns_empty_for_none() -> None:
-    """get_input_fields returns empty dict for None element type."""
-    assert get_input_fields(None) == {}
-
-
-def test_get_input_fields_returns_empty_for_mapping_without_element_type() -> None:
-    """get_input_fields returns empty dict for mapping without element_type key."""
-    assert get_input_fields({"some_other_key": "value"}) == {}
 
 
 def test_conforms_to_typed_dict_skips_optional_without_hint() -> None:

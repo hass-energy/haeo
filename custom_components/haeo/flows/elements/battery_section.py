@@ -15,7 +15,7 @@ from custom_components.haeo.core.schema.elements.battery_section import (
 )
 from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
-from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
+from custom_components.haeo.flows.element_flow import ElementSubentryFlow, build_sectioned_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
@@ -27,12 +27,13 @@ from custom_components.haeo.flows.field_schema import (
     sectioned_view,
     validate_sectioned_choose_fields,
 )
-from custom_components.haeo.flows.on_off_states import ElementSubentryFlow
 from custom_components.haeo.sections import build_common_fields
 
 
-class BatterySectionSubentryFlowHandler(ElementFlowMixin, ElementSubentryFlow):
+class BatterySectionSubentryFlowHandler(ElementSubentryFlow):
     """Handle battery section element configuration flows."""
+
+    element_type = ELEMENT_TYPE
 
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
@@ -50,8 +51,8 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ElementSubentryFlow):
         """Shared logic for user and reconfigure steps."""
         subentry = self._get_subentry()
         subentry_data: dict[str, object] | None = dict(subentry.data) if subentry else None
-        default_name = await self._async_get_default_name(ELEMENT_TYPE)
-        input_fields = self._get_input_fields(ELEMENT_TYPE)
+        default_name = await self._async_get_default_name()
+        input_fields = self._get_input_fields()
 
         sections = self._get_sections()
         user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
@@ -133,7 +134,7 @@ class BatterySectionSubentryFlowHandler(ElementFlowMixin, ElementSubentryFlow):
 
     def _build_config(self, user_input: Mapping[str, object]) -> dict[str, object]:
         """Build final config dict from user input."""
-        input_fields = self._get_input_fields(ELEMENT_TYPE)
+        input_fields = self._get_input_fields()
         config_dict = convert_sectioned_choose_data_to_config(
             user_input,
             input_fields,

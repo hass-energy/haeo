@@ -159,14 +159,14 @@ async def test_reconfigure_defaults_surface_calendar_entity(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
+    input_fields = get_input_fields(ELEMENT_TYPE)
     defaults = flow._build_defaults("Test EV", input_fields, dict(existing_subentry.data))
     assert defaults[SECTION_TRIP][CONF_TRIP_CALENDAR] == ["calendar.ev_trips"]
 
 
 def test_plugged_in_field_requires_a_live_sensor() -> None:
     """The plugged-in sensor is required and takes only an entity: a constant would pin the current interval."""
-    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
+    input_fields = get_input_fields(ELEMENT_TYPE)
     schema_info = get_input_field_schema_info(ELEMENT_TYPE, input_fields)
 
     kinds = get_schema_value_kinds(schema_info[SECTION_CHARGING][CONF_CONNECTED].value_type)

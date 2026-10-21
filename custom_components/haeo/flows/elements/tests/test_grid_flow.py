@@ -402,7 +402,7 @@ async def test_reconfigure_defaults_handle_schema_values(
     assert result.get("type") == FlowResultType.FORM
     assert result.get("step_id") == "user"
 
-    input_fields = get_input_fields({CONF_ELEMENT_TYPE: ELEMENT_TYPE})
+    input_fields = get_input_fields(ELEMENT_TYPE)
     defaults = flow._build_defaults("Test Grid", input_fields, dict(existing_subentry.data))
     assert defaults[SECTION_PRICING][CONF_IMPORT_PRICE] == expected_defaults[CONF_IMPORT_PRICE]
     assert defaults[SECTION_PRICING][CONF_EXPORT_PRICE] == expected_defaults[CONF_EXPORT_PRICE]

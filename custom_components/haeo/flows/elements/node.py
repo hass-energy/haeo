@@ -4,13 +4,13 @@ from typing import (
     Any,  # noqa: TID251  # HA flow signatures upstream; voluptuous schema value types are heterogeneous by design
 )
 
-from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.config_entries import SubentryFlowResult
 from homeassistant.helpers.selector import BooleanSelector, BooleanSelectorConfig
 import voluptuous as vol
 
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.schema.elements.node import CONF_IS_SINK, CONF_IS_SOURCE, ELEMENT_TYPE, SECTION_ROLE
-from custom_components.haeo.flows.element_flow import ElementFlowMixin
+from custom_components.haeo.flows.element_flow import ElementSubentryFlow
 from custom_components.haeo.flows.field_schema import SectionDefinition, as_mapping, as_str, build_section_schema
 from custom_components.haeo.sections import build_common_fields
 
@@ -23,8 +23,10 @@ _SUGGESTED_DEFAULTS = {
 }
 
 
-class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
+class NodeSubentryFlowHandler(ElementSubentryFlow):
     """Handle node element configuration flows."""
+
+    element_type = ELEMENT_TYPE
 
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
@@ -85,14 +87,7 @@ class NodeSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
                         CONF_IS_SINK: bool(role_input.get(CONF_IS_SINK, False)),
                     },
                 }
-                if subentry is not None:
-                    return self.async_update_and_abort(
-                        self._get_entry(),
-                        subentry,
-                        title=str(name),
-                        data=config,
-                    )
-                return self.async_create_entry(title=str(name), data=config)
+                return await self._async_save_entry(str(name), config)
 
         schema = self._build_schema()
         defaults = dict(subentry.data) if subentry else _SUGGESTED_DEFAULTS

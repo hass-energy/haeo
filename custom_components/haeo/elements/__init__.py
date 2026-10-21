@@ -412,22 +412,9 @@ def get_element_configs(
     return configs
 
 
-def get_input_fields(element_type: str | ElementType | Mapping[str, object] | None) -> InputFieldGroups:
+def get_input_fields(element_type: ElementType) -> InputFieldGroups:
     """Return input field definitions for an element type."""
-    if isinstance(element_type, Mapping):
-        if CONF_ELEMENT_TYPE in element_type:
-            # Discriminator field value is genuinely str|ElementType at runtime (see the
-            # matching type: ignore[index] below); the Mapping overload only widens the
-            # value type to object at the boundary.
-            element_type = element_type[CONF_ELEMENT_TYPE]  # type: ignore[assignment]
-        else:
-            return {}
-
-    if element_type is None:
-        return {}
-
-    schema_cls = ELEMENT_CONFIG_SCHEMAS[element_type]  # type: ignore[index]
-    return build_input_fields(str(element_type), extract_field_hints(schema_cls))
+    return build_input_fields(str(element_type), extract_field_hints(ELEMENT_CONFIG_SCHEMAS[element_type]))
 
 
 def get_list_input_fields(element_config: Mapping[str, object]) -> InputFieldGroups:

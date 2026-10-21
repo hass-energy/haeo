@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
 
-from homeassistant.config_entries import ConfigSubentryFlow, SubentryFlowResult
+from homeassistant.config_entries import SubentryFlowResult
 from homeassistant.helpers.selector import Selector, SelectSelector, SelectSelectorConfig, SelectSelectorMode
 import voluptuous as vol
 
@@ -28,7 +28,7 @@ from custom_components.haeo.core.schema.elements.buffer import (
 )
 from custom_components.haeo.elements import get_input_field_schema_info
 from custom_components.haeo.elements.input_fields import InputFieldGroups
-from custom_components.haeo.flows.element_flow import ElementFlowMixin, build_sectioned_inclusion_map
+from custom_components.haeo.flows.element_flow import ElementSubentryFlow, build_sectioned_inclusion_map
 from custom_components.haeo.flows.entity_metadata import extract_entity_metadata
 from custom_components.haeo.flows.field_schema import (
     SectionDefinition,
@@ -43,10 +43,10 @@ from custom_components.haeo.flows.field_schema import (
 )
 
 
-class BufferSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
+class BufferSubentryFlowHandler(ElementSubentryFlow):
     """Handle buffer element configuration flows."""
 
-    element_type: ElementType = ElementType.BUFFER
+    element_type = ElementType.BUFFER
 
     def _get_sections(self) -> tuple[SectionDefinition, ...]:
         """Return sections for the configuration step."""
@@ -68,7 +68,7 @@ class BufferSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Shared logic for user and reconfigure steps."""
         subentry = self._get_subentry()
         subentry_data: dict[str, object] | None = dict(subentry.data) if subentry else None
-        input_fields = self._get_input_fields(self.element_type)
+        input_fields = self._get_input_fields()
         sections = self._get_sections()
         user_input = preprocess_sectioned_choose_input(user_input, input_fields, sections)
         errors = self._validate_user_input(user_input, input_fields)
@@ -76,9 +76,7 @@ class BufferSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         if user_input is not None and not errors:
             config = self._build_config(user_input)
             name = str(user_input[CONF_NAME])
-            if subentry is not None:
-                return self.async_update_and_abort(self._get_entry(), subentry, title=name, data=config)
-            return self.async_create_entry(title=name, data=config)
+            return await self._async_save_entry(name, config)
 
         entity_metadata = extract_entity_metadata(self.hass, self._get_entry())
         schema = build_sectioned_choose_schema(
@@ -129,9 +127,7 @@ class BufferSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         participants = as_mapping(subentry_data.get(SECTION_PARTICIPANTS)) if subentry_data else {}
         participant_defaults = {field: participants.get(field, []) for field in BUFFER_ROLES}
         return {
-            CONF_NAME: (
-                subentry_data.get(CONF_NAME) if subentry_data else await self._async_get_default_name(self.element_type)
-            ),
+            CONF_NAME: (subentry_data.get(CONF_NAME) if subentry_data else await self._async_get_default_name()),
             CONF_KIND: subentry_data.get(CONF_KIND) if subentry_data else KIND_RESERVE,
             **build_sectioned_choose_defaults(
                 self._get_sections(),
@@ -167,7 +163,7 @@ class BufferSubentryFlowHandler(ElementFlowMixin, ConfigSubentryFlow):
         """Build final config dict from user input."""
         config = convert_sectioned_choose_data_to_config(
             user_input,
-            self._get_input_fields(self.element_type),
+            self._get_input_fields(),
             self._get_sections(),
         )
         config[SECTION_PARTICIPANTS] = {

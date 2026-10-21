@@ -30,6 +30,7 @@ SURFACED_PRICE_HINTS: Final[dict[str, SurfacedPriceHint]] = {
             time_series=True,
         ),
         source_is_wildcard=True,
+        section=SECTION_CURTAILMENT,
         negate=True,
     ),
 }
