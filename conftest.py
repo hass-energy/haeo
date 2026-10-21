@@ -25,7 +25,10 @@ from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_T
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
 
 # Enable custom component for testing
-pytest_plugins = ["pytest_homeassistant_custom_component"]
+pytest_plugins = [
+    "pytest_homeassistant_custom_component",
+    "custom_components.haeo.translations.tests.runtime_checks",
+]
 
 
 @dataclass(frozen=True, slots=True)

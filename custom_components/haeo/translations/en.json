@@ -1,14 +1,10 @@
 {
   "config": {
-    "flow_title": "HAEO Setup",
+    "flow_title": "HAEO setup",
     "step": {
       "user": {
-        "title": "HAEO Setup",
+        "title": "HAEO setup",
         "description": "Configure your system and choose a planning horizon that matches your forecast data availability.",
-        "data": { "advanced_mode": "Expose raw model elements", "horizon": "Planning Horizon", "name": "System Name" },
-        "data_description": {
-          "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself."
-        },
         "sections": {
           "advanced": {
             "data": { "advanced_mode": "Expose raw model elements" },
@@ -18,7 +14,7 @@
             "name": "Advanced settings"
           },
           "common": {
-            "data": { "horizon": "Planning Horizon", "name": "System Name" },
+            "data": { "horizon": "Planning horizon", "name": "System name" },
             "data_description": {
               "horizon": "A preset covering 2 to 7 days, or a sensor whose forecast times set the start and end of every period."
             },
@@ -37,25 +33,13 @@
   "options": {
     "step": {
       "init": {
-        "title": "HAEO Settings",
+        "title": "HAEO settings",
         "description": "Configure optimization settings. Choose a planning horizon that matches your forecast data availability.",
-        "data": {
-          "advanced_mode": "Expose raw model elements",
-          "debounce_seconds": "Debounce Window (seconds)",
-          "horizon": "Planning Horizon",
-          "record_forecasts": "Record forecast data",
-          "relax_infeasible": "Relax impossible plans"
-        },
-        "data_description": {
-          "advanced_mode": "Shows low-level model elements you connect manually. Leave off unless you are deliberately building the optimization model yourself.",
-          "record_forecasts": "When enabled, forecast attributes are saved to the recorder database. This significantly increases database size but allows debugging historical forecasts. Disabled by default to reduce database load.",
-          "relax_infeasible": "When the forecasts ask for more than your system can do, such as a load above what the grid and batteries can supply, plan with the fewest constraints relaxed instead of failing. A repair issue lists what was relaxed. Leave off to fail the optimization and list the constraints that conflict."
-        },
         "sections": {
           "advanced": {
             "data": {
               "advanced_mode": "Expose raw model elements",
-              "debounce_seconds": "Debounce Window (seconds)",
+              "debounce_seconds": "Debounce window (seconds)",
               "record_forecasts": "Record forecast data",
               "relax_infeasible": "Relax impossible plans"
             },
@@ -67,7 +51,7 @@
             "name": "Advanced settings"
           },
           "common": {
-            "data": { "horizon": "Planning Horizon" },
+            "data": { "horizon": "Planning horizon" },
             "data_description": {
               "horizon": "A preset covering 2 to 7 days, or a sensor whose forecast times set the start and end of every period."
             },
@@ -77,15 +61,8 @@
       }
     },
     "error": {
-      "cannot_connect_to_self": "Cannot connect a device to itself",
       "horizon_entity_from_this_hub": "This hub's own sensors depend on its horizon, so they cannot set it.",
-      "horizon_entity_invalid": "This sensor does not report a forecast with at least two increasing times.",
-      "invalid_name": "Invalid device name",
-      "name_exists": "A device with this name already exists"
-    },
-    "abort": {
-      "no_participants": "No devices are currently connected to this system",
-      "reload_failed": "Failed to reload the integration after configuration changes. Please check your configuration and try again."
+      "horizon_entity_invalid": "This sensor does not report a forecast with at least two increasing times."
     }
   },
   "config_subentries": {
@@ -95,23 +72,9 @@
       "initiate_flow": { "user": "Battery", "reconfigure": "Battery" },
       "step": {
         "user": {
-          "title": "Battery Configuration",
+          "title": "Battery configuration",
           "description": "Configure battery parameters for energy optimization",
-          "data": {
-            "capacity": "Capacity",
-            "charge_cost": "Charge cost",
-            "connection": "Connection",
-            "discharge_cost": "Discharge cost",
-            "efficiency_source_target": "Discharge efficiency",
-            "efficiency_target_source": "Charge efficiency",
-            "initial_charge_percentage": "State of Charge",
-            "max_charge_percentage": "Max Charge Level",
-            "max_power_source_target": "Max discharge power",
-            "max_power_target_source": "Max charge power",
-            "min_charge_percentage": "Min Charge Level",
-            "name": "Battery Name",
-            "salvage_value": "Salvage value"
-          },
+          "data": { "connection": "Connection", "name": "Battery name" },
           "sections": {
             "advanced": {
               "data": { "charge_limit_cost": "Limit cost" },
@@ -120,7 +83,6 @@
               },
               "name": "Advanced"
             },
-            "common": { "data": { "connection": "Connection", "name": "Battery Name" }, "name": "Common settings" },
             "efficiency": {
               "data": {
                 "efficiency_source_target": "Discharge efficiency",
@@ -129,7 +91,7 @@
               "name": "Battery efficiency"
             },
             "limits": {
-              "data": { "max_charge_percentage": "Max Charge Level", "min_charge_percentage": "Min Charge Level" },
+              "data": { "max_charge_percentage": "Max charge level", "min_charge_percentage": "Min charge level" },
               "name": "Limits"
             },
             "power_limits": {
@@ -148,14 +110,14 @@
               "name": "Pricing"
             },
             "storage": {
-              "data": { "capacity": "Capacity", "initial_charge_percentage": "State of Charge" },
+              "data": { "capacity": "Capacity", "initial_charge_percentage": "State of charge" },
               "name": "Storage"
             }
           }
         }
       },
       "error": {
-        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the element it is connected to instead.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists",
         "required": "Choose an entity or enter a value for every required field in this section"
@@ -163,17 +125,16 @@
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "battery_section": {
-      "flow_title": "Battery Section",
-      "entry_type": "Battery Section",
-      "initiate_flow": { "user": "Battery Section", "reconfigure": "Battery Section" },
+      "flow_title": "Battery section",
+      "entry_type": "Battery section",
+      "initiate_flow": { "user": "Battery section", "reconfigure": "Battery section" },
       "step": {
         "user": {
-          "title": "Battery Section Configuration",
+          "title": "Battery section configuration",
           "description": "Configure a single battery section with explicit capacity and initial charge. Battery sections have no implicit connections. Connections carry power in one direction only, so add one connection into the section to charge it and another connection out of it to discharge it.",
-          "data": { "capacity": "Capacity", "initial_charge": "Initial Charge", "name": "Battery Section Name" },
+          "data": { "name": "Battery section name" },
           "sections": {
-            "common": { "data": { "name": "Battery Section Name" }, "name": "Common settings" },
-            "storage": { "data": { "capacity": "Capacity", "initial_charge": "Initial Charge" }, "name": "Storage" }
+            "storage": { "data": { "capacity": "Capacity", "initial_charge": "Initial charge" }, "name": "Storage" }
           }
         }
       },
@@ -238,20 +199,12 @@
       "initiate_flow": { "user": "Connection", "reconfigure": "Connection" },
       "step": {
         "user": {
-          "title": "Connection Configuration",
+          "title": "Connection configuration",
           "description": "Configure a unidirectional power path from source to target. For reverse flow, add a second connection with swapped endpoints.",
-          "data": {
-            "efficiency_source_target": "Efficiency",
-            "max_power_source_target": "Max power",
-            "name": "Connection Name",
-            "price_source_target": "Price",
-            "source": "Source Device",
-            "target": "Target Device"
-          },
+          "data": { "name": "Connection name" },
           "sections": {
-            "common": { "data": { "name": "Connection Name" }, "name": "Common settings" },
             "efficiency": { "data": { "efficiency_source_target": "Efficiency" }, "name": "Connection efficiency" },
-            "endpoints": { "data": { "source": "Source Device", "target": "Target Device" }, "name": "Endpoints" },
+            "endpoints": { "data": { "source": "Source device", "target": "Target device" }, "name": "Endpoints" },
             "power_limits": { "data": { "max_power_source_target": "Max power" }, "name": "Power limits" },
             "pricing": { "data": { "price_source_target": "Price" }, "name": "Pricing" }
           }
@@ -259,7 +212,7 @@
       },
       "error": {
         "cannot_connect_to_self": "Cannot connect a device to itself",
-        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the element it is connected to instead.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists",
         "required": "Choose an entity or enter a value for every required field in this section"
@@ -267,27 +220,15 @@
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "deferrable_load": {
-      "flow_title": "Deferrable Load",
-      "entry_type": "Deferrable Load",
-      "initiate_flow": { "user": "Deferrable Load", "reconfigure": "Deferrable Load" },
+      "flow_title": "Deferrable load",
+      "entry_type": "Deferrable load",
+      "initiate_flow": { "user": "Deferrable load", "reconfigure": "Deferrable load" },
       "step": {
         "user": {
-          "title": "Deferrable Load Configuration",
+          "title": "Deferrable load configuration",
           "description": "Configure a load that must receive scheduled amounts of energy within calendar windows",
-          "data": {
-            "connection": "Connection",
-            "deficit_price": "Shortfall price",
-            "energy_meter": "Energy meter",
-            "max_power": "Max power",
-            "name": "Deferrable Load Name",
-            "overage_price": "Overage price",
-            "window_calendar": "Run window calendar"
-          },
+          "data": { "connection": "Connection", "name": "Deferrable load name" },
           "sections": {
-            "common": {
-              "data": { "connection": "Connection", "name": "Deferrable Load Name" },
-              "name": "Common settings"
-            },
             "power": { "data": { "max_power": "Max power" }, "name": "Power" },
             "pricing": {
               "data": { "deficit_price": "Shortfall price", "overage_price": "Overage price" },
@@ -300,7 +241,12 @@
           }
         }
       },
-      "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
+      "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the element it is connected to instead.",
+        "missing_name": "Name is required",
+        "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section"
+      },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
     },
     "ev": {
@@ -309,25 +255,9 @@
       "initiate_flow": { "user": "EV", "reconfigure": "EV" },
       "step": {
         "user": {
-          "title": "EV Configuration",
+          "title": "EV configuration",
           "description": "Configure your electric vehicle with battery details, charging rates, and trip planning",
-          "data": {
-            "capacity": "Battery capacity",
-            "charge_limit_cost": "Limit cost",
-            "connected": "Plugged in",
-            "connection": "Connection",
-            "current_soc": "Current state of charge",
-            "efficiency_source_target": "Discharge efficiency",
-            "efficiency_target_source": "Charge efficiency",
-            "energy_per_distance": "Energy per distance",
-            "max_charge_rate": "Max charge rate",
-            "max_discharge_rate": "Max discharge rate",
-            "min_charge_percentage": "Min charge level",
-            "name": "EV Name",
-            "odometer": "Odometer",
-            "public_charging_price": "Public charging price",
-            "trip_calendar": "Trip calendar"
-          },
+          "data": { "connection": "Connection", "name": "EV name" },
           "sections": {
             "advanced": {
               "data": { "charge_limit_cost": "Limit cost" },
@@ -344,7 +274,6 @@
               },
               "name": "Charging"
             },
-            "common": { "data": { "connection": "Connection", "name": "EV Name" }, "name": "Common settings" },
             "efficiency": {
               "data": {
                 "efficiency_source_target": "Discharge efficiency",
@@ -375,8 +304,10 @@
         }
       },
       "error": {
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the element it is connected to instead.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists",
+        "required": "Choose an entity or enter a value for every required field in this section",
         "states_required": "Choose at least one state"
       },
       "abort": { "reconfigure_successful": "Configuration updated successfully" }
@@ -387,18 +318,10 @@
       "initiate_flow": { "user": "Grid", "reconfigure": "Grid" },
       "step": {
         "user": {
-          "title": "Grid Configuration",
+          "title": "Grid configuration",
           "description": "Configure grid import/export parameters and pricing",
-          "data": {
-            "connection": "Connection",
-            "max_power_source_target": "Import limit",
-            "max_power_target_source": "Export limit",
-            "name": "Grid Name",
-            "price_source_target": "Import price",
-            "price_target_source": "Export price"
-          },
+          "data": { "connection": "Connection", "name": "Grid name" },
           "sections": {
-            "common": { "data": { "connection": "Connection", "name": "Grid Name" }, "name": "Common settings" },
             "power_limits": {
               "data": { "max_power_source_target": "Import limit", "max_power_target_source": "Export limit" },
               "name": "Power limits"
@@ -411,7 +334,7 @@
         }
       },
       "error": {
-        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the element it is connected to instead.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists",
         "required": "Choose an entity or enter a value for every required field in this section"
@@ -424,18 +347,10 @@
       "initiate_flow": { "user": "Inverter", "reconfigure": "Inverter" },
       "step": {
         "user": {
-          "title": "Inverter Configuration",
+          "title": "Inverter configuration",
           "description": "Configure bidirectional inverter with DC bus for battery and solar connections",
-          "data": {
-            "connection": "AC Connection",
-            "efficiency_source_target": "DC to AC efficiency",
-            "efficiency_target_source": "AC to DC efficiency",
-            "max_power_source_target": "Max DC to AC power",
-            "max_power_target_source": "Max AC to DC power",
-            "name": "Inverter Name"
-          },
+          "data": { "connection": "AC connection", "name": "Inverter name" },
           "sections": {
-            "common": { "data": { "connection": "AC Connection", "name": "Inverter Name" }, "name": "Common settings" },
             "efficiency": {
               "data": {
                 "efficiency_source_target": "DC to AC efficiency",
@@ -454,7 +369,7 @@
         }
       },
       "error": {
-        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the element it is connected to instead.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists",
         "required": "Choose an entity or enter a value for every required field in this section"
@@ -467,10 +382,9 @@
       "initiate_flow": { "user": "Junction", "reconfigure": "Junction" },
       "step": {
         "user": {
-          "title": "Junction Configuration",
+          "title": "Junction configuration",
           "description": "Add a junction where connections meet. Power flowing in always equals power flowing out.",
-          "data": { "name": "Junction Name" },
-          "sections": { "common": { "data": { "name": "Junction Name" }, "name": "Common settings" } }
+          "data": { "name": "Junction name" }
         }
       },
       "error": { "missing_name": "Name is required", "name_exists": "A device with this name already exists" },
@@ -482,17 +396,10 @@
       "initiate_flow": { "user": "Load", "reconfigure": "Load" },
       "step": {
         "user": {
-          "title": "Load Configuration",
+          "title": "Load configuration",
           "description": "Configure a load with forecast or constant power.\n\n[HAFO]({hafo_url}) can be used to generate forecast sensors.",
-          "data": {
-            "connection": "Connection",
-            "consumption_cost": "Consumption cost",
-            "curtailment": "Allow shedding",
-            "forecast": "Forecast",
-            "name": "Load Name"
-          },
+          "data": { "connection": "Connection", "name": "Load name" },
           "sections": {
-            "common": { "data": { "connection": "Connection", "name": "Load Name" }, "name": "Common settings" },
             "curtailment": {
               "data": { "consumption_cost": "Consumption cost", "curtailment": "Allow shedding" },
               "name": "Shedding"
@@ -502,7 +409,7 @@
         }
       },
       "error": {
-        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the element it is connected to instead.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists",
         "required": "Choose an entity or enter a value for every required field in this section"
@@ -513,8 +420,7 @@
       "flow_title": "HAEO",
       "entry_type": "HAEO",
       "initiate_flow": { "user": "HAEO", "reconfigure": "HAEO" },
-      "step": {},
-      "abort": { "reconfigure_successful": "Configuration updated successfully" }
+      "step": {}
     },
     "node": {
       "flow_title": "Node",
@@ -522,19 +428,14 @@
       "initiate_flow": { "user": "Node", "reconfigure": "Node" },
       "step": {
         "user": {
-          "title": "Node Configuration",
+          "title": "Node configuration",
           "description": "Add a node that can produce or consume unlimited power. Use a junction for a point that only passes power through.",
-          "data": {
-            "is_sink": "Can consume unlimited power (Sink)",
-            "is_source": "Can produce unlimited power (Source)",
-            "name": "Node Name"
-          },
+          "data": { "name": "Node name" },
           "sections": {
-            "common": { "data": { "name": "Node Name" }, "name": "Common settings" },
             "role": {
               "data": {
-                "is_sink": "Can consume unlimited power (Sink)",
-                "is_source": "Can produce unlimited power (Source)"
+                "is_sink": "Can consume unlimited power (sink)",
+                "is_source": "Can produce unlimited power (source)"
               },
               "name": "Node role"
             }
@@ -592,25 +493,17 @@
       "initiate_flow": { "user": "Solar", "reconfigure": "Solar" },
       "step": {
         "user": {
-          "title": "Solar Configuration",
+          "title": "Solar configuration",
           "description": "Configure solar forecasting and parameters",
-          "data": {
-            "connection": "Connection",
-            "curtailment": "Allow Curtailment",
-            "forecast": "Forecast",
-            "name": "Solar Name",
-            "price_source_target": "Production price"
-          },
+          "data": { "connection": "Connection", "name": "Solar name" },
           "sections": {
-            "common": { "data": { "connection": "Connection", "name": "Solar Name" }, "name": "Common settings" },
-            "curtailment": { "data": { "curtailment": "Allow Curtailment" }, "name": "Curtailment" },
-            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" },
-            "pricing": { "data": { "price_source_target": "Production price" }, "name": "Pricing" }
+            "curtailment": { "data": { "curtailment": "Allow curtailment" }, "name": "Curtailment" },
+            "forecast": { "data": { "forecast": "Forecast" }, "name": "Forecast" }
           }
         }
       },
       "error": {
-        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the junction or inverter it is connected to.",
+        "invalid_endpoint": "This element applies its own prices, forecasts, and limits on its own connection, so it cannot be connected to directly. Choose the element it is connected to instead.",
         "missing_name": "Name is required",
         "name_exists": "A device with this name already exists",
         "required": "Choose an entity or enter a value for every required field in this section"
@@ -648,9 +541,9 @@
       "battery_max_power_source_target": { "name": "Max discharge power" },
       "battery_max_power_target_source": { "name": "Max charge power" },
       "battery_min_charge_percentage": { "name": "Min charge" },
-      "battery_price_source_target": { "name": "Discharge price" },
-      "battery_price_target_source": { "name": "Charge price" },
       "battery_salvage_value": { "name": "Salvage value" },
+      "battery_section_capacity": { "name": "Capacity" },
+      "battery_section_initial_charge": { "name": "Initial charge" },
       "buffer_level": { "name": "Level" },
       "buffer_shortfall_cost": { "name": "Shortfall cost" },
       "buffer_window": { "name": "Window" },
@@ -691,10 +584,8 @@
       "inverter_max_power_target_source": { "name": "Max AC to DC power" },
       "load_consumption_cost": { "name": "Consumption cost" },
       "load_forecast": { "name": "Forecast" },
-      "load_price_target_source": { "name": "Consumption value" },
       "policy_price": { "name": "{rule_name} price" },
-      "solar_forecast": { "name": "Forecast" },
-      "solar_price_source_target": { "name": "Production price" }
+      "solar_forecast": { "name": "Forecast" }
     },
     "sensor": {
       "battery_energy_in_flow": { "name": "Energy in flow shadow price" },
@@ -762,7 +653,10 @@
       "load_power": { "name": "Power" },
       "network_optimization_cost": { "name": "Cost" },
       "network_optimization_duration": { "name": "Duration" },
-      "network_optimization_status": { "name": "Status" },
+      "network_optimization_status": {
+        "name": "Status",
+        "state": { "failed": "Failed", "pending": "Pending", "success": "Succeeded" }
+      },
       "node_power_balance": { "name": "Power balance shadow price" },
       "solar_forecast_limit": { "name": "Forecast limit shadow price" },
       "solar_power": { "name": "Power" }
@@ -822,7 +716,7 @@
     },
     "invalid_connection_endpoints": {
       "title": "Connections bypass an element's own limits and prices",
-      "description": "Some elements connect directly to an element that applies its own prices, forecasts, power limits, and efficiencies on its own connection. A connection made directly to it bypasses all of those, so the optimizer treats it as free, unlimited power.\n\nAffected connections (element → endpoint):\n{connection_summary}\n\nTo fix this issue:\n1. Open the HAEO integration configuration\n2. Reconfigure each affected element to connect to the junction or inverter that its endpoint is connected to\n3. Save your changes; this issue will clear automatically once no element connects directly to one of these endpoints"
+      "description": "Some elements connect directly to an element that applies its own prices, forecasts, power limits, and efficiencies on its own connection. A connection made directly to it bypasses all of those, so the optimizer treats it as free, unlimited power.\n\nAffected connections (element → endpoint):\n{connection_summary}\n\nTo fix this issue:\n1. Open the HAEO integration configuration\n2. Reconfigure each affected element to connect to the element its endpoint is connected to\n3. Save your changes; this issue will clear automatically once no element connects directly to one of these endpoints"
     },
     "mixed_price_currencies": {
       "title": "Price inputs report different currencies",
@@ -834,7 +728,7 @@
     },
     "optimization_failure": {
       "title": "Optimization failed",
-      "description": "The HAEO optimization failed with the following error: {error_message}\n\nThis could be caused by:\n1. Missing or invalid sensor/forecast data\n2. Conflicting constraints in your configuration\n3. An infeasible or numerically difficult optimization problem\n\nSteps to resolve:\n1. Check the Home Assistant logs for detailed error information\n2. Verify all required sensors are available and reporting valid data\n3. Review your system configuration for conflicting constraints\n4. Choose a shorter planning horizon or simplify the network if solves are slow or failing\n5. This issue will automatically dismiss when optimization succeeds"
+      "description": "HAEO could not optimize, so the plan is out of date. The error was: {error_message}\n\nTo fix this issue:\n1. Check the Home Assistant logs for details of the error\n2. Check that every sensor your elements read is available and reporting values in Developer tools > States\n3. Check your elements for limits that conflict with each other\n4. If optimizations are slow or time out, choose a shorter planning horizon or remove elements you do not need\n5. This issue clears automatically once an optimization succeeds"
     },
     "optimization_infeasible": {
       "title": "No plan meets every constraint",
@@ -883,7 +777,7 @@
   },
   "services": {
     "optimize": {
-      "description": "Runs an optimization for then given system",
+      "description": "Runs an optimization for the given system",
       "fields": { "config_entry": { "description": "The HAEO system to run an optimization for", "name": "System" } },
       "name": "Optimize"
     },
