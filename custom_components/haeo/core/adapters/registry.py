@@ -48,6 +48,10 @@ class ElementAdapter(Protocol):
 
     can_sink: bool
 
+    # Whether the element can be the switchboard: the central point other
+    # elements connect to, which a hub outside advanced mode always has
+    switchboard: bool
+
     # What a buffer can count the element as: a load it covers, generation
     # it covers, or storage that holds it
     buffer_roles: frozenset[BufferRole]

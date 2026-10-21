@@ -83,6 +83,7 @@ class LoadAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = False
     can_sink: bool = True
+    switchboard: bool = False
     buffer_roles: frozenset[BufferRole] = frozenset({CONF_LOADS})
 
     def model_elements(self, config: LoadConfigData) -> list[ModelElementConfig]:

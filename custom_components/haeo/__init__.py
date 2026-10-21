@@ -13,12 +13,11 @@ from typing import TYPE_CHECKING
 from homeassistant.components.frontend import DOMAIN as FRONTEND_DOMAIN
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
-from homeassistant.config_entries import ConfigEntry, ConfigSubentry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry, ConfigSubentryData
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.translation import async_get_translations
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.setup import async_when_setup
 
@@ -31,12 +30,14 @@ from custom_components.haeo.const import (
     STATIC_CARD_STATIC_PATH,
 )
 from custom_components.haeo.coordinator import HaeoDataUpdateCoordinator
-from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
+from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES, is_element_type
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE
 from custom_components.haeo.core.schema.elements.buffer import CONF_STORAGE, SECTION_PARTICIPANTS
 from custom_components.haeo.core.schema.elements.element_type import ElementType
 from custom_components.haeo.core.schema.elements.policy import PolicyRuleConfig
 from custom_components.haeo.elements import ELEMENT_DEVICE_NAMES_BY_TYPE
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED
+from custom_components.haeo.flows.hub import async_network_subentry, async_switchboard_subentry
 from custom_components.haeo.flows.surfaced_policy import find_policy_subentry, get_policy_rules
 from custom_components.haeo.horizon import HorizonManager
 from custom_components.haeo.input_stores import (
@@ -163,58 +164,31 @@ async def _ensure_required_subentries(hass: HomeAssistant, hub_entry: ConfigEntr
     """Ensure required subentries exist for the hub.
 
     Creates a Network subentry (for optimization sensors) if missing.
-    In non-advanced mode, also creates a Switchboard node if missing.
+    In non-advanced mode, also creates a Switchboard junction if missing.
     """
-    # Avoid circular import with schema module
-    from custom_components.haeo.core.schema.elements import ElementType  # noqa: PLC0415
-
-    # Check if Network subentry already exists
-    has_network = False
-    has_switchboard = False
-
-    for subentry in hub_entry.subentries.values():
-        if subentry.subentry_type == ELEMENT_TYPE_NETWORK:
-            has_network = True
-        elif subentry.subentry_type in (ElementType.JUNCTION, ElementType.NODE):
-            has_switchboard = True
-        if has_network and has_switchboard:
-            break
-
-    # Load translations for subentry names
-    translations = await async_get_translations(hass, hass.config.language, "common", integrations=[DOMAIN])
-
-    # Create Network subentry if missing
-    if not has_network:
-        _LOGGER.info("Creating Network subentry for hub %s", hub_entry.entry_id)
-        network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
-        network_subentry = ConfigSubentry(
-            data=MappingProxyType({CONF_NAME: network_subentry_name, CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK}),
-            subentry_type=ELEMENT_TYPE_NETWORK,
-            title=network_subentry_name,
-            unique_id=None,
-        )
-        hass.config_entries.async_add_subentry(hub_entry, network_subentry)
-        _LOGGER.debug("Network subentry created successfully")
-
-    # In non-advanced mode, ensure the switchboard junction exists
+    subentry_types = {subentry.subentry_type for subentry in hub_entry.subentries.values()}
+    has_switchboard = any(
+        is_element_type(subentry_type) and ELEMENT_TYPES[subentry_type].switchboard for subentry_type in subentry_types
+    )
     advanced_mode = hub_entry.data.get(HUB_SECTION_ADVANCED, {}).get(CONF_ADVANCED_MODE, False)
-    if not advanced_mode and not has_switchboard:
-        _LOGGER.info("Creating Switchboard junction for hub %s (non-advanced mode)", hub_entry.entry_id)
-        switchboard_name = translations.get(f"component.{DOMAIN}.common.switchboard_node_name", "Switchboard")
 
-        switchboard_subentry = ConfigSubentry(
-            data=MappingProxyType(
-                {
-                    CONF_ELEMENT_TYPE: ElementType.JUNCTION,
-                    CONF_NAME: switchboard_name,
-                }
+    required: list[ConfigSubentryData] = []
+    if ELEMENT_TYPE_NETWORK not in subentry_types:
+        required.append(await async_network_subentry(hass))
+    if not advanced_mode and not has_switchboard:
+        required.append(await async_switchboard_subentry(hass))
+
+    for subentry in required:
+        _LOGGER.info("Creating %s subentry for hub %s", subentry["title"], hub_entry.entry_id)
+        hass.config_entries.async_add_subentry(
+            hub_entry,
+            ConfigSubentry(
+                data=MappingProxyType(subentry["data"]),
+                subentry_type=subentry["subentry_type"],
+                title=subentry["title"],
+                unique_id=subentry["unique_id"],
             ),
-            subentry_type=ElementType.JUNCTION,
-            title=switchboard_name,
-            unique_id=None,
         )
-        hass.config_entries.async_add_subentry(hub_entry, switchboard_subentry)
-        _LOGGER.debug("Switchboard junction created successfully")
 
 
 async def async_update_listener(hass: HomeAssistant, entry: HaeoConfigEntry) -> None:

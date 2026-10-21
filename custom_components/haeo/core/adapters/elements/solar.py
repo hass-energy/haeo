@@ -56,6 +56,7 @@ class SolarAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = True
     can_sink: bool = False
+    switchboard: bool = False
     buffer_roles: frozenset[BufferRole] = frozenset({CONF_GENERATION})
 
     def model_elements(self, config: SolarConfigData) -> list[ModelElementConfig]:

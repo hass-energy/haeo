@@ -3,9 +3,15 @@
 import logging
 from typing import Any  # noqa: TID251  # HA flow signatures are Any-typed upstream
 
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, ConfigSubentryFlow
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    ConfigSubentryData,
+    ConfigSubentryFlow,
+)
 from homeassistant.const import CONF_NAME
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.translation import async_get_translations
 
 from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, ELEMENT_TYPE_NETWORK, INTEGRATION_TYPE_HUB
@@ -25,6 +31,32 @@ from . import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON, get_element_flow_classes
 from .options import HubOptionsFlow
 
 _LOGGER = logging.getLogger(__name__)
+
+
+async def async_common_name(hass: HomeAssistant, key: str) -> str:
+    """Return a name from the translations' common strings in the configured language."""
+    translations = await async_get_translations(hass, hass.config.language, "common", integrations=[DOMAIN])
+    return translations[f"component.{DOMAIN}.common.{key}"]
+
+
+def _named_subentry(element_type: str, name: str) -> ConfigSubentryData:
+    """Return the data of a subentry that holds only its element type and name."""
+    return {
+        "data": {CONF_NAME: name, CONF_ELEMENT_TYPE: element_type},
+        "subentry_type": element_type,
+        "title": name,
+        "unique_id": None,
+    }
+
+
+async def async_network_subentry(hass: HomeAssistant) -> ConfigSubentryData:
+    """Return the network subentry, which holds the optimization sensors."""
+    return _named_subentry(ELEMENT_TYPE_NETWORK, await async_common_name(hass, "network_subentry_name"))
+
+
+async def async_switchboard_subentry(hass: HomeAssistant) -> ConfigSubentryData:
+    """Return the switchboard junction, the central point other elements connect to."""
+    return _named_subentry(ElementType.JUNCTION, await async_common_name(hass, "switchboard_node_name"))
 
 
 class HubConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -51,11 +83,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
                 return await self._create_hub_entry(user_input)
 
-        # Fetch the default hub name from translations
-        translations = await async_get_translations(
-            self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
-        )
-        default_hub_name = translations.get(f"component.{DOMAIN}.common.default_hub_name", "Home")
+        default_hub_name = await async_common_name(self.hass, "default_hub_name")
 
         return self.async_show_form(
             step_id="user",
@@ -69,13 +97,6 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
         """Create the hub entry from the validated setup form."""
         common = user_input[HUB_SECTION_COMMON]
         hub_name = common[CONF_NAME]
-
-        # Resolve the switchboard name from translations
-        translations = await async_get_translations(
-            self.hass, self.hass.config.language, "common", integrations=[DOMAIN]
-        )
-        switchboard_name = translations[f"component.{DOMAIN}.common.switchboard_node_name"]
-        network_subentry_name = translations[f"component.{DOMAIN}.common.network_subentry_name"]
 
         # Create the hub entry with initial subentries
         return self.async_create_entry(
@@ -91,28 +112,7 @@ class HubConfigFlow(ConfigFlow, domain=DOMAIN):
                     CONF_ADVANCED_MODE: user_input[HUB_SECTION_ADVANCED][CONF_ADVANCED_MODE],
                 },
             },
-            subentries=[
-                # Network subentry for optimization sensors
-                {
-                    "data": {
-                        CONF_NAME: network_subentry_name,
-                        CONF_ELEMENT_TYPE: ELEMENT_TYPE_NETWORK,
-                    },
-                    "subentry_type": ELEMENT_TYPE_NETWORK,
-                    "title": network_subentry_name,
-                    "unique_id": None,
-                },
-                # Switchboard junction as central connection point
-                {
-                    "data": {
-                        CONF_ELEMENT_TYPE: ElementType.JUNCTION,
-                        CONF_NAME: switchboard_name,
-                    },
-                    "subentry_type": ElementType.JUNCTION,
-                    "title": switchboard_name,
-                    "unique_id": None,
-                },
-            ],
+            subentries=[await async_network_subentry(self.hass), await async_switchboard_subentry(self.hass)],
         )
 
     @staticmethod

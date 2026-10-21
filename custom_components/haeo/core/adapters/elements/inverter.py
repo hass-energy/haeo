@@ -66,6 +66,7 @@ class InverterAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
     can_source: bool = False
     can_sink: bool = False
+    switchboard: bool = False
     buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:

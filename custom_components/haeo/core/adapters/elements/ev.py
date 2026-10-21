@@ -138,6 +138,7 @@ class EvAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = True
     can_sink: bool = True
+    switchboard: bool = False
     buffer_roles: frozenset[BufferRole] = frozenset({CONF_STORAGE, CONF_LOADS})
 
     def model_elements(self, config: EvConfigData) -> list[ModelElementConfig]:

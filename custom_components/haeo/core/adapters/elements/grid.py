@@ -70,6 +70,7 @@ class GridAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = True
     can_sink: bool = True
+    switchboard: bool = False
     buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: GridConfigData) -> list[ModelElementConfig]:

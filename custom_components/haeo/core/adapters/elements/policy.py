@@ -67,6 +67,7 @@ class PolicyAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = False
     can_sink: bool = False
+    switchboard: bool = False
     buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: PolicyConfigData) -> list[ModelElementConfig]:  # noqa: ARG002 (required by adapter protocol — policy has no model elements)
