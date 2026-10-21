@@ -29,9 +29,7 @@ The `elements/` package holds shared infrastructure that works the same for ever
 ```
 elements/
 ├── __init__.py          # Type unions, registries keyed by element type, config accessors
-├── availability.py      # Generic schema-driven availability checking
 ├── field_hints.py       # Turns schema field hints into HA entity descriptions
-├── field_schema.py      # Re-export of core.schema.field_schema
 └── input_fields.py      # Input field metadata types
 ```
 
@@ -77,12 +75,12 @@ Reuse the shared field groups in `core/schema/sections/` rather than redeclaring
 
 The `ElementAdapter` protocol in `core/adapters/registry.py` requires:
 
-- Attributes `element_type`, `advanced`, `connectivity`, `can_source`, `can_sink`
+- Attributes `element_type`, `advanced`, `connectivity`, `can_source`, `can_sink`, `can_store`
 - `model_elements(config)` — transform loaded config into model element params
 - `outputs(name, model_outputs, **kwargs)` — map model outputs to device outputs
 
 Availability and input field derivation are deliberately **not** adapter methods.
-`availability.py` and `input_fields.py` derive both generically from the schema, so every element type behaves identically.
+Input stores decide availability field by field, and `input_fields.py` derives input fields generically from the schema, so every element type behaves identically.
 When a per-element hook seems necessary for either, express the difference in the schema instead.
 
 The module also declares the element's output and device name literals plus matching frozensets, and exposes a module-level `adapter` instance.

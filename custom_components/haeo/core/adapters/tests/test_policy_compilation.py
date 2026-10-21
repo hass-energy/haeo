@@ -25,13 +25,19 @@ from custom_components.haeo.core.adapters.policy_compilation import (
 )
 from custom_components.haeo.core.model import ModelElementConfig
 from custom_components.haeo.core.model.element import NetworkElement
-from custom_components.haeo.core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, MODEL_ELEMENT_TYPE_NODE
+from custom_components.haeo.core.model.elements import (
+    MODEL_ELEMENT_TYPE_CONNECTION,
+    MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+    MODEL_ELEMENT_TYPE_NODE,
+)
 from custom_components.haeo.core.model.elements.battery import BatteryElementConfig
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
+from custom_components.haeo.core.model.elements.deferrable_load import DeferrableLoadElementConfig
 from custom_components.haeo.core.model.elements.node import NodeElementConfig
 from custom_components.haeo.core.model.elements.policy_pricing import PolicyPricingElementConfig
 from custom_components.haeo.core.model.elements.segments import SegmentSpec
 from custom_components.haeo.core.model.network import Network
+from custom_components.haeo.core.model.util.solver_rows import add_rows
 
 
 def _node(name: str, *, is_source: bool = False, is_sink: bool = False) -> ModelElementConfig:
@@ -227,7 +233,7 @@ def test_disabled_rule_has_zero_price() -> None:
     # Optimize: with zero price, cost should be zero
     network = _build_network(compiled)
     h = network._solver
-    h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
+    add_rows(h, _network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
     assert cost == pytest.approx(0.0, abs=0.01)
 
@@ -327,6 +333,32 @@ def test_wildcard_excludes_sink_only_from_sources() -> None:
     # Junction is neither — not expanded as source, no outbound tag
     sw = _find(result, "sw", element_type=MODEL_ELEMENT_TYPE_NODE)
     assert sw.get("outbound_tags") is None
+
+
+@pytest.mark.parametrize("sources", [["*"], ["ev", "grid"]], ids=["wildcard", "named"])
+def test_a_sink_only_deferrable_load_takes_no_outbound_tags(sources: list[str]) -> None:
+    """A sink-only deferrable load takes no outbound tags, whether a policy reaches it by wildcard or by name."""
+    elements: list[ModelElementConfig] = [
+        _node("grid", is_source=True),
+        DeferrableLoadElementConfig(
+            element_type=MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD,
+            name="ev",
+            in_window=np.ones(1),
+            window_start=np.zeros(2),
+            opened=np.array([5.0, 0.0]),
+            due=np.array([0.0, 5.0]),
+            deficit_price=np.ones(2),
+            overage_price=np.zeros(2),
+            is_source=False,
+            is_sink=True,
+        ),
+        _conn("grid_ev", "grid", "ev"),
+    ]
+    policies = [_policy(sources, ["*"], 0.05)]
+    result = compile_policies(elements, policies)
+    ev = next(e for e in result["elements"] if e["name"] == "ev" and e["element_type"] == "deferrable_load")
+    assert ev.get("outbound_tags") is None
+    assert _outbound_tag(result, "grid") in (ev.get("inbound_tags") or set())
 
 
 def test_wildcard_excludes_source_only_from_destinations() -> None:
@@ -460,7 +492,7 @@ def test_unpolicied_source_flows_to_policied_destination() -> None:
 
     network = _build_network(compiled)
     h = network._solver
-    h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
+    add_rows(h, _network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
 
     # Solar has no policy cost, so optimizer uses solar (free) instead of grid ($0.10/kWh)
@@ -498,7 +530,7 @@ def test_policied_source_cannot_bypass_cost_via_default_tag() -> None:
 
     network = _build_network(compiled)
     h = network._solver
-    h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
+    add_rows(h, _network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
 
     # Solar 3 kW free + Grid 2 kW x $0.10 = $0.20
@@ -544,7 +576,7 @@ def test_policy_on_one_source_does_not_affect_other_sources() -> None:
 
     network = _build_network(compiled)
     h = network._solver
-    h.addConstrs(_network_element(network, "load").connection_power() == np.array([7.0]))
+    add_rows(h, _network_element(network, "load").connection_power() == np.array([7.0]))
     cost = network.optimize()
 
     # Solar 3 kW free + Battery 3 kW free + Grid 1 kW x $0.50 = $0.50
@@ -600,7 +632,7 @@ def test_additive_pricing_stacking() -> None:
     # Build and optimize
     network = _build_network(compiled)
     h = network._solver
-    h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
+    add_rows(h, _network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
 
     # Optimizer should use solar (cheaper: $0.05) before battery ($0.05 + $0.03 = $0.08)
@@ -647,7 +679,7 @@ def test_multi_hop_policy_through_switchboard() -> None:
 
     network = _build_network(compiled)
     h = network._solver
-    h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
+    add_rows(h, _network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
 
     # 5 kW x $0.10 = $0.50 (pricing applied once at destination, not per-hop)
@@ -680,7 +712,7 @@ def test_single_source_policy_adds_cost() -> None:
 
     network = _build_network(compiled)
     h = network._solver
-    h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
+    add_rows(h, _network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
     assert cost == pytest.approx(0.50, abs=0.01)
 
@@ -717,7 +749,7 @@ def test_cheaper_source_preferred() -> None:
 
     network = _build_network(compiled)
     h = network._solver
-    h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
+    add_rows(h, _network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
 
     # Solar 3 kW x $0.01 + Grid 2 kW x ($0.30 + $0.10)
@@ -1233,7 +1265,7 @@ def test_no_policy_no_extra_cost() -> None:
         }
     )
     h = network._solver
-    h.addConstrs(_network_element(network, "load").connection_power() == np.array([5.0]))
+    add_rows(h, _network_element(network, "load").connection_power() == np.array([5.0]))
     cost = network.optimize()
     assert cost == pytest.approx(1.00)
 

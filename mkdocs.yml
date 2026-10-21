@@ -144,7 +144,9 @@ nav:
   - Walkthroughs:
       - walkthroughs/index.md
       - Sigenergy System: walkthroughs/sigenergy-system.md
+      - Adding an EV: walkthroughs/adding-an-ev.md
       - Power Policies: walkthroughs/power-policies.md
+      - Buffers: walkthroughs/buffers.md
       - Historic Diagnostics: walkthroughs/historic-diagnostics.md
 
   - User Guide:
@@ -160,10 +162,13 @@ nav:
           - user-guide/elements/index.md
           - Battery: user-guide/elements/battery.md
           - Battery Section: user-guide/elements/battery_section.md
+          - Deferrable Load: user-guide/elements/deferrable_load.md
+          - EV: user-guide/elements/ev.md
           - Grid: user-guide/elements/grid.md
           - Inverter: user-guide/elements/inverter.md
           - Load: user-guide/elements/load.md
           - Solar: user-guide/elements/solar.md
+          - Buffer: user-guide/elements/buffer.md
           - Junction: user-guide/elements/junction.md
           - Node: user-guide/elements/node.md
           - Connections: user-guide/elements/connections.md
@@ -180,13 +185,13 @@ nav:
           - Elements:
               - modeling/model-layer/elements/index.md
               - Battery: modeling/model-layer/elements/battery.md
+              - Deferrable load: modeling/model-layer/elements/deferrable_load.md
               - Node: modeling/model-layer/elements/node.md
           - Connections:
               - modeling/model-layer/connections/index.md
               - Connection: modeling/model-layer/connections/connection.md
           - Segments:
               - modeling/model-layer/segments/index.md
-              - SOC pricing segment: modeling/model-layer/segments/soc-pricing.md
               - Efficiency segment: modeling/model-layer/segments/efficiency.md
               - Power limit segment: modeling/model-layer/segments/power-limit.md
               - Pricing segment: modeling/model-layer/segments/pricing.md
@@ -195,10 +200,13 @@ nav:
           - modeling/device-layer/index.md
           - Battery: modeling/device-layer/battery.md
           - Battery Section: modeling/device-layer/battery_section.md
+          - Deferrable Load: modeling/device-layer/deferrable_load.md
+          - EV: modeling/device-layer/ev.md
           - Grid: modeling/device-layer/grid.md
           - Inverter: modeling/device-layer/inverter.md
           - Solar: modeling/device-layer/solar.md
           - Load: modeling/device-layer/loads.md
+          - Buffer: modeling/device-layer/buffer.md
           - Junction: modeling/device-layer/junction.md
           - Node: modeling/device-layer/node.md
           - Connection: modeling/device-layer/connection.md

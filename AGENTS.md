@@ -79,6 +79,13 @@ Each component should do one thing well without needing to know about the intern
 - When adding a feature, prefer creating new simple components over adding branches to existing ones
 - Runtime code uses the result of schema validation, not the schema itself - the schema's job is done at configuration time
 
+**Attributes, not enumeration**: Tell kinds of things apart by an attribute or structure of the thing itself, not by listing the kinds where the distinction is used.
+Adding or deleting an element should not mean searching for every place that names it.
+
+- Branch on a class, an adapter or spec attribute, or a registry lookup, such as checking that a registered model element subclasses `NetworkElement`, rather than `element_type in (NODE, BATTERY, ...)`
+- When the type checker needs a union of kinds, define it once in the package `__init__.py` beside the other registries, not at the use site
+- The same applies to documentation and translations: describe the pattern, and leave each kind to its own page or placeholder
+
 ### Clean changes
 
 When making changes, don't leave behind comments describing what was once there.
@@ -204,7 +211,8 @@ Read the skill covering an area before changing code in it.
 Run `uv run check` before considering work complete.
 It runs every CI job that can run locally — ruff, pyright, import boundaries, mdformat, prettier, version consistency, unit tests, scenario tests, and frontend card checks — in about 65 seconds.
 `--fast` runs ruff, pyright, and unit tests in about 35.
-`hassfest` and HACS validation have no local equivalent and run only in GitHub Actions.
+HACS validation has no local equivalent and runs only in GitHub Actions.
+`hassfest` is not part of `uv run check`, but the `lint` skill shows how to run it from Home Assistant's source; do so after changing translations, the manifest, services, or repair issues.
 
 Tests run under `timeout = 5` per test with `filterwarnings = ["error"]`, so a new warning is a hard failure and a hang surfaces as a 5-second timeout.
 

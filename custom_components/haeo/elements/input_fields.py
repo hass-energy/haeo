@@ -11,7 +11,9 @@ from typing import Literal, TypeGuard, overload
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.switch import SwitchEntityDescription
 
+from custom_components.haeo.core.data.util.field_units import has_field_unit
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, MeterFieldHint
 from custom_components.haeo.core.units import localize_currency
 
 
@@ -51,7 +53,13 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
         time_series: Whether this field is time series (list) or scalar
         boundaries: Whether time series values are at boundaries (n+1 values) vs intervals (n values)
         defaults: Default pre-selection behavior for config flow fields
-        device_type: Optional device type override for sub-device inputs
+        calendar: When set, the input resolves its values from the events of the
+            calendars it reads
+        outputs: When set, the config field feeds these inputs instead of being
+            an input itself, keyed by their field names
+        source_field: For an input fed by another config field, that field's name
+        meter: When set, the field reads meters, so it only offers sensors whose
+            recorded statistics keep a running total
 
     Note:
         Whether a field is optional (can be disabled in config flow) is determined
@@ -69,8 +77,10 @@ class InputFieldInfo[T: (NumberEntityDescription, SwitchEntityDescription)]:
     defaults: InputFieldDefaults | None = None
     # Force value to be required, even if its optional in the schema
     force_required: bool | None = None
-    # Optional device type for sub-device association
-    device_type: str | None = None
+    calendar: CalendarFieldHint | None = None
+    outputs: "Mapping[str, AnyInputFieldInfo] | None" = None
+    source_field: str | None = None
+    meter: MeterFieldHint | None = None
 
 
 # Union of the two concrete field-info instantiations; use when handling
@@ -88,6 +98,25 @@ def is_number_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldI
     runtime, so isinstance against the imported class does not reliably hold.
     """
     return type(field_info.entity_description).__name__ == "NumberEntityDescription"
+
+
+def reads_calendar(field_info: AnyInputFieldInfo) -> bool:
+    """Return True when a config field feeds inputs resolved from calendar events, so it picks only calendars."""
+    return bool(field_info.outputs) and any(output.calendar is not None for output in field_info.outputs.values())
+
+
+def accepts_calendar_forecast(field_info: AnyInputFieldInfo) -> bool:
+    """Return True when a field can read a calendar as a forecast.
+
+    A number forecast field with a unit reads a calendar's events as a
+    stepped forecast of the value each event holds, typed with its unit.
+    """
+    return (
+        field_info.time_series
+        and field_info.outputs is None
+        and has_field_unit(field_info.output_type)
+        and is_number_field_info(field_info)
+    )
 
 
 def is_switch_field_info(field_info: AnyInputFieldInfo) -> TypeGuard[InputFieldInfo[SwitchEntityDescription]]:

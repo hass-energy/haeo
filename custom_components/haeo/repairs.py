@@ -1,15 +1,68 @@
 """Repair helper for HAEO integration."""
 
 from collections.abc import Collection, Mapping, Sequence
+from functools import partial
 import logging
+from pathlib import Path
+from typing import TYPE_CHECKING, Final
 
+from homeassistant import data_entry_flow
+from homeassistant.components.repairs import ConfirmRepairFlow, RepairsFlow
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue, async_delete_issue
 
 from .const import DOMAIN
 
+if TYPE_CHECKING:
+    from .input_stores import InputStoreKey
+
 _LOGGER = logging.getLogger(__name__)
+
+
+# Issue data key holding the path of the diagnostics saved when the issue was raised
+ISSUE_DIAGNOSTICS: Final = "diagnostics"
+
+
+class FailureResolvedFlow(ConfirmRepairFlow):
+    """Resolve an impossible or relaxed plan's issue, deleting the diagnostics saved for it."""
+
+    async def async_step_confirm(self, user_input: dict[str, str] | None = None) -> data_entry_flow.FlowResult:
+        """Delete the saved diagnostics once the user confirms the issue resolved."""
+        if user_input is not None:
+            await async_delete_issue_diagnostics(self.hass, self.data)
+        return await super().async_step_confirm(user_input)
+
+
+async def async_create_fix_flow(
+    hass: HomeAssistant,  # noqa: ARG001 (signature required by the repairs platform)
+    issue_id: str,  # noqa: ARG001 (signature required by the repairs platform)
+    data: Mapping[str, str | int | float | None] | None,  # noqa: ARG001 (signature required by the repairs platform)
+) -> RepairsFlow:
+    """Return a flow that resolves a fixable issue once the user confirms it.
+
+    Only the issues for impossible and relaxed plans are fixable. Their cause can
+    come and go between optimizations, so they stay until the user resolves them,
+    while the others clear themselves once their cause is gone.
+    """
+    return FailureResolvedFlow()
+
+
+async def async_delete_issue_diagnostics(
+    hass: HomeAssistant, data: Mapping[str, str | int | float | None] | None
+) -> None:
+    """Delete the diagnostics file an issue's data names, keeping to HAEO's diagnostics folder.
+
+    The file lives only as long as its issue, so failures cannot fill the disk.
+    """
+    path = (data or {}).get(ISSUE_DIAGNOSTICS)
+    if not isinstance(path, str):
+        return
+    saved = Path(path)
+    if saved.parent != Path(hass.config.path("haeo", "diagnostics")):
+        _LOGGER.warning("Not deleting diagnostics outside the HAEO diagnostics folder: %s", saved)
+        return
+    await hass.async_add_executor_job(partial(saved.unlink, missing_ok=True))
 
 
 def _summarize_components(components: Sequence[Collection[str]]) -> str:
@@ -37,7 +90,7 @@ def create_disconnected_network_issue(
         hass,
         DOMAIN,
         issue_id,
-        is_fixable=True,
+        is_fixable=False,
         is_persistent=True,
         severity=IssueSeverity.WARNING,
         translation_key="disconnected_network",
@@ -68,10 +121,11 @@ def create_node_replaced_by_junction_issue(hass: HomeAssistant, entry_id: str, e
     )
 
 
-def dismiss_entry_issues(hass: HomeAssistant, entry_id: str) -> None:
-    """Dismiss every repair issue raised for a config entry."""
-    for domain, issue_id in list(ir.async_get(hass).issues):
+async def async_dismiss_entry_issues(hass: HomeAssistant, entry_id: str) -> None:
+    """Dismiss every repair issue raised for a config entry, with the diagnostics saved for them."""
+    for (domain, issue_id), issue in list(ir.async_get(hass).issues.items()):
         if domain == DOMAIN and entry_id in issue_id:
+            await async_delete_issue_diagnostics(hass, issue.data)
             async_delete_issue(hass, DOMAIN, issue_id)
 
 
@@ -127,64 +181,6 @@ def dismiss_invalid_connection_endpoints_issue(
     _LOGGER.debug("Dismissed invalid connection endpoints issue for entry %s", entry_id)
 
 
-def create_missing_sensor_issue(
-    hass: HomeAssistant,
-    element_name: str,
-    sensor_entity_id: str,
-) -> None:
-    """Create a repair issue for a missing sensor entity.
-
-    Args:
-        hass: Home Assistant instance
-        element_name: Name of the element missing the sensor
-        sensor_entity_id: The entity ID that is missing
-
-    """
-    issue_id = f"missing_sensor_{element_name}_{sensor_entity_id.replace('.', '_')}"
-
-    async_create_issue(
-        hass,
-        DOMAIN,
-        issue_id,
-        is_fixable=False,
-        is_persistent=False,
-        severity=IssueSeverity.WARNING,
-        translation_key="missing_sensor",
-        translation_placeholders={
-            "element_name": element_name,
-            "sensor_entity_id": sensor_entity_id,
-        },
-    )
-
-    _LOGGER.info(
-        "Created repair issue for missing sensor: %s on element %s",
-        sensor_entity_id,
-        element_name,
-    )
-
-
-def dismiss_missing_sensor_issue(
-    hass: HomeAssistant,
-    element_name: str,
-    sensor_entity_id: str,
-) -> None:
-    """Dismiss a repair issue when the sensor becomes available.
-
-    Args:
-        hass: Home Assistant instance
-        element_name: Name of the element
-        sensor_entity_id: The entity ID that is now available
-
-    """
-    issue_id = f"missing_sensor_{element_name}_{sensor_entity_id.replace('.', '_')}"
-    async_delete_issue(hass, DOMAIN, issue_id)
-    _LOGGER.debug(
-        "Dismissed repair issue for sensor: %s on element %s",
-        sensor_entity_id,
-        element_name,
-    )
-
-
 def create_optimization_persistent_failure_issue(
     hass: HomeAssistant,
     entry_id: str,
@@ -235,37 +231,143 @@ def dismiss_optimization_failure_issue(
     _LOGGER.debug("Dismissed optimization failure repair issue")
 
 
-def create_invalid_config_issue(
-    hass: HomeAssistant,
-    element_name: str,
-    config_problem: str,
+# Where a user reports an issue, with the diagnostics saved when it was raised
+ISSUE_TRACKER_URL = "https://github.com/hass-energy/haeo/issues"
+
+
+def optimization_infeasible_issue_raised(hass: HomeAssistant, entry_id: str) -> bool:
+    """Return whether an impossible plan's issue is waiting for the user to resolve it."""
+    return ir.async_get(hass).async_get_issue(DOMAIN, f"optimization_infeasible_{entry_id}") is not None
+
+
+def optimization_relaxed_issue_raised(hass: HomeAssistant, entry_id: str) -> bool:
+    """Return whether a relaxed plan's issue is waiting for the user to resolve it."""
+    return ir.async_get(hass).async_get_issue(DOMAIN, f"optimization_relaxed_{entry_id}") is not None
+
+
+def create_optimization_infeasible_issue(
+    hass: HomeAssistant, entry_id: str, translation_key: str, placeholders: Mapping[str, str], diagnostics: str
 ) -> None:
-    """Create a repair issue for invalid element configuration.
+    """Create a repair issue naming the elements whose constraints leave no feasible plan.
 
-    Args:
-        hass: Home Assistant instance
-        element_name: Name of the element with invalid config
-        config_problem: Description of the configuration problem
-
+    The issue stays until the user marks it resolved, even once a later plan is
+    found, so an intermittent impossible forecast cannot raise and clear it before
+    anyone sees it.
     """
-    issue_id = f"invalid_config_{element_name}"
-
     async_create_issue(
         hass,
         DOMAIN,
-        issue_id,
+        f"optimization_infeasible_{entry_id}",
         is_fixable=True,
         is_persistent=True,
         severity=IssueSeverity.ERROR,
-        translation_key="invalid_config",
+        translation_key=translation_key,
+        translation_placeholders={**placeholders, ISSUE_DIAGNOSTICS: diagnostics},
+        learn_more_url=ISSUE_TRACKER_URL,
+        data={ISSUE_DIAGNOSTICS: diagnostics},
+    )
+
+
+def create_optimization_relaxed_issue(
+    hass: HomeAssistant, entry_id: str, placeholders: Mapping[str, str], diagnostics: str
+) -> None:
+    """Create a repair issue naming where a plan had to relax constraints.
+
+    A relaxed plan is still a failure, so the issue stays until the user marks it
+    resolved, even once later plans meet every constraint. Intermittent relaxations
+    then cannot raise and clear it before anyone sees it.
+    """
+    async_create_issue(
+        hass,
+        DOMAIN,
+        f"optimization_relaxed_{entry_id}",
+        is_fixable=True,
+        is_persistent=True,
+        severity=IssueSeverity.WARNING,
+        translation_key="optimization_relaxed",
+        translation_placeholders={**placeholders, ISSUE_DIAGNOSTICS: diagnostics},
+        learn_more_url=ISSUE_TRACKER_URL,
+        data={ISSUE_DIAGNOSTICS: diagnostics},
+    )
+
+
+def _calendar_event_values_issue_id(entry_id: str, element_name: str, field_path: Sequence[str]) -> str:
+    return f"calendar_event_values_{entry_id}_{element_name}_{'.'.join(field_path)}"
+
+
+def create_calendar_event_values_issue(
+    hass: HomeAssistant,
+    entry_id: str,
+    element_name: str,
+    field_path: Sequence[str],
+    *,
+    calendars: Sequence[str],
+    events: Sequence[str],
+    unit: str,
+) -> None:
+    """Create a repair issue for calendar events whose values an input ignores."""
+    async_create_issue(
+        hass,
+        DOMAIN,
+        _calendar_event_values_issue_id(entry_id, element_name, field_path),
+        is_fixable=False,
+        is_persistent=False,
+        severity=IssueSeverity.WARNING,
+        translation_key="calendar_event_values_ignored",
         translation_placeholders={
-            "element_name": element_name,
-            "config_problem": config_problem,
+            "element": element_name,
+            "field": ".".join(field_path),
+            "calendars": ", ".join(calendars),
+            "events": "\n".join(f"- {event}" for event in events),
+            "unit": unit,
         },
     )
 
-    _LOGGER.error(
-        "Created repair issue for invalid configuration on element %s: %s",
-        element_name,
-        config_problem,
-    )
+
+def dismiss_calendar_event_values_issue(
+    hass: HomeAssistant, entry_id: str, element_name: str, field_path: Sequence[str]
+) -> None:
+    """Dismiss the repair issue for an input's calendar events, if raised."""
+    async_delete_issue(hass, DOMAIN, _calendar_event_values_issue_id(entry_id, element_name, field_path))
+
+
+def _unavailable_input_issue_prefix(entry_id: str) -> str:
+    return f"unavailable_input_{entry_id}_"
+
+
+def sync_unavailable_input_issues(
+    hass: HomeAssistant,
+    entry_id: str,
+    unavailable: Mapping["InputStoreKey", Sequence[str]],
+) -> None:
+    """Raise a repair issue for each unavailable input and dismiss those that recovered.
+
+    Keys are (element name, field path) and values are the source entities
+    with no reading. An input whose sources all have readings but still
+    cannot load names every source it reads.
+    """
+    prefix = _unavailable_input_issue_prefix(entry_id)
+    wanted = {
+        f"{prefix}{element_name}_{'.'.join(field_path)}": (element_name, field_path, entities)
+        for (element_name, field_path), entities in unavailable.items()
+    }
+
+    for domain, issue_id in list(ir.async_get(hass).issues):
+        if domain == DOMAIN and issue_id.startswith(prefix) and issue_id not in wanted:
+            async_delete_issue(hass, DOMAIN, issue_id)
+
+    for issue_id, (element_name, field_path, entities) in wanted.items():
+        async_create_issue(
+            hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            is_persistent=False,
+            severity=IssueSeverity.ERROR,
+            translation_key="unavailable_input",
+            translation_placeholders={
+                "element": element_name,
+                "field": ".".join(field_path),
+                "entities": ", ".join(entities),
+            },
+        )

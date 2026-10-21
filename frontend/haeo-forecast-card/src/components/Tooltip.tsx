@@ -23,6 +23,14 @@ interface TooltipProps {
   emphasizedKeys: Set<string>;
 }
 
+function formatRowValue(row: TooltipRow): string {
+  const value =
+    row.possibleValue === undefined
+      ? row.value.toFixed(2)
+      : `${row.value.toFixed(2)} / ${row.possibleValue.toFixed(2)}`;
+  return `${value} ${row.unit}`;
+}
+
 export function Tooltip(props: TooltipProps): JSX.Element | null {
   if (props.rows.length === 0) {
     return null;
@@ -41,6 +49,7 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
       possible: "tooltip.section.possible",
       price: "tooltip.section.price",
       soc: "tooltip.section.soc",
+      window: "tooltip.section.window",
     };
     return t(props.locale, keyByLane[lane]);
   };
@@ -62,12 +71,7 @@ export function Tooltip(props: TooltipProps): JSX.Element | null {
             >
               <span className="tooltipDot" style={{ background: row.color }} />
               <span>{row.label}</span>
-              <span>
-                {row.possibleValue === undefined
-                  ? row.value.toFixed(2)
-                  : `${row.value.toFixed(2)} / ${row.possibleValue.toFixed(2)}`}{" "}
-                {row.unit}
-              </span>
+              <span>{row.lane === "window" ? "" : formatRowValue(row)}</span>
             </div>
           ))}
         </div>

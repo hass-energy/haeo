@@ -8,8 +8,9 @@ Home Assistant's ChooseSelector, allowing users to pick between "Entity"
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from numbers import Real
-from typing import Any  # noqa: TID251  # voluptuous schema dicts and HA Selector overrides are Any by design
+from typing import Any, Final  # noqa: TID251  # voluptuous schema dicts and HA Selector overrides are Any by design
 
+from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers.selector import (
@@ -29,6 +30,7 @@ from homeassistant.helpers.selector import (
 import voluptuous as vol
 
 from custom_components.haeo.const import DOMAIN
+from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema import (
     VALUE_TYPE_CONSTANT,
     VALUE_TYPE_ENTITY,
@@ -38,18 +40,19 @@ from custom_components.haeo.core.schema import (
     as_entity_value,
     as_none_value,
     get_schema_value_kinds,
-    is_calendar_value,
     is_constant_value,
     is_entity_value,
     is_none_value,
     is_schema_value,
 )
-from custom_components.haeo.elements.field_schema import FieldSchemaInfo
+from custom_components.haeo.core.schema.field_schema import FieldSchemaInfo
 from custom_components.haeo.elements.input_fields import (
     AnyInputFieldInfo,
     InputFieldGroups,
     InputFieldInfo,
+    accepts_calendar_forecast,
     is_number_field_info,
+    reads_calendar,
 )
 
 # Choose selector choice keys (used for config flow data and translations)
@@ -65,6 +68,31 @@ class SectionDefinition:
     key: str
     fields: tuple[str, ...]
     collapsed: bool = False
+
+
+# Domains an entity choice offers
+_ENTITY_DOMAINS: Final = (DOMAIN, "sensor", "input_number", "number", "switch")
+
+
+# Domains an availability field also offers, as on/off states read as 1/0
+# (e.g. an EV charger's plugged-in binary sensor)
+_ON_OFF_DOMAINS: Final = ("binary_sensor", "input_boolean")
+
+
+def entity_domains(field_info: AnyInputFieldInfo) -> list[str]:
+    """Return the domains a field's entity choice offers.
+
+    A field feeding calendar inputs offers only calendars, a forecast field
+    also offers calendars read as forecasts, and an availability field also
+    offers on/off entities.
+    """
+    if reads_calendar(field_info):
+        return [CALENDAR_DOMAIN]
+    if accepts_calendar_forecast(field_info):
+        return [*_ENTITY_DOMAINS, CALENDAR_DOMAIN]
+    if field_info.output_type is OutputType.AVAILABILITY:
+        return [*_ENTITY_DOMAINS, *_ON_OFF_DOMAINS]
+    return list(_ENTITY_DOMAINS)
 
 
 def _get_nested_value(data: Mapping[str, object], field_name: str) -> object | None:
@@ -127,12 +155,14 @@ def build_entity_selector(
     *,
     include_entities: list[str] | None = None,
     multiple: bool = True,
+    domains: Sequence[str] = _ENTITY_DOMAINS,
 ) -> EntitySelector:  # type: ignore[type-arg]
     """Build an EntitySelector restricted to unit-compatible entities.
 
     Args:
         include_entities: Entity IDs to include (compatible entities from unit filtering).
         multiple: Whether to allow multiple entity selection (for chaining).
+        domains: Domains the selector offers.
 
     Returns:
         EntitySelector configured with include_entities list.
@@ -141,7 +171,7 @@ def build_entity_selector(
     entities_to_include = list(include_entities or [])
 
     config: EntitySelectorConfig = {
-        "domain": [DOMAIN, "sensor", "input_number", "number", "switch"],
+        "domain": list(domains),
         "multiple": multiple,
     }
     if entities_to_include:
@@ -259,6 +289,7 @@ def build_choose_selector(
     entity_selector = build_entity_selector(
         include_entities=include_entities,
         multiple=multiple,
+        domains=entity_domains(field_info),
     )
 
     # Build value selector for the "constant" choice based on field type
@@ -531,21 +562,26 @@ def validate_sectioned_choose_fields(
     *,
     exclude_fields: tuple[str, ...] = (),
 ) -> dict[str, str]:
-    """Validate choose fields for sectioned input."""
+    """Validate choose fields for sectioned input.
+
+    Errors are keyed by section because Home Assistant only shows errors for
+    top-level form fields, so an error keyed by a field inside a section would
+    re-show the form without telling the user why.
+    """
     errors: dict[str, str] = {}
     for section_def in sections:
         section_input = user_input.get(section_def.key, {})
         if not isinstance(section_input, Mapping):
             continue
         section_fields = input_fields.get(section_def.key, {})
-        errors.update(
-            validate_choose_fields(
-                dict(section_input),
-                section_fields,
-                field_schema.get(section_def.key, {}),
-                exclude_fields=exclude_fields,
-            )
+        section_errors = validate_choose_fields(
+            dict(section_input),
+            section_fields,
+            field_schema.get(section_def.key, {}),
+            exclude_fields=exclude_fields,
         )
+        if section_errors:
+            errors[section_def.key] = next(iter(section_errors.values()))
     return errors
 
 
@@ -731,7 +767,7 @@ def preprocess_choose_selector_input(
                 result[field_name] = value.get(CHOICE_CONSTANT)
         # Handle discriminated schema values
         elif is_schema_value(value):
-            if is_entity_value(value) or is_constant_value(value) or is_calendar_value(value):
+            if is_entity_value(value) or is_constant_value(value):
                 result[field_name] = value["value"]
             else:
                 result[field_name] = None

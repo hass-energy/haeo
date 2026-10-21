@@ -20,6 +20,7 @@ from custom_components.haeo.elements import InputFieldPath, find_nested_config_p
 from custom_components.haeo.elements.input_fields import InputFieldInfo
 from custom_components.haeo.entities.translation_placeholders import build_translation_placeholders
 from custom_components.haeo.horizon import HorizonManager
+from custom_components.haeo.unique_id import element_unique_id
 
 # Attributes to exclude from recorder when forecast recording is disabled
 FORECAST_UNRECORDED_ATTRIBUTES: frozenset[str] = frozenset({"forecast"})
@@ -68,13 +69,11 @@ class HaeoInputSwitch(SwitchEntity):
     ) -> None:
         """Initialize the input switch entity."""
         self._config_entry: HaeoConfigEntry = config_entry
-        self._subentry = subentry
         self._field_info = field_info
         self._field_path = (
             field_path or find_nested_config_path(subentry.data, field_info.field_name) or (field_info.field_name,)
         )
         self._horizon_manager = horizon_manager
-        self._uses_forecast = field_info.time_series
 
         # Set device_entry to link entity to device
         self.device_entry = device_entry
@@ -89,17 +88,16 @@ class HaeoInputSwitch(SwitchEntity):
         field_path_key = ".".join(self._field_path)
         is_list_item_field = len(self._field_path) >= LIST_ITEM_FIELD_PATH_LENGTH
         unique_key = field_info.field_name
-        if is_list_item_field:
-            unique_key = field_path_key
-        elif len(self._field_path) == SECTION_FIELD_PATH_LENGTH and _field_name_is_reused_in_other_sections(
-            subentry.data,
-            current_section=self._field_path[0],
-            field_name=field_info.field_name,
-        ):
-            unique_key = (
-                f"{field_info.device_type}.{field_info.field_name}" if field_info.device_type else field_path_key
+        if is_list_item_field or (
+            len(self._field_path) == SECTION_FIELD_PATH_LENGTH
+            and _field_name_is_reused_in_other_sections(
+                subentry.data,
+                current_section=self._field_path[0],
+                field_name=field_info.field_name,
             )
-        self._attr_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_{unique_key}"
+        ):
+            unique_key = field_path_key
+        self._attr_unique_id = element_unique_id(config_entry.entry_id, subentry.subentry_id, unique_key)
 
         # Use entity description directly from field info
         self.entity_description = field_info.entity_description
@@ -239,16 +237,6 @@ class HaeoInputSwitch(SwitchEntity):
     async def wait_ready(self) -> None:
         """Wait for data to be ready."""
         await self._store.wait_ready()
-
-    @property
-    def entity_mode(self) -> InputMode:
-        """Return the entity's operating mode."""
-        return self._store.mode
-
-    @property
-    def uses_forecast(self) -> bool:
-        """Return True if this entity produces time-series forecast data."""
-        return self._uses_forecast
 
     async def async_turn_on(self, **_kwargs: Any) -> None:
         """Handle user turning switch on."""

@@ -280,7 +280,7 @@ All sensors include a `forecast` attribute containing future optimized values fo
 
 ### Sensor Not Found
 
-**Problem**: Error "Sensors not found or unavailable"
+**Problem**: Error "Input … has no reading from …", or an input entity shows as unavailable
 
 **Solutions**:
 

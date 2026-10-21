@@ -32,7 +32,7 @@ The Connection creates per-tag LP variables for the input power flow — one per
 
 When no tags are specified, a single default tag is used (always-tagged paradigm).
 
-Segments do **not** create their own variables (except SOC pricing, which creates auxiliary slack variables).
+Segments do **not** create their own variables.
 Instead, the Connection passes its power variables through the segment chain.
 Each segment derives its `power_in` from the segment before it and exposes a `power_out` expression.
 
@@ -93,22 +93,30 @@ Connections also contribute a time-preference term to the secondary objective (i
 This term weights energy transfer with monotonically increasing per-period weights:
 
 $$
-w_{p,t} = p \cdot T + (t + 1)
+w_{p,t} = p \cdot T + (t + 1) + \tfrac{1}{2} u_{p,t}
 $$
 
-Where $p$ is the connection's priority (auto-computed from endpoint element types), $T$ is the number of periods, and $t$ is the time step.
+Where $p$ is the connection's priority, $T$ is the number of periods, and $t$ is the time step.
+Each connection's priority is its position when connections are sorted: its own power before external power, time-sensitive before invariant, then by source, target, and name.
+$u_{p,t}$ is a fixed value in $[0, 1)$: the fractional part of $\sqrt{q_{p,t}}$, where $q_{p,t}$ is the $(p \cdot T + t)$-th prime, so each connection and period has its own.
 The time-preference objective for a connection with priority $p$ is:
 
 $$
 \sum_{t=0}^{T-1} w_{p,t} \cdot P_{\text{in}}(t) \cdot \Delta t_t
 $$
 
-Connections with different priorities receive non-overlapping weight ranges.
-Lower-priority connections are preferred when breaking ties, which the optimizer uses to select among cost-equivalent solutions.
-Connections with the same priority share a weight range, so ties between them are broken by time step only.
+Lower-priority connections are preferred when breaking ties, and within a connection earlier transfers are preferred.
+Distinct weights differ by at least one, so the offset $\tfrac{1}{2} u_{p,t}$ never reorders two of them.
+It exists because $p \cdot T + (t + 1)$ alone is a connection term plus a time term:
+moving energy from one period to another on one connection, and back on a second connection, would leave it unchanged.
+Equally cheap plans that differ by such swaps, such as two identical batteries sharing a load, would then be chosen by the order of the solver's rows.
+Square roots of distinct primes are linearly independent over the rationals, so no exchange of energy between connections and periods can leave the offsets' sum unchanged.
+This gives every swap a cost, so equally cheap plans no longer tie exactly.
+The cost of a rare swap can still be smaller than the solver's tolerance, in which case the solver decides it.
+Multiples of a single irrational, such as the golden ratio, are not enough: their fractional parts can cancel exactly.
 
 The secondary objective does not affect the minimum cost—it only selects among cost-equivalent solutions.
-The network solves this lexicographically: primary cost is minimized first, then the secondary objective is minimized subject to the primary remaining optimal.
+The plan is lexicographic: primary cost is minimized first, then the secondary objective among the plans that keep the primary optimal.
 
 ## Outputs
 
@@ -201,7 +209,7 @@ Select the segment chain that matches the physical behavior you need.
 
     ---
 
-    Battery and Node model elements.
+    The building blocks that produce, consume, store, or read power.
 
     [:material-arrow-right: Element types](../elements/index.md)
 

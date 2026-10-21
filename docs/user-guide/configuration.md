@@ -114,11 +114,9 @@ After creating your hub, add elements to represent your devices through the Home
 1. Navigate to **Settings** → **Devices & Services**
 2. Find your **HAEO** integration
 3. Click on the integration card to open the hub details page
-4. Click the **menu button** (three vertical dots, top right)
-5. Select **Add Entry** from the dropdown menu
-6. Choose the element type you want to add from the list
-7. Complete the configuration
-8. Click **Submit** to create the element
+4. Click the button for the element type you want to add (**Battery**, **Grid**, **Solar**, **Load**, **EV**, ...) at the top of the page
+5. Complete the configuration
+6. Click **Submit** to create the element
 
 **Editing existing elements**: Click the :material-cog: **cog icon** next to each element entry to modify its configuration.
 
@@ -129,9 +127,6 @@ Most elements are configured in a single step where you enter:
 1. **Element name**: A unique, descriptive name for the element
 2. **Connection target**: Which element this connects to (for elements that require connections)
 3. **Input fields**: For each field, choose how to provide the value
-
-Some elements add a follow-up step when optional settings are enabled.
-For example, the battery flow adds a partitions step when you enable undercharge and overcharge configuration.
 
 #### Input field options
 
@@ -221,6 +216,10 @@ The hub automatically adjusts optimization for remaining elements.
 
 Click **Configure** on the hub entry to modify the planning horizon or advanced settings.
 Changes trigger immediate re-optimization with the new parameters.
+
+**Relax impossible plans**, in the advanced settings, keeps planning when your forecasts ask for more than your system can do.
+It is off by default, so an impossible plan fails and a repair issue names the constraints that conflict.
+See [no plan meets every constraint](troubleshooting.md#no-plan-meets-every-constraint) for what each setting does.
 
 ## Best Practices
 

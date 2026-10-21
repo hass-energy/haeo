@@ -14,6 +14,7 @@ from custom_components.haeo.core.model.elements.connection import CONNECTION_SEG
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema import extract_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.buffer import BufferRole
 from custom_components.haeo.core.schema.elements.inverter import ELEMENT_TYPE, InverterConfigData
 from custom_components.haeo.core.schema.sections import (
     CONF_CONNECTION,
@@ -62,6 +63,7 @@ class InverterAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ALWAYS
     can_source: bool = False
     can_sink: bool = False
+    buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: InverterConfigData) -> list[ModelElementConfig]:
         """Return model element parameters for Inverter configuration.

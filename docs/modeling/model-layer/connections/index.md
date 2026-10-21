@@ -21,7 +21,6 @@ classDiagram
     Segment <|-- EfficiencySegment
     Segment <|-- PowerLimitSegment
     Segment <|-- PricingSegment
-    Segment <|-- SocPricingSegment
     Segment <|-- PassthroughSegment
 ```
 
@@ -33,7 +32,6 @@ Use segments to apply limits, efficiency losses, pricing, or SOC penalties.
 
 ## Segment types
 
-- **[SOC pricing segment](../segments/soc-pricing.md)** applies SOC penalty costs.
 - **[Efficiency segment](../segments/efficiency.md)** applies direction-specific efficiency multipliers.
 - **[Power limit segment](../segments/power-limit.md)** enforces directional limits and time-slice coupling.
 - **[Pricing segment](../segments/pricing.md)** adds directional cost terms to the objective.
@@ -86,7 +84,7 @@ This separation allows the same element types to be connected in different ways 
 
     ---
 
-    Battery and Node model elements.
+    The building blocks that produce, consume, store, or read power.
 
     [:material-arrow-right: Element types](../elements/index.md)
 

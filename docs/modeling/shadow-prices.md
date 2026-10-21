@@ -24,6 +24,9 @@ It is the price you would pay to increase (or save by decreasing) consumption by
 When grid prices are high, the node balance shadow price rises because additional consumption would require expensive imports.
 When local generation exceeds demand, the shadow price may drop to zero or become negative, indicating that additional consumption would actually help by absorbing surplus.
 
+When [power policies](tagged-power.md) split a node's balance into one constraint per tag, each tag has its own dual: the cost of drawing one more kilowatt-hour of that tag at the node.
+The node's power balance shadow price is the lowest of these, because an extra load draws whichever tag is cheapest.
+
 ## Example: Solar forecast limit
 
 The solar forecast limit constrains solar output to the predicted generation.

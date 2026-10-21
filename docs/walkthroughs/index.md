@@ -2,8 +2,9 @@
 
 Step-by-step guides for configuring common HAEO setups.
 Each walkthrough walks through a complete configuration from start to finish, with interactive screenshot slideshows that show exactly what to click and fill in at every step.
+Where it helps, a walkthrough also shows the plan HAEO makes on its own forecast card, so you can see what each change does.
 
-Walkthroughs are generated from a live Home Assistant instance, so the screenshots always reflect the current HAEO configuration UI.
+Walkthroughs are generated from a live Home Assistant instance, so the screenshots and plans always reflect the current version of HAEO.
 
 ## Available walkthroughs
 
@@ -13,7 +14,7 @@ Walkthroughs are generated from a live Home Assistant instance, so the screensho
 
     ---
 
-    Complete hybrid inverter setup with battery, solar, grid, and load.
+    Complete hybrid inverter setup with battery, solar, grid, and house load.
     Covers a full Sigenergy system with multiple solar arrays, DC/AC coupling, and grid connection.
 
     [:material-arrow-right: Sigenergy walkthrough](sigenergy-system.md)
@@ -26,6 +27,23 @@ Walkthroughs are generated from a live Home Assistant instance, so the screensho
     Covers solar export, battery discharge, and grid charging policies.
 
     [:material-arrow-right: Power Policies walkthrough](power-policies.md)
+
+- :material-car-electric:{ .lg .middle } **Adding an EV**
+
+    ---
+
+    Add an electric vehicle with a trip calendar so HAEO charges it ahead of departures.
+
+    [:material-arrow-right: EV walkthrough](adding-an-ev.md)
+
+- :material-battery-lock:{ .lg .middle } **Buffers**
+
+    ---
+
+    Keep energy in your batteries for a grid outage, and room for the solar that is coming.
+    Shows the plan changing on the forecast card at every step.
+
+    [:material-arrow-right: Buffers walkthrough](buffers.md)
 
 - :material-history:{ .lg .middle } **Historic Diagnostics**
 

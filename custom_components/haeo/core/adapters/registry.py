@@ -10,7 +10,10 @@ from typing import (
 
 from custom_components.haeo.core.adapters.elements.battery import adapter as battery_adapter
 from custom_components.haeo.core.adapters.elements.battery_section import adapter as battery_section_adapter
+from custom_components.haeo.core.adapters.elements.buffer import adapter as buffer_adapter
 from custom_components.haeo.core.adapters.elements.connection import adapter as connection_adapter
+from custom_components.haeo.core.adapters.elements.deferrable_load import adapter as deferrable_load_adapter
+from custom_components.haeo.core.adapters.elements.ev import adapter as ev_adapter
 from custom_components.haeo.core.adapters.elements.grid import adapter as grid_adapter
 from custom_components.haeo.core.adapters.elements.inverter import adapter as inverter_adapter
 from custom_components.haeo.core.adapters.elements.junction import adapter as junction_adapter
@@ -20,8 +23,10 @@ from custom_components.haeo.core.adapters.elements.policy import adapter as poli
 from custom_components.haeo.core.adapters.elements.solar import adapter as solar_adapter
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName
+from custom_components.haeo.core.model.elements import FLOW_READER_ELEMENT_TYPES, MODEL_ELEMENT_TYPE_CONNECTION
 from custom_components.haeo.core.model.output_data import ModelOutputValue, OutputData
 from custom_components.haeo.core.schema.elements import ElementConfigData, ElementType
+from custom_components.haeo.core.schema.elements.buffer import BufferRole
 
 
 @runtime_checkable
@@ -42,6 +47,10 @@ class ElementAdapter(Protocol):
     can_source: bool
 
     can_sink: bool
+
+    # What a buffer can count the element as: a load it covers, generation
+    # it covers, or storage that holds it
+    buffer_roles: frozenset[BufferRole]
 
     def model_elements(self, config: Any) -> list[ModelElementConfig]:
         """Return model element parameters for the loaded config.
@@ -82,11 +91,14 @@ ELEMENT_TYPES: dict[ElementType, ElementAdapter] = {
     ElementType.INVERTER: inverter_adapter,
     ElementType.SOLAR: solar_adapter,
     ElementType.BATTERY: battery_adapter,
+    ElementType.DEFERRABLE_LOAD: deferrable_load_adapter,
+    ElementType.EV: ev_adapter,
     ElementType.CONNECTION: connection_adapter,
     ElementType.JUNCTION: junction_adapter,
     ElementType.NODE: node_adapter,
     ElementType.BATTERY_SECTION: battery_section_adapter,
     ElementType.POLICY: policy_adapter,
+    ElementType.BUFFER: buffer_adapter,
 }
 
 
@@ -100,6 +112,13 @@ def is_element_type(value: object) -> TypeGuard[ElementType]:
     return value in ELEMENT_TYPES
 
 
+def _add_order(element_type: str) -> int:
+    """Return when an element is added: connections join the elements they link, and flow readers read both."""
+    if element_type == MODEL_ELEMENT_TYPE_CONNECTION:
+        return 1
+    return 2 if element_type in FLOW_READER_ELEMENT_TYPES else 0
+
+
 def collect_model_elements(
     participants: Mapping[str, ElementConfigData],
 ) -> list[ModelElementConfig]:
@@ -110,10 +129,7 @@ def collect_model_elements(
         model_elements = ELEMENT_TYPES[element_type].model_elements(loaded_params)
         all_model_elements.extend(model_elements)
 
-    return sorted(
-        all_model_elements,
-        key=lambda e: e.get("element_type") == ElementType.CONNECTION,
-    )
+    return sorted(all_model_elements, key=lambda e: _add_order(e["element_type"]))
 
 
 __all__ = [

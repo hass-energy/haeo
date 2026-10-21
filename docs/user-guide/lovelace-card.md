@@ -9,23 +9,25 @@ The card reads `forecast` attributes from HAEO output sensors.
 It automatically groups series into lanes (`power`, `price`, `soc`, `shadow`, `other`).
 Power and price series are drawn with step-post semantics.
 State-of-charge series are drawn as continuous lines.
+A [buffer](elements/buffer.md) is drawn as a dotted line in the state-of-charge lane.
+A line your batteries' combined charge should stay above, such as a reserve, is red, and one it should stay below, such as headroom, is purple.
+A buffer held by a single battery is listed under that battery in the legend.
+
+An input that reads its windows from a calendar is drawn as a tinted band across the chart wherever a window is open, with a strip in the element's color along the top.
+The tooltip lists the windows open at the hovered time.
 
 ## Prerequisites
 
 You must already have the HAEO integration installed and running.
 At least one HAEO output sensor must expose a `forecast` attribute.
 
-## Add the card resource
+## Card resources
 
-The integration serves the card bundle at:
+There is nothing to add by hand.
+The integration serves its cards and registers them with the Home Assistant frontend when Home Assistant starts.
 
-`/haeo-static/haeo-forecast-card.min.js`
-
-Add this as a Lovelace resource:
-
-1. Open **Settings -> Dashboards -> Resources**.
-2. Add a new resource URL: `/haeo-static/haeo-forecast-card.min.js`.
-3. Set resource type to **JavaScript module**.
+If you added a Lovelace resource for `/haeo-static/haeo-forecast-card.min.js` under an older release, remove it from **Settings -> Dashboards -> Resources**.
+That URL no longer serves the card, and a cached copy loaded beside the current card can stop the card from appearing.
 
 ## Basic card config
 
@@ -71,6 +73,10 @@ hub_entry_id: <your_haeo_hub_config_entry_id>
 
 Use the visual card editor to select a HAEO hub. The card resolves the hub's optimization status sensor at runtime.
 
+Batteries that hold a reserve [buffer](elements/buffer.md) show a 🛡 marker, and those that keep a headroom buffer show ⤒.
+Hover over an element to see which buffers it holds or is counted in.
+A connection between two parts of one element is drawn inside that element's box.
+
 ### Topology card options
 
 - `type`: Must be `custom:haeo-topology-card`.
@@ -88,7 +94,7 @@ If the card shows an empty state:
 For forecast data issues, also confirm:
 
 - Each forecast entity has a populated `forecast` attribute.
-- The Lovelace resource URL is exactly `/haeo-static/haeo-forecast-card.min.js`.
+- No Lovelace resource for `/haeo-static/haeo-forecast-card.min.js` is left over from an older release.
 
 ## Next steps
 

@@ -2,7 +2,7 @@
 
 export interface TopologyNode {
   name: string;
-  type: string; // "battery" | "grid" | "solar" | "inverter" | "load" | "node"
+  type: string; // "battery" | "deferrable_load" | "ev" | "grid" | "solar" | "inverter" | "load" | "node"
   group: string;
   /** VLAN IDs this node produces on (omitted if untagged). */
   outbound_tags?: number[];
@@ -36,10 +36,24 @@ export interface PolicyPlacement {
   terms: PolicyPricingTerm[];
 }
 
+/** A reserve buffer keeps energy for an outage; a headroom buffer keeps empty space for surplus. */
+export type BufferKind = "reserve" | "headroom";
+
+export interface BufferPlacement {
+  name: string;
+  kind: BufferKind;
+  /** Loads and generation the buffer covers. */
+  elements: string[];
+  /** Batteries that hold the buffer together. */
+  storage: string[];
+}
+
 export interface TopologyData {
   nodes: TopologyNode[];
   edges: TopologyEdge[];
   groups: Record<string, string[]>;
   /** Policy pricing placements (min-cut positions). */
   policies?: PolicyPlacement[];
+  /** Buffers and the elements they cover and are held by. */
+  buffers?: BufferPlacement[];
 }

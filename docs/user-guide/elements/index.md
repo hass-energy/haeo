@@ -81,6 +81,18 @@ Explore detailed configuration for each element type:
 
     [:material-arrow-right: Battery guide](battery.md)
 
+- :material-timer-outline:{ .lg .middle } __Deferrable load configuration__
+
+    Scheduled loads that must absorb set energy within calendar windows.
+
+    [:material-arrow-right: Deferrable load guide](deferrable_load.md)
+
+- :material-car-electric:{ .lg .middle } __EV configuration__
+
+    Electric vehicle with calendar-driven trip planning and V2G.
+
+    [:material-arrow-right: EV guide](ev.md)
+
 - :material-power-plug:{ .lg .middle } __Grid configuration__
 
     Import/export with dynamic or fixed pricing.
@@ -98,6 +110,12 @@ Explore detailed configuration for each element type:
     Power consumption with constant or forecast-based patterns.
 
     [:material-arrow-right: Load guide](load.md)
+
+- :material-shield-check:{ .lg .middle } __Buffer configuration__
+
+    Energy kept in your batteries for a grid outage, or empty space for the generation that is coming.
+
+    [:material-arrow-right: Buffer guide](buffer.md)
 
 - :material-source-branch:{ .lg .middle } __Junction configuration__ (Advanced)
 

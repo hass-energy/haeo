@@ -3,8 +3,9 @@
 from contextvars import ContextVar
 from typing import NotRequired, TypedDict, overload
 
-from highspy.highs import highs_cons, highs_linear_expression
 import numpy as np
+
+from custom_components.haeo.core.model.util.solver_rows import AppliedRows, RowIndices
 
 from .protocols import ReactiveHost
 
@@ -24,8 +25,8 @@ class DecoratorState(TypedDict):
     invalidated: bool
     deps: set[Dependency]
     result: object
-    constraint: NotRequired[highs_cons | list[highs_cons]]
-    applied: NotRequired[highs_linear_expression | list[highs_linear_expression]]
+    constraint: NotRequired[RowIndices]
+    applied: NotRequired[AppliedRows]
 
 
 # Context for tracking parameter access during constraint computation
@@ -48,9 +49,9 @@ class TrackedParam[T]:
             capacity = TrackedParam[NDArray[np.float64]]()
 
             @constraint
-            def soc_max_constraint(self) -> list[highs_linear_expression]:
+            def soc_max_constraint(self) -> Rows:
                 # Accessing self.capacity records dependency
-                return [self.stored_energy[i] <= self.capacity[i] for i in range(self.n_periods)]
+                return self.stored_energy[1:] <= self.capacity[1:]
 
     """
 
@@ -101,11 +102,10 @@ class TrackedParam[T]:
                 capacity = TrackedParam[float]()
 
                 @constraint
-                def my_constraint(self) -> highs_linear_expression:
-                    row = 1.0 * self.energy
+                def my_constraint(self) -> Rows:
                     if not self.capacity.is_set(self):
-                        return row  # A free row until capacity is set
-                    return row <= self.capacity
+                        return self.energy.free()  # A free row until capacity is set
+                    return self.energy <= self.capacity
 
         """
         record_access(obj, self._name)
@@ -199,21 +199,6 @@ def _invalidate_param_dependents(obj: ReactiveHost, param_name: str) -> None:
             pending.append((dependent, f"method:{method_name}"))
 
 
-def get_decorator_state(obj: ReactiveHost, method_name: str) -> DecoratorState | None:
-    """Get the state dictionary for a decorator method on an object.
-
-    Args:
-        obj: The reactive host instance (Element or Segment)
-        method_name: The method name
-
-    Returns:
-        State dictionary or None if not yet initialized
-
-    """
-    state_attr = f"_reactive_state_{method_name}"
-    return getattr(obj, state_attr, None)
-
-
 def ensure_decorator_state(obj: ReactiveHost, method_name: str) -> DecoratorState:
     """Ensure a state dictionary exists for a decorator method on an object.
 
@@ -237,7 +222,6 @@ __all__ = [
     "Dependency",
     "TrackedParam",
     "ensure_decorator_state",
-    "get_decorator_state",
     "record_access",
     "register_dependencies",
     "tracking_context",

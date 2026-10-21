@@ -4,14 +4,14 @@ from homeassistant.components.number.const import DEFAULT_MAX_VALUE, DEFAULT_MIN
 
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.elements.grid import GridConfigSchema
-from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints, extract_field_hints
+from custom_components.haeo.core.schema.field_hints import FieldHint, ListFieldHints, calendar_input, extract_field_hints
 from custom_components.haeo.core.schema.sections import CONF_PRICE_SOURCE_TARGET, SECTION_PRICING
+from custom_components.haeo.elements import config_field_path, iter_input_field_paths
 from custom_components.haeo.elements.input_fields import is_number_field_info
 from custom_components.haeo.elements.field_hints import (
     OUTPUT_TYPE_DEFAULTS,
     PRICE_NATIVE_MAX_VALUE,
     PRICE_NATIVE_MIN_VALUE,
-    _build_translation_key,
     build_input_fields,
     build_list_input_fields,
 )
@@ -29,6 +29,7 @@ def test_build_list_input_fields_generates_per_item_sections() -> None:
     assert "price" in result["rules.0"]
     assert result["rules.0"]["price"].output_type == OutputType.PRICE
     assert result["rules.0"]["price"].time_series is True
+    assert result["rules.0"]["price"].entity_description.translation_key == "policy_price"
 
 
 def test_build_list_input_fields_creates_entities_for_all_items() -> None:
@@ -123,33 +124,44 @@ def test_grid_pricing_fields_use_explicit_price_bounds() -> None:
     assert desc.native_max_value == PRICE_NATIVE_MAX_VALUE
 
 
-def test_build_translation_key_without_device_type() -> None:
-    """Fields without a device_type produce the simple element_field translation key."""
-    assert _build_translation_key("battery", "capacity", None) == "battery_capacity"
-    assert _build_translation_key("grid", "price_source_target", None) == "grid_price_source_target"
+def test_build_input_fields_translation_key_combines_element_type_and_field_name() -> None:
+    """Section field translation keys are the element type joined to the field name."""
+    fields = build_input_fields("grid", extract_field_hints(GridConfigSchema))
+
+    assert fields[SECTION_PRICING][CONF_PRICE_SOURCE_TARGET].entity_description.translation_key == ("grid_price_source_target")
 
 
-def test_build_translation_key_with_device_type_disambiguates_partitions() -> None:
-    """Battery undercharge/overcharge partition fields produce distinct translation keys.
-
-    Without device_type qualification, both partitions of ``cost`` and ``percentage``
-    collapse onto identical ``battery_cost`` / ``battery_percentage`` keys, which
-    renders as duplicate "Cost" and "Percentage" entries on the battery device card
-    in Home Assistant. See issue #427.
-    """
-    under_cost = _build_translation_key("battery", "cost", "undercharge_partition")
-    over_cost = _build_translation_key("battery", "cost", "overcharge_partition")
-    under_pct = _build_translation_key("battery", "percentage", "undercharge_partition")
-    over_pct = _build_translation_key("battery", "percentage", "overcharge_partition")
-
-    assert under_cost == "battery_undercharge_partition_cost"
-    assert over_cost == "battery_overcharge_partition_cost"
-    assert under_pct == "battery_undercharge_partition_percentage"
-    assert over_pct == "battery_overcharge_partition_percentage"
-    # All four keys must be distinct so HA renders them as separate entity names.
-    assert len({under_cost, over_cost, under_pct, over_pct}) == 4
+_TRIP_HINT = FieldHint(
+    output_type=OutputType.AVAILABILITY,
+    outputs={
+        "trip_away": calendar_input(OutputType.AVAILABILITY, "window_active"),
+        "trip_due": calendar_input(OutputType.ENERGY, "event_due"),
+    },
+)
 
 
-def test_build_translation_key_empty_string_device_type_treated_as_absent() -> None:
-    """An empty ``device_type`` is falsy and produces the unqualified key."""
-    assert _build_translation_key("battery", "capacity", "") == "battery_capacity"
+def test_field_with_outputs_feeds_an_input_per_output() -> None:
+    """A field with outputs keeps one config field and gets an input for each output, reading that field."""
+    fields = build_input_fields("ev", {"trip": {"trip_calendar": _TRIP_HINT}})
+
+    field_info = fields["trip"]["trip_calendar"]
+    assert field_info.outputs is not None
+    assert {name: output.source_field for name, output in field_info.outputs.items()} == {
+        "trip_away": "trip_calendar",
+        "trip_due": "trip_calendar",
+    }
+    assert field_info.outputs["trip_due"].entity_description.translation_key == "ev_trip_due"
+    assert field_info.outputs["trip_due"].boundaries
+    assert not field_info.outputs["trip_away"].boundaries
+
+    paths = iter_input_field_paths(fields)
+    assert [path for path, _info in paths] == [("trip", "trip_away"), ("trip", "trip_due")]
+    assert [config_field_path(path, info) for path, info in paths] == [("trip", "trip_calendar")] * 2
+
+
+def test_field_without_outputs_reads_its_own_path() -> None:
+    """An ordinary field is its own input and reads its own config path."""
+    fields = build_input_fields("grid", extract_field_hints(GridConfigSchema))
+
+    path, info = next((p, i) for p, i in iter_input_field_paths(fields) if p == (SECTION_PRICING, CONF_PRICE_SOURCE_TARGET))
+    assert config_field_path(path, info) == path

@@ -30,7 +30,7 @@ See individual element pages for details on which connections are created.
 When adapters create multiple model elements or devices, they use a colon-separated naming convention:
 
 - Main element: `{name}` (e.g., `Battery`)
-- Sub-elements: `{name}:{subname}` (e.g., `Battery:connection`, `Battery:undercharge`)
+- Sub-elements: `{name}:{subname}` (e.g., `Battery:connection`, `Battery:discharge`)
 
 This prevents naming collisions and groups related components visually in Home Assistant.
 
@@ -45,6 +45,22 @@ This prevents naming collisions and groups related components visually in Home A
     Energy storage modeling with SOC regions.
 
     [:material-arrow-right: Battery modeling](battery.md)
+
+- :material-timer-outline:{ .lg .middle } **Deferrable load**
+
+    ---
+
+    Calendar-scheduled energy requirements with priced shortfall.
+
+    [:material-arrow-right: Deferrable load modeling](deferrable_load.md)
+
+- :material-car-electric:{ .lg .middle } **EV**
+
+    ---
+
+    Trip-aware electric vehicle modeling with public charging.
+
+    [:material-arrow-right: EV modeling](ev.md)
 
 - :material-power-plug:{ .lg .middle } **Grid**
 
@@ -77,6 +93,14 @@ This prevents naming collisions and groups related components visually in Home A
     Power consumption modeling.
 
     [:material-arrow-right: Load modeling](loads.md)
+
+- :material-shield-check:{ .lg .middle } **Buffer**
+
+    ---
+
+    Energy or empty space held across batteries over a window of time.
+
+    [:material-arrow-right: Buffer modeling](buffer.md)
 
 - :material-battery-charging:{ .lg .middle } **Battery Section**
 

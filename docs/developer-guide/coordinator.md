@@ -121,6 +121,13 @@ The coordinator implements comprehensive error handling using Home Assistant's [
 When configured sensors are not yet available, the coordinator returns `PENDING` status without logging an error (this is expected during startup).
 Sensors show "Unavailable" state in the UI, and the coordinator retries on the next input entity update or horizon boundary.
 
+**Inputs without a reading**
+
+A store that cannot load records the sources with no reading (`unavailable_sources`), and its input entity shows as unavailable.
+Before each solve the coordinator raises a repair issue per such input naming those sources, dismisses issues for inputs that have recovered, and fails the update with the `input_unavailable` translation.
+Setup does the same when its inputs do not settle in time, raising `ConfigEntryNotReady` instead.
+A store that rejected its source's value reports that error instead.
+
 **Data loading errors**
 
 When sensor data is available but loading fails (invalid format, missing forecast, type conversion failures), the coordinator raises `UpdateFailed` with a descriptive message.
@@ -128,6 +135,21 @@ When sensor data is available but loading fails (invalid format, missing forecas
 **Optimization errors**
 
 When network optimization fails (infeasible constraints, solver not installed, numerical instabilities), the coordinator raises `UpdateFailed` with the solver error.
+
+An infeasible model raises `InfeasibleError` carrying the conflicting constraint rows.
+The coordinator raises the `optimization_infeasible` repair issue naming the configured elements those rows belong to and the minutes from the start of the plan to the first of them, and fails the update with the same message.
+The wording lives in the translations; the coordinator passes only element names, numbers, and the plan's start time as placeholders.
+
+When the hub's `relax_infeasible` option is on, the network relaxes the model instead and records `Network.relaxations`.
+The coordinator raises the `optimization_relaxed` warning issue after the update succeeds, naming the conflicting elements, the elements where constraints were relaxed, and how many periods.
+
+An impossible or relaxed plan's cause can come and go between optimizations, so the coordinator never dismisses either issue.
+Both are persistent and fixable, and the user resolves them through the confirm flow `repairs.async_create_fix_flow` returns.
+While either is open, later failures leave it as it is.
+
+When either issue is raised, the coordinator saves diagnostics built from the failing optimization's context with `diagnostics_from_context`, plus a `failure` section listing the conflicting and relaxed rows, to `haeo/diagnostics/infeasible_*.json` or `relaxed_*.json`.
+The path goes in the issue's data, and the file is deleted when the issue is resolved or the config entry is removed, so there is at most one file per open issue.
+Issues that change only when the configuration does, such as a disconnected network, clear themselves once fixed and are not fixable.
 
 ### Error propagation
 
@@ -148,7 +170,8 @@ The coordinator uses event-driven triggers instead of a fixed polling interval.
 
 **Input entity state changes**
 
-When any input entity updates its state (due to external sensor changes or user modification), the coordinator receives a state change event and schedules optimization.
+When an input's value changes (due to external sensor changes or user modification), its input store notifies the coordinator, which schedules optimization.
+A source update that resolves to the same value, timestamps, and availability as before does not notify, so it does not re-optimize.
 
 **Horizon boundary crossings**
 

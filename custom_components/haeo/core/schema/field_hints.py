@@ -5,10 +5,57 @@ alongside their schema definitions. The elements layer will transform these
 hints into full HA InputFieldInfo and EntityDescription objects.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Annotated, Literal, NotRequired, Required, get_args, get_origin, get_type_hints
 
 from custom_components.haeo.core.model.const import OutputType
+
+type CalendarProjection = Literal["window_active", "window_starts", "event_opens", "event_due"]
+
+# Projections with one value per horizon boundary rather than per period
+_BOUNDARY_PROJECTIONS: frozenset[CalendarProjection] = frozenset({"window_starts", "event_opens", "event_due"})
+
+
+@dataclass(frozen=True, slots=True)
+class CalendarFieldHint:
+    """How an input resolves its values from the events of a calendar entity.
+
+    Attributes:
+        projection: Which series the input takes from the events:
+            - 'window_active': per period, 1.0 inside a window. Every event is a
+              window, including one whose text holds no value, which is due
+              nothing. Overlapping events merge into one window and events that
+              only touch stay separate.
+            - 'window_starts': per boundary, 1.0 where a window starts after the
+              horizon start. A window open at the horizon start does not start.
+            - 'event_opens': per boundary, the summed values of the events
+              starting there. An event open at the horizon start opens at
+              boundary 0.
+            - 'event_due': per boundary, the summed values of the events
+              ending there. An event running past the horizon is due at its
+              end.
+
+            Each event's value is a number with its unit, such as "40 km",
+            converted to the input's unit.
+
+    """
+
+    projection: CalendarProjection
+
+
+@dataclass(frozen=True, slots=True)
+class MeterFieldHint:
+    """How an input reads a meter: a running total, such as an energy sensor that only counts up.
+
+    Attributes:
+        since: The calendar field, in the same section, whose window open at
+            the horizon start sets the meter's zero point. The amount the
+            meter rose since that window started loads beside the field.
+
+    """
+
+    since: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +74,13 @@ class FieldHint:
         default_mode: Controls config flow pre-selection ('entity' or 'value').
         default_value: Value to pre-fill when default_mode='value'.
         force_required: Force value to be required, overriding schema optionality.
-        device_type: Optional device type override for sub-device inputs.
+        calendar: When set, the input resolves its values from the events of the
+            calendars it reads.
+        outputs: When set, the field feeds these inputs, keyed by their loaded
+            field names, instead of being an input itself. The calendars it
+            reads can so feed several inputs, each with its own entity.
+        meter: When set, the input reads meters, and the amount they rose
+            since a calendar window started loads beside it.
 
     """
 
@@ -41,7 +94,28 @@ class FieldHint:
     default_mode: Literal["entity", "value"] | None = None
     default_value: float | bool | None = None
     force_required: bool | None = None
-    device_type: str | None = None
+    calendar: CalendarFieldHint | None = None
+    outputs: Mapping[str, "FieldHint"] | None = None
+    meter: MeterFieldHint | None = None
+
+
+def calendar_input(output_type: OutputType, projection: CalendarProjection) -> FieldHint:
+    """Return the hint for an input resolved from calendar events.
+
+    Calendar inputs are always time series, at boundaries for the projections
+    that place values there.
+    """
+    return FieldHint(
+        output_type=output_type,
+        time_series=True,
+        boundaries=projection in _BOUNDARY_PROJECTIONS,
+        calendar=CalendarFieldHint(projection=projection),
+    )
+
+
+def field_inputs(field_name: str, hint: FieldHint) -> list[tuple[str, FieldHint]]:
+    """Return the inputs a config field feeds, as (loaded field name, hint): its outputs, or itself."""
+    return list(hint.outputs.items()) if hint.outputs else [(field_name, hint)]
 
 
 @dataclass(frozen=True, slots=True)

@@ -115,6 +115,8 @@ class HaeoSensor(CoordinatorEntity[HaeoDataUpdateCoordinator], SensorEntity):
 
                 if output_data.forecast:
                     attributes["forecast"] = self._scale_percentage_forecast(output_data.unit, output_data.forecast)
+                if output_data.interpolation_mode is not None:
+                    attributes["interpolation_mode"] = output_data.interpolation_mode
 
         self._attr_native_value = native_value
         self._attr_extra_state_attributes = attributes

@@ -104,8 +104,8 @@ See the [Coordinator guide](coordinator.md) for event-driven update patterns.
 ### Data loaders (`data/`)
 
 Data loaders translate Home Assistant sensor data into time series aligned with the optimization horizon.
-Input entities call loaders to extract, combine, and fuse forecast data from external sensors.
-Loaders also validate sensor availability during the config flow.
+Each input store resolves its field with `resolve_field`, which extracts, combines, and fuses forecast data from the field's sensors.
+A field is unavailable until every one of its sensors supplies data.
 Keep new loaders focused on a single responsibility and reuse the shared parser utilities where possible.
 
 See the [Data Loading guide](data-loading.md) for the extraction pipeline.
@@ -134,7 +134,7 @@ See [Modeling Documentation](../modeling/index.md) for mathematical formulations
 ### Optimization
 
 Uses the HiGHS linear programming solver directly via the `highspy` Python bindings to solve the energy optimization problem.
-The default calibrated mode performs a two-phase lexicographic solve on the first call (minimize cost, then minimize a time-preference secondary objective to break ties deterministically), calibrates a blend weight, and uses a single blended solve on subsequent calls for efficient warm-starts with proper shadow prices.
+It minimizes cost, then a time-preference secondary objective to break ties deterministically, with a single blended solve per call. The first call calibrates the blend weight, and every plan is checked and re-solved with another weight if needed, which keeps warm starts efficient and shadow prices from the plan's own basis.
 
 Elements use decorators to declare constraints and costs, which the network automatically aggregates.
 When parameters update (like forecast changes), only affected constraints are rebuilt (warm start optimization).
@@ -226,11 +226,11 @@ Rather than documenting every file, focus on how the major areas collaborate:
 
 ### Custom Field Types
 
-Extend `core/schema/field_schema.py` and `core/schema/field_hints.py`:
+Fields are described by `FieldHint` in `core/schema/field_hints.py`, attached to the schema with `Annotated`:
 
-- Create a new Validator subclass with a `create_schema()` method
-- Add a LoaderMeta subclass if the field needs custom loading behavior
-- Define field type aliases composing Validator, LoaderMeta, and the field hint
+- Add an `OutputType` when the field holds a new kind of quantity, with its unit and limits in `elements/field_hints.py`
+- Add a `FieldHint` attribute when the field needs to load or present differently
+- See [Field hints](config-flow.md#field-hints) for the available hints
 
 ## Related Documentation
 

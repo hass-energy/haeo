@@ -34,7 +34,8 @@ from custom_components.haeo.core.schema.elements.solar import CONF_FORECAST, SEC
 from custom_components.haeo.core.schema.field_hints import FieldHint
 from custom_components.haeo.core.schema.horizon_value import as_horizon_preset_value
 from custom_components.haeo.core.schema.sections import CONF_CONNECTION
-from custom_components.haeo.elements import find_nested_config_path, get_nested_config_value_by_path
+from custom_components.haeo.core.schema.util import get_nested_config_value_by_path
+from custom_components.haeo.elements import find_nested_config_path
 from custom_components.haeo.elements.input_fields import InputFieldDefaults, InputFieldInfo
 from custom_components.haeo.entities.haeo_switch import FORECAST_UNRECORDED_ATTRIBUTES, HaeoInputSwitch
 from custom_components.haeo.flows import HUB_SECTION_ADVANCED, HUB_SECTION_COMMON
@@ -145,9 +146,6 @@ class _SubentryStorage:
         self._subentry = subentry
         self._field_path = field_path
 
-    def read(self) -> object:
-        return get_nested_config_value_by_path(self._subentry.data, self._field_path)
-
     async def write(self, value: object) -> None:
         await async_update_subentry_value(
             self._hass,
@@ -177,6 +175,7 @@ def _make_switch_entity(
         boundaries=field_info.boundaries,
     )
     store = create_input_store(
+        value=get_nested_config_value_by_path(subentry.data, fp),
         storage=storage,
         hint=hint,
         get_forecast_timestamps=horizon_manager.get_forecast_timestamps,
@@ -230,7 +229,7 @@ async def test_editable_mode_with_true_value(
 
     entity = _make_switch_entity(hass, config_entry, subentry, curtailment_field_info, device_entry, horizon_manager)
 
-    assert entity.entity_mode == InputMode.EDITABLE
+    assert entity._store.mode == InputMode.EDITABLE
     assert entity._store.source_entity_ids == []
     assert entity.is_on is True
 
@@ -268,7 +267,7 @@ async def test_editable_mode_with_raw_boolean(
 
     entity = _make_switch_entity(hass, config_entry, subentry, curtailment_field_info, device_entry, horizon_manager)
 
-    assert entity.entity_mode == InputMode.EDITABLE
+    assert entity._store.mode == InputMode.EDITABLE
     assert entity.is_on is True
 
 
@@ -285,7 +284,7 @@ async def test_editable_mode_with_false_value(
 
     entity = _make_switch_entity(hass, config_entry, subentry, curtailment_field_info, device_entry, horizon_manager)
 
-    assert entity.entity_mode == InputMode.EDITABLE
+    assert entity._store.mode == InputMode.EDITABLE
     assert entity.is_on is False
 
 
@@ -302,7 +301,7 @@ async def test_editable_mode_with_none_value(
 
     entity = _make_switch_entity(hass, config_entry, subentry, curtailment_field_info, device_entry, horizon_manager)
 
-    assert entity.entity_mode == InputMode.EDITABLE
+    assert entity._store.mode == InputMode.EDITABLE
     assert entity.is_on is None
 
 
@@ -407,7 +406,7 @@ async def test_driven_mode_with_entity_id(
 
     entity = _make_switch_entity(hass, config_entry, subentry, curtailment_field_info, device_entry, horizon_manager)
 
-    assert entity.entity_mode == InputMode.DRIVEN
+    assert entity._store.mode == InputMode.DRIVEN
     assert entity._store.source_entity_ids == ["input_boolean.allow_curtailment"]
     assert entity.is_on is None  # Not loaded yet
 
@@ -527,7 +526,7 @@ async def test_unique_id_disambiguates_reused_section_field_names(
     device_entry: Mock,
     horizon_manager: Mock,
 ) -> None:
-    """Section switch fields with repeated leaf names use a unique stable key."""
+    """Section switch fields whose name repeats in another section key on the section path."""
     field_info = InputFieldInfo(
         field_name="enabled",
         entity_description=SwitchEntityDescription(
@@ -535,15 +534,14 @@ async def test_unique_id_disambiguates_reused_section_field_names(
             translation_key="enabled",
         ),
         output_type=OutputType.STATUS,
-        device_type="undercharge_toggle",
     )
     subentry = ConfigSubentry(
         data=MappingProxyType(
             {
                 "element_type": "battery",
                 CONF_NAME: "Test Battery",
-                "undercharge": {"enabled": as_constant_value(True)},
-                "overcharge": {"enabled": as_constant_value(False)},
+                "first": {"enabled": as_constant_value(True)},
+                "second": {"enabled": as_constant_value(False)},
             }
         ),
         subentry_type="battery",
@@ -559,10 +557,10 @@ async def test_unique_id_disambiguates_reused_section_field_names(
         field_info,
         device_entry,
         horizon_manager,
-        field_path=("undercharge", "enabled"),
+        field_path=("first", "enabled"),
     )
 
-    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_undercharge_toggle.enabled"
+    expected_unique_id = f"{config_entry.entry_id}_{subentry.subentry_id}_first.enabled"
     assert entity.unique_id == expected_unique_id
 
 
@@ -995,51 +993,6 @@ async def test_is_ready_returns_true_after_data_loaded(
 
     # Entity was initialized with True value, so forecast is built and ready is set
     assert entity.is_ready() is True
-
-
-async def test_entity_mode_property_returns_mode(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """entity_mode property returns the correct mode."""
-    subentry_editable = _create_subentry("Test Solar", {"allow_curtailment": True})
-    config_entry.runtime_data = None
-
-    entity_editable = _make_switch_entity(
-        hass, config_entry, subentry_editable, curtailment_field_info, device_entry, horizon_manager
-    )
-    assert entity_editable.entity_mode == InputMode.EDITABLE
-
-    subentry_driven = _create_subentry("Test Solar", {"allow_curtailment": "input_boolean.curtail"})
-    entity_driven = _make_switch_entity(
-        hass, config_entry, subentry_driven, curtailment_field_info, device_entry, horizon_manager
-    )
-    assert entity_driven.entity_mode == InputMode.DRIVEN
-
-
-async def test_uses_forecast_reflects_field_info(
-    hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    device_entry: Mock,
-    curtailment_field_info: InputFieldInfo[SwitchEntityDescription],
-    horizon_manager: Mock,
-) -> None:
-    """uses_forecast reflects the field_info.time_series flag."""
-    config_entry.runtime_data = None
-
-    # curtailment_field_info has time_series=False (the default)
-    entity = _make_switch_entity(
-        hass,
-        config_entry,
-        _create_subentry("Test Solar", {"allow_curtailment": True}),
-        curtailment_field_info,
-        device_entry,
-        horizon_manager,
-    )
-    assert entity.uses_forecast is False
 
 
 async def test_editable_mode_uses_defaults_value_when_none(

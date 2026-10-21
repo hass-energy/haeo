@@ -3,8 +3,9 @@
 from collections.abc import Mapping, Sequence
 
 from .core.const import CONF_ELEMENT_TYPE, CONF_NAME, ConnectivityLevel
-from .core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION
-from .elements import ELEMENT_TYPES, ElementConfigData
+from .core.model.elements import MODEL_ELEMENT_TYPE_CONNECTION, is_network_element_config
+from .core.schema.elements import ElementConfigData
+from .elements import ELEMENT_TYPES
 from .util.graph import ConnectivityResult as NetworkConnectivityResult
 from .util.graph import find_connected_components
 
@@ -25,10 +26,10 @@ def _build_adjacency(participants: Mapping[str, ElementConfigData]) -> dict[str,
         # Get model elements including implicit connections
         model_elements = adapter.model_elements(loaded_config)
 
-        # Add non-connection elements as nodes (skip internal connection elements)
+        # Network elements carry power; connections are edges, and flow
+        # readers only read the elements they cover
         for elem in model_elements:
-            elem_type = elem["element_type"]
-            if elem_type != MODEL_ELEMENT_TYPE_CONNECTION:
+            if is_network_element_config(elem):
                 adjacency.setdefault(elem["name"], set())
 
         # Add edges from connection elements

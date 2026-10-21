@@ -18,14 +18,24 @@ The coordinator loads data from sensors, runs optimization, and exposes results.
 
 ### Unique IDs
 
-Every entity must have a unique ID constructed from stable identifiers:
+Every entity and device ID is built and parsed through `custom_components/haeo/unique_id.py`, never formatted or split by hand:
 
 ```python
-self._attr_unique_id = f"{entry.entry_id}-{element_id}-power"
+self._attr_unique_id = element_unique_id(config_entry.entry_id, subentry.subentry_id, unique_key)
 ```
+
+Element IDs are `{entry_id}_{subentry_id}_{key}` and hub IDs are `{entry_id}_{key}`.
+`parse_element_unique_id` reads an element ID back, so generation, device cleanup, and migrations all agree on the format.
+Migrations of formats that have shipped keep their own historic parsing.
 
 Acceptable sources: config entry ID, subentry ID, device serial numbers.
 Never use: IP addresses, hostnames, user-provided names.
+
+### Subentry links
+
+Add entities with `async_add_entities(entities, config_subentry_id=subentry.subentry_id)`, one call per subentry.
+Element entities link to their element's subentry and hub entities to the network subentry, matching their devices.
+Home Assistant then removes the entities when the subentry is deleted.
 
 ### Entity naming
 

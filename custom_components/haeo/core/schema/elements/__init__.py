@@ -7,8 +7,14 @@ from custom_components.haeo.core.schema.elements.battery_section import (
     BatterySectionConfigData,
     BatterySectionConfigSchema,
 )
+from custom_components.haeo.core.schema.elements.buffer import BufferConfigData, BufferConfigSchema
 from custom_components.haeo.core.schema.elements.connection import ConnectionConfigData, ConnectionConfigSchema
+from custom_components.haeo.core.schema.elements.deferrable_load import (
+    DeferrableLoadConfigData,
+    DeferrableLoadConfigSchema,
+)
 from custom_components.haeo.core.schema.elements.element_type import ElementType
+from custom_components.haeo.core.schema.elements.ev import EvConfigData, EvConfigSchema
 from custom_components.haeo.core.schema.elements.grid import GridConfigData, GridConfigSchema
 from custom_components.haeo.core.schema.elements.inverter import InverterConfigData, InverterConfigSchema
 from custom_components.haeo.core.schema.elements.junction import JunctionConfigData, JunctionConfigSchema
@@ -21,12 +27,15 @@ ElementConfigSchema = (
     InverterConfigSchema
     | BatteryConfigSchema
     | BatterySectionConfigSchema
+    | DeferrableLoadConfigSchema
+    | EvConfigSchema
     | GridConfigSchema
     | LoadConfigSchema
     | SolarConfigSchema
     | NodeConfigSchema
     | JunctionConfigSchema
     | PolicyConfigSchema
+    | BufferConfigSchema
     | ConnectionConfigSchema
 )
 
@@ -34,19 +43,25 @@ ElementConfigData = (
     InverterConfigData
     | BatteryConfigData
     | BatterySectionConfigData
+    | DeferrableLoadConfigData
+    | EvConfigData
     | GridConfigData
     | LoadConfigData
     | SolarConfigData
     | NodeConfigData
     | JunctionConfigData
     | PolicyConfigData
+    | BufferConfigData
     | ConnectionConfigData
 )
 
 ELEMENT_CONFIG_SCHEMAS: Final[dict[ElementType, type]] = {
     ElementType.BATTERY: BatteryConfigSchema,
     ElementType.BATTERY_SECTION: BatterySectionConfigSchema,
+    ElementType.BUFFER: BufferConfigSchema,
     ElementType.CONNECTION: ConnectionConfigSchema,
+    ElementType.DEFERRABLE_LOAD: DeferrableLoadConfigSchema,
+    ElementType.EV: EvConfigSchema,
     ElementType.GRID: GridConfigSchema,
     ElementType.INVERTER: InverterConfigSchema,
     ElementType.JUNCTION: JunctionConfigSchema,

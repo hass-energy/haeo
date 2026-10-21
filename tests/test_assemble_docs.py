@@ -14,6 +14,7 @@ from tools.assemble_docs import (
     build_version_entries,
     docs_asset_name,
     parse_tag,
+    write_not_found,
     write_redirect,
 )
 
@@ -98,6 +99,16 @@ def test_write_redirect(tmp_path: Path) -> None:
     content = path.read_text(encoding="utf-8")
     assert '<meta http-equiv="refresh" content="0; url=./latest/">' in content
     assert '<link rel="canonical" href="./latest/">' in content
+
+
+def test_write_not_found(tmp_path: Path) -> None:
+    """The 404 page redirects paths outside the known versions into the target version."""
+    path = tmp_path / "404.html"
+    write_not_found(path, "latest", ["main", "0.3.3", "dev", "latest"])
+    content = path.read_text(encoding="utf-8")
+    assert 'const versions = ["main", "0.3.3", "dev", "latest"];' in content
+    assert 'location.replace("/latest" + location.pathname + location.search + location.hash);' in content
+    assert '<a href="/latest/">' in content
 
 
 def test_docs_asset_name() -> None:

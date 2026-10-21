@@ -1,58 +1,27 @@
 """Tests for the repairs module."""
 
+from collections.abc import Callable
+from pathlib import Path
+
+from homeassistant.components.repairs import ConfirmRepairFlow
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.issue_registry import IssueSeverity, async_get
+import pytest
 
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.repairs import (
+    async_create_fix_flow,
+    async_delete_issue_diagnostics,
+    async_dismiss_entry_issues,
     create_disconnected_network_issue,
-    create_invalid_config_issue,
-    create_missing_sensor_issue,
     create_node_replaced_by_junction_issue,
+    create_optimization_infeasible_issue,
     create_optimization_persistent_failure_issue,
+    create_optimization_relaxed_issue,
     dismiss_disconnected_network_issue,
-    dismiss_entry_issues,
-    dismiss_missing_sensor_issue,
     dismiss_optimization_failure_issue,
+    sync_unavailable_input_issues,
 )
-
-
-async def test_create_missing_sensor_issue(hass: HomeAssistant) -> None:
-    """Test creating a missing sensor repair issue."""
-    element_name = "test_battery"
-    sensor_entity_id = "sensor.test_power"
-
-    create_missing_sensor_issue(hass, element_name, sensor_entity_id)
-
-    # Verify issue was created
-    issue_registry = async_get(hass)
-    issue_id = f"missing_sensor_{element_name}_{sensor_entity_id.replace('.', '_')}"
-    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
-
-    assert issue is not None
-    assert issue.severity == IssueSeverity.WARNING
-    assert not issue.is_fixable
-    assert not issue.is_persistent
-
-
-async def test_dismiss_missing_sensor_issue(hass: HomeAssistant) -> None:
-    """Test dismissing a missing sensor repair issue."""
-    element_name = "test_battery"
-    sensor_entity_id = "sensor.test_power"
-
-    # Create issue first
-    create_missing_sensor_issue(hass, element_name, sensor_entity_id)
-
-    # Verify it exists
-    issue_registry = async_get(hass)
-    issue_id = f"missing_sensor_{element_name}_{sensor_entity_id.replace('.', '_')}"
-    assert issue_registry.async_get_issue(DOMAIN, issue_id) is not None
-
-    # Dismiss it
-    dismiss_missing_sensor_issue(hass, element_name, sensor_entity_id)
-
-    # Verify it's gone
-    assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
 
 
 async def test_create_optimization_failure_issue(hass: HomeAssistant) -> None:
@@ -93,63 +62,12 @@ async def test_dismiss_optimization_failure_issue(hass: HomeAssistant) -> None:
     assert issue_registry.async_get_issue(DOMAIN, issue_id) is None
 
 
-async def test_create_invalid_config_issue(hass: HomeAssistant) -> None:
-    """Test creating an invalid config repair issue."""
-    element_name = "test_battery"
-    config_problem = "Capacity must be greater than zero"
-
-    create_invalid_config_issue(hass, element_name, config_problem)
-
-    # Verify issue was created
-    issue_registry = async_get(hass)
-    issue_id = f"invalid_config_{element_name}"
-    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
-
-    assert issue is not None
-    assert issue.severity == IssueSeverity.ERROR
-    assert issue.is_fixable
-    assert issue.is_persistent
-
-
-async def test_multiple_missing_sensor_issues(hass: HomeAssistant) -> None:
-    """Test creating multiple missing sensor issues for different elements."""
-    elements = [
-        ("battery1", "sensor.battery1_power"),
-        ("battery2", "sensor.battery2_power"),
-        ("grid", "sensor.grid_power"),
-    ]
-
-    # Create issues for all elements
-    for element_name, sensor_id in elements:
-        create_missing_sensor_issue(hass, element_name, sensor_id)
-
-    # Verify all were created
-    issue_registry = async_get(hass)
-    for element_name, sensor_id in elements:
-        issue_id = f"missing_sensor_{element_name}_{sensor_id.replace('.', '_')}"
-        assert issue_registry.async_get_issue(DOMAIN, issue_id) is not None
-
-
-async def test_repair_issue_translation_keys(hass: HomeAssistant) -> None:
-    """Test that repair issues use correct translation keys."""
-    # Missing sensor issue
-    create_missing_sensor_issue(hass, "battery", "sensor.power")
-    issue_registry = async_get(hass)
-    issue = issue_registry.async_get_issue(DOMAIN, "missing_sensor_battery_sensor_power")
-    assert issue is not None
-    assert issue.translation_key == "missing_sensor"
-
-    # Optimization failure issue
+async def test_optimization_failure_issue_translation_key(hass: HomeAssistant) -> None:
+    """The optimization failure issue uses its translation key."""
     create_optimization_persistent_failure_issue(hass, "entry123", "error")
-    issue = issue_registry.async_get_issue(DOMAIN, "optimization_failure_entry123")
+    issue = async_get(hass).async_get_issue(DOMAIN, "optimization_failure_entry123")
     assert issue is not None
     assert issue.translation_key == "optimization_failure"
-
-    # Invalid config issue
-    create_invalid_config_issue(hass, "battery", "problem")
-    issue = issue_registry.async_get_issue(DOMAIN, "invalid_config_battery")
-    assert issue is not None
-    assert issue.translation_key == "invalid_config"
 
 
 async def test_create_disconnected_network_issue(hass: HomeAssistant) -> None:
@@ -166,7 +84,8 @@ async def test_create_disconnected_network_issue(hass: HomeAssistant) -> None:
 
     assert issue is not None
     assert issue.severity == IssueSeverity.WARNING
-    assert issue.is_fixable
+    # It clears itself once the network is connected, so the user cannot resolve it by hand
+    assert not issue.is_fixable
     assert issue.is_persistent
     assert issue.translation_key == "disconnected_network"
     assert issue.translation_placeholders is not None
@@ -202,15 +121,6 @@ async def test_dismiss_nonexistent_disconnected_network_issue(hass: HomeAssistan
     dismiss_disconnected_network_issue(hass, entry_id)
 
 
-async def test_dismiss_nonexistent_missing_sensor_issue(hass: HomeAssistant) -> None:
-    """Test dismissing a missing sensor issue that doesn't exist."""
-    element_name = "test_battery"
-    sensor_entity_id = "sensor.nonexistent"
-
-    # Should not raise an error when dismissing non-existent issue
-    dismiss_missing_sensor_issue(hass, element_name, sensor_entity_id)
-
-
 async def test_dismiss_nonexistent_optimization_failure_issue(hass: HomeAssistant) -> None:
     """Test dismissing an optimization failure issue that doesn't exist."""
     entry_id = "test_entry_id"
@@ -230,12 +140,122 @@ async def test_create_node_replaced_by_junction_issue(hass: HomeAssistant) -> No
     assert not issue.is_fixable
 
 
-async def test_dismiss_entry_issues_only_removes_that_entry(hass: HomeAssistant) -> None:
-    """Dismissing an entry's issues leaves other entries' issues in place."""
+async def test_dismiss_entry_issues_only_removes_that_entry(hass: HomeAssistant, tmp_path: Path) -> None:
+    """Dismissing an entry's issues deletes their saved diagnostics and leaves other entries' issues in place."""
+    hass.config.config_dir = str(tmp_path)
+    saved = _saved_file(hass, "infeasible_1.json")
+    kept = _saved_file(hass, "infeasible_2.json")
     create_node_replaced_by_junction_issue(hass, "entry123", "Switchboard")
     create_disconnected_network_issue(hass, "entry123", [{"Battery"}, {"Grid"}])
+    create_optimization_infeasible_issue(hass, "entry123", "optimization_infeasible", {}, str(saved))
     create_node_replaced_by_junction_issue(hass, "entry456", "Switchboard")
+    create_optimization_infeasible_issue(hass, "entry456", "optimization_infeasible", {}, str(kept))
 
-    dismiss_entry_issues(hass, "entry123")
+    await async_dismiss_entry_issues(hass, "entry123")
 
-    assert list(async_get(hass).issues) == [(DOMAIN, "node_replaced_by_junction_entry456_Switchboard")]
+    assert list(async_get(hass).issues) == [
+        (DOMAIN, "node_replaced_by_junction_entry456_Switchboard"),
+        (DOMAIN, "optimization_infeasible_entry456"),
+    ]
+    assert not saved.exists()
+    assert kept.exists()
+
+
+def _saved_file(hass: HomeAssistant, name: str) -> Path:
+    """Write a stand-in diagnostics file to HAEO's diagnostics folder and return its path."""
+    path = Path(hass.config.path("haeo", "diagnostics", name))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("{}")
+    return path
+
+
+@pytest.mark.parametrize(
+    ("create", "issue_id", "severity"),
+    [
+        pytest.param(
+            create_optimization_infeasible_issue,
+            "optimization_infeasible_entry",
+            IssueSeverity.ERROR,
+            id="infeasible",
+        ),
+        pytest.param(
+            lambda hass, entry, _key, placeholders, diagnostics: create_optimization_relaxed_issue(
+                hass, entry, placeholders, diagnostics
+            ),
+            "optimization_relaxed_entry",
+            IssueSeverity.WARNING,
+            id="relaxed",
+        ),
+    ],
+)
+async def test_impossible_plan_issues_stay_until_the_user_resolves_them(
+    hass: HomeAssistant,
+    tmp_path: Path,
+    create: Callable[[HomeAssistant, str, str, dict[str, str], str], None],
+    issue_id: str,
+    severity: IssueSeverity,
+) -> None:
+    """Impossible and relaxed plans raise persistent issues; resolving one deletes the diagnostics saved for it."""
+    hass.config.config_dir = str(tmp_path)
+    saved = _saved_file(hass, "failure.json")
+    create(hass, "entry", "optimization_infeasible", {"elements": "Load"}, str(saved))
+
+    issue = async_get(hass).async_get_issue(DOMAIN, issue_id)
+    assert issue is not None
+    assert issue.severity == severity
+    assert issue.is_fixable
+    assert issue.is_persistent
+    assert issue.translation_placeholders == {"elements": "Load", "diagnostics": str(saved)}
+
+    flow = await async_create_fix_flow(hass, issue.issue_id, issue.data)
+    assert isinstance(flow, ConfirmRepairFlow)
+    flow.hass, flow.issue_id, flow.data = hass, issue.issue_id, issue.data
+    await flow.async_step_confirm({})
+
+    assert not saved.exists()
+
+
+async def test_resolving_an_issue_never_deletes_files_outside_the_diagnostics_folder(
+    hass: HomeAssistant, tmp_path: Path
+) -> None:
+    """An issue whose data names a file elsewhere leaves that file alone."""
+    hass.config.config_dir = str(tmp_path)
+    elsewhere = tmp_path / "configuration.yaml"
+    elsewhere.write_text("homeassistant:")
+
+    await async_delete_issue_diagnostics(hass, {"diagnostics": str(elsewhere)})
+    await async_delete_issue_diagnostics(hass, None)
+
+    assert elsewhere.exists()
+
+
+async def test_sync_unavailable_input_issues_raises_and_dismisses(hass: HomeAssistant) -> None:
+    """Each unavailable input gets an issue naming its sensors, and recovered inputs lose theirs."""
+    sync_unavailable_input_issues(
+        hass,
+        "entry123",
+        {
+            ("EV Charger", ("schedule", "energy_meter")): ("sensor.ev_energy",),
+            ("Grid", ("pricing", "price_source_target")): ("sensor.price_a", "sensor.price_b"),
+        },
+    )
+    sync_unavailable_input_issues(hass, "entry456", {("Grid", ("pricing", "price_source_target")): ("sensor.x",)})
+
+    meter = async_get(hass).async_get_issue(DOMAIN, "unavailable_input_entry123_EV Charger_schedule.energy_meter")
+    assert meter is not None
+    assert meter.translation_key == "unavailable_input"
+    assert meter.severity == IssueSeverity.ERROR
+    assert meter.translation_placeholders == {
+        "element": "EV Charger",
+        "field": "schedule.energy_meter",
+        "entities": "sensor.ev_energy",
+    }
+
+    sync_unavailable_input_issues(
+        hass, "entry123", {("Grid", ("pricing", "price_source_target")): ("sensor.price_a", "sensor.price_b")}
+    )
+
+    assert sorted(issue_id for _, issue_id in async_get(hass).issues) == [
+        "unavailable_input_entry123_Grid_pricing.price_source_target",
+        "unavailable_input_entry456_Grid_pricing.price_source_target",
+    ]

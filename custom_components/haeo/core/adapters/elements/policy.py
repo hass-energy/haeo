@@ -14,6 +14,7 @@ from custom_components.haeo.core.const import ConnectivityLevel
 from custom_components.haeo.core.model import ModelElementConfig, ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.output_data import OutputData
 from custom_components.haeo.core.schema.elements import ElementType
+from custom_components.haeo.core.schema.elements.buffer import BufferRole
 from custom_components.haeo.core.schema.elements.policy import (
     CONF_ENABLED,
     CONF_PRICE,
@@ -27,9 +28,6 @@ from custom_components.haeo.core.schema.elements.policy import (
 
 type PolicyOutputName = Literal["policy_power"]
 
-POLICY_OUTPUT_NAMES: Final[frozenset[PolicyOutputName]] = frozenset(("policy_power",))
-
-POLICY_POWER: Final[PolicyOutputName] = "policy_power"
 
 type PolicyDeviceName = Literal[ElementType.POLICY]
 
@@ -72,6 +70,7 @@ class PolicyAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.NEVER
     can_source: bool = False
     can_sink: bool = False
+    buffer_roles: frozenset[BufferRole] = frozenset()
 
     def model_elements(self, config: PolicyConfigData) -> list[ModelElementConfig]:  # noqa: ARG002 (required by adapter protocol — policy has no model elements)
         """Policy does not create model elements — policies are compiled separately."""

@@ -14,29 +14,34 @@ Example usage:
     with screenshot_context(output_dir) as ctx:
         add_integration(page, network_name="My System")
         add_battery(page, name="Battery", connection="Inverter", ...)
-        # ctx.screenshots contains OrderedDict of all captured images
+        # ctx.screenshots lists the filenames captured, each saved in both themes
 """
 
 from tests.guides.primitives.capture import ScreenshotContext, guide_step, pause_screenshots, screenshot_context
+from tests.guides.primitives.cards import optimize, set_input, set_policy_rule, show_forecast_card, show_topology_card
 from tests.guides.primitives.developer_tools import save_diagnostics
 from tests.guides.primitives.ha_page import HAPage
 from tests.guides.primitives.haeo import (
     ConstantInput,
     EntityInput,
     add_battery,
+    add_buffer,
+    add_ev,
     add_grid,
     add_integration,
     add_inverter,
     add_junction,
     add_load,
+    add_local_calendar,
     add_node,
     add_policies,
     add_solar,
+    create_calendar_event,
     login,
     reconfigure_policies,
     verify_setup,
 )
-from tests.guides.primitives.validation import validate_policies
+from tests.guides.primitives.validation import validate_buffer, validate_policies
 
 __all__ = [
     # Field value types
@@ -48,20 +53,30 @@ __all__ = [
     "ScreenshotContext",
     # HAEO element primitives
     "add_battery",
+    "add_buffer",
+    "add_ev",
     "add_grid",
     "add_integration",
     "add_inverter",
     "add_junction",
     "add_load",
+    "add_local_calendar",
     "add_node",
     "add_policies",
     "add_solar",
+    "create_calendar_event",
     "guide_step",
     "login",
+    "optimize",
     "pause_screenshots",
     "reconfigure_policies",
     "save_diagnostics",
     "screenshot_context",
+    "set_input",
+    "set_policy_rule",
+    "show_forecast_card",
+    "show_topology_card",
+    "validate_buffer",
     "validate_policies",
     "verify_setup",
 ]

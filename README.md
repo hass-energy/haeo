@@ -4,7 +4,7 @@
 
 # HAEO - Home Assistant Energy Optimizer
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration) [![GitHub Release](https://img.shields.io/github/release/hass-energy/haeo.svg)](https://github.com/hass-energy/haeo/releases) [![License](https://img.shields.io/github/license/hass-energy/haeo.svg)](LICENSE) [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://hass-energy.github.io/haeo/) [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow.svg)](https://buymeacoffee.com/haeo.io)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration) [![GitHub Release](https://img.shields.io/github/release/hass-energy/haeo.svg)](https://github.com/hass-energy/haeo/releases) [![License](https://img.shields.io/github/license/hass-energy/haeo.svg)](LICENSE) [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://haeo.io/latest/) [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow.svg)](https://buymeacoffee.com/haeo.io)
 
 HAEO (Home Assistant Energy Optimizer) is a custom integration that optimizes your home's energy usage in real-time using linear programming.
 It helps you minimize energy costs by intelligently managing battery storage, solar generation, grid import/export, and loads based on electricity prices, forecasts, and system constraints.
@@ -37,20 +37,20 @@ This focused approach means:
 
 ## 📚 Documentation
 
-**[Read the full documentation →](https://hass-energy.github.io/haeo/)**
+**[Read the full documentation →](https://haeo.io/latest/)**
 
-- **[Installation Guide](https://hass-energy.github.io/haeo/user-guide/installation/)** - Get started with HAEO
-- **[Configuration Guide](https://hass-energy.github.io/haeo/user-guide/configuration/)** - Set up your energy system
-- **[Element Configuration](https://hass-energy.github.io/haeo/user-guide/elements/)** - Configure batteries, solar, grids, and loads
-- **[Mathematical Modeling](https://hass-energy.github.io/haeo/modeling/)** - Understand the optimization
-- **[Developer Guide](https://hass-energy.github.io/haeo/developer-guide/)** - Contribute to HAEO
-- **[API Reference](https://hass-energy.github.io/haeo/api/)** - Auto-generated API docs
+- **[Installation Guide](https://haeo.io/latest/user-guide/installation/)** - Get started with HAEO
+- **[Configuration Guide](https://haeo.io/latest/user-guide/configuration/)** - Set up your energy system
+- **[Element Configuration](https://haeo.io/latest/user-guide/elements/)** - Configure batteries, solar, grids, and loads
+- **[Mathematical Modeling](https://haeo.io/latest/modeling/)** - Understand the optimization
+- **[Developer Guide](https://haeo.io/latest/developer-guide/)** - Contribute to HAEO
+- **[API Reference](https://haeo.io/latest/api/)** - Auto-generated API docs
 
 ## ✨ Features
 
 - **Real-time Optimization**: Continuously optimizes energy flow across all connected devices
 - **Multi-device Support**: Batteries, solar panels, grid connection, loads, and energy flows
-- **Power Policies**: Source→destination pricing so the optimizer values solar, grid, and battery flows differently ([guide](https://hass-energy.github.io/haeo/walkthroughs/power-policies/))
+- **Power Policies**: Source→destination pricing so the optimizer values solar, grid, and battery flows differently ([guide](https://haeo.io/latest/walkthroughs/power-policies/))
 - **Price-based Optimization**: Minimizes costs using real-time and forecast electricity prices
 - **Solar Integration**: Optimizes solar generation with curtailment support
 - **Battery Management**: Smart charging/discharging based on prices and SOC constraints
@@ -64,7 +64,7 @@ HAEO builds an energy network model from your configured elements.
 It uses linear programming to find the optimal power flow that minimizes total energy cost over a **multi-resolution planning horizon** (fine resolution near-term, coarser intervals further out).
 
 Optimization runs when input data changes (debounced) and when the planning horizon advances, so recommendations stay current as prices and forecasts update.
-See the [configuration guide](https://hass-energy.github.io/haeo/user-guide/configuration/) and [data updates guide](https://hass-energy.github.io/haeo/user-guide/data-updates/) for details.
+See the [configuration guide](https://haeo.io/latest/user-guide/configuration/) and [data updates guide](https://haeo.io/latest/user-guide/data-updates/) for details.
 
 ### The Optimization Process
 
@@ -91,8 +91,8 @@ See the [configuration guide](https://hass-energy.github.io/haeo/user-guide/conf
 - **Connection**: Explicit power flow paths between elements
 - **Battery Section**: Direct model-layer battery access
 
-Pricing and economic incentives use [**power policies**](https://hass-energy.github.io/haeo/walkthroughs/power-policies/)—rules that price energy by where it comes from and where it goes (for example, cheap solar→load vs paid solar→export).
-See the [elements documentation](https://hass-energy.github.io/haeo/user-guide/elements/) for full details.
+Pricing and economic incentives use [**power policies**](https://haeo.io/latest/walkthroughs/power-policies/)—rules that price energy by where it comes from and where it goes (for example, cheap solar→load vs paid solar→export).
+See the [elements documentation](https://haeo.io/latest/user-guide/elements/) for full details.
 
 ## 📦 Installation
 
@@ -100,7 +100,7 @@ See the [elements documentation](https://hass-energy.github.io/haeo/user-guide/e
 
 HAEO is published in the [default HACS store](https://github.com/hacs/default).
 You do not need to [add a custom repository](https://hacs.xyz/docs/faq/custom_repositories/).
-See the [installation guide](https://hass-energy.github.io/haeo/user-guide/installation/) for step-by-step instructions.
+See the [installation guide](https://haeo.io/latest/user-guide/installation/) for step-by-step instructions.
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=hass-energy&repository=haeo&category=integration)
 
@@ -124,7 +124,7 @@ You can use the My Home Assistant link above to open HAEO directly in HACS, then
     - **Planning horizon**: Preset (2, 3, 5, or 7 days) or a forecast sensor whose forecast times set the periods
     - **Advanced settings** (optional): Debounce window, Expose raw model elements, forecast recording
 
-See the [configuration guide](https://hass-energy.github.io/haeo/user-guide/configuration/#planning-horizon) for how to choose a planning horizon.
+See the [configuration guide](https://haeo.io/latest/user-guide/configuration/#planning-horizon) for how to choose a planning horizon.
 
 ### Adding Elements
 
@@ -211,7 +211,7 @@ Tuning tips:
 - Use a **shorter preset** or a forecast sensor with fewer periods for faster solves
 - Use a **longer preset** for more multi-day lookahead
 
-See the [planning horizon section](https://hass-energy.github.io/haeo/user-guide/configuration/#planning-horizon) in the documentation.
+See the [planning horizon section](https://haeo.io/latest/user-guide/configuration/#planning-horizon) in the documentation.
 
 ## 📈 Example Use Cases
 

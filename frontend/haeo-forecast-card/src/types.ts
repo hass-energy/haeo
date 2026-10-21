@@ -22,15 +22,18 @@ export type ElementType =
   | "battery"
   | "battery_section"
   | "connection"
+  | "deferrable_load"
+  | "ev"
   | "grid"
   | "inverter"
   | "junction"
   | "load"
   | "node"
   | "solar"
-  | "policy";
-export type CardOutputType = "power" | "price" | "state_of_charge";
-export type LaneType = "power" | "price" | "soc" | "shadow" | "other";
+  | "policy"
+  | "buffer";
+export type CardOutputType = "power" | "price" | "state_of_charge" | "window";
+export type LaneType = "power" | "price" | "soc" | "window" | "shadow" | "other";
 export type DrawType = "step" | "line";
 export type SeriesSourceRole = "output" | "forecast" | "limit";
 export type ConfigMode = "editable" | "driven";

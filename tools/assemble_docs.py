@@ -15,6 +15,7 @@ Output layout::
         latest/         # full copy of newest non-rc release (alias)
         versions.json   # mike-format version manifest read by the theme
         index.html      # root redirect to ./latest/
+        404.html        # sends unversioned paths to /latest/<path>
         CNAME           # custom domain for GitHub Pages
 
 The script shells out to ``gh`` to list releases and download assets; it
@@ -178,6 +179,38 @@ def write_redirect(path: Path, target: str) -> None:
     path.write_text(html, encoding="utf-8")
 
 
+def write_not_found(path: Path, target: str, versions: list[str]) -> None:
+    """Write the site-wide ``404.html`` that sends unversioned paths into ``/{target}/``.
+
+    GitHub Pages serves only the root ``404.html`` for every missing path.
+    Links written before the docs were versioned (``/user-guide/...``) land here,
+    so any path whose first segment is not a known version is redirected to the
+    same path under ``target``.
+    Missing pages inside a version get a plain not-found message instead.
+    """
+    html = (
+        "<!DOCTYPE html>\n"
+        '<html lang="en">\n'
+        "<head>\n"
+        '  <meta charset="utf-8">\n'
+        "  <title>Page not found</title>\n"
+        "  <script>\n"
+        f"    const versions = {json.dumps(versions)};\n"
+        '    const first = location.pathname.split("/").filter(Boolean)[0];\n'
+        "    if (first !== undefined && !versions.includes(first)) {\n"
+        f'      location.replace("/{target}" + location.pathname + location.search + location.hash);\n'
+        "    }\n"
+        "  </script>\n"
+        "</head>\n"
+        "<body>\n"
+        "  <h1>Page not found</h1>\n"
+        f'  <p>Go to the <a href="/{target}/">documentation home page</a>.</p>\n'
+        "</body>\n"
+        "</html>\n"
+    )
+    path.write_text(html, encoding="utf-8")
+
+
 def build_version_entries(
     releases: list[Release],
     latest: Release | None,
@@ -265,6 +298,12 @@ def main(argv: list[str] | None = None) -> int:
     redirect_target = latest_alias if latest is not None else main_version
     write_redirect(output / "index.html", redirect_target)
     print(f"Wrote root redirect -> ./{redirect_target}/")
+
+    version_dirs = [str(entry["version"]) for entry in entries] + [dev_alias]
+    if latest is not None:
+        version_dirs.append(latest_alias)
+    write_not_found(output / "404.html", redirect_target, version_dirs)
+    print(f"Wrote 404 redirect for unversioned paths -> /{redirect_target}/")
 
     cname: str = args.cname
     (output / "CNAME").write_text(cname + "\n", encoding="utf-8")

@@ -1,10 +1,11 @@
-import { computed, makeAutoObservable } from "mobx";
+import { computed, makeAutoObservable, observable } from "mobx";
 
 import { clamp, linearScale } from "./geometry";
 import { computeHoverIndices, sharedTimeline } from "./hover";
 import { calculatePowerBounds, powerValueForDisplay } from "./power-display";
 import { classifyPowerSeries, isPowerPotentialSeries, powerPairKey } from "./power-series-classification";
 import { normalizeSeries } from "./series";
+import { type WindowBand, windowBands } from "./window-bands";
 import type { HassLike } from "./series";
 import type { LineSvgPath, PowerShape } from "./store-paths";
 import { computeHoveredPowerKeys, computePowerShapes, computePricePaths, computeSocPaths } from "./store-paths";
@@ -13,7 +14,7 @@ import { clampHorizonToOptions, horizonPresetToDuration, type HorizonOption } fr
 import type { ChartMargins, ForecastCardConfig, ForecastSeries, LaneBounds, PowerDisplayMode } from "./types";
 
 const DEFAULT_HEIGHT = 360;
-const VISIBLE_LANES = new Set(["power", "price", "soc"]);
+const VISIBLE_LANES = new Set(["power", "price", "soc", "window"]);
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 const DAY_MS = 24 * HOUR_MS;
@@ -94,6 +95,10 @@ export class ForecastCardStore {
   constructor(instanceId = 0) {
     this.instanceId = instanceId;
     makeAutoObservable(this, {
+      // Both are replaced wholesale and never mutated in place. Deep-observing
+      // Home Assistant's whole state tree on every update blocks the main thread.
+      hass: observable.ref,
+      normalizedSeriesCache: observable.ref,
       instanceId: false,
       plotPathsSnapshot: false,
       plotPathsSnapshotKey: false,
@@ -293,6 +298,14 @@ export class ForecastCardStore {
 
   get priceSeries(): ForecastSeries[] {
     return this.visibleSeries.filter((s) => s.lane === "price");
+  }
+
+  get windowSeries(): ForecastSeries[] {
+    return this.visibleSeries.filter((s) => s.lane === "window");
+  }
+
+  get windowBands(): WindowBand[] {
+    return windowBands(this.windowSeries, (time) => this.xScale(time), this.fullXDomain.max);
   }
 
   get socSeries(): ForecastSeries[] {
@@ -678,8 +691,10 @@ export class ForecastCardStore {
         continue;
       }
 
-      // Hide all policy element series by default.
-      if (series.elementType === "policy") {
+      // Hide all policy element series and load price outputs (summary marginal prices) by default.
+      const isLoadPriceOutput =
+        series.elementType === "load" && series.sourceRole === "output" && series.outputType === "price";
+      if (series.elementType === "policy" || isLoadPriceOutput) {
         const before = this.hiddenSeriesKeys.size;
         this.hiddenSeriesKeys.add(series.key);
         hiddenChanged ||= this.hiddenSeriesKeys.size !== before;

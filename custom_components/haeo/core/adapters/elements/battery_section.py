@@ -19,6 +19,7 @@ from custom_components.haeo.core.schema.elements.battery_section import (
     SECTION_STORAGE,
     BatterySectionConfigData,
 )
+from custom_components.haeo.core.schema.elements.buffer import CONF_STORAGE, BufferRole
 
 type BatterySectionOutputName = Literal[
     "battery_section_power_charge",
@@ -61,6 +62,7 @@ class BatterySectionAdapter:
     connectivity: ConnectivityLevel = ConnectivityLevel.ADVANCED
     can_source: bool = True
     can_sink: bool = True
+    buffer_roles: frozenset[BufferRole] = frozenset({CONF_STORAGE})
 
     def model_elements(self, config: BatterySectionConfigData) -> list[ModelElementConfig]:
         """Create model elements for BatterySection configuration.
