@@ -211,7 +211,8 @@ Read the skill covering an area before changing code in it.
 Run `uv run check` before considering work complete.
 It runs every CI job that can run locally — ruff, pyright, import boundaries, mdformat, prettier, version consistency, unit tests, scenario tests, and frontend card checks — in about 65 seconds.
 `--fast` runs ruff, pyright, and unit tests in about 35.
-`hassfest` and HACS validation have no local equivalent and run only in GitHub Actions.
+HACS validation has no local equivalent and runs only in GitHub Actions.
+`hassfest` is not part of `uv run check`, but the `lint` skill shows how to run it from Home Assistant's source; do so after changing translations, the manifest, services, or repair issues.
 
 Tests run under `timeout = 5` per test with `filterwarnings = ["error"]`, so a new warning is a hard failure and a hang surfaces as a 5-second timeout.
 
