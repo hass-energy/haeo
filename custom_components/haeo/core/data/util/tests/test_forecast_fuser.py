@@ -264,9 +264,9 @@ def _reference_interval_averages(
     horizon_times: list[float],
 ) -> list[float]:
     """Average each interval with a trapezoid over its own boundaries and the block points strictly inside it."""
-    # The forecast repeats every cycle, enough times to cover the horizon
+    # The forecast repeats every cycle, from one cycle before the horizon to past its end
     block, cycle = normalize_forecast_cycle(forecast_series, horizon_times[0])
-    repeats = range(int(np.ceil((horizon_times[-1] - horizon_times[0]) / cycle)) + 2)
+    repeats = range(-1, int(np.ceil((horizon_times[-1] - horizon_times[0]) / cycle)) + 2)
     times = np.array([time + i * cycle for i in repeats for time, _ in block])
     values = np.array([value for _ in repeats for _, value in block])
     result: list[float] = []
@@ -336,3 +336,40 @@ def test_fuse_to_intervals_matches_per_interval_trapezoids(
     expected = _reference_interval_averages(present_value, forecast_series, horizon_times)
 
     assert fuse_to_intervals(present_value, forecast_series, horizon_times) == pytest.approx(expected, rel=1e-12)
+
+
+def test_interpolation_context_before_horizon_start() -> None:
+    """Test that interpolation at horizon_start uses prior cycle data, not flat extrapolation.
+
+    When normalize_forecast_cycle wraps a forecast, the first block point may be
+    well after horizon_start. Without a prior cycle, np.interp flat-extrapolates
+    from the first point, giving incorrect values.
+    """
+    # Solar-like ramp over 24h
+    forecast: list[tuple[int, float]] = [
+        (0, 0.0),
+        (21600, 0.5),
+        (43200, 1.0),
+        (64800, 0.5),
+        (86400, 0.0),
+    ]
+
+    # Horizon at t=50000 falls between noon (43200, 1.0) and 6pm (64800, 0.5)
+    horizon_start = 50000.0
+    expected_value = 1.0 + (50000 - 43200) / (64800 - 43200) * (0.5 - 1.0)
+
+    result = fuse_to_boundaries(None, forecast, [horizon_start, horizon_start + 10000])
+
+    # Without the prior cycle fix, this returns 0.5 (flat extrapolation from first block point)
+    assert result[0] == pytest.approx(expected_value, abs=0.01)
+
+
+def test_whole_day_forecast_ramps_to_its_end_value_before_repeating() -> None:
+    """A forecast ending at its start's time of day reaches its last value, then repeats from its first."""
+    # Six-hourly points from midnight to the next midnight
+    forecast: list[tuple[int, float]] = [(hour * 3600, hour / 6) for hour in range(0, 25, 6)]
+    horizon_times = [hour * 3600.0 for hour in (7, 21, 23, 25)]
+
+    result = fuse_to_boundaries(None, forecast, horizon_times)
+
+    assert result == pytest.approx([7 / 6, 3.5, 23 / 6, 1 / 6])

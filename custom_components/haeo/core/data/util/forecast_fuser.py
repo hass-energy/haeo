@@ -31,11 +31,12 @@ def _build_extended_block(
     """
     block, cover_seconds = normalize_forecast_cycle(forecast_series, horizon_start)
 
-    # Repeat block as needed to cover the entire horizon
+    # Repeat block as needed to cover the entire horizon, starting one cycle early
+    # to provide interpolation context before horizon_start
     repeat_count = max(2, int(np.ceil((horizon_end - horizon_start) / cover_seconds)) + 1)
     block_array = np.array(block, dtype=[("timestamp", np.float64), ("value", np.float64)])
-    extended = np.tile(block_array, repeat_count)
-    extended["timestamp"] += np.repeat(np.arange(repeat_count) * cover_seconds, len(block_array))
+    extended = np.tile(block_array, repeat_count + 1)
+    extended["timestamp"] += np.repeat(np.arange(-1, repeat_count) * cover_seconds, len(block_array))
     return extended
 
 
