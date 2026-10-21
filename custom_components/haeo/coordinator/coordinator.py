@@ -54,7 +54,10 @@ from custom_components.haeo.repairs import (
     create_optimization_infeasible_issue,
     create_optimization_relaxed_issue,
     dismiss_optimization_failure_issue,
+    optimization_infeasible_issue_raised,
+    optimization_relaxed_issue_raised,
 )
+from custom_components.haeo.services import async_save_diagnostics
 
 from . import network as network_module
 
@@ -681,6 +684,24 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         self._pending_element_updates.clear()
 
+    async def _save_failure_diagnostics(
+        self, context: OptimizationContext, started_at: datetime, kind: str, failure: dict[str, object]
+    ) -> str:
+        """Save diagnostics of the optimization that just failed or was relaxed, and return the file's path.
+
+        They hold the config and inputs the optimization used, so the failure can be
+        run again from the file a user attaches to a report.
+        """
+        # Imported here because the diagnostics package imports the integration, which imports this module
+        from custom_components.haeo.diagnostics import diagnostics_from_context  # noqa: PLC0415
+
+        now = dt_util.now()
+        result = await diagnostics_from_context(
+            self.hass, self.config_entry, context, started_at=started_at, completed_at=now, outputs=None
+        )
+        path = await async_save_diagnostics(self.hass, {**result.to_dict(), "failure": failure}, kind, now)
+        return str(path)
+
     def _apply_pending_element_updates(self) -> None:
         """Apply all pending element updates to the network.
 
@@ -788,12 +809,20 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         "elements": _element_names(error.conflicts, context.participants),
                         "minutes": _minutes_into_plan(error.conflicts, forecast_timestamps),
                     }
-                create_optimization_infeasible_issue(
-                    self.hass,
-                    entry_id,
-                    translation_key,
-                    {**placeholders, "planned_at": _plan_start(forecast_timestamps)},
-                )
+                if not optimization_infeasible_issue_raised(self.hass, entry_id):
+                    diagnostics = await self._save_failure_diagnostics(
+                        context,
+                        started_at,
+                        "infeasible",
+                        {"conflicts": [str(row) for row in error.conflicts]},
+                    )
+                    create_optimization_infeasible_issue(
+                        self.hass,
+                        entry_id,
+                        translation_key,
+                        {**placeholders, "planned_at": _plan_start(forecast_timestamps)},
+                        diagnostics,
+                    )
                 raise UpdateFailed(
                     translation_domain=DOMAIN,
                     translation_key=translation_key,
@@ -808,9 +837,18 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
             _LOGGER.debug("Optimization completed successfully with cost: %s", cost)
             dismiss_optimization_failure_issue(self.hass, entry_id)
-            if network.relaxations:
+            if network.relaxations and not optimization_relaxed_issue_raised(self.hass, entry_id):
                 relaxed_rows = [relaxation.row for relaxation in network.relaxations]
                 conflicts = network.conflicts or relaxed_rows
+                diagnostics = await self._save_failure_diagnostics(
+                    context,
+                    started_at,
+                    "relaxed",
+                    {
+                        "conflicts": [str(row) for row in network.conflicts],
+                        "relaxations": [str(relaxation) for relaxation in network.relaxations],
+                    },
+                )
                 create_optimization_relaxed_issue(
                     self.hass,
                     entry_id,
@@ -821,6 +859,7 @@ class HaeoDataUpdateCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         "relaxed_periods": str(len({row.period for row in relaxed_rows if row.period is not None})),
                         "planned_at": _plan_start(forecast_timestamps),
                     },
+                    diagnostics,
                 )
 
             network_output_data: dict[NetworkOutputName, OutputData] = {

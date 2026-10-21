@@ -138,6 +138,10 @@ The coordinator raises the `optimization_relaxed` warning issue after the update
 
 An impossible or relaxed plan's cause can come and go between optimizations, so the coordinator never dismisses either issue.
 Both are persistent and fixable, and the user resolves them through the confirm flow `repairs.async_create_fix_flow` returns.
+While either is open, later failures leave it as it is.
+
+When either issue is raised, the coordinator saves diagnostics built from the failing optimization's context with `diagnostics_from_context`, plus a `failure` section listing the conflicting and relaxed rows, to `haeo/diagnostics/infeasible_*.json` or `relaxed_*.json`.
+The path goes in the issue's data, and the file is deleted when the issue is resolved or the config entry is removed, so there is at most one file per open issue.
 Issues that change only when the configuration does, such as a disconnected network, clear themselves once fixed and are not fixable.
 
 ### Error propagation

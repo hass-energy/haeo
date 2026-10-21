@@ -1,6 +1,7 @@
 """Tests for the repairs module."""
 
 from collections.abc import Callable
+from pathlib import Path
 
 from homeassistant.components.repairs import ConfirmRepairFlow
 from homeassistant.core import HomeAssistant
@@ -10,13 +11,14 @@ import pytest
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.repairs import (
     async_create_fix_flow,
+    async_delete_issue_diagnostics,
+    async_dismiss_entry_issues,
     create_disconnected_network_issue,
     create_node_replaced_by_junction_issue,
     create_optimization_infeasible_issue,
     create_optimization_persistent_failure_issue,
     create_optimization_relaxed_issue,
     dismiss_disconnected_network_issue,
-    dismiss_entry_issues,
     dismiss_optimization_failure_issue,
 )
 
@@ -137,30 +139,48 @@ async def test_create_node_replaced_by_junction_issue(hass: HomeAssistant) -> No
     assert not issue.is_fixable
 
 
-async def test_dismiss_entry_issues_only_removes_that_entry(hass: HomeAssistant) -> None:
-    """Dismissing an entry's issues leaves other entries' issues in place."""
+async def test_dismiss_entry_issues_only_removes_that_entry(hass: HomeAssistant, tmp_path: Path) -> None:
+    """Dismissing an entry's issues deletes their saved diagnostics and leaves other entries' issues in place."""
+    hass.config.config_dir = str(tmp_path)
+    saved = _saved_file(hass, "infeasible_1.json")
+    kept = _saved_file(hass, "infeasible_2.json")
     create_node_replaced_by_junction_issue(hass, "entry123", "Switchboard")
     create_disconnected_network_issue(hass, "entry123", [{"Battery"}, {"Grid"}])
+    create_optimization_infeasible_issue(hass, "entry123", "optimization_infeasible", {}, str(saved))
     create_node_replaced_by_junction_issue(hass, "entry456", "Switchboard")
+    create_optimization_infeasible_issue(hass, "entry456", "optimization_infeasible", {}, str(kept))
 
-    dismiss_entry_issues(hass, "entry123")
+    await async_dismiss_entry_issues(hass, "entry123")
 
-    assert list(async_get(hass).issues) == [(DOMAIN, "node_replaced_by_junction_entry456_Switchboard")]
+    assert list(async_get(hass).issues) == [
+        (DOMAIN, "node_replaced_by_junction_entry456_Switchboard"),
+        (DOMAIN, "optimization_infeasible_entry456"),
+    ]
+    assert not saved.exists()
+    assert kept.exists()
+
+
+def _saved_file(hass: HomeAssistant, name: str) -> Path:
+    """Write a stand-in diagnostics file to HAEO's diagnostics folder and return its path."""
+    path = Path(hass.config.path("haeo", "diagnostics", name))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("{}")
+    return path
 
 
 @pytest.mark.parametrize(
     ("create", "issue_id", "severity"),
     [
         pytest.param(
-            lambda hass: create_optimization_infeasible_issue(
-                hass, "entry", "optimization_infeasible", {"elements": "Load"}
-            ),
+            create_optimization_infeasible_issue,
             "optimization_infeasible_entry",
             IssueSeverity.ERROR,
             id="infeasible",
         ),
         pytest.param(
-            lambda hass: create_optimization_relaxed_issue(hass, "entry", {"elements": "Load"}),
+            lambda hass, entry, _key, placeholders, diagnostics: create_optimization_relaxed_issue(
+                hass, entry, placeholders, diagnostics
+            ),
             "optimization_relaxed_entry",
             IssueSeverity.WARNING,
             id="relaxed",
@@ -169,16 +189,40 @@ async def test_dismiss_entry_issues_only_removes_that_entry(hass: HomeAssistant)
 )
 async def test_impossible_plan_issues_stay_until_the_user_resolves_them(
     hass: HomeAssistant,
-    create: Callable[[HomeAssistant], None],
+    tmp_path: Path,
+    create: Callable[[HomeAssistant, str, str, dict[str, str], str], None],
     issue_id: str,
     severity: IssueSeverity,
 ) -> None:
-    """Impossible and relaxed plans raise persistent issues that the user resolves through a confirm flow."""
-    create(hass)
+    """Impossible and relaxed plans raise persistent issues; resolving one deletes the diagnostics saved for it."""
+    hass.config.config_dir = str(tmp_path)
+    saved = _saved_file(hass, "failure.json")
+    create(hass, "entry", "optimization_infeasible", {"elements": "Load"}, str(saved))
 
     issue = async_get(hass).async_get_issue(DOMAIN, issue_id)
     assert issue is not None
     assert issue.severity == severity
     assert issue.is_fixable
     assert issue.is_persistent
-    assert isinstance(await async_create_fix_flow(hass, issue.issue_id, None), ConfirmRepairFlow)
+    assert issue.translation_placeholders == {"elements": "Load", "diagnostics": str(saved)}
+
+    flow = await async_create_fix_flow(hass, issue.issue_id, issue.data)
+    assert isinstance(flow, ConfirmRepairFlow)
+    flow.hass, flow.issue_id, flow.data = hass, issue.issue_id, issue.data
+    await flow.async_step_confirm({})
+
+    assert not saved.exists()
+
+
+async def test_resolving_an_issue_never_deletes_files_outside_the_diagnostics_folder(
+    hass: HomeAssistant, tmp_path: Path
+) -> None:
+    """An issue whose data names a file elsewhere leaves that file alone."""
+    hass.config.config_dir = str(tmp_path)
+    elsewhere = tmp_path / "configuration.yaml"
+    elsewhere.write_text("homeassistant:")
+
+    await async_delete_issue_diagnostics(hass, {"diagnostics": str(elsewhere)})
+    await async_delete_issue_diagnostics(hass, None)
+
+    assert elsewhere.exists()

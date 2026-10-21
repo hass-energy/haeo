@@ -160,8 +160,15 @@ Check the forecasts of the elements named in the issue for values your system ca
 #### Resolve the issue
 
 The issue stays until you mark it resolved, even once a later plan is found, so a forecast that only sometimes asks for too much is not missed.
-It shows the latest plan that could not be found and when that plan was made.
+It describes the first plan that could not be found since you last resolved it, and when that plan was made.
 Once you have addressed the cause, open the issue and select **Submit** to resolve it; it is raised again if a later plan cannot be found.
+
+#### Report the issue
+
+When the issue is raised, HAEO saves the configuration and inputs of the plan that failed to a diagnostics file in `config/haeo/diagnostics/`, named in the issue.
+If you cannot find the cause, [open an issue](https://github.com/hass-energy/haeo/issues) and attach that file, so the plan can be run again exactly as it failed.
+The file is deleted when you resolve the issue, or when you remove the hub, so attach it before you resolve the issue.
+Only one file is kept for each open issue, so repeated failures do not fill your disk.
 
 #### Relax impossible plans
 
@@ -171,7 +178,7 @@ Something still went wrong, so a repair issue titled "A plan had to relax constr
 The log lists each relaxed constraint and by how much.
 
 That issue stays until you resolve it in the same way, even once later plans meet every constraint.
-It shows the latest plan that had to relax constraints.
+It describes the first plan that had to relax constraints since you last resolved it, and saves its diagnostics in the same way.
 
 The relaxed periods cannot happen as planned, so treat that issue as a sign to check the forecast.
 The shortfall is placed to be as small as possible rather than as cheap as possible, so the rest of the plan can cost a little more than it would with the shortfall placed by cost.
