@@ -1,4 +1,4 @@
-"""Tests for the connection adapter power limit placement."""
+"""Tests for where a connection's power limit binds in the optimization."""
 
 import numpy as np
 import pytest

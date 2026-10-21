@@ -1,16 +1,25 @@
-"""Tests for config flow entity inclusion map unit filtering."""
+"""Tests for the shared element flow helpers."""
+
+from types import MappingProxyType
 
 from homeassistant.components.number import NumberEntityDescription
 from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import UnitOfEnergyDistance, UnitOfLength
+from homeassistant.core import HomeAssistant
 from homeassistant.util.unit_conversion import DistanceConverter
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.haeo.core.const import CONF_ADVANCED_MODE, CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.data.loader.extractors import EntityMetadata
 from custom_components.haeo.core.model.const import OutputType
+from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.field_hints import CalendarFieldHint, MeterFieldHint
 from custom_components.haeo.core.units import UnitOfMeasurement, convert_to_base_unit
 from custom_components.haeo.elements.input_fields import InputFieldInfo
+from custom_components.haeo.flows import HUB_SECTION_ADVANCED
+from custom_components.haeo.flows.conftest import create_flow
 from custom_components.haeo.flows.element_flow import build_inclusion_map
 
 
@@ -23,83 +32,34 @@ def _field(field_name: str, output_type: OutputType) -> InputFieldInfo[NumberEnt
 
 
 @pytest.mark.parametrize(
-    ("entity_id", "unit"),
+    ("output_type", "unit", "other_units"),
     [
-        ("sensor.power_w", "W"),
-        ("sensor.power_kw", "kW"),
-        ("sensor.power_mw", "MW"),
+        *(pytest.param(OutputType.POWER_LIMIT, unit, ["kWh"], id=f"power_{unit}") for unit in ("W", "kW", "MW")),
+        *(pytest.param(OutputType.ENERGY, unit, ["kW"], id=f"energy_{unit}") for unit in ("Wh", "kWh", "MWh", "GWh")),
+        *(
+            pytest.param(OutputType.PRICE, unit, ["kW"], id=f"price_{unit}")
+            for unit in ("$/kWh", "€/MWh", "AUD/Wh", "£/GWh")
+        ),
+        *(
+            pytest.param(OutputType.DURATION, unit, ["ms", "kW"], id=f"duration_{unit}")
+            for unit in ("s", "min", "h", "d")
+        ),
     ],
 )
-def test_build_inclusion_map_includes_compatible_power_units(entity_id: str, unit: str) -> None:
-    """Power fields accept any Home Assistant power unit."""
+def test_build_inclusion_map_includes_compatible_units(
+    output_type: OutputType, unit: str, other_units: list[str]
+) -> None:
+    """A field accepts any unit that converts to its own, in any currency for prices, and no other unit."""
     entity_metadata = [
-        EntityMetadata(entity_id=entity_id, unit_of_measurement=unit),
-        EntityMetadata(entity_id="sensor.energy", unit_of_measurement="kWh"),
+        EntityMetadata(entity_id="sensor.compatible", unit_of_measurement=unit),
+        *(
+            EntityMetadata(entity_id=f"sensor.other_{index}", unit_of_measurement=other_unit)
+            for index, other_unit in enumerate(other_units)
+        ),
     ]
-    inclusion_map = build_inclusion_map({"max_power": _field("max_power", OutputType.POWER_LIMIT)}, entity_metadata)
+    inclusion_map = build_inclusion_map({"field": _field("field", output_type)}, entity_metadata)
 
-    assert inclusion_map["max_power"] == [entity_id]
-
-
-@pytest.mark.parametrize(
-    ("entity_id", "unit"),
-    [
-        ("sensor.energy_wh", "Wh"),
-        ("sensor.energy_kwh", "kWh"),
-        ("sensor.energy_mwh", "MWh"),
-        ("sensor.energy_gwh", "GWh"),
-    ],
-)
-def test_build_inclusion_map_includes_compatible_energy_units(entity_id: str, unit: str) -> None:
-    """Energy fields accept any Home Assistant energy unit."""
-    entity_metadata = [
-        EntityMetadata(entity_id=entity_id, unit_of_measurement=unit),
-        EntityMetadata(entity_id="sensor.power", unit_of_measurement="kW"),
-    ]
-    inclusion_map = build_inclusion_map({"capacity": _field("capacity", OutputType.ENERGY)}, entity_metadata)
-
-    assert inclusion_map["capacity"] == [entity_id]
-
-
-@pytest.mark.parametrize(
-    ("entity_id", "unit"),
-    [
-        ("sensor.price_kwh", "$/kWh"),
-        ("sensor.price_mwh", "€/MWh"),
-        ("sensor.price_wh", "AUD/Wh"),
-        ("sensor.price_gwh", "£/GWh"),
-    ],
-)
-def test_build_inclusion_map_includes_compatible_price_units(entity_id: str, unit: str) -> None:
-    """Price fields accept any currency paired with a supported energy denominator."""
-    entity_metadata = [
-        EntityMetadata(entity_id=entity_id, unit_of_measurement=unit),
-        EntityMetadata(entity_id="sensor.power", unit_of_measurement="kW"),
-    ]
-    inclusion_map = build_inclusion_map({"price": _field("price", OutputType.PRICE)}, entity_metadata)
-
-    assert inclusion_map["price"] == [entity_id]
-
-
-@pytest.mark.parametrize(
-    ("entity_id", "unit"),
-    [
-        ("sensor.duration_s", "s"),
-        ("sensor.duration_min", "min"),
-        ("sensor.duration_h", "h"),
-        ("sensor.duration_d", "d"),
-    ],
-)
-def test_build_inclusion_map_includes_compatible_duration_units(entity_id: str, unit: str) -> None:
-    """Duration fields accept the time units HAEO converts to hours."""
-    entity_metadata = [
-        EntityMetadata(entity_id=entity_id, unit_of_measurement=unit),
-        EntityMetadata(entity_id="sensor.duration_ms", unit_of_measurement="ms"),
-        EntityMetadata(entity_id="sensor.power", unit_of_measurement="kW"),
-    ]
-    inclusion_map = build_inclusion_map({"window": _field("window", OutputType.DURATION)}, entity_metadata)
-
-    assert inclusion_map["window"] == [entity_id]
+    assert inclusion_map["field"] == ["sensor.compatible"]
 
 
 @pytest.mark.parametrize(
@@ -201,3 +161,60 @@ def test_build_inclusion_map_offers_only_running_totals_for_meter_fields() -> No
         "sensor.pump_energy",
         "sensor.pump_energy_today",
     ]
+
+
+def _add_subentry(hass: HomeAssistant, hub_entry: MockConfigEntry, *, element_type: str, title: str) -> None:
+    """Add a subentry with the given element_type value."""
+    subentry = ConfigSubentry(
+        data=MappingProxyType({CONF_ELEMENT_TYPE: element_type, CONF_NAME: title}),
+        subentry_type=str(element_type),
+        title=title,
+        unique_id=None,
+    )
+    hass.config_entries.async_add_subentry(hub_entry, subentry)
+
+
+@pytest.mark.parametrize(
+    ("node_type", "inverter_type"),
+    [
+        pytest.param(ElementType.NODE, ElementType.INVERTER, id="enum"),
+        # Subentry data reloaded after a restart holds plain strings
+        pytest.param("node", "inverter", id="deserialized_string"),
+    ],
+)
+async def test_participant_names_resolve_element_type(
+    hass: HomeAssistant, hub_entry: MockConfigEntry, node_type: str, inverter_type: str
+) -> None:
+    """Participant names resolve whether element_type is an ElementType or the string it deserializes to."""
+    _add_subentry(hass, hub_entry, element_type=node_type, title="Switchboard")
+    _add_subentry(hass, hub_entry, element_type=inverter_type, title="Inverter")
+
+    flow = create_flow(hass, hub_entry, ElementType.INVERTER)
+
+    assert "Switchboard" in flow._get_participant_names()
+
+
+@pytest.mark.parametrize(
+    ("advanced_mode", "expected"),
+    [
+        pytest.param(False, ["Inverter", "Junction", "Node"], id="standard"),
+        pytest.param(True, ["Battery Section", "Inverter", "Junction", "Node"], id="advanced"),
+    ],
+)
+async def test_participant_names_exclude_elements_with_own_connections(
+    hass: HomeAssistant,
+    hub_entry: MockConfigEntry,
+    advanced_mode: bool,
+    expected: list[str],
+) -> None:
+    """Grid, battery, solar, and load are never endpoints, even in advanced mode."""
+    hass.config_entries.async_update_entry(
+        hub_entry,
+        data={**hub_entry.data, HUB_SECTION_ADVANCED: {CONF_ADVANCED_MODE: advanced_mode}},
+    )
+    for element_type in ElementType:
+        _add_subentry(hass, hub_entry, element_type=element_type, title=element_type.replace("_", " ").title())
+
+    flow = create_flow(hass, hub_entry, ElementType.CONNECTION)
+
+    assert flow._get_participant_names() == expected

@@ -1,11 +1,6 @@
-"""Tests for grid element model mapping."""
-
-from collections.abc import Mapping, Sequence
-from typing import TypedDict
+"""Adapter mapping cases for the grid element."""
 
 import numpy as np
-from numpy.typing import NDArray
-import pytest
 
 from custom_components.haeo.core.adapters.elements.grid import (
     GRID_COST_IMPORT,
@@ -18,9 +13,6 @@ from custom_components.haeo.core.adapters.elements.grid import (
     GRID_POWER_MAX_IMPORT_PRICE,
     GRID_REVENUE_EXPORT,
 )
-from custom_components.haeo.core.adapters.elements.tests.normalize import normalize_for_compare
-from custom_components.haeo.core.adapters.registry import ELEMENT_TYPES
-from custom_components.haeo.core.model import ModelOutputName, ModelOutputValue
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.elements import (
     MODEL_ELEMENT_TYPE_CONNECTION,
@@ -32,27 +24,9 @@ from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import ElementType
 from custom_components.haeo.core.schema.elements.grid import GridConfigData
 
+from . import CreateCase, OutputsCase
 
-class CreateCase(TypedDict):
-    """Test case for model_elements."""
-
-    description: str
-    data: GridConfigData
-    model: list[dict[str, object]]
-
-
-class OutputsCase(TypedDict):
-    """Test case for outputs mapping."""
-
-    description: str
-    name: str
-    config: GridConfigData
-    model_outputs: Mapping[str, Mapping[ModelOutputName, ModelOutputValue]]
-    periods: NDArray[np.float64]
-    outputs: Mapping[str, Mapping[str, OutputData]]
-
-
-CREATE_CASES: Sequence[CreateCase] = [
+CREATE_CASES: list[CreateCase] = [
     {
         "description": "Grid with import and export limits",
         "data": GridConfigData(
@@ -97,11 +71,10 @@ CREATE_CASES: Sequence[CreateCase] = [
 ]
 
 
-OUTPUTS_CASES: Sequence[OutputsCase] = [
+OUTPUTS_CASES: list[OutputsCase] = [
     {
         "description": "Grid with import and export - cost/revenue calculated from power x price x period",
-        "name": "grid_main",
-        "config": GridConfigData(
+        "data": GridConfigData(
             element_type=ElementType.GRID,
             name="grid_main",
             connection=as_connection_target("network"),
@@ -155,8 +128,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     },
     {
         "description": "Grid export connection pruned - export carries no flow",
-        "name": "grid_main",
-        "config": GridConfigData(
+        "data": GridConfigData(
             element_type=ElementType.GRID,
             name="grid_main",
             connection=as_connection_target("network"),
@@ -199,8 +171,7 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
     },
     {
         "description": "Grid with multiple periods - cumulative cost/revenue",
-        "name": "grid_multi",
-        "config": GridConfigData(
+        "data": GridConfigData(
             element_type=ElementType.GRID,
             name="grid_multi",
             connection=as_connection_target("network"),
@@ -241,19 +212,3 @@ OUTPUTS_CASES: Sequence[OutputsCase] = [
         },
     },
 ]
-
-
-@pytest.mark.parametrize("case", CREATE_CASES, ids=lambda c: c["description"])
-def test_model_elements(case: CreateCase) -> None:
-    """Verify adapter transforms ConfigData into expected model elements."""
-    entry = ELEMENT_TYPES[ElementType.GRID]
-    result = entry.model_elements(case["data"])
-    assert normalize_for_compare(result) == normalize_for_compare(case["model"])
-
-
-@pytest.mark.parametrize("case", OUTPUTS_CASES, ids=lambda c: c["description"])
-def test_outputs_mapping(case: OutputsCase) -> None:
-    """Verify adapter maps model outputs to device outputs with cost calculation."""
-    entry = ELEMENT_TYPES[ElementType.GRID]
-    result = entry.outputs(case["name"], case["model_outputs"], config=case["config"], periods=case["periods"])
-    assert result == case["outputs"]

@@ -215,143 +215,145 @@ def test_haeo_interval_forecast_fuses_to_its_period_values(hass: HomeAssistant) 
 # --- Interpolation Mode Tests ---
 
 
-class TestInterpolationModeExtraction:
-    """Tests for interpolation_mode attribute extraction."""
+@pytest.mark.parametrize(
+    "interpolation_mode",
+    [None, "linear"],
+    ids=["default_linear", "explicit_linear"],
+)
+def test_linear_modes_leave_data_unchanged(hass: HomeAssistant, interpolation_mode: str | None) -> None:
+    """Missing or explicit linear interpolation leaves data unchanged."""
+    attributes: dict[str, object] = {
+        "forecast": [
+            {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
+            {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
+        ],
+        "unit_of_measurement": "kW",
+    }
+    if interpolation_mode is not None:
+        attributes["interpolation_mode"] = interpolation_mode
 
-    @pytest.mark.parametrize(
-        "interpolation_mode",
-        [None, "linear"],
-        ids=["default_linear", "explicit_linear"],
+    state = _create_sensor_state(
+        hass,
+        "sensor.haeo_forecast",
+        "100.0",
+        attributes,
     )
-    def test_linear_modes_leave_data_unchanged(self, hass: HomeAssistant, interpolation_mode: str | None) -> None:
-        """Missing or explicit linear interpolation leaves data unchanged."""
-        attributes: dict[str, object] = {
+
+    result = extractors.extract(state, time_zone=UTC)
+    assert isinstance(result.data, list)
+    assert len(result.data) == 2
+
+
+def test_previous_mode_holds_each_value_until_the_next(hass: HomeAssistant) -> None:
+    """Previous mode holds each value until the next point, and the last for one more step."""
+    state = _create_sensor_state(
+        hass,
+        "sensor.haeo_forecast",
+        "100.0",
+        {
             "forecast": [
                 {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
                 {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
             ],
             "unit_of_measurement": "kW",
-        }
-        if interpolation_mode is not None:
-            attributes["interpolation_mode"] = interpolation_mode
+            "interpolation_mode": "previous",
+        },
+    )
 
-        state = _create_sensor_state(
-            hass,
-            "sensor.haeo_forecast",
-            "100.0",
-            attributes,
-        )
+    result = extractors.extract(state, time_zone=UTC)
+    assert result.data == [
+        (1704067200.0, 100.0),
+        (np.nextafter(1704070800.0, -np.inf), 100.0),
+        (1704070800.0, 200.0),
+        (1704074400.0, 200.0),
+    ]
 
-        result = extractors.extract(state, time_zone=UTC)
-        assert isinstance(result.data, list)
-        assert len(result.data) == 2
 
-    def test_previous_mode_holds_each_value_until_the_next(self, hass: HomeAssistant) -> None:
-        """Previous mode holds each value until the next point, and the last for one more step."""
-        state = _create_sensor_state(
-            hass,
-            "sensor.haeo_forecast",
-            "100.0",
-            {
-                "forecast": [
-                    {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
-                    {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
-                ],
-                "unit_of_measurement": "kW",
-                "interpolation_mode": "previous",
-            },
-        )
+def test_next_mode_adds_synthetic_points(hass: HomeAssistant) -> None:
+    """Next mode adds synthetic points for forward step behavior."""
+    state = _create_sensor_state(
+        hass,
+        "sensor.haeo_forecast",
+        "100.0",
+        {
+            "forecast": [
+                {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
+                {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
+            ],
+            "unit_of_measurement": "kW",
+            "interpolation_mode": "next",
+        },
+    )
 
-        result = extractors.extract(state, time_zone=UTC)
-        assert result.data == [
-            (1704067200.0, 100.0),
-            (np.nextafter(1704070800.0, -np.inf), 100.0),
-            (1704070800.0, 200.0),
-            (1704074400.0, 200.0),
-        ]
+    result = extractors.extract(state, time_zone=UTC)
+    assert isinstance(result.data, list)
+    # Next mode: 2 original + 1 synthetic = 3 points
+    assert len(result.data) == 3
+    # First point unchanged
+    assert result.data[0][1] == 100.0
+    # Synthetic point just after first with next value
+    assert result.data[1][1] == 200.0
+    # Second point
+    assert result.data[2][1] == 200.0
 
-    def test_next_mode_adds_synthetic_points(self, hass: HomeAssistant) -> None:
-        """Next mode adds synthetic points for forward step behavior."""
-        state = _create_sensor_state(
-            hass,
-            "sensor.haeo_forecast",
-            "100.0",
-            {
-                "forecast": [
-                    {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
-                    {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
-                ],
-                "unit_of_measurement": "kW",
-                "interpolation_mode": "next",
-            },
-        )
 
-        result = extractors.extract(state, time_zone=UTC)
-        assert isinstance(result.data, list)
-        # Next mode: 2 original + 1 synthetic = 3 points
-        assert len(result.data) == 3
-        # First point unchanged
-        assert result.data[0][1] == 100.0
-        # Synthetic point just after first with next value
-        assert result.data[1][1] == 200.0
-        # Second point
-        assert result.data[2][1] == 200.0
+def test_nearest_mode_adds_synthetic_points(hass: HomeAssistant) -> None:
+    """Nearest mode adds synthetic points at midpoints."""
+    state = _create_sensor_state(
+        hass,
+        "sensor.haeo_forecast",
+        "100.0",
+        {
+            "forecast": [
+                {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
+                {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
+            ],
+            "unit_of_measurement": "kW",
+            "interpolation_mode": "nearest",
+        },
+    )
 
-    def test_nearest_mode_adds_synthetic_points(self, hass: HomeAssistant) -> None:
-        """Nearest mode adds synthetic points at midpoints."""
-        state = _create_sensor_state(
-            hass,
-            "sensor.haeo_forecast",
-            "100.0",
-            {
-                "forecast": [
-                    {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
-                    {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
-                ],
-                "unit_of_measurement": "kW",
-                "interpolation_mode": "nearest",
-            },
-        )
+    result = extractors.extract(state, time_zone=UTC)
+    assert isinstance(result.data, list)
+    # Nearest mode: 2 original + 2 synthetic = 4 points
+    assert len(result.data) == 4
 
-        result = extractors.extract(state, time_zone=UTC)
-        assert isinstance(result.data, list)
-        # Nearest mode: 2 original + 2 synthetic = 4 points
-        assert len(result.data) == 4
 
-    def test_invalid_mode_falls_back_to_linear(self, hass: HomeAssistant) -> None:
-        """Invalid interpolation_mode value falls back to linear."""
-        state = _create_sensor_state(
-            hass,
-            "sensor.haeo_forecast",
-            "100.0",
-            {
-                "forecast": [
-                    {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
-                    {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
-                ],
-                "unit_of_measurement": "kW",
-                "interpolation_mode": "invalid_mode",
-            },
-        )
+def test_invalid_mode_falls_back_to_linear(hass: HomeAssistant) -> None:
+    """Invalid interpolation_mode value falls back to linear."""
+    state = _create_sensor_state(
+        hass,
+        "sensor.haeo_forecast",
+        "100.0",
+        {
+            "forecast": [
+                {"time": "2024-01-01T00:00:00+00:00", "value": 100.0},
+                {"time": "2024-01-01T01:00:00+00:00", "value": 200.0},
+            ],
+            "unit_of_measurement": "kW",
+            "interpolation_mode": "invalid_mode",
+        },
+    )
 
-        result = extractors.extract(state, time_zone=UTC)
-        assert isinstance(result.data, list)
-        # Falls back to linear: only 2 points
-        assert len(result.data) == 2
+    result = extractors.extract(state, time_zone=UTC)
+    assert isinstance(result.data, list)
+    # Falls back to linear: only 2 points
+    assert len(result.data) == 2
 
-    def test_simple_value_ignores_interpolation_mode(self, hass: HomeAssistant) -> None:
-        """Interpolation mode is ignored for simple (non-forecast) values."""
-        state = _create_sensor_state(
-            hass,
-            "sensor.simple",
-            "42.0",
-            {
-                "unit_of_measurement": "kW",
-                "interpolation_mode": "previous",
-            },
-        )
 
-        result = extractors.extract(state, time_zone=UTC)
-        # Simple value extraction, not affected by interpolation_mode
-        assert isinstance(result.data, float)
-        assert result.data == 42.0
+def test_simple_value_ignores_interpolation_mode(hass: HomeAssistant) -> None:
+    """Interpolation mode is ignored for simple (non-forecast) values."""
+    state = _create_sensor_state(
+        hass,
+        "sensor.simple",
+        "42.0",
+        {
+            "unit_of_measurement": "kW",
+            "interpolation_mode": "previous",
+        },
+    )
+
+    result = extractors.extract(state, time_zone=UTC)
+    # Simple value extraction, not affected by interpolation_mode
+    assert isinstance(result.data, float)
+    assert result.data == 42.0

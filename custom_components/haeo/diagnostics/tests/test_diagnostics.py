@@ -17,14 +17,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.haeo import HaeoRuntimeData
-from custom_components.haeo.const import (
-    CONF_INTEGRATION_TYPE,
-    DOMAIN,
-    ELEMENT_TYPE_NETWORK,
-    INTEGRATION_TYPE_HUB,
-    OUTPUT_NAME_HORIZON,
-    OUTPUT_NAME_OPTIMIZATION_DURATION,
-)
+from custom_components.haeo.const import CONF_INTEGRATION_TYPE, DOMAIN, INTEGRATION_TYPE_HUB
 from custom_components.haeo.coordinator import CoordinatorData, HaeoDataUpdateCoordinator, OptimizationContext
 from custom_components.haeo.core.adapters.elements.grid import GRID_POWER_IMPORT
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_HORIZON, CONF_NAME, HORIZON_PRESET_2_DAYS
@@ -68,9 +61,7 @@ from custom_components.haeo.diagnostics.collector import (
     _fetch_inputs_at,
     _get_last_run_before,
 )
-from custom_components.haeo.entities.device import build_device_identifier
 from custom_components.haeo.flows import HUB_SECTION_COMMON
-from custom_components.haeo.sensor_utils import get_duration_sensor_entity_id, get_horizon_sensor_entity_id
 
 
 def _battery_config(
@@ -1252,88 +1243,6 @@ async def test_get_last_run_before_no_horizon_state(hass: HomeAssistant) -> None
         result = await _get_last_run_before(hass, entry, datetime(2024, 1, 1, 13, 0, tzinfo=UTC))
 
     assert result is None
-
-
-# --- get_duration_sensor_entity_id tests ---
-
-
-def test_get_duration_sensor_entity_id_found(hass: HomeAssistant) -> None:
-    """get_duration_sensor_entity_id returns entity_id when duration sensor exists."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data=_hub_entry_data(),
-        entry_id="hub_entry",
-    )
-    entry.add_to_hass(hass)
-
-    network_subentry = ConfigSubentry(
-        data=MappingProxyType({}),
-        subentry_type=ELEMENT_TYPE_NETWORK,
-        title="Network",
-        unique_id=None,
-    )
-    hass.config_entries.async_add_subentry(entry, network_subentry)
-
-    network_sub = next(s for s in entry.subentries.values() if s.subentry_type == ELEMENT_TYPE_NETWORK)
-    device_id = build_device_identifier(entry, network_sub, ELEMENT_TYPE_NETWORK)[1]
-    unique_id = f"{device_id}_{OUTPUT_NAME_OPTIMIZATION_DURATION}"
-
-    er.async_get(hass).async_get_or_create(
-        domain="sensor",
-        platform=DOMAIN,
-        unique_id=unique_id,
-        config_entry=entry,
-    )
-
-    result = get_duration_sensor_entity_id(hass, entry)
-    assert result is not None
-    assert OUTPUT_NAME_OPTIMIZATION_DURATION in result
-
-
-def test_get_duration_sensor_entity_id_no_network_subentry(hass: HomeAssistant) -> None:
-    """get_duration_sensor_entity_id returns None when no network subentry exists."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data=_hub_entry_data(),
-        entry_id="hub_entry",
-    )
-    entry.add_to_hass(hass)
-
-    assert get_duration_sensor_entity_id(hass, entry) is None
-
-
-def test_get_horizon_sensor_entity_id_found(hass: HomeAssistant) -> None:
-    """get_horizon_sensor_entity_id returns entity_id when horizon sensor exists."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data=_hub_entry_data(),
-        entry_id="hub_entry",
-    )
-    entry.add_to_hass(hass)
-
-    unique_id = f"{entry.entry_id}_{OUTPUT_NAME_HORIZON}"
-    er.async_get(hass).async_get_or_create(
-        domain="sensor",
-        platform=DOMAIN,
-        unique_id=unique_id,
-        config_entry=entry,
-    )
-
-    result = get_horizon_sensor_entity_id(hass, entry)
-    assert result is not None
-    assert OUTPUT_NAME_HORIZON in result
-
-
-def test_get_horizon_sensor_entity_id_not_found(hass: HomeAssistant) -> None:
-    """get_horizon_sensor_entity_id returns None when no horizon sensor exists."""
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data=_hub_entry_data(),
-        entry_id="hub_entry",
-    )
-    entry.add_to_hass(hass)
-
-    assert get_horizon_sensor_entity_id(hass, entry) is None
 
 
 def _calendar_hub(hass: HomeAssistant) -> MockConfigEntry:

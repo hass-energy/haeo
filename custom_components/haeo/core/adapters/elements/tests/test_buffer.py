@@ -240,29 +240,6 @@ def test_headroom_makes_room_for_forecast_solar(curtailment: bool) -> None:
     np.testing.assert_allclose(_values(outputs[BUFFER_STATE_OF_CHARGE]), 1.0 - required / 10.0)
 
 
-@pytest.mark.parametrize(
-    ("kind", "level", "expected_level"),
-    [
-        pytest.param("reserve", 0.2, np.full(N_PERIODS + 1, 0.2), id="reserve_with_level"),
-        pytest.param("headroom", None, None, id="headroom_without_level"),
-    ],
-)
-def test_model_elements_pass_participants_by_name(
-    kind: BufferKind, level: float | None, expected_level: NDArray[np.float64] | None
-) -> None:
-    """The buffer names its loads, generation, and storage, and passes its level on."""
-    config = _buffer(loads=["house"], generation=["solar"], storage=["battery"], kind=kind, level=level)
-
-    (element,) = buffer_adapter.model_elements(config)
-
-    assert element["element_type"] == "buffer"
-    assert element["kind"] == kind
-    assert element["loads"] == ["house"]
-    assert element["generation"] == ["solar"]
-    assert element["storage"] == ["battery"]
-    np.testing.assert_equal(element["level"], expected_level)
-
-
 def _connection(name: str, source: str, target: str, *, efficiency: float = 1.0) -> ConnectionConfigData:
     return ConnectionConfigData(
         element_type=ElementType.CONNECTION,
