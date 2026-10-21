@@ -19,7 +19,6 @@ from custom_components.haeo.core.model.elements import (
     ModelElementConfig,
 )
 from custom_components.haeo.core.model.elements.connection import ConnectionElementConfig
-from custom_components.haeo.core.model.elements.segments import is_efficiency_spec
 from custom_components.haeo.core.schema import as_connection_target
 from custom_components.haeo.core.schema.elements import battery
 
@@ -120,7 +119,7 @@ def test_model_elements_omits_efficiency_when_missing() -> None:
     assert segments is not None
     efficiency_segment = segments.get("efficiency")
     assert efficiency_segment is not None
-    assert is_efficiency_spec(efficiency_segment)
+    assert efficiency_segment["segment_type"] == "efficiency"
     assert efficiency_segment.get("efficiency") is None
 
 
@@ -171,7 +170,7 @@ def test_model_elements_passes_efficiency_when_present() -> None:
     assert segments is not None
     efficiency_segment = segments.get("efficiency")
     assert efficiency_segment is not None
-    assert is_efficiency_spec(efficiency_segment)
+    assert efficiency_segment["segment_type"] == "efficiency"
     efficiency_source_target = efficiency_segment.get("efficiency")
     assert efficiency_source_target is not None
     np.testing.assert_array_equal(efficiency_source_target, [0.95, 0.95])

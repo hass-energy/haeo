@@ -26,7 +26,7 @@ from .elements.buffer import Buffer, BufferElementConfig
 from .elements.connection import Connection, ConnectionElementConfig, ConnectionOutputName
 from .elements.deferrable_load import DeferrableLoad, DeferrableLoadElementConfig
 from .elements.node import Node, NodeElementConfig
-from .elements.policy_pricing import MeasuredFlows, PolicyPricing, PolicyPricingElementConfig
+from .elements.policy_pricing import PolicyPricing, PolicyPricingElementConfig
 from .infeasibility import InfeasibleError, Relaxation, RowLabel, conflicting_rows, listing, row_labels, solve_relaxed
 from .linear import LinearArray, total
 from .solver import Solver
@@ -217,14 +217,8 @@ class Network:
         """
         self.periods = np.asarray(new_periods, dtype=float)
 
-        # Propagate to all elements (triggers TrackedParam invalidation)
         for element in self.elements.values():
-            element.periods = self.periods
-
-            # For Connection elements, also update their segments
-            if isinstance(element, Connection):
-                for segment in element.segments.values():
-                    segment.periods = self.periods
+            element.update_periods(self.periods)
 
     @overload
     def add(self, element_config: BatteryElementConfig) -> Battery: ...
@@ -251,8 +245,8 @@ class Network:
         modify the element's TrackedParam attributes directly - this will
         automatically invalidate dependent constraints for the next optimization.
 
-        For PolicyPricingElementConfig, resolves connection/tag references to
-        LP power flow variables from already-added Connection elements.
+        Elements that refer to others by name, such as a buffer's batteries or a
+        policy price's connections, resolve them from the elements already added.
 
         Args:
             element_config: Typed model element configuration dictionary
@@ -262,20 +256,9 @@ class Network:
 
         """
         name = element_config["name"]
-
-        if element_config["element_type"] == "policy_pricing":
-            return self._add_policy_pricing(element_config)
-
-        if element_config["element_type"] == "buffer":
-            return self._add_buffer(element_config)
-
-        element_type = element_config["element_type"]
-        kwargs = {key: value for key, value in element_config.items() if key not in ("element_type", "name")}
-
-        # Create new element using registry
-        element_spec = ELEMENTS[element_type]
-        element_instance: Element[Any] = element_spec.factory(
-            name=name, periods=self.periods, solver=self._solver, **kwargs
+        spec = ELEMENTS[element_config["element_type"]]
+        element_instance: Element[Any] = spec.factory(
+            name=name, periods=self.periods, solver=self._solver, **spec.arguments(element_config, self.elements)
         )
         self.elements[name] = element_instance
 
@@ -299,129 +282,12 @@ class Network:
 
         return element_instance
 
-    def _device_elements(self, buffer_name: str, device: str) -> list[NetworkElement[Any]]:
-        """Return the network elements of a device a buffer names, raising when there are none.
-
-        A device's elements are the one named after it and those named with
-        its name as a prefix, such as an EV's ``EV:trip`` load.
-        """
-        elements = [
-            element
-            for name, element in self.elements.items()
-            if (name == device or name.startswith(f"{device}:")) and isinstance(element, NetworkElement)
-        ]
-        if not elements:
-            msg = f"Buffer '{buffer_name}' references unknown element '{device}'"
-            raise TypeError(msg)
-        return elements
-
-    def _buffer_role(
-        self, buffer_name: str, devices: list[str], *, source: bool, sink: bool
-    ) -> list[NetworkElement[Any]]:
-        """Return the elements of the named devices that only produce or only consume power.
-
-        A device takes part through whichever of its elements fit the role, so
-        an EV counts its trips as a load while its pack can hold the buffer.
-        """
-        return [
-            element
-            for device in devices
-            for element in self._device_elements(buffer_name, device)
-            if element.is_source == source and element.is_sink == sink
-        ]
-
-    def _add_policy_pricing(self, config: PolicyPricingElementConfig) -> PolicyPricing:
-        """Create a PolicyPricing element by resolving connection/tag references."""
-        name = config["name"]
-        priced_flows: list[tuple[MeasuredFlows, int]] = []
-        for term in config["terms"]:
-            conn_name = term["connection"]
-            tag = term["tag"]
-            conn_element = self.elements.get(conn_name)
-            if not isinstance(conn_element, Connection):
-                msg = f"PolicyPricing '{name}' references unknown connection '{conn_name}'"
-                raise TypeError(msg)
-            if tag not in conn_element.measured_power:
-                msg = f"PolicyPricing '{name}' references tag {tag} not on connection '{conn_name}'"
-                raise ValueError(msg)
-            priced_flows.append((conn_element, tag))
-
-        element = PolicyPricing(
-            name=name,
-            periods=self.periods,
-            solver=self._solver,
-            price=config["price"],
-            priced_flows=priced_flows,
-            terms=config["terms"],
-        )
-        element.label = config.get("label", "")
-        self.elements[name] = element
-        return element
-
-    def _add_buffer(self, config: BufferElementConfig) -> Buffer:
-        """Create a Buffer element by resolving its loads, generation, and storage by name.
-
-        The buffer reads what it needs from the elements and their connections,
-        so any element can take part in a buffer.
-        """
-        name = config["name"]
-        loads = self._buffer_role(name, config["loads"], source=False, sink=True)
-        generation = self._buffer_role(name, config["generation"], source=True, sink=False)
-        storage: list[Battery] = []
-        for device in config["storage"]:
-            batteries = [
-                element
-                for element_name, element in self.elements.items()
-                if (element_name == device or element_name.startswith(f"{device}:")) and isinstance(element, Battery)
-            ]
-            if not batteries:
-                msg = f"Buffer '{name}' references '{device}', which is not a battery"
-                raise TypeError(msg)
-            storage.extend(batteries)
-
-        element = Buffer(
-            name=name,
-            periods=self.periods,
-            solver=self._solver,
-            kind=config["kind"],
-            loads=loads,
-            generation=generation,
-            storage=storage,
-            window=config["window"],
-            level=config["level"],
-            price=config["price"],
-        )
-        self.elements[name] = element
-        return element
-
     def cost(self) -> tuple[LinearArray | None, LinearArray | None] | None:
-        """Aggregate (primary, secondary) costs from all elements.
-
-        Elements return either a single expression (primary only) or a
-        (primary, secondary) tuple. Single expressions are promoted to
-        the primary slot.
-        """
-        primaries: list[LinearArray] = []
-        secondaries: list[LinearArray] = []
-
-        for element in self.elements.values():
-            element_cost = element.cost()
-            if element_cost is None:
-                continue
-            if isinstance(element_cost, tuple):
-                pri, sec = element_cost
-                if pri is not None:
-                    primaries.append(pri)
-                if sec is not None:
-                    secondaries.append(sec)
-            else:
-                primaries.append(element_cost)
-
-        if not primaries and not secondaries:
+        """Aggregate the (primary, secondary) costs of all elements, or None when there are neither."""
+        primary = total(element.cost() for element in self.elements.values())
+        secondary = total(element.secondary_cost() for element in self.elements.values())
+        if primary is None and secondary is None:
             return None
-
-        primary = total(primaries)
-        secondary = total(secondaries)
         return (primary, secondary)
 
     def optimize(self) -> float:
@@ -579,15 +445,8 @@ class Network:
         moves = np.flatnonzero(
             (np.abs(cost) <= _REDUCED_COST_TOLERANCE) & (np.abs(secondary) > _REDUCED_COST_TOLERANCE)
         )
-        lp = h.getLp()
-        value, lower, upper = (
-            np.array([entries[i] for i in moves.tolist()], dtype=np.float64)
-            for entries in (
-                solution.col_value + solution.row_value,
-                lp.col_lower_ + lp.row_lower_,
-                lp.col_upper_ + lp.row_upper_,
-            )
-        )
+        value = np.concatenate([solution.col_value, solution.row_value])[moves]
+        lower, upper = _bounds(h, len(all_col_indices), moves)
         # A move lowers the secondary by raising a variable below its upper bound, or lowering one above its lower bound
         rises = (secondary[moves] < -_REDUCED_COST_TOLERANCE) & (value < upper - _BOUND_TOLERANCE)
         falls = (secondary[moves] > _REDUCED_COST_TOLERANCE) & (value > lower + _BOUND_TOLERANCE)
@@ -716,6 +575,22 @@ class BlendWeightSearch:
         if self.too_large > self.too_small * _WEIGHT_RESOLUTION:
             return math.sqrt(self.too_small * self.too_large)
         return None
+
+
+def _bounds(solver: Highs, n_cols: int, entries: NDArray[np.intp]) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Return the lower and upper bounds of sorted columns and rows, with rows numbered after the columns.
+
+    Only the entries asked for are read, rather than copying the whole LP.
+    """
+    cols = entries[entries < n_cols].astype(np.int32)
+    rows = (entries[entries >= n_cols] - n_cols).astype(np.int32)
+    # HiGHS returns one placeholder value when asked for none, so each result is cut to the count it reports
+    _, n_read_cols, _, col_lower, col_upper, _ = solver.getCols(len(cols), cols)
+    _, n_read_rows, row_lower, row_upper, _ = solver.getRows(len(rows), rows)
+    return (
+        np.concatenate([col_lower[:n_read_cols], row_lower[:n_read_rows]]),
+        np.concatenate([col_upper[:n_read_cols], row_upper[:n_read_rows]]),
+    )
 
 
 def _infeasible_for_cost(solver: Highs, all_col_indices: NDArray[np.int32], cost: Objective) -> bool:

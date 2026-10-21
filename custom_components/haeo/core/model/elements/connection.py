@@ -29,7 +29,7 @@ from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.linear import LinearArray, total
 from custom_components.haeo.core.model.output_data import OutputData
-from custom_components.haeo.core.model.reactive import output
+from custom_components.haeo.core.model.reactive import cost, output
 from custom_components.haeo.core.model.solver import Solver
 from custom_components.haeo.core.model.util.solver_rows import RowIndices
 
@@ -194,6 +194,12 @@ class Connection[TOutputName: str](Element[TOutputName]):
         """
         return (self.is_external, not self.is_time_sensitive, self._source, self._target, self.name)
 
+    def update_periods(self, periods: NDArray[np.float64]) -> None:
+        """Set new period durations on the connection and each of its segments."""
+        super().update_periods(periods)
+        for segment in self._segments.values():
+            segment.periods = periods
+
     @property
     def source(self) -> str:
         """Return the name of the source element."""
@@ -320,25 +326,23 @@ class Connection[TOutputName: str](Element[TOutputName]):
         result.update(own_constraints)
         return result
 
-    def cost(self) -> tuple[LinearArray | None, LinearArray]:  # type: ignore[override]
-        """Return (primary_cost, secondary_cost) for this connection.
+    @cost
+    def segment_costs(self) -> LinearArray | None:
+        """Return the costs of the connection's segments."""
+        return total([segment.cost() for segment in self._segments.values()])
 
-        Primary: segment costs.
-        Secondary: time-preference objective for deterministic ordering.
+    def secondary_cost(self) -> LinearArray:
+        """Return the time-preference objective, which prefers earlier energy transfer.
+
+        It is offset so that equally cheap plans never tie.
         """
-        primary = total([seg.cost() for seg in self._segments.values()])
-
-        # Time-preference objective: prefer earlier energy transfer, offset so that
-        # equally cheap plans never tie
         n = self.n_periods
         weights = (
             self.priority * n
             + np.arange(1, n + 1, dtype=np.float64)
             + TIE_BREAK_SCALE * tie_break_offset(self.priority, n)
         )
-        secondary = (self.total_measured_power * self.periods * weights).total()
-
-        return (primary, secondary)
+        return (self.total_measured_power * self.periods * weights).total()
 
     # --- Output methods ---
 

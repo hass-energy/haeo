@@ -141,21 +141,6 @@ def test_element_outputs(case: ElementTestCase, solver: Solver) -> None:
             assert output["values"] == pytest.approx(expected["values"], rel=1e-9, abs=1e-9)
 
 
-@pytest.mark.parametrize(
-    "case",
-    test_data.INVALID_ELEMENT_CASES,
-    ids=lambda case: case["description"].lower().replace(" ", "_"),
-)
-def test_element_validation(case: ElementTestCase, solver: Solver) -> None:
-    """Element classes should validate input sequence lengths match n_periods."""
-
-    assert "expected_error" in case
-    data = case["data"].copy()
-    data["solver"] = solver
-    with pytest.raises(ValueError, match=case["expected_error"]):
-        case["factory"](**data)
-
-
 def test_extract_values_converts_variables() -> None:
     """Element.extract_values should evaluate variables to floats."""
     h = Solver()

@@ -31,4 +31,3 @@ class ElementTestCase(TypedDict):
     data: dict[str, Any]
     inputs: NotRequired[ElementTestCaseInputs]
     expected_outputs: NotRequired[dict[str, ExpectedOutput]]
-    expected_error: NotRequired[str]

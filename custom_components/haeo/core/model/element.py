@@ -6,19 +6,11 @@ from typing import Final, Literal, Protocol
 import numpy as np
 from numpy.typing import NDArray
 
+from .component import ModelComponent
 from .const import OutputType
-from .linear import LinearArray, Rows, total
+from .linear import LinearArray, Rows
 from .output_data import OutputData
-from .reactive import (
-    OutputMethod,
-    ReactiveConstraint,
-    ReactiveCost,
-    TrackedParam,
-    applied_constraint,
-    constraint,
-    cost,
-    output,
-)
+from .reactive import TrackedParam, applied_constraint, constraint, output
 from .solver import Solver
 from .util.solver_rows import RowIndices
 
@@ -46,7 +38,7 @@ class _ConnectionLike(Protocol):
     def power_into_target_for_tag(self, tag: int) -> LinearArray: ...
 
 
-class Element[OutputNameT: str]:
+class Element[OutputNameT: str](ModelComponent):
     """Base class for electrical entities in energy system modeling.
 
     All values use kW-based units:
@@ -84,38 +76,21 @@ class Element[OutputNameT: str]:
         self._solver = solver
         self._output_names = output_names
 
-    def __getitem__(self, key: str | int) -> object:
-        """Get a value by name or index.
+    def __getitem__(self, key: str) -> object:
+        """Get a value by name.
 
         Args:
-            key: Name of the TrackedParam
+            key: Name of the TrackedParam or attribute
 
         Returns:
             The current value of the parameter
 
         Raises:
-            KeyError: If no TrackedParam with this name exists
+            KeyError: If the element has no value with this name
+            AttributeError: If the TrackedParam has not been set
 
         """
-        segments = getattr(self, "segments", None)
-        if isinstance(key, int):
-            if isinstance(segments, Mapping):
-                try:
-                    return list(segments.values())[key]
-                except IndexError as exc:
-                    msg = f"{type(self).__name__!r} has no segment at index {key}"
-                    raise KeyError(msg) from exc
-            msg = f"{type(self).__name__!r} does not support indexed access"
-            raise KeyError(msg)
-
-        if isinstance(segments, Mapping) and key in segments:
-            return segments[key]
-
-        # Look up the descriptor on the class
-        descriptor = getattr(type(self), key, None)
-        if isinstance(descriptor, TrackedParam):
-            return getattr(self, key)
-        if hasattr(self, key):
+        if isinstance(getattr(type(self), key, None), TrackedParam) or hasattr(self, key):
             return getattr(self, key)
         msg = f"{type(self).__name__!r} has no attribute {key!r}"
         raise KeyError(msg)
@@ -149,6 +124,10 @@ class Element[OutputNameT: str]:
         """Return the number of optimization periods."""
         return len(self.periods)
 
+    def update_periods(self, periods: NDArray[np.float64]) -> None:
+        """Set new period durations, invalidating everything that reads them."""
+        self.periods = periods
+
     def extract_values(self, expr: LinearArray | None) -> tuple[float, ...]:
         """Evaluate each row of the expression in the current solution."""
         if expr is None:
@@ -156,73 +135,23 @@ class Element[OutputNameT: str]:
         return tuple(expr.value(self._solver.column_values()).tolist())
 
     def outputs(self) -> Mapping[OutputNameT, OutputData]:
-        """Return output specifications for the element.
+        """Return the outputs the element reports, keyed by output name.
 
-        Discovers all @output and @constraint(output=True) decorated methods via
-        reflection and calls their get_output() method to retrieve OutputData.
-        The method name is used as the output name (dictionary key).
+        Each declared output in the element's output names is read, and those
+        that currently have a value are returned.
         """
         result: dict[OutputNameT, OutputData] = {}
-        for name in dir(type(self)):
-            attr = getattr(type(self), name, None)
-            # Resolve output name for OutputMethod (supports custom names).
-            if isinstance(attr, OutputMethod):
-                output_name = attr.output_name
-            elif isinstance(attr, ReactiveConstraint):
-                output_name = name
-            else:
-                continue
-
-            if output_name in self._output_names and (output_data := attr.get_output(self)) is not None:
+        for output_name, method in self.declared_outputs():
+            if output_name in self._output_names and (output_data := method.get_output(self)) is not None:
                 result[output_name] = output_data  # type: ignore[assignment]  # name validated by `in` check at runtime
         return result
 
-    def constraints(self) -> dict[str, RowIndices]:
-        """Return all constraints from this element.
+    def secondary_cost(self) -> LinearArray | None:
+        """Return the element's time-preference objective, which breaks ties between equally cheap plans.
 
-        Discovers and calls all @constraint decorated methods. Calling the methods
-        triggers automatic constraint creation/updating in the solver via decorators.
-
-        Returns:
-            Dictionary mapping constraint method names to the solver rows they hold
-
+        Elements have none unless they move power between others, as connections do.
         """
-        result: dict[str, RowIndices] = {}
-        for name in dir(type(self)):
-            attr = getattr(type(self), name, None)
-            if isinstance(attr, ReactiveConstraint):
-                # Call the constraint method to trigger decorator lifecycle
-                method = getattr(self, name)
-                method()
-                if (cons := applied_constraint(self, name)) is not None:
-                    result[name] = cons
-        return result
-
-    @cost
-    def cost(self) -> LinearArray | None:
-        """Return aggregated primary cost expression from this element.
-
-        Discovers and calls all @cost decorated methods, summing their results
-        into a single expression. Cached by the @cost decorator — only
-        recomputes when underlying @cost method dependencies change.
-        """
-        # Access the decorator's internal name to skip self in the dir() loop.
-        # _name is set by ReactiveCost.__set_name__ and is not part of the public API.
-        this_method_name = type(self).cost._name  # type: ignore[attr-defined]  # noqa: SLF001 (_name is set by ReactiveCost.__set_name__, not part of public API)
-
-        costs: list[LinearArray] = []
-        for name in dir(type(self)):
-            if name == this_method_name:
-                continue
-            attr = getattr(type(self), name, None)
-            if not isinstance(attr, ReactiveCost):
-                continue
-
-            method = getattr(self, name)
-            if (cost_value := method()) is not None:
-                costs.append(cost_value)
-
-        return total(costs)
+        return None
 
 
 class NetworkElement[OutputNameT: str](Element[OutputNameT]):
