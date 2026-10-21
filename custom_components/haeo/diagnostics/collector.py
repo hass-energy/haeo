@@ -17,6 +17,7 @@ from homeassistant.util import dt as dt_util
 from custom_components.haeo import HaeoConfigEntry, HaeoRuntimeData
 from custom_components.haeo.calendar_loader import async_fetch_calendar_events
 from custom_components.haeo.const import ELEMENT_TYPE_NETWORK
+from custom_components.haeo.core.annotated_state import AnnotatedState
 from custom_components.haeo.core.const import CONF_ELEMENT_TYPE, CONF_NAME
 from custom_components.haeo.core.context import OptimizationContext
 from custom_components.haeo.core.data.loader.calendar import (
@@ -32,7 +33,6 @@ from custom_components.haeo.core.schema.elements import ElementConfigSchema
 from custom_components.haeo.core.schema.entity_value import is_entity_value
 from custom_components.haeo.diagnostics.recorder_history import get_significant_states_full
 from custom_components.haeo.elements import is_element_config_schema
-from custom_components.haeo.ha_state_machine import AnnotatedState
 from custom_components.haeo.meter_history import async_meter_totals_at
 from custom_components.haeo.sensor_utils import (
     SensorStateDict,

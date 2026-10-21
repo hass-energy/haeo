@@ -1,11 +1,10 @@
-"""Tests for the calendar input loader and event-injecting state machine."""
+"""Tests for the calendar input loader."""
 
 import asyncio
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 import logging
 from unittest.mock import Mock
-from zoneinfo import ZoneInfo
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.components.calendar.const import DOMAIN as CALENDAR_DOMAIN
@@ -17,11 +16,10 @@ from homeassistant.util import dt as dt_util
 import numpy as np
 import pytest
 
-from conftest import FakeEntityState, FakeStateMachine
-from custom_components.haeo.calendar_loader import CalendarInputLoader, CalendarStateMachine
+from custom_components.haeo.calendar_loader import CalendarInputLoader
 from custom_components.haeo.const import DOMAIN
 from custom_components.haeo.core.data.input_store import InputStore, create_input_store
-from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE, CalendarEventDict
+from custom_components.haeo.core.data.loader.calendar import CALENDAR_EVENTS_ATTRIBUTE
 from custom_components.haeo.core.data.loader.meter import METER_TOTALS_ATTRIBUTE
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.schema.field_hints import FieldHint, MeterFieldHint, calendar_input
@@ -138,62 +136,6 @@ async def _add_stub_calendar(hass: HomeAssistant, events: list[CalendarEvent]) -
     calendar = _StubCalendar(events)
     await _add_stub_calendars(hass, calendar)
     return calendar
-
-
-# --- CalendarStateMachine ---
-
-
-def test_state_machine_injects_events_for_known_calendars() -> None:
-    """Known calendar entities get events merged into their attributes."""
-    base = FakeStateMachine({ENTITY_ID: FakeEntityState(ENTITY_ID, "on", {"existing": 1})})
-    events = [
-        CalendarEventDict(
-            start="2026-01-01T00:00:00+00:00",
-            end="2026-01-01T01:00:00+00:00",
-            summary="Trip",
-            location=None,
-            description=None,
-        )
-    ]
-    sm = CalendarStateMachine(base, {ENTITY_ID: events})
-
-    state = sm.get(ENTITY_ID)
-
-    assert state is not None
-    assert state.entity_id == ENTITY_ID
-    assert state.state == "on"
-    assert state.attributes["existing"] == 1
-    assert state.attributes[CALENDAR_EVENTS_ATTRIBUTE] == events
-    serialized_attributes = state.as_dict()["attributes"]
-    assert isinstance(serialized_attributes, Mapping)
-    assert serialized_attributes[CALENDAR_EVENTS_ATTRIBUTE] == events
-
-
-def test_state_machine_passes_through_other_entities() -> None:
-    """Entities without event lists are returned unmodified."""
-    base = FakeStateMachine({"sensor.x": FakeEntityState("sensor.x", "1.0", {})})
-    sm = CalendarStateMachine(base, {})
-
-    state = sm.get("sensor.x")
-
-    assert state is not None
-    assert CALENDAR_EVENTS_ATTRIBUTE not in state.attributes
-    assert sm.get("sensor.missing") is None
-
-
-def test_state_machine_reads_a_calendar_without_events_as_missing() -> None:
-    """A calendar whose events were not fetched reads as missing, not as its plain state."""
-    base = FakeStateMachine({ENTITY_ID: FakeEntityState(ENTITY_ID, "off", {})})
-    sm = CalendarStateMachine(base, {ENTITY_ID: None})
-
-    assert sm.get(ENTITY_ID) is None
-
-
-def test_state_machine_reads_in_the_base_time_zone() -> None:
-    """The decorated state machine reads naive times in its base's time zone."""
-    adelaide = ZoneInfo("Australia/Adelaide")
-
-    assert CalendarStateMachine(FakeStateMachine({}, time_zone=adelaide), {}).time_zone is adelaide
 
 
 # --- CalendarInputLoader ---

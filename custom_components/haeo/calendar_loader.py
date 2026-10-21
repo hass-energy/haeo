@@ -11,8 +11,8 @@ attribute — the exact format captured for diagnostics replay.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Coroutine, Mapping
-from datetime import UTC, date, datetime, tzinfo
+from collections.abc import Callable, Coroutine
+from datetime import UTC, date, datetime
 import logging
 from typing import TYPE_CHECKING, Final
 
@@ -23,8 +23,8 @@ from homeassistant.helpers.entity_component import EntityComponent
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
+from custom_components.haeo.core.annotated_state import AnnotatedStateMachine, CalendarStateMachine, is_calendar_entity
 from custom_components.haeo.core.data.loader.calendar import (
-    CALENDAR_EVENTS_ATTRIBUTE,
     CalendarEventData,
     EventValueText,
     capture_calendar_events,
@@ -33,8 +33,8 @@ from custom_components.haeo.core.data.loader.calendar import (
     rejected_events,
 )
 from custom_components.haeo.core.data.util.field_units import field_unit_label
-from custom_components.haeo.core.state import EntityState, StateMachine
-from custom_components.haeo.ha_state_machine import AnnotatedState, AnnotatedStateMachine, HomeAssistantStateMachine
+from custom_components.haeo.core.state import StateMachine
+from custom_components.haeo.ha_state_machine import HomeAssistantStateMachine
 from custom_components.haeo.meter_history import MeterHistory
 from custom_components.haeo.repairs import create_calendar_event_values_issue, dismiss_calendar_event_values_issue
 
@@ -50,44 +50,9 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-def is_calendar_entity(entity_id: str) -> bool:
-    """Return True when an entity is a calendar."""
-    return entity_id.startswith(f"{CALENDAR_DOMAIN}.")
-
-
 def is_calendar_driven(store: InputStore) -> bool:
     """Return True when any of a store's sources is a calendar, so the calendar loader loads it."""
     return any(is_calendar_entity(entity_id) for entity_id in store.source_entity_ids)
-
-
-class CalendarStateMachine(StateMachine):
-    """State machine decorator that augments calendar entities with events.
-
-    A calendar without fetched events, because its fetch failed or has not
-    run yet, reads as unavailable rather than as an empty calendar, unless its
-    state already carries events, as a replayed diagnostics or scenario state
-    does. Its plain state would otherwise read as a number.
-    """
-
-    def __init__(self, base: StateMachine, events_by_entity: Mapping[str, list[CalendarEventDict] | None]) -> None:
-        """Initialize with a base state machine and per-entity event lists."""
-        self._base = base
-        self._events_by_entity = events_by_entity
-
-    @property
-    def time_zone(self) -> tzinfo:
-        """Return the base state machine's time zone."""
-        return self._base.time_zone
-
-    def get(self, entity_id: str) -> EntityState | None:
-        """Return the entity state, with events merged for known calendars."""
-        state = self._base.get(entity_id)
-        if state is None or not is_calendar_entity(entity_id):
-            return state
-        events = self._events_by_entity.get(entity_id)
-        if events is None:
-            return state if CALENDAR_EVENTS_ATTRIBUTE in state.attributes else None
-        return AnnotatedState(state, {CALENDAR_EVENTS_ATTRIBUTE: events})
 
 
 def _as_datetime(value: datetime | date) -> datetime:
@@ -381,8 +346,6 @@ async def async_fetch_calendar_events(
 
 __all__ = [
     "CalendarInputLoader",
-    "CalendarStateMachine",
     "async_fetch_calendar_events",
     "is_calendar_driven",
-    "is_calendar_entity",
 ]
