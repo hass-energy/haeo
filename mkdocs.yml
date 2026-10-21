@@ -185,8 +185,10 @@ nav:
           - Elements:
               - modeling/model-layer/elements/index.md
               - Battery: modeling/model-layer/elements/battery.md
+              - Buffer: modeling/model-layer/elements/buffer.md
               - Deferrable load: modeling/model-layer/elements/deferrable_load.md
               - Node: modeling/model-layer/elements/node.md
+              - Policy pricing: modeling/model-layer/elements/policy_pricing.md
           - Connections:
               - modeling/model-layer/connections/index.md
               - Connection: modeling/model-layer/connections/connection.md

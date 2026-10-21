@@ -13,7 +13,7 @@ See individual element pages for composition details.
 
 Device Layer elements use an adapter pattern to transform user configuration into Model Layer elements:
 
-**Configuration → Model** (`create_model_elements`): Transforms user configuration into Model Layer element specifications.
+**Configuration → Model** (`model_elements`): Transforms user configuration into Model Layer element specifications.
 Called during network construction before optimization.
 
 **Model → Devices** (`outputs`): Transforms optimization results into device-specific outputs with user-friendly names.
@@ -102,12 +102,36 @@ This prevents naming collisions and groups related components visually in Home A
 
     [:material-arrow-right: Buffer modeling](buffer.md)
 
-- :material-battery-charging:{ .lg .middle } **Battery Section**
+- :material-battery-charging:{ .lg .middle } **Battery section**
 
     ---
 
     Direct access to model layer Battery element.
 
-    [:material-arrow-right: Battery Section modeling](battery_section.md)
+    [:material-arrow-right: Battery section modeling](battery_section.md)
+
+- :material-source-branch:{ .lg .middle } **Junction**
+
+    ---
+
+    Electrical bus where connected power must balance.
+
+    [:material-arrow-right: Junction modeling](junction.md)
+
+- :material-circle-outline:{ .lg .middle } **Node**
+
+    ---
+
+    Point that can produce or consume unlimited power.
+
+    [:material-arrow-right: Node modeling](node.md)
+
+- :material-connection:{ .lg .middle } **Connection**
+
+    ---
+
+    Explicit one-way power flow path between two elements.
+
+    [:material-arrow-right: Connection modeling](connection.md)
 
 </div>
