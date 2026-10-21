@@ -382,6 +382,3 @@ VALID_CASES: list[ElementTestCase] = [
         },
     },
 ]
-
-INVALID_CASES: list[ElementTestCase] = []
-INVALID_MODEL_PARAMS: list[ElementTestCase] = []

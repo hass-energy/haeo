@@ -1,6 +1,7 @@
 """HiGHS solver with array-native variables and cached solution arrays."""
 
 from bisect import bisect_right
+from typing import override
 
 from highspy import Highs, HighsStatus
 import numpy as np
@@ -65,11 +66,39 @@ class Solver(Highs):
         """Print an expression or rows with each column shown by name."""
         return item.format(self.column_name)
 
-    def run(self) -> HighsStatus:
-        """Solve the model, discarding the cached solution of the previous solve."""
+    def _discard_solution(self) -> None:
+        """Forget the cached solution, so the next read takes the one HiGHS now holds."""
         self._column_values = None
         self._row_duals = None
+
+    def run(self) -> HighsStatus:
+        """Solve the model, discarding the cached solution of the previous solve."""
+        self._discard_solution()
         return super().run()
+
+    @override
+    def feasibilityRelaxation(
+        self,
+        global_lower_penalty: float,
+        global_upper_penalty: float,
+        global_rhs_penalty: float,
+        local_lower_penalty: NDArray[np.float64] | None = None,
+        local_upper_penalty: NDArray[np.float64] | None = None,
+        local_rhs_penalty: NDArray[np.float64] | None = None,
+    ) -> HighsStatus:
+        """Find the smallest weighted violation that makes the model feasible, discarding the cached solution.
+
+        The relaxation replaces HiGHS's solution with its own, so the previous solve's is no longer current.
+        """
+        self._discard_solution()
+        return super().feasibilityRelaxation(
+            global_lower_penalty,
+            global_upper_penalty,
+            global_rhs_penalty,
+            local_lower_penalty,
+            local_upper_penalty,
+            local_rhs_penalty,
+        )
 
     def column_values(self) -> NDArray[np.float64]:
         """Return the value of every column in the current solution."""

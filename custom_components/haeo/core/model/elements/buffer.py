@@ -28,6 +28,7 @@ The requirement and the shortfall are measured as energy stored in the
 batteries, so a shortfall costs the same per kWh as the batteries hold.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final, Literal, TypedDict
 
@@ -133,6 +134,52 @@ def window_peaks(values: NDArray[np.float64], layout: WindowLayout) -> NDArray[n
     return np.where(layout.fraction > 0.0, np.maximum(peaks, end), peaks)
 
 
+def _device_elements(elements: Mapping[str, object], device: str) -> list[object]:
+    """Return a device's elements: the one named after it and those named with its name as a prefix.
+
+    A device that expands into several elements names them after itself, such as an EV's ``EV:trip`` load.
+    """
+    return [element for name, element in elements.items() if name == device or name.startswith(f"{device}:")]
+
+
+def buffer_arguments(config: BufferElementConfig, elements: Mapping[str, object]) -> dict[str, object]:
+    """Return a buffer's constructor arguments, with its loads, generation, and storage resolved by name.
+
+    A device takes part through whichever of its elements fit the role, so an
+    EV counts its trips as a load while its pack can hold the buffer. Any
+    network element can be a load or generation, and only batteries hold it.
+    """
+    name = config["name"]
+
+    def role(devices: list[str], *, source: bool, sink: bool) -> list[NetworkElement[str]]:
+        found: list[NetworkElement[str]] = []
+        for device in devices:
+            members = [element for element in _device_elements(elements, device) if isinstance(element, NetworkElement)]
+            if not members:
+                msg = f"Buffer '{name}' references unknown element '{device}'"
+                raise TypeError(msg)
+            found.extend(member for member in members if member.is_source == source and member.is_sink == sink)
+        return found
+
+    storage: list[Battery] = []
+    for device in config["storage"]:
+        batteries = [element for element in _device_elements(elements, device) if isinstance(element, Battery)]
+        if not batteries:
+            msg = f"Buffer '{name}' references '{device}', which is not a battery"
+            raise TypeError(msg)
+        storage.extend(batteries)
+
+    return {
+        "kind": config["kind"],
+        "loads": role(config["loads"], source=False, sink=True),
+        "generation": role(config["generation"], source=True, sink=False),
+        "storage": storage,
+        "window": config["window"],
+        "level": config["level"],
+        "price": config["price"],
+    }
+
+
 class Buffer(Element[BufferOutputName]):
     """Energy or empty space a group of batteries keeps for a group of elements over a window."""
 
@@ -232,19 +279,26 @@ class Buffer(Element[BufferOutputName]):
         efficiency = self._efficiency(battery)
         return efficiency if self.kind == "reserve" else 1.0 / efficiency
 
+    def _capacity(self) -> NDArray[np.float64]:
+        """Return the batteries' combined capacity at each boundary."""
+        return sum((battery.capacity for battery in self._storage), np.zeros(self.n_periods + 1))
+
     def _scale(self) -> NDArray[np.float64]:
         """Return the capacity-weighted network-side worth of a stored kWh, at each boundary.
 
         It converts between the network-side energy the elements need and the
         energy stored in the batteries, exactly for one battery and for
-        batteries with the same efficiency.
+        batteries with the same efficiency. Where the batteries have no
+        capacity, each counts equally, so the shortfall is still priced as
+        stored energy.
         """
-        capacity = sum((battery.capacity for battery in self._storage), np.zeros(self.n_periods + 1))
+        empty = self._capacity() <= 0.0
+        weights = [np.where(empty, 1.0, battery.capacity) for battery in self._storage]
         weighted = sum(
-            (self._network_factor(battery) * battery.capacity for battery in self._storage),
+            (self._network_factor(battery) * weight for battery, weight in zip(self._storage, weights, strict=True)),
             np.zeros(self.n_periods + 1),
         )
-        return weighted / capacity
+        return weighted / sum(weights, np.zeros(self.n_periods + 1))
 
     def _available(self) -> LinearArray:
         """Return the network-side energy the storage can provide past its bases, at each boundary."""
@@ -382,11 +436,12 @@ class Buffer(Element[BufferOutputName]):
     @output
     def buffer_state_of_charge(self) -> OutputData:
         """Output: the combined state of charge the batteries should stay above, or below for headroom."""
-        capacity = sum((battery.capacity for battery in self._storage), np.zeros(self.n_periods + 1))
+        capacity = self._capacity()
         base = sum((self._base(battery) for battery in self._storage), np.zeros(self.n_periods + 1))
         required = self._required_values()
         line = base + required if self.kind == "reserve" else base - required
-        ratio = np.clip(line / capacity, 0.0, 1.0)
+        # Batteries with no capacity hold nothing, so their line sits at empty
+        ratio = np.clip(np.divide(line, capacity, out=np.zeros_like(line), where=capacity > 0.0), 0.0, 1.0)
         return OutputData(
             type=OutputType.STATE_OF_CHARGE,
             unit="%",
@@ -408,6 +463,7 @@ __all__ = [
     "BufferKind",
     "BufferOutputName",
     "WindowLayout",
+    "buffer_arguments",
     "window_layout",
     "window_peaks",
 ]

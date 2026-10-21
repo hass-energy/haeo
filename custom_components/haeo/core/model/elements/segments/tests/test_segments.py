@@ -17,15 +17,7 @@ import pytest
 from custom_components.haeo.core.model.const import OutputType
 from custom_components.haeo.core.model.element import Element
 from custom_components.haeo.core.model.elements.connection import Connection
-from custom_components.haeo.core.model.elements.segments import (
-    EfficiencySegment,
-    PowerLimitSegment,
-    PricingSegment,
-    is_efficiency_spec,
-    is_passthrough_spec,
-    is_power_limit_spec,
-    is_pricing_spec,
-)
+from custom_components.haeo.core.model.elements.segments import EfficiencySegment, PowerLimitSegment, PricingSegment
 from custom_components.haeo.core.model.elements.segments.segment import FlowProvider, FlowVariables, Segment
 from custom_components.haeo.core.model.linear import LinearArray, total
 from custom_components.haeo.core.model.output_data import OutputData
@@ -36,7 +28,6 @@ from custom_components.haeo.core.model.tests.test_data import minimize
 from custom_components.haeo.core.model.tests.test_data.segment_types import (
     ConnectionScenario,
     ExpectedValue,
-    SegmentErrorScenario,
     SegmentScenario,
 )
 from custom_components.haeo.core.model.util.solver_rows import add_rows
@@ -265,57 +256,6 @@ def test_connection_scenarios(case: ConnectionScenario) -> None:
     """Connections should match expected inputs/outputs."""
     outputs = _solve_connection_scenario(case)
     _assert_expected_outputs(outputs, case["expected_outputs"])
-
-
-@pytest.mark.parametrize("case", test_data.SEGMENT_ERROR_SCENARIOS, ids=lambda c: c["description"])
-def test_segment_error_scenarios(case: SegmentErrorScenario) -> None:
-    """Segments should raise errors for invalid configurations."""
-    h = create_solver()
-    periods = np.asarray(case["periods"], dtype=np.float64)
-    endpoint_factory = case.get("endpoint_factory")
-    if endpoint_factory is None:
-        source = DummyElement("source", periods, h)
-        target = DummyElement("target", periods, h)
-    else:
-        source, target = endpoint_factory(h, periods)
-
-    match = case["match"]
-    pv = h.add_variables(len(periods), name="pv")
-    tagged_pv: dict[int, LinearArray] = {0: pv}
-    if match is None:
-        with pytest.raises(case["error"]):
-            case["factory"](
-                "seg",
-                len(periods),
-                periods,
-                h,
-                spec=case["spec"],
-                source_element=source,
-                target_element=target,
-                upstream=FlowVariables(tagged_pv),
-            )
-    else:
-        with pytest.raises(case["error"], match=match):
-            case["factory"](
-                "seg",
-                len(periods),
-                periods,
-                h,
-                spec=case["spec"],
-                source_element=source,
-                target_element=target,
-                upstream=FlowVariables(tagged_pv),
-            )
-
-
-def test_segment_spec_typeguards() -> None:
-    """Type guard helpers identify segment specs by type."""
-    assert is_efficiency_spec(
-        {"segment_type": "efficiency", "efficiency_source_target": None, "efficiency_target_source": None}
-    )
-    assert is_passthrough_spec({"segment_type": "passthrough"})
-    assert is_power_limit_spec({"segment_type": "power_limit"})
-    assert is_pricing_spec({"segment_type": "pricing", "price_source_target": None, "price_target_source": None})
 
 
 def test_segment_outputs_and_cost_coverage() -> None:

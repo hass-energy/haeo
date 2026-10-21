@@ -3,6 +3,7 @@
 This module re-exports all element classes for convenient imports.
 """
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Final, TypeGuard
 
@@ -22,6 +23,7 @@ from .buffer import Buffer as Buffer
 from .buffer import BufferElementConfig as BufferElementConfig
 from .buffer import BufferElementTypeName as BufferElementTypeName
 from .buffer import BufferOutputName as BufferOutputName
+from .buffer import buffer_arguments
 from .connection import CONNECTION_OUTPUT_NAMES as CONNECTION_OUTPUT_NAMES
 from .connection import CONNECTION_POWER as CONNECTION_POWER
 from .connection import ELEMENT_TYPE as MODEL_ELEMENT_TYPE_CONNECTION
@@ -48,6 +50,7 @@ from .policy_pricing import PolicyPricing as PolicyPricing
 from .policy_pricing import PolicyPricingElementConfig as PolicyPricingElementConfig
 from .policy_pricing import PolicyPricingElementTypeName as PolicyPricingElementTypeName
 from .policy_pricing import PolicyPricingTerm as PolicyPricingTerm
+from .policy_pricing import policy_pricing_arguments
 from .segments import EfficiencySegment as EfficiencySegment
 from .segments import PassthroughSegment as PassthroughSegment
 from .segments import PowerLimitSegment as PowerLimitSegment
@@ -84,46 +87,56 @@ type NetworkElementConfig = BatteryElementConfig | NodeElementConfig | Deferrabl
 type SourceElementConfig = BatteryElementConfig | NodeElementConfig
 
 
+def config_arguments(config: Mapping[str, object], _elements: Mapping[str, object]) -> dict[str, object]:
+    """Return a config's fields other than its type and name, as an element's constructor arguments."""
+    return {key: value for key, value in config.items() if key not in ("element_type", "name")}
+
+
 @dataclass(frozen=True, slots=True)
 class ElementSpec:
-    """Specification for a model element type."""
+    """Specification for a model element type.
+
+    Attributes:
+        factory: The element class.
+        output_names: The outputs the element reports.
+        add_order: When the element is added to a network. Elements that produce
+            or consume power come first, then the connections that join them,
+            then the elements that read their flows.
+        arguments: Builds the constructor arguments from a config and the
+            elements already in the network, resolving any it refers to by name.
+
+    """
 
     factory: type
     output_names: frozenset[str]
-
-
-# Element types that read other elements' power flows, so they are added after the connections
-FLOW_READER_ELEMENT_TYPES: Final[frozenset[str]] = frozenset(
-    (MODEL_ELEMENT_TYPE_BUFFER, MODEL_ELEMENT_TYPE_POLICY_PRICING)
-)
+    add_order: int
+    arguments: Callable[..., dict[str, object]] = config_arguments
 
 
 # Registry of all model element types.
 # Keys are element type strings used by Network.add().
 ELEMENTS: Final[dict[ModelElementType, ElementSpec]] = {
-    MODEL_ELEMENT_TYPE_BATTERY: ElementSpec(
-        factory=Battery,
-        output_names=BATTERY_OUTPUT_NAMES,
-    ),
+    MODEL_ELEMENT_TYPE_BATTERY: ElementSpec(factory=Battery, output_names=BATTERY_OUTPUT_NAMES, add_order=0),
     MODEL_ELEMENT_TYPE_DEFERRABLE_LOAD: ElementSpec(
-        factory=DeferrableLoad,
-        output_names=DEFERRABLE_LOAD_OUTPUT_NAMES,
+        factory=DeferrableLoad, output_names=DEFERRABLE_LOAD_OUTPUT_NAMES, add_order=0
     ),
-    MODEL_ELEMENT_TYPE_NODE: ElementSpec(
-        factory=Node,
-        output_names=NODE_OUTPUT_NAMES,
+    MODEL_ELEMENT_TYPE_NODE: ElementSpec(factory=Node, output_names=NODE_OUTPUT_NAMES, add_order=0),
+    MODEL_ELEMENT_TYPE_CONNECTION: ElementSpec(factory=Connection, output_names=CONNECTION_OUTPUT_NAMES, add_order=1),
+    MODEL_ELEMENT_TYPE_BUFFER: ElementSpec(
+        factory=Buffer, output_names=BUFFER_OUTPUT_NAMES, add_order=2, arguments=buffer_arguments
     ),
-    MODEL_ELEMENT_TYPE_CONNECTION: ElementSpec(
-        factory=Connection,
-        output_names=CONNECTION_OUTPUT_NAMES,
+    MODEL_ELEMENT_TYPE_POLICY_PRICING: ElementSpec(
+        factory=PolicyPricing,
+        output_names=POLICY_PRICING_OUTPUT_NAMES,
+        add_order=2,
+        arguments=policy_pricing_arguments,
     ),
 }
 
 
 def is_network_element_config(config: ModelElementConfig) -> TypeGuard[NetworkElementConfig]:
     """Return whether a config builds a network element, one that produces or consumes power itself."""
-    spec = ELEMENTS.get(config["element_type"])
-    return spec is not None and issubclass(spec.factory, NetworkElement)
+    return issubclass(ELEMENTS[config["element_type"]].factory, NetworkElement)
 
 
 def is_source_element_config(config: NetworkElementConfig) -> TypeGuard[SourceElementConfig]:
@@ -139,7 +152,6 @@ __all__ = [
     "CONNECTION_POWER",
     "DEFERRABLE_LOAD_OUTPUT_NAMES",
     "ELEMENTS",
-    "FLOW_READER_ELEMENT_TYPES",
     "MODEL_ELEMENT_TYPE_BATTERY",
     "MODEL_ELEMENT_TYPE_BUFFER",
     "MODEL_ELEMENT_TYPE_CONNECTION",
@@ -179,6 +191,7 @@ __all__ = [
     "SegmentSpec",
     "SegmentType",
     "SourceElementConfig",
+    "config_arguments",
     "is_network_element_config",
     "is_source_element_config",
 ]
